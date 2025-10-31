@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sorcha.dev/schemas/blueprint.json",
+  "title": "Sorcha Blueprint Schema",
+  "description": "JSON Schema for Sorcha Blueprint workflow definitions",
+  "type": "object",
+  "required": ["id", "title", "description", "participants", "actions"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "Unique identifier for the blueprint (typically a GUID)"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 200,
+      "description": "Human-readable title for the blueprint"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 2048,
+      "description": "Detailed description of the blueprint's purpose"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Version number of the blueprint"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the blueprint was created"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the blueprint was last updated"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Additional metadata key-value pairs"
+    },
+    "participants": {
+      "type": "array",
+      "minItems": 2,
+      "description": "List of participants in the workflow",
+      "items": {
+        "$ref": "#/$defs/participant"
+      }
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "description": "List of actions in the workflow",
+      "items": {
+        "$ref": "#/$defs/action"
+      }
+    }
+  },
+  "$defs": {
+    "participant": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Unique identifier for the participant"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Human-readable name for the participant"
+        },
+        "organisation": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Organization the participant belongs to"
+        },
+        "walletAddress": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Blockchain wallet address for the participant"
+        },
+        "didUri": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Decentralized Identifier (DID) URI"
+        },
+        "useStealthAddress": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to use stealth addressing for privacy"
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Sequential action identifier (0-based)"
+        },
+        "previousTxId": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Reference to previous transaction ID"
+        },
+        "blueprint": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Blueprint ID this action belongs to"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Title for this action step"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2048,
+          "description": "Detailed description of the action"
+        },
+        "sender": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Participant ID of the sender"
+        },
+        "participants": {
+          "type": "array",
+          "description": "Conditional routing rules for determining next participants",
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        },
+        "requiredActionData": {
+          "type": "array",
+          "description": "List of required action data IDs",
+          "items": {
+            "type": "string"
+          }
+        },
+        "additionalRecipients": {
+          "type": "array",
+          "description": "Additional recipients (CC) for this action",
+          "items": {
+            "type": "string"
+          }
+        },
+        "disclosures": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Data disclosure rules defining what each participant can see",
+          "items": {
+            "$ref": "#/$defs/disclosure"
+          }
+        },
+        "previousData": {
+          "type": "object",
+          "description": "JSON data received from previous action"
+        },
+        "dataSchemas": {
+          "type": "array",
+          "description": "JSON Schemas defining required data for this action",
+          "items": {
+            "type": "object",
+            "description": "A JSON Schema object"
+          }
+        },
+        "condition": {
+          "type": "object",
+          "description": "JSON Logic expression for routing logic"
+        },
+        "calculations": {
+          "type": "object",
+          "description": "User-defined calculations on submitted data using JSON Logic",
+          "additionalProperties": {
+            "type": "object",
+            "description": "JSON Logic expression"
+          }
+        },
+        "form": {
+          "$ref": "#/$defs/control",
+          "description": "UI form definition for data entry"
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "required": ["criteria"],
+      "properties": {
+        "principal": {
+          "type": "string",
+          "maxLength": 2048,
+          "description": "Participant ID for routing"
+        },
+        "criteria": {
+          "type": "array",
+          "minItems": 1,
+          "description": "JSON Logic expressions for conditional routing",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "disclosure": {
+      "type": "object",
+      "required": ["participantAddress", "dataPointers"],
+      "properties": {
+        "participantAddress": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Participant ID to disclose data to"
+        },
+        "dataPointers": {
+          "type": "array",
+          "minItems": 1,
+          "description": "JSON Pointers to fields that should be disclosed",
+          "items": {
+            "type": "string",
+            "pattern": "^(/|#/).*",
+            "description": "JSON Pointer (e.g., '/fieldName' or '/*' for all fields)"
+          }
+        }
+      }
+    },
+    "control": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "Layout",
+            "Label",
+            "TextLine",
+            "TextArea",
+            "Numeric",
+            "DateTime",
+            "File",
+            "Choice",
+            "Checkbox",
+            "Selection"
+          ],
+          "description": "Type of UI control"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Title/label for the control"
+        },
+        "scope": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "JSON Pointer binding to data field"
+        },
+        "layout": {
+          "type": "string",
+          "enum": ["VerticalLayout", "HorizontalLayout", "Group", "Categorization"],
+          "default": "VerticalLayout",
+          "description": "Layout type for container controls"
+        },
+        "elements": {
+          "type": "array",
+          "description": "Child controls (for container types)",
+          "items": {
+            "$ref": "#/$defs/control"
+          }
+        }
+      }
+    }
+  }
+}
