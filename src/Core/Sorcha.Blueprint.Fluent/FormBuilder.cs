@@ -12,6 +12,9 @@ public class FormBuilder
 {
     private readonly Control _rootControl;
 
+    /// <summary>
+    /// FormBuilder constructor creates a form builder with vertical layout
+    /// </summary>
     public FormBuilder()
     {
         _rootControl = new Control
@@ -60,6 +63,9 @@ public class ControlBuilder
 {
     private readonly Control _control;
 
+    /// <summary>
+    /// ControlBuilder constructor creates a control builder for UI elements
+    /// </summary>
     public ControlBuilder()
     {
         _control = new Control();
