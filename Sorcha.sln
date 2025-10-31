@@ -1,0 +1,50 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.0.0
+MinimumVisualStudioVersion = 17.8.0.0
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{9A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.AppHost", "src\Sorcha.AppHost\Sorcha.AppHost.csproj", "{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.ServiceDefaults", "src\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj", "{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.Blueprint.Engine", "src\Sorcha.Blueprint.Engine\Sorcha.Blueprint.Engine.csproj", "{0E381373-F7B7-4D1B-81C9-6E6349542F8E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.Blueprint.Designer", "src\Sorcha.Blueprint.Designer\Sorcha.Blueprint.Designer.csproj", "{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0E381373-F7B7-4D1B-81C9-6E6349542F8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E381373-F7B7-4D1B-81C9-6E6349542F8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0E381373-F7B7-4D1B-81C9-6E6349542F8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0E381373-F7B7-4D1B-81C9-6E6349542F8E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D} = {9A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
+		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE} = {9A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
+		{0E381373-F7B7-4D1B-81C9-6E6349542F8E} = {9A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
+		{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469} = {9A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AE3C1587-7A31-40B9-A187-8D1CA04067E0}
+	EndGlobalSection
+EndGlobal
