@@ -1,16 +1,29 @@
-﻿Microsoft Visual Studio Solution File, Format Version 12.00
+
+Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.0.0
 MinimumVisualStudioVersion = 17.8.0.0
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{9A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{C0000000-0000-0000-0000-000000000001}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.AppHost", "src\Sorcha.AppHost\Sorcha.AppHost.csproj", "{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{C0000000-0000-0000-0000-000000000002}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.ServiceDefaults", "src\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj", "{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Apps", "Apps", "{C0000000-0000-0000-0000-000000000003}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.Blueprint.Engine", "src\Sorcha.Blueprint.Engine\Sorcha.Blueprint.Engine.csproj", "{0E381373-F7B7-4D1B-81C9-6E6349542F8E}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Hosting", "Hosting", "{C0000000-0000-0000-0000-000000000004}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.Blueprint.Designer", "src\Sorcha.Blueprint.Designer\Sorcha.Blueprint.Designer.csproj", "{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "UI", "UI", "{C0000000-0000-0000-0000-000000000005}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.Blueprint.Models", "src\Common\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj", "{AC77D4CA-54C9-4E31-8403-B503D16A9DEE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.Blueprint.Fluent", "src\Core\Sorcha.Blueprint.Fluent\Sorcha.Blueprint.Fluent.csproj", "{956473ED-41B5-4218-9781-F16CA63EDDC4}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.Blueprint.Engine", "src\Core\Sorcha.Blueprint.Engine\Sorcha.Blueprint.Engine.csproj", "{0E381373-F7B7-4D1B-81C9-6E6349542F8E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.Blueprint.Designer", "src\Apps\UI\Sorcha.Blueprint.Designer\Sorcha.Blueprint.Designer.csproj", "{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.AppHost", "src\Apps\Hosting\Sorcha.AppHost\Sorcha.AppHost.csproj", "{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sorcha.ServiceDefaults", "src\Apps\Hosting\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj", "{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,14 +31,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AC77D4CA-54C9-4E31-8403-B503D16A9DEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC77D4CA-54C9-4E31-8403-B503D16A9DEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC77D4CA-54C9-4E31-8403-B503D16A9DEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC77D4CA-54C9-4E31-8403-B503D16A9DEE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{956473ED-41B5-4218-9781-F16CA63EDDC4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{956473ED-41B5-4218-9781-F16CA63EDDC4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{956473ED-41B5-4218-9781-F16CA63EDDC4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{956473ED-41B5-4218-9781-F16CA63EDDC4}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0E381373-F7B7-4D1B-81C9-6E6349542F8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0E381373-F7B7-4D1B-81C9-6E6349542F8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0E381373-F7B7-4D1B-81C9-6E6349542F8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -34,15 +47,27 @@ Global
 		{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D} = {9A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
-		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE} = {9A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
-		{0E381373-F7B7-4D1B-81C9-6E6349542F8E} = {9A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
-		{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469} = {9A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
+		{AC77D4CA-54C9-4E31-8403-B503D16A9DEE} = {C0000000-0000-0000-0000-000000000001}
+		{956473ED-41B5-4218-9781-F16CA63EDDC4} = {C0000000-0000-0000-0000-000000000002}
+		{0E381373-F7B7-4D1B-81C9-6E6349542F8E} = {C0000000-0000-0000-0000-000000000002}
+		{2FB56EA4-6F99-4EDB-85A4-C8E70AC25469} = {C0000000-0000-0000-0000-000000000005}
+		{3BCC8AE7-18DF-4DEB-BB41-064F46BD276D} = {C0000000-0000-0000-0000-000000000004}
+		{FFB23D86-1A4D-46E8-8C91-E8B9A65F5FAE} = {C0000000-0000-0000-0000-000000000004}
+		{C0000000-0000-0000-0000-000000000004} = {C0000000-0000-0000-0000-000000000003}
+		{C0000000-0000-0000-0000-000000000005} = {C0000000-0000-0000-0000-000000000003}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AE3C1587-7A31-40B9-A187-8D1CA04067E0}

@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\Hosting\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

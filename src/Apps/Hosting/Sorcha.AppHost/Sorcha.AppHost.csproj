@@ -11,8 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sorcha.Blueprint.Engine\Sorcha.Blueprint.Engine.csproj" />
-    <ProjectReference Include="..\Sorcha.Blueprint.Designer\Sorcha.Blueprint.Designer.csproj" />
+    <ProjectReference Include="..\..\..\Core\Sorcha.Blueprint.Engine\Sorcha.Blueprint.Engine.csproj" />
+    <ProjectReference Include="..\..\UI\Sorcha.Blueprint.Designer\Sorcha.Blueprint.Designer.csproj" />
   </ItemGroup>
 
   <ItemGroup>

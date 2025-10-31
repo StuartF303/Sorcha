@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Sorcha.Blueprint.Models</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="11.10.0" />
+    <PackageReference Include="JsonSchema.Net" Version="7.4.0" />
+    <PackageReference Include="JsonSchema.Net.Generation" Version="5.1.1" />
+  </ItemGroup>
+
+</Project>
