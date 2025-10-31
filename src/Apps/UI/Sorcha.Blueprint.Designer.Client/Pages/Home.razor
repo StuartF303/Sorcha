@@ -1,0 +1,164 @@
+@page "/"
+@using Blazor.Diagrams.Core.Geometry
+@using Blazor.Diagrams.Core.Models
+@using Blazor.Diagrams.Options
+
+<PageTitle>Blueprint Designer</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-0" Style="height: 100vh;">
+    <MudGrid Spacing="0" Style="height: 100%;">
+        <!-- Toolbox Panel -->
+        <MudItem xs="12" md="2" Class="mud-theme-primary" Style="height: 100%; overflow-y: auto;">
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.h6" Class="mb-4">Toolbox</MudText>
+
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Participants</MudText>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Class="mb-2"
+                           OnClick="@(() => AddParticipant())">
+                    Add Participant
+                </MudButton>
+
+                <MudText Typo="Typo.subtitle2" Class="mb-2 mt-4">Actions</MudText>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Secondary"
+                           FullWidth="true"
+                           Class="mb-2"
+                           OnClick="@(() => AddAction())">
+                    Add Action
+                </MudButton>
+
+                <MudDivider Class="my-4" />
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Success"
+                           FullWidth="true"
+                           Class="mb-2"
+                           OnClick="@(() => SaveBlueprint())">
+                    Save Blueprint
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Info"
+                           FullWidth="true"
+                           OnClick="@(() => LoadBlueprint())">
+                    Load Blueprint
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Canvas Panel -->
+        <MudItem xs="12" md="8" Style="height: 100%; position: relative;">
+            <MudPaper Class="pa-4" Elevation="0" Style="height: 100%;">
+                <MudText Typo="Typo.h6" Class="mb-4">Blueprint Canvas</MudText>
+                <div style="width: 100%; height: calc(100% - 60px); border: 1px solid #e0e0e0; background: #fafafa;">
+                    <CascadingValue Value="Diagram">
+                        <DiagramCanvas></DiagramCanvas>
+                    </CascadingValue>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Properties Panel -->
+        <MudItem xs="12" md="2" Style="height: 100%; overflow-y: auto;">
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.h6" Class="mb-4">Properties</MudText>
+                @if (SelectedNode != null)
+                {
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Node: @SelectedNode.Title</MudText>
+                    <MudTextField @bind-Value="NodeTitle" Label="Title" Variant="Variant.Outlined" Class="mb-2" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => UpdateNodeTitle())" Class="mb-2">
+                        Update
+                    </MudButton>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Select a node to view properties
+                    </MudText>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private BlazorDiagram Diagram = null!;
+    private NodeModel? SelectedNode;
+    private string NodeTitle = string.Empty;
+    private int participantCounter = 0;
+    private int actionCounter = 0;
+
+    protected override void OnInitialized()
+    {
+        // Initialize diagram with default options
+        Diagram = new BlazorDiagram();
+
+        // Add welcome nodes
+        AddWelcomeNodes();
+    }
+
+    private void AddWelcomeNodes()
+    {
+        var participant = new NodeModel(position: new Point(100, 100))
+        {
+            Title = "Sample Participant"
+        };
+        participant.AddPort(PortAlignment.Bottom);
+        Diagram.Nodes.Add(participant);
+
+        var action = new NodeModel(position: new Point(100, 250))
+        {
+            Title = "Sample Action"
+        };
+        action.AddPort(PortAlignment.Top);
+        action.AddPort(PortAlignment.Bottom);
+        Diagram.Nodes.Add(action);
+    }
+
+    private void AddParticipant()
+    {
+        participantCounter++;
+        var node = new NodeModel(position: new Point(200, 100 + (participantCounter * 50)))
+        {
+            Title = $"Participant {participantCounter}"
+        };
+        node.AddPort(PortAlignment.Bottom);
+        Diagram.Nodes.Add(node);
+    }
+
+    private void AddAction()
+    {
+        actionCounter++;
+        var node = new NodeModel(position: new Point(200, 300 + (actionCounter * 50)))
+        {
+            Title = $"Action {actionCounter}"
+        };
+        node.AddPort(PortAlignment.Top);
+        node.AddPort(PortAlignment.Bottom);
+        Diagram.Nodes.Add(node);
+    }
+
+    private void UpdateNodeTitle()
+    {
+        if (SelectedNode != null)
+        {
+            SelectedNode.Title = NodeTitle;
+            StateHasChanged();
+        }
+    }
+
+    private void SaveBlueprint()
+    {
+        // TODO: Implement save functionality with LocalStorage
+        Console.WriteLine("Save blueprint clicked");
+    }
+
+    private void LoadBlueprint()
+    {
+        // TODO: Implement load functionality with LocalStorage
+        Console.WriteLine("Load blueprint clicked");
+    }
+}
