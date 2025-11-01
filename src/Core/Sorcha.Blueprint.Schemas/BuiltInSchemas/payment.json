@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sorcha.dev/schemas/payment/v1",
+  "title": "Payment Information",
+  "description": "Payment details and transaction information",
+  "type": "object",
+  "properties": {
+    "amount": {
+      "type": "number",
+      "description": "Payment amount (in smallest currency unit, e.g., cents)",
+      "minimum": 0,
+      "examples": [1099, 5000, 25050]
+    },
+    "currency": {
+      "type": "string",
+      "description": "Currency code (ISO 4217)",
+      "pattern": "^[A-Z]{3}$",
+      "examples": ["USD", "EUR", "GBP", "JPY", "CAD", "AUD"]
+    },
+    "paymentMethod": {
+      "type": "string",
+      "description": "Method of payment",
+      "enum": ["card", "bank_transfer", "crypto", "cash", "check", "mobile_payment", "direct_debit"],
+      "examples": ["card", "bank_transfer"]
+    },
+    "cardDetails": {
+      "type": "object",
+      "description": "Credit/debit card information (if paymentMethod is 'card')",
+      "properties": {
+        "cardType": {
+          "type": "string",
+          "enum": ["visa", "mastercard", "amex", "discover", "diners", "jcb"],
+          "description": "Card brand"
+        },
+        "last4Digits": {
+          "type": "string",
+          "pattern": "^[0-9]{4}$",
+          "description": "Last 4 digits of card number",
+          "examples": ["4242"]
+        },
+        "expiryMonth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Card expiration month (1-12)"
+        },
+        "expiryYear": {
+          "type": "integer",
+          "minimum": 2024,
+          "maximum": 2099,
+          "description": "Card expiration year (YYYY)"
+        },
+        "cardholderName": {
+          "type": "string",
+          "description": "Name on the card",
+          "maxLength": 100
+        }
+      },
+      "required": ["cardType", "last4Digits"]
+    },
+    "bankDetails": {
+      "type": "object",
+      "description": "Bank account information (if paymentMethod is 'bank_transfer' or 'direct_debit')",
+      "properties": {
+        "bankName": {
+          "type": "string",
+          "description": "Name of the bank",
+          "maxLength": 200
+        },
+        "accountNumber": {
+          "type": "string",
+          "description": "Bank account number (last 4 digits for display)",
+          "pattern": "^[0-9]{4}$"
+        },
+        "routingNumber": {
+          "type": "string",
+          "description": "Bank routing or sort code",
+          "maxLength": 20
+        },
+        "accountType": {
+          "type": "string",
+          "enum": ["checking", "savings", "business"],
+          "description": "Type of bank account"
+        }
+      }
+    },
+    "reference": {
+      "type": "string",
+      "description": "Payment reference or transaction ID",
+      "maxLength": 100,
+      "examples": ["TXN-2024-001234", "INV-12345"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Payment description or memo",
+      "maxLength": 500,
+      "examples": ["Invoice payment for services rendered", "Subscription renewal"]
+    },
+    "date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Payment date and time (ISO 8601)",
+      "examples": ["2024-01-15T14:30:00Z"]
+    },
+    "status": {
+      "type": "string",
+      "description": "Payment status",
+      "enum": ["pending", "processing", "completed", "failed", "cancelled", "refunded"],
+      "default": "pending"
+    },
+    "payee": {
+      "type": "string",
+      "description": "Name of the payee or recipient",
+      "maxLength": 200
+    },
+    "payer": {
+      "type": "string",
+      "description": "Name of the payer",
+      "maxLength": 200
+    },
+    "invoiceId": {
+      "type": "string",
+      "description": "Associated invoice identifier",
+      "maxLength": 100
+    },
+    "taxAmount": {
+      "type": "number",
+      "description": "Tax amount included in payment",
+      "minimum": 0
+    },
+    "feeAmount": {
+      "type": "number",
+      "description": "Processing fee amount",
+      "minimum": 0
+    },
+    "netAmount": {
+      "type": "number",
+      "description": "Net amount after fees and taxes",
+      "minimum": 0
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional custom metadata",
+      "additionalProperties": true
+    }
+  },
+  "required": ["amount", "currency", "paymentMethod"],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "amount": 10000,
+      "currency": "USD",
+      "paymentMethod": "card",
+      "cardDetails": {
+        "cardType": "visa",
+        "last4Digits": "4242",
+        "expiryMonth": 12,
+        "expiryYear": 2025,
+        "cardholderName": "John Smith"
+      },
+      "reference": "TXN-2024-001234",
+      "description": "Subscription payment",
+      "date": "2024-01-15T14:30:00Z",
+      "status": "completed"
+    }
+  ]
+}

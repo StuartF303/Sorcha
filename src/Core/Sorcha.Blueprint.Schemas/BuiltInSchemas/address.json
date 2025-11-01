@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sorcha.dev/schemas/address/v1",
+  "title": "Address",
+  "description": "Physical mailing address with international support",
+  "type": "object",
+  "properties": {
+    "addressType": {
+      "type": "string",
+      "description": "Type of address",
+      "enum": ["residential", "business", "postal", "billing", "shipping"],
+      "default": "residential"
+    },
+    "addressLine1": {
+      "type": "string",
+      "description": "Primary address line (street number and name)",
+      "minLength": 1,
+      "maxLength": 200,
+      "examples": ["123 Main Street", "456 Oak Avenue Apt 2B"]
+    },
+    "addressLine2": {
+      "type": "string",
+      "description": "Secondary address line (apartment, suite, unit)",
+      "maxLength": 200,
+      "examples": ["Apartment 5", "Suite 100", "Unit B"]
+    },
+    "addressLine3": {
+      "type": "string",
+      "description": "Additional address line (building, floor)",
+      "maxLength": 200
+    },
+    "city": {
+      "type": "string",
+      "description": "City or locality",
+      "minLength": 1,
+      "maxLength": 100,
+      "examples": ["New York", "London", "Tokyo", "São Paulo"]
+    },
+    "district": {
+      "type": "string",
+      "description": "District or borough",
+      "maxLength": 100,
+      "examples": ["Manhattan", "Westminster"]
+    },
+    "state": {
+      "type": "string",
+      "description": "State, province, or region",
+      "maxLength": 100,
+      "examples": ["California", "Ontario", "Queensland", "Bayern"]
+    },
+    "stateCode": {
+      "type": "string",
+      "description": "State or province code (ISO 3166-2)",
+      "pattern": "^[A-Z]{2,3}$",
+      "examples": ["CA", "ON", "QLD", "BY"]
+    },
+    "postalCode": {
+      "type": "string",
+      "description": "Postal code, ZIP code, or postcode",
+      "maxLength": 20,
+      "examples": ["90210", "SW1A 1AA", "100-0001", "75001"]
+    },
+    "country": {
+      "type": "string",
+      "description": "Country name",
+      "minLength": 1,
+      "maxLength": 100,
+      "examples": ["United States", "United Kingdom", "Canada", "Australia"]
+    },
+    "countryCode": {
+      "type": "string",
+      "description": "Country code (ISO 3166-1 alpha-2)",
+      "pattern": "^[A-Z]{2}$",
+      "examples": ["US", "GB", "CA", "AU", "DE", "FR", "JP"]
+    },
+    "latitude": {
+      "type": "number",
+      "description": "Latitude coordinate",
+      "minimum": -90,
+      "maximum": 90,
+      "examples": [40.7128]
+    },
+    "longitude": {
+      "type": "number",
+      "description": "Longitude coordinate",
+      "minimum": -180,
+      "maximum": 180,
+      "examples": [-74.0060]
+    },
+    "formattedAddress": {
+      "type": "string",
+      "description": "Full address as a single formatted string",
+      "maxLength": 500,
+      "examples": ["123 Main Street, Apt 2B, New York, NY 10001, United States"]
+    },
+    "deliveryInstructions": {
+      "type": "string",
+      "description": "Special delivery instructions",
+      "maxLength": 500,
+      "examples": ["Leave package at front door", "Ring doorbell twice"]
+    },
+    "isVerified": {
+      "type": "boolean",
+      "description": "Whether the address has been verified",
+      "default": false
+    },
+    "isPrimary": {
+      "type": "boolean",
+      "description": "Whether this is the primary address",
+      "default": false
+    }
+  },
+  "required": ["addressLine1", "city", "country"],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "addressType": "residential",
+      "addressLine1": "123 Main Street",
+      "addressLine2": "Apartment 5",
+      "city": "New York",
+      "state": "New York",
+      "stateCode": "NY",
+      "postalCode": "10001",
+      "country": "United States",
+      "countryCode": "US"
+    },
+    {
+      "addressType": "business",
+      "addressLine1": "10 Downing Street",
+      "city": "London",
+      "postalCode": "SW1A 2AA",
+      "country": "United Kingdom",
+      "countryCode": "GB"
+    }
+  ]
+}

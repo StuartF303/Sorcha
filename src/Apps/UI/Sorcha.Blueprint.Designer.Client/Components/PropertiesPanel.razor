@@ -1,0 +1,154 @@
+@using Sorcha.Blueprint.Designer.Client.Models
+@using Sorcha.Blueprint.Models
+
+<MudPaper Class="pa-4" Elevation="0">
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h6">Properties</MudText>
+        @if (SelectedNode != null)
+        {
+            <MudButton Variant="Variant.Text"
+                       Color="@(IsEditMode ? Color.Success : Color.Primary)"
+                       Size="Size.Small"
+                       StartIcon="@(IsEditMode ? Icons.Material.Filled.Check : Icons.Material.Filled.Edit)"
+                       OnClick="ToggleEditMode">
+                @(IsEditMode ? "Done" : "Edit")
+            </MudButton>
+        }
+    </div>
+
+    @if (SelectedNode == null)
+    {
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Select a node to view properties
+        </MudText>
+    }
+    else if (SelectedNode is ParticipantNodeModel participantNode)
+    {
+        <MudText Typo="Typo.subtitle1" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-2" />
+            Participant
+        </MudText>
+
+        <MudTextField @bind-Value="participantNode.Participant.Name"
+                      Label="Name"
+                      Variant="Variant.Outlined"
+                      Class="mb-2"
+                      ReadOnly="@(!IsEditMode)"
+                      OnBlur="@(() => UpdateNodeTitle(participantNode))" />
+
+        <MudTextField @bind-Value="participantNode.Participant.Organisation"
+                      Label="Organisation"
+                      Variant="Variant.Outlined"
+                      Class="mb-2"
+                      ReadOnly="@(!IsEditMode)" />
+
+        <MudTextField @bind-Value="participantNode.Participant.WalletAddress"
+                      Label="Wallet Address"
+                      Variant="Variant.Outlined"
+                      Class="mb-2"
+                      ReadOnly="@(!IsEditMode)" />
+
+        <MudTextField @bind-Value="participantNode.Participant.DidUri"
+                      Label="DID URI"
+                      Variant="Variant.Outlined"
+                      Class="mb-2"
+                      ReadOnly="@(!IsEditMode)" />
+
+        <MudSwitch @bind-Value="participantNode.Participant.UseStealthAddress"
+                   Label="Use Stealth Address"
+                   Color="Color.Primary"
+                   Class="mb-2"
+                   ReadOnly="@(!IsEditMode)" />
+
+        <MudDivider Class="my-3" />
+
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            ID: @participantNode.NodeId
+        </MudText>
+    }
+    else if (SelectedNode is ActionNodeModel actionNode)
+    {
+        <MudText Typo="Typo.subtitle1" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" Class="mr-2" />
+            Action
+        </MudText>
+
+        <MudTextField @bind-Value="actionNode.Action.Title"
+                      Label="Title"
+                      Variant="Variant.Outlined"
+                      Class="mb-2"
+                      ReadOnly="@(!IsEditMode)"
+                      OnBlur="@(() => UpdateNodeTitle(actionNode))" />
+
+        <MudTextField @bind-Value="actionNode.Action.Description"
+                      Label="Description"
+                      Variant="Variant.Outlined"
+                      Class="mb-2"
+                      Lines="3"
+                      ReadOnly="@(!IsEditMode)" />
+
+        <MudTextField @bind-Value="actionNode.Action.Sender"
+                      Label="Sender"
+                      Variant="Variant.Outlined"
+                      Class="mb-2"
+                      ReadOnly="@(!IsEditMode)" />
+
+        <MudTextField @bind-Value="actionNode.Action.PreviousTxId"
+                      Label="Previous Transaction ID"
+                      Variant="Variant.Outlined"
+                      Class="mb-2"
+                      ReadOnly="@(!IsEditMode)" />
+
+        <MudTextField @bind-Value="actionNode.Action.BlueprintId"
+                      Label="Blueprint ID"
+                      Variant="Variant.Outlined"
+                      Class="mb-2"
+                      ReadOnly="@(!IsEditMode)" />
+
+        <MudDivider Class="my-3" />
+
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            ID: @actionNode.NodeId
+        </MudText>
+    }
+    else
+    {
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Generic Node: @SelectedNode.Title
+        </MudText>
+    }
+</MudPaper>
+
+@code {
+    [Parameter]
+    public BlueprintNodeModel? SelectedNode { get; set; }
+
+    [Parameter]
+    public EventCallback<BlueprintNodeModel?> SelectedNodeChanged { get; set; }
+
+    private bool IsEditMode { get; set; } = false;
+
+    private void ToggleEditMode()
+    {
+        IsEditMode = !IsEditMode;
+    }
+
+    private void UpdateNodeTitle(BlueprintNodeModel node)
+    {
+        if (node is ParticipantNodeModel participantNode)
+        {
+            participantNode.Title = participantNode.Participant.Name;
+        }
+        else if (node is ActionNodeModel actionNode)
+        {
+            actionNode.Title = actionNode.Action.Title;
+        }
+        StateHasChanged();
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Exit edit mode when selection changes
+        IsEditMode = false;
+    }
+}

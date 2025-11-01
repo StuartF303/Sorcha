@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sorcha.dev/schemas/document/v1",
+  "title": "Document",
+  "description": "A document or file attachment with metadata",
+  "type": "object",
+  "properties": {
+    "fileName": {
+      "type": "string",
+      "description": "Name of the file including extension",
+      "minLength": 1,
+      "maxLength": 255,
+      "examples": ["contract.pdf", "invoice-2024.xlsx", "photo.jpg"]
+    },
+    "fileType": {
+      "type": "string",
+      "description": "MIME type of the file",
+      "examples": [
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain"
+      ]
+    },
+    "fileExtension": {
+      "type": "string",
+      "description": "File extension (without dot)",
+      "pattern": "^[a-zA-Z0-9]+$",
+      "maxLength": 10,
+      "examples": ["pdf", "jpg", "docx", "xlsx", "txt"]
+    },
+    "fileSize": {
+      "type": "integer",
+      "description": "Size of the file in bytes",
+      "minimum": 0,
+      "examples": [1024, 524288, 10485760]
+    },
+    "fileSizeFormatted": {
+      "type": "string",
+      "description": "Human-readable file size",
+      "examples": ["1.5 MB", "256 KB", "10.2 GB"]
+    },
+    "fileUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to access or download the file",
+      "examples": ["https://example.com/files/contract.pdf"]
+    },
+    "downloadUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "Direct download URL"
+    },
+    "thumbnailUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to a thumbnail or preview image"
+    },
+    "documentType": {
+      "type": "string",
+      "description": "Type or category of document",
+      "enum": [
+        "contract",
+        "invoice",
+        "receipt",
+        "certificate",
+        "identification",
+        "report",
+        "presentation",
+        "spreadsheet",
+        "image",
+        "video",
+        "audio",
+        "archive",
+        "other"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "description": "Document title or display name",
+      "maxLength": 200,
+      "examples": ["Service Agreement 2024", "Q1 Financial Report"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Document description or summary",
+      "maxLength": 1000
+    },
+    "author": {
+      "type": "string",
+      "description": "Document author or creator",
+      "maxLength": 200
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the document was created",
+      "examples": ["2024-01-15T10:00:00Z"]
+    },
+    "uploadedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the file was uploaded",
+      "examples": ["2024-01-15T14:30:00Z"]
+    },
+    "modifiedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the document was last modified"
+    },
+    "version": {
+      "type": "string",
+      "description": "Document version number",
+      "examples": ["1.0", "2.1", "v3.0-draft"]
+    },
+    "tags": {
+      "type": "array",
+      "description": "Tags or labels for categorization",
+      "items": {
+        "type": "string",
+        "maxLength": 50
+      },
+      "uniqueItems": true,
+      "examples": [["legal", "contract", "2024"]]
+    },
+    "language": {
+      "type": "string",
+      "description": "Document language (ISO 639-1 code)",
+      "pattern": "^[a-z]{2}$",
+      "examples": ["en", "es", "fr", "de", "ja"]
+    },
+    "pageCount": {
+      "type": "integer",
+      "description": "Number of pages (for documents like PDFs)",
+      "minimum": 1
+    },
+    "checksum": {
+      "type": "string",
+      "description": "File checksum for integrity verification (SHA-256)",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "encryptionStatus": {
+      "type": "string",
+      "description": "Whether the file is encrypted",
+      "enum": ["none", "encrypted", "password-protected"]
+    },
+    "accessLevel": {
+      "type": "string",
+      "description": "Access control level",
+      "enum": ["public", "internal", "confidential", "restricted"],
+      "default": "internal"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the document or access link expires"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional custom metadata",
+      "additionalProperties": true
+    }
+  },
+  "required": ["fileName", "fileType"],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "fileName": "service-agreement-2024.pdf",
+      "fileType": "application/pdf",
+      "fileExtension": "pdf",
+      "fileSize": 524288,
+      "fileSizeFormatted": "512 KB",
+      "fileUrl": "https://example.com/documents/service-agreement-2024.pdf",
+      "documentType": "contract",
+      "title": "Service Agreement 2024",
+      "description": "Annual service agreement between parties",
+      "author": "Legal Department",
+      "uploadedAt": "2024-01-15T14:30:00Z",
+      "version": "1.0",
+      "tags": ["contract", "legal", "2024"],
+      "language": "en",
+      "pageCount": 12,
+      "accessLevel": "confidential"
+    }
+  ]
+}

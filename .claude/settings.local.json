@@ -15,7 +15,15 @@
       "Bash(git push:*)",
       "Bash(git remote set-url:*)",
       "Bash(dotnet sln add:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(dotnet add:*)",
+      "Bash(del \"C:\\Projects\\Sorcha\\tests\\Sorcha.Blueprint.Designer.Tests\\Components\\HomeTests.cs\")",
+      "Bash(del \"C:\\Projects\\Sorcha\\tests\\Sorcha.Blueprint.Designer.Tests\\Fluent\\BlueprintBuilderTests.cs\")",
+      "Bash(nul)",
+      "Bash(del \"src\\Core\\Sorcha.Blueprint.Schemas\\Class1.cs\")",
+      "Bash(dotnet remove:*)",
+      "Bash(dotnet list:*)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "ask": []

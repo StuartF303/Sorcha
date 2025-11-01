@@ -1,0 +1,83 @@
+<MudPaper Class="pa-4" Elevation="2">
+    <MudText Typo="Typo.h6" Class="mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.NewReleases" Class="mr-2" />
+        Release News
+    </MudText>
+
+    <MudTimeline TimelineOrientation="TimelineOrientation.Vertical"
+                 TimelinePosition="TimelinePosition.Start">
+        <MudTimelineItem Color="Color.Success" Size="Size.Small">
+            <ItemOpposite>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    v1.0.0-preview.2
+                </MudText>
+            </ItemOpposite>
+            <ItemContent>
+                <MudText Typo="Typo.body2" Class="mb-1">
+                    <strong>Latest Update - Enhanced UX & JSON View</strong>
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    • New dedicated home page with quick start guide<br />
+                    • JSON Schema view with expandable/collapsible tree<br />
+                    • Action nodes show summary counts (participants, disclosures, calculations, schemas)<br />
+                    • Updated dialog UX with icon-based save/close buttons<br />
+                    • Toast notifications now display for 5 seconds<br />
+                    • Session activity log tracks all operations<br />
+                    • Integrated json-everything libraries (JsonSchema.Net, JsonLogic)
+                </MudText>
+            </ItemContent>
+        </MudTimelineItem>
+
+        <MudTimelineItem Color="Color.Primary" Size="Size.Small">
+            <ItemOpposite>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    v1.0.0-preview.1
+                </MudText>
+            </ItemOpposite>
+            <ItemContent>
+                <MudText Typo="Typo.body2" Class="mb-1">
+                    <strong>Initial Preview Release</strong>
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    • Visual blueprint designer with drag-and-drop actions<br />
+                    • Blueprint save/load functionality<br />
+                    • Schema provider management<br />
+                    • Local storage persistence<br />
+                    • Node properties drawer for action configuration
+                </MudText>
+            </ItemContent>
+        </MudTimelineItem>
+
+        <MudTimelineItem Color="Color.Info" Size="Size.Small">
+            <ItemOpposite>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Coming Soon
+                </MudText>
+            </ItemOpposite>
+            <ItemContent>
+                <MudText Typo="Typo.body2" Class="mb-1">
+                    <strong>Upcoming Features</strong>
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    • Network statistics and backend monitoring<br />
+                    • Blueprint publishing to blockchain<br />
+                    • Register creation and management<br />
+                    • Transaction processing metrics<br />
+                    • Advanced reporting dashboard<br />
+                    • Real-time collaboration<br />
+                    • Blueprint versioning and diff viewer
+                </MudText>
+            </ItemContent>
+        </MudTimelineItem>
+    </MudTimeline>
+
+    <MudDivider Class="my-3" />
+
+    <MudText Typo="Typo.caption" Color="Color.Secondary">
+        Stay tuned for more updates as we build out the Sorcha Blueprint ecosystem.
+    </MudText>
+</MudPaper>
+
+@code {
+    // Future: Load release notes from API or configuration
+}

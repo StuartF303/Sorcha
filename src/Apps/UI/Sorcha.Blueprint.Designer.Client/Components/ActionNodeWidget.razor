@@ -1,0 +1,110 @@
+@using Blazor.Diagrams.Core.Models
+@using Sorcha.Blueprint.Designer.Client.Models
+
+<div class="action-node">
+    <!-- Header Bar with Icon and Title -->
+    <div class="action-node-header">
+        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" Class="mr-2" />
+        <span class="action-node-title">@Node.Action.Title</span>
+    </div>
+
+    <!-- Description Section -->
+    <div class="action-node-section">
+        <MudText Typo="Typo.caption" Class="action-node-section-text">
+            @if (!string.IsNullOrWhiteSpace(Node.Action.Description))
+            {
+                @Node.Action.Description
+            }
+            else
+            {
+                <span class="text-muted">No description</span>
+            }
+        </MudText>
+    </div>
+
+    <!-- Participants Section -->
+    <div class="action-node-section">
+        <MudText Typo="Typo.caption" Class="action-node-section-text">
+            @if (Node.Action.Participants != null && Node.Action.Participants.Any())
+            {
+                <span>
+                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Style="vertical-align: middle; margin-right: 4px;" />
+                    @string.Join(", ", Node.Action.Participants.Select(p => p.Principal).Where(p => !string.IsNullOrWhiteSpace(p)))
+                </span>
+            }
+            else
+            {
+                <span class="text-muted">
+                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Style="vertical-align: middle; margin-right: 4px;" />
+                    No participants assigned
+                </span>
+            }
+        </MudText>
+    </div>
+</div>
+
+<style>
+    .action-node {
+        background: white;
+        border: 2px solid #1976d2;
+        border-radius: 8px;
+        min-width: 200px;
+        max-width: 300px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .action-node:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        border-color: #1565c0;
+    }
+
+    .action-node-header {
+        background: #1976d2;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px 6px 0 0;
+        display: flex;
+        align-items: center;
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .action-node-title {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .action-node-section {
+        padding: 8px 12px;
+        border-top: 1px solid #e0e0e0;
+        min-height: 30px;
+    }
+
+    .action-node-section:first-of-type {
+        border-top: none;
+    }
+
+    .action-node-section-text {
+        font-size: 12px;
+        color: #666;
+        line-height: 1.3;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-height: 40px;
+    }
+
+    .text-muted {
+        color: #999;
+        font-style: italic;
+    }
+</style>
+
+@code {
+    [Parameter, EditorRequired]
+    public ActionNodeModel Node { get; set; } = null!;
+}

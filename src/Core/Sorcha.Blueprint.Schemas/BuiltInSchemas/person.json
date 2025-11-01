@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sorcha.dev/schemas/person/v1",
+  "title": "Person",
+  "description": "A person with contact information and personal details",
+  "type": "object",
+  "properties": {
+    "firstName": {
+      "type": "string",
+      "description": "Given name or first name",
+      "minLength": 1,
+      "maxLength": 100,
+      "examples": ["John", "Maria", "李"]
+    },
+    "lastName": {
+      "type": "string",
+      "description": "Family name or surname",
+      "minLength": 1,
+      "maxLength": 100,
+      "examples": ["Smith", "García", "王"]
+    },
+    "middleName": {
+      "type": "string",
+      "description": "Middle name or additional given names",
+      "maxLength": 100
+    },
+    "prefix": {
+      "type": "string",
+      "description": "Name prefix or title",
+      "enum": ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev"],
+      "examples": ["Dr", "Prof"]
+    },
+    "suffix": {
+      "type": "string",
+      "description": "Name suffix",
+      "enum": ["Jr", "Sr", "II", "III", "IV", "PhD", "MD"],
+      "examples": ["Jr", "PhD"]
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Primary email address",
+      "examples": ["john.smith@example.com"]
+    },
+    "alternateEmail": {
+      "type": "string",
+      "format": "email",
+      "description": "Secondary or alternate email address"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Primary phone number",
+      "pattern": "^[+]?[(]?[0-9]{1,4}[)]?[-\\s\\.]?[(]?[0-9]{1,4}[)]?[-\\s\\.]?[0-9]{1,9}$",
+      "examples": ["+1-555-123-4567", "(555) 123-4567", "+44 20 7123 4567"]
+    },
+    "mobilePhone": {
+      "type": "string",
+      "description": "Mobile or cell phone number",
+      "pattern": "^[+]?[(]?[0-9]{1,4}[)]?[-\\s\\.]?[(]?[0-9]{1,4}[)]?[-\\s\\.]?[0-9]{1,9}$"
+    },
+    "dateOfBirth": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of birth (YYYY-MM-DD)",
+      "examples": ["1990-01-15"]
+    },
+    "gender": {
+      "type": "string",
+      "description": "Gender identity",
+      "enum": ["male", "female", "non-binary", "other", "prefer-not-to-say"]
+    },
+    "nationality": {
+      "type": "string",
+      "description": "Nationality or citizenship (ISO 3166-1 alpha-2 country code)",
+      "pattern": "^[A-Z]{2}$",
+      "examples": ["US", "GB", "CA", "AU"]
+    },
+    "occupation": {
+      "type": "string",
+      "description": "Current occupation or job title",
+      "maxLength": 200,
+      "examples": ["Software Engineer", "Teacher", "Physician"]
+    },
+    "company": {
+      "type": "string",
+      "description": "Current employer or company name",
+      "maxLength": 200
+    },
+    "website": {
+      "type": "string",
+      "format": "uri",
+      "description": "Personal or professional website URL",
+      "examples": ["https://example.com"]
+    },
+    "socialMedia": {
+      "type": "object",
+      "description": "Social media profile links",
+      "properties": {
+        "linkedin": {
+          "type": "string",
+          "format": "uri",
+          "description": "LinkedIn profile URL"
+        },
+        "twitter": {
+          "type": "string",
+          "description": "Twitter/X handle (without @)",
+          "pattern": "^[A-Za-z0-9_]{1,15}$"
+        },
+        "github": {
+          "type": "string",
+          "description": "GitHub username",
+          "pattern": "^[A-Za-z0-9-]{1,39}$"
+        }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes or comments",
+      "maxLength": 2000
+    }
+  },
+  "required": ["firstName", "lastName"],
+  "additionalProperties": false
+}

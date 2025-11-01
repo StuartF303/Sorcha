@@ -1,0 +1,379 @@
+@page "/schemas"
+@using Sorcha.Blueprint.Schemas
+@inject SchemaLibraryService SchemaService
+
+<PageTitle>Schema Library</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
+    <MudText Typo="Typo.h4" Class="mb-4">JSON Schema Library</MudText>
+
+    <MudGrid>
+        <!-- Search and Filters -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="searchQuery"
+                                      Label="Search Schemas"
+                                      Variant="Variant.Outlined"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      OnKeyUp="@HandleSearchKeyUp"
+                                      Immediate="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect Value="selectedSource"
+                                   Label="Source"
+                                   Variant="Variant.Outlined"
+                                   T="SchemaSource?"
+                                   ValueChanged="@HandleSourceChanged">
+                            <MudSelectItem T="SchemaSource?" Value="@((SchemaSource?)null)">All Sources</MudSelectItem>
+                            <MudSelectItem T="SchemaSource?" Value="@SchemaSource.BuiltIn">Built-in</MudSelectItem>
+                            <MudSelectItem T="SchemaSource?" Value="@SchemaSource.Local">Local</MudSelectItem>
+                            <MudSelectItem T="SchemaSource?" Value="@SchemaSource.SchemaStore">SchemaStore.org</MudSelectItem>
+                            <MudSelectItem T="SchemaSource?" Value="@SchemaSource.BlueprintService">Blueprint Service</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect Value="selectedCategory"
+                                   Label="Category"
+                                   Variant="Variant.Outlined"
+                                   T="string"
+                                   ValueChanged="@HandleCategoryChanged">
+                            <MudSelectItem T="string" Value="@("")">All Categories</MudSelectItem>
+                            @foreach (var category in categories)
+                            {
+                                <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+
+                <MudStack Row="true" Class="mt-4" Spacing="2">
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Description" Color="Color.Primary">
+                        Total: @filteredSchemas.Count()
+                    </MudChip>
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Star" Color="Color.Warning">
+                        Favorites: @SchemaService.GetFavorites().Count()
+                    </MudChip>
+                    @if (cacheStats != null)
+                    {
+                        <MudChip T="string" Icon="@Icons.Material.Filled.Storage" Color="Color.Info">
+                            Cached: @cacheStats.ValidEntries
+                        </MudChip>
+                    }
+                    <MudButton StartIcon="@Icons.Material.Filled.Refresh"
+                               Variant="Variant.Outlined"
+                               OnClick="RefreshLibrary"
+                               Disabled="@isLoading">
+                        Refresh
+                    </MudButton>
+                    <MudButton StartIcon="@Icons.Material.Filled.Delete"
+                               Variant="Variant.Outlined"
+                               Color="Color.Error"
+                               OnClick="ClearCache"
+                               Disabled="@isLoading">
+                        Clear Cache
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Schema List -->
+        <MudItem xs="12">
+            @if (isLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else
+            {
+                <MudDataGrid Items="@filteredSchemas"
+                             Filterable="false"
+                             SortMode="SortMode.Single"
+                             Hover="true"
+                             Dense="true">
+                    <Columns>
+                        <PropertyColumn Property="x => x.Metadata.IsFavorite" Title="★" Sortable="false">
+                            <CellTemplate>
+                                <MudIconButton Icon="@(context.Item.Metadata.IsFavorite ? Icons.Material.Filled.Star : Icons.Material.Outlined.StarBorder)"
+                                               Color="@(context.Item.Metadata.IsFavorite ? Color.Warning : Color.Default)"
+                                               Size="Size.Small"
+                                               OnClick="@(() => ToggleFavorite(context.Item))" />
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn Property="x => x.Metadata.Title" Title="Schema Name" />
+                        <PropertyColumn Property="x => x.Metadata.Description" Title="Description" />
+                        <PropertyColumn Property="x => x.Metadata.Category" Title="Category" />
+                        <PropertyColumn Property="x => x.Metadata.Source" Title="Source" />
+                        <PropertyColumn Property="x => x.Metadata.UsageCount" Title="Uses" />
+                        <TemplateColumn Title="Actions" Sortable="false">
+                            <CellTemplate>
+                                <MudStack Row="true">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                                   Color="Color.Info"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => ViewSchema(context.Item))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Add"
+                                                   Color="Color.Success"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => UseSchema(context.Item))" />
+                                </MudStack>
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            }
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+<!-- Schema Details Dialog -->
+<MudDialog @bind-Visible="schemaDialogVisible" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@selectedSchema?.Metadata.Title</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (selectedSchema != null)
+        {
+            <MudStack Spacing="3">
+                <MudText><strong>ID:</strong> @selectedSchema.Metadata.Id</MudText>
+                <MudText><strong>Description:</strong> @selectedSchema.Metadata.Description</MudText>
+                <MudText><strong>Version:</strong> @selectedSchema.Metadata.Version</MudText>
+                <MudText><strong>Category:</strong> @selectedSchema.Metadata.Category</MudText>
+                <MudText><strong>Source:</strong> @selectedSchema.Metadata.Source</MudText>
+                @if (!string.IsNullOrEmpty(selectedSchema.Metadata.Author))
+                {
+                    <MudText><strong>Author:</strong> @selectedSchema.Metadata.Author</MudText>
+                }
+                @if (selectedSchema.Metadata.Tags.Any())
+                {
+                    <MudText><strong>Tags:</strong></MudText>
+                    <MudChipSet T="string">
+                        @foreach (var tag in selectedSchema.Metadata.Tags)
+                        {
+                            <MudChip T="string" Size="Size.Small">@tag</MudChip>
+                        }
+                    </MudChipSet>
+                }
+                @if (selectedSchema.PropertyNames.Any())
+                {
+                    <MudText><strong>Properties:</strong></MudText>
+                    <MudChipSet T="string">
+                        @foreach (var prop in selectedSchema.PropertyNames)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">@prop</MudChip>
+                        }
+                    </MudChipSet>
+                }
+                <MudDivider />
+                <MudText Typo="Typo.subtitle2">JSON Schema:</MudText>
+                <MudPaper Class="pa-2" Elevation="0" Style="background: #f5f5f5; max-height: 400px; overflow-y: auto;">
+                    <pre style="margin: 0;">@selectedSchema.Schema.RootElement.ToString()</pre>
+                </MudPaper>
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => schemaDialogVisible = false)">Close</MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="@(() => UseSelectedSchema())">
+            Use This Schema
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private IEnumerable<SchemaDocument> allSchemas = [];
+    private IEnumerable<SchemaDocument> filteredSchemas = [];
+    private List<string> categories = [];
+    private SchemaCacheStatistics? cacheStats = null;
+
+    private string searchQuery = string.Empty;
+    private SchemaSource? selectedSource = null;
+    private string selectedCategory = string.Empty;
+
+    private bool isLoading = true;
+    private bool schemaDialogVisible = false;
+    private SchemaDocument? selectedSchema = null;
+
+    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Large, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSchemasAsync();
+        await LoadCacheStatsAsync();
+    }
+
+    private async Task LoadSchemasAsync()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            allSchemas = await SchemaService.GetAllSchemasAsync();
+            filteredSchemas = allSchemas;
+
+            var categoriesList = await SchemaService.GetCategoriesAsync();
+            categories = categoriesList.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading schemas: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleSearchKeyUp(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await FilterSchemas();
+        }
+    }
+
+    private async Task HandleSourceChanged(SchemaSource? source)
+    {
+        selectedSource = source;
+        await FilterSchemas();
+    }
+
+    private async Task HandleCategoryChanged(string category)
+    {
+        selectedCategory = category;
+        await FilterSchemas();
+    }
+
+    private async Task FilterSchemas()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Start with all schemas
+            var results = allSchemas;
+
+            // Filter by search query
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                results = await SchemaService.SearchAsync(searchQuery);
+            }
+
+            // Filter by source
+            if (selectedSource.HasValue)
+            {
+                results = results.Where(s => s.Metadata.Source == selectedSource.Value);
+            }
+
+            // Filter by category
+            if (!string.IsNullOrEmpty(selectedCategory))
+            {
+                results = results.Where(s => s.Metadata.Category.Equals(selectedCategory, StringComparison.OrdinalIgnoreCase));
+            }
+
+            filteredSchemas = results;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadCacheStatsAsync()
+    {
+        try
+        {
+            cacheStats = await SchemaService.GetCacheStatisticsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading cache stats: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshLibrary()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await SchemaService.RefreshAllAsync();
+            await LoadSchemasAsync();
+            await LoadCacheStatsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing library: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearCache()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await SchemaService.ClearCacheAsync();
+            await LoadSchemasAsync();
+            await LoadCacheStatsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error clearing cache: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ViewSchema(SchemaDocument schema)
+    {
+        selectedSchema = schema;
+        schemaDialogVisible = true;
+    }
+
+    private void ToggleFavorite(SchemaDocument schema)
+    {
+        if (schema.Metadata.IsFavorite)
+        {
+            SchemaService.RemoveFromFavorites(schema.Metadata.Id);
+        }
+        else
+        {
+            SchemaService.AddToFavorites(schema);
+        }
+        StateHasChanged();
+    }
+
+    private void UseSchema(SchemaDocument schema)
+    {
+        // Increment usage count
+        _ = SchemaService.IncrementUsageAsync(schema.Metadata.Id);
+
+        // TODO: Implement logic to add schema to current blueprint action
+        Console.WriteLine($"Using schema: {schema.Metadata.Title}");
+    }
+
+    private void UseSelectedSchema()
+    {
+        if (selectedSchema != null)
+        {
+            UseSchema(selectedSchema);
+            schemaDialogVisible = false;
+        }
+    }
+}
