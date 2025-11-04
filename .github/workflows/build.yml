@@ -36,8 +36,30 @@ jobs:
     - name: Build solution
       run: dotnet build --no-restore --configuration Release
 
-    - name: Run tests
-      run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
+    - name: Run unit tests
+      run: |
+        echo "Running unit tests..."
+        dotnet test tests/Sorcha.Blueprint.Models.Tests --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --logger "trx;LogFileName=models-tests.trx" || true
+        dotnet test tests/Sorcha.Blueprint.Fluent.Tests --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --logger "trx;LogFileName=fluent-tests.trx" || true
+        dotnet test tests/Sorcha.Blueprint.Schemas.Tests --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --logger "trx;LogFileName=schemas-tests.trx" || true
+        dotnet test tests/Sorcha.Blueprint.Engine.Tests --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --logger "trx;LogFileName=engine-tests.trx" || true
+
+    - name: Run component tests
+      run: |
+        echo "Running component tests..."
+        dotnet test tests/Sorcha.Blueprint.Designer.Tests --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --logger "trx;LogFileName=designer-tests.trx" || true
+
+    - name: Run integration tests
+      run: |
+        echo "Running integration tests..."
+        dotnet test tests/Sorcha.Integration.Tests --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --logger "trx;LogFileName=integration-tests.trx" || true
+
+    - name: Publish test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.os }}
+        path: '**/TestResults/*.trx'
 
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest'
@@ -45,6 +67,8 @@ jobs:
       with:
         files: '**/coverage.cobertura.xml'
         fail_ci_if_error: false
+        flags: unittests,integration
+        name: sorcha-coverage
 
   code-quality:
     name: Code Quality Analysis

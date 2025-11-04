@@ -2,107 +2,390 @@
 
 ## Overview
 
-Sorcha is built on a modern, cloud-native architecture using .NET 10 and .NET Aspire. The system is designed for scalability, reliability, and observability.
+Sorcha is a modern .NET 10 platform for defining, designing, and executing multi-participant data flow orchestration workflows (called "Blueprints"). Built on .NET Aspire for cloud-native orchestration, Sorcha provides a flexible and scalable solution for workflow automation with selective data disclosure and conditional routing.
+
+**Last Updated:** 2025-01-04
+**Version:** 1.0.0
+**Status:** Active Development
 
 ## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Sorcha Platform                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────────┐         ┌─────────────────────┐       │
-│  │  Blueprint       │         │  Blueprint          │       │
-│  │  Designer        │────────▶│  Engine             │       │
-│  │  (Web UI)        │         │  (Execution)        │       │
-│  └──────────────────┘         └─────────────────────┘       │
-│          │                             │                     │
-│          │                             │                     │
-│          ▼                             ▼                     │
-│  ┌──────────────────────────────────────────────┐          │
-│  │         Service Defaults                     │          │
-│  │  (OpenTelemetry, Health, Discovery)         │          │
-│  └──────────────────────────────────────────────┘          │
-│                                                               │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Sorcha Platform                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ┌────────────────────────┐              ┌──────────────────────────┐   │
+│  │  Blueprint Designer    │              │  Blueprint Engine        │   │
+│  │  (Blazor Server)       │─────────────▶│  (REST API)              │   │
+│  │  + Designer.Client     │   HTTP       │  Minimal APIs            │   │
+│  │  (Blazor WASM)         │              │  (In Development)        │   │
+│  └────────────────────────┘              └──────────────────────────┘   │
+│           │                                         │                    │
+│           │                                         │                    │
+│           ├─────────────────────────────────────────┤                    │
+│           │                                         │                    │
+│           ▼                                         ▼                    │
+│  ┌──────────────────────────────────────────────────────────────┐      │
+│  │              Common Libraries Layer                          │      │
+│  ├──────────────────────────────────────────────────────────────┤      │
+│  │  • Blueprint.Models (Data Models)                            │      │
+│  │  • Blueprint.Fluent (Fluent API Builders)                   │      │
+│  │  • Blueprint.Schemas (Schema Management & Caching)          │      │
+│  └──────────────────────────────────────────────────────────────┘      │
+│                              │                                           │
+│                              ▼                                           │
+│  ┌──────────────────────────────────────────────────────────────┐      │
+│  │         Hosting & Infrastructure Layer                       │      │
+│  ├──────────────────────────────────────────────────────────────┤      │
+│  │  • AppHost (.NET Aspire Orchestration)                      │      │
+│  │  • ServiceDefaults (OpenTelemetry, Health, Discovery)       │      │
+│  └──────────────────────────────────────────────────────────────┘      │
+│                                                                           │
+└─────────────────────────────────────────────────────────────────────────┘
          │                                    │
          ▼                                    ▼
 ┌─────────────────┐                 ┌─────────────────┐
-│  Storage        │                 │  Message Queue  │
-│  (Database)     │                 │  (Optional)     │
+│  Storage        │                 │  External        │
+│  (Planned:      │                 │  Schema Sources  │
+│   EF Core)      │                 │  (SchemaStore)   │
 └─────────────────┘                 └─────────────────┘
+```
+
+## Solution Structure
+
+Sorcha follows a clean 3-folder architecture pattern for maximum maintainability:
+
+```
+Sorcha/
+├── src/
+│   ├── Common/                           # Shared models and contracts
+│   │   └── Sorcha.Blueprint.Models       # Blueprint data models
+│   ├── Core/                             # Core business logic
+│   │   ├── Sorcha.Blueprint.Engine       # Execution engine (REST API)
+│   │   ├── Sorcha.Blueprint.Fluent       # Fluent API builders
+│   │   └── Sorcha.Blueprint.Schemas      # Schema management
+│   └── Apps/                             # Applications
+│       ├── Hosting/
+│       │   ├── Sorcha.AppHost            # .NET Aspire orchestration
+│       │   └── Sorcha.ServiceDefaults    # Shared service configs
+│       └── UI/
+│           ├── Sorcha.Blueprint.Designer         # Blazor Server
+│           └── Sorcha.Blueprint.Designer.Client  # Blazor WASM
+├── tests/                                # Test projects
+│   ├── Sorcha.Blueprint.Models.Tests
+│   ├── Sorcha.Blueprint.Fluent.Tests
+│   ├── Sorcha.Blueprint.Schemas.Tests
+│   ├── Sorcha.Blueprint.Engine.Tests
+│   ├── Sorcha.Blueprint.Designer.Tests
+│   └── Sorcha.Integration.Tests
+└── docs/                                 # Documentation
 ```
 
 ## Core Components
 
-### 1. Sorcha.AppHost
+### 1. Common Layer
 
-The .NET Aspire orchestration host that manages the lifecycle of all services.
+#### Sorcha.Blueprint.Models
+Core domain models representing the Blueprint data structure.
 
-**Responsibilities:**
-- Service orchestration and discovery
-- Configuration management
-- Resource allocation
-- Developer dashboard
-
-**Technology:**
-- .NET Aspire 9.5.2
-- Service discovery
-- Health checks
-
-### 2. Sorcha.ServiceDefaults
-
-Shared service configurations and cross-cutting concerns.
+**Key Models:**
+- `Blueprint` - Root workflow definition (title, description, version, participants, actions)
+- `Action` - Workflow step (data schemas, routing, disclosures, calculations, form)
+- `Participant` - Workflow party (ID, name, organization, wallet, DID)
+- `Disclosure` - Data visibility rule (participant, JSON Pointers)
+- `Condition` - Routing logic (participant, JSON Logic)
+- `Control` - UI form definition (hierarchical layout)
+- `Calculation` - Computed field (JSON Logic expressions)
 
 **Features:**
-- OpenTelemetry integration
-- Health check endpoints
-- Service discovery configuration
-- Resilience patterns (retry, circuit breaker)
-- Logging and tracing
+- JSON serialization/deserialization
+- Data validation with `DataAnnotations`
+- JSON Schema generation support
+- Equality comparison (`IEquatable<T>`)
+- Audit timestamps (createdAt, updatedAt)
 
 **Technology:**
-- OpenTelemetry for observability
-- Microsoft.Extensions.Http.Resilience for resilience
-- Serilog for structured logging
+- System.Text.Json for serialization
+- DataAnnotations for validation
+- JsonSchema.Net.Generation for schema generation
 
-### 3. Sorcha.Blueprint.Engine
+### 2. Core Layer
 
-The core execution engine for running blueprints.
+#### Sorcha.Blueprint.Fluent
+Fluent API for programmatically building blueprints with compile-time safety.
 
-**Responsibilities:**
+**Key Builders:**
+- `BlueprintBuilder` - Main workflow builder
+- `ParticipantBuilder` - Participant configuration
+- `ActionBuilder` - Action/step configuration
+- `DisclosureBuilder` - Data visibility rules
+- `ConditionBuilder` - Routing conditions
+- `CalculationBuilder` - Computed fields
+- `FormBuilder` / `ControlBuilder` - UI form layout
+- `DataSchemaBuilder` - JSON Schema definitions
+
+**Example Usage:**
+```csharp
+var blueprint = BlueprintBuilder.Create()
+    .WithTitle("Purchase Order")
+    .WithDescription("Two-party purchase workflow")
+    .AddParticipant("buyer", p => p
+        .Named("Buyer Organization")
+        .FromOrganisation("ORG-123"))
+    .AddParticipant("seller", p => p
+        .Named("Seller Organization"))
+    .AddAction(0, a => a
+        .WithTitle("Submit Order")
+        .SentBy("buyer")
+        .RequiresData(d => d
+            .WithTitle("Order Details")
+            .AddProperty("itemName", "string")
+            .AddProperty("quantity", "integer"))
+        .Disclose("seller", d => d.Field("/itemName").Field("/quantity"))
+        .RouteToNext("seller"))
+    .Build();
+```
+
+**Features:**
+- Type-safe blueprint construction
+- Validation at build time
+- Fluent method chaining
+- Participant reference validation
+- Draft mode for incomplete blueprints
+
+**Technology:**
+- Modern C# patterns (method chaining, delegates)
+- Strong typing with generics
+- Integrated validation
+
+#### Sorcha.Blueprint.Schemas
+Schema management with pluggable repositories and client-side caching.
+
+**Key Components:**
+- `SchemaLibraryService` - Unified schema access across repositories
+- `ISchemaRepository` - Repository interface for schema sources
+- `BuiltInSchemaRepository` - Embedded schemas (person, address, document, payment)
+- `SchemaStoreRepository` - External schema.org integration
+- `ISchemaCacheService` - Caching interface
+- `LocalStorageSchemaCacheService` - Browser LocalStorage cache
+
+**Built-in Schemas:**
+- `person.json` - Contact information, dates, social media
+- `address.json` - Physical location data
+- `document.json` - Document metadata
+- `payment.json` - Payment information
+
+**Features:**
+- Multi-source schema aggregation
+- Search and filtering (by category, source, keywords)
+- Favorites management
+- Usage tracking
+- Client-side caching with statistics
+- Extensible repository pattern
+
+**Technology:**
+- JsonSchema.Net for validation (Draft 2020-12)
+- Blazored.LocalStorage for caching
+- Async/await patterns throughout
+
+#### Sorcha.Blueprint.Engine
+REST API for blueprint execution and management (IN DEVELOPMENT).
+
+**Current Status:** Template code only - not yet implemented
+
+**Planned Responsibilities:**
+- Blueprint CRUD operations
 - Blueprint validation
 - Execution orchestration
 - State management
 - Action execution
 - Error handling and retry logic
 
-**API Endpoints:**
-- `POST /blueprints/execute` - Execute a blueprint
-- `GET /blueprints/{id}/status` - Get execution status
-- `POST /blueprints/validate` - Validate a blueprint
+**Planned API Endpoints:**
+- `GET /api/blueprints` - List all blueprints
+- `GET /api/blueprints/{id}` - Get blueprint by ID
+- `POST /api/blueprints` - Create new blueprint
+- `PUT /api/blueprints/{id}` - Update blueprint
+- `DELETE /api/blueprints/{id}` - Delete blueprint
+- `POST /api/blueprints/{id}/execute` - Execute blueprint
+- `GET /api/blueprints/{id}/status` - Get execution status
+- `POST /api/blueprints/validate` - Validate blueprint
 - `GET /health` - Health check endpoint
+- `GET /alive` - Liveness check endpoint
 
 **Technology:**
 - ASP.NET Core Minimal APIs
+- OpenAPI/Swagger documentation
 - Dependency Injection
-- Background services for long-running tasks
+- Background services for long-running tasks (planned)
 
-### 4. Sorcha.Blueprint.Designer
+### 3. Apps Layer
 
-Web-based visual designer for creating and managing blueprints.
+#### Sorcha.Blueprint.Designer (Blazor Server)
+Web-based application host for the Blueprint designer.
+
+**Responsibilities:**
+- Host Blazor Server application
+- HTTP client for Engine API
+- Service discovery integration
+- Health checks
 
 **Features:**
-- Visual blueprint editor
-- Blueprint validation
-- Real-time execution monitoring
-- Blueprint templates
-- Version control
+- Interactive server-side rendering
+- SignalR for real-time updates
+- Output caching
+- Anti-forgery protection
 
 **Technology:**
 - Blazor Server
-- Interactive UI components
-- SignalR for real-time updates
+- MudBlazor components
+- SignalR
+
+#### Sorcha.Blueprint.Designer.Client (Blazor WASM)
+Client-side Blazor components and logic.
+
+**Responsibilities:**
+- Visual blueprint editor UI
+- Blueprint validation
+- Schema browser
+- Form designer
+- Client-side state management
+
+**Features:**
+- Visual workflow designer (Z.Blazor.Diagrams)
+- MudBlazor component library
+- LocalStorage caching for schemas
+- JSON Schema validation
+
+**Technology:**
+- Blazor WebAssembly
+- MudBlazor 8.0.0
+- Z.Blazor.Diagrams 3.0.3
+- Blazored.LocalStorage 4.5.0
+
+### 4. Hosting Layer
+
+#### Sorcha.AppHost
+.NET Aspire orchestration host managing service lifecycle.
+
+**Responsibilities:**
+- Service orchestration and discovery
+- Configuration management
+- Resource allocation
+- Developer dashboard
+- Health check aggregation
+
+**Configuration:**
+```csharp
+var blueprintEngine = builder.AddProject<Projects.Sorcha_Blueprint_Engine>("blueprint-engine")
+    .WithHttpHealthCheck("/health");
+
+builder.AddProject<Projects.Sorcha_Blueprint_Designer>("blueprint-designer")
+    .WithExternalHttpEndpoints()
+    .WithHttpHealthCheck("/health")
+    .WithReference(blueprintEngine)
+    .WaitFor(blueprintEngine);
+```
+
+**Technology:**
+- .NET Aspire 9.5.2
+- Service discovery
+- Health checks
+
+#### Sorcha.ServiceDefaults
+Shared service configurations and cross-cutting concerns.
+
+**Extension Methods:**
+- `AddServiceDefaults<TBuilder>()` - Complete service setup
+- `ConfigureOpenTelemetry<TBuilder>()` - Observability setup
+- `AddDefaultHealthChecks<TBuilder>()` - Health/liveness checks
+- `MapDefaultEndpoints(WebApplication)` - Health endpoints
+
+**Features:**
+- OpenTelemetry integration (logs, metrics, traces)
+- Health check endpoints (`/health`, `/alive`)
+- Service discovery configuration
+- Resilience patterns (retry, circuit breaker, timeout)
+- HTTP client defaults with resilience
+
+**Technology:**
+- OpenTelemetry 1.12.0
+- Microsoft.Extensions.Http.Resilience 9.9.0
+- Microsoft.Extensions.ServiceDiscovery 9.5.2
+
+## Testing Architecture
+
+Sorcha follows a comprehensive testing strategy with multiple levels of testing:
+
+### Test Projects Structure
+
+```
+tests/
+├── Sorcha.Blueprint.Models.Tests      # Unit tests for domain models
+├── Sorcha.Blueprint.Fluent.Tests      # Unit tests for fluent builders
+├── Sorcha.Blueprint.Schemas.Tests     # Unit tests for schema management
+├── Sorcha.Blueprint.Engine.Tests      # Unit tests for API endpoints
+├── Sorcha.Blueprint.Designer.Tests    # Component tests for Blazor UI
+└── Sorcha.Integration.Tests           # End-to-end integration tests
+```
+
+### Testing Layers
+
+**1. Unit Tests**
+- Test individual classes and methods in isolation
+- Mock external dependencies
+- Fast execution (< 100ms per test)
+- High code coverage target (80%+)
+- Technologies: xUnit, Moq, FluentAssertions
+
+**2. Component Tests**
+- Test Blazor components in isolation
+- Verify UI rendering and interactions
+- Test client-side logic
+- Technologies: bUnit, xUnit
+
+**3. Integration Tests**
+- Test service-to-service communication
+- Test Aspire orchestration
+- Test database operations (when implemented)
+- Test API endpoints end-to-end
+- Technologies: xUnit, WebApplicationFactory, Testcontainers
+
+**4. Contract Tests**
+- Verify API contracts match OpenAPI specs
+- Ensure backward compatibility
+- Validate request/response schemas
+
+### Test Naming Convention
+
+```csharp
+// Pattern: MethodName_Scenario_ExpectedBehavior
+[Fact]
+public void Build_WithoutTitle_ThrowsInvalidOperationException() { }
+
+[Fact]
+public void Build_WithValidData_ReturnsBlueprint() { }
+
+[Theory]
+[InlineData("", "short")]
+[InlineData("a", "short")]
+public void WithTitle_TooShort_ThrowsException(string title, string reason) { }
+```
+
+### CI/CD Testing Phases
+
+```
+Build Pipeline:
+1. Restore dependencies
+2. Build solution
+3. Run unit tests (parallel)
+4. Run component tests
+5. Run integration tests
+6. Collect code coverage
+7. Generate coverage reports
+8. Upload to Codecov
+```
 
 ## Design Principles
 
@@ -111,31 +394,51 @@ Web-based visual designer for creating and managing blueprints.
 - Containerized deployments
 - Horizontal scalability
 - Service discovery
-- Resilience patterns
+- Resilience patterns (retry, circuit breaker, timeout)
 - Configuration as code
+- Stateless service design
 
 ### 2. Observability-First
 
 - Distributed tracing with OpenTelemetry
-- Structured logging
-- Health checks
-- Metrics collection
-- Real-time monitoring
+- Structured logging with correlation IDs
+- Health checks (`/health`, `/alive`)
+- Metrics collection (request rate, duration, errors)
+- Real-time monitoring via Aspire dashboard
 
 ### 3. API-First
 
 - RESTful APIs using minimal API pattern
 - OpenAPI/Swagger documentation
-- Versioned APIs
+- Versioned APIs (planned)
 - Standard HTTP status codes
 - JSON request/response
+- Consistent error responses (ProblemDetails)
 
 ### 4. Modular Architecture
 
 - Loose coupling between services
-- Clear separation of concerns
-- Extensible plugin system
-- Shared abstractions
+- Clear separation of concerns (Common/Core/Apps)
+- Extensible plugin system (planned)
+- Shared abstractions via interfaces
+- Dependency injection throughout
+
+### 5. Domain-Driven Design
+
+- Rich domain models with behavior
+- Ubiquitous language (Blueprint, Action, Participant, Disclosure)
+- Value objects for immutable data
+- Fluent builders for complex construction
+- Validation at domain boundaries
+
+### 6. Security by Design
+
+- Input validation at all entry points
+- JSON Schema validation for blueprints
+- DataAnnotations for model validation
+- Planned: Authentication and authorization
+- Planned: Encryption at rest and in transit
+- Audit logging for compliance
 
 ## Data Flow
 
