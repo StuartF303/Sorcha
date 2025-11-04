@@ -43,6 +43,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Blueprint.Designer.T
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Blueprint.Schemas", "src\Core\Sorcha.Blueprint.Schemas\Sorcha.Blueprint.Schemas.csproj", "{58023393-AFD6-417B-A95F-CDC3B2578BC9}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{E39AFF09-0404-B0E1-E9DF-C77467378E03}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Peer.Service", "src\Apps\Services\Sorcha.Peer.Service\Sorcha.Peer.Service.csproj", "{679A1090-C741-46BD-9366-D49FDBDFF314}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -161,6 +165,18 @@ Global
 		{58023393-AFD6-417B-A95F-CDC3B2578BC9}.Release|x64.Build.0 = Release|Any CPU
 		{58023393-AFD6-417B-A95F-CDC3B2578BC9}.Release|x86.ActiveCfg = Release|Any CPU
 		{58023393-AFD6-417B-A95F-CDC3B2578BC9}.Release|x86.Build.0 = Release|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Debug|x64.Build.0 = Debug|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Debug|x86.Build.0 = Debug|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Release|Any CPU.Build.0 = Release|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Release|x64.ActiveCfg = Release|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Release|x64.Build.0 = Release|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Release|x86.ActiveCfg = Release|Any CPU
+		{679A1090-C741-46BD-9366-D49FDBDFF314}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -181,6 +197,8 @@ Global
 		{BFF2DF6E-AA54-47C7-211F-79ACCBB4577C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{002C8C30-A64D-4CB2-B86F-E28F7955282B} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{58023393-AFD6-417B-A95F-CDC3B2578BC9} = {8D626EA8-CB54-BC41-363A-217881BEBA6E}
+		{E39AFF09-0404-B0E1-E9DF-C77467378E03} = {AD2A5A3B-A595-3E96-334A-002D08FE630C}
+		{679A1090-C741-46BD-9366-D49FDBDFF314} = {E39AFF09-0404-B0E1-E9DF-C77467378E03}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AE3C1587-7A31-40B9-A187-8D1CA04067E0}

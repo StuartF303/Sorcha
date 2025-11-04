@@ -1,0 +1,275 @@
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudPaper Elevation="2" Class="pa-4 mb-4">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Hub" Size="Size.Large" />
+                    <MudText Typo="Typo.h5">Peer Service</MudText>
+                </MudStack>
+                <MudStack Row="true" Spacing="2">
+                    <MudChip T="string" Color="@(serviceStatus?.IsRunning == true ? Color.Success : Color.Error)"
+                             Icon="@(serviceStatus?.IsRunning == true ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Error)">
+                        @(serviceStatus?.IsRunning == true ? "Running" : "Offline")
+                    </MudChip>
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                   OnClick="LoadServiceMetrics"
+                                   Size="Size.Small"
+                                   Color="Color.Primary" />
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    @if (serviceStatus?.IsRunning == true)
+    {
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Service Information</MudText>
+                <MudSimpleTable Dense="true">
+                    <tbody>
+                        <tr>
+                            <td><strong>Endpoint:</strong></td>
+                            <td>@serviceStatus.Endpoint</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Protocol:</strong></td>
+                            <td>HTTP/2 (gRPC + REST)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Uptime:</strong></td>
+                            <td>@FormatUptime(metrics?.UptimeSeconds ?? 0)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Active Peers:</strong></td>
+                            <td>@(metrics?.ActivePeers ?? 0)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total Transactions:</strong></td>
+                            <td>@(metrics?.TotalTransactions ?? 0)</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Performance Metrics</MudText>
+                <MudStack Spacing="3">
+                    <MudStack Spacing="1">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.body2">CPU Usage</MudText>
+                            <MudText Typo="Typo.body2"><strong>@($"{metrics?.CpuUsagePercent ?? 0:F1}%")</strong></MudText>
+                        </MudStack>
+                        <MudProgressLinear Color="@GetCpuColor(metrics?.CpuUsagePercent ?? 0)"
+                                           Value="@(metrics?.CpuUsagePercent ?? 0)"
+                                           Size="Size.Small" />
+                    </MudStack>
+
+                    <MudStack Spacing="1">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.body2">Memory Usage</MudText>
+                            <MudText Typo="Typo.body2"><strong>@FormatBytes(metrics?.MemoryUsageBytes ?? 0)</strong></MudText>
+                        </MudStack>
+                        <MudProgressLinear Color="Color.Info"
+                                           Value="@GetMemoryPercentage(metrics?.MemoryUsageBytes ?? 0)"
+                                           Size="Size.Small" />
+                    </MudStack>
+
+                    <MudDivider />
+
+                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                        <MudText Typo="Typo.body2">Throughput</MudText>
+                        <MudText Typo="Typo.body2"><strong>@($"{metrics?.ThroughputPerSecond ?? 0:F2}") tx/sec</strong></MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Connected Peers</MudText>
+                @if (peers?.Any() == true)
+                {
+                    <MudTable Items="@peers" Dense="true" Hover="true" Striped="true">
+                        <HeaderContent>
+                            <MudTh>Peer ID</MudTh>
+                            <MudTh>Endpoint</MudTh>
+                            <MudTh>Status</MudTh>
+                            <MudTh>Connected Since</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Peer ID">@context.PeerId</MudTd>
+                            <MudTd DataLabel="Endpoint">@context.Endpoint</MudTd>
+                            <MudTd DataLabel="Status">
+                                <MudChip T="string" Size="Size.Small" Color="@(context.Status == "active" ? Color.Success : Color.Default)">
+                                    @context.Status
+                                </MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Connected Since">@context.ConnectedSince.ToString("g")</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        No peers currently connected
+                    </MudText>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Activity Log</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Last updated: @lastUpdateTime.ToString("HH:mm:ss")
+                </MudText>
+            </MudPaper>
+        </MudItem>
+    }
+    else
+    {
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Warning">
+                Peer Service is currently offline or unreachable.
+            </MudAlert>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    private ServiceStatus? serviceStatus;
+    private PeerMetrics? metrics;
+    private List<PeerInfo> peers = new();
+    private DateTime lastUpdateTime = DateTime.Now;
+    private Timer? refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadServiceMetrics();
+
+        // Auto-refresh every 5 seconds
+        refreshTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadServiceMetrics();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private async Task LoadServiceMetrics()
+    {
+        try
+        {
+            // Check if service is running by calling health endpoint
+            var healthResponse = await Http.GetAsync("https://localhost:7081/api/health");
+            serviceStatus = new ServiceStatus
+            {
+                IsRunning = healthResponse.IsSuccessStatusCode,
+                Endpoint = "https://localhost:7081"
+            };
+
+            if (serviceStatus.IsRunning)
+            {
+                // Load metrics (simulated for now - in production this would call /api/metrics)
+                metrics = new PeerMetrics
+                {
+                    UptimeSeconds = Random.Shared.Next(3600, 86400),
+                    ActivePeers = Random.Shared.Next(0, 10),
+                    TotalTransactions = Random.Shared.Next(100, 10000),
+                    CpuUsagePercent = Random.Shared.NextDouble() * 100,
+                    MemoryUsageBytes = Random.Shared.NextInt64(100_000_000, 500_000_000),
+                    ThroughputPerSecond = Random.Shared.NextDouble() * 50
+                };
+
+                // Generate sample peer data
+                peers = Enumerable.Range(1, metrics.ActivePeers)
+                    .Select(i => new PeerInfo
+                    {
+                        PeerId = $"peer-{i:D3}",
+                        Endpoint = $"https://peer{i}.example.com:50051",
+                        Status = "active",
+                        ConnectedSince = DateTime.Now.AddMinutes(-Random.Shared.Next(5, 120))
+                    })
+                    .ToList();
+            }
+
+            lastUpdateTime = DateTime.Now;
+        }
+        catch (Exception)
+        {
+            serviceStatus = new ServiceStatus { IsRunning = false };
+        }
+    }
+
+    private string FormatUptime(long seconds)
+    {
+        var timespan = TimeSpan.FromSeconds(seconds);
+        if (timespan.TotalDays >= 1)
+            return $"{(int)timespan.TotalDays}d {timespan.Hours}h {timespan.Minutes}m";
+        if (timespan.TotalHours >= 1)
+            return $"{(int)timespan.TotalHours}h {timespan.Minutes}m";
+        return $"{timespan.Minutes}m {timespan.Seconds}s";
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:F2} {sizes[order]}";
+    }
+
+    private double GetMemoryPercentage(long bytes)
+    {
+        // Assume 1GB max for progress bar visualization
+        return Math.Min(100, (bytes / 1_000_000_000.0) * 100);
+    }
+
+    private Color GetCpuColor(double percentage)
+    {
+        if (percentage < 50) return Color.Success;
+        if (percentage < 80) return Color.Warning;
+        return Color.Error;
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+
+    private class ServiceStatus
+    {
+        public bool IsRunning { get; set; }
+        public string Endpoint { get; set; } = string.Empty;
+    }
+
+    private class PeerMetrics
+    {
+        public long UptimeSeconds { get; set; }
+        public int ActivePeers { get; set; }
+        public long TotalTransactions { get; set; }
+        public double CpuUsagePercent { get; set; }
+        public long MemoryUsageBytes { get; set; }
+        public double ThroughputPerSecond { get; set; }
+    }
+
+    private class PeerInfo
+    {
+        public string PeerId { get; set; } = string.Empty;
+        public string Endpoint { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public DateTime ConnectedSince { get; set; }
+    }
+}

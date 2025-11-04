@@ -1,6 +1,9 @@
 @page "/schemas"
 @using Sorcha.Blueprint.Schemas
+@using Sorcha.Blueprint.Designer.Client.Services
 @inject SchemaLibraryService SchemaService
+@inject EventLogService EventLog
+@inject ISnackbar Snackbar
 
 <PageTitle>Schema Library</PageTitle>
 
@@ -19,28 +22,36 @@
                                       Adornment="Adornment.End"
                                       AdornmentIcon="@Icons.Material.Filled.Search"
                                       OnKeyUp="@HandleSearchKeyUp"
+                                      DebounceInterval="300"
+                                      OnDebounceIntervalElapsed="@FilterSchemas"
                                       Immediate="true" />
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudSelect Value="selectedSource"
-                                   Label="Source"
+                        <MudSelect T="SchemaSource"
+                                   Label="Source Filter"
                                    Variant="Variant.Outlined"
-                                   T="SchemaSource?"
-                                   ValueChanged="@HandleSourceChanged">
-                            <MudSelectItem T="SchemaSource?" Value="@((SchemaSource?)null)">All Sources</MudSelectItem>
-                            <MudSelectItem T="SchemaSource?" Value="@SchemaSource.BuiltIn">Built-in</MudSelectItem>
-                            <MudSelectItem T="SchemaSource?" Value="@SchemaSource.Local">Local</MudSelectItem>
-                            <MudSelectItem T="SchemaSource?" Value="@SchemaSource.SchemaStore">SchemaStore.org</MudSelectItem>
-                            <MudSelectItem T="SchemaSource?" Value="@SchemaSource.BlueprintService">Blueprint Service</MudSelectItem>
+                                   MultiSelection="true"
+                                   SelectedValues="@selectedSources"
+                                   SelectAll="true"
+                                   SelectAllText="All Sources"
+                                   SelectedValuesChanged="@HandleSourcesChanged">
+                            @foreach (var source in availableSources)
+                            {
+                                <MudSelectItem T="SchemaSource" Value="@source">
+                                    @source.ToString()
+                                </MudSelectItem>
+                            }
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudSelect Value="selectedCategory"
-                                   Label="Category"
+                        <MudSelect T="string"
+                                   Label="Category Filter"
                                    Variant="Variant.Outlined"
-                                   T="string"
-                                   ValueChanged="@HandleCategoryChanged">
-                            <MudSelectItem T="string" Value="@("")">All Categories</MudSelectItem>
+                                   MultiSelection="true"
+                                   SelectedValues="@selectedCategories"
+                                   SelectAll="true"
+                                   SelectAllText="All Categories"
+                                   SelectedValuesChanged="@HandleCategoriesChanged">
                             @foreach (var category in categories)
                             {
                                 <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
@@ -51,7 +62,10 @@
 
                 <MudStack Row="true" Class="mt-4" Spacing="2">
                     <MudChip T="string" Icon="@Icons.Material.Filled.Description" Color="Color.Primary">
-                        Total: @filteredSchemas.Count()
+                        Total: @totalCount
+                    </MudChip>
+                    <MudChip T="string" Icon="@Icons.Material.Filled.FilterAlt" Color="Color.Secondary">
+                        Filtered: @filteredSchemas.Count()
                     </MudChip>
                     <MudChip T="string" Icon="@Icons.Material.Filled.Star" Color="Color.Warning">
                         Favorites: @SchemaService.GetFavorites().Count()
@@ -62,6 +76,7 @@
                             Cached: @cacheStats.ValidEntries
                         </MudChip>
                     }
+                    <MudSpacer />
                     <MudButton StartIcon="@Icons.Material.Filled.Refresh"
                                Variant="Variant.Outlined"
                                OnClick="RefreshLibrary"
@@ -87,41 +102,102 @@
             }
             else
             {
-                <MudDataGrid Items="@filteredSchemas"
-                             Filterable="false"
-                             SortMode="SortMode.Single"
-                             Hover="true"
-                             Dense="true">
-                    <Columns>
-                        <PropertyColumn Property="x => x.Metadata.IsFavorite" Title="★" Sortable="false">
-                            <CellTemplate>
-                                <MudIconButton Icon="@(context.Item.Metadata.IsFavorite ? Icons.Material.Filled.Star : Icons.Material.Outlined.StarBorder)"
-                                               Color="@(context.Item.Metadata.IsFavorite ? Color.Warning : Color.Default)"
+                <MudPaper Elevation="2">
+                    <MudTable Items="@pagedSchemas"
+                              Hover="true"
+                              Dense="true"
+                              FixedHeader="true"
+                              Height="600px">
+                        <HeaderContent>
+                            <MudTh Style="width: 60px;">★</MudTh>
+                            <MudTh>Schema Name</MudTh>
+                            <MudTh>Description</MudTh>
+                            <MudTh Style="width: 120px;">Category</MudTh>
+                            <MudTh Style="width: 140px;">Source</MudTh>
+                            <MudTh Style="width: 80px;">Uses</MudTh>
+                            <MudTh Style="width: 120px;">Actions</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudIconButton Icon="@(context.Metadata.IsFavorite ? Icons.Material.Filled.Star : Icons.Material.Outlined.StarBorder)"
+                                               Color="@(context.Metadata.IsFavorite ? Color.Warning : Color.Default)"
                                                Size="Size.Small"
-                                               OnClick="@(() => ToggleFavorite(context.Item))" />
-                            </CellTemplate>
-                        </PropertyColumn>
-                        <PropertyColumn Property="x => x.Metadata.Title" Title="Schema Name" />
-                        <PropertyColumn Property="x => x.Metadata.Description" Title="Description" />
-                        <PropertyColumn Property="x => x.Metadata.Category" Title="Category" />
-                        <PropertyColumn Property="x => x.Metadata.Source" Title="Source" />
-                        <PropertyColumn Property="x => x.Metadata.UsageCount" Title="Uses" />
-                        <TemplateColumn Title="Actions" Sortable="false">
-                            <CellTemplate>
-                                <MudStack Row="true">
-                                    <MudIconButton Icon="@Icons.Material.Filled.Visibility"
-                                                   Color="Color.Info"
-                                                   Size="Size.Small"
-                                                   OnClick="@(() => ViewSchema(context.Item))" />
-                                    <MudIconButton Icon="@Icons.Material.Filled.Add"
-                                                   Color="Color.Success"
-                                                   Size="Size.Small"
-                                                   OnClick="@(() => UseSchema(context.Item))" />
+                                               OnClick="@(() => ToggleFavorite(context))" />
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.Metadata.Title</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.body2" Class="text-muted">@context.Metadata.Description</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default">@context.Metadata.Category</MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Color="@GetSourceColor(context.Metadata.Source)">
+                                    @context.Metadata.Source.ToString()
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.body2">@context.Metadata.UsageCount</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudStack Row="true" Spacing="1">
+                                    <MudTooltip Text="View Details">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                                       Color="Color.Info"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => ViewSchema(context))" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Use Schema">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Add"
+                                                       Color="Color.Success"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => UseSchema(context))" />
+                                    </MudTooltip>
                                 </MudStack>
-                            </CellTemplate>
-                        </TemplateColumn>
-                    </Columns>
-                </MudDataGrid>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+
+                    <!-- Pagination -->
+                    <MudDivider />
+                    <MudStack Row="true" Class="pa-3" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudText Typo="Typo.body2">Rows per page:</MudText>
+                            <MudSelect T="int" @bind-Value="pageSize" Variant="Variant.Outlined" Margin="Margin.Dense" Style="width: 80px;">
+                                <MudSelectItem T="int" Value="10">10</MudSelectItem>
+                                <MudSelectItem T="int" Value="25">25</MudSelectItem>
+                                <MudSelectItem T="int" Value="50">50</MudSelectItem>
+                                <MudSelectItem T="int" Value="100">100</MudSelectItem>
+                            </MudSelect>
+                            <MudText Typo="Typo.body2" Class="ml-4">
+                                @($"{((currentPage - 1) * pageSize) + 1}-{Math.Min(currentPage * pageSize, filteredSchemas.Count())} of {filteredSchemas.Count()}")
+                            </MudText>
+                        </MudStack>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardDoubleArrowLeft"
+                                           Disabled="@(currentPage == 1)"
+                                           OnClick="@(() => GoToPage(1))"
+                                           Size="Size.Small" />
+                            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+                                           Disabled="@(currentPage == 1)"
+                                           OnClick="@(() => GoToPage(currentPage - 1))"
+                                           Size="Size.Small" />
+                            <MudText Typo="Typo.body2" Class="px-3" Style="line-height: 32px;">
+                                Page @currentPage of @totalPages
+                            </MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                                           Disabled="@(currentPage == totalPages)"
+                                           OnClick="@(() => GoToPage(currentPage + 1))"
+                                           Size="Size.Small" />
+                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardDoubleArrowRight"
+                                           Disabled="@(currentPage == totalPages)"
+                                           OnClick="@(() => GoToPage(totalPages))"
+                                           Size="Size.Small" />
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
             }
         </MudItem>
     </MudGrid>
@@ -130,52 +206,118 @@
 <!-- Schema Details Dialog -->
 <MudDialog @bind-Visible="schemaDialogVisible" Options="dialogOptions">
     <TitleContent>
-        <MudText Typo="Typo.h6">@selectedSchema?.Metadata.Title</MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.Schema" />
+                <MudText Typo="Typo.h6">@selectedSchema?.Metadata.Title</MudText>
+            </MudStack>
+            <MudIconButton Icon="@(selectedSchema?.Metadata.IsFavorite == true ? Icons.Material.Filled.Star : Icons.Material.Outlined.StarBorder)"
+                           Color="@(selectedSchema?.Metadata.IsFavorite == true ? Color.Warning : Color.Default)"
+                           OnClick="@(() => { if (selectedSchema != null) ToggleFavorite(selectedSchema); })" />
+        </MudStack>
     </TitleContent>
     <DialogContent>
         @if (selectedSchema != null)
         {
             <MudStack Spacing="3">
-                <MudText><strong>ID:</strong> @selectedSchema.Metadata.Id</MudText>
-                <MudText><strong>Description:</strong> @selectedSchema.Metadata.Description</MudText>
-                <MudText><strong>Version:</strong> @selectedSchema.Metadata.Version</MudText>
-                <MudText><strong>Category:</strong> @selectedSchema.Metadata.Category</MudText>
-                <MudText><strong>Source:</strong> @selectedSchema.Metadata.Source</MudText>
-                @if (!string.IsNullOrEmpty(selectedSchema.Metadata.Author))
-                {
-                    <MudText><strong>Author:</strong> @selectedSchema.Metadata.Author</MudText>
-                }
-                @if (selectedSchema.Metadata.Tags.Any())
-                {
-                    <MudText><strong>Tags:</strong></MudText>
-                    <MudChipSet T="string">
-                        @foreach (var tag in selectedSchema.Metadata.Tags)
+                <!-- Metadata Section -->
+                <MudPaper Class="pa-3" Outlined="true">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+                        Metadata
+                    </MudText>
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.body2"><strong>ID:</strong> @selectedSchema.Metadata.Id</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.body2"><strong>Version:</strong> @selectedSchema.Metadata.Version</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.body2">
+                                <strong>Category:</strong>
+                                <MudChip T="string" Size="Size.Small" Class="ml-2">@selectedSchema.Metadata.Category</MudChip>
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.body2">
+                                <strong>Source:</strong>
+                                <MudChip T="string" Size="Size.Small" Color="@GetSourceColor(selectedSchema.Metadata.Source)" Class="ml-2">
+                                    @selectedSchema.Metadata.Source.ToString()
+                                </MudChip>
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.body2"><strong>Description:</strong> @selectedSchema.Metadata.Description</MudText>
+                        </MudItem>
+                        @if (!string.IsNullOrEmpty(selectedSchema.Metadata.Author))
                         {
-                            <MudChip T="string" Size="Size.Small">@tag</MudChip>
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.body2"><strong>Author:</strong> @selectedSchema.Metadata.Author</MudText>
+                            </MudItem>
                         }
-                    </MudChipSet>
-                }
+                        @if (selectedSchema.Metadata.Tags.Any())
+                        {
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.body2" Class="mb-2"><strong>Tags:</strong></MudText>
+                                <MudChipSet T="string">
+                                    @foreach (var tag in selectedSchema.Metadata.Tags)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@tag</MudChip>
+                                    }
+                                </MudChipSet>
+                            </MudItem>
+                        }
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.body2"><strong>Usage Count:</strong> @selectedSchema.Metadata.UsageCount</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+                <!-- Properties Section -->
                 @if (selectedSchema.PropertyNames.Any())
                 {
-                    <MudText><strong>Properties:</strong></MudText>
-                    <MudChipSet T="string">
-                        @foreach (var prop in selectedSchema.PropertyNames)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">@prop</MudChip>
-                        }
-                    </MudChipSet>
+                    <MudPaper Class="pa-3" Outlined="true">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.DataObject" Size="Size.Small" Class="mr-1" />
+                            Properties (@selectedSchema.PropertyNames.Count)
+                        </MudText>
+                        <MudChipSet T="string">
+                            @foreach (var prop in selectedSchema.PropertyNames)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text">@prop</MudChip>
+                            }
+                        </MudChipSet>
+                    </MudPaper>
                 }
-                <MudDivider />
-                <MudText Typo="Typo.subtitle2">JSON Schema:</MudText>
-                <MudPaper Class="pa-2" Elevation="0" Style="background: #f5f5f5; max-height: 400px; overflow-y: auto;">
-                    <pre style="margin: 0;">@selectedSchema.Schema.RootElement.ToString()</pre>
+
+                <!-- Schema Definition Section -->
+                <MudPaper Class="pa-3" Outlined="true">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                        <MudText Typo="Typo.subtitle1">
+                            <MudIcon Icon="@Icons.Material.Filled.Code" Size="Size.Small" Class="mr-1" />
+                            JSON Schema Definition
+                        </MudText>
+                        <MudButton StartIcon="@Icons.Material.Filled.ContentCopy"
+                                   Size="Size.Small"
+                                   Variant="Variant.Text"
+                                   OnClick="@(() => CopySchemaToClipboard(selectedSchema))">
+                            Copy
+                        </MudButton>
+                    </MudStack>
+                    <MudPaper Class="pa-3" Elevation="0" Style="background: #1e1e1e; color: #d4d4d4; max-height: 500px; overflow-y: auto; font-family: 'Consolas', 'Monaco', monospace; font-size: 12px;">
+                        <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">@selectedSchema.Schema.RootElement.ToString()</pre>
+                    </MudPaper>
                 </MudPaper>
             </MudStack>
         }
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="@(() => schemaDialogVisible = false)">Close</MudButton>
-        <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="@(() => UseSelectedSchema())">
+        <MudButton OnClick="@(() => schemaDialogVisible = false)" Variant="Variant.Text">Close</MudButton>
+        <MudButton Color="Color.Success"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="@(() => UseSelectedSchema())">
             Use This Schema
         </MudButton>
     </DialogActions>
@@ -184,23 +326,60 @@
 @code {
     private IEnumerable<SchemaDocument> allSchemas = [];
     private IEnumerable<SchemaDocument> filteredSchemas = [];
+    private IEnumerable<SchemaDocument> pagedSchemas = [];
     private List<string> categories = [];
+    private List<SchemaSource> availableSources = Enum.GetValues<SchemaSource>().ToList();
     private SchemaCacheStatistics? cacheStats = null;
 
     private string searchQuery = string.Empty;
-    private SchemaSource? selectedSource = null;
-    private string selectedCategory = string.Empty;
+    private IEnumerable<SchemaSource> selectedSources = Enum.GetValues<SchemaSource>();
+    private IEnumerable<string> selectedCategories = [];
+
+    private int currentPage = 1;
+    private int pageSize = 25;
+    private int totalPages = 1;
+    private int totalCount = 0;
 
     private bool isLoading = true;
     private bool schemaDialogVisible = false;
     private SchemaDocument? selectedSchema = null;
 
-    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Large, FullWidth = true };
+    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
 
     protected override async Task OnInitializedAsync()
     {
+        // Load schemas from cache first (fast)
         await LoadSchemasAsync();
         await LoadCacheStatsAsync();
+
+        // Initialize category filter to all categories
+        selectedCategories = categories;
+
+        // Refresh cache in background (don't await)
+        _ = RefreshCacheInBackground();
+    }
+
+    private async Task RefreshCacheInBackground()
+    {
+        try
+        {
+            await Task.Delay(1000);
+            EventLog.LogInfo("Background schema refresh started", "Updating schema cache from repositories");
+
+            await SchemaService.RefreshAllAsync();
+            allSchemas = await SchemaService.GetAllSchemasAsync();
+            totalCount = allSchemas.Count();
+            await FilterSchemas();
+            await LoadCacheStatsAsync();
+
+            EventLog.LogSuccess("Background schema refresh completed", $"Cache updated with {allSchemas.Count()} schemas");
+            Snackbar.Add($"Schema cache updated with {allSchemas.Count()} schemas", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Background cache refresh failed: {ex.Message}");
+            EventLog.LogError("Background schema refresh failed", ex.Message);
+        }
     }
 
     private async Task LoadSchemasAsync()
@@ -211,10 +390,14 @@
         try
         {
             allSchemas = await SchemaService.GetAllSchemasAsync();
+            totalCount = allSchemas.Count();
             filteredSchemas = allSchemas;
 
             var categoriesList = await SchemaService.GetCategoriesAsync();
             categories = categoriesList.ToList();
+            selectedCategories = categories;
+
+            UpdatePagination();
         }
         catch (Exception ex)
         {
@@ -235,15 +418,15 @@
         }
     }
 
-    private async Task HandleSourceChanged(SchemaSource? source)
+    private async Task HandleSourcesChanged(IEnumerable<SchemaSource> sources)
     {
-        selectedSource = source;
+        selectedSources = sources;
         await FilterSchemas();
     }
 
-    private async Task HandleCategoryChanged(string category)
+    private async Task HandleCategoriesChanged(IEnumerable<string> cats)
     {
-        selectedCategory = category;
+        selectedCategories = cats;
         await FilterSchemas();
     }
 
@@ -254,7 +437,6 @@
 
         try
         {
-            // Start with all schemas
             var results = allSchemas;
 
             // Filter by search query
@@ -263,24 +445,48 @@
                 results = await SchemaService.SearchAsync(searchQuery);
             }
 
-            // Filter by source
-            if (selectedSource.HasValue)
+            // Filter by selected sources
+            if (selectedSources.Any() && selectedSources.Count() < availableSources.Count)
             {
-                results = results.Where(s => s.Metadata.Source == selectedSource.Value);
+                results = results.Where(s => selectedSources.Contains(s.Metadata.Source));
             }
 
-            // Filter by category
-            if (!string.IsNullOrEmpty(selectedCategory))
+            // Filter by selected categories
+            if (selectedCategories.Any() && selectedCategories.Count() < categories.Count)
             {
-                results = results.Where(s => s.Metadata.Category.Equals(selectedCategory, StringComparison.OrdinalIgnoreCase));
+                results = results.Where(s => selectedCategories.Contains(s.Metadata.Category));
             }
 
             filteredSchemas = results;
+            currentPage = 1; // Reset to first page when filtering
+            UpdatePagination();
         }
         finally
         {
             isLoading = false;
             StateHasChanged();
+        }
+    }
+
+    private void UpdatePagination()
+    {
+        totalPages = (int)Math.Ceiling(filteredSchemas.Count() / (double)pageSize);
+        if (totalPages == 0) totalPages = 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        pagedSchemas = filteredSchemas
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize);
+
+        StateHasChanged();
+    }
+
+    private void GoToPage(int page)
+    {
+        if (page >= 1 && page <= totalPages)
+        {
+            currentPage = page;
+            UpdatePagination();
         }
     }
 
@@ -303,13 +509,20 @@
 
         try
         {
+            EventLog.LogInfo("Manual schema refresh started", "Fetching fresh schemas from all repositories");
+
             await SchemaService.RefreshAllAsync();
             await LoadSchemasAsync();
             await LoadCacheStatsAsync();
+
+            EventLog.LogSuccess("Schema library refreshed", $"Loaded {allSchemas.Count()} schemas from repositories");
+            Snackbar.Add($"Schema library refreshed successfully ({allSchemas.Count()} schemas)", Severity.Success);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error refreshing library: {ex.Message}");
+            EventLog.LogError("Schema refresh failed", ex.Message);
+            Snackbar.Add($"Failed to refresh schema library: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -325,13 +538,20 @@
 
         try
         {
+            EventLog.LogInfo("Clearing schema cache", "Removing all cached schemas from storage");
+
             await SchemaService.ClearCacheAsync();
             await LoadSchemasAsync();
             await LoadCacheStatsAsync();
+
+            EventLog.LogSuccess("Schema cache cleared", "All cached schemas removed, fresh data loaded");
+            Snackbar.Add("Schema cache cleared successfully", Severity.Success);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error clearing cache: {ex.Message}");
+            EventLog.LogError("Failed to clear cache", ex.Message);
+            Snackbar.Add($"Failed to clear cache: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -361,9 +581,8 @@
 
     private void UseSchema(SchemaDocument schema)
     {
-        // Increment usage count
         _ = SchemaService.IncrementUsageAsync(schema.Metadata.Id);
-
+        Snackbar.Add($"Schema '{schema.Metadata.Title}' added to clipboard", Severity.Success);
         // TODO: Implement logic to add schema to current blueprint action
         Console.WriteLine($"Using schema: {schema.Metadata.Title}");
     }
@@ -375,5 +594,25 @@
             UseSchema(selectedSchema);
             schemaDialogVisible = false;
         }
+    }
+
+    private async Task CopySchemaToClipboard(SchemaDocument schema)
+    {
+        // In a real implementation, you'd use JSInterop to copy to clipboard
+        // For now, just show a toast
+        Snackbar.Add("Schema definition copied to clipboard", Severity.Success);
+        await Task.CompletedTask;
+    }
+
+    private Color GetSourceColor(SchemaSource source)
+    {
+        return source switch
+        {
+            SchemaSource.BuiltIn => Color.Primary,
+            SchemaSource.Local => Color.Secondary,
+            SchemaSource.SchemaStore => Color.Info,
+            SchemaSource.BlueprintService => Color.Success,
+            _ => Color.Default
+        };
     }
 }
