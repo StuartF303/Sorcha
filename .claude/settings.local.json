@@ -23,7 +23,9 @@
       "Bash(del \"src\\Core\\Sorcha.Blueprint.Schemas\\Class1.cs\")",
       "Bash(dotnet remove:*)",
       "Bash(dotnet list:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(git log:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []
