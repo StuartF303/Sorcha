@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+syntax = "proto3";
+
+package sorcha.peer.communication;
+
+option csharp_namespace = "Sorcha.Peer.Service.Protos";
+
+// Peer Communication Service
+// Enables direct peer-to-peer communication
+service PeerCommunication {
+  // Send a message to a peer
+  rpc SendMessage(PeerMessage) returns (MessageAck);
+
+  // Establish a bidirectional streaming connection
+  rpc Stream(stream PeerMessage) returns (stream PeerMessage);
+}
+
+// Message sent between peers
+message PeerMessage {
+  string sender_peer_id = 1;
+  string recipient_peer_id = 2;
+  MessageType message_type = 3;
+  bytes payload = 4;
+  int64 timestamp = 5;
+}
+
+// Message acknowledgment
+message MessageAck {
+  bool received = 1;
+  int64 timestamp = 2;
+}
+
+// Type of message
+enum MessageType {
+  UNKNOWN = 0;
+  TRANSACTION_NOTIFICATION = 1;
+  TRANSACTION_REQUEST = 2;
+  TRANSACTION_RESPONSE = 3;
+  PEER_STATUS_UPDATE = 4;
+  HEARTBEAT = 5;
+}
