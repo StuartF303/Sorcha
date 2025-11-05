@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sorcha.dev/schemas/loan-request/v1",
+  "title": "Loan Request",
+  "description": "Loan application request with applicant financial information",
+  "type": "object",
+  "properties": {
+    "loanAmount": {
+      "type": "number",
+      "description": "Requested loan amount in local currency",
+      "minimum": 0,
+      "exclusiveMinimum": 0,
+      "examples": [50000, 250000, 500000]
+    },
+    "loanPurpose": {
+      "type": "string",
+      "description": "Purpose of the loan",
+      "enum": [
+        "home-purchase",
+        "home-refinance",
+        "home-improvement",
+        "auto-purchase",
+        "business",
+        "debt-consolidation",
+        "education",
+        "personal",
+        "other"
+      ],
+      "examples": ["home-purchase", "auto-purchase"]
+    },
+    "loanPurposeDescription": {
+      "type": "string",
+      "description": "Detailed description of loan purpose",
+      "maxLength": 500,
+      "examples": ["Purchase of primary residence", "Refinance existing mortgage"]
+    },
+    "requestedTerm": {
+      "type": "integer",
+      "description": "Requested loan term in months",
+      "minimum": 1,
+      "maximum": 480,
+      "examples": [60, 120, 360]
+    },
+    "annualIncome": {
+      "type": "number",
+      "description": "Gross annual income before taxes",
+      "minimum": 0,
+      "examples": [75000, 120000]
+    },
+    "employmentStatus": {
+      "type": "string",
+      "description": "Current employment status",
+      "enum": ["employed", "self-employed", "unemployed", "retired", "student"],
+      "examples": ["employed", "self-employed"]
+    },
+    "employmentYears": {
+      "type": "number",
+      "description": "Years in current employment",
+      "minimum": 0,
+      "examples": [5.5, 10]
+    },
+    "employer": {
+      "type": "string",
+      "description": "Current employer name",
+      "maxLength": 200,
+      "examples": ["ACME Corporation", "Self Employed"]
+    },
+    "occupation": {
+      "type": "string",
+      "description": "Current occupation or job title",
+      "maxLength": 200,
+      "examples": ["Software Engineer", "Business Owner", "Teacher"]
+    },
+    "savingsAmount": {
+      "type": "number",
+      "description": "Total savings and liquid assets",
+      "minimum": 0,
+      "examples": [25000, 100000]
+    },
+    "monthlyExpenses": {
+      "type": "number",
+      "description": "Total monthly expenses including rent, utilities, etc.",
+      "minimum": 0,
+      "examples": [2000, 4500]
+    },
+    "monthlyDebtPayments": {
+      "type": "number",
+      "description": "Total monthly debt payments (credit cards, loans, etc.)",
+      "minimum": 0,
+      "examples": [500, 1200]
+    },
+    "hasExistingMortgage": {
+      "type": "boolean",
+      "description": "Whether applicant has an existing mortgage",
+      "default": false
+    },
+    "existingMortgageBalance": {
+      "type": "number",
+      "description": "Outstanding balance on existing mortgage",
+      "minimum": 0,
+      "examples": [200000]
+    },
+    "downPaymentAmount": {
+      "type": "number",
+      "description": "Down payment amount (for purchase loans)",
+      "minimum": 0,
+      "examples": [50000, 100000]
+    },
+    "collateralDescription": {
+      "type": "string",
+      "description": "Description of collateral (property, vehicle, etc.)",
+      "maxLength": 1000,
+      "examples": ["Single-family home at 123 Main St", "2024 Honda Accord"]
+    },
+    "creditHistory": {
+      "type": "string",
+      "description": "Self-reported credit history quality",
+      "enum": ["excellent", "good", "fair", "poor", "unknown"],
+      "examples": ["good", "excellent"]
+    },
+    "hasBankruptcy": {
+      "type": "boolean",
+      "description": "Whether applicant has filed bankruptcy in past 7 years",
+      "default": false
+    },
+    "hasForeclosure": {
+      "type": "boolean",
+      "description": "Whether applicant has had a foreclosure in past 7 years",
+      "default": false
+    },
+    "additionalIncome": {
+      "type": "number",
+      "description": "Additional income from investments, rentals, etc.",
+      "minimum": 0,
+      "examples": [15000]
+    },
+    "additionalIncomeSource": {
+      "type": "string",
+      "description": "Source of additional income",
+      "maxLength": 200,
+      "examples": ["Rental property", "Investment dividends"]
+    },
+    "requestedDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date and time when loan was requested",
+      "examples": ["2025-01-15T10:30:00Z"]
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes or comments from applicant",
+      "maxLength": 2000
+    }
+  },
+  "required": [
+    "loanAmount",
+    "loanPurpose",
+    "annualIncome",
+    "employmentStatus"
+  ],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "loanAmount": 250000,
+      "loanPurpose": "home-purchase",
+      "requestedTerm": 360,
+      "annualIncome": 85000,
+      "employmentStatus": "employed",
+      "employmentYears": 5,
+      "employer": "Tech Solutions Inc",
+      "occupation": "Software Engineer",
+      "savingsAmount": 60000,
+      "monthlyExpenses": 2500,
+      "monthlyDebtPayments": 400,
+      "downPaymentAmount": 50000,
+      "creditHistory": "good"
+    }
+  ]
+}

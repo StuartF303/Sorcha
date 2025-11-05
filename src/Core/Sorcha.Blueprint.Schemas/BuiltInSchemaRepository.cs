@@ -147,6 +147,17 @@ public class BuiltInSchemaRepository : ISchemaRepository
             category = "Location";
             tags.AddRange(["address", "location", "postal", "street"]);
         }
+        else if (allText.Contains("loan") || allText.Contains("credit") || allText.Contains("mortgage") ||
+                 allText.Contains("interest") || allText.Contains("debt"))
+        {
+            category = "Finance";
+            tags.AddRange(["loan", "credit", "finance", "banking", "lending"]);
+
+            if (allText.Contains("request") || allText.Contains("application"))
+                tags.Add("loan-application");
+            if (allText.Contains("evaluation") || allText.Contains("approval") || allText.Contains("granted"))
+                tags.Add("loan-evaluation");
+        }
         else if (allText.Contains("payment") || allText.Contains("currency") || allText.Contains("amount"))
         {
             category = "Finance";
@@ -163,6 +174,12 @@ public class BuiltInSchemaRepository : ISchemaRepository
             tags.Add("email");
         if (propertyNames.Contains("phone"))
             tags.Add("phone");
+        if (propertyNames.Contains("loanAmount"))
+            tags.Add("loan");
+        if (propertyNames.Contains("creditScore"))
+            tags.Add("credit");
+        if (propertyNames.Contains("annualIncome") || propertyNames.Contains("income"))
+            tags.Add("income");
 
         return (category, tags.Distinct().ToList());
     }

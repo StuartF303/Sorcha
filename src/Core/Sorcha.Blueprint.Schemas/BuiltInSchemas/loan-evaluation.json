@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sorcha.dev/schemas/loan-evaluation/v1",
+  "title": "Loan Evaluation",
+  "description": "Bank's evaluation and decision on loan application",
+  "type": "object",
+  "properties": {
+    "applicationId": {
+      "type": "string",
+      "description": "Reference to the original loan application",
+      "maxLength": 100,
+      "examples": ["APP-2025-001234"]
+    },
+    "granted": {
+      "type": "boolean",
+      "description": "Whether the loan was approved",
+      "examples": [true, false]
+    },
+    "approvedAmount": {
+      "type": "number",
+      "description": "Approved loan amount (may differ from requested amount)",
+      "minimum": 0,
+      "examples": [240000, 500000]
+    },
+    "interestRate": {
+      "type": "number",
+      "description": "Annual interest rate as a percentage",
+      "minimum": 0,
+      "maximum": 100,
+      "examples": [4.5, 6.25, 8.0]
+    },
+    "loanTerm": {
+      "type": "integer",
+      "description": "Approved loan term in months",
+      "minimum": 1,
+      "maximum": 480,
+      "examples": [60, 120, 360]
+    },
+    "monthlyPayment": {
+      "type": "number",
+      "description": "Calculated monthly payment amount",
+      "minimum": 0,
+      "examples": [1200.50, 2450.00]
+    },
+    "downPaymentRequired": {
+      "type": "number",
+      "description": "Required down payment amount",
+      "minimum": 0,
+      "examples": [50000]
+    },
+    "downPaymentPercentage": {
+      "type": "number",
+      "description": "Down payment as percentage of loan amount",
+      "minimum": 0,
+      "maximum": 100,
+      "examples": [20, 10]
+    },
+    "creditScore": {
+      "type": "integer",
+      "description": "Applicant's credit score",
+      "minimum": 300,
+      "maximum": 850,
+      "examples": [720, 680, 760]
+    },
+    "creditScoreSource": {
+      "type": "string",
+      "description": "Credit bureau or source of credit score",
+      "enum": ["equifax", "experian", "transunion", "other"],
+      "examples": ["equifax"]
+    },
+    "debtToIncomeRatio": {
+      "type": "number",
+      "description": "Debt-to-income ratio as a percentage",
+      "minimum": 0,
+      "maximum": 100,
+      "examples": [35, 28]
+    },
+    "loanToValueRatio": {
+      "type": "number",
+      "description": "Loan-to-value ratio as a percentage (for secured loans)",
+      "minimum": 0,
+      "maximum": 100,
+      "examples": [80, 90]
+    },
+    "riskLevel": {
+      "type": "string",
+      "description": "Assessed risk level of the loan",
+      "enum": ["low", "medium", "high", "very-high"],
+      "examples": ["low", "medium"]
+    },
+    "riskScore": {
+      "type": "number",
+      "description": "Internal risk score (0-100, higher is riskier)",
+      "minimum": 0,
+      "maximum": 100,
+      "examples": [25, 45]
+    },
+    "evaluatorId": {
+      "type": "string",
+      "description": "ID of the loan officer or evaluator",
+      "maxLength": 100,
+      "examples": ["LO-12345", "officer@bank.com"]
+    },
+    "evaluatorName": {
+      "type": "string",
+      "description": "Name of the loan officer",
+      "maxLength": 200,
+      "examples": ["Jane Smith"]
+    },
+    "evaluationDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date and time of evaluation",
+      "examples": ["2025-01-16T14:30:00Z"]
+    },
+    "evaluationNotes": {
+      "type": "string",
+      "description": "Internal notes from the evaluation process",
+      "maxLength": 5000,
+      "examples": [
+        "Strong credit history, stable employment",
+        "Income verification required"
+      ]
+    },
+    "conditions": {
+      "type": "array",
+      "description": "Conditions that must be met for loan approval",
+      "items": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "examples": [
+        [
+          "Provide proof of employment",
+          "Obtain homeowner's insurance",
+          "Complete home appraisal"
+        ]
+      ]
+    },
+    "requiredDocuments": {
+      "type": "array",
+      "description": "Documents required before closing",
+      "items": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "examples": [
+        [
+          "Pay stubs (last 2 months)",
+          "Bank statements (last 3 months)",
+          "Tax returns (last 2 years)",
+          "Property appraisal"
+        ]
+      ]
+    },
+    "denialReasons": {
+      "type": "array",
+      "description": "Reasons for denial (if applicable)",
+      "items": {
+        "type": "string",
+        "enum": [
+          "insufficient-income",
+          "poor-credit-history",
+          "high-debt-to-income",
+          "insufficient-collateral",
+          "unstable-employment",
+          "bankruptcy-history",
+          "foreclosure-history",
+          "other"
+        ]
+      },
+      "examples": [
+        ["insufficient-income", "high-debt-to-income"]
+      ]
+    },
+    "denialExplanation": {
+      "type": "string",
+      "description": "Detailed explanation for denial",
+      "maxLength": 2000,
+      "examples": [
+        "Your debt-to-income ratio of 48% exceeds our maximum threshold of 43%"
+      ]
+    },
+    "offerExpirationDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Date when the loan offer expires",
+      "examples": ["2025-02-15"]
+    },
+    "estimatedClosingDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Estimated loan closing date",
+      "examples": ["2025-03-01"]
+    },
+    "closingCosts": {
+      "type": "number",
+      "description": "Estimated closing costs",
+      "minimum": 0,
+      "examples": [5000, 12000]
+    },
+    "originationFee": {
+      "type": "number",
+      "description": "Loan origination fee",
+      "minimum": 0,
+      "examples": [1000, 2500]
+    },
+    "processingFee": {
+      "type": "number",
+      "description": "Application processing fee",
+      "minimum": 0,
+      "examples": [500]
+    },
+    "appraisalRequired": {
+      "type": "boolean",
+      "description": "Whether property appraisal is required",
+      "default": false
+    },
+    "insuranceRequired": {
+      "type": "boolean",
+      "description": "Whether loan insurance is required",
+      "default": false
+    },
+    "insuranceType": {
+      "type": "string",
+      "description": "Type of insurance required",
+      "enum": ["pmi", "mortgage-insurance", "life-insurance", "disability-insurance", "none"],
+      "examples": ["pmi", "mortgage-insurance"]
+    },
+    "counterOffer": {
+      "type": "object",
+      "description": "Alternative loan terms offered by the bank",
+      "properties": {
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "interestRate": {
+          "type": "number",
+          "minimum": 0
+        },
+        "term": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
+    "internalNotes": {
+      "type": "string",
+      "description": "Confidential internal notes (not disclosed to applicant)",
+      "maxLength": 5000
+    },
+    "approvalLevel": {
+      "type": "string",
+      "description": "Level of approval required/obtained",
+      "enum": ["automated", "loan-officer", "senior-officer", "committee", "executive"],
+      "examples": ["loan-officer", "committee"]
+    }
+  },
+  "required": [
+    "granted",
+    "evaluationNotes"
+  ],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "granted": true,
+      "approvedAmount": 240000,
+      "interestRate": 4.75,
+      "loanTerm": 360,
+      "monthlyPayment": 1252.45,
+      "creditScore": 720,
+      "debtToIncomeRatio": 32,
+      "riskLevel": "low",
+      "evaluationNotes": "Strong application with excellent credit history and stable employment",
+      "conditions": [
+        "Provide proof of employment",
+        "Obtain homeowner's insurance"
+      ]
+    },
+    {
+      "granted": false,
+      "creditScore": 580,
+      "debtToIncomeRatio": 48,
+      "riskLevel": "high",
+      "evaluationNotes": "Unable to approve due to high debt-to-income ratio and insufficient credit score",
+      "denialReasons": [
+        "poor-credit-history",
+        "high-debt-to-income"
+      ],
+      "denialExplanation": "Your debt-to-income ratio of 48% exceeds our maximum threshold of 43%, and your credit score is below our minimum requirement of 620"
+    }
+  ]
+}

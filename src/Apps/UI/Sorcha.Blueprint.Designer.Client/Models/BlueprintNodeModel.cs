@@ -58,6 +58,11 @@ public class ActionNodeModel : BlueprintNodeModel
     public BlueprintAction Action { get; set; }
     public override string NodeType => "Action";
 
+    // Events for toolbar actions
+    public static event Action<BlueprintAction>? AddParticipantRequested;
+    public static event Action<BlueprintAction>? AddConditionRequested;
+    public static event Action<BlueprintAction>? ShowPropertiesRequested;
+
     public ActionNodeModel(BlueprintAction action, Point? position = null) : base(position)
     {
         Action = action;
@@ -76,4 +81,9 @@ public class ActionNodeModel : BlueprintNodeModel
         };
         Title = Action.Title;
     }
+
+    // Methods to raise events
+    public static void RaiseAddParticipant(BlueprintAction action) => AddParticipantRequested?.Invoke(action);
+    public static void RaiseAddCondition(BlueprintAction action) => AddConditionRequested?.Invoke(action);
+    public static void RaiseShowProperties(BlueprintAction action) => ShowPropertiesRequested?.Invoke(action);
 }

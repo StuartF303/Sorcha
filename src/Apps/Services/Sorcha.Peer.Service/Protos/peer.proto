@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+syntax = "proto3";
+
+option csharp_namespace = "Sorcha.Peer.Service";
+
+package peer;
+
+// Peer service for networked node communication
+service PeerService {
+  // Get peer node information
+  rpc GetPeerInfo (PeerInfoRequest) returns (PeerInfoResponse);
+
+  // Register a new peer node
+  rpc RegisterPeer (RegisterPeerRequest) returns (RegisterPeerResponse);
+
+  // Stream transactions between peers
+  rpc StreamTransactions (stream TransactionMessage) returns (stream TransactionResponse);
+
+  // Get health status and metrics
+  rpc GetMetrics (MetricsRequest) returns (MetricsResponse);
+}
+
+// Request messages
+message PeerInfoRequest {
+  string peer_id = 1;
+}
+
+message RegisterPeerRequest {
+  string peer_id = 1;
+  string endpoint = 2;
+  map<string, string> metadata = 3;
+}
+
+message TransactionMessage {
+  string transaction_id = 1;
+  string from_peer = 2;
+  string to_peer = 3;
+  bytes payload = 4;
+  int64 timestamp = 5;
+}
+
+message MetricsRequest {
+}
+
+// Response messages
+message PeerInfoResponse {
+  string peer_id = 1;
+  string endpoint = 2;
+  string status = 3;
+  int64 registered_at = 4;
+  map<string, string> metadata = 5;
+}
+
+message RegisterPeerResponse {
+  bool success = 1;
+  string message = 2;
+  string assigned_peer_id = 3;
+}
+
+message TransactionResponse {
+  string transaction_id = 1;
+  bool success = 2;
+  string message = 3;
+  int64 processed_at = 4;
+}
+
+message MetricsResponse {
+  int32 active_peers = 1;
+  int64 total_transactions = 2;
+  double throughput_per_second = 3;
+  double cpu_usage_percent = 4;
+  int64 memory_usage_bytes = 5;
+  int64 uptime_seconds = 6;
+}
