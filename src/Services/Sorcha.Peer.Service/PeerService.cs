@@ -5,6 +5,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sorcha.Peer.Service.Core;
+using Sorcha.Peer.Service.Discovery;
+using Sorcha.Peer.Service.Monitoring;
+using Sorcha.Peer.Service.Network;
 
 namespace Sorcha.Peer.Service;
 
@@ -15,6 +18,10 @@ public class PeerService : BackgroundService
 {
     private readonly ILogger<PeerService> _logger;
     private readonly PeerServiceConfiguration _configuration;
+    private readonly PeerListManager _peerListManager;
+    private readonly NetworkAddressService _networkAddressService;
+    private readonly PeerDiscoveryService _peerDiscoveryService;
+    private readonly HealthMonitorService _healthMonitorService;
     private PeerServiceStatus _status = PeerServiceStatus.Offline;
     private string _nodeId = string.Empty;
     private readonly object _statusLock = new();
@@ -56,10 +63,18 @@ public class PeerService : BackgroundService
 
     public PeerService(
         ILogger<PeerService> logger,
-        IOptions<PeerServiceConfiguration> configuration)
+        IOptions<PeerServiceConfiguration> configuration,
+        PeerListManager peerListManager,
+        NetworkAddressService networkAddressService,
+        PeerDiscoveryService peerDiscoveryService,
+        HealthMonitorService healthMonitorService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration?.Value ?? throw new ArgumentNullException(nameof(configuration));
+        _peerListManager = peerListManager ?? throw new ArgumentNullException(nameof(peerListManager));
+        _networkAddressService = networkAddressService ?? throw new ArgumentNullException(nameof(networkAddressService));
+        _peerDiscoveryService = peerDiscoveryService ?? throw new ArgumentNullException(nameof(peerDiscoveryService));
+        _healthMonitorService = healthMonitorService ?? throw new ArgumentNullException(nameof(healthMonitorService));
     }
 
     /// <summary>
@@ -104,11 +119,25 @@ public class PeerService : BackgroundService
         _nodeId = _configuration.NodeId ?? GenerateNodeId();
         _logger.LogInformation("Node ID: {NodeId}", _nodeId);
 
-        // Initialize components (placeholders for future sprints)
-        await Task.CompletedTask;
+        // Detect external address
+        var externalAddress = await _networkAddressService.GetExternalAddressAsync(cancellationToken);
+        _logger.LogInformation("External address: {Address}", externalAddress ?? "unknown");
 
-        Status = PeerServiceStatus.Offline;
-        _logger.LogInformation("Peer service initialized successfully");
+        // Load peers from database
+        await _peerListManager.LoadPeersFromDatabaseAsync(cancellationToken);
+        _logger.LogInformation("Loaded {Count} peers from database", _peerListManager.GetAllPeers().Count);
+
+        // Perform initial peer discovery
+        if (_configuration.PeerDiscovery.BootstrapNodes.Count > 0)
+        {
+            _logger.LogInformation("Performing initial peer discovery");
+            var discoveredCount = await _peerDiscoveryService.DiscoverPeersAsync(cancellationToken);
+            _logger.LogInformation("Discovered {Count} peers", discoveredCount);
+        }
+
+        // Determine initial status
+        Status = _healthMonitorService.DetermineServiceStatus();
+        _logger.LogInformation("Peer service initialized successfully with status: {Status}", Status);
     }
 
     /// <summary>
@@ -139,18 +168,32 @@ public class PeerService : BackgroundService
     }
 
     /// <summary>
-    /// Runs peer discovery loop (placeholder for Sprint 2)
+    /// Runs peer discovery loop
     /// </summary>
     private async Task RunPeerDiscoveryAsync(CancellationToken cancellationToken)
     {
-        _logger.LogDebug("Peer discovery task started (placeholder)");
+        _logger.LogDebug("Peer discovery task started");
 
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                // TODO: Sprint 2 - Implement peer discovery
+                // Wait for the configured interval
                 await Task.Delay(TimeSpan.FromMinutes(_configuration.PeerDiscovery.RefreshIntervalMinutes), cancellationToken);
+
+                // Perform peer discovery
+                _logger.LogDebug("Running periodic peer discovery");
+                var discoveredCount = await _peerDiscoveryService.DiscoverPeersAsync(cancellationToken);
+                _logger.LogInformation("Discovered {Count} new peers", discoveredCount);
+
+                // Update service status based on peer count
+                var previousStatus = Status;
+                Status = _healthMonitorService.DetermineServiceStatus();
+
+                if (previousStatus != Status)
+                {
+                    _logger.LogInformation("Service status changed from {Old} to {New}", previousStatus, Status);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -167,18 +210,35 @@ public class PeerService : BackgroundService
     }
 
     /// <summary>
-    /// Runs health check loop (placeholder for Sprint 2)
+    /// Runs health check loop
     /// </summary>
     private async Task RunHealthChecksAsync(CancellationToken cancellationToken)
     {
-        _logger.LogDebug("Health check task started (placeholder)");
+        _logger.LogDebug("Health check task started");
 
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                // TODO: Sprint 2 - Implement health checks
+                // Wait for the health check interval
                 await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+
+                // Perform health check
+                _logger.LogDebug("Running health check");
+                var result = await _healthMonitorService.PerformHealthCheckAsync(cancellationToken);
+
+                _logger.LogDebug("Health check: {Alive}/{Checked} alive, {Healthy} healthy",
+                    result.AlivePeers, result.CheckedPeers, result.HealthyPeers);
+
+                // Update service status based on health check results
+                var previousStatus = Status;
+                Status = _healthMonitorService.DetermineServiceStatus();
+
+                if (previousStatus != Status)
+                {
+                    _logger.LogWarning("Service status changed from {Old} to {New} after health check",
+                        previousStatus, Status);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -241,6 +301,9 @@ public class PeerService : BackgroundService
         {
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
+
+        // Dispose peer list manager
+        _peerListManager?.Dispose();
 
         _logger.LogInformation("Peer service cleanup complete");
     }
