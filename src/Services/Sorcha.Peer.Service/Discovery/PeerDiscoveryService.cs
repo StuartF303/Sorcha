@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sorcha.Peer.Service.Core;
 using Sorcha.Peer.Service.Network;
+using Sorcha.Peer.Service.Protos;
 
 namespace Sorcha.Peer.Service.Discovery;
 

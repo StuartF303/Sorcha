@@ -63,13 +63,14 @@ message RegisterPeerResponse {
 // Ping request for health check
 message PingRequest {
   string peer_id = 1;
+  int64 timestamp = 2;
 }
 
 // Ping response
 message PingResponse {
-  string peer_id = 1;
+  bool alive = 1;
   int64 timestamp = 2;
-  PeerStatus status = 3;
+  string version = 3;
 }
 
 // Status of a peer

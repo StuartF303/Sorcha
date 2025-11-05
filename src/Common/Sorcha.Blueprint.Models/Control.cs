@@ -66,9 +66,21 @@ public class Control
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum LayoutTypes
 {
+    /// <summary>
+    /// Vertical layout for controls
+    /// </summary>
     VerticalLayout,
+    /// <summary>
+    /// Horizontal layout for controls
+    /// </summary>
     HorizontalLayout,
+    /// <summary>
+    /// Group layout - multiple items
+    /// </summary>
     Group,          // many
+    /// <summary>
+    /// Categorization layout - one of many
+    /// </summary>
     Categorization  // one of
 }
 

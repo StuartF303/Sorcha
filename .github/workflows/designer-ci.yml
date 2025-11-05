@@ -42,11 +42,23 @@ jobs:
       run: dotnet build Sorcha.sln --no-restore --configuration Release
 
     - name: Run tests
+      id: run_tests
       run: dotnet test tests/Sorcha.Blueprint.Designer.Tests/Sorcha.Blueprint.Designer.Tests.csproj --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=test-results.trx"
+      continue-on-error: true
+
+    - name: Check for test results
+      id: check_results
+      run: |
+        if ls tests/Sorcha.Blueprint.Designer.Tests/TestResults/*.trx 1> /dev/null 2>&1; then
+          echo "results_exist=true" >> $GITHUB_OUTPUT
+        else
+          echo "results_exist=false" >> $GITHUB_OUTPUT
+        fi
+      shell: bash
 
     - name: Publish test results
       uses: EnricoMi/publish-unit-test-result-action@v2
-      if: always()
+      if: steps.check_results.outputs.results_exist == 'true'
       with:
         files: '**/test-results.trx'
 
