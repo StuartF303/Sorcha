@@ -17,18 +17,22 @@ public class NetworkAddressService
     private readonly ILogger<NetworkAddressService> _logger;
     private readonly NetworkAddressConfiguration _configuration;
     private readonly HttpClient _httpClient;
+    private readonly StunClient _stunClient;
     private string? _cachedExternalAddress;
     private DateTime _lastDetectionTime = DateTime.MinValue;
     private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(15);
+    private NatType _cachedNatType = NatType.Unknown;
 
     public NetworkAddressService(
         ILogger<NetworkAddressService> logger,
         IOptions<PeerServiceConfiguration> configuration,
-        HttpClient httpClient)
+        HttpClient httpClient,
+        StunClient stunClient)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration?.Value?.NetworkAddress ?? throw new ArgumentNullException(nameof(configuration));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _stunClient = stunClient ?? throw new ArgumentNullException(nameof(stunClient));
     }
 
     /// <summary>
@@ -125,9 +129,26 @@ public class NetworkAddressService
             }
         }
 
-        // TODO: Sprint 3 - Implement STUN protocol for NAT traversal
-        // For now, try STUN as a future enhancement
-        _logger.LogDebug("STUN detection not yet implemented (Sprint 3)");
+        // Try STUN servers for NAT traversal
+        foreach (var stunServer in _configuration.StunServers)
+        {
+            try
+            {
+                _logger.LogDebug("Trying STUN server: {Server}", stunServer);
+
+                var result = await _stunClient.QueryAsync(stunServer, cancellationToken);
+                if (result != null && !string.IsNullOrEmpty(result.PublicAddress))
+                {
+                    _logger.LogInformation("Successfully detected external address via STUN: {Address}", result.PublicAddress);
+                    _cachedNatType = result.NatType;
+                    return result.PublicAddress;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to detect address using STUN server: {Server}", stunServer);
+            }
+        }
 
         // Fallback to local address if external detection fails
         _logger.LogWarning("Could not detect external address, falling back to local address");
@@ -142,6 +163,43 @@ public class NetworkAddressService
         _logger.LogDebug("Invalidating external address cache");
         _cachedExternalAddress = null;
         _lastDetectionTime = DateTime.MinValue;
+        _cachedNatType = NatType.Unknown;
+    }
+
+    /// <summary>
+    /// Gets the cached NAT type
+    /// </summary>
+    public NatType GetNatType() => _cachedNatType;
+
+    /// <summary>
+    /// Determines the NAT type using STUN
+    /// </summary>
+    public async Task<NatType> DetermineNatTypeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_cachedNatType != NatType.Unknown)
+        {
+            return _cachedNatType;
+        }
+
+        // Try first available STUN server
+        var stunServer = _configuration.StunServers.FirstOrDefault();
+        if (string.IsNullOrEmpty(stunServer))
+        {
+            _logger.LogWarning("No STUN servers configured for NAT type detection");
+            return NatType.Unknown;
+        }
+
+        try
+        {
+            _cachedNatType = await _stunClient.DetermineNatTypeAsync(stunServer, cancellationToken);
+            _logger.LogInformation("Determined NAT type: {NatType}", _cachedNatType);
+            return _cachedNatType;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error determining NAT type");
+            return NatType.Unknown;
+        }
     }
 
     /// <summary>
