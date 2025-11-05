@@ -65,7 +65,7 @@ public class TransactionDistributionService
 
             // Send to all targets concurrently
             var sendTasks = targets.Select(peer =>
-                SendToP eerAsync(peer, nextRoundTx, cancellationToken));
+                SendToPeerAsync(peer, nextRoundTx, cancellationToken));
 
             var results = await Task.WhenAll(sendTasks);
             var successCount = results.Count(r => r);
