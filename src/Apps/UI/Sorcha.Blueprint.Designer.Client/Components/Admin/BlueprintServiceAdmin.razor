@@ -1,4 +1,5 @@
 @using System.Net.Http.Json
+@using Sorcha.Blueprint.Designer.Client.Models.Admin
 @inject HttpClient Http
 
 <MudGrid>
@@ -129,29 +130,54 @@
     {
         try
         {
-            // Check if service is running by calling health endpoint
-            var healthResponse = await Http.GetAsync("https://localhost:7080/health");
-            serviceStatus = new ServiceStatus
-            {
-                IsRunning = healthResponse.IsSuccessStatusCode,
-                Endpoint = "https://localhost:7080"
-            };
+            // Call the real health endpoint
+            var healthResponse = await Http.GetFromJsonAsync<BlueprintHealthResponse>("https://localhost:7080/api/health");
 
-            if (serviceStatus.IsRunning)
+            if (healthResponse != null && healthResponse.Status == "healthy")
             {
-                // Load metrics (simulated for now - in production this would call /api/metrics)
+                serviceStatus = new ServiceStatus
+                {
+                    IsRunning = true,
+                    Endpoint = "https://localhost:7080"
+                };
+
+                // Parse uptime string to seconds for display
+                var uptimeParts = healthResponse.Uptime.Split('.');
+                long uptimeSeconds = 0;
+                if (uptimeParts.Length > 0)
+                {
+                    var timeParts = uptimeParts[uptimeParts.Length - 1].Split(':');
+                    if (timeParts.Length == 3)
+                    {
+                        var days = uptimeParts.Length > 1 ? int.Parse(uptimeParts[0]) : 0;
+                        var hours = int.Parse(timeParts[0]);
+                        var minutes = int.Parse(timeParts[1]);
+                        var seconds = int.Parse(timeParts[2]);
+                        uptimeSeconds = days * 86400 + hours * 3600 + minutes * 60 + seconds;
+                    }
+                }
+
                 metrics = new BlueprintMetrics
                 {
-                    UptimeSeconds = Random.Shared.Next(3600, 86400),
-                    TotalBlueprints = Random.Shared.Next(10, 100),
-                    PublishedBlueprints = Random.Shared.Next(5, 50),
-                    CpuUsagePercent = Random.Shared.NextDouble() * 100,
-                    MemoryUsageBytes = Random.Shared.NextInt64(100_000_000, 500_000_000),
-                    ThroughputPerSecond = Random.Shared.NextDouble() * 10
+                    UptimeSeconds = uptimeSeconds,
+                    TotalBlueprints = healthResponse.Metrics?.TotalBlueprints ?? 0,
+                    PublishedBlueprints = healthResponse.Metrics?.PublishedVersions ?? 0,
+                    CpuUsagePercent = Random.Shared.NextDouble() * 30, // Simulated - not in health endpoint yet
+                    MemoryUsageBytes = Random.Shared.NextInt64(100_000_000, 300_000_000), // Simulated
+                    ThroughputPerSecond = Random.Shared.NextDouble() * 5 // Simulated
                 };
+            }
+            else
+            {
+                serviceStatus = new ServiceStatus { IsRunning = false };
             }
 
             lastUpdateTime = DateTime.Now;
+        }
+        catch (HttpRequestException)
+        {
+            // Service is not reachable
+            serviceStatus = new ServiceStatus { IsRunning = false };
         }
         catch (Exception)
         {
