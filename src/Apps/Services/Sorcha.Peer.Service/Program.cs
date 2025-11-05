@@ -101,16 +101,43 @@ app.MapGet("/api/metrics", (IMetricsService metricsService) =>
 .WithOpenApi();
 
 // Health check endpoint
-app.MapGet("/api/health", () =>
+app.MapGet("/api/health", async (IPeerRepository peerRepo, IMetricsService metricsService) =>
 {
-    return Results.Ok(new
+    try
     {
-        status = "healthy",
-        timestamp = DateTimeOffset.UtcNow
-    });
+        var peers = await peerRepo.GetAllPeersAsync();
+        var metrics = metricsService.GetCurrentMetrics();
+
+        return Results.Ok(new
+        {
+            status = "healthy",
+            service = "peer-service",
+            timestamp = DateTimeOffset.UtcNow,
+            version = "1.0.0",
+            uptime = TimeSpan.FromSeconds(metrics.UptimeSeconds).ToString(@"dd\.hh\:mm\:ss"),
+            metrics = new
+            {
+                activePeers = metrics.ActivePeers,
+                totalTransactions = metrics.TotalTransactions,
+                throughputPerSecond = metrics.ThroughputPerSecond,
+                cpuUsagePercent = metrics.CpuUsagePercent,
+                memoryUsageBytes = metrics.MemoryUsageBytes
+            }
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new
+        {
+            status = "unhealthy",
+            service = "peer-service",
+            timestamp = DateTimeOffset.UtcNow,
+            error = ex.Message
+        }, statusCode: 503);
+    }
 })
 .WithName("HealthCheck")
-.WithSummary("Service health check")
+.WithSummary("Service health check with metrics")
 .WithTags("Health")
 .WithOpenApi();
 

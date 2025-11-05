@@ -199,6 +199,55 @@ schemaGroup.MapGet("/", async (string? category = null, string? source = null, s
 .WithDescription("Retrieve available data schemas with optional filtering")
 .CacheOutput(policy => policy.Expire(TimeSpan.FromMinutes(15)).Tag("schemas"));
 
+// ===========================
+// Health & Status Endpoints
+// ===========================
+
+app.MapGet("/api/health", async (IBlueprintStore blueprintStore, IPublishedBlueprintStore publishedStore) =>
+{
+    try
+    {
+        var blueprints = await blueprintStore.GetAllAsync();
+        var blueprintCount = blueprints.Count();
+
+        // Count published blueprints
+        var publishedCount = 0;
+        foreach (var blueprint in blueprints)
+        {
+            var versions = await publishedStore.GetVersionsAsync(blueprint.Id);
+            publishedCount += versions.Count();
+        }
+
+        return Results.Ok(new
+        {
+            status = "healthy",
+            service = "blueprint-api",
+            timestamp = DateTimeOffset.UtcNow,
+            version = "1.0.0",
+            uptime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString(@"dd\.hh\:mm\:ss"),
+            metrics = new
+            {
+                totalBlueprints = blueprintCount,
+                publishedVersions = publishedCount
+            }
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new
+        {
+            status = "unhealthy",
+            service = "blueprint-api",
+            timestamp = DateTimeOffset.UtcNow,
+            error = ex.Message
+        }, statusCode: 503);
+    }
+})
+.WithName("HealthCheck")
+.WithSummary("Service health check with metrics")
+.WithTags("Health")
+.WithOpenApi();
+
 app.Run();
 
 // ===========================
