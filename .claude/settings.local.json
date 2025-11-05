@@ -25,7 +25,8 @@
       "Bash(dotnet list:*)",
       "Bash(del:*)",
       "Bash(git log:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

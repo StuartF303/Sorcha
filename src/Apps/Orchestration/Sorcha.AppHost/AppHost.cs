@@ -7,14 +7,19 @@ var builder = DistributedApplication.CreateBuilder(args);
 var redis = builder.AddRedis("redis")
     .WithRedisCommander(); // Adds Redis Commander UI for development
 
-// Add Blueprint API with Redis reference
+// Add Blueprint API with Redis reference (internal only)
 var blueprintApi = builder.AddProject<Projects.Sorcha_Blueprint_Api>("blueprint-api")
-    .WithReference(redis)
-    .WithExternalHttpEndpoints(); // Expose HTTP endpoints externally
+    .WithReference(redis);
 
-// Add Peer Service with Redis reference
+// Add Peer Service with Redis reference (internal only)
 var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service")
+    .WithReference(redis);
+
+// Add API Gateway as the single external entry point
+var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
+    .WithReference(blueprintApi)
+    .WithReference(peerService)
     .WithReference(redis)
-    .WithExternalHttpEndpoints(); // Expose HTTP and gRPC endpoints externally
+    .WithExternalHttpEndpoints(); // Only the gateway is exposed externally
 
 builder.Build().Run();
