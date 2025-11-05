@@ -11,45 +11,53 @@ Sorcha is a modern .NET 10 platform for defining, designing, and executing multi
 ## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          Sorcha Platform                                 │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                           │
-│  ┌────────────────────────┐              ┌──────────────────────────┐   │
-│  │  Blueprint Designer    │              │  Blueprint Engine        │   │
-│  │  (Blazor Server)       │─────────────▶│  (REST API)              │   │
-│  │  + Designer.Client     │   HTTP       │  Minimal APIs            │   │
-│  │  (Blazor WASM)         │              │  (In Development)        │   │
-│  └────────────────────────┘              └──────────────────────────┘   │
-│           │                                         │                    │
-│           │                                         │                    │
-│           ├─────────────────────────────────────────┤                    │
-│           │                                         │                    │
-│           ▼                                         ▼                    │
-│  ┌──────────────────────────────────────────────────────────────┐      │
-│  │              Common Libraries Layer                          │      │
-│  ├──────────────────────────────────────────────────────────────┤      │
-│  │  • Blueprint.Models (Data Models)                            │      │
-│  │  • Blueprint.Fluent (Fluent API Builders)                   │      │
-│  │  • Blueprint.Schemas (Schema Management & Caching)          │      │
-│  └──────────────────────────────────────────────────────────────┘      │
-│                              │                                           │
-│                              ▼                                           │
-│  ┌──────────────────────────────────────────────────────────────┐      │
-│  │         Hosting & Infrastructure Layer                       │      │
-│  ├──────────────────────────────────────────────────────────────┤      │
-│  │  • AppHost (.NET Aspire Orchestration)                      │      │
-│  │  • ServiceDefaults (OpenTelemetry, Health, Discovery)       │      │
-│  └──────────────────────────────────────────────────────────────┘      │
-│                                                                           │
-└─────────────────────────────────────────────────────────────────────────┘
-         │                                    │
-         ▼                                    ▼
-┌─────────────────┐                 ┌─────────────────┐
-│  Storage        │                 │  External        │
-│  (Planned:      │                 │  Schema Sources  │
-│   EF Core)      │                 │  (SchemaStore)   │
-└─────────────────┘                 └─────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                            Sorcha Platform                                     │
+├───────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  ┌────────────────────────┐              ┌──────────────────────────┐         │
+│  │  Blueprint Designer    │              │  Blueprint Engine        │         │
+│  │  (Blazor Server)       │─────────────▶│  (REST API)              │         │
+│  │  + Designer.Client     │   HTTP       │  Minimal APIs            │         │
+│  │  (Blazor WASM)         │              │  (In Development)        │         │
+│  └────────────────────────┘              └──────────────────────────┘         │
+│           │                                         │                          │
+│           │              ┌──────────────────────────┼─────────────────┐       │
+│           │              │                          │                  │       │
+│           ▼              ▼                          ▼                  ▼       │
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │                   Common Libraries Layer                                 │ │
+│  ├─────────────────────────────────────────────────────────────────────────┤ │
+│  │  • Blueprint.Models (Data Models)                                       │ │
+│  │  • Blueprint.Fluent (Fluent API Builders)                              │ │
+│  │  • Blueprint.Schemas (Schema Management & Caching)                     │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
+│                              │                                                 │
+│           ┌──────────────────┼──────────────────┐                            │
+│           │                  │                  │                            │
+│           ▼                  ▼                  ▼                            │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────────────────┐    │
+│  │  Peer Service  │  │  Hosting Layer │  │  Blueprint Services        │    │
+│  │  (P2P Network) │  │  - AppHost     │  │  - Engine                  │    │
+│  │  - Discovery   │  │  - Service     │  │  - Designer                │    │
+│  │  - Distribution│  │    Defaults    │  └────────────────────────────┘    │
+│  │  - Gossip      │  └────────────────┘                                     │
+│  │  (Planned)     │                                                          │
+│  └────────────────┘                                                          │
+│           │                                                                   │
+│           └──────────────────────┐                                          │
+│                                  │                                          │
+└──────────────────────────────────┼──────────────────────────────────────────┘
+                                   │
+         ┌─────────────────────────┼─────────────────────────┐
+         │                         │                         │
+         ▼                         ▼                         ▼
+┌─────────────────┐    ┌─────────────────┐    ┌───────────────────────┐
+│  Storage        │    │  External       │    │  Peer Network         │
+│  (Planned:      │    │  Schema Sources │    │  (Other Sorcha Nodes) │
+│   EF Core)      │    │  (SchemaStore)  │    │  - gRPC/REST          │
+└─────────────────┘    └─────────────────┘    │  - Transaction Sync   │
+                                               └───────────────────────┘
 ```
 
 ## Solution Structure
@@ -65,6 +73,8 @@ Sorcha/
 │   │   ├── Sorcha.Blueprint.Engine       # Execution engine (REST API)
 │   │   ├── Sorcha.Blueprint.Fluent       # Fluent API builders
 │   │   └── Sorcha.Blueprint.Schemas      # Schema management
+│   ├── Services/                         # Background services (PLANNED)
+│   │   └── Sorcha.Peer.Service          # P2P networking service
 │   └── Apps/                             # Applications
 │       ├── Hosting/
 │       │   ├── Sorcha.AppHost            # .NET Aspire orchestration
@@ -78,6 +88,7 @@ Sorcha/
 │   ├── Sorcha.Blueprint.Schemas.Tests
 │   ├── Sorcha.Blueprint.Engine.Tests
 │   ├── Sorcha.Blueprint.Designer.Tests
+│   ├── Sorcha.Peer.Service.Tests        # PLANNED
 │   └── Sorcha.Integration.Tests
 └── docs/                                 # Documentation
 ```
@@ -313,6 +324,80 @@ Shared service configurations and cross-cutting concerns.
 - OpenTelemetry 1.12.0
 - Microsoft.Extensions.Http.Resilience 9.9.0
 - Microsoft.Extensions.ServiceDiscovery 9.5.2
+
+### 5. Services Layer (Planned)
+
+#### Sorcha.Peer.Service
+Peer-to-peer networking service for decentralized transaction distribution.
+
+**Status:** Design Phase - See [Peer Service Design](peer-service-design.md) and [Implementation Plan](peer-service-implementation-plan.md)
+
+**Purpose:**
+Enable decentralized, peer-to-peer communication and transaction distribution across a network of Sorcha nodes without reliance on centralized infrastructure.
+
+**Key Components:**
+- **Peer Discovery Service** - Bootstrap connection, recursive discovery, health monitoring
+- **Communication Manager** - Protocol negotiation (gRPC Stream → gRPC → REST), connection pooling
+- **Transaction Distributor** - Gossip protocol for efficient distribution, bandwidth optimization
+- **Network Address Discovery** - STUN/TURN for NAT traversal, external address detection
+- **Offline/Online Mode** - Transaction queuing, automatic flush when connectivity restored
+
+**Features:**
+- Multi-protocol support (gRPC streaming preferred, REST fallback)
+- Gossip-based transaction distribution (O(log N) complexity)
+- Automatic peer discovery and health monitoring
+- NAT traversal with STUN/TURN
+- Offline transaction queuing
+- Bloom filter for duplicate detection
+- Streaming support for large transactions
+- Bandwidth optimization with compression
+- Real-time metrics and monitoring dashboard
+
+**Communication Flow:**
+```
+New Transaction → Local Queue → Gossip Protocol → Select Peers (fanout) →
+Notify Peers (hash only) → Peers Request Full Transaction (if unknown) →
+Peers Repeat Gossip → 90% Network Coverage in < 1 minute
+```
+
+**Planned Configuration:**
+```json
+{
+  "PeerService": {
+    "Enabled": true,
+    "BootstrapNodes": ["https://peer.sorcha.org:5001"],
+    "RefreshIntervalMinutes": 15,
+    "GossipProtocol": {
+      "FanoutFactor": 3,
+      "GossipRounds": 3
+    }
+  }
+}
+```
+
+**Technology:**
+- gRPC with bidirectional streaming
+- Protocol Buffers for efficient serialization
+- SQLite for peer list persistence
+- STUN protocol for NAT traversal
+- Bloom filter for duplicate detection
+- Circuit breaker pattern for resilience
+
+**Implementation Timeline:** 20 weeks (10 sprints) - See [Implementation Plan](peer-service-implementation-plan.md)
+
+**Benefits:**
+- Decentralization - No single point of failure
+- Scalability - Distributed load across all peers
+- Resilience - Automatic failover and recovery
+- Bandwidth Efficiency - Only transmit to subset of peers
+- Privacy - Direct peer-to-peer communication
+
+**Use Cases:**
+- Distribute new blueprint transactions across the network
+- Synchronize transaction history between nodes
+- Enable offline-first operation with automatic sync
+- Build decentralized blueprint registry
+- Support multi-region deployment without centralized coordination
 
 ## Testing Architecture
 
