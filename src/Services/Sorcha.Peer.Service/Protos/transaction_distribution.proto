@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+syntax = "proto3";
+
+package sorcha.peer.transaction;
+
+option csharp_namespace = "Sorcha.Peer.Service.Protos";
+
+// Transaction Distribution Service
+// Handles gossiping and distribution of transactions across the peer network
+service TransactionDistribution {
+  // Notify peer of new transaction (gossip protocol)
+  rpc NotifyTransaction(TransactionNotification) returns (NotificationAck);
+
+  // Request full transaction by hash
+  rpc GetTransaction(TransactionRequest) returns (TransactionResponse);
+
+  // Stream large transaction in chunks
+  rpc StreamTransaction(TransactionRequest) returns (stream TransactionChunk);
+}
+
+// Notification of a new transaction
+message TransactionNotification {
+  string transaction_hash = 1;
+  string sender_peer_id = 2;
+  int64 timestamp = 3;
+  int64 transaction_size = 4;
+}
+
+// Acknowledgment of notification
+message NotificationAck {
+  bool already_known = 1;
+  bool will_request = 2;
+}
+
+// Request for transaction by hash
+message TransactionRequest {
+  string transaction_hash = 1;
+  string requesting_peer_id = 2;
+}
+
+// Response with full transaction
+message TransactionResponse {
+  string transaction_hash = 1;
+  bytes transaction_data = 2;
+  bool found = 3;
+}
+
+// Chunk of a large transaction (for streaming)
+message TransactionChunk {
+  string transaction_hash = 1;
+  int32 chunk_index = 2;
+  int32 total_chunks = 3;
+  bytes chunk_data = 4;
+}
