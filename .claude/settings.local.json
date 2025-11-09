@@ -32,7 +32,8 @@
       "Bash(timeout 5 curl:*)",
       "Bash(/dev/null)",
       "Bash(netstat:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []

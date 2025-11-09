@@ -2,7 +2,53 @@
 
 ## Common Issues and Solutions
 
-### 1. Aspire DCP Timeout Errors
+### 1. Port Already in Use Errors
+
+**Symptoms:**
+```
+error: could not start the proxy for the service: listen tcp [::1]:5128: bind:
+Only one usage of each socket address is normally permitted.
+```
+
+**Cause:**
+- Previous dotnet processes didn't shut down cleanly
+- Ports are still bound from previous run
+
+**Solutions:**
+
+#### Quick Fix - Use Cleanup Script (Easiest)
+```powershell
+# Windows PowerShell
+.\scripts\cleanup-ports.ps1
+
+# Or Git Bash/Unix/Mac
+bash scripts/cleanup-ports.sh
+```
+
+#### Manual Fix - Kill Specific Process
+```powershell
+# Windows - Find process on port
+netstat -ano | findstr ":5128"
+
+# Kill the process (replace PID with actual number)
+taskkill /F /PID 12345
+```
+
+```bash
+# Unix/Mac - Find and kill process
+lsof -ti:5128 | xargs kill -9
+```
+
+#### Nuclear Option - Kill All .NET Processes
+```powershell
+# Windows
+taskkill /F /IM dotnet.exe
+
+# Unix/Mac
+killall -9 dotnet
+```
+
+### 2. Aspire DCP Timeout Errors
 
 **Symptoms:**
 ```
