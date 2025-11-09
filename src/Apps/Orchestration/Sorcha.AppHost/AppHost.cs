@@ -23,8 +23,10 @@ var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
     .WithExternalHttpEndpoints(); // Only the gateway is exposed externally
 
 // Add Blazor WebAssembly client
+// Note: Blazor WASM is a static client app, so we disable health checks
 var blazorClient = builder.AddProject<Projects.Sorcha_Blueprint_Designer_Client>("blazor-client")
     .WithReference(apiGateway)
-    .WithExternalHttpEndpoints(); // Expose client for browser access
+    .WithExternalHttpEndpoints() // Expose client for browser access
+    .WithHttpHealthCheck("/"); // Check root path instead of /health
 
 builder.Build().Run();
