@@ -22,4 +22,9 @@ var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
     .WithReference(redis)
     .WithExternalHttpEndpoints(); // Only the gateway is exposed externally
 
+// Add Blazor WebAssembly client
+var blazorClient = builder.AddProject<Projects.Sorcha_Blueprint_Designer_Client>("blazor-client")
+    .WithReference(apiGateway)
+    .WithExternalHttpEndpoints(); // Expose client for browser access
+
 builder.Build().Run();
