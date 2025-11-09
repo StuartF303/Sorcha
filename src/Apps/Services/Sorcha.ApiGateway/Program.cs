@@ -18,6 +18,12 @@ builder.Services.AddReverseProxy()
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<HealthAggregationService>();
 
+// Add client download service
+builder.Services.AddSingleton<ClientDownloadService>();
+
+// Add OpenAPI aggregation service
+builder.Services.AddSingleton<OpenApiAggregationService>();
+
 // Add OpenAPI documentation
 builder.Services.AddOpenApi();
 
@@ -73,6 +79,58 @@ app.MapGet("/api/stats", async (HealthAggregationService healthService) =>
 .WithName("SystemStatistics")
 .WithSummary("Get system-wide statistics from all services")
 .WithTags("System")
+.WithOpenApi();
+
+// ===========================
+// Client Download Endpoints
+// ===========================
+
+app.MapGet("/api/client/info", (ClientDownloadService clientService) =>
+{
+    var info = clientService.GetClientInfo();
+    return Results.Ok(info);
+})
+.WithName("ClientInfo")
+.WithSummary("Get information about the Blazor client application")
+.WithTags("Client")
+.WithOpenApi();
+
+app.MapGet("/api/client/download", async (ClientDownloadService clientService, IWebHostEnvironment env) =>
+{
+    try
+    {
+        // Path to the client project (relative to gateway)
+        var clientPath = Path.Combine(env.ContentRootPath, "..", "..", "UI", "Sorcha.Blueprint.Designer.Client");
+        var fullPath = Path.GetFullPath(clientPath);
+
+        var packageBytes = await clientService.CreateClientPackageAsync(fullPath);
+
+        return Results.File(
+            packageBytes,
+            "application/zip",
+            $"sorcha-client-{DateTime.UtcNow:yyyyMMdd}.zip");
+    }
+    catch (DirectoryNotFoundException ex)
+    {
+        return Results.Problem(
+            title: "Client Not Found",
+            detail: ex.Message,
+            statusCode: 404);
+    }
+})
+.WithName("DownloadClient")
+.WithSummary("Download the Blazor client application source code as a ZIP package")
+.WithTags("Client")
+.WithOpenApi();
+
+app.MapGet("/api/client/instructions", (ClientDownloadService clientService) =>
+{
+    var instructions = clientService.GetInstallationInstructions();
+    return Results.Text(instructions, "text/markdown");
+})
+.WithName("InstallationInstructions")
+.WithSummary("Get installation instructions for the client application")
+.WithTags("Client")
 .WithOpenApi();
 
 // ===========================
@@ -280,9 +338,11 @@ app.MapGet("/", async (HealthAggregationService healthService, HttpContext conte
             </div>
 
             <div class="actions">
+                <a href="/api/client/download" class="btn btn-primary">💾 Download Client</a>
                 <a href="/scalar/v1" class="btn btn-primary">📚 API Documentation</a>
                 <a href="/api/health" class="btn btn-secondary">🏥 Health Check</a>
                 <a href="/api/stats" class="btn btn-secondary">📊 System Stats</a>
+                <a href="/api/client/instructions" class="btn btn-secondary">📖 Installation Guide</a>
             </div>
 
             <div class="timestamp">
@@ -303,18 +363,40 @@ app.MapGet("/", async (HealthAggregationService healthService, HttpContext conte
 })
 .ExcludeFromDescription();
 
-// Configure OpenAPI and Scalar
-if (app.Environment.IsDevelopment())
+// ===========================
+// OpenAPI Documentation
+// ===========================
+
+// Gateway's own OpenAPI
+app.MapOpenApi();
+
+// Aggregated OpenAPI from all services
+app.MapGet("/openapi/aggregated.json", async (OpenApiAggregationService openApiService) =>
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference(options =>
-    {
-        options
-            .WithTitle("Sorcha API Gateway")
-            .WithTheme(ScalarTheme.Purple)
-            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-    });
-}
+    var aggregatedSpec = await openApiService.GetAggregatedOpenApiAsync();
+    return Results.Json(aggregatedSpec);
+})
+.WithName("AggregatedOpenApi")
+.WithSummary("Get aggregated OpenAPI documentation from all backend services")
+.WithTags("Documentation")
+.ExcludeFromDescription();
+
+// Scalar UI for aggregated documentation
+app.MapScalarApiReference(options =>
+{
+    options
+        .WithTitle("Sorcha API Gateway - All Services")
+        .WithTheme(ScalarTheme.Purple)
+        .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
+        .WithOpenApiRoutePattern("/openapi/aggregated.json");
+});
+
+// Scalar UI for gateway-only documentation
+app.MapGet("/scalar/gateway", () =>
+{
+    return Results.Redirect("/scalar/v1");
+})
+.ExcludeFromDescription();
 
 // Map YARP reverse proxy (must be last)
 app.MapReverseProxy();
