@@ -27,7 +27,12 @@
       "Bash(git log:*)",
       "Bash(git pull:*)",
       "Bash(dir:*)",
-      "Bash(dotnet test:*)"
+      "Bash(dotnet test:*)",
+      "Bash(dotnet --list-runtimes:*)",
+      "Bash(timeout 5 curl:*)",
+      "Bash(/dev/null)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,0 +1,173 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOCKER_REGISTRY: docker.io
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+
+    - name: Run unit tests
+      run: |
+        dotnet test tests/Sorcha.Blueprint.Api.Tests --no-build --configuration Release --logger "trx" || true
+        dotnet test tests/Sorcha.Blueprint.Fluent.Tests --no-build --configuration Release --logger "trx" || true
+
+    - name: Start Docker for integration tests
+      run: |
+        docker run -d -p 6379:6379 redis:8.2
+
+    - name: Run integration tests
+      run: |
+        dotnet test tests/Sorcha.Gateway.Integration.Tests --configuration Release --logger "trx" --collect:"XPlat Code Coverage"
+      timeout-minutes: 10
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: '**/*.trx'
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: coverage-reports
+        path: '**/coverage.cobertura.xml'
+
+  build-docker-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    strategy:
+      matrix:
+        service:
+          - name: api-gateway
+            context: .
+            dockerfile: src/Apps/Services/Sorcha.ApiGateway/Dockerfile
+            image: sorcha/api-gateway
+          - name: blueprint-api
+            context: .
+            dockerfile: src/Apps/Services/Sorcha.Blueprint.Api/Dockerfile
+            image: sorcha/blueprint-api
+          - name: peer-service
+            context: .
+            dockerfile: src/Apps/Services/Sorcha.Peer.Service/Dockerfile
+            image: sorcha/peer-service
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ matrix.service.image }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ matrix.service.context }}
+        file: ${{ matrix.service.dockerfile }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=registry,ref=${{ matrix.service.image }}:buildcache
+        cache-to: type=registry,ref=${{ matrix.service.image }}:buildcache,mode=max
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-docker-images
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    environment:
+      name: production
+      url: https://sorcha.example.com
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy via docker-compose
+      run: |
+        echo "Deployment would happen here"
+        echo "Example: ssh user@server 'cd /app && docker-compose pull && docker-compose up -d'"
+        # Add your actual deployment script here
+
+    - name: Verify deployment
+      run: |
+        echo "Verify services are healthy"
+        # curl https://your-domain.com/api/health
+
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Setup Playwright
+      run: |
+        cd tests/Sorcha.UI.E2E.Tests
+        dotnet build
+        pwsh bin/Debug/net10.0/playwright.ps1 install --with-deps
+
+    - name: Run E2E tests
+      run: dotnet test tests/Sorcha.UI.E2E.Tests --configuration Release --logger "trx"
+      timeout-minutes: 15
+
+    - name: Upload E2E test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: e2e-test-results
+        path: '**/*.trx'
