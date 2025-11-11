@@ -1,12 +1,32 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-var blueprintEngine = builder.AddProject<Projects.Sorcha_Blueprint_Engine>("blueprint-engine")
-    .WithHttpHealthCheck("/health");
+// Add Redis for distributed caching and output caching
+var redis = builder.AddRedis("redis")
+    .WithRedisCommander(); // Adds Redis Commander UI for development
 
-builder.AddProject<Projects.Sorcha_Blueprint_Designer>("blueprint-designer")
-    .WithExternalHttpEndpoints()
-    .WithHttpHealthCheck("/health")
-    .WithReference(blueprintEngine)
-    .WaitFor(blueprintEngine);
+// Add Blueprint API with Redis reference (internal only)
+var blueprintApi = builder.AddProject<Projects.Sorcha_Blueprint_Api>("blueprint-api")
+    .WithReference(redis);
+
+// Add Peer Service with Redis reference (internal only)
+var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service")
+    .WithReference(redis);
+
+// Add API Gateway as the single external entry point
+var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
+    .WithReference(blueprintApi)
+    .WithReference(peerService)
+    .WithReference(redis)
+    .WithExternalHttpEndpoints(); // Only the gateway is exposed externally
+
+// Add Blazor WebAssembly client
+// Note: Blazor WASM is a static client app, so we disable health checks
+var blazorClient = builder.AddProject<Projects.Sorcha_Blueprint_Designer_Client>("blazor-client")
+    .WithReference(apiGateway)
+    .WithExternalHttpEndpoints() // Expose client for browser access
+    .WithHttpHealthCheck("/"); // Check root path instead of /health
 
 builder.Build().Run();
