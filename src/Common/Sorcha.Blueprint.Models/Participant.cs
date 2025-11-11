@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using DataAnnotations = System.ComponentModel.DataAnnotations;
 
@@ -11,6 +12,13 @@ namespace Sorcha.Blueprint.Models;
 /// </summary>
 public class Participant : IEquatable<Participant>
 {
+    /// <summary>
+    /// JSON-LD type (Person or Organization)
+    /// </summary>
+    [JsonPropertyName("@type")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? JsonLdType { get; set; }
+
     /// <summary>
     /// Unique identifier for the participant
     /// </summary>
@@ -50,10 +58,26 @@ public class Participant : IEquatable<Participant>
 
     /// <summary>
     /// Decentralized Identifier (DID) URI for the participant
+    /// Example: did:example:123456789abcdefghi
     /// </summary>
     [DataAnnotations.MaxLength(200)]
     [JsonPropertyName("didUri")]
     public string? DidUri { get; set; }
+
+    /// <summary>
+    /// Verifiable Credential (JSON-LD format) for the participant
+    /// Supports W3C Verifiable Credentials standard
+    /// </summary>
+    [JsonPropertyName("verifiableCredential")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonNode? VerifiableCredential { get; set; }
+
+    /// <summary>
+    /// Additional JSON-LD properties for extended participant information
+    /// </summary>
+    [JsonPropertyName("additionalProperties")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, JsonNode>? AdditionalProperties { get; set; }
 
     /// <summary>
     /// Whether to use a stealth address for privacy

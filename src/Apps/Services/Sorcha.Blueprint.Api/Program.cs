@@ -4,6 +4,7 @@
 using Microsoft.AspNetCore.OutputCaching;
 using Scalar.AspNetCore;
 using System.Collections.Concurrent;
+using Sorcha.Blueprint.Api.JsonLd;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,6 +46,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseOutputCache();
 
+// Enable JSON-LD content negotiation
+app.UseJsonLdContentNegotiation();
+
 // ===========================
 // Blueprint CRUD Endpoints
 // ===========================
@@ -55,8 +59,10 @@ var blueprintGroup = app.MapGroup("/api/blueprints")
 
 /// <summary>
 /// Get all blueprints with pagination
+/// Supports JSON-LD via Accept: application/ld+json header
 /// </summary>
 blueprintGroup.MapGet("/", async (
+    HttpContext context,
     IBlueprintService service,
     int page = 1,
     int pageSize = 20,
@@ -68,34 +74,55 @@ blueprintGroup.MapGet("/", async (
 })
 .WithName("GetBlueprints")
 .WithSummary("Get all blueprints")
-.WithDescription("Retrieve a paginated list of blueprints with optional search and status filtering")
+.WithDescription("Retrieve a paginated list of blueprints with optional search and status filtering. Supports JSON-LD via Accept: application/ld+json header.")
 .CacheOutput(policy => policy.Expire(TimeSpan.FromMinutes(5)).Tag("blueprints"));
 
 /// <summary>
 /// Get blueprint by ID
+/// Supports JSON-LD via Accept: application/ld+json header
 /// </summary>
-blueprintGroup.MapGet("/{id}", async (string id, IBlueprintService service) =>
+blueprintGroup.MapGet("/{id}", async (HttpContext context, string id, IBlueprintService service) =>
 {
     var blueprint = await service.GetByIdAsync(id);
-    return blueprint is not null ? Results.Ok(blueprint) : Results.NotFound();
+    if (blueprint is null) return Results.NotFound();
+
+    // Add JSON-LD context if requested
+    if (context.AcceptsJsonLd())
+    {
+        blueprint = JsonLdHelper.EnsureJsonLdContext(blueprint);
+    }
+
+    return Results.Ok(blueprint);
 })
 .WithName("GetBlueprintById")
 .WithSummary("Get blueprint by ID")
-.WithDescription("Retrieve a specific blueprint by its unique identifier")
+.WithDescription("Retrieve a specific blueprint by its unique identifier. Supports JSON-LD via Accept: application/ld+json header.")
 .CacheOutput(policy => policy.Expire(TimeSpan.FromMinutes(5)).Tag("blueprints"));
 
 /// <summary>
 /// Create new blueprint
+/// Supports JSON-LD via Accept: application/ld+json header
 /// </summary>
-blueprintGroup.MapPost("/", async (BlueprintModel blueprint, IBlueprintService service, IOutputCacheStore cache) =>
+blueprintGroup.MapPost("/", async (
+    HttpContext context,
+    BlueprintModel blueprint,
+    IBlueprintService service,
+    IOutputCacheStore cache) =>
 {
     var created = await service.CreateAsync(blueprint);
     await cache.EvictByTagAsync("blueprints", default);
+
+    // Add JSON-LD context if requested
+    if (context.AcceptsJsonLd())
+    {
+        created = JsonLdHelper.EnsureJsonLdContext(created);
+    }
+
     return Results.Created($"/api/blueprints/{created.Id}", created);
 })
 .WithName("CreateBlueprint")
 .WithSummary("Create new blueprint")
-.WithDescription("Create a new blueprint with the provided details");
+.WithDescription("Create a new blueprint with the provided details. Supports JSON-LD via Accept: application/ld+json header.");
 
 /// <summary>
 /// Update existing blueprint

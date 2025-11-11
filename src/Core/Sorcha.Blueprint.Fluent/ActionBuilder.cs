@@ -4,6 +4,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Sorcha.Blueprint.Models;
+using Sorcha.Blueprint.Models.JsonLd;
 
 namespace Sorcha.Blueprint.Fluent;
 
@@ -135,6 +136,91 @@ public class ActionBuilder
         return this;
     }
 
+    /// <summary>
+    /// Sets the target participant for this action (ActivityStreams)
+    /// </summary>
+    public ActionBuilder WithTarget(string participantId)
+    {
+        if (!_participants.ContainsKey(participantId))
+            throw new InvalidOperationException($"Participant '{participantId}' not found in blueprint");
+
+        _action.Target = participantId;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the JSON-LD type for the action
+    /// </summary>
+    public ActionBuilder AsJsonLdType(string type)
+    {
+        _action.JsonLdType = type;
+        return this;
+    }
+
+    /// <summary>
+    /// Automatically determines JSON-LD type based on action title
+    /// </summary>
+    public ActionBuilder WithAutoJsonLdType()
+    {
+        _action.JsonLdType = JsonLdTypeHelper.GetActionType(_action.Title);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets action as a Create activity
+    /// </summary>
+    public ActionBuilder AsCreateAction()
+    {
+        _action.JsonLdType = JsonLdTypes.CreateAction;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets action as an Accept activity
+    /// </summary>
+    public ActionBuilder AsAcceptAction()
+    {
+        _action.JsonLdType = JsonLdTypes.AcceptAction;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets action as a Reject activity
+    /// </summary>
+    public ActionBuilder AsRejectAction()
+    {
+        _action.JsonLdType = JsonLdTypes.RejectAction;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets action as an Update activity
+    /// </summary>
+    public ActionBuilder AsUpdateAction()
+    {
+        _action.JsonLdType = JsonLdTypes.UpdateAction;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the published timestamp
+    /// </summary>
+    public ActionBuilder PublishedAt(DateTimeOffset timestamp)
+    {
+        _action.Published = timestamp;
+        return this;
+    }
+
+    /// <summary>
+    /// Adds additional JSON-LD properties
+    /// </summary>
+    public ActionBuilder WithAdditionalProperty(string key, JsonNode value)
+    {
+        _action.AdditionalProperties ??= new Dictionary<string, JsonNode>();
+        _action.AdditionalProperties[key] = value.DeepClone();
+        return this;
+    }
+
     internal Models.Action Build()
     {
         // Apply disclosures
@@ -147,6 +233,12 @@ public class ActionBuilder
         if (_calculations.Count > 0)
         {
             _action.Calculations = _calculations;
+        }
+
+        // Auto-set JSON-LD type if not explicitly set and title exists
+        if (string.IsNullOrEmpty(_action.JsonLdType) && !string.IsNullOrEmpty(_action.Title))
+        {
+            _action.JsonLdType = JsonLdTypeHelper.GetActionType(_action.Title);
         }
 
         return _action;

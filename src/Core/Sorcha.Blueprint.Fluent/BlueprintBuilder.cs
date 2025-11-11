@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Text.Json.Nodes;
 using Sorcha.Blueprint.Models;
+using Sorcha.Blueprint.Models.JsonLd;
 
 namespace Sorcha.Blueprint.Fluent;
 
@@ -70,6 +72,66 @@ public class BlueprintBuilder
     {
         _blueprint.Metadata ??= new Dictionary<string, string>();
         _blueprint.Metadata[key] = value;
+        return this;
+    }
+
+    /// <summary>
+    /// Enables JSON-LD with default context
+    /// </summary>
+    public BlueprintBuilder WithJsonLd()
+    {
+        _blueprint.JsonLdContext = JsonLdContext.DefaultContext.DeepClone();
+        _blueprint.JsonLdType = JsonLdTypes.Blueprint;
+        return this;
+    }
+
+    /// <summary>
+    /// Enables JSON-LD with context based on blueprint category
+    /// </summary>
+    public BlueprintBuilder WithJsonLd(string category)
+    {
+        _blueprint.JsonLdContext = JsonLdContext.GetContextByCategory(category);
+        _blueprint.JsonLdType = JsonLdTypes.Blueprint;
+
+        // Also set the category in metadata if not already set
+        if (_blueprint.Metadata?.ContainsKey("category") != true)
+        {
+            WithMetadata("category", category);
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    /// Sets custom JSON-LD context
+    /// </summary>
+    public BlueprintBuilder WithJsonLdContext(JsonNode context)
+    {
+        _blueprint.JsonLdContext = context.DeepClone();
+        _blueprint.JsonLdType = JsonLdTypes.Blueprint;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets custom JSON-LD type
+    /// </summary>
+    public BlueprintBuilder WithJsonLdType(string type)
+    {
+        _blueprint.JsonLdType = type;
+        return this;
+    }
+
+    /// <summary>
+    /// Merges custom context with default context
+    /// </summary>
+    public BlueprintBuilder WithAdditionalJsonLdContext(JsonNode customContext)
+    {
+        if (_blueprint.JsonLdContext == null)
+        {
+            WithJsonLd();
+        }
+
+        _blueprint.JsonLdContext = JsonLdContext.MergeContexts(customContext);
         return this;
     }
 

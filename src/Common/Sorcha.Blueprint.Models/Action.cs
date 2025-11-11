@@ -15,6 +15,13 @@ namespace Sorcha.Blueprint.Models;
 public class Action
 {
     /// <summary>
+    /// JSON-LD type (ActivityStreams Activity type)
+    /// </summary>
+    [JsonPropertyName("@type")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? JsonLdType { get; set; }
+
+    /// <summary>
     /// The Action ID (typically matches the transaction ID that contains it)
     /// </summary>
     [DataAnnotations.Required]
@@ -54,10 +61,18 @@ public class Action
 
     /// <summary>
     /// Address of the sender (may be a stealth/derived address)
+    /// In ActivityStreams terms, this is the "actor"
     /// </summary>
     [DataAnnotations.MaxLength(100)]
     [JsonPropertyName("sender")]
     public string Sender { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Target participant(s) for this action (ActivityStreams "target")
+    /// </summary>
+    [JsonPropertyName("target")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Target { get; set; }
 
     /// <summary>
     /// Potential participants to enact this step (supports branching/routing)
@@ -109,6 +124,20 @@ public class Action
     /// </summary>
     [JsonPropertyName("calculations")]
     public Dictionary<string, JsonNode>? Calculations { get; set; } = [];
+
+    /// <summary>
+    /// Timestamp when the action was published (ISO 8601)
+    /// </summary>
+    [JsonPropertyName("published")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DateTimeOffset? Published { get; set; }
+
+    /// <summary>
+    /// Additional JSON-LD properties for extended action information
+    /// </summary>
+    [JsonPropertyName("additionalProperties")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, JsonNode>? AdditionalProperties { get; set; }
 
     /// <summary>
     /// Specifies the format of data presentation (UI form)

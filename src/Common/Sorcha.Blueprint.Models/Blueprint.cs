@@ -2,6 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using DataAnnotations = System.ComponentModel.DataAnnotations;
 
@@ -12,6 +13,20 @@ namespace Sorcha.Blueprint.Models;
 /// </summary>
 public class Blueprint : IEquatable<Blueprint>
 {
+    /// <summary>
+    /// JSON-LD context for semantic web integration
+    /// </summary>
+    [JsonPropertyName("@context")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonNode? JsonLdContext { get; set; }
+
+    /// <summary>
+    /// JSON-LD type for semantic classification
+    /// </summary>
+    [JsonPropertyName("@type")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? JsonLdType { get; set; }
+
     /// <summary>
     /// Unique identifier for the Blueprint
     /// </summary>

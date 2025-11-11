@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Text.Json.Nodes;
 using Sorcha.Blueprint.Models;
+using Sorcha.Blueprint.Models.JsonLd;
 
 namespace Sorcha.Blueprint.Fluent;
 
@@ -65,5 +67,69 @@ public class ParticipantBuilder
         return this;
     }
 
-    internal Participant Build() => _participant;
+    /// <summary>
+    /// Sets the JSON-LD type (Person or Organization)
+    /// </summary>
+    public ParticipantBuilder AsJsonLdType(string type)
+    {
+        _participant.JsonLdType = type;
+        return this;
+    }
+
+    /// <summary>
+    /// Automatically sets JSON-LD type based on organisation name
+    /// </summary>
+    public ParticipantBuilder WithAutoJsonLdType()
+    {
+        _participant.JsonLdType = JsonLdTypeHelper.GetParticipantType(_participant.Organisation);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the participant as a Person (JSON-LD type)
+    /// </summary>
+    public ParticipantBuilder AsPerson()
+    {
+        _participant.JsonLdType = JsonLdTypes.Person;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the participant as an Organization (JSON-LD type)
+    /// </summary>
+    public ParticipantBuilder AsOrganization()
+    {
+        _participant.JsonLdType = JsonLdTypes.Organization;
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a verifiable credential to the participant
+    /// </summary>
+    public ParticipantBuilder WithVerifiableCredential(JsonNode credential)
+    {
+        _participant.VerifiableCredential = credential.DeepClone();
+        return this;
+    }
+
+    /// <summary>
+    /// Adds additional JSON-LD properties
+    /// </summary>
+    public ParticipantBuilder WithAdditionalProperty(string key, JsonNode value)
+    {
+        _participant.AdditionalProperties ??= new Dictionary<string, JsonNode>();
+        _participant.AdditionalProperties[key] = value.DeepClone();
+        return this;
+    }
+
+    internal Participant Build()
+    {
+        // Auto-set JSON-LD type if not explicitly set
+        if (string.IsNullOrEmpty(_participant.JsonLdType))
+        {
+            _participant.JsonLdType = JsonLdTypeHelper.GetParticipantType(_participant.Organisation);
+        }
+
+        return _participant;
+    }
 }
