@@ -66,46 +66,23 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    # Deploy Azure infrastructure using Bicep
-    - name: Deploy Azure Infrastructure
+    # STEP 1: Deploy base infrastructure (Resource Group, ACR, Redis, Environment)
+    # This creates ACR so we can push images to it
+    - name: Deploy Base Infrastructure
       uses: azure/arm-deploy@v2
-      id: deploy_infra
+      id: deploy_base
       with:
         scope: subscription
         region: ${{ env.AZURE_LOCATION }}
-        template: ./infra/main.bicep
+        template: ./infra/base-infra.bicep
         parameters: >
           resourceGroupName=${{ env.AZURE_RESOURCE_GROUP }}
           location=${{ env.AZURE_LOCATION }}
           containerRegistryName=${{ env.CONTAINER_REGISTRY }}
-        deploymentName: sorcha-deployment-${{ github.run_number }}
+          environment=prod
+        deploymentName: sorcha-base-${{ github.run_number }}
 
-    # Build and publish .NET projects
-    - name: Publish Blueprint API
-      run: |
-        dotnet publish src/Apps/Services/Sorcha.Blueprint.Api/Sorcha.Blueprint.Api.csproj \
-          -c Release \
-          -o ./publish/blueprint-api
-
-    - name: Publish API Gateway
-      run: |
-        dotnet publish src/Apps/Services/Sorcha.ApiGateway/Sorcha.ApiGateway.csproj \
-          -c Release \
-          -o ./publish/api-gateway
-
-    - name: Publish Peer Service
-      run: |
-        dotnet publish src/Apps/Services/Sorcha.Peer.Service/Sorcha.Peer.Service.csproj \
-          -c Release \
-          -o ./publish/peer-service
-
-    - name: Publish Blazor Client
-      run: |
-        dotnet publish src/Apps/UI/Sorcha.Blueprint.Designer.Client/Sorcha.Blueprint.Designer.Client.csproj \
-          -c Release \
-          -o ./publish/blazor-client
-
-    # Build and push Docker images to Azure Container Registry
+    # STEP 2: Build and push Docker images to ACR (now that ACR exists)
     - name: Login to Azure Container Registry
       run: |
         az acr login --name ${{ env.CONTAINER_REGISTRY }}
@@ -142,38 +119,20 @@ jobs:
         docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blazor-client:${{ github.sha }}
         docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blazor-client:latest
 
-    # Update Container Apps with new images
-    - name: Update Container Apps
-      run: |
-        # Get the Container Apps Environment name from the deployment outputs
-        ENVIRONMENT_NAME=$(az deployment sub show \
-          --name sorcha-deployment-${{ github.run_number }} \
-          --query properties.outputs.containerAppEnvironmentName.value \
-          -o tsv)
-
-        # Update Blueprint API
-        az containerapp update \
-          --name blueprint-api \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          --image ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blueprint-api:${{ github.sha }}
-
-        # Update API Gateway
-        az containerapp update \
-          --name api-gateway \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          --image ${{ env.CONTAINER_REGISTRY }}.azurecr.io/api-gateway:${{ github.sha }}
-
-        # Update Peer Service
-        az containerapp update \
-          --name peer-service \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          --image ${{ env.CONTAINER_REGISTRY }}.azurecr.io/peer-service:${{ github.sha }}
-
-        # Update Blazor Client
-        az containerapp update \
-          --name blazor-client \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          --image ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blazor-client:${{ github.sha }}
+    # STEP 3: Deploy Container Apps (now that images exist in ACR)
+    - name: Deploy Container Apps
+      uses: azure/arm-deploy@v2
+      id: deploy_apps
+      with:
+        scope: resourcegroup
+        resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
+        template: ./infra/container-apps.bicep
+        parameters: >
+          location=${{ env.AZURE_LOCATION }}
+          containerRegistryName=${{ env.CONTAINER_REGISTRY }}
+          environment=prod
+          imageTag=${{ github.sha }}
+        deploymentName: sorcha-apps-${{ github.run_number }}
 
     - name: Get deployment URLs
       id: get_urls
