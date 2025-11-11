@@ -37,14 +37,9 @@ jobs:
         dotnet test tests/Sorcha.Blueprint.Api.Tests --no-build --configuration Release --logger "trx" || true
         dotnet test tests/Sorcha.Blueprint.Fluent.Tests --no-build --configuration Release --logger "trx" || true
 
-    - name: Start Docker for integration tests
-      run: |
-        docker run -d -p 6379:6379 redis:8.2
-
-    - name: Run integration tests
-      run: |
-        dotnet test tests/Sorcha.Gateway.Integration.Tests --configuration Release --logger "trx" --collect:"XPlat Code Coverage"
-      timeout-minutes: 10
+    # Integration tests are skipped in CI pipeline as they require full Aspire AppHost with all services
+    # These tests should be run locally during development
+    # To run: dotnet test tests/Sorcha.Gateway.Integration.Tests
 
     - name: Upload test results
       uses: actions/upload-artifact@v4

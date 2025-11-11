@@ -37,13 +37,8 @@ jobs:
         dotnet test tests/Sorcha.Blueprint.Api.Tests --no-build --configuration Release --logger "trx" || true
         dotnet test tests/Sorcha.Blueprint.Fluent.Tests --no-build --configuration Release --logger "trx" || true
 
-    - name: Start Redis for integration tests
-      run: docker run -d -p 6379:6379 redis:8.2
-
-    - name: Run integration tests
-      run: |
-        dotnet test tests/Sorcha.Gateway.Integration.Tests --configuration Release --logger "trx" || true
-      timeout-minutes: 10
+    # Note: Integration tests are skipped in CI as they require full Aspire AppHost
+    # Run them locally with: dotnet test tests/Sorcha.Gateway.Integration.Tests
 
   # Deploy infrastructure and applications to Azure
   deploy-azure:
