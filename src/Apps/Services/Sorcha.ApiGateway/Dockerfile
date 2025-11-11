@@ -23,9 +23,9 @@ WORKDIR /app
 # Copy published app
 COPY --from=publish /app/publish .
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
+# Create non-root user (use -o to allow non-unique UID if exists)
+RUN id -u appuser &>/dev/null || useradd -m -u 1000 appuser; chown -R $(id -u 1000):$(id -g 1000) /app
+USER 1000
 
 # Expose ports
 EXPOSE 8080

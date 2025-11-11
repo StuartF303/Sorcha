@@ -34,7 +34,8 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(taskkill:*)",
-      "Bash(if exist \"src\\Apps\\Orchestration\\Sorcha.AppHost\" rmdir /s /q \"src\\Apps\\Orchestration\\Sorcha.AppHost\")"
+      "Bash(if exist \"src\\Apps\\Orchestration\\Sorcha.AppHost\" rmdir /s /q \"src\\Apps\\Orchestration\\Sorcha.AppHost\")",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
