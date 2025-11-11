@@ -51,4 +51,4 @@ output containerRegistryLoginServer string = baseResources.outputs.containerRegi
 output containerAppEnvironmentName string = baseResources.outputs.containerAppEnvironmentName
 output containerAppEnvironmentId string = baseResources.outputs.containerAppEnvironmentId
 output redisCacheName string = baseResources.outputs.redisCacheName
-output redisConnectionString string = baseResources.outputs.redisConnectionString
+output redisHostName string = baseResources.outputs.redisHostName

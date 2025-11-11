@@ -91,6 +91,6 @@ output containerRegistryLoginServer string = acr.properties.loginServer
 output containerAppEnvironmentName string = containerAppEnv.name
 output containerAppEnvironmentId string = containerAppEnv.id
 output redisCacheName string = redisCache.name
-output redisConnectionString string = '${redisCache.properties.hostName}:6380,password=${redisCache.listKeys().primaryKey},ssl=True,abortConnect=False'
-output acrUsername string = acr.listCredentials().username
-output acrPassword string = acr.listCredentials().passwords[0].value
+output redisHostName string = redisCache.properties.hostName
+// Note: Secrets (ACR credentials, Redis keys) are retrieved at runtime via Azure CLI
+// This prevents exposing secrets in deployment outputs
