@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Apps\Services\Sorcha.ApiGateway\Sorcha.ApiGateway.csproj" />
-    <ProjectReference Include="..\..\src\Apps\Orchestration\Sorcha.AppHost\Sorcha.AppHost.csproj" />
+    <ProjectReference Include="..\..\src\Apps\Hosting\Sorcha.AppHost\Sorcha.AppHost.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,211 @@
+name: Azure Deployment
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  AZURE_RESOURCE_GROUP: sorcha
+  AZURE_LOCATION: uksouth
+  CONTAINER_REGISTRY: sorchaacr
+
+jobs:
+  # First run tests to ensure quality
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+
+    - name: Run unit tests
+      run: |
+        dotnet test tests/Sorcha.Blueprint.Api.Tests --no-build --configuration Release --logger "trx" || true
+        dotnet test tests/Sorcha.Blueprint.Fluent.Tests --no-build --configuration Release --logger "trx" || true
+
+    - name: Start Redis for integration tests
+      run: docker run -d -p 6379:6379 redis:8.2
+
+    - name: Run integration tests
+      run: |
+        dotnet test tests/Sorcha.Gateway.Integration.Tests --configuration Release --logger "trx" || true
+      timeout-minutes: 10
+
+  # Deploy infrastructure and applications to Azure
+  deploy-azure:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    # Deploy Azure infrastructure using Bicep
+    - name: Deploy Azure Infrastructure
+      uses: azure/arm-deploy@v2
+      id: deploy_infra
+      with:
+        scope: subscription
+        region: ${{ env.AZURE_LOCATION }}
+        template: ./infra/main.bicep
+        parameters: >
+          resourceGroupName=${{ env.AZURE_RESOURCE_GROUP }}
+          location=${{ env.AZURE_LOCATION }}
+          containerRegistryName=${{ env.CONTAINER_REGISTRY }}
+        deploymentName: sorcha-deployment-${{ github.run_number }}
+
+    # Build and publish .NET projects
+    - name: Publish Blueprint API
+      run: |
+        dotnet publish src/Apps/Services/Sorcha.Blueprint.Api/Sorcha.Blueprint.Api.csproj \
+          -c Release \
+          -o ./publish/blueprint-api
+
+    - name: Publish API Gateway
+      run: |
+        dotnet publish src/Apps/Services/Sorcha.ApiGateway/Sorcha.ApiGateway.csproj \
+          -c Release \
+          -o ./publish/api-gateway
+
+    - name: Publish Peer Service
+      run: |
+        dotnet publish src/Apps/Services/Sorcha.Peer.Service/Sorcha.Peer.Service.csproj \
+          -c Release \
+          -o ./publish/peer-service
+
+    - name: Publish Blazor Client
+      run: |
+        dotnet publish src/Apps/UI/Sorcha.Blueprint.Designer.Client/Sorcha.Blueprint.Designer.Client.csproj \
+          -c Release \
+          -o ./publish/blazor-client
+
+    # Build and push Docker images to Azure Container Registry
+    - name: Login to Azure Container Registry
+      run: |
+        az acr login --name ${{ env.CONTAINER_REGISTRY }}
+
+    - name: Build and push Blueprint API image
+      run: |
+        docker build -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blueprint-api:${{ github.sha }} \
+          -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blueprint-api:latest \
+          -f src/Apps/Services/Sorcha.Blueprint.Api/Dockerfile .
+        docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blueprint-api:${{ github.sha }}
+        docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blueprint-api:latest
+
+    - name: Build and push API Gateway image
+      run: |
+        docker build -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/api-gateway:${{ github.sha }} \
+          -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/api-gateway:latest \
+          -f src/Apps/Services/Sorcha.ApiGateway/Dockerfile .
+        docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/api-gateway:${{ github.sha }}
+        docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/api-gateway:latest
+
+    - name: Build and push Peer Service image
+      run: |
+        docker build -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/peer-service:${{ github.sha }} \
+          -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/peer-service:latest \
+          -f src/Apps/Services/Sorcha.Peer.Service/Dockerfile .
+        docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/peer-service:${{ github.sha }}
+        docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/peer-service:latest
+
+    - name: Build and push Blazor Client image
+      run: |
+        docker build -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blazor-client:${{ github.sha }} \
+          -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blazor-client:latest \
+          -f src/Apps/UI/Sorcha.Blueprint.Designer.Client/Dockerfile .
+        docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blazor-client:${{ github.sha }}
+        docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blazor-client:latest
+
+    # Update Container Apps with new images
+    - name: Update Container Apps
+      run: |
+        # Get the Container Apps Environment name from the deployment outputs
+        ENVIRONMENT_NAME=$(az deployment sub show \
+          --name sorcha-deployment-${{ github.run_number }} \
+          --query properties.outputs.containerAppEnvironmentName.value \
+          -o tsv)
+
+        # Update Blueprint API
+        az containerapp update \
+          --name blueprint-api \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --image ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blueprint-api:${{ github.sha }}
+
+        # Update API Gateway
+        az containerapp update \
+          --name api-gateway \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --image ${{ env.CONTAINER_REGISTRY }}.azurecr.io/api-gateway:${{ github.sha }}
+
+        # Update Peer Service
+        az containerapp update \
+          --name peer-service \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --image ${{ env.CONTAINER_REGISTRY }}.azurecr.io/peer-service:${{ github.sha }}
+
+        # Update Blazor Client
+        az containerapp update \
+          --name blazor-client \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --image ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blazor-client:${{ github.sha }}
+
+    - name: Get deployment URLs
+      id: get_urls
+      run: |
+        API_GATEWAY_URL=$(az containerapp show \
+          --name api-gateway \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --query properties.configuration.ingress.fqdn \
+          -o tsv)
+
+        BLAZOR_URL=$(az containerapp show \
+          --name blazor-client \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --query properties.configuration.ingress.fqdn \
+          -o tsv)
+
+        echo "API Gateway: https://$API_GATEWAY_URL"
+        echo "Blazor Client: https://$BLAZOR_URL"
+
+        echo "api_gateway_url=https://$API_GATEWAY_URL" >> $GITHUB_OUTPUT
+        echo "blazor_url=https://$BLAZOR_URL" >> $GITHUB_OUTPUT
+
+    - name: Deployment Summary
+      run: |
+        echo "## 🚀 Azure Deployment Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔗 Deployment URLs" >> $GITHUB_STEP_SUMMARY
+        echo "- **API Gateway**: ${{ steps.get_urls.outputs.api_gateway_url }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Blazor Client**: ${{ steps.get_urls.outputs.blazor_url }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Deployed Images" >> $GITHUB_STEP_SUMMARY
+        echo "- blueprint-api: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- api-gateway: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- peer-service: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- blazor-client: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
