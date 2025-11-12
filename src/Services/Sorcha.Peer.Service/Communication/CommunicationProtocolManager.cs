@@ -208,7 +208,7 @@ public class CommunicationProtocolManager
         {
             SenderPeerId = "",
             RecipientPeerId = peer.PeerId,
-            MessageType = MessageType.Transaction_Notification,
+            MessageType = MessageType.TransactionNotification,
             Payload = Google.Protobuf.ByteString.CopyFromUtf8(
                 System.Text.Json.JsonSerializer.Serialize(message)),
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
