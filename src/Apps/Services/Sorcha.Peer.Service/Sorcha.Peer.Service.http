@@ -1,4 +1,4 @@
-@Sorcha.Peer.Service_HostAddress = http://localhost:5192
+@Sorcha.Peer.Service_HostAddress = http://localhost:8070
 
 GET {{Sorcha.Peer.Service_HostAddress}}/weatherforecast/
 Accept: application/json

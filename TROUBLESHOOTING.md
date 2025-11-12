@@ -6,7 +6,7 @@
 
 **Symptoms:**
 ```
-error: could not start the proxy for the service: listen tcp [::1]:5128: bind:
+error: could not start the proxy for the service: listen tcp [::1]:8080: bind:
 Only one usage of each socket address is normally permitted.
 ```
 
@@ -28,7 +28,7 @@ bash scripts/cleanup-ports.sh
 #### Manual Fix - Kill Specific Process
 ```powershell
 # Windows - Find process on port
-netstat -ano | findstr ":5128"
+netstat -ano | findstr ":8080"
 
 # Kill the process (replace PID with actual number)
 taskkill /F /PID 12345
@@ -36,7 +36,7 @@ taskkill /F /PID 12345
 
 ```bash
 # Unix/Mac - Find and kill process
-lsof -ti:5128 | xargs kill -9
+lsof -ti:8080 | xargs kill -9
 ```
 
 #### Nuclear Option - Kill All .NET Processes
@@ -117,7 +117,7 @@ Error: Failed to bind to address https://localhost:7082
 #### Check Ports in Use
 ```bash
 # Windows
-netstat -ano | findstr "7080 7081 7082"
+netstat -ano | findstr "8050 8060 8070 8080"
 
 # Kill process (replace PID)
 taskkill /F /PID <PID>
@@ -185,7 +185,7 @@ docker run -d -p 6379:6379 redis:8.2
 File: `src/Apps/UI/Sorcha.Blueprint.Designer.Client/Services/ApiConfiguration.cs`
 
 ```csharp
-public static string GatewayBaseUrl { get; set; } = "https://localhost:7082";
+public static string GatewayBaseUrl { get; set; } = "https://localhost:8061";
 ```
 
 Update the port to match what Aspire assigned to the gateway.
@@ -193,7 +193,7 @@ Update the port to match what Aspire assigned to the gateway.
 #### Check Aspire Dashboard
 1. Open dashboard: `https://localhost:17256`
 2. Find `api-gateway` service
-3. Note the HTTPS endpoint (e.g., `https://localhost:7234`)
+3. Note the HTTPS endpoint (e.g., `https://localhost:8061`)
 4. Update `GatewayBaseUrl` to match
 
 ### 6. Integration Tests Failing
@@ -247,7 +247,7 @@ $env:ASPNETCORE_ENVIRONMENT="Development"
 
 #### Verify Gateway is Running
 ```bash
-curl https://localhost:7082/api/health
+curl https://localhost:8061/api/health
 ```
 
 ### 8. Peer Service Not Discovering Peers
@@ -273,8 +273,8 @@ For development, the service will run but show no peers.
 # Open: https://localhost:17256
 
 # Via curl
-curl http://localhost:7082/api/health
-curl http://localhost:7082/api/stats
+curl http://localhost:8061/api/health
+curl http://localhost:8061/api/stats
 ```
 
 ### Check Logs

@@ -2,7 +2,7 @@
 # Bash script to cleanup Sorcha ports on Unix/Mac
 # Run this if you get "port already in use" errors
 
-ports=(5128 7080 7081 7082 17256)
+ports=(8050 8051 8060 8061 8070 8071 8080 8081 17256)
 
 echo "Cleaning up Sorcha service ports..."
 
