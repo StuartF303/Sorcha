@@ -1,0 +1,220 @@
+{
+  "id": "simple-invoice-approval-v1",
+  "title": "Simple Invoice Approval",
+  "description": "A straightforward two-step workflow where a vendor submits an invoice and accounts payable approves payment.",
+  "version": 1,
+  "metadata": {
+    "sector": "Finance",
+    "complexity": "Simple",
+    "actions": "2",
+    "category": "Accounts Payable"
+  },
+  "participants": [
+    {
+      "id": "vendor",
+      "name": "ABC Supplies Ltd",
+      "organisation": "ABC Supplies Ltd",
+      "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+      "didUri": "did:example:vendor123"
+    },
+    {
+      "id": "accounts-payable",
+      "name": "Accounts Payable Department",
+      "organisation": "ACME Corporation",
+      "walletAddress": "0x8Bb5C5e7b4e4C8d8D5e5B8c8B5d5e5B8c8B5d5e5",
+      "didUri": "did:example:acme-ap"
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Submit Invoice",
+      "description": "Vendor submits an invoice for payment",
+      "sender": "vendor",
+      "target": "accounts-payable",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "invoiceNumber": {
+              "type": "string",
+              "title": "Invoice Number",
+              "minLength": 3,
+              "maxLength": 50
+            },
+            "invoiceDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Invoice Date"
+            },
+            "dueDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Due Date"
+            },
+            "description": {
+              "type": "string",
+              "title": "Description of Services/Goods",
+              "minLength": 5,
+              "maxLength": 500
+            },
+            "amount": {
+              "type": "number",
+              "title": "Invoice Amount",
+              "minimum": 0.01
+            },
+            "currency": {
+              "type": "string",
+              "title": "Currency",
+              "enum": ["USD", "EUR", "GBP", "CAD"],
+              "default": "USD"
+            },
+            "taxAmount": {
+              "type": "number",
+              "title": "Tax Amount",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "required": ["invoiceNumber", "invoiceDate", "dueDate", "description", "amount", "currency"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "accounts-payable",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {
+        "totalAmount": {
+          "+": [
+            { "var": "amount" },
+            { "var": "taxAmount" }
+          ]
+        }
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Invoice Details",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/invoiceNumber",
+                "title": "Invoice Number"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/invoiceDate",
+                "title": "Invoice Date"
+              }
+            ]
+          },
+          {
+            "type": "DateTime",
+            "scope": "/dueDate",
+            "title": "Payment Due Date"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/description",
+            "title": "Description of Services/Goods"
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "Numeric",
+                "scope": "/amount",
+                "title": "Invoice Amount"
+              },
+              {
+                "type": "Selection",
+                "scope": "/currency",
+                "title": "Currency"
+              }
+            ]
+          },
+          {
+            "type": "Numeric",
+            "scope": "/taxAmount",
+            "title": "Tax Amount (if applicable)"
+          }
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "title": "Approve Payment",
+      "description": "Accounts payable reviews and approves the invoice for payment",
+      "sender": "accounts-payable",
+      "target": "vendor",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "approved": {
+              "type": "boolean",
+              "title": "Approved for Payment"
+            },
+            "paymentDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Scheduled Payment Date"
+            },
+            "paymentMethod": {
+              "type": "string",
+              "title": "Payment Method",
+              "enum": ["Wire Transfer", "ACH", "Check", "Credit Card"],
+              "default": "ACH"
+            },
+            "notes": {
+              "type": "string",
+              "title": "Payment Notes",
+              "maxLength": 500
+            }
+          },
+          "required": ["approved"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "vendor",
+          "dataPointers": ["/approved", "/paymentDate", "/paymentMethod", "/notes"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Payment Approval",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/approved",
+            "title": "Approve this invoice for payment"
+          },
+          {
+            "type": "DateTime",
+            "scope": "/paymentDate",
+            "title": "Scheduled Payment Date"
+          },
+          {
+            "type": "Selection",
+            "scope": "/paymentMethod",
+            "title": "Payment Method"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/notes",
+            "title": "Payment Notes"
+          }
+        ]
+      }
+    }
+  ]
+}

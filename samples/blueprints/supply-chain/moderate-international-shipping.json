@@ -1,0 +1,1098 @@
+{
+  "id": "moderate-intl-shipping-v1",
+  "title": "International Shipping with Customs Clearance",
+  "description": "A five-step workflow for international shipping involving shipper, freight forwarder, customs broker, customs authority, and consignee. Features conditional routing based on shipment value and commodity classification.",
+  "version": 1,
+  "metadata": {
+    "sector": "Supply Chain & Logistics",
+    "complexity": "Moderate",
+    "actions": "5",
+    "category": "International Trade",
+    "features": "Multi-Party, Cross-Border, Customs Clearance, Dynamic Routing",
+    "compliance": "CBP, WCO, IATA"
+  },
+  "participants": [
+    {
+      "id": "shipper",
+      "name": "Manufacturing Department",
+      "organisation": "TechComponents Inc - USA",
+      "walletAddress": "0xS0H1234567890ABCDEF1234567890ABCDEF12345",
+      "didUri": "did:example:techcomp-shipper"
+    },
+    {
+      "id": "freight-forwarder",
+      "name": "Logistics Coordinator",
+      "organisation": "Global Freight Solutions",
+      "walletAddress": "0xF0F2345678901BCDEF2345678901BCDEF234567",
+      "didUri": "did:example:globalfreight"
+    },
+    {
+      "id": "customs-broker",
+      "name": "Customs Brokerage Services",
+      "organisation": "International Customs Experts Ltd",
+      "walletAddress": "0xC0B3456789012CDEF3456789012CDEF345678",
+      "didUri": "did:example:customs-broker"
+    },
+    {
+      "id": "customs-authority",
+      "name": "Import Compliance Officer",
+      "organisation": "EU Customs & Border Protection",
+      "walletAddress": "0xC0A4567890123DEF4567890123DEF456789",
+      "didUri": "did:example:eu-customs"
+    },
+    {
+      "id": "consignee",
+      "name": "Receiving Department",
+      "organisation": "EuroTech Manufacturing GmbH - Germany",
+      "walletAddress": "0xC0N5678901234EF5678901234EF5678901",
+      "didUri": "did:example:eurotech-consignee"
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Create Shipping Request",
+      "description": "Shipper creates international shipping request with commercial details",
+      "sender": "shipper",
+      "target": "freight-forwarder",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "shipmentId": {
+              "type": "string",
+              "title": "Shipment ID",
+              "minLength": 8,
+              "maxLength": 30
+            },
+            "shipmentDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Shipment Date"
+            },
+            "originCountry": {
+              "type": "string",
+              "title": "Country of Origin",
+              "maxLength": 100
+            },
+            "originAddress": {
+              "type": "string",
+              "title": "Origin Address",
+              "maxLength": 500
+            },
+            "destinationCountry": {
+              "type": "string",
+              "title": "Destination Country",
+              "maxLength": 100
+            },
+            "destinationAddress": {
+              "type": "string",
+              "title": "Destination Address",
+              "maxLength": 500
+            },
+            "incoterms": {
+              "type": "string",
+              "title": "Incoterms",
+              "enum": ["EXW", "FCA", "FOB", "CFR", "CIF", "DAP", "DDP"],
+              "default": "CIF"
+            },
+            "shipmentMode": {
+              "type": "string",
+              "title": "Mode of Transport",
+              "enum": ["Air Freight", "Ocean Freight", "Road", "Rail", "Multimodal"],
+              "default": "Air Freight"
+            },
+            "packageCount": {
+              "type": "integer",
+              "title": "Number of Packages",
+              "minimum": 1
+            },
+            "totalWeight": {
+              "type": "number",
+              "title": "Total Weight (kg)",
+              "minimum": 0.1
+            },
+            "totalVolume": {
+              "type": "number",
+              "title": "Total Volume (m³)",
+              "minimum": 0.001
+            },
+            "commodities": {
+              "type": "array",
+              "title": "Commodity Line Items",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "title": "Item Description",
+                    "maxLength": 300
+                  },
+                  "hsCode": {
+                    "type": "string",
+                    "title": "HS Code (Harmonized System)",
+                    "pattern": "^\\d{6,10}$"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "unitPrice": {
+                    "type": "number",
+                    "minimum": 0.01
+                  },
+                  "currency": {
+                    "type": "string",
+                    "enum": ["USD", "EUR", "GBP"]
+                  },
+                  "countryOfOrigin": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                },
+                "required": ["description", "hsCode", "quantity", "unitPrice", "currency", "countryOfOrigin"]
+              }
+            },
+            "totalValue": {
+              "type": "number",
+              "title": "Total Commercial Value",
+              "minimum": 0.01
+            },
+            "valueCurrency": {
+              "type": "string",
+              "title": "Currency",
+              "enum": ["USD", "EUR", "GBP"],
+              "default": "USD"
+            },
+            "insuranceRequired": {
+              "type": "boolean",
+              "title": "Insurance Required",
+              "default": true
+            },
+            "dangerousGoods": {
+              "type": "boolean",
+              "title": "Contains Dangerous Goods",
+              "default": false
+            },
+            "specialInstructions": {
+              "type": "string",
+              "title": "Special Instructions",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "shipmentId",
+            "shipmentDate",
+            "originCountry",
+            "originAddress",
+            "destinationCountry",
+            "destinationAddress",
+            "incoterms",
+            "shipmentMode",
+            "packageCount",
+            "totalWeight",
+            "commodities",
+            "totalValue",
+            "valueCurrency"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "freight-forwarder",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {
+        "requiresCustomsBroker": {
+          "or": [
+            { ">": [{ "var": "totalValue" }, 2500] },
+            { "var": "dangerousGoods" }
+          ]
+        },
+        "dutyEstimate": {
+          "*": [
+            { "var": "totalValue" },
+            0.05
+          ]
+        }
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "International Shipping Request",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Shipment Details",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/shipmentId",
+                    "title": "Shipment ID"
+                  },
+                  {
+                    "type": "DateTime",
+                    "scope": "/shipmentDate",
+                    "title": "Shipment Date"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Origin & Destination",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/originCountry",
+                "title": "Country of Origin"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/originAddress",
+                "title": "Origin Address"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/destinationCountry",
+                "title": "Destination Country"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/destinationAddress",
+                "title": "Destination Address"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Shipping Terms",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Selection",
+                    "scope": "/incoterms",
+                    "title": "Incoterms"
+                  },
+                  {
+                    "type": "Selection",
+                    "scope": "/shipmentMode",
+                    "title": "Mode of Transport"
+                  }
+                ]
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Numeric",
+                    "scope": "/packageCount",
+                    "title": "Number of Packages"
+                  },
+                  {
+                    "type": "Numeric",
+                    "scope": "/totalWeight",
+                    "title": "Total Weight (kg)"
+                  },
+                  {
+                    "type": "Numeric",
+                    "scope": "/totalVolume",
+                    "title": "Total Volume (m³)"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Commercial Value",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Numeric",
+                    "scope": "/totalValue",
+                    "title": "Total Commercial Value"
+                  },
+                  {
+                    "type": "Selection",
+                    "scope": "/valueCurrency",
+                    "title": "Currency"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/insuranceRequired",
+            "title": "Insurance required"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/dangerousGoods",
+            "title": "Contains dangerous goods"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/specialInstructions",
+            "title": "Special Instructions"
+          }
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "title": "Arrange Transport & Documentation",
+      "description": "Freight forwarder arranges transport and prepares shipping documentation",
+      "sender": "freight-forwarder",
+      "target": "customs-broker",
+      "additionalRecipients": ["shipper"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "bookingConfirmed": {
+              "type": "boolean",
+              "title": "Transport Booking Confirmed"
+            },
+            "carrierName": {
+              "type": "string",
+              "title": "Carrier Name",
+              "maxLength": 200
+            },
+            "vesselFlightNumber": {
+              "type": "string",
+              "title": "Vessel/Flight Number",
+              "maxLength": 50
+            },
+            "estimatedDeparture": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Estimated Departure"
+            },
+            "estimatedArrival": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Estimated Arrival"
+            },
+            "mawb": {
+              "type": "string",
+              "title": "Master Airway Bill / Bill of Lading Number",
+              "maxLength": 50
+            },
+            "freightCost": {
+              "type": "number",
+              "title": "Freight Cost",
+              "minimum": 0
+            },
+            "insuranceCost": {
+              "type": "number",
+              "title": "Insurance Cost",
+              "minimum": 0
+            },
+            "commercialInvoiceNumber": {
+              "type": "string",
+              "title": "Commercial Invoice Number",
+              "maxLength": 50
+            },
+            "packingListNumber": {
+              "type": "string",
+              "title": "Packing List Number",
+              "maxLength": 50
+            },
+            "certificateOfOrigin": {
+              "type": "boolean",
+              "title": "Certificate of Origin Included"
+            },
+            "additionalDocuments": {
+              "type": "string",
+              "title": "Additional Documents",
+              "maxLength": 500
+            }
+          },
+          "required": [
+            "bookingConfirmed",
+            "carrierName",
+            "vesselFlightNumber",
+            "estimatedDeparture",
+            "estimatedArrival",
+            "mawb",
+            "freightCost",
+            "commercialInvoiceNumber",
+            "packingListNumber"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "customs-broker",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "shipper",
+          "dataPointers": [
+            "/bookingConfirmed",
+            "/carrierName",
+            "/vesselFlightNumber",
+            "/estimatedDeparture",
+            "/estimatedArrival",
+            "/mawb",
+            "/freightCost",
+            "/insuranceCost"
+          ]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Transport Arrangement",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/bookingConfirmed",
+            "title": "Transport booking confirmed"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Carrier Information",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/carrierName",
+                "title": "Carrier Name"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/vesselFlightNumber",
+                "title": "Vessel/Flight Number"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/mawb",
+                "title": "MAWB / B/L Number"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "DateTime",
+                "scope": "/estimatedDeparture",
+                "title": "Estimated Departure"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/estimatedArrival",
+                "title": "Estimated Arrival"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Costs",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Numeric",
+                    "scope": "/freightCost",
+                    "title": "Freight Cost"
+                  },
+                  {
+                    "type": "Numeric",
+                    "scope": "/insuranceCost",
+                    "title": "Insurance Cost"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Documentation",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/commercialInvoiceNumber",
+                "title": "Commercial Invoice Number"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/packingListNumber",
+                "title": "Packing List Number"
+              },
+              {
+                "type": "Checkbox",
+                "scope": "/certificateOfOrigin",
+                "title": "Certificate of Origin included"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/additionalDocuments",
+                "title": "Additional Documents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Prepare Customs Declaration",
+      "description": "Customs broker prepares customs declaration and import documentation",
+      "sender": "customs-broker",
+      "target": "customs-authority",
+      "additionalRecipients": ["consignee"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "customsDeclarationNumber": {
+              "type": "string",
+              "title": "Customs Declaration Number",
+              "minLength": 10,
+              "maxLength": 50
+            },
+            "importerOfRecord": {
+              "type": "string",
+              "title": "Importer of Record",
+              "maxLength": 200
+            },
+            "importerTaxId": {
+              "type": "string",
+              "title": "Importer Tax/VAT ID",
+              "maxLength": 50
+            },
+            "declarationType": {
+              "type": "string",
+              "title": "Declaration Type",
+              "enum": ["Full Declaration", "Simplified Declaration", "Temporary Admission", "Re-Export"],
+              "default": "Full Declaration"
+            },
+            "customsValue": {
+              "type": "number",
+              "title": "Customs Value",
+              "minimum": 0
+            },
+            "customsValueCurrency": {
+              "type": "string",
+              "title": "Currency",
+              "enum": ["USD", "EUR", "GBP"],
+              "default": "EUR"
+            },
+            "estimatedDuty": {
+              "type": "number",
+              "title": "Estimated Duty",
+              "minimum": 0
+            },
+            "estimatedVAT": {
+              "type": "number",
+              "title": "Estimated VAT/GST",
+              "minimum": 0
+            },
+            "estimatedOtherCharges": {
+              "type": "number",
+              "title": "Other Charges (Fees, etc.)",
+              "minimum": 0
+            },
+            "preferentialTreatment": {
+              "type": "boolean",
+              "title": "Preferential Treatment Claimed",
+              "default": false
+            },
+            "freeTradeAgreement": {
+              "type": "string",
+              "title": "Free Trade Agreement (if applicable)",
+              "maxLength": 100
+            },
+            "customsBrokerageNotes": {
+              "type": "string",
+              "title": "Customs Brokerage Notes",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "customsDeclarationNumber",
+            "importerOfRecord",
+            "importerTaxId",
+            "declarationType",
+            "customsValue",
+            "customsValueCurrency",
+            "estimatedDuty",
+            "estimatedVAT"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "customs-authority",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "consignee",
+          "dataPointers": [
+            "/customsDeclarationNumber",
+            "/customsValue",
+            "/estimatedDuty",
+            "/estimatedVAT",
+            "/estimatedOtherCharges"
+          ]
+        }
+      ],
+      "calculations": {
+        "totalImportCharges": {
+          "+": [
+            { "var": "estimatedDuty" },
+            { "var": "estimatedVAT" },
+            { "var": "estimatedOtherCharges" }
+          ]
+        }
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Customs Declaration",
+        "elements": [
+          {
+            "type": "TextLine",
+            "scope": "/customsDeclarationNumber",
+            "title": "Customs Declaration Number"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Importer Information",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/importerOfRecord",
+                "title": "Importer of Record"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/importerTaxId",
+                "title": "Importer Tax/VAT ID"
+              }
+            ]
+          },
+          {
+            "type": "Selection",
+            "scope": "/declarationType",
+            "title": "Declaration Type"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Valuation & Charges",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Numeric",
+                    "scope": "/customsValue",
+                    "title": "Customs Value"
+                  },
+                  {
+                    "type": "Selection",
+                    "scope": "/customsValueCurrency",
+                    "title": "Currency"
+                  }
+                ]
+              },
+              {
+                "type": "Numeric",
+                "scope": "/estimatedDuty",
+                "title": "Estimated Duty"
+              },
+              {
+                "type": "Numeric",
+                "scope": "/estimatedVAT",
+                "title": "Estimated VAT/GST"
+              },
+              {
+                "type": "Numeric",
+                "scope": "/estimatedOtherCharges",
+                "title": "Other Charges"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Preferential Treatment",
+            "elements": [
+              {
+                "type": "Checkbox",
+                "scope": "/preferentialTreatment",
+                "title": "Preferential treatment claimed"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/freeTradeAgreement",
+                "title": "Free Trade Agreement"
+              }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/customsBrokerageNotes",
+            "title": "Customs Brokerage Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "Customs Clearance",
+      "description": "Customs authority reviews and clears the shipment",
+      "sender": "customs-authority",
+      "target": "freight-forwarder",
+      "additionalRecipients": ["customs-broker", "consignee"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "clearanceStatus": {
+              "type": "string",
+              "title": "Clearance Status",
+              "enum": ["Cleared", "Examination Required", "Documents Required", "Hold", "Rejected"],
+              "default": "Cleared"
+            },
+            "clearanceTimestamp": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Clearance Timestamp"
+            },
+            "customsReleaseNumber": {
+              "type": "string",
+              "title": "Customs Release Number",
+              "maxLength": 50
+            },
+            "actualDuty": {
+              "type": "number",
+              "title": "Actual Duty Assessed",
+              "minimum": 0
+            },
+            "actualVAT": {
+              "type": "number",
+              "title": "Actual VAT/GST",
+              "minimum": 0
+            },
+            "actualOtherCharges": {
+              "type": "number",
+              "title": "Actual Other Charges",
+              "minimum": 0
+            },
+            "paymentStatus": {
+              "type": "string",
+              "title": "Payment Status",
+              "enum": ["Paid", "Pending", "Deferred", "Bond Posted"],
+              "default": "Paid"
+            },
+            "examinationRequired": {
+              "type": "boolean",
+              "title": "Physical Examination Required",
+              "default": false
+            },
+            "holdReason": {
+              "type": "string",
+              "title": "Reason for Hold (if applicable)",
+              "maxLength": 1000
+            },
+            "customsOfficerNotes": {
+              "type": "string",
+              "title": "Customs Officer Notes",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "clearanceStatus",
+            "clearanceTimestamp",
+            "actualDuty",
+            "actualVAT",
+            "actualOtherCharges",
+            "paymentStatus"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "freight-forwarder",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "customs-broker",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "consignee",
+          "dataPointers": [
+            "/clearanceStatus",
+            "/clearanceTimestamp",
+            "/customsReleaseNumber",
+            "/actualDuty",
+            "/actualVAT",
+            "/actualOtherCharges",
+            "/paymentStatus",
+            "/examinationRequired",
+            "/holdReason"
+          ]
+        }
+      ],
+      "calculations": {
+        "totalActualCharges": {
+          "+": [
+            { "var": "actualDuty" },
+            { "var": "actualVAT" },
+            { "var": "actualOtherCharges" }
+          ]
+        }
+      },
+      "condition": {
+        "if": [
+          { "==": [{ "var": "clearanceStatus" }, "Cleared"] },
+          "freight-forwarder",
+          "customs-broker"
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Customs Clearance Decision",
+        "elements": [
+          {
+            "type": "Selection",
+            "scope": "/clearanceStatus",
+            "title": "Clearance Status"
+          },
+          {
+            "type": "DateTime",
+            "scope": "/clearanceTimestamp",
+            "title": "Clearance Timestamp"
+          },
+          {
+            "type": "TextLine",
+            "scope": "/customsReleaseNumber",
+            "title": "Customs Release Number"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Assessed Charges",
+            "elements": [
+              {
+                "type": "Numeric",
+                "scope": "/actualDuty",
+                "title": "Actual Duty Assessed"
+              },
+              {
+                "type": "Numeric",
+                "scope": "/actualVAT",
+                "title": "Actual VAT/GST"
+              },
+              {
+                "type": "Numeric",
+                "scope": "/actualOtherCharges",
+                "title": "Actual Other Charges"
+              },
+              {
+                "type": "Selection",
+                "scope": "/paymentStatus",
+                "title": "Payment Status"
+              }
+            ]
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/examinationRequired",
+            "title": "Physical examination required"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/holdReason",
+            "title": "Reason for Hold (if applicable)"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/customsOfficerNotes",
+            "title": "Customs Officer Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "title": "Delivery Confirmation",
+      "description": "Freight forwarder arranges final delivery and consignee confirms receipt",
+      "sender": "consignee",
+      "target": "freight-forwarder",
+      "additionalRecipients": ["shipper"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "delivered": {
+              "type": "boolean",
+              "title": "Shipment Delivered"
+            },
+            "deliveryTimestamp": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Delivery Timestamp"
+            },
+            "receivedBy": {
+              "type": "string",
+              "title": "Received By (Name)",
+              "maxLength": 100
+            },
+            "packageCondition": {
+              "type": "string",
+              "title": "Package Condition",
+              "enum": ["Good", "Minor Damage", "Major Damage", "Unopened - Refused"],
+              "default": "Good"
+            },
+            "allItemsReceived": {
+              "type": "boolean",
+              "title": "All Items Received as Listed"
+            },
+            "discrepancies": {
+              "type": "string",
+              "title": "Discrepancies (if any)",
+              "maxLength": 2000
+            },
+            "claimFiled": {
+              "type": "boolean",
+              "title": "Damage/Loss Claim Filed",
+              "default": false
+            },
+            "consigneeNotes": {
+              "type": "string",
+              "title": "Consignee Notes",
+              "maxLength": 1000
+            },
+            "signatureHash": {
+              "type": "string",
+              "title": "Digital Signature Hash",
+              "minLength": 64,
+              "maxLength": 64
+            }
+          },
+          "required": [
+            "delivered",
+            "deliveryTimestamp",
+            "receivedBy",
+            "packageCondition",
+            "allItemsReceived",
+            "signatureHash"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "freight-forwarder",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "shipper",
+          "dataPointers": [
+            "/delivered",
+            "/deliveryTimestamp",
+            "/packageCondition",
+            "/allItemsReceived",
+            "/discrepancies",
+            "/claimFiled"
+          ]
+        },
+        {
+          "participantAddress": "customs-broker",
+          "dataPointers": ["/delivered", "/deliveryTimestamp"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Delivery Confirmation",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/delivered",
+            "title": "Shipment has been delivered"
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "DateTime",
+                "scope": "/deliveryTimestamp",
+                "title": "Delivery Timestamp"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/receivedBy",
+                "title": "Received By"
+              }
+            ]
+          },
+          {
+            "type": "Selection",
+            "scope": "/packageCondition",
+            "title": "Package Condition"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/allItemsReceived",
+            "title": "All items received as listed"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/discrepancies",
+            "title": "Discrepancies (if any)"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/claimFiled",
+            "title": "Damage or loss claim filed"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/consigneeNotes",
+            "title": "Notes"
+          },
+          {
+            "type": "TextLine",
+            "scope": "/signatureHash",
+            "title": "Digital Signature Hash"
+          }
+        ]
+      }
+    }
+  ]
+}

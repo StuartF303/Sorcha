@@ -1,0 +1,1356 @@
+{
+  "id": "complex-trade-settlement-v1",
+  "title": "Multi-Party Cross-Border Trade Settlement",
+  "description": "A complex seven-step workflow for cross-border securities trade settlement involving multiple banks, a clearinghouse, and regulatory reporting. Features dynamic routing based on trade size, jurisdiction, and settlement method.",
+  "version": 1,
+  "metadata": {
+    "sector": "Finance",
+    "complexity": "Complex",
+    "actions": "7",
+    "category": "Securities Trading & Settlement",
+    "features": "Multi-Party, Cross-Border, Dynamic Routing, Regulatory Compliance, Clearinghouse",
+    "compliance": "MiFID II, Dodd-Frank, EMIR"
+  },
+  "participants": [
+    {
+      "id": "buyer-trader",
+      "name": "Buy-Side Trader",
+      "organisation": "Global Asset Management LLC",
+      "walletAddress": "0xB0T1234567890ABCDEF1234567890ABCDEF12345",
+      "didUri": "did:example:global-asset-trader"
+    },
+    {
+      "id": "buyer-bank",
+      "name": "Custody & Settlement",
+      "organisation": "First International Bank",
+      "walletAddress": "0xB0B2345678901BCDEF2345678901BCDEF234567",
+      "didUri": "did:example:first-intl-custody"
+    },
+    {
+      "id": "seller-trader",
+      "name": "Sell-Side Trader",
+      "organisation": "Premium Securities Inc",
+      "walletAddress": "0xS0T3456789012CDEF3456789012CDEF345678",
+      "didUri": "did:example:premium-sec-trader"
+    },
+    {
+      "id": "seller-bank",
+      "name": "Custody & Clearing Services",
+      "organisation": "European Settlement Bank AG",
+      "walletAddress": "0xS0B4567890123DEF4567890123DEF456789",
+      "didUri": "did:example:euro-settle-custody"
+    },
+    {
+      "id": "clearinghouse",
+      "name": "Central Clearing",
+      "organisation": "Global Clearinghouse Corporation",
+      "walletAddress": "0xC0H5678901234EF5678901234EF5678901",
+      "didUri": "did:example:global-clearinghouse"
+    },
+    {
+      "id": "regulator",
+      "name": "Trade Reporting Facility",
+      "organisation": "Securities Regulatory Authority",
+      "walletAddress": "0xR0G6789012345F6789012345F67890123",
+      "didUri": "did:example:sec-regulator"
+    },
+    {
+      "id": "fx-provider",
+      "name": "Foreign Exchange Services",
+      "organisation": "FX Solutions Global",
+      "walletAddress": "0xF0X7890123456789012345678901234",
+      "didUri": "did:example:fx-solutions"
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Initiate Trade Order",
+      "description": "Buy-side trader initiates a securities trade order",
+      "sender": "buyer-trader",
+      "target": "seller-trader",
+      "additionalRecipients": ["buyer-bank"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "tradeId": {
+              "type": "string",
+              "title": "Trade ID",
+              "minLength": 10,
+              "maxLength": 50
+            },
+            "tradeTimestamp": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Trade Timestamp (UTC)"
+            },
+            "securityType": {
+              "type": "string",
+              "title": "Security Type",
+              "enum": ["Equity", "Corporate Bond", "Government Bond", "ETF", "Derivative", "Foreign Exchange"]
+            },
+            "securityISIN": {
+              "type": "string",
+              "title": "Security ISIN",
+              "pattern": "^[A-Z]{2}[A-Z0-9]{10}$"
+            },
+            "securityName": {
+              "type": "string",
+              "title": "Security Name",
+              "maxLength": 200
+            },
+            "quantity": {
+              "type": "number",
+              "title": "Quantity",
+              "minimum": 1
+            },
+            "pricePerUnit": {
+              "type": "number",
+              "title": "Price Per Unit",
+              "minimum": 0.01
+            },
+            "currency": {
+              "type": "string",
+              "title": "Trade Currency",
+              "enum": ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD"],
+              "default": "USD"
+            },
+            "tradeVenue": {
+              "type": "string",
+              "title": "Trading Venue",
+              "maxLength": 100
+            },
+            "executionType": {
+              "type": "string",
+              "title": "Execution Type",
+              "enum": ["Market", "Limit", "Stop", "Algorithmic"],
+              "default": "Market"
+            },
+            "settlementDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Intended Settlement Date"
+            },
+            "settlementCycle": {
+              "type": "string",
+              "title": "Settlement Cycle",
+              "enum": ["T+0", "T+1", "T+2", "T+3"],
+              "default": "T+2"
+            },
+            "crossBorder": {
+              "type": "boolean",
+              "title": "Cross-Border Trade",
+              "default": false
+            },
+            "buyerJurisdiction": {
+              "type": "string",
+              "title": "Buyer Jurisdiction",
+              "maxLength": 100
+            },
+            "sellerJurisdiction": {
+              "type": "string",
+              "title": "Seller Jurisdiction",
+              "maxLength": 100
+            },
+            "requiresClearinghouse": {
+              "type": "boolean",
+              "title": "Requires Central Clearing",
+              "default": true
+            },
+            "tradeNotes": {
+              "type": "string",
+              "title": "Trade Notes",
+              "maxLength": 1000
+            }
+          },
+          "required": [
+            "tradeId",
+            "tradeTimestamp",
+            "securityType",
+            "securityISIN",
+            "securityName",
+            "quantity",
+            "pricePerUnit",
+            "currency",
+            "settlementDate",
+            "settlementCycle",
+            "buyerJurisdiction",
+            "sellerJurisdiction"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "seller-trader",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "buyer-bank",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {
+        "tradeValue": {
+          "*": [
+            { "var": "quantity" },
+            { "var": "pricePerUnit" }
+          ]
+        },
+        "requiresRegulatorReporting": {
+          "or": [
+            { ">": [{ "var": "tradeValue" }, 1000000] },
+            { "var": "crossBorder" }
+          ]
+        },
+        "requiresFXConversion": {
+          "and": [
+            { "var": "crossBorder" },
+            { "!=": [{ "var": "currency" }, "USD"] }
+          ]
+        }
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Trade Order Details",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Trade Identification",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/tradeId",
+                    "title": "Trade ID"
+                  },
+                  {
+                    "type": "DateTime",
+                    "scope": "/tradeTimestamp",
+                    "title": "Trade Timestamp (UTC)"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Security Details",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/securityType",
+                "title": "Security Type"
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/securityISIN",
+                    "title": "Security ISIN"
+                  },
+                  {
+                    "type": "TextLine",
+                    "scope": "/securityName",
+                    "title": "Security Name"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Trade Terms",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Numeric",
+                    "scope": "/quantity",
+                    "title": "Quantity"
+                  },
+                  {
+                    "type": "Numeric",
+                    "scope": "/pricePerUnit",
+                    "title": "Price Per Unit"
+                  },
+                  {
+                    "type": "Selection",
+                    "scope": "/currency",
+                    "title": "Currency"
+                  }
+                ]
+              },
+              {
+                "type": "Selection",
+                "scope": "/executionType",
+                "title": "Execution Type"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/tradeVenue",
+                "title": "Trading Venue"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Settlement Details",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "DateTime",
+                    "scope": "/settlementDate",
+                    "title": "Intended Settlement Date"
+                  },
+                  {
+                    "type": "Selection",
+                    "scope": "/settlementCycle",
+                    "title": "Settlement Cycle"
+                  }
+                ]
+              },
+              {
+                "type": "Checkbox",
+                "scope": "/crossBorder",
+                "title": "This is a cross-border trade"
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/buyerJurisdiction",
+                    "title": "Buyer Jurisdiction"
+                  },
+                  {
+                    "type": "TextLine",
+                    "scope": "/sellerJurisdiction",
+                    "title": "Seller Jurisdiction"
+                  }
+                ]
+              },
+              {
+                "type": "Checkbox",
+                "scope": "/requiresClearinghouse",
+                "title": "Requires central clearing"
+              }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/tradeNotes",
+            "title": "Trade Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "title": "Confirm Trade",
+      "description": "Sell-side trader confirms trade acceptance",
+      "sender": "seller-trader",
+      "target": "buyer-trader",
+      "additionalRecipients": ["seller-bank"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "tradeConfirmed": {
+              "type": "boolean",
+              "title": "Trade Confirmed"
+            },
+            "confirmationTimestamp": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Confirmation Timestamp"
+            },
+            "modifiedTerms": {
+              "type": "boolean",
+              "title": "Trade Terms Modified",
+              "default": false
+            },
+            "modificationDetails": {
+              "type": "string",
+              "title": "Modification Details",
+              "maxLength": 1000
+            },
+            "sellerBankAccount": {
+              "type": "string",
+              "title": "Seller Bank Account (IBAN)",
+              "maxLength": 34
+            },
+            "sellerDepositoryAccount": {
+              "type": "string",
+              "title": "Seller Securities Account",
+              "maxLength": 50
+            }
+          },
+          "required": ["tradeConfirmed", "confirmationTimestamp", "sellerBankAccount", "sellerDepositoryAccount"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "buyer-trader",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "buyer-bank",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "seller-bank",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "clearinghouse",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "condition": {
+        "if": [
+          { "var": "tradeConfirmed" },
+          "clearinghouse",
+          "buyer-trader"
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Trade Confirmation",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/tradeConfirmed",
+            "title": "I confirm this trade"
+          },
+          {
+            "type": "DateTime",
+            "scope": "/confirmationTimestamp",
+            "title": "Confirmation Timestamp"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/modifiedTerms",
+            "title": "Trade terms have been modified"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/modificationDetails",
+            "title": "Modification Details (if applicable)"
+          },
+          {
+            "type": "TextLine",
+            "scope": "/sellerBankAccount",
+            "title": "Seller Bank Account (IBAN)"
+          },
+          {
+            "type": "TextLine",
+            "scope": "/sellerDepositoryAccount",
+            "title": "Seller Securities Account"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Central Clearing Registration",
+      "description": "Clearinghouse registers and validates the trade",
+      "sender": "clearinghouse",
+      "additionalRecipients": ["buyer-bank", "seller-bank"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "clearingRegistrationNumber": {
+              "type": "string",
+              "title": "Clearing Registration Number",
+              "minLength": 10,
+              "maxLength": 50
+            },
+            "novationCompleted": {
+              "type": "boolean",
+              "title": "Novation Completed (Clearinghouse as CCP)",
+              "default": true
+            },
+            "marginRequired": {
+              "type": "number",
+              "title": "Initial Margin Required",
+              "minimum": 0
+            },
+            "marginCurrency": {
+              "type": "string",
+              "title": "Margin Currency",
+              "enum": ["USD", "EUR", "GBP"],
+              "default": "USD"
+            },
+            "riskAssessmentScore": {
+              "type": "number",
+              "title": "Risk Assessment Score",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "settlementInstructions": {
+              "type": "string",
+              "title": "Settlement Instructions",
+              "maxLength": 2000
+            },
+            "dvpMethod": {
+              "type": "string",
+              "title": "Delivery vs Payment Method",
+              "enum": ["Model 1 (Gross-Gross)", "Model 2 (Gross-Net)", "Model 3 (Net-Net)"],
+              "default": "Model 1 (Gross-Gross)"
+            },
+            "clearingFee": {
+              "type": "number",
+              "title": "Clearing Fee",
+              "minimum": 0
+            },
+            "specialInstructions": {
+              "type": "string",
+              "title": "Special Instructions",
+              "maxLength": 1000
+            }
+          },
+          "required": [
+            "clearingRegistrationNumber",
+            "novationCompleted",
+            "marginRequired",
+            "marginCurrency",
+            "riskAssessmentScore",
+            "settlementInstructions",
+            "dvpMethod",
+            "clearingFee"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "buyer-bank",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "seller-bank",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "regulator",
+          "dataPointers": ["/clearingRegistrationNumber", "/novationCompleted", "/riskAssessmentScore", "/dvpMethod"]
+        }
+      ],
+      "calculations": {
+        "requiresEnhancedDueDiligence": {
+          ">": [{ "var": "riskAssessmentScore" }, 70]
+        }
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Clearing Registration",
+        "elements": [
+          {
+            "type": "TextLine",
+            "scope": "/clearingRegistrationNumber",
+            "title": "Clearing Registration Number"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/novationCompleted",
+            "title": "Novation completed (Clearinghouse becomes central counterparty)"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Margin & Risk",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Numeric",
+                    "scope": "/marginRequired",
+                    "title": "Initial Margin Required"
+                  },
+                  {
+                    "type": "Selection",
+                    "scope": "/marginCurrency",
+                    "title": "Margin Currency"
+                  }
+                ]
+              },
+              {
+                "type": "Numeric",
+                "scope": "/riskAssessmentScore",
+                "title": "Risk Assessment Score (0-100)"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Settlement Details",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/dvpMethod",
+                "title": "Delivery vs Payment Method"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/settlementInstructions",
+                "title": "Settlement Instructions"
+              },
+              {
+                "type": "Numeric",
+                "scope": "/clearingFee",
+                "title": "Clearing Fee"
+              }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/specialInstructions",
+            "title": "Special Instructions"
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "FX Conversion (if required)",
+      "description": "Foreign exchange provider handles currency conversion for cross-border trades",
+      "sender": "fx-provider",
+      "additionalRecipients": ["buyer-bank", "seller-bank", "clearinghouse"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "fxRequired": {
+              "type": "boolean",
+              "title": "FX Conversion Required"
+            },
+            "sourceCurrency": {
+              "type": "string",
+              "title": "Source Currency",
+              "maxLength": 3
+            },
+            "targetCurrency": {
+              "type": "string",
+              "title": "Target Currency",
+              "maxLength": 3
+            },
+            "fxRate": {
+              "type": "number",
+              "title": "FX Rate",
+              "minimum": 0.000001
+            },
+            "fxRateTimestamp": {
+              "type": "string",
+              "format": "date-time",
+              "title": "FX Rate Timestamp"
+            },
+            "sourceAmount": {
+              "type": "number",
+              "title": "Source Amount",
+              "minimum": 0
+            },
+            "targetAmount": {
+              "type": "number",
+              "title": "Target Amount",
+              "minimum": 0
+            },
+            "fxSpread": {
+              "type": "number",
+              "title": "FX Spread (bps)",
+              "minimum": 0
+            },
+            "fxFee": {
+              "type": "number",
+              "title": "FX Conversion Fee",
+              "minimum": 0
+            },
+            "conversionMethod": {
+              "type": "string",
+              "title": "Conversion Method",
+              "enum": ["Spot", "Forward", "Swap"],
+              "default": "Spot"
+            },
+            "valueDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Value Date"
+            }
+          },
+          "required": ["fxRequired"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "buyer-bank",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "seller-bank",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "clearinghouse",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "condition": {
+        "if": [
+          { "var": "fxRequired" },
+          "buyer-bank",
+          "regulator"
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "FX Conversion",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/fxRequired",
+            "title": "FX conversion is required for this trade"
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/sourceCurrency",
+                "title": "Source Currency"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/targetCurrency",
+                "title": "Target Currency"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "Numeric",
+                "scope": "/fxRate",
+                "title": "FX Rate"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/fxRateTimestamp",
+                "title": "Rate Timestamp"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "Numeric",
+                "scope": "/sourceAmount",
+                "title": "Source Amount"
+              },
+              {
+                "type": "Numeric",
+                "scope": "/targetAmount",
+                "title": "Target Amount"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "Numeric",
+                "scope": "/fxSpread",
+                "title": "FX Spread (basis points)"
+              },
+              {
+                "type": "Numeric",
+                "scope": "/fxFee",
+                "title": "FX Conversion Fee"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/conversionMethod",
+                "title": "Conversion Method"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/valueDate",
+                "title": "Value Date"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "title": "Buyer Bank Pre-Settlement",
+      "description": "Buyer's bank confirms funds availability and provides settlement instructions",
+      "sender": "buyer-bank",
+      "target": "clearinghouse",
+      "additionalRecipients": ["buyer-trader"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "fundsAvailable": {
+              "type": "boolean",
+              "title": "Funds Available"
+            },
+            "buyerBankAccount": {
+              "type": "string",
+              "title": "Buyer Bank Account (IBAN)",
+              "maxLength": 34
+            },
+            "buyerSecuritiesAccount": {
+              "type": "string",
+              "title": "Buyer Securities Account",
+              "maxLength": 50
+            },
+            "blockedFunds": {
+              "type": "boolean",
+              "title": "Funds Blocked for Settlement"
+            },
+            "blockedAmount": {
+              "type": "number",
+              "title": "Blocked Amount",
+              "minimum": 0
+            },
+            "settlementInstruction": {
+              "type": "string",
+              "title": "Settlement Instruction Type",
+              "enum": ["RVP (Receive vs Payment)", "FOP (Free of Payment)", "DVP (Delivery vs Payment)"],
+              "default": "RVP (Receive vs Payment)"
+            },
+            "swiftMessageType": {
+              "type": "string",
+              "title": "SWIFT Message Type",
+              "enum": ["MT540", "MT541", "MT542", "MT543"],
+              "default": "MT540"
+            },
+            "custodyNotes": {
+              "type": "string",
+              "title": "Custody Notes",
+              "maxLength": 1000
+            }
+          },
+          "required": [
+            "fundsAvailable",
+            "buyerBankAccount",
+            "buyerSecuritiesAccount",
+            "blockedFunds",
+            "settlementInstruction",
+            "swiftMessageType"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "clearinghouse",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "buyer-trader",
+          "dataPointers": ["/fundsAvailable", "/blockedFunds", "/blockedAmount"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Buyer Bank Pre-Settlement",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/fundsAvailable",
+            "title": "Funds are available for settlement"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/blockedFunds",
+            "title": "Funds have been blocked for settlement"
+          },
+          {
+            "type": "Numeric",
+            "scope": "/blockedAmount",
+            "title": "Blocked Amount"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Settlement Accounts",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/buyerBankAccount",
+                "title": "Buyer Bank Account (IBAN)"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/buyerSecuritiesAccount",
+                "title": "Buyer Securities Account"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/settlementInstruction",
+                "title": "Settlement Instruction Type"
+              },
+              {
+                "type": "Selection",
+                "scope": "/swiftMessageType",
+                "title": "SWIFT Message Type"
+              }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/custodyNotes",
+            "title": "Custody Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "title": "Seller Bank Pre-Settlement",
+      "description": "Seller's bank confirms securities availability and provides delivery instructions",
+      "sender": "seller-bank",
+      "target": "clearinghouse",
+      "additionalRecipients": ["seller-trader"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "securitiesAvailable": {
+              "type": "boolean",
+              "title": "Securities Available"
+            },
+            "securitiesBlocked": {
+              "type": "boolean",
+              "title": "Securities Blocked for Delivery"
+            },
+            "deliveryInstruction": {
+              "type": "string",
+              "title": "Delivery Instruction Type",
+              "enum": ["DVP (Delivery vs Payment)", "FOP (Free of Payment)", "DAP (Delivery Against Payment)"],
+              "default": "DVP (Delivery vs Payment)"
+            },
+            "securitiesLocation": {
+              "type": "string",
+              "title": "Securities Location (Depository)",
+              "maxLength": 200
+            },
+            "encumbrances": {
+              "type": "boolean",
+              "title": "Securities Free of Encumbrances",
+              "default": true
+            },
+            "transferRestrictions": {
+              "type": "boolean",
+              "title": "Transfer Restrictions Apply",
+              "default": false
+            },
+            "restrictionDetails": {
+              "type": "string",
+              "title": "Restriction Details",
+              "maxLength": 1000
+            },
+            "swiftDeliveryType": {
+              "type": "string",
+              "title": "SWIFT Delivery Message",
+              "enum": ["MT540", "MT541", "MT542", "MT543"],
+              "default": "MT542"
+            },
+            "sellerBankNotes": {
+              "type": "string",
+              "title": "Seller Bank Notes",
+              "maxLength": 1000
+            }
+          },
+          "required": [
+            "securitiesAvailable",
+            "securitiesBlocked",
+            "deliveryInstruction",
+            "securitiesLocation",
+            "encumbrances",
+            "swiftDeliveryType"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "clearinghouse",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "seller-trader",
+          "dataPointers": ["/securitiesAvailable", "/securitiesBlocked", "/encumbrances", "/transferRestrictions"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Seller Bank Pre-Settlement",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/securitiesAvailable",
+            "title": "Securities are available for delivery"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/securitiesBlocked",
+            "title": "Securities have been blocked for delivery"
+          },
+          {
+            "type": "TextLine",
+            "scope": "/securitiesLocation",
+            "title": "Securities Location (Depository)"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Securities Status",
+            "elements": [
+              {
+                "type": "Checkbox",
+                "scope": "/encumbrances",
+                "title": "Securities are free of encumbrances"
+              },
+              {
+                "type": "Checkbox",
+                "scope": "/transferRestrictions",
+                "title": "Transfer restrictions apply"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/restrictionDetails",
+                "title": "Restriction Details (if applicable)"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/deliveryInstruction",
+                "title": "Delivery Instruction Type"
+              },
+              {
+                "type": "Selection",
+                "scope": "/swiftDeliveryType",
+                "title": "SWIFT Delivery Message"
+              }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/sellerBankNotes",
+            "title": "Seller Bank Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "title": "Final Settlement & Regulatory Reporting",
+      "description": "Clearinghouse executes final settlement and reports to regulator",
+      "sender": "clearinghouse",
+      "target": "regulator",
+      "additionalRecipients": ["buyer-bank", "seller-bank", "buyer-trader", "seller-trader"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "settlementCompleted": {
+              "type": "boolean",
+              "title": "Settlement Completed Successfully"
+            },
+            "settlementTimestamp": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Settlement Timestamp (UTC)"
+            },
+            "securitiesTransferred": {
+              "type": "boolean",
+              "title": "Securities Transferred"
+            },
+            "cashTransferred": {
+              "type": "boolean",
+              "title": "Cash Transferred"
+            },
+            "finalCashAmount": {
+              "type": "number",
+              "title": "Final Cash Amount Transferred",
+              "minimum": 0
+            },
+            "finalSecuritiesQuantity": {
+              "type": "number",
+              "title": "Final Securities Quantity Transferred",
+              "minimum": 0
+            },
+            "settlementStatus": {
+              "type": "string",
+              "title": "Settlement Status",
+              "enum": ["Settled", "Failed", "Partially Settled", "Pending Re-Settlement"],
+              "default": "Settled"
+            },
+            "failureReason": {
+              "type": "string",
+              "title": "Failure Reason (if applicable)",
+              "enum": ["Insufficient Funds", "Securities Not Available", "Account Mismatch", "System Error", "Other"]
+            },
+            "failureDetails": {
+              "type": "string",
+              "title": "Failure Details",
+              "maxLength": 2000
+            },
+            "regulatoryReportSubmitted": {
+              "type": "boolean",
+              "title": "Regulatory Report Submitted"
+            },
+            "reportingReference": {
+              "type": "string",
+              "title": "Regulatory Reporting Reference",
+              "maxLength": 100
+            },
+            "tradeRepositoryReported": {
+              "type": "boolean",
+              "title": "Trade Repository Reported"
+            },
+            "totalFeesCharged": {
+              "type": "number",
+              "title": "Total Fees Charged",
+              "minimum": 0
+            },
+            "feesBreakdown": {
+              "type": "string",
+              "title": "Fees Breakdown",
+              "maxLength": 1000
+            },
+            "settlementNotes": {
+              "type": "string",
+              "title": "Settlement Notes",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "settlementCompleted",
+            "settlementTimestamp",
+            "securitiesTransferred",
+            "cashTransferred",
+            "finalCashAmount",
+            "finalSecuritiesQuantity",
+            "settlementStatus",
+            "regulatoryReportSubmitted"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "regulator",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "buyer-bank",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "seller-bank",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "buyer-trader",
+          "dataPointers": [
+            "/settlementCompleted",
+            "/settlementTimestamp",
+            "/settlementStatus",
+            "/finalCashAmount",
+            "/finalSecuritiesQuantity",
+            "/totalFeesCharged"
+          ]
+        },
+        {
+          "participantAddress": "seller-trader",
+          "dataPointers": [
+            "/settlementCompleted",
+            "/settlementTimestamp",
+            "/settlementStatus",
+            "/finalCashAmount",
+            "/finalSecuritiesQuantity",
+            "/totalFeesCharged"
+          ]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Final Settlement & Regulatory Reporting",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Settlement Outcome",
+            "elements": [
+              {
+                "type": "Checkbox",
+                "scope": "/settlementCompleted",
+                "title": "Settlement completed successfully"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/settlementTimestamp",
+                "title": "Settlement Timestamp (UTC)"
+              },
+              {
+                "type": "Selection",
+                "scope": "/settlementStatus",
+                "title": "Settlement Status"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Transfer Confirmation",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Checkbox",
+                    "scope": "/securitiesTransferred",
+                    "title": "Securities Transferred"
+                  },
+                  {
+                    "type": "Checkbox",
+                    "scope": "/cashTransferred",
+                    "title": "Cash Transferred"
+                  }
+                ]
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Numeric",
+                    "scope": "/finalCashAmount",
+                    "title": "Final Cash Amount"
+                  },
+                  {
+                    "type": "Numeric",
+                    "scope": "/finalSecuritiesQuantity",
+                    "title": "Final Securities Quantity"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Failure Information (if applicable)",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/failureReason",
+                "title": "Failure Reason"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/failureDetails",
+                "title": "Failure Details"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Regulatory Compliance",
+            "elements": [
+              {
+                "type": "Checkbox",
+                "scope": "/regulatoryReportSubmitted",
+                "title": "Regulatory report submitted"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/reportingReference",
+                "title": "Regulatory Reporting Reference"
+              },
+              {
+                "type": "Checkbox",
+                "scope": "/tradeRepositoryReported",
+                "title": "Trade repository reported"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Fees",
+            "elements": [
+              {
+                "type": "Numeric",
+                "scope": "/totalFeesCharged",
+                "title": "Total Fees Charged"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/feesBreakdown",
+                "title": "Fees Breakdown"
+              }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/settlementNotes",
+            "title": "Settlement Notes"
+          }
+        ]
+      }
+    }
+  ]
+}
