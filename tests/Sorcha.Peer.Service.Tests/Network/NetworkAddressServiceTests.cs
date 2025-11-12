@@ -16,12 +16,14 @@ public class NetworkAddressServiceTests
 {
     private readonly Mock<ILogger<NetworkAddressService>> _loggerMock;
     private readonly Mock<IOptions<PeerServiceConfiguration>> _configMock;
+    private readonly Mock<StunClient> _stunClientMock;
     private readonly PeerServiceConfiguration _configuration;
 
     public NetworkAddressServiceTests()
     {
         _loggerMock = new Mock<ILogger<NetworkAddressService>>();
         _configMock = new Mock<IOptions<PeerServiceConfiguration>>();
+        _stunClientMock = new Mock<StunClient>();
         _configuration = new PeerServiceConfiguration
         {
             NetworkAddress = new NetworkAddressConfiguration
@@ -41,7 +43,7 @@ public class NetworkAddressServiceTests
         var httpClient = new HttpClient();
 
         // Act
-        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient);
+        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient, _stunClientMock.Object);
 
         // Assert
         service.Should().NotBeNull();
@@ -54,7 +56,7 @@ public class NetworkAddressServiceTests
         var httpClient = new HttpClient();
 
         // Act
-        var act = () => new NetworkAddressService(null!, _configMock.Object, httpClient);
+        var act = () => new NetworkAddressService(null!, _configMock.Object, httpClient, _stunClientMock.Object);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
@@ -68,7 +70,7 @@ public class NetworkAddressServiceTests
         var httpClient = new HttpClient();
 
         // Act
-        var act = () => new NetworkAddressService(_loggerMock.Object, null!, httpClient);
+        var act = () => new NetworkAddressService(_loggerMock.Object, null!, httpClient, _stunClientMock.Object);
 
         // Assert
         act.Should().Throw<ArgumentNullException>();
@@ -78,7 +80,7 @@ public class NetworkAddressServiceTests
     public void Constructor_ShouldThrowArgumentNullException_WhenHttpClientIsNull()
     {
         // Act
-        var act = () => new NetworkAddressService(_loggerMock.Object, _configMock.Object, null!);
+        var act = () => new NetworkAddressService(_loggerMock.Object, _configMock.Object, null!, _stunClientMock.Object);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
@@ -91,7 +93,7 @@ public class NetworkAddressServiceTests
         // Arrange
         _configuration.NetworkAddress.ExternalAddress = "203.0.113.42";
         var httpClient = new HttpClient();
-        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient);
+        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient, _stunClientMock.Object);
 
         // Act
         var address = await service.GetExternalAddressAsync();
@@ -118,7 +120,7 @@ public class NetworkAddressServiceTests
             });
 
         var httpClient = new HttpClient(handlerMock.Object);
-        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient);
+        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient, _stunClientMock.Object);
 
         // Act
         var address = await service.GetExternalAddressAsync();
@@ -132,7 +134,7 @@ public class NetworkAddressServiceTests
     {
         // Arrange
         var httpClient = new HttpClient();
-        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient);
+        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient, _stunClientMock.Object);
 
         // Act
         var address = service.GetLocalAddress();
@@ -148,7 +150,7 @@ public class NetworkAddressServiceTests
         // Arrange
         _configuration.NetworkAddress.ExternalAddress = "203.0.113.42";
         var httpClient = new HttpClient();
-        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient);
+        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient, _stunClientMock.Object);
 
         // Act
         service.InvalidateCache();
@@ -165,7 +167,7 @@ public class NetworkAddressServiceTests
         // Arrange
         _configuration.NetworkAddress.ExternalAddress = "203.0.113.42";
         var httpClient = new HttpClient();
-        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient);
+        var service = new NetworkAddressService(_loggerMock.Object, _configMock.Object, httpClient, _stunClientMock.Object);
 
         // Act
         var behindNat = await service.IsBehindNatAsync();
