@@ -1,4 +1,4 @@
-# Siccar.Cryptography Library Rewrite Specification
+# Sorcha.Cryptography Library Rewrite Specification
 
 **Version:** 1.0
 **Date:** 2025-11-12
@@ -8,13 +8,13 @@
 
 ## Executive Summary
 
-This specification defines the requirements for rewriting the SiccarPlatformCryptography library into a clean, reusable, well-tested cryptography library named Siccar.Cryptography that can be imported and used by external projects. The rewrite will remove unnecessary dependencies, eliminate SICCAR-specific coupling, provide comprehensive test coverage, and follow modern .NET best practices.
+This specification defines the requirements for rewriting the SorchaPlatformCryptography library into a clean, reusable, well-tested cryptography library named Sorcha.Cryptography that can be imported and used by external projects. The rewrite will remove unnecessary dependencies, eliminate Sorcha-specific coupling, provide comprehensive test coverage, and follow modern .NET best practices.
 
 ## Background
 
 ### Current State Analysis
 
-The existing `SiccarPlatformCryptography` library has several issues that prevent it from being a reusable, standalone cryptography library:
+The existing `SorchaPlatformCryptography` library has several issues that prevent it from being a reusable, standalone cryptography library:
 
 #### Problems Identified
 
@@ -31,8 +31,8 @@ The existing `SiccarPlatformCryptography` library has several issues that preven
    - References RegisterCore project - creates circular coupling
    - Should have zero project dependencies
 
-3. **SICCAR-Specific Coupling**
-   - Transaction/Payload classes (v1-v4) are SICCAR-specific
+3. **Sorcha-Specific Coupling**
+   - Transaction/Payload classes (v1-v4) are Sorcha-specific
    - Multiple versioned implementations suggest poor versioning strategy
    - Code is not generic enough for external use
 
@@ -109,8 +109,8 @@ The existing `SiccarPlatformCryptography` library has several issues that preven
 
 ### Out of Scope
 
-1. Transaction building and formatting (SICCAR-specific)
-2. Payload management (SICCAR-specific)
+1. Transaction building and formatting (Sorcha-specific)
+2. Payload management (Sorcha-specific)
 3. Register/ledger integration
 4. Network communication
 5. Database operations
@@ -123,8 +123,8 @@ The existing `SiccarPlatformCryptography` library has several issues that preven
 
 ### Target Framework
 
-- **.NET 9.0** (with .NET Standard 2.1 compatibility for broader reach)
-- **C# 12** language features
+- **.NET 10.0** (with .NET Standard 2.1 compatibility for broader reach)
+- **C# 13** language features
 
 ### Dependencies
 
@@ -168,8 +168,8 @@ The existing `SiccarPlatformCryptography` library has several issues that preven
 
 ```
 src/
-  Siccar.Cryptography/
-    ├── Siccar.Cryptography.csproj
+  Sorcha.Cryptography/
+    ├── Sorcha.Cryptography.csproj
     ├── Enums/
     │   ├── WalletNetworks.cs
     │   ├── HashType.cs
@@ -203,8 +203,8 @@ src/
         └── ByteArrayExtensions.cs
 
 tests/
-  Siccar.Cryptography.Tests/
-    ├── Siccar.Cryptography.Tests.csproj
+  Sorcha.Cryptography.Tests/
+    ├── Sorcha.Cryptography.Tests.csproj
     ├── Unit/
     │   ├── CryptoModuleTests.cs
     │   ├── KeyManagerTests.cs
@@ -716,7 +716,7 @@ public class CryptoResult<T>
 - README with quick start guide
 - API documentation (generated from XML)
 - Code examples for common scenarios
-- Migration guide from SiccarPlatformCryptography
+- Migration guide from SorchaPlatformCryptography
 - Security best practices guide
 
 **Documentation Sections:**
@@ -741,14 +741,14 @@ public class CryptoResult<T>
 **Package Metadata:**
 ```xml
 <PropertyGroup>
-  <PackageId>Siccar.Cryptography</PackageId>
+  <PackageId>Sorcha.Cryptography</PackageId>
   <Version>2.0.0</Version>
-  <Authors>Siccar Development Team</Authors>
+  <Authors>Sorcha Development Team</Authors>
   <Company>Wallet.Services (Scotland) Ltd</Company>
-  <Product>Siccar.Cryptography</Product>
-  <Description>Standalone cryptography library for the Siccar platform, providing key management, digital signatures, encryption, and encoding utilities.</Description>
-  <PackageTags>cryptography;siccar;ed25519;ecdsa;rsa;encryption;signing</PackageTags>
-  <RepositoryUrl>https://github.com/siccar/SICCARV3</RepositoryUrl>
+  <Product>Sorcha.Cryptography</Product>
+  <Description>Standalone cryptography library for the Sorcha platform, providing key management, digital signatures, encryption, and encoding utilities.</Description>
+  <PackageTags>cryptography;Sorcha;ed25519;ecdsa;rsa;encryption;signing</PackageTags>
+  <RepositoryUrl>https://github.com/Sorcha/Sorcha</RepositoryUrl>
   <PackageLicenseExpression>MIT</PackageLicenseExpression>
 </PropertyGroup>
 ```
@@ -757,7 +757,7 @@ public class CryptoResult<T>
 
 ### Phase 1: Create New Library (Week 1-2)
 
-1. Create new `Siccar.Cryptography` project
+1. Create new `Sorcha.Cryptography` project
 2. Define interfaces and models
 3. Set up project structure
 4. Configure build and packaging
@@ -794,8 +794,8 @@ public class CryptoResult<T>
 
 ### Phase 6: Integration (Week 9-10)
 
-1. Update SICCARV3 projects to use new library
-2. Deprecate old SiccarPlatformCryptography
+1. Update Sorcha projects to use new library
+2. Deprecate old SorchaPlatformCryptography
 3. Regression testing
 4. Performance validation
 
@@ -814,7 +814,7 @@ public class CryptoResult<T>
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| Breaking changes affect SICCAR platform | High | Medium | Maintain compatibility layer, phased migration |
+| Breaking changes affect Sorcha platform | High | Medium | Maintain compatibility layer, phased migration |
 | Performance regression | Medium | Low | Comprehensive benchmarks, performance testing |
 | Security vulnerabilities | Critical | Low | Security audit, test vectors, best practices |
 | Incomplete test coverage | Medium | Medium | TDD approach, coverage reporting, CI enforcement |
@@ -823,7 +823,7 @@ public class CryptoResult<T>
 
 ## References
 
-- [Current SiccarPlatformCryptography](../../src/Common/SiccarPlatformCryptography/)
+- [Current SorchaPlatformCryptography](../../src/Common/SorchaPlatformCryptography/)
 - [libsodium documentation](https://doc.libsodium.org/)
 - [NIST Cryptographic Standards](https://csrc.nist.gov/publications)
 - [RFC 8032 - EdDSA](https://www.rfc-editor.org/rfc/rfc8032)
@@ -834,6 +834,6 @@ public class CryptoResult<T>
 
 **Document Control**
 - **Created:** 2025-11-12
-- **Owner:** SICCARV3 Architecture Team
+- **Owner:** Sorcha Architecture Team
 - **Review Schedule:** Weekly during implementation
 - **Next Review:** 2025-11-19
