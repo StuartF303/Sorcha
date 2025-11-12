@@ -4,8 +4,8 @@
 
 Sorcha is a modern .NET 10 platform for defining, designing, and executing multi-participant data flow orchestration workflows (called "Blueprints"). Built on .NET Aspire for cloud-native orchestration, Sorcha provides a flexible and scalable solution for workflow automation with selective data disclosure and conditional routing.
 
-**Last Updated:** 2025-01-04
-**Version:** 1.0.0
+**Last Updated:** 2025-01-12
+**Version:** 2.0.0
 **Status:** Active Development
 
 ## High-Level Architecture
@@ -62,36 +62,42 @@ Sorcha is a modern .NET 10 platform for defining, designing, and executing multi
 
 ## Solution Structure
 
-Sorcha follows a clean 3-folder architecture pattern for maximum maintainability:
+Sorcha follows a clean 4-layer architecture pattern for maximum maintainability:
 
 ```
 Sorcha/
 ├── src/
-│   ├── Common/                           # Shared models and contracts
-│   │   └── Sorcha.Blueprint.Models       # Blueprint data models
-│   ├── Core/                             # Core business logic
-│   │   ├── Sorcha.Blueprint.Engine       # Execution engine (REST API)
-│   │   ├── Sorcha.Blueprint.Fluent       # Fluent API builders
-│   │   └── Sorcha.Blueprint.Schemas      # Schema management
-│   ├── Services/                         # Background services (PLANNED)
-│   │   └── Sorcha.Peer.Service          # P2P networking service
-│   └── Apps/                             # Applications
-│       ├── Hosting/
-│       │   ├── Sorcha.AppHost            # .NET Aspire orchestration
-│       │   └── Sorcha.ServiceDefaults    # Shared service configs
-│       └── UI/
-│           ├── Sorcha.Blueprint.Designer         # Blazor Server
-│           └── Sorcha.Blueprint.Designer.Client  # Blazor WASM
-├── tests/                                # Test projects
+│   ├── Apps/                            # Application layer
+│   │   ├── Sorcha.AppHost              # .NET Aspire orchestration host
+│   │   └── UI/
+│   │       └── Sorcha.Blueprint.Designer.Client  # Blazor WASM UI
+│   ├── Common/                          # Cross-cutting concerns
+│   │   ├── Sorcha.Blueprint.Models     # Domain models & contracts
+│   │   ├── Sorcha.Cryptography         # Cryptographic operations
+│   │   └── Sorcha.ServiceDefaults      # Shared service configurations
+│   ├── Core/                            # Business logic layer
+│   │   ├── Sorcha.Blueprint.Engine     # Blueprint execution engine
+│   │   ├── Sorcha.Blueprint.Fluent     # Fluent API builders
+│   │   └── Sorcha.Blueprint.Schemas    # Schema management
+│   └── Services/                        # Service layer
+│       ├── Sorcha.ApiGateway           # YARP API Gateway
+│       ├── Sorcha.Blueprint.Service    # Blueprint REST API
+│       └── Sorcha.Peer.Service         # P2P networking service
+├── tests/                               # Test projects
 │   ├── Sorcha.Blueprint.Models.Tests
 │   ├── Sorcha.Blueprint.Fluent.Tests
 │   ├── Sorcha.Blueprint.Schemas.Tests
 │   ├── Sorcha.Blueprint.Engine.Tests
-│   ├── Sorcha.Blueprint.Designer.Tests
-│   ├── Sorcha.Peer.Service.Tests        # PLANNED
-│   └── Sorcha.Integration.Tests
-└── docs/                                 # Documentation
+│   ├── Sorcha.Cryptography.Tests
+│   ├── Sorcha.Peer.Service.Tests
+│   ├── Sorcha.Integration.Tests
+│   ├── Sorcha.Gateway.Integration.Tests
+│   ├── Sorcha.UI.E2E.Tests
+│   └── Sorcha.Performance.Tests
+└── docs/                                # Documentation
 ```
+
+For detailed information about the directory structure, see [Project Structure](project-structure.md).
 
 ## Core Components
 
@@ -275,10 +281,12 @@ Client-side Blazor components and logic.
 - Z.Blazor.Diagrams 3.0.3
 - Blazored.LocalStorage 4.5.0
 
-### 4. Hosting Layer
+### 4. Apps Layer
 
 #### Sorcha.AppHost
 .NET Aspire orchestration host managing service lifecycle.
+
+**Location:** `src/Apps/Sorcha.AppHost/`
 
 **Responsibilities:**
 - Service orchestration and discovery
@@ -289,14 +297,21 @@ Client-side Blazor components and logic.
 
 **Configuration:**
 ```csharp
-var blueprintEngine = builder.AddProject<Projects.Sorcha_Blueprint_Engine>("blueprint-engine")
+var blueprintService = builder.AddProject<Projects.Sorcha_Blueprint_Service>("blueprint-service")
     .WithHttpHealthCheck("/health");
 
-builder.AddProject<Projects.Sorcha_Blueprint_Designer>("blueprint-designer")
+var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
-    .WithReference(blueprintEngine)
-    .WaitFor(blueprintEngine);
+    .WithReference(blueprintService)
+    .WaitFor(blueprintService);
+
+var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service")
+    .WithHttpHealthCheck("/health");
+
+builder.AddProject<Projects.Sorcha_Blueprint_Designer_Client>("blueprint-designer")
+    .WithExternalHttpEndpoints()
+    .WithReference(apiGateway);
 ```
 
 **Technology:**
@@ -306,6 +321,8 @@ builder.AddProject<Projects.Sorcha_Blueprint_Designer>("blueprint-designer")
 
 #### Sorcha.ServiceDefaults
 Shared service configurations and cross-cutting concerns.
+
+**Location:** `src/Common/Sorcha.ServiceDefaults/`
 
 **Extension Methods:**
 - `AddServiceDefaults<TBuilder>()` - Complete service setup
@@ -325,12 +342,62 @@ Shared service configurations and cross-cutting concerns.
 - Microsoft.Extensions.Http.Resilience 9.9.0
 - Microsoft.Extensions.ServiceDiscovery 9.5.2
 
-### 5. Services Layer (Planned)
+### 5. Services Layer
+
+#### Sorcha.ApiGateway
+YARP-based API Gateway for routing and aggregation.
+
+**Location:** `src/Services/Sorcha.ApiGateway/`
+
+**Responsibilities:**
+- API routing and reverse proxy
+- Health check aggregation across services
+- OpenAPI/Swagger aggregation
+- Client download service
+- Load balancing and failover
+
+**Features:**
+- YARP reverse proxy configuration
+- Dynamic route configuration
+- Health check monitoring and reporting
+- OpenAPI document aggregation from downstream services
+- Scalar API documentation UI
+
+**Technology:**
+- YARP 2.2.0
+- ASP.NET Core 10.0
+- Scalar.AspNetCore 2.10.0
+
+#### Sorcha.Blueprint.Service
+REST API service for Blueprint management and operations.
+
+**Location:** `src/Services/Sorcha.Blueprint.Service/`
+
+**Responsibilities:**
+- Blueprint CRUD operations
+- JSON-LD context serving
+- Blueprint validation
+- Schema integration
+- API documentation
+
+**Features:**
+- RESTful API endpoints
+- OpenAPI/Swagger documentation
+- JSON-LD middleware for semantic web support
+- Output caching with Redis
+- Health monitoring
+
+**Technology:**
+- ASP.NET Core 10.0
+- Aspire.StackExchange.Redis 9.5.2
+- Scalar.AspNetCore 2.10.0
 
 #### Sorcha.Peer.Service
 Peer-to-peer networking service for decentralized transaction distribution.
 
-**Status:** Design Phase - See [Peer Service Design](peer-service-design.md) and [Implementation Plan](peer-service-implementation-plan.md)
+**Location:** `src/Services/Sorcha.Peer.Service/`
+
+**Status:** Active Development - See [Peer Service Design](peer-service-design.md) and [Implementation Plan](peer-service-implementation-plan.md)
 
 **Purpose:**
 Enable decentralized, peer-to-peer communication and transaction distribution across a network of Sorcha nodes without reliance on centralized infrastructure.

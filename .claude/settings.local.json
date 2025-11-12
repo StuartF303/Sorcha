@@ -38,7 +38,13 @@
       "Bash(find:*)",
       "Bash(if exist \"src\\Apps\\UI\\Sorcha.Blueprint.Designer\" rmdir /s /q \"src\\Apps\\UI\\Sorcha.Blueprint.Designer\")",
       "Bash(git rm:*)",
-      "Bash(dotnet sln:*)"
+      "Bash(dotnet sln:*)",
+      "Bash(pwsh -Command:*)",
+      "Bash(if [ -d \"src/Apps/Services/Sorcha.Peer.Service\" ])",
+      "Bash(then rm -rf \"src/Apps/Services/Sorcha.Peer.Service\")",
+      "Bash(else echo \"Already removed\")",
+      "Bash(fi)",
+      "Bash(dotnet clean:*)"
     ],
     "deny": [],
     "ask": []

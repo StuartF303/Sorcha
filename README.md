@@ -20,10 +20,22 @@ Sorcha is a modernized, cloud-native platform for defining, designing, and execu
 ```
 Sorcha/
 ├── src/
-│   ├── Sorcha.AppHost/              # Aspire orchestration host
-│   ├── Sorcha.ServiceDefaults/      # Shared service configurations
-│   ├── Sorcha.Blueprint.Engine/     # Blueprint execution engine (API)
-│   └── Sorcha.Blueprint.Designer/   # Blueprint visual designer (Web)
+│   ├── Apps/                        # Application layer
+│   │   ├── Sorcha.AppHost/         # .NET Aspire orchestration host
+│   │   └── UI/
+│   │       └── Sorcha.Blueprint.Designer.Client/  # Blazor WASM UI
+│   ├── Common/                      # Cross-cutting concerns
+│   │   ├── Sorcha.Blueprint.Models/ # Domain models
+│   │   ├── Sorcha.Cryptography/    # Cryptographic operations
+│   │   └── Sorcha.ServiceDefaults/ # Shared service configurations
+│   ├── Core/                        # Business logic
+│   │   ├── Sorcha.Blueprint.Engine/ # Blueprint execution engine
+│   │   ├── Sorcha.Blueprint.Fluent/ # Fluent API builders
+│   │   └── Sorcha.Blueprint.Schemas/ # Schema management
+│   └── Services/                    # Service layer
+│       ├── Sorcha.ApiGateway/      # YARP API Gateway
+│       ├── Sorcha.Blueprint.Service/ # Blueprint REST API
+│       └── Sorcha.Peer.Service/    # P2P networking service
 ├── tests/                           # Test projects
 ├── docs/                            # Documentation
 └── .github/                         # GitHub workflows
@@ -67,10 +79,10 @@ Sorcha/
 5. **Start the application**
    ```bash
    # Using Aspire (recommended)
-   dotnet run --project src/Apps/Orchestration/Sorcha.AppHost
+   dotnet run --project src/Apps/Sorcha.AppHost
 
    # Or run services individually
-   dotnet run --project src/Apps/API/Sorcha.Blueprint.Api
+   dotnet run --project src/Services/Sorcha.ApiGateway
    ```
 
 ### Running in Development
@@ -80,11 +92,11 @@ Sorcha/
 The easiest way to run all services with orchestration:
 
 ```bash
-dotnet run --project src/Apps/Orchestration/Sorcha.AppHost
+dotnet run --project src/Apps/Sorcha.AppHost
 ```
 
 This will:
-- Start all services (Gateway, Blueprint API, Peer Service, Blazor Client)
+- Start all services (Gateway, Blueprint Service, Peer Service, Blazor Client)
 - Launch the Aspire dashboard at `http://localhost:15888`
 - Configure service discovery and health checks automatically
 - Start Redis container via Docker
@@ -99,13 +111,13 @@ Access points:
 
 **API Gateway:**
 ```bash
-dotnet run --project src/Apps/Gateway/Sorcha.ApiGateway
+dotnet run --project src/Services/Sorcha.ApiGateway
 # Available at https://localhost:7082
 ```
 
-**Blueprint API:**
+**Blueprint Service:**
 ```bash
-dotnet run --project src/Apps/API/Sorcha.Blueprint.Api
+dotnet run --project src/Services/Sorcha.Blueprint.Service
 # Available at https://localhost:7080
 ```
 
@@ -132,7 +144,7 @@ dotnet run --project src/Apps/UI/Sorcha.Blueprint.Designer.Client
 
 3. **Hot reload** - Many changes reload automatically without restart when using `dotnet watch`
    ```bash
-   dotnet watch --project src/Apps/API/Sorcha.Blueprint.Api
+   dotnet watch --project src/Services/Sorcha.Blueprint.Service
    ```
 
 4. **Format code** before committing
