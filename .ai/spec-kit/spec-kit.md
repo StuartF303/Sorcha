@@ -95,35 +95,47 @@ This Specification Kit (spec-kit) defines the complete set of architectural prin
 ```
 Sorcha/
 ├── src/
-│   ├── Common/                                    # Shared libraries
-│   │   ├── Sorcha.Blueprint.Models                # Domain models (Blueprint, Action, Participant)
-│   │   └── Sorcha.ServiceDefaults                 # Shared middleware & OpenTelemetry config
-│   ├── Core/                                      # Core business logic
-│   │   ├── Sorcha.Blueprint.Engine                # Blueprint execution (placeholder/minimal)
-│   │   ├── Sorcha.Blueprint.Fluent                # Fluent API builders
-│   │   └── Sorcha.Blueprint.Schemas               # Schema library & caching
-│   ├── Apps/
-│   │   ├── Hosting/                               # Orchestration
-│   │   │   ├── Sorcha.AppHost                     # .NET Aspire orchestration
-│   │   │   └── Sorcha.ServiceDefaults             # (duplicate of Common/ServiceDefaults)
-│   │   ├── Services/                              # Microservices
-│   │   │   ├── Sorcha.Blueprint.Api               # Blueprint REST API with in-memory storage
-│   │   │   ├── Sorcha.Peer.Service                # gRPC peer-to-peer service
-│   │   │   └── Sorcha.ApiGateway                  # YARP reverse proxy & OpenAPI aggregation
-│   │   └── UI/                                    # User interfaces
-│   │       ├── Sorcha.Blueprint.Designer          # Blazor Server application
-│   │       └── Sorcha.Blueprint.Designer.Client   # Blazor WebAssembly client
-├── tests/                                         # Test projects (xUnit, Moq, FluentAssertions)
-│   ├── Sorcha.Blueprint.Models.Tests
-│   ├── Sorcha.Blueprint.Fluent.Tests
-│   ├── Sorcha.Blueprint.Schemas.Tests
-│   ├── Sorcha.Peer.Service.Tests
-│   ├── Sorcha.Integration.Tests                   # End-to-end tests
-│   └── ... (10 test projects total)
+│   ├── Apps/                                      # Application layer
+│   │   ├── Sorcha.AppHost/                        # .NET Aspire orchestration host
+│   │   └── UI/
+│   │       └── Sorcha.Blueprint.Designer.Client/  # Blazor WASM UI
+│   ├── Common/                                    # Cross-cutting concerns
+│   │   ├── Sorcha.Blueprint.Models/               # Domain models & DTOs
+│   │   ├── Sorcha.Cryptography/                   # Cryptography library
+│   │   └── Sorcha.ServiceDefaults/                # Service configuration utilities
+│   ├── Core/                                      # Business logic layer
+│   │   ├── Sorcha.Blueprint.Engine/               # Blueprint execution engine
+│   │   ├── Sorcha.Blueprint.Fluent/               # Fluent API builders
+│   │   └── Sorcha.Blueprint.Schemas/              # Schema management
+│   └── Services/                                  # Service layer
+│       ├── Sorcha.ApiGateway/                     # YARP-based API Gateway
+│       ├── Sorcha.Blueprint.Service/              # Blueprint REST API
+│       └── Sorcha.Peer.Service/                   # P2P networking service
+├── tests/                                         # All test projects
+│   ├── Sorcha.Blueprint.Engine.Tests/
+│   ├── Sorcha.Blueprint.Fluent.Tests/
+│   ├── Sorcha.Blueprint.Models.Tests/
+│   ├── Sorcha.Blueprint.Schemas.Tests/
+│   ├── Sorcha.Cryptography.Tests/
+│   ├── Sorcha.Gateway.Integration.Tests/
+│   ├── Sorcha.Integration.Tests/
+│   ├── Sorcha.Peer.Service.Tests/
+│   ├── Sorcha.Performance.Tests/
+│   └── Sorcha.UI.E2E.Tests/
 ├── docs/                                          # Documentation
-├── infra/                                         # Infrastructure as Code (Azure Bicep)
-├── scripts/                                       # Utility scripts
-└── .ai/                                           # AI assistance specifications (THIS DIRECTORY)
+│   ├── architecture.md                            # System architecture
+│   ├── project-structure.md                       # Detailed structure guide
+│   └── ...
+├── samples/                                       # Sample blueprints
+│   └── blueprints/
+│       ├── benefits/
+│       ├── finance/
+│       ├── healthcare/
+│       └── supply-chain/
+├── infra/                                         # Infrastructure as Code
+├── scripts/                                       # Build and deployment scripts
+└── .ai/                                           # AI assistance specifications
+    └── spec-kit/                                  # THIS DIRECTORY
 ```
 
 ---
