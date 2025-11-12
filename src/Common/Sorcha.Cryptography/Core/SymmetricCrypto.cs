@@ -1,3 +1,4 @@
+using System;
 using System.Security.Cryptography;
 using Sodium;
 using Sorcha.Cryptography.Enums;
