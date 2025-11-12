@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -132,8 +133,10 @@ public class HashProvider : IHashProvider
         if (hashSize != 32 && hashSize != 64)
             throw new ArgumentException("Blake2b hash size must be 32 or 64 bytes", nameof(hashSize));
 
-        // Use libsodium's Blake2b HMAC implementation
-        return CryptoHash.Hash(data, key);
+        // Use libsodium's Blake2b with key (HMAC-like functionality)
+        // Note: CryptoHash.Hash only takes one parameter, so we'll concatenate key and data
+        byte[] keyedData = key.Concat(data).ToArray();
+        return CryptoHash.Hash(keyedData);
     }
 
     #endregion
