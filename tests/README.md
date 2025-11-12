@@ -7,8 +7,8 @@ This directory contains all test projects for the Sorcha application.
 ### Unit Tests
 - **Sorcha.Blueprint.Api.Tests** - API endpoint tests
 - **Sorcha.Blueprint.Fluent.Tests** - Fluent builder pattern tests
-- **Sorcha.Blueprint.Designer.Tests** - Blazor UI component tests
-- **Sorcha.Performance.Tests** - NBomber performance tests
+- **Sorcha.Cryptography.Tests** - Cryptography library tests ([detailed README](Sorcha.Cryptography.Tests/README.md))
+- **Sorcha.Performance.Tests** - NBomber performance and load tests
 
 ### Integration Tests
 - **Sorcha.Gateway.Integration.Tests** - Gateway routing and YARP proxy tests (uses Aspire TestHost)
@@ -29,6 +29,12 @@ dotnet test
 # Unit tests
 dotnet test tests/Sorcha.Blueprint.Api.Tests
 dotnet test tests/Sorcha.Blueprint.Fluent.Tests
+dotnet test tests/Sorcha.Cryptography.Tests
+
+# Cryptography - run specific algorithm tests
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~ED25519"
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~NISTP256"
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~RSA4096"
 
 # Integration tests (requires Docker for Redis)
 dotnet test tests/Sorcha.Gateway.Integration.Tests
@@ -115,6 +121,61 @@ dotnet test tests/Sorcha.UI.E2E.Tests -- NUnit.Headless=false
 dotnet test tests/Sorcha.UI.E2E.Tests --filter "FullyQualifiedName~HomePage_LoadsSuccessfully"
 ```
 
+## Cryptography Tests
+
+The cryptography test suite includes comprehensive tests for key generation, signing, encryption, and performance benchmarking.
+
+### Quick Start
+
+```bash
+# Run all crypto tests
+dotnet test tests/Sorcha.Cryptography.Tests
+
+# Run specific algorithm tests
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~ED25519"
+
+# Run with detailed output for performance metrics
+dotnet test tests/Sorcha.Cryptography.Tests --logger "console;verbosity=detailed"
+```
+
+### Performance Testing Cryptography
+
+The crypto tests include built-in performance benchmarks:
+
+```bash
+# Test key generation performance
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~KeyGeneration"
+
+# Test signing performance
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~Signing"
+
+# Test verification performance
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~Verify"
+```
+
+**Example performance output:**
+```
+ED25519 Key Generation: 1000 iterations in 245ms
+Average: 0.25ms per key pair
+Throughput: 4081 keys/second
+
+ED25519 Signing: 10000 iterations in 487ms
+Average: 0.05ms per signature
+Throughput: 20534 signatures/second
+```
+
+### Load Testing Cryptography
+
+```bash
+# Run load tests (parallel operations)
+dotnet test tests/Sorcha.Cryptography.Tests --filter "Category=LoadTest"
+
+# Memory leak tests
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~MemoryLeak"
+```
+
+For detailed examples and advanced scenarios, see [Sorcha.Cryptography.Tests/README.md](Sorcha.Cryptography.Tests/README.md).
+
 ## Performance Tests
 
 Performance tests use **NBomber** for load testing.
@@ -125,6 +186,9 @@ dotnet test tests/Sorcha.Performance.Tests
 
 # Or run the console app directly
 dotnet run --project tests/Sorcha.Performance.Tests
+
+# Target custom URL
+dotnet run --project tests/Sorcha.Performance.Tests https://your-api-url
 ```
 
 ## CI/CD Pipeline
@@ -267,10 +331,12 @@ public class MyIntegrationTests : IAsyncLifetime
 tests/
 ├── Sorcha.Blueprint.Api.Tests/          # API unit tests
 ├── Sorcha.Blueprint.Fluent.Tests/       # Fluent API tests
-├── Sorcha.Blueprint.Designer.Tests/     # Blazor component tests
+├── Sorcha.Cryptography.Tests/           # Cryptography tests with perf benchmarks
+│   ├── Unit/                            # Unit tests for crypto operations
+│   └── README.md                        # Detailed crypto testing guide
 ├── Sorcha.Gateway.Integration.Tests/    # Gateway integration tests
 ├── Sorcha.UI.E2E.Tests/                 # End-to-end tests
-├── Sorcha.Performance.Tests/            # Performance tests
+├── Sorcha.Performance.Tests/            # NBomber performance tests
 └── README.md                            # This file
 ```
 
