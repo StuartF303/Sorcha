@@ -1,0 +1,962 @@
+{
+  "id": "moderate-disability-assessment-v1",
+  "title": "Multi-Stage Disability Benefits Assessment",
+  "description": "A four-step workflow for disability benefits assessment including application, medical review, functional capacity evaluation, and determination with conditional routing based on assessment scores.",
+  "version": 1,
+  "metadata": {
+    "sector": "Benefits & Entitlements",
+    "complexity": "Moderate",
+    "actions": "4",
+    "category": "Disability Insurance",
+    "features": "Multi-Stage Assessment, Medical Review, Conditional Approval",
+    "jurisdiction": "Federal Government"
+  },
+  "participants": [
+    {
+      "id": "applicant",
+      "name": "Robert Williams",
+      "organisation": "Self",
+      "walletAddress": "0xA0P1234567890ABCDEF1234567890ABCDEF12345",
+      "didUri": "did:example:applicant-rwilliams",
+      "useStealthAddress": true
+    },
+    {
+      "id": "claims-examiner",
+      "name": "Claims Examiner",
+      "organisation": "Social Security Administration - Disability Determination Services",
+      "walletAddress": "0xC0E2345678901BCDEF2345678901BCDEF234567",
+      "didUri": "did:example:ssa-examiner"
+    },
+    {
+      "id": "medical-consultant",
+      "name": "Dr. Patricia Martinez",
+      "organisation": "SSA Medical Consultant",
+      "walletAddress": "0xM0C3456789012CDEF3456789012CDEF345678",
+      "didUri": "did:example:ssa-medical-consultant"
+    },
+    {
+      "id": "vocational-specialist",
+      "name": "Vocational Rehabilitation Specialist",
+      "organisation": "SSA Vocational Services",
+      "walletAddress": "0xV0S4567890123DEF4567890123DEF456789",
+      "didUri": "did:example:ssa-vocational"
+    },
+    {
+      "id": "adjudicator",
+      "name": "Disability Adjudicator",
+      "organisation": "Social Security Administration - Disability Determination Services",
+      "walletAddress": "0xA0D5678901234EF5678901234EF5678901",
+      "didUri": "did:example:ssa-adjudicator"
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Submit Disability Application",
+      "description": "Applicant submits initial disability benefits application",
+      "sender": "applicant",
+      "target": "claims-examiner",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "applicantName": {
+              "type": "string",
+              "title": "Full Name",
+              "minLength": 2,
+              "maxLength": 100
+            },
+            "ssn": {
+              "type": "string",
+              "title": "Social Security Number",
+              "pattern": "^\\d{3}-\\d{2}-\\d{4}$"
+            },
+            "dateOfBirth": {
+              "type": "string",
+              "format": "date",
+              "title": "Date of Birth"
+            },
+            "contactPhone": {
+              "type": "string",
+              "title": "Phone Number",
+              "maxLength": 20
+            },
+            "contactEmail": {
+              "type": "string",
+              "format": "email",
+              "title": "Email Address"
+            },
+            "mailingAddress": {
+              "type": "string",
+              "title": "Mailing Address",
+              "maxLength": 500
+            },
+            "disabilityOnsetDate": {
+              "type": "string",
+              "format": "date",
+              "title": "When did your disability begin?"
+            },
+            "primaryDisability": {
+              "type": "string",
+              "title": "Primary Disabling Condition",
+              "maxLength": 500
+            },
+            "additionalConditions": {
+              "type": "string",
+              "title": "Other Medical Conditions",
+              "maxLength": 2000
+            },
+            "limitationsDescription": {
+              "type": "string",
+              "title": "How do your conditions limit your ability to work?",
+              "minLength": 50,
+              "maxLength": 3000
+            },
+            "lastWorkDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Last Date Worked"
+            },
+            "lastOccupation": {
+              "type": "string",
+              "title": "Last Occupation",
+              "maxLength": 200
+            },
+            "educationLevel": {
+              "type": "string",
+              "title": "Highest Education Level",
+              "enum": [
+                "Less than High School",
+                "High School/GED",
+                "Some College",
+                "Associates Degree",
+                "Bachelors Degree",
+                "Graduate Degree"
+              ]
+            },
+            "primaryPhysician": {
+              "type": "string",
+              "title": "Primary Care Physician",
+              "maxLength": 200
+            },
+            "physicianPhone": {
+              "type": "string",
+              "title": "Physician Phone",
+              "maxLength": 20
+            },
+            "hospitalizationsLast3Years": {
+              "type": "boolean",
+              "title": "Hospitalized in last 3 years?"
+            },
+            "hospitalizationDetails": {
+              "type": "string",
+              "title": "Hospitalization Details",
+              "maxLength": 2000
+            },
+            "currentMedications": {
+              "type": "string",
+              "title": "Current Medications",
+              "maxLength": 2000
+            },
+            "maritalStatus": {
+              "type": "string",
+              "title": "Marital Status",
+              "enum": ["Single", "Married", "Divorced", "Widowed", "Separated"]
+            },
+            "dependents": {
+              "type": "integer",
+              "title": "Number of Dependents",
+              "minimum": 0
+            },
+            "representativePayee": {
+              "type": "boolean",
+              "title": "Do you need a representative payee?",
+              "default": false
+            }
+          },
+          "required": [
+            "applicantName",
+            "ssn",
+            "dateOfBirth",
+            "contactPhone",
+            "mailingAddress",
+            "disabilityOnsetDate",
+            "primaryDisability",
+            "limitationsDescription",
+            "lastWorkDate",
+            "lastOccupation",
+            "educationLevel",
+            "primaryPhysician",
+            "maritalStatus",
+            "dependents"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "claims-examiner",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Disability Benefits Application",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Personal Information",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/applicantName",
+                "title": "Full Name"
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/ssn",
+                    "title": "Social Security Number"
+                  },
+                  {
+                    "type": "DateTime",
+                    "scope": "/dateOfBirth",
+                    "title": "Date of Birth"
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "scope": "/mailingAddress",
+                "title": "Mailing Address"
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/contactPhone",
+                    "title": "Phone Number"
+                  },
+                  {
+                    "type": "TextLine",
+                    "scope": "/contactEmail",
+                    "title": "Email"
+                  }
+                ]
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Selection",
+                    "scope": "/maritalStatus",
+                    "title": "Marital Status"
+                  },
+                  {
+                    "type": "Numeric",
+                    "scope": "/dependents",
+                    "title": "Number of Dependents"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Disability Information",
+            "elements": [
+              {
+                "type": "DateTime",
+                "scope": "/disabilityOnsetDate",
+                "title": "When did your disability begin?"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/primaryDisability",
+                "title": "Primary Disabling Condition"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/additionalConditions",
+                "title": "Other Medical Conditions"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/limitationsDescription",
+                "title": "How do your conditions limit your ability to work?"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Work History",
+            "elements": [
+              {
+                "type": "DateTime",
+                "scope": "/lastWorkDate",
+                "title": "Last Date Worked"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/lastOccupation",
+                "title": "Last Occupation"
+              },
+              {
+                "type": "Selection",
+                "scope": "/educationLevel",
+                "title": "Highest Education Level"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Medical Information",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/primaryPhysician",
+                    "title": "Primary Care Physician"
+                  },
+                  {
+                    "type": "TextLine",
+                    "scope": "/physicianPhone",
+                    "title": "Physician Phone"
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "scope": "/currentMedications",
+                "title": "Current Medications"
+              },
+              {
+                "type": "Checkbox",
+                "scope": "/hospitalizationsLast3Years",
+                "title": "Have you been hospitalized in the last 3 years?"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/hospitalizationDetails",
+                "title": "Hospitalization Details (if applicable)"
+              }
+            ]
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/representativePayee",
+            "title": "I need a representative payee to manage my benefits"
+          }
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "title": "Medical Evidence Review",
+      "description": "Medical consultant reviews medical evidence and assesses severity",
+      "sender": "medical-consultant",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "medicalRecordsObtained": {
+              "type": "boolean",
+              "title": "Medical Records Obtained"
+            },
+            "primaryDiagnosis": {
+              "type": "string",
+              "title": "Primary Diagnosis (ICD-10 Code)",
+              "maxLength": 20
+            },
+            "primaryDiagnosisDescription": {
+              "type": "string",
+              "title": "Primary Diagnosis Description",
+              "maxLength": 500
+            },
+            "secondaryDiagnoses": {
+              "type": "string",
+              "title": "Secondary Diagnoses",
+              "maxLength": 1000
+            },
+            "severityRating": {
+              "type": "string",
+              "title": "Medical Severity Rating",
+              "enum": ["Mild", "Moderate", "Severe", "Very Severe"],
+              "default": "Moderate"
+            },
+            "functionalLimitations": {
+              "type": "object",
+              "properties": {
+                "standing": {
+                  "type": "string",
+                  "enum": ["No Limitation", "Occasional", "Frequent", "Constant Limitation"]
+                },
+                "walking": {
+                  "type": "string",
+                  "enum": ["No Limitation", "Occasional", "Frequent", "Constant Limitation"]
+                },
+                "sitting": {
+                  "type": "string",
+                  "enum": ["No Limitation", "Occasional", "Frequent", "Constant Limitation"]
+                },
+                "lifting": {
+                  "type": "string",
+                  "enum": ["No Limitation", "Light (10 lbs)", "Sedentary (5 lbs)", "Unable"]
+                },
+                "concentration": {
+                  "type": "string",
+                  "enum": ["No Limitation", "Mild", "Moderate", "Marked", "Extreme"]
+                },
+                "social": {
+                  "type": "string",
+                  "enum": ["No Limitation", "Mild", "Moderate", "Marked", "Extreme"]
+                }
+              }
+            },
+            "treatmentCompliance": {
+              "type": "string",
+              "title": "Treatment Compliance",
+              "enum": ["Compliant", "Partially Compliant", "Non-Compliant", "Unable to Determine"]
+            },
+            "medicalImprovementExpected": {
+              "type": "boolean",
+              "title": "Medical Improvement Expected"
+            },
+            "expectedImprovementTimeframe": {
+              "type": "string",
+              "title": "Expected Improvement Timeframe",
+              "enum": ["3 months", "6 months", "12 months", "18 months", "Unlikely"],
+              "default": "Unlikely"
+            },
+            "consultativeExamNeeded": {
+              "type": "boolean",
+              "title": "Consultative Examination Needed",
+              "default": false
+            },
+            "medicalConsultantNotes": {
+              "type": "string",
+              "title": "Medical Consultant Notes",
+              "maxLength": 3000
+            }
+          },
+          "required": [
+            "medicalRecordsObtained",
+            "primaryDiagnosis",
+            "primaryDiagnosisDescription",
+            "severityRating",
+            "functionalLimitations",
+            "treatmentCompliance",
+            "medicalImprovementExpected"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "claims-examiner",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "vocational-specialist",
+          "dataPointers": ["/severityRating", "/functionalLimitations", "/medicalImprovementExpected"]
+        },
+        {
+          "participantAddress": "adjudicator",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {
+        "severityScore": {
+          "if": [
+            { "==": [{ "var": "severityRating" }, "Very Severe"] },
+            4,
+            {
+              "if": [
+                { "==": [{ "var": "severityRating" }, "Severe"] },
+                3,
+                { "if": [{ "==": [{ "var": "severityRating" }, "Moderate"] }, 2, 1] }
+              ]
+            }
+          ]
+        }
+      },
+      "condition": {
+        "if": [
+          { ">=": [{ "var": "severityScore" }, 3] },
+          "vocational-specialist",
+          "adjudicator"
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Medical Evidence Review",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/medicalRecordsObtained",
+            "title": "All relevant medical records have been obtained"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Diagnosis",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/primaryDiagnosis",
+                "title": "Primary Diagnosis (ICD-10 Code)"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/primaryDiagnosisDescription",
+                "title": "Primary Diagnosis Description"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/secondaryDiagnoses",
+                "title": "Secondary Diagnoses"
+              },
+              {
+                "type": "Selection",
+                "scope": "/severityRating",
+                "title": "Medical Severity Rating"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Functional Limitations Assessment",
+            "elements": [
+              {
+                "type": "Label",
+                "title": "Physical Limitations"
+              },
+              {
+                "type": "Label",
+                "title": "Mental/Cognitive Limitations"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Prognosis",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/treatmentCompliance",
+                "title": "Treatment Compliance"
+              },
+              {
+                "type": "Checkbox",
+                "scope": "/medicalImprovementExpected",
+                "title": "Medical improvement expected"
+              },
+              {
+                "type": "Selection",
+                "scope": "/expectedImprovementTimeframe",
+                "title": "Expected Improvement Timeframe"
+              },
+              {
+                "type": "Checkbox",
+                "scope": "/consultativeExamNeeded",
+                "title": "Consultative examination needed"
+              }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/medicalConsultantNotes",
+            "title": "Medical Consultant Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Vocational Assessment",
+      "description": "Vocational specialist evaluates work capacity and transferable skills",
+      "sender": "vocational-specialist",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "residualFunctionalCapacity": {
+              "type": "string",
+              "title": "Residual Functional Capacity (RFC)",
+              "enum": ["Sedentary", "Light", "Medium", "Heavy", "Very Heavy"],
+              "default": "Light"
+            },
+            "transferableSkillsIdentified": {
+              "type": "boolean",
+              "title": "Transferable Skills Identified"
+            },
+            "transferableSkillsList": {
+              "type": "string",
+              "title": "List of Transferable Skills",
+              "maxLength": 2000
+            },
+            "canPerformPastWork": {
+              "type": "boolean",
+              "title": "Can Perform Past Relevant Work"
+            },
+            "pastWorkAnalysis": {
+              "type": "string",
+              "title": "Past Work Analysis",
+              "maxLength": 2000
+            },
+            "otherWorkExists": {
+              "type": "boolean",
+              "title": "Other Work Exists in National Economy"
+            },
+            "exampleOccupations": {
+              "type": "string",
+              "title": "Example Occupations Available",
+              "maxLength": 1000
+            },
+            "numberOfJobsAvailable": {
+              "type": "integer",
+              "title": "Estimated Jobs Available Nationally",
+              "minimum": 0
+            },
+            "ageCategory": {
+              "type": "string",
+              "title": "Age Category (SSA Rules)",
+              "enum": ["Younger (18-49)", "Approaching Advanced Age (50-54)", "Advanced Age (55+)", "Closely Approaching Retirement (60+)"]
+            },
+            "educationCategory": {
+              "type": "string",
+              "title": "Education Category",
+              "enum": ["Illiterate", "Marginal", "Limited", "High School and Above"]
+            },
+            "vocationalRecommendation": {
+              "type": "string",
+              "title": "Vocational Recommendation",
+              "enum": ["Disabled - Unable to Work", "Not Disabled - Can Perform Past Work", "Not Disabled - Can Perform Other Work", "Needs Additional Assessment"]
+            },
+            "vocationalNotes": {
+              "type": "string",
+              "title": "Vocational Specialist Notes",
+              "maxLength": 3000
+            }
+          },
+          "required": [
+            "residualFunctionalCapacity",
+            "transferableSkillsIdentified",
+            "canPerformPastWork",
+            "otherWorkExists",
+            "ageCategory",
+            "educationCategory",
+            "vocationalRecommendation"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "adjudicator",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "claims-examiner",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Vocational Assessment",
+        "elements": [
+          {
+            "type": "Selection",
+            "scope": "/residualFunctionalCapacity",
+            "title": "Residual Functional Capacity (RFC)"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Transferable Skills",
+            "elements": [
+              {
+                "type": "Checkbox",
+                "scope": "/transferableSkillsIdentified",
+                "title": "Transferable skills identified"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/transferableSkillsList",
+                "title": "List of Transferable Skills"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Past Work Analysis",
+            "elements": [
+              {
+                "type": "Checkbox",
+                "scope": "/canPerformPastWork",
+                "title": "Claimant can perform past relevant work"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/pastWorkAnalysis",
+                "title": "Past Work Analysis"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Other Work Assessment",
+            "elements": [
+              {
+                "type": "Checkbox",
+                "scope": "/otherWorkExists",
+                "title": "Other work exists in national economy"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/exampleOccupations",
+                "title": "Example Occupations Available"
+              },
+              {
+                "type": "Numeric",
+                "scope": "/numberOfJobsAvailable",
+                "title": "Estimated Jobs Available Nationally"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Vocational Profile",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/ageCategory",
+                "title": "Age Category"
+              },
+              {
+                "type": "Selection",
+                "scope": "/educationCategory",
+                "title": "Education Category"
+              }
+            ]
+          },
+          {
+            "type": "Selection",
+            "scope": "/vocationalRecommendation",
+            "title": "Vocational Recommendation"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/vocationalNotes",
+            "title": "Vocational Specialist Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "Final Determination",
+      "description": "Adjudicator makes final disability determination",
+      "sender": "adjudicator",
+      "target": "applicant",
+      "additionalRecipients": ["claims-examiner"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "determination": {
+              "type": "string",
+              "title": "Disability Determination",
+              "enum": ["Approved", "Denied", "Needs Additional Development"]
+            },
+            "determinationRationale": {
+              "type": "string",
+              "title": "Rationale for Determination",
+              "minLength": 50,
+              "maxLength": 5000
+            },
+            "monthlyBenefitAmount": {
+              "type": "number",
+              "title": "Monthly Benefit Amount (if approved)",
+              "minimum": 0
+            },
+            "effectiveDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Effective Date (if approved)"
+            },
+            "backPayMonths": {
+              "type": "integer",
+              "title": "Back Pay Months (if applicable)",
+              "minimum": 0,
+              "maximum": 12
+            },
+            "reviewDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Scheduled Review Date (if approved)"
+            },
+            "denialReason": {
+              "type": "string",
+              "title": "Primary Reason for Denial (if denied)",
+              "enum": [
+                "Not Meeting Duration Requirement",
+                "Not Meeting Severity Requirement",
+                "Can Perform Past Work",
+                "Can Perform Other Work",
+                "Insufficient Medical Evidence",
+                "Non-Compliance with Treatment",
+                "Other"
+              ]
+            },
+            "appealRights": {
+              "type": "string",
+              "title": "Appeal Rights Information",
+              "maxLength": 2000
+            },
+            "additionalDevelopmentNeeded": {
+              "type": "string",
+              "title": "Additional Development Needed (if applicable)",
+              "maxLength": 2000
+            },
+            "adjudicatorNotes": {
+              "type": "string",
+              "title": "Adjudicator Notes",
+              "maxLength": 3000
+            }
+          },
+          "required": ["determination", "determinationRationale"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "applicant",
+          "dataPointers": [
+            "/determination",
+            "/determinationRationale",
+            "/monthlyBenefitAmount",
+            "/effectiveDate",
+            "/backPayMonths",
+            "/reviewDate",
+            "/denialReason",
+            "/appealRights",
+            "/additionalDevelopmentNeeded"
+          ]
+        },
+        {
+          "participantAddress": "claims-examiner",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {
+        "totalBackPay": {
+          "*": [
+            { "var": "monthlyBenefitAmount" },
+            { "var": "backPayMonths" }
+          ]
+        }
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Disability Determination",
+        "elements": [
+          {
+            "type": "Selection",
+            "scope": "/determination",
+            "title": "Disability Determination"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/determinationRationale",
+            "title": "Rationale for Determination"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Approval Details (if approved)",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Numeric",
+                    "scope": "/monthlyBenefitAmount",
+                    "title": "Monthly Benefit Amount ($)"
+                  },
+                  {
+                    "type": "DateTime",
+                    "scope": "/effectiveDate",
+                    "title": "Effective Date"
+                  }
+                ]
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "Numeric",
+                    "scope": "/backPayMonths",
+                    "title": "Back Pay Months"
+                  },
+                  {
+                    "type": "DateTime",
+                    "scope": "/reviewDate",
+                    "title": "Scheduled Review Date"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Denial Details (if denied)",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/denialReason",
+                "title": "Primary Reason for Denial"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/appealRights",
+                "title": "Appeal Rights Information"
+              }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/additionalDevelopmentNeeded",
+            "title": "Additional Development Needed (if applicable)"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/adjudicatorNotes",
+            "title": "Adjudicator Notes"
+          }
+        ]
+      }
+    }
+  ]
+}

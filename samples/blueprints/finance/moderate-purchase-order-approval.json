@@ -1,0 +1,668 @@
+{
+  "id": "moderate-purchase-order-v1",
+  "title": "Multi-Level Purchase Order Approval",
+  "description": "A four-step purchase order workflow with conditional approval routing based on order value. Orders under $5,000 go to department manager, orders $5,000-$25,000 go to finance director, and orders over $25,000 require CFO approval.",
+  "version": 1,
+  "metadata": {
+    "sector": "Finance",
+    "complexity": "Moderate",
+    "actions": "5",
+    "category": "Procurement",
+    "features": "Conditional Routing, Multi-Level Approval"
+  },
+  "participants": [
+    {
+      "id": "requester",
+      "name": "Department Requester",
+      "organisation": "GlobalCorp International",
+      "walletAddress": "0xR0Q1234567890ABCDEF1234567890ABCDEF12345",
+      "didUri": "did:example:requester-dept"
+    },
+    {
+      "id": "dept-manager",
+      "name": "Department Manager",
+      "organisation": "GlobalCorp International",
+      "walletAddress": "0xD0M2345678901BCDEF2345678901BCDEF234567",
+      "didUri": "did:example:dept-manager"
+    },
+    {
+      "id": "finance-director",
+      "name": "Finance Director",
+      "organisation": "GlobalCorp International",
+      "walletAddress": "0xF0D3456789012CDEF3456789012CDEF345678",
+      "didUri": "did:example:finance-director"
+    },
+    {
+      "id": "cfo",
+      "name": "Chief Financial Officer",
+      "organisation": "GlobalCorp International",
+      "walletAddress": "0xC0F4567890123DEF4567890123DEF456789",
+      "didUri": "did:example:cfo"
+    },
+    {
+      "id": "vendor",
+      "name": "Supplier Company Inc",
+      "organisation": "Supplier Company Inc",
+      "walletAddress": "0xV0N5678901234EF5678901234EF5678901",
+      "didUri": "did:example:vendor-supplier"
+    },
+    {
+      "id": "procurement",
+      "name": "Procurement Department",
+      "organisation": "GlobalCorp International",
+      "walletAddress": "0xP0C6789012345F6789012345F67890123",
+      "didUri": "did:example:procurement"
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Create Purchase Requisition",
+      "description": "Department requester creates a purchase requisition",
+      "sender": "requester",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "requisitionNumber": {
+              "type": "string",
+              "title": "Requisition Number",
+              "minLength": 3,
+              "maxLength": 20
+            },
+            "department": {
+              "type": "string",
+              "title": "Department",
+              "enum": ["IT", "Marketing", "Operations", "HR", "Research & Development", "Facilities"],
+              "default": "IT"
+            },
+            "businessJustification": {
+              "type": "string",
+              "title": "Business Justification",
+              "minLength": 20,
+              "maxLength": 2000
+            },
+            "items": {
+              "type": "array",
+              "title": "Line Items",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "title": "Item Description",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "title": "Quantity",
+                    "minimum": 1
+                  },
+                  "unitPrice": {
+                    "type": "number",
+                    "title": "Unit Price",
+                    "minimum": 0.01
+                  },
+                  "category": {
+                    "type": "string",
+                    "title": "Category",
+                    "enum": ["Hardware", "Software", "Services", "Supplies", "Equipment", "Other"]
+                  }
+                },
+                "required": ["description", "quantity", "unitPrice", "category"]
+              }
+            },
+            "preferredVendor": {
+              "type": "string",
+              "title": "Preferred Vendor",
+              "maxLength": 200
+            },
+            "urgency": {
+              "type": "string",
+              "title": "Urgency",
+              "enum": ["Standard", "Urgent", "Critical"],
+              "default": "Standard"
+            },
+            "budgetCode": {
+              "type": "string",
+              "title": "Budget/GL Code",
+              "maxLength": 50
+            },
+            "deliveryDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Required Delivery Date"
+            }
+          },
+          "required": ["requisitionNumber", "department", "businessJustification", "items", "budgetCode", "deliveryDate"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "dept-manager",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "finance-director",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "cfo",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "procurement",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {
+        "totalAmount": {
+          "reduce": [
+            { "var": "items" },
+            { "+": [{ "var": "accumulator" }, { "*": [{ "var": "current.quantity" }, { "var": "current.unitPrice" }] }] },
+            0
+          ]
+        },
+        "approvalLevel": {
+          "if": [
+            { ">=": [{ "var": "totalAmount" }, 25000] },
+            "cfo",
+            { "if": [{ ">=": [{ "var": "totalAmount" }, 5000] }, "finance-director", "dept-manager"] }
+          ]
+        }
+      },
+      "condition": {
+        "if": [
+          { ">=": [{ "var": "totalAmount" }, 25000] },
+          "cfo",
+          {
+            "if": [
+              { ">=": [{ "var": "totalAmount" }, 5000] },
+              "finance-director",
+              "dept-manager"
+            ]
+          }
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Purchase Requisition",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Requisition Information",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/requisitionNumber",
+                    "title": "Requisition Number"
+                  },
+                  {
+                    "type": "Selection",
+                    "scope": "/department",
+                    "title": "Department"
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "scope": "/businessJustification",
+                "title": "Business Justification"
+              }
+            ]
+          },
+          {
+            "type": "Label",
+            "title": "Line Items (Add each item separately)"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Vendor & Budget Information",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/preferredVendor",
+                "title": "Preferred Vendor"
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/budgetCode",
+                    "title": "Budget/GL Code"
+                  },
+                  {
+                    "type": "Selection",
+                    "scope": "/urgency",
+                    "title": "Urgency"
+                  }
+                ]
+              },
+              {
+                "type": "DateTime",
+                "scope": "/deliveryDate",
+                "title": "Required Delivery Date"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "title": "Approve Requisition (Level 1)",
+      "description": "First-level approval by dept manager, finance director, or CFO based on amount",
+      "sender": "dept-manager",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "approved": {
+              "type": "boolean",
+              "title": "Approved"
+            },
+            "budgetAvailable": {
+              "type": "boolean",
+              "title": "Budget Available",
+              "default": true
+            },
+            "approverComments": {
+              "type": "string",
+              "title": "Approver Comments",
+              "maxLength": 1000
+            },
+            "modifiedAmount": {
+              "type": "number",
+              "title": "Modified Total Amount (if changed)",
+              "minimum": 0
+            },
+            "requiresSecondaryApproval": {
+              "type": "boolean",
+              "title": "Requires Secondary Approval",
+              "default": false
+            }
+          },
+          "required": ["approved", "budgetAvailable"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "requester",
+          "dataPointers": ["/approved", "/approverComments", "/modifiedAmount"]
+        },
+        {
+          "participantAddress": "procurement",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "finance-director",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "condition": {
+        "if": [
+          { "and": [{ "var": "approved" }, { "!": { "var": "requiresSecondaryApproval" } }] },
+          "procurement",
+          {
+            "if": [
+              { "var": "requiresSecondaryApproval" },
+              "finance-director",
+              "requester"
+            ]
+          }
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Requisition Approval",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/approved",
+            "title": "I approve this requisition"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/budgetAvailable",
+            "title": "Budget is available for this purchase"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/requiresSecondaryApproval",
+            "title": "This requisition requires secondary approval"
+          },
+          {
+            "type": "Numeric",
+            "scope": "/modifiedAmount",
+            "title": "Modified Total Amount (if changed)"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/approverComments",
+            "title": "Comments"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Secondary Approval (if required)",
+      "description": "Finance director provides secondary approval if flagged",
+      "sender": "finance-director",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "approved": {
+              "type": "boolean",
+              "title": "Approved"
+            },
+            "financialReviewNotes": {
+              "type": "string",
+              "title": "Financial Review Notes",
+              "maxLength": 1000
+            }
+          },
+          "required": ["approved"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "requester",
+          "dataPointers": ["/approved", "/financialReviewNotes"]
+        },
+        {
+          "participantAddress": "procurement",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "dept-manager",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "condition": {
+        "if": [
+          { "var": "approved" },
+          "procurement",
+          "requester"
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Secondary Approval",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/approved",
+            "title": "I approve this requisition"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/financialReviewNotes",
+            "title": "Financial Review Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "Create Purchase Order",
+      "description": "Procurement creates formal purchase order and sends to vendor",
+      "sender": "procurement",
+      "target": "vendor",
+      "additionalRecipients": ["requester", "dept-manager"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "poNumber": {
+              "type": "string",
+              "title": "Purchase Order Number",
+              "minLength": 5,
+              "maxLength": 30
+            },
+            "poDate": {
+              "type": "string",
+              "format": "date",
+              "title": "PO Date"
+            },
+            "vendorName": {
+              "type": "string",
+              "title": "Vendor Name",
+              "maxLength": 200
+            },
+            "vendorAddress": {
+              "type": "string",
+              "title": "Vendor Address",
+              "maxLength": 500
+            },
+            "paymentTerms": {
+              "type": "string",
+              "title": "Payment Terms",
+              "enum": ["Net 30", "Net 60", "Net 90", "Due on Receipt", "50% Deposit"],
+              "default": "Net 30"
+            },
+            "shippingAddress": {
+              "type": "string",
+              "title": "Shipping Address",
+              "maxLength": 500
+            },
+            "specialInstructions": {
+              "type": "string",
+              "title": "Special Instructions",
+              "maxLength": 1000
+            },
+            "expectedDeliveryDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Expected Delivery Date"
+            }
+          },
+          "required": ["poNumber", "poDate", "vendorName", "vendorAddress", "paymentTerms", "shippingAddress", "expectedDeliveryDate"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "vendor",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "requester",
+          "dataPointers": ["/poNumber", "/poDate", "/vendorName", "/expectedDeliveryDate"]
+        },
+        {
+          "participantAddress": "dept-manager",
+          "dataPointers": ["/poNumber", "/poDate", "/vendorName", "/expectedDeliveryDate"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Purchase Order",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/poNumber",
+                "title": "PO Number"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/poDate",
+                "title": "PO Date"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Vendor Information",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/vendorName",
+                "title": "Vendor Name"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/vendorAddress",
+                "title": "Vendor Address"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Delivery Information",
+            "elements": [
+              {
+                "type": "TextArea",
+                "scope": "/shippingAddress",
+                "title": "Shipping Address"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/expectedDeliveryDate",
+                "title": "Expected Delivery Date"
+              }
+            ]
+          },
+          {
+            "type": "Selection",
+            "scope": "/paymentTerms",
+            "title": "Payment Terms"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/specialInstructions",
+            "title": "Special Instructions"
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "title": "Acknowledge Purchase Order",
+      "description": "Vendor acknowledges receipt and acceptance of the purchase order",
+      "sender": "vendor",
+      "target": "procurement",
+      "additionalRecipients": ["requester"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "acknowledged": {
+              "type": "boolean",
+              "title": "Acknowledge PO"
+            },
+            "acceptedAsIs": {
+              "type": "boolean",
+              "title": "Accept PO as-is"
+            },
+            "proposedChanges": {
+              "type": "string",
+              "title": "Proposed Changes (if any)",
+              "maxLength": 1000
+            },
+            "confirmedDeliveryDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Confirmed Delivery Date"
+            },
+            "vendorContactName": {
+              "type": "string",
+              "title": "Vendor Contact Name",
+              "maxLength": 100
+            },
+            "vendorContactEmail": {
+              "type": "string",
+              "format": "email",
+              "title": "Vendor Contact Email"
+            },
+            "vendorContactPhone": {
+              "type": "string",
+              "title": "Vendor Contact Phone",
+              "maxLength": 20
+            }
+          },
+          "required": ["acknowledged", "acceptedAsIs", "confirmedDeliveryDate", "vendorContactName", "vendorContactEmail"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "procurement",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "requester",
+          "dataPointers": ["/acknowledged", "/acceptedAsIs", "/confirmedDeliveryDate", "/proposedChanges"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Purchase Order Acknowledgment",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/acknowledged",
+            "title": "I acknowledge receipt of this purchase order"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/acceptedAsIs",
+            "title": "I accept this PO as-is with no changes"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/proposedChanges",
+            "title": "Proposed Changes (if any)"
+          },
+          {
+            "type": "DateTime",
+            "scope": "/confirmedDeliveryDate",
+            "title": "Confirmed Delivery Date"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Vendor Contact Information",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/vendorContactName",
+                "title": "Contact Name"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/vendorContactEmail",
+                "title": "Contact Email"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/vendorContactPhone",
+                "title": "Contact Phone"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
