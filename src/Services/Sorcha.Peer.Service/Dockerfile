@@ -6,18 +6,18 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy project files
-COPY ["src/Services/Sorcha.Peer.Service/Sorcha.Peer.Service.csproj", "Services/Sorcha.Peer.Service/"]
-COPY ["src/Common/Sorcha.ServiceDefaults/Sorcha.ServiceDefaults.csproj", "Common/Sorcha.ServiceDefaults/"]
-COPY ["src/Common/Sorcha.Blueprint.Models/Sorcha.Blueprint.Models.csproj", "Common/Sorcha.Blueprint.Models/"]
+COPY ["src/Services/Sorcha.Peer.Service/Sorcha.Peer.Service.csproj", "src/Services/Sorcha.Peer.Service/"]
+COPY ["src/Common/Sorcha.ServiceDefaults/Sorcha.ServiceDefaults.csproj", "src/Common/Sorcha.ServiceDefaults/"]
+COPY ["src/Common/Sorcha.Blueprint.Models/Sorcha.Blueprint.Models.csproj", "src/Common/Sorcha.Blueprint.Models/"]
 
 # Restore dependencies
-RUN dotnet restore "Services/Sorcha.Peer.Service/Sorcha.Peer.Service.csproj"
+RUN dotnet restore "src/Services/Sorcha.Peer.Service/Sorcha.Peer.Service.csproj"
 
 # Copy source code (including proto files)
-COPY src/ .
+COPY src/ ./src/
 
 # Build the application
-WORKDIR "/src/Services/Sorcha.Peer.Service"
+WORKDIR "/src/src/Services/Sorcha.Peer.Service"
 RUN dotnet build "Sorcha.Peer.Service.csproj" -c Release -o /app/build
 
 # Publish stage
