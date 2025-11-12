@@ -254,7 +254,8 @@ public class SymmetricCrypto : ISymmetricCrypto
             byte[] nonce = GenerateIV(EncryptionType.CHACHA20_POLY1305);
 
             // Use libsodium's ChaCha20-Poly1305
-            byte[] ciphertext = SecretAeadChaCha20Poly1305.Encrypt(plaintext, nonce, key);
+            // Additional data parameter can be null for no additional authenticated data
+            byte[] ciphertext = SecretAeadChaCha20Poly1305.Encrypt(plaintext, nonce, key, null);
 
             var result = new SymmetricCiphertext
             {
@@ -276,7 +277,7 @@ public class SymmetricCrypto : ISymmetricCrypto
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            byte[] plaintext = SecretAeadChaCha20Poly1305.Decrypt(ciphertext.Data, ciphertext.IV, ciphertext.Key);
+            byte[] plaintext = SecretAeadChaCha20Poly1305.Decrypt(ciphertext.Data, ciphertext.IV, ciphertext.Key, null);
 
             return CryptoResult<byte[]>.Success(plaintext);
         }, cancellationToken);
@@ -298,7 +299,8 @@ public class SymmetricCrypto : ISymmetricCrypto
             byte[] nonce = GenerateIV(EncryptionType.XCHACHA20_POLY1305);
 
             // Use libsodium's XChaCha20-Poly1305
-            byte[] ciphertext = SecretAead.Encrypt(plaintext, nonce, key);
+            // Additional data parameter can be null for no additional authenticated data
+            byte[] ciphertext = SecretAead.Encrypt(plaintext, nonce, key, null);
 
             var result = new SymmetricCiphertext
             {
@@ -320,7 +322,7 @@ public class SymmetricCrypto : ISymmetricCrypto
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            byte[] plaintext = SecretAead.Decrypt(ciphertext.Data, ciphertext.IV, ciphertext.Key);
+            byte[] plaintext = SecretAead.Decrypt(ciphertext.Data, ciphertext.IV, ciphertext.Key, null);
 
             return CryptoResult<byte[]>.Success(plaintext);
         }, cancellationToken);
