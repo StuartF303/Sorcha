@@ -142,9 +142,9 @@ public class PeerDiscoveryServiceImpl : PeerDiscovery.PeerDiscoveryBase
 
         return Task.FromResult(new PingResponse
         {
-            Alive = true,
+            PeerId = _configuration.NodeId ?? "unknown",
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            Version = "1.0.0"
+            Status = PeerStatus.Online
         });
     }
 
@@ -179,7 +179,7 @@ public class PeerDiscoveryServiceImpl : PeerDiscovery.PeerDiscoveryBase
             FailureCount = 0,
             IsBootstrapNode = false,
             AverageLatencyMs = 0,
-            Capabilities = new PeerCapabilities
+            Capabilities = new Core.PeerCapabilities
             {
                 SupportsStreaming = peerInfo.SupportedProtocols.Contains("GrpcStream"),
                 SupportsTransactionDistribution = true,

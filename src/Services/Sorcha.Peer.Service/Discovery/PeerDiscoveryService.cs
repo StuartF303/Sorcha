@@ -213,8 +213,7 @@ public class PeerDiscoveryService
 
             var request = new PingRequest
             {
-                PeerId = _configuration.NodeId ?? "unknown",
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                PeerId = _configuration.NodeId ?? "unknown"
             };
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -222,7 +221,7 @@ public class PeerDiscoveryService
 
             var response = await client.PingAsync(request, cancellationToken: cts.Token);
 
-            return response.Alive;
+            return response.Status == PeerStatus.Online;
         }
         catch (Exception ex)
         {
@@ -247,7 +246,7 @@ public class PeerDiscoveryService
             FailureCount = 0,
             IsBootstrapNode = false,
             AverageLatencyMs = 0,
-            Capabilities = new PeerCapabilities
+            Capabilities = new Core.PeerCapabilities
             {
                 SupportsStreaming = peerInfo.SupportedProtocols.Contains("GrpcStream"),
                 SupportsTransactionDistribution = true,

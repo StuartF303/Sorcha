@@ -4,7 +4,9 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sorcha.Peer.Service.Core;
+using Sorcha.Peer.Service.Protos;
 using System.Collections.Concurrent;
+using Grpc.Net.Client;
 
 namespace Sorcha.Peer.Service.Communication;
 
@@ -95,17 +97,16 @@ public class CommunicationProtocolManager
                 {
                     // Try gRPC first
                     var address = $"http://{peer.Address}:{peer.Port}";
-                    var client = new Grpc.Net.Client.GrpcChannel.ForAddress(address);
-                    var grpcClient = new PeerDiscovery.PeerDiscoveryClient(client);
+                    var channel = GrpcChannel.ForAddress(address);
+                    var grpcClient = new PeerDiscovery.PeerDiscoveryClient(channel);
 
                     var request = new PingRequest
                     {
-                        PeerId = requestingPeerId,
-                        Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                        PeerId = requestingPeerId
                     };
 
                     var response = await grpcClient.PingAsync(request, cancellationToken: cancellationToken);
-                    return response.Alive;
+                    return response.Status == PeerStatus.Online;
                 },
                 async () =>
                 {
@@ -205,9 +206,12 @@ public class CommunicationProtocolManager
         // Convert message to PeerMessage proto
         var peerMessage = new PeerMessage
         {
-            MessageType = "Data",
+            SenderPeerId = "",
+            RecipientPeerId = peer.PeerId,
+            MessageType = MessageType.Transaction_Notification,
             Payload = Google.Protobuf.ByteString.CopyFromUtf8(
-                System.Text.Json.JsonSerializer.Serialize(message))
+                System.Text.Json.JsonSerializer.Serialize(message)),
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
 
         return await client.SendMessageAsync(peerMessage, cancellationToken);
@@ -222,18 +226,21 @@ public class CommunicationProtocolManager
 
         // Use standard gRPC call
         var address = $"http://{peer.Address}:{peer.Port}";
-        using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(address);
+        using var channel = GrpcChannel.ForAddress(address);
         var client = new PeerCommunication.PeerCommunicationClient(channel);
 
         var peerMessage = new PeerMessage
         {
-            MessageType = "Data",
+            SenderPeerId = "",
+            RecipientPeerId = peer.PeerId,
+            MessageType = MessageType.TransactionNotification,
             Payload = Google.Protobuf.ByteString.CopyFromUtf8(
-                System.Text.Json.JsonSerializer.Serialize(message))
+                System.Text.Json.JsonSerializer.Serialize(message)),
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
 
         var response = await client.SendMessageAsync(peerMessage, cancellationToken: cancellationToken);
-        return response.Success;
+        return response.Received;
     }
 
     private async Task<bool> SendViaRestAsync(

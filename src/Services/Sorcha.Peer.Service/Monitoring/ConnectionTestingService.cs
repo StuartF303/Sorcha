@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sorcha.Peer.Service.Core;
 using Sorcha.Peer.Service.Discovery;
+using Sorcha.Peer.Service.Protos;
 using System.Diagnostics;
 
 namespace Sorcha.Peer.Service.Monitoring;
@@ -139,15 +140,14 @@ public class ConnectionTestingService
 
             var request = new PingRequest
             {
-                PeerId = _configuration.NodeId ?? "test",
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                PeerId = _configuration.NodeId ?? "test"
             };
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(_configuration.Communication.ConnectionTimeout));
 
             var response = await client.PingAsync(request, cancellationToken: cts.Token);
-            return response.Alive;
+            return response.Status == PeerStatus.Online;
         }
         catch
         {
