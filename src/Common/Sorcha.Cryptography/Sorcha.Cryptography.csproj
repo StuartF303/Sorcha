@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Multi-targeting -->
+    <TargetFrameworks>net9.0;netstandard2.1</TargetFrameworks>
+
+    <!-- Language and nullable -->
+    <LangVersion>13</LangVersion>
+    <Nullable>enable</Nullable>
+
+    <!-- Package info -->
+    <PackageId>Sorcha.Cryptography</PackageId>
+    <Version>2.0.0</Version>
+    <Authors>Sorcha Development Team</Authors>
+    <Company>Wallet.Services (Scotland) Ltd</Company>
+    <Product>Sorcha.Cryptography</Product>
+    <Description>Standalone cryptography library for the Sorcha platform, providing key management, digital signatures, encryption, and encoding utilities.</Description>
+    <PackageTags>cryptography;Sorcha;ed25519;ecdsa;rsa;encryption;signing</PackageTags>
+    <RepositoryUrl>https://github.com/StuartF303/Sorcha</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+
+    <!-- Documentation -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn><!-- Suppress missing XML doc warnings initially -->
+
+    <!-- Build -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+
+    <!-- Source link -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Minimal dependencies -->
+    <PackageReference Include="Sodium.Core" Version="1.3.6" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+</Project>

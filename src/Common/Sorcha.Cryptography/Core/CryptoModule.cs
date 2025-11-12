@@ -1,0 +1,594 @@
+using System.Security.Cryptography;
+using Sodium;
+using Sorcha.Cryptography.Enums;
+using Sorcha.Cryptography.Interfaces;
+using Sorcha.Cryptography.Models;
+
+namespace Sorcha.Cryptography.Core;
+
+/// <summary>
+/// Concrete implementation of cryptographic operations for ED25519, NIST P-256, and RSA-4096.
+/// </summary>
+public class CryptoModule : ICryptoModule
+{
+    /// <summary>
+    /// Generates a new cryptographic key pair.
+    /// </summary>
+    public async Task<CryptoResult<KeySet>> GenerateKeySetAsync(
+        WalletNetworks network,
+        byte[]? seed = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return network switch
+            {
+                WalletNetworks.ED25519 => await GenerateED25519KeySetAsync(seed, cancellationToken),
+                WalletNetworks.NISTP256 => await GenerateNISTP256KeySetAsync(seed, cancellationToken),
+                WalletNetworks.RSA4096 => await GenerateRSA4096KeySetAsync(cancellationToken),
+                _ => CryptoResult<KeySet>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return CryptoResult<KeySet>.Failure(CryptoStatus.Cancelled, "Operation was cancelled");
+        }
+        catch (Exception ex)
+        {
+            return CryptoResult<KeySet>.Failure(CryptoStatus.KeyGenerationFailed, $"Key generation failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Recovers a key set from key data.
+    /// </summary>
+    public Task<CryptoResult<KeySet>> RecoverKeySetAsync(
+        WalletNetworks network,
+        byte[] keyData,
+        string? password = null,
+        CancellationToken cancellationToken = default)
+    {
+        // TODO: Implement key recovery logic
+        return Task.FromResult(CryptoResult<KeySet>.Failure(
+            CryptoStatus.InvalidParameter,
+            "Key recovery not yet implemented"));
+    }
+
+    /// <summary>
+    /// Signs a hash with a private key.
+    /// </summary>
+    public async Task<CryptoResult<byte[]>> SignAsync(
+        byte[] hash,
+        byte network,
+        byte[] privateKey,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (hash == null || hash.Length == 0)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, "Hash cannot be null or empty");
+
+            if (privateKey == null || privateKey.Length == 0)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "Private key cannot be null or empty");
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var networkType = (WalletNetworks)network;
+            return networkType switch
+            {
+                WalletNetworks.ED25519 => await SignED25519Async(hash, privateKey, cancellationToken),
+                WalletNetworks.NISTP256 => await SignNISTP256Async(hash, privateKey, cancellationToken),
+                WalletNetworks.RSA4096 => await SignRSA4096Async(hash, privateKey, cancellationToken),
+                _ => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return CryptoResult<byte[]>.Failure(CryptoStatus.Cancelled, "Operation was cancelled");
+        }
+        catch (Exception ex)
+        {
+            return CryptoResult<byte[]>.Failure(CryptoStatus.SigningFailed, $"Signing failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Verifies a signature against a hash and public key.
+    /// </summary>
+    public async Task<CryptoStatus> VerifyAsync(
+        byte[] signature,
+        byte[] hash,
+        byte network,
+        byte[] publicKey,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (signature == null || signature.Length == 0)
+                return CryptoStatus.InvalidParameter;
+
+            if (hash == null || hash.Length == 0)
+                return CryptoStatus.InvalidParameter;
+
+            if (publicKey == null || publicKey.Length == 0)
+                return CryptoStatus.InvalidKey;
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var networkType = (WalletNetworks)network;
+            return networkType switch
+            {
+                WalletNetworks.ED25519 => await VerifyED25519Async(signature, hash, publicKey, cancellationToken),
+                WalletNetworks.NISTP256 => await VerifyNISTP256Async(signature, hash, publicKey, cancellationToken),
+                WalletNetworks.RSA4096 => await VerifyRSA4096Async(signature, hash, publicKey, cancellationToken),
+                _ => CryptoStatus.InvalidParameter
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return CryptoStatus.Cancelled;
+        }
+        catch
+        {
+            return CryptoStatus.InvalidSignature;
+        }
+    }
+
+    /// <summary>
+    /// Encrypts data with a public key.
+    /// </summary>
+    public async Task<CryptoResult<byte[]>> EncryptAsync(
+        byte[] data,
+        byte network,
+        byte[] publicKey,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (data == null || data.Length == 0)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, "Data cannot be null or empty");
+
+            if (publicKey == null || publicKey.Length == 0)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "Public key cannot be null or empty");
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var networkType = (WalletNetworks)network;
+            return networkType switch
+            {
+                WalletNetworks.ED25519 => await EncryptED25519Async(data, publicKey, cancellationToken),
+                WalletNetworks.NISTP256 => await EncryptNISTP256Async(data, publicKey, cancellationToken),
+                WalletNetworks.RSA4096 => await EncryptRSA4096Async(data, publicKey, cancellationToken),
+                _ => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return CryptoResult<byte[]>.Failure(CryptoStatus.Cancelled, "Operation was cancelled");
+        }
+        catch (Exception ex)
+        {
+            return CryptoResult<byte[]>.Failure(CryptoStatus.EncryptionFailed, $"Encryption failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Decrypts data with a private key.
+    /// </summary>
+    public async Task<CryptoResult<byte[]>> DecryptAsync(
+        byte[] ciphertext,
+        byte network,
+        byte[] privateKey,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (ciphertext == null || ciphertext.Length == 0)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, "Ciphertext cannot be null or empty");
+
+            if (privateKey == null || privateKey.Length == 0)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "Private key cannot be null or empty");
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var networkType = (WalletNetworks)network;
+            return networkType switch
+            {
+                WalletNetworks.ED25519 => await DecryptED25519Async(ciphertext, privateKey, cancellationToken),
+                WalletNetworks.NISTP256 => await DecryptNISTP256Async(ciphertext, privateKey, cancellationToken),
+                WalletNetworks.RSA4096 => await DecryptRSA4096Async(ciphertext, privateKey, cancellationToken),
+                _ => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return CryptoResult<byte[]>.Failure(CryptoStatus.Cancelled, "Operation was cancelled");
+        }
+        catch (Exception ex)
+        {
+            return CryptoResult<byte[]>.Failure(CryptoStatus.DecryptionFailed, $"Decryption failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Calculates public key from private key.
+    /// </summary>
+    public async Task<CryptoResult<byte[]>> CalculatePublicKeyAsync(
+        byte network,
+        byte[] privateKey,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (privateKey == null || privateKey.Length == 0)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "Private key cannot be null or empty");
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var networkType = (WalletNetworks)network;
+            return networkType switch
+            {
+                WalletNetworks.ED25519 => await CalculateED25519PublicKeyAsync(privateKey, cancellationToken),
+                WalletNetworks.NISTP256 => await CalculateNISTP256PublicKeyAsync(privateKey, cancellationToken),
+                WalletNetworks.RSA4096 => await CalculateRSA4096PublicKeyAsync(privateKey, cancellationToken),
+                _ => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return CryptoResult<byte[]>.Failure(CryptoStatus.Cancelled, "Operation was cancelled");
+        }
+        catch (Exception ex)
+        {
+            return CryptoResult<byte[]>.Failure(CryptoStatus.UnexpectedError, $"Failed to calculate public key: {ex.Message}");
+        }
+    }
+
+    #region ED25519 Implementation
+
+    private Task<CryptoResult<KeySet>> GenerateED25519KeySetAsync(byte[]? seed, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            KeyPair keyPair;
+            if (seed != null && seed.Length > 0)
+            {
+                // Ensure seed is exactly 32 bytes
+                byte[] ed25519Seed = new byte[32];
+                Array.Copy(seed, 0, ed25519Seed, 0, Math.Min(seed.Length, 32));
+                keyPair = PublicKeyAuth.GenerateKeyPair(ed25519Seed);
+            }
+            else
+            {
+                keyPair = PublicKeyAuth.GenerateKeyPair();
+            }
+
+            var keySet = new KeySet
+            {
+                PrivateKey = new CryptoKey(WalletNetworks.ED25519, keyPair.PrivateKey),
+                PublicKey = new CryptoKey(WalletNetworks.ED25519, keyPair.PublicKey)
+            };
+
+            return CryptoResult<KeySet>.Success(keySet);
+        }, cancellationToken);
+    }
+
+    private Task<CryptoResult<byte[]>> SignED25519Async(byte[] hash, byte[] privateKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (privateKey.Length != 64)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "ED25519 private key must be 64 bytes");
+
+            var signature = PublicKeyAuth.SignDetached(hash, privateKey);
+            return CryptoResult<byte[]>.Success(signature);
+        }, cancellationToken);
+    }
+
+    private Task<CryptoStatus> VerifyED25519Async(byte[] signature, byte[] hash, byte[] publicKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (publicKey.Length != 32)
+                return CryptoStatus.InvalidKey;
+
+            if (signature.Length != 64)
+                return CryptoStatus.InvalidSignature;
+
+            bool isValid = PublicKeyAuth.VerifyDetached(signature, hash, publicKey);
+            return isValid ? CryptoStatus.Success : CryptoStatus.InvalidSignature;
+        }, cancellationToken);
+    }
+
+    private Task<CryptoResult<byte[]>> EncryptED25519Async(byte[] data, byte[] publicKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (publicKey.Length != 32)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "ED25519 public key must be 32 bytes");
+
+            // Convert Ed25519 public key to Curve25519 for encryption
+            var curve25519PublicKey = PublicKeyAuth.ConvertEd25519PublicKeyToCurve25519PublicKey(publicKey);
+            var ciphertext = SealedPublicKeyBox.Create(data, curve25519PublicKey);
+
+            return CryptoResult<byte[]>.Success(ciphertext);
+        }, cancellationToken);
+    }
+
+    private Task<CryptoResult<byte[]>> DecryptED25519Async(byte[] ciphertext, byte[] privateKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (privateKey.Length != 64)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "ED25519 private key must be 64 bytes");
+
+            // Convert Ed25519 private key to Curve25519 for decryption
+            var curve25519PrivateKey = PublicKeyAuth.ConvertEd25519SecretKeyToCurve25519SecretKey(privateKey);
+
+            // Extract public key from private key and convert to Curve25519
+            var ed25519PublicKey = PublicKeyAuth.ExtractEd25519PublicKeyFromEd25519SecretKey(privateKey);
+            var curve25519PublicKey = PublicKeyAuth.ConvertEd25519PublicKeyToCurve25519PublicKey(ed25519PublicKey);
+
+            var plaintext = SealedPublicKeyBox.Open(ciphertext, curve25519PrivateKey, curve25519PublicKey);
+
+            return CryptoResult<byte[]>.Success(plaintext);
+        }, cancellationToken);
+    }
+
+    private Task<CryptoResult<byte[]>> CalculateED25519PublicKeyAsync(byte[] privateKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (privateKey.Length != 64)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "ED25519 private key must be 64 bytes");
+
+            var publicKey = PublicKeyAuth.ExtractEd25519PublicKeyFromEd25519SecretKey(privateKey);
+            return CryptoResult<byte[]>.Success(publicKey);
+        }, cancellationToken);
+    }
+
+    #endregion
+
+    #region NIST P-256 Implementation
+
+    private Task<CryptoResult<KeySet>> GenerateNISTP256KeySetAsync(byte[]? seed, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var parameters = ecdsa.ExportParameters(true);
+
+            // Private key is the D parameter
+            var privateKey = parameters.D!;
+
+            // Public key is X and Y coordinates concatenated
+            var publicKey = new byte[64];
+            Array.Copy(parameters.Q.X!, 0, publicKey, 0, 32);
+            Array.Copy(parameters.Q.Y!, 0, publicKey, 32, 32);
+
+            var keySet = new KeySet
+            {
+                PrivateKey = new CryptoKey(WalletNetworks.NISTP256, privateKey),
+                PublicKey = new CryptoKey(WalletNetworks.NISTP256, publicKey)
+            };
+
+            return CryptoResult<KeySet>.Success(keySet);
+        }, cancellationToken);
+    }
+
+    private Task<CryptoResult<byte[]>> SignNISTP256Async(byte[] hash, byte[] privateKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (privateKey.Length != 32)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "NIST P-256 private key must be 32 bytes");
+
+            var parameters = new ECParameters
+            {
+                Curve = ECCurve.NamedCurves.nistP256,
+                D = privateKey
+            };
+
+            using var ecdsa = ECDsa.Create(parameters);
+            var signature = ecdsa.SignHash(hash);
+
+            return CryptoResult<byte[]>.Success(signature);
+        }, cancellationToken);
+    }
+
+    private Task<CryptoStatus> VerifyNISTP256Async(byte[] signature, byte[] hash, byte[] publicKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (publicKey.Length != 64)
+                return CryptoStatus.InvalidKey;
+
+            var qx = new byte[32];
+            var qy = new byte[32];
+            Array.Copy(publicKey, 0, qx, 0, 32);
+            Array.Copy(publicKey, 32, qy, 0, 32);
+
+            var parameters = new ECParameters
+            {
+                Curve = ECCurve.NamedCurves.nistP256,
+                Q = new ECPoint { X = qx, Y = qy }
+            };
+
+            using var ecdsa = ECDsa.Create(parameters);
+            bool isValid = ecdsa.VerifyHash(hash, signature);
+
+            return isValid ? CryptoStatus.Success : CryptoStatus.InvalidSignature;
+        }, cancellationToken);
+    }
+
+    private Task<CryptoResult<byte[]>> EncryptNISTP256Async(byte[] data, byte[] publicKey, CancellationToken cancellationToken)
+    {
+        // ECIES implementation for NIST P-256
+        return Task.FromResult(CryptoResult<byte[]>.Failure(
+            CryptoStatus.EncryptionFailed,
+            "NIST P-256 encryption not yet implemented"));
+    }
+
+    private Task<CryptoResult<byte[]>> DecryptNISTP256Async(byte[] ciphertext, byte[] privateKey, CancellationToken cancellationToken)
+    {
+        // ECIES implementation for NIST P-256
+        return Task.FromResult(CryptoResult<byte[]>.Failure(
+            CryptoStatus.DecryptionFailed,
+            "NIST P-256 decryption not yet implemented"));
+    }
+
+    private Task<CryptoResult<byte[]>> CalculateNISTP256PublicKeyAsync(byte[] privateKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (privateKey.Length != 32)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "NIST P-256 private key must be 32 bytes");
+
+            var parameters = new ECParameters
+            {
+                Curve = ECCurve.NamedCurves.nistP256,
+                D = privateKey
+            };
+
+            using var ecdsa = ECDsa.Create(parameters);
+            var exportedParams = ecdsa.ExportParameters(false);
+
+            var publicKey = new byte[64];
+            Array.Copy(exportedParams.Q.X!, 0, publicKey, 0, 32);
+            Array.Copy(exportedParams.Q.Y!, 0, publicKey, 32, 32);
+
+            return CryptoResult<byte[]>.Success(publicKey);
+        }, cancellationToken);
+    }
+
+    #endregion
+
+    #region RSA-4096 Implementation
+
+    private Task<CryptoResult<KeySet>> GenerateRSA4096KeySetAsync(CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var rsa = RSA.Create(4096);
+
+            var privateKeyBytes = rsa.ExportRSAPrivateKey();
+            var publicKeyBytes = rsa.ExportRSAPublicKey();
+
+            var keySet = new KeySet
+            {
+                PrivateKey = new CryptoKey(WalletNetworks.RSA4096, privateKeyBytes),
+                PublicKey = new CryptoKey(WalletNetworks.RSA4096, publicKeyBytes)
+            };
+
+            return CryptoResult<KeySet>.Success(keySet);
+        }, cancellationToken);
+    }
+
+    private Task<CryptoResult<byte[]>> SignRSA4096Async(byte[] hash, byte[] privateKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var rsa = RSA.Create();
+            rsa.ImportRSAPrivateKey(privateKey, out _);
+
+            var signature = rsa.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+            return CryptoResult<byte[]>.Success(signature);
+        }, cancellationToken);
+    }
+
+    private Task<CryptoStatus> VerifyRSA4096Async(byte[] signature, byte[] hash, byte[] publicKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var rsa = RSA.Create();
+            rsa.ImportRSAPublicKey(publicKey, out _);
+
+            bool isValid = rsa.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+            return isValid ? CryptoStatus.Success : CryptoStatus.InvalidSignature;
+        }, cancellationToken);
+    }
+
+    private Task<CryptoResult<byte[]>> EncryptRSA4096Async(byte[] data, byte[] publicKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // RSA-4096 can only encrypt small amounts of data
+            // Maximum is (key_size_in_bytes - padding_overhead)
+            // For OAEP with SHA-256: 4096/8 - 2*32 - 2 = 446 bytes max
+            if (data.Length > 446)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter,
+                    "Data too large for RSA-4096 encryption (max 446 bytes)");
+
+            using var rsa = RSA.Create();
+            rsa.ImportRSAPublicKey(publicKey, out _);
+
+            var ciphertext = rsa.Encrypt(data, RSAEncryptionPadding.OaepSHA256);
+
+            return CryptoResult<byte[]>.Success(ciphertext);
+        }, cancellationToken);
+    }
+
+    private Task<CryptoResult<byte[]>> DecryptRSA4096Async(byte[] ciphertext, byte[] privateKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var rsa = RSA.Create();
+            rsa.ImportRSAPrivateKey(privateKey, out _);
+
+            var plaintext = rsa.Decrypt(ciphertext, RSAEncryptionPadding.OaepSHA256);
+
+            return CryptoResult<byte[]>.Success(plaintext);
+        }, cancellationToken);
+    }
+
+    private Task<CryptoResult<byte[]>> CalculateRSA4096PublicKeyAsync(byte[] privateKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var rsa = RSA.Create();
+            rsa.ImportRSAPrivateKey(privateKey, out _);
+
+            var publicKeyBytes = rsa.ExportRSAPublicKey();
+
+            return CryptoResult<byte[]>.Success(publicKeyBytes);
+        }, cancellationToken);
+    }
+
+    #endregion
+}
