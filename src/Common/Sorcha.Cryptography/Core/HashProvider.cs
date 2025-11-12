@@ -110,8 +110,8 @@ public class HashProvider : IHashProvider
         if (hashSize != 32 && hashSize != 64)
             throw new ArgumentException("Blake2b hash size must be 32 or 64 bytes", nameof(hashSize));
 
-        // Use libsodium's Blake2b implementation
-        return CryptoHash.Hash(data);
+        // Use libsodium's Blake2b implementation with custom output length
+        return GenericHash.Hash(data, null, hashSize);
     }
 
     private async Task<byte[]> ComputeBlake2bStreamAsync(Stream stream, int hashSize, CancellationToken cancellationToken)
@@ -134,9 +134,8 @@ public class HashProvider : IHashProvider
             throw new ArgumentException("Blake2b hash size must be 32 or 64 bytes", nameof(hashSize));
 
         // Use libsodium's Blake2b with key (HMAC-like functionality)
-        // Note: CryptoHash.Hash only takes one parameter, so we'll concatenate key and data
-        byte[] keyedData = key.Concat(data).ToArray();
-        return CryptoHash.Hash(keyedData);
+        // GenericHash.Hash supports keyed hashing natively
+        return GenericHash.Hash(data, key, hashSize);
     }
 
     #endregion
