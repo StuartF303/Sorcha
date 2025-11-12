@@ -35,7 +35,7 @@ public class TransactionDistributionService
     /// Distributes a transaction using gossip protocol
     /// </summary>
     public async Task<bool> DistributeTransactionAsync(
-        TransactionNotification transaction,
+        Core.TransactionNotification transaction,
         CancellationToken cancellationToken = default)
     {
         try
@@ -88,7 +88,7 @@ public class TransactionDistributionService
     /// </summary>
     private async Task<bool> SendToPeerAsync(
         Core.PeerNode peer,
-        TransactionNotification transaction,
+        Core.TransactionNotification transaction,
         CancellationToken cancellationToken)
     {
         try
@@ -127,7 +127,7 @@ public class TransactionDistributionService
     /// Queues a transaction for later distribution (offline mode)
     /// </summary>
     public async Task<bool> QueueTransactionAsync(
-        TransactionNotification transaction,
+        Core.TransactionNotification transaction,
         CancellationToken cancellationToken = default)
     {
         return await _queueManager.EnqueueAsync(transaction, cancellationToken);
