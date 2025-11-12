@@ -249,23 +249,30 @@ public class SymmetricCrypto : ISymmetricCrypto
     {
         return Task.Run(() =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            byte[] nonce = GenerateIV(EncryptionType.CHACHA20_POLY1305);
-
-            // Use libsodium's ChaCha20-Poly1305
-            // Additional data parameter must be an empty array (not null) when no AAD is needed
-            byte[] ciphertext = SecretAeadChaCha20Poly1305.Encrypt(plaintext, nonce, key, Array.Empty<byte>());
-
-            var result = new SymmetricCiphertext
+            try
             {
-                Data = ciphertext,
-                Key = key,
-                IV = nonce,
-                Type = EncryptionType.CHACHA20_POLY1305
-            };
+                cancellationToken.ThrowIfCancellationRequested();
 
-            return CryptoResult<SymmetricCiphertext>.Success(result);
+                byte[] nonce = GenerateIV(EncryptionType.CHACHA20_POLY1305);
+
+                // Use libsodium's ChaCha20-Poly1305
+                // Additional data parameter must be an empty array (not null) when no AAD is needed
+                byte[] ciphertext = SecretAeadChaCha20Poly1305.Encrypt(plaintext, nonce, key, Array.Empty<byte>());
+
+                var result = new SymmetricCiphertext
+                {
+                    Data = ciphertext,
+                    Key = key,
+                    IV = nonce,
+                    Type = EncryptionType.CHACHA20_POLY1305
+                };
+
+                return CryptoResult<SymmetricCiphertext>.Success(result);
+            }
+            catch (Exception ex)
+            {
+                return CryptoResult<SymmetricCiphertext>.Failure(CryptoStatus.EncryptionFailed, $"ChaCha20-Poly1305 encryption failed: {ex.Message}");
+            }
         }, cancellationToken);
     }
 
@@ -275,11 +282,18 @@ public class SymmetricCrypto : ISymmetricCrypto
     {
         return Task.Run(() =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
 
-            byte[] plaintext = SecretAeadChaCha20Poly1305.Decrypt(ciphertext.Data, ciphertext.IV, ciphertext.Key, Array.Empty<byte>());
+                byte[] plaintext = SecretAeadChaCha20Poly1305.Decrypt(ciphertext.Data, ciphertext.IV, ciphertext.Key, Array.Empty<byte>());
 
-            return CryptoResult<byte[]>.Success(plaintext);
+                return CryptoResult<byte[]>.Success(plaintext);
+            }
+            catch (Exception ex)
+            {
+                return CryptoResult<byte[]>.Failure(CryptoStatus.DecryptionFailed, $"ChaCha20-Poly1305 decryption failed: {ex.Message}");
+            }
         }, cancellationToken);
     }
 
@@ -294,23 +308,30 @@ public class SymmetricCrypto : ISymmetricCrypto
     {
         return Task.Run(() =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            byte[] nonce = GenerateIV(EncryptionType.XCHACHA20_POLY1305);
-
-            // Use libsodium's XChaCha20-Poly1305
-            // Additional data parameter must be an empty array (not null) when no AAD is needed
-            byte[] ciphertext = SecretAead.Encrypt(plaintext, nonce, key, Array.Empty<byte>());
-
-            var result = new SymmetricCiphertext
+            try
             {
-                Data = ciphertext,
-                Key = key,
-                IV = nonce,
-                Type = EncryptionType.XCHACHA20_POLY1305
-            };
+                cancellationToken.ThrowIfCancellationRequested();
 
-            return CryptoResult<SymmetricCiphertext>.Success(result);
+                byte[] nonce = GenerateIV(EncryptionType.XCHACHA20_POLY1305);
+
+                // Use libsodium's XChaCha20-Poly1305 (non-obsolete API)
+                // Additional data parameter must be an empty array (not null) when no AAD is needed
+                byte[] ciphertext = SecretAeadXChaCha20Poly1305.Encrypt(plaintext, nonce, key, Array.Empty<byte>());
+
+                var result = new SymmetricCiphertext
+                {
+                    Data = ciphertext,
+                    Key = key,
+                    IV = nonce,
+                    Type = EncryptionType.XCHACHA20_POLY1305
+                };
+
+                return CryptoResult<SymmetricCiphertext>.Success(result);
+            }
+            catch (Exception ex)
+            {
+                return CryptoResult<SymmetricCiphertext>.Failure(CryptoStatus.EncryptionFailed, $"XChaCha20-Poly1305 encryption failed: {ex.Message}");
+            }
         }, cancellationToken);
     }
 
@@ -320,11 +341,18 @@ public class SymmetricCrypto : ISymmetricCrypto
     {
         return Task.Run(() =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
 
-            byte[] plaintext = SecretAead.Decrypt(ciphertext.Data, ciphertext.IV, ciphertext.Key, Array.Empty<byte>());
+                byte[] plaintext = SecretAeadXChaCha20Poly1305.Decrypt(ciphertext.Data, ciphertext.IV, ciphertext.Key, Array.Empty<byte>());
 
-            return CryptoResult<byte[]>.Success(plaintext);
+                return CryptoResult<byte[]>.Success(plaintext);
+            }
+            catch (Exception ex)
+            {
+                return CryptoResult<byte[]>.Failure(CryptoStatus.DecryptionFailed, $"XChaCha20-Poly1305 decryption failed: {ex.Message}");
+            }
         }, cancellationToken);
     }
 
