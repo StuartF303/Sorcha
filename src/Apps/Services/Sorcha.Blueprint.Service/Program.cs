@@ -4,7 +4,7 @@
 using Microsoft.AspNetCore.OutputCaching;
 using Scalar.AspNetCore;
 using System.Collections.Concurrent;
-using Sorcha.Blueprint.Api.JsonLd;
+using Sorcha.Blueprint.Service.JsonLd;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -38,7 +38,7 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference(options =>
     {
         options
-            .WithTitle("Blueprint API")
+            .WithTitle("Blueprint Service")
             .WithTheme(ScalarTheme.Purple)
             .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
     });
@@ -248,7 +248,7 @@ app.MapGet("/api/health", async (IBlueprintStore blueprintStore, IPublishedBluep
         return Results.Ok(new
         {
             status = "healthy",
-            service = "blueprint-api",
+            service = "blueprint-service",
             timestamp = DateTimeOffset.UtcNow,
             version = "1.0.0",
             uptime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString(@"dd\.hh\:mm\:ss"),
@@ -264,7 +264,7 @@ app.MapGet("/api/health", async (IBlueprintStore blueprintStore, IPublishedBluep
         return Results.Json(new
         {
             status = "unhealthy",
-            service = "blueprint-api",
+            service = "blueprint-service",
             timestamp = DateTimeOffset.UtcNow,
             error = ex.Message
         }, statusCode: 503);

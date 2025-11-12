@@ -7,7 +7,7 @@ using Sorcha.Blueprint.Models.JsonLd;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Sorcha.Blueprint.Api.JsonLd;
+namespace Sorcha.Blueprint.Service.JsonLd;
 
 /// <summary>
 /// Middleware for JSON-LD content negotiation
