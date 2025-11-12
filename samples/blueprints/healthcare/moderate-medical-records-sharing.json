@@ -1,0 +1,739 @@
+{
+  "id": "moderate-medical-records-sharing-v1",
+  "title": "Medical Records Sharing and Consent",
+  "description": "A five-step workflow for sharing medical records between healthcare providers with explicit patient consent. Patient authorizes release, primary provider prepares records, specialist receives and acknowledges, and patient receives confirmation.",
+  "version": 1,
+  "metadata": {
+    "sector": "Healthcare",
+    "complexity": "Moderate",
+    "actions": "5",
+    "category": "Health Information Exchange",
+    "compliance": "HIPAA, GDPR",
+    "features": "Patient Consent, Selective Disclosure, Multi-Provider"
+  },
+  "participants": [
+    {
+      "id": "patient",
+      "name": "Patient (Mary Johnson)",
+      "organisation": "Self",
+      "walletAddress": "0xP0T1234567890ABCDEF1234567890ABCDEF12345",
+      "didUri": "did:example:patient-mjohnson",
+      "useStealthAddress": true
+    },
+    {
+      "id": "primary-provider",
+      "name": "Dr. Emily Roberts",
+      "organisation": "Riverside Family Health Center",
+      "walletAddress": "0xP0P2345678901BCDEF2345678901BCDEF234567",
+      "didUri": "did:example:dr-roberts-primary"
+    },
+    {
+      "id": "specialist-provider",
+      "name": "Dr. James Wilson",
+      "organisation": "Metro Oncology Specialists",
+      "walletAddress": "0xS0P3456789012CDEF3456789012CDEF345678",
+      "didUri": "did:example:dr-wilson-oncology"
+    },
+    {
+      "id": "records-custodian",
+      "name": "Health Information Management",
+      "organisation": "Riverside Family Health Center",
+      "walletAddress": "0xR0C4567890123DEF4567890123DEF456789",
+      "didUri": "did:example:riverside-him"
+    },
+    {
+      "id": "compliance-officer",
+      "name": "Privacy & Compliance Officer",
+      "organisation": "Riverside Family Health Center",
+      "walletAddress": "0xC0O5678901234EF5678901234EF5678901",
+      "didUri": "did:example:riverside-compliance"
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Patient Authorization for Release",
+      "description": "Patient provides explicit authorization to release medical records",
+      "sender": "patient",
+      "target": "primary-provider",
+      "additionalRecipients": ["records-custodian", "compliance-officer"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "patientName": {
+              "type": "string",
+              "title": "Patient Name",
+              "minLength": 2,
+              "maxLength": 100
+            },
+            "patientDOB": {
+              "type": "string",
+              "format": "date",
+              "title": "Date of Birth"
+            },
+            "patientSSN": {
+              "type": "string",
+              "title": "Last 4 digits of SSN",
+              "pattern": "^\\d{4}$"
+            },
+            "recipientProvider": {
+              "type": "string",
+              "title": "Recipient Healthcare Provider",
+              "maxLength": 200
+            },
+            "recipientAddress": {
+              "type": "string",
+              "title": "Recipient Address",
+              "maxLength": 500
+            },
+            "purposeOfDisclosure": {
+              "type": "string",
+              "title": "Purpose of Disclosure",
+              "enum": ["Continuing Care", "Treatment", "Insurance Claim", "Legal Proceedings", "Personal Use", "Other"],
+              "default": "Continuing Care"
+            },
+            "recordsRequested": {
+              "type": "array",
+              "title": "Records Requested",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Complete Medical History",
+                  "Lab Results",
+                  "Imaging Reports",
+                  "Medication History",
+                  "Immunization Records",
+                  "Operative Reports",
+                  "Consultation Notes",
+                  "Discharge Summaries",
+                  "Mental Health Records",
+                  "Substance Abuse Records"
+                ]
+              }
+            },
+            "dateRangeFrom": {
+              "type": "string",
+              "format": "date",
+              "title": "Records From Date"
+            },
+            "dateRangeTo": {
+              "type": "string",
+              "format": "date",
+              "title": "Records To Date"
+            },
+            "expirationDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Authorization Expiration Date"
+            },
+            "deliveryMethod": {
+              "type": "string",
+              "title": "Delivery Method",
+              "enum": ["Electronic (Secure)", "Mail", "Fax", "In-Person Pickup"],
+              "default": "Electronic (Secure)"
+            },
+            "patientSignature": {
+              "type": "string",
+              "title": "Patient Digital Signature",
+              "minLength": 10
+            },
+            "signatureDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Signature Date"
+            }
+          },
+          "required": [
+            "patientName",
+            "patientDOB",
+            "patientSSN",
+            "recipientProvider",
+            "purposeOfDisclosure",
+            "recordsRequested",
+            "dateRangeFrom",
+            "dateRangeTo",
+            "expirationDate",
+            "deliveryMethod",
+            "patientSignature",
+            "signatureDate"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "primary-provider",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "records-custodian",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "compliance-officer",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Authorization for Release of Medical Information",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Patient Information",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/patientName",
+                "title": "Full Name"
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "DateTime",
+                    "scope": "/patientDOB",
+                    "title": "Date of Birth"
+                  },
+                  {
+                    "type": "TextLine",
+                    "scope": "/patientSSN",
+                    "title": "Last 4 digits of SSN"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Recipient Information",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/recipientProvider",
+                "title": "Recipient Healthcare Provider"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/recipientAddress",
+                "title": "Recipient Address"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Records to be Released",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/purposeOfDisclosure",
+                "title": "Purpose of Disclosure"
+              },
+              {
+                "type": "Label",
+                "title": "Select Records Requested (check all that apply)"
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "DateTime",
+                    "scope": "/dateRangeFrom",
+                    "title": "From Date"
+                  },
+                  {
+                    "type": "DateTime",
+                    "scope": "/dateRangeTo",
+                    "title": "To Date"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Delivery & Authorization",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/deliveryMethod",
+                "title": "Delivery Method"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/expirationDate",
+                "title": "Authorization Expiration Date"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/patientSignature",
+                "title": "Digital Signature"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/signatureDate",
+                "title": "Signature Date"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "title": "Compliance Review",
+      "description": "Compliance officer reviews authorization for validity and completeness",
+      "sender": "compliance-officer",
+      "target": "records-custodian",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "authorizationValid": {
+              "type": "boolean",
+              "title": "Authorization is Valid"
+            },
+            "hipaaCompliant": {
+              "type": "boolean",
+              "title": "HIPAA Compliant"
+            },
+            "identityVerified": {
+              "type": "boolean",
+              "title": "Patient Identity Verified"
+            },
+            "complianceNotes": {
+              "type": "string",
+              "title": "Compliance Notes",
+              "maxLength": 1000
+            },
+            "restrictedRecords": {
+              "type": "boolean",
+              "title": "Contains Restricted Records (Mental Health/Substance Abuse)",
+              "default": false
+            }
+          },
+          "required": ["authorizationValid", "hipaaCompliant", "identityVerified"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "records-custodian",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "primary-provider",
+          "dataPointers": ["/authorizationValid", "/complianceNotes"]
+        }
+      ],
+      "condition": {
+        "if": [
+          { "and": [{ "var": "authorizationValid" }, { "var": "hipaaCompliant" }, { "var": "identityVerified" }] },
+          "records-custodian",
+          "patient"
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Compliance Review",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/authorizationValid",
+            "title": "Authorization is complete and valid"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/hipaaCompliant",
+            "title": "Request is HIPAA compliant"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/identityVerified",
+            "title": "Patient identity has been verified"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/restrictedRecords",
+            "title": "Request includes restricted records (Mental Health/Substance Abuse)"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/complianceNotes",
+            "title": "Compliance Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Prepare Medical Records",
+      "description": "Records custodian compiles and prepares requested medical records",
+      "sender": "records-custodian",
+      "target": "primary-provider",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "recordsCompiled": {
+              "type": "boolean",
+              "title": "Records Compiled"
+            },
+            "numberOfPages": {
+              "type": "integer",
+              "title": "Number of Pages",
+              "minimum": 1
+            },
+            "recordsSummary": {
+              "type": "string",
+              "title": "Summary of Records Included",
+              "maxLength": 2000
+            },
+            "redactionsApplied": {
+              "type": "boolean",
+              "title": "Redactions Applied (if any)",
+              "default": false
+            },
+            "redactionReason": {
+              "type": "string",
+              "title": "Reason for Redactions",
+              "maxLength": 500
+            },
+            "recordsPackageHash": {
+              "type": "string",
+              "title": "Package Integrity Hash (SHA-256)",
+              "minLength": 64,
+              "maxLength": 64
+            },
+            "preparationDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Preparation Date"
+            },
+            "copyFee": {
+              "type": "number",
+              "title": "Copy Fee (if applicable)",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "required": [
+            "recordsCompiled",
+            "numberOfPages",
+            "recordsSummary",
+            "recordsPackageHash",
+            "preparationDate"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "primary-provider",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "patient",
+          "dataPointers": ["/recordsCompiled", "/numberOfPages", "/recordsSummary", "/preparationDate", "/copyFee"]
+        },
+        {
+          "participantAddress": "compliance-officer",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Medical Records Package",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/recordsCompiled",
+            "title": "Records have been compiled"
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "Numeric",
+                "scope": "/numberOfPages",
+                "title": "Number of Pages"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/preparationDate",
+                "title": "Preparation Date"
+              }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/recordsSummary",
+            "title": "Summary of Records Included"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/redactionsApplied",
+            "title": "Redactions were applied"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/redactionReason",
+            "title": "Reason for Redactions (if applicable)"
+          },
+          {
+            "type": "TextLine",
+            "scope": "/recordsPackageHash",
+            "title": "Package Integrity Hash (SHA-256)"
+          },
+          {
+            "type": "Numeric",
+            "scope": "/copyFee",
+            "title": "Copy Fee (if applicable)"
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "Transmit Records",
+      "description": "Primary provider transmits records to specialist provider",
+      "sender": "primary-provider",
+      "target": "specialist-provider",
+      "additionalRecipients": ["patient"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "transmissionMethod": {
+              "type": "string",
+              "title": "Transmission Method",
+              "enum": ["Secure Direct Messaging", "Encrypted Email", "Secure Portal", "VPN Transfer"],
+              "default": "Secure Direct Messaging"
+            },
+            "transmissionDate": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Transmission Date/Time"
+            },
+            "encryptionMethod": {
+              "type": "string",
+              "title": "Encryption Method",
+              "enum": ["AES-256", "TLS 1.3", "PGP", "S/MIME"],
+              "default": "AES-256"
+            },
+            "confirmationRequired": {
+              "type": "boolean",
+              "title": "Acknowledgment Required",
+              "default": true
+            },
+            "providerNotes": {
+              "type": "string",
+              "title": "Provider Notes to Specialist",
+              "maxLength": 2000
+            },
+            "urgency": {
+              "type": "string",
+              "title": "Urgency",
+              "enum": ["Routine", "Urgent", "Stat"],
+              "default": "Routine"
+            }
+          },
+          "required": ["transmissionMethod", "transmissionDate", "encryptionMethod"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "specialist-provider",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "patient",
+          "dataPointers": ["/transmissionDate", "/urgency"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Records Transmission",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/transmissionMethod",
+                "title": "Transmission Method"
+              },
+              {
+                "type": "Selection",
+                "scope": "/encryptionMethod",
+                "title": "Encryption Method"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "DateTime",
+                "scope": "/transmissionDate",
+                "title": "Transmission Date/Time"
+              },
+              {
+                "type": "Selection",
+                "scope": "/urgency",
+                "title": "Urgency"
+              }
+            ]
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/confirmationRequired",
+            "title": "Require acknowledgment of receipt"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/providerNotes",
+            "title": "Notes to Receiving Provider"
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "title": "Acknowledge Receipt",
+      "description": "Specialist provider acknowledges receipt and confirms record integrity",
+      "sender": "specialist-provider",
+      "target": "primary-provider",
+      "additionalRecipients": ["patient", "records-custodian"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "received": {
+              "type": "boolean",
+              "title": "Records Received"
+            },
+            "receiptDate": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Receipt Date/Time"
+            },
+            "integrityVerified": {
+              "type": "boolean",
+              "title": "Package Integrity Verified"
+            },
+            "recordsComplete": {
+              "type": "boolean",
+              "title": "Records Appear Complete"
+            },
+            "recordsReadable": {
+              "type": "boolean",
+              "title": "Records Are Readable"
+            },
+            "integratedIntoEMR": {
+              "type": "boolean",
+              "title": "Integrated into EMR System"
+            },
+            "receiverNotes": {
+              "type": "string",
+              "title": "Receiver Notes",
+              "maxLength": 1000
+            },
+            "issuesEncountered": {
+              "type": "string",
+              "title": "Issues Encountered (if any)",
+              "maxLength": 1000
+            }
+          },
+          "required": [
+            "received",
+            "receiptDate",
+            "integrityVerified",
+            "recordsComplete",
+            "recordsReadable"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "primary-provider",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "patient",
+          "dataPointers": ["/received", "/receiptDate", "/recordsComplete"]
+        },
+        {
+          "participantAddress": "records-custodian",
+          "dataPointers": ["/received", "/receiptDate", "/integrityVerified", "/issuesEncountered"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Receipt Acknowledgment",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/received",
+            "title": "I confirm receipt of medical records"
+          },
+          {
+            "type": "DateTime",
+            "scope": "/receiptDate",
+            "title": "Receipt Date/Time"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Record Verification",
+            "elements": [
+              {
+                "type": "Checkbox",
+                "scope": "/integrityVerified",
+                "title": "Package integrity verified (hash match)"
+              },
+              {
+                "type": "Checkbox",
+                "scope": "/recordsComplete",
+                "title": "Records appear complete"
+              },
+              {
+                "type": "Checkbox",
+                "scope": "/recordsReadable",
+                "title": "Records are readable and usable"
+              },
+              {
+                "type": "Checkbox",
+                "scope": "/integratedIntoEMR",
+                "title": "Records integrated into EMR system"
+              }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/receiverNotes",
+            "title": "Notes"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/issuesEncountered",
+            "title": "Issues Encountered (if any)"
+          }
+        ]
+      }
+    }
+  ]
+}

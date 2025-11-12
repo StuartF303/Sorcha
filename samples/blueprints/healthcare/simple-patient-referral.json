@@ -1,0 +1,361 @@
+{
+  "id": "simple-patient-referral-v1",
+  "title": "Simple Patient Referral",
+  "description": "A basic three-step workflow where a primary care physician refers a patient to a specialist, who accepts the referral and schedules an appointment.",
+  "version": 1,
+  "metadata": {
+    "sector": "Healthcare",
+    "complexity": "Simple",
+    "actions": "3",
+    "category": "Patient Care",
+    "compliance": "HIPAA"
+  },
+  "participants": [
+    {
+      "id": "primary-care",
+      "name": "Dr. Sarah Johnson",
+      "organisation": "City Family Medicine",
+      "walletAddress": "0x1A2B3C4D5E6F7890123456789ABCDEF012345678",
+      "didUri": "did:example:dr-johnson-pcp"
+    },
+    {
+      "id": "specialist",
+      "name": "Dr. Michael Chen",
+      "organisation": "Advanced Cardiology Associates",
+      "walletAddress": "0x9876543210FEDCBA9876543210FEDCBA98765432",
+      "didUri": "did:example:dr-chen-cardio"
+    },
+    {
+      "id": "patient",
+      "name": "Patient (John Smith)",
+      "organisation": "Self",
+      "walletAddress": "0xABCDEF1234567890ABCDEF1234567890ABCDEF12",
+      "didUri": "did:example:patient-jsmith",
+      "useStealthAddress": true
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Create Referral",
+      "description": "Primary care physician creates a referral to a specialist",
+      "sender": "primary-care",
+      "target": "specialist",
+      "additionalRecipients": ["patient"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "patientName": {
+              "type": "string",
+              "title": "Patient Name",
+              "minLength": 2,
+              "maxLength": 100
+            },
+            "patientDOB": {
+              "type": "string",
+              "format": "date",
+              "title": "Patient Date of Birth"
+            },
+            "patientMRN": {
+              "type": "string",
+              "title": "Medical Record Number",
+              "minLength": 5,
+              "maxLength": 20
+            },
+            "reasonForReferral": {
+              "type": "string",
+              "title": "Reason for Referral",
+              "minLength": 10,
+              "maxLength": 1000
+            },
+            "urgency": {
+              "type": "string",
+              "title": "Urgency Level",
+              "enum": ["Routine", "Urgent", "Emergency"],
+              "default": "Routine"
+            },
+            "clinicalSummary": {
+              "type": "string",
+              "title": "Clinical Summary",
+              "maxLength": 2000
+            },
+            "currentMedications": {
+              "type": "string",
+              "title": "Current Medications",
+              "maxLength": 1000
+            },
+            "allergies": {
+              "type": "string",
+              "title": "Known Allergies",
+              "maxLength": 500
+            },
+            "insuranceProvider": {
+              "type": "string",
+              "title": "Insurance Provider",
+              "maxLength": 100
+            },
+            "insurancePolicyNumber": {
+              "type": "string",
+              "title": "Insurance Policy Number",
+              "maxLength": 50
+            }
+          },
+          "required": ["patientName", "patientDOB", "patientMRN", "reasonForReferral", "urgency"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "specialist",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "patient",
+          "dataPointers": ["/reasonForReferral", "/urgency", "/clinicalSummary"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Referral Information",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Patient Information",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/patientName",
+                "title": "Patient Name"
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "DateTime",
+                    "scope": "/patientDOB",
+                    "title": "Date of Birth"
+                  },
+                  {
+                    "type": "TextLine",
+                    "scope": "/patientMRN",
+                    "title": "Medical Record Number"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Referral Details",
+            "elements": [
+              {
+                "type": "Selection",
+                "scope": "/urgency",
+                "title": "Urgency Level"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/reasonForReferral",
+                "title": "Reason for Referral"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/clinicalSummary",
+                "title": "Clinical Summary"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Medical History",
+            "elements": [
+              {
+                "type": "TextArea",
+                "scope": "/currentMedications",
+                "title": "Current Medications"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/allergies",
+                "title": "Known Allergies"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Insurance Information",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/insuranceProvider",
+                "title": "Insurance Provider"
+              },
+              {
+                "type": "TextLine",
+                "scope": "/insurancePolicyNumber",
+                "title": "Policy Number"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "title": "Accept Referral",
+      "description": "Specialist reviews and accepts the referral",
+      "sender": "specialist",
+      "target": "primary-care",
+      "additionalRecipients": ["patient"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "accepted": {
+              "type": "boolean",
+              "title": "Accept Referral"
+            },
+            "estimatedWaitTime": {
+              "type": "string",
+              "title": "Estimated Wait Time for Appointment",
+              "maxLength": 100
+            },
+            "specialistNotes": {
+              "type": "string",
+              "title": "Specialist Notes",
+              "maxLength": 500
+            }
+          },
+          "required": ["accepted"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "primary-care",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "patient",
+          "dataPointers": ["/accepted", "/estimatedWaitTime"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Referral Response",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/accepted",
+            "title": "I accept this referral"
+          },
+          {
+            "type": "TextLine",
+            "scope": "/estimatedWaitTime",
+            "title": "Estimated Wait Time for Appointment"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/specialistNotes",
+            "title": "Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Schedule Appointment",
+      "description": "Specialist schedules an appointment with the patient",
+      "sender": "specialist",
+      "target": "patient",
+      "additionalRecipients": ["primary-care"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "appointmentDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Appointment Date"
+            },
+            "appointmentTime": {
+              "type": "string",
+              "format": "time",
+              "title": "Appointment Time"
+            },
+            "location": {
+              "type": "string",
+              "title": "Location/Address",
+              "maxLength": 300
+            },
+            "preparationInstructions": {
+              "type": "string",
+              "title": "Preparation Instructions",
+              "maxLength": 1000
+            },
+            "contactPhone": {
+              "type": "string",
+              "title": "Contact Phone Number",
+              "maxLength": 20
+            }
+          },
+          "required": ["appointmentDate", "appointmentTime", "location", "contactPhone"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "patient",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "primary-care",
+          "dataPointers": ["/appointmentDate", "/appointmentTime"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Appointment Details",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "DateTime",
+                "scope": "/appointmentDate",
+                "title": "Appointment Date"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/appointmentTime",
+                "title": "Appointment Time"
+              }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/location",
+            "title": "Location/Address"
+          },
+          {
+            "type": "TextLine",
+            "scope": "/contactPhone",
+            "title": "Contact Phone Number"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/preparationInstructions",
+            "title": "Preparation Instructions"
+          }
+        ]
+      }
+    }
+  ]
+}
