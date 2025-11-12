@@ -65,7 +65,7 @@ public class PeerServiceTests
     public void Constructor_ShouldThrowArgumentNullException_WhenConfigurationIsNull()
     {
         // Act
-        var act = () => new PeerService(_loggerMock.Object, null!);
+        var act = () => new PeerService(_loggerMock.Object, null!, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
