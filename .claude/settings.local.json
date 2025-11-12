@@ -35,7 +35,10 @@
       "Bash(findstr:*)",
       "Bash(taskkill:*)",
       "Bash(if exist \"src\\Apps\\Orchestration\\Sorcha.AppHost\" rmdir /s /q \"src\\Apps\\Orchestration\\Sorcha.AppHost\")",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(if exist \"src\\Apps\\UI\\Sorcha.Blueprint.Designer\" rmdir /s /q \"src\\Apps\\UI\\Sorcha.Blueprint.Designer\")",
+      "Bash(git rm:*)",
+      "Bash(dotnet sln:*)"
     ],
     "deny": [],
     "ask": []
