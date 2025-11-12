@@ -1,3 +1,5 @@
+using System;
+
 namespace Sorcha.Cryptography.Utilities;
 
 /// <summary>

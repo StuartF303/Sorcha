@@ -1,3 +1,4 @@
+using System;
 using Sorcha.Cryptography.Enums;
 
 namespace Sorcha.Cryptography.Extensions;
