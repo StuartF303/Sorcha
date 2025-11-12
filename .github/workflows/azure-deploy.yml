@@ -86,7 +86,7 @@ jobs:
       run: |
         docker build -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blueprint-api:${{ github.sha }} \
           -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blueprint-api:latest \
-          -f src/Apps/Services/Sorcha.Blueprint.Api/Dockerfile .
+          -f src/Services/Sorcha.Blueprint.Service/Dockerfile .
         docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blueprint-api:${{ github.sha }}
         docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/blueprint-api:latest
 
@@ -94,7 +94,7 @@ jobs:
       run: |
         docker build -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/api-gateway:${{ github.sha }} \
           -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/api-gateway:latest \
-          -f src/Apps/Services/Sorcha.ApiGateway/Dockerfile .
+          -f src/Services/Sorcha.ApiGateway/Dockerfile .
         docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/api-gateway:${{ github.sha }}
         docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/api-gateway:latest
 
@@ -102,7 +102,7 @@ jobs:
       run: |
         docker build -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/peer-service:${{ github.sha }} \
           -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/peer-service:latest \
-          -f src/Apps/Services/Sorcha.Peer.Service/Dockerfile .
+          -f src/Services/Sorcha.Peer.Service/Dockerfile .
         docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/peer-service:${{ github.sha }}
         docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/peer-service:latest
 
