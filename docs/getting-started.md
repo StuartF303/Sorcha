@@ -6,7 +6,7 @@ This guide will help you get Sorcha up and running on your local development mac
 
 Before you begin, ensure you have the following installed:
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (RC2 or later)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (version 10.0.100 or later)
 - [Git](https://git-scm.com/)
 - A code editor:
   - [Visual Studio 2025](https://visualstudio.microsoft.com/) (recommended for Windows)
@@ -215,7 +215,7 @@ Ensure you have .NET 10 SDK installed:
 dotnet --version
 ```
 
-Should show `10.0.100-rc.2.XXXXX` or later.
+Should show `10.0.100` or later.
 
 ## Next Steps
 

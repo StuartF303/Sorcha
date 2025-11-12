@@ -28,7 +28,7 @@ This Specification Kit (spec-kit) defines the complete set of architectural prin
 **Sorcha** is a modern .NET 10 blueprint execution engine and designer for data flow orchestration with multi-participant workflow capabilities.
 
 ### Core Technologies
-- **.NET 10** (RC2) with C# 13
+- **.NET 10** (10.0.100) with C# 13
 - **ASP.NET Core 10** (Minimal APIs)
 - **Blazor Server & WebAssembly**
 - **.NET Aspire 9.5.2** (Orchestration)

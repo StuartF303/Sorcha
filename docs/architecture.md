@@ -554,7 +554,7 @@ Build Pipeline:
 ## Technology Stack
 
 ### Runtime
-- .NET 10 (RC2)
+- .NET 10 (10.0.100)
 - C# 13
 - ASP.NET Core
 

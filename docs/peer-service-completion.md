@@ -214,7 +214,7 @@ This document summarizes the complete implementation of the Sorcha Peer Service,
 
 ## Dependencies
 
-- .NET 10 (RC2)
+- .NET 10 (10.0.100)
 - Grpc.AspNetCore 2.60.0
 - Google.Protobuf 3.25.1
 - Microsoft.Data.Sqlite 8.0.0
