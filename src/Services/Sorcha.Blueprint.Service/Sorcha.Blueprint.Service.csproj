@@ -13,8 +13,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Common\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj" />
-    <ProjectReference Include="..\..\..\Common\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
+    <ProjectReference Include="..\..\Common\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\Common\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
   </ItemGroup>
 
 </Project>

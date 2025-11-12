@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Common\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\Common\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

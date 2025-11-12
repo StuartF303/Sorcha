@@ -2,10 +2,10 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Microsoft.AspNetCore.Http.Features;
-using Sorcha.Blueprint.Models;
 using Sorcha.Blueprint.Models.JsonLd;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
 
 namespace Sorcha.Blueprint.Service.JsonLd;
 
@@ -73,7 +73,7 @@ public static class JsonLdHelper
     /// <summary>
     /// Ensures blueprint has JSON-LD context (adds if missing)
     /// </summary>
-    public static Models.Blueprint EnsureJsonLdContext(Models.Blueprint blueprint, string? categoryHint = null)
+    public static BlueprintModel EnsureJsonLdContext(BlueprintModel blueprint, string? categoryHint = null)
     {
         if (blueprint.JsonLdContext == null)
         {
@@ -107,8 +107,8 @@ public static class JsonLdHelper
     /// <summary>
     /// Ensures collection of blueprints have JSON-LD context
     /// </summary>
-    public static IEnumerable<Models.Blueprint> EnsureJsonLdContext(
-        IEnumerable<Models.Blueprint> blueprints,
+    public static IEnumerable<BlueprintModel> EnsureJsonLdContext(
+        IEnumerable<BlueprintModel> blueprints,
         string? categoryHint = null)
     {
         return blueprints.Select(b => EnsureJsonLdContext(b, categoryHint));
@@ -123,7 +123,7 @@ public static class JsonLdResults
     /// <summary>
     /// Returns a blueprint with JSON-LD context if requested
     /// </summary>
-    public static IResult Ok(HttpContext context, Models.Blueprint blueprint)
+    public static IResult Ok(HttpContext context, BlueprintModel blueprint)
     {
         if (context.AcceptsJsonLd())
         {
@@ -137,7 +137,7 @@ public static class JsonLdResults
     /// <summary>
     /// Returns a collection of blueprints with JSON-LD context if requested
     /// </summary>
-    public static IResult Ok(HttpContext context, IEnumerable<Models.Blueprint> blueprints)
+    public static IResult Ok(HttpContext context, IEnumerable<BlueprintModel> blueprints)
     {
         if (context.AcceptsJsonLd())
         {
@@ -150,7 +150,7 @@ public static class JsonLdResults
     /// <summary>
     /// Returns a created blueprint with JSON-LD context if requested
     /// </summary>
-    public static IResult Created(HttpContext context, string location, Models.Blueprint blueprint)
+    public static IResult Created(HttpContext context, string location, BlueprintModel blueprint)
     {
         if (context.AcceptsJsonLd())
         {

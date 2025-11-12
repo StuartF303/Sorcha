@@ -44,7 +44,8 @@
       "Bash(then rm -rf \"src/Apps/Services/Sorcha.Peer.Service\")",
       "Bash(else echo \"Already removed\")",
       "Bash(fi)",
-      "Bash(dotnet clean:*)"
+      "Bash(dotnet clean:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
