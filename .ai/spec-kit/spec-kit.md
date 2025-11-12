@@ -1,7 +1,7 @@
 # Sorcha Project Specification Kit
 
-**Version:** 1.0.0
-**Last Updated:** 2025-11-11
+**Version:** 1.1.0
+**Last Updated:** 2025-11-12
 **Project:** Sorcha - Blueprint Execution Engine and Designer
 
 ---
@@ -31,16 +31,22 @@ This Specification Kit (spec-kit) defines the complete set of architectural prin
 - **.NET 10** (RC2) with C# 13
 - **ASP.NET Core 10** (Minimal APIs)
 - **Blazor Server & WebAssembly**
-- **.NET Aspire 9.5.2** (Orchestration)
-- **gRPC** (Service communication)
-- **OpenTelemetry** (Observability)
+- **.NET Aspire 9.5.2** (Service orchestration & discovery)
+- **gRPC 2.71.0** (Peer-to-peer communication)
+- **YARP 2.2.0** (Reverse proxy & API Gateway)
+- **Redis** (Distributed output caching with Aspire.StackExchange.Redis)
+- **FluentValidation 11.10.0** (Input validation)
+- **JsonSchema.Net 7.4.0** (Blueprint schema validation)
+- **OpenTelemetry 1.12.0** (Metrics, tracing, logging)
+- **Scalar 2.10.0** (API documentation UI, not Swagger UI)
 - **Docker & Azure Container Apps** (Deployment)
 
 ### Architecture
-- **Microservices**: Independent deployable services
-- **API-First**: RESTful APIs with OpenAPI/Swagger
+- **Microservices**: Independent deployable services (Blueprint API, Peer Service, API Gateway)
+- **API-First**: RESTful APIs with OpenAPI/Scalar documentation
 - **Cloud-Native**: Built for containers and cloud platforms
-- **Observable by Default**: Comprehensive telemetry
+- **Observable by Default**: Comprehensive OpenTelemetry telemetry
+- **In-Memory Storage**: Currently using in-memory stores (no database persistence yet)
 
 ---
 
@@ -61,11 +67,13 @@ This Specification Kit (spec-kit) defines the complete set of architectural prin
 - ✅ All async methods MUST follow proper async/await patterns
 
 ### 3. Security Requirements
-- ✅ Input validation REQUIRED on all external boundaries
-- ✅ JSON Schema validation REQUIRED for all blueprints
-- ✅ NO secrets in code or configuration files
-- ✅ All APIs MUST implement rate limiting
-- ✅ Security headers MUST be configured on all web services
+- ✅ Input validation REQUIRED on all external boundaries (using DataAnnotations & FluentValidation)
+- ✅ JSON Schema validation REQUIRED for all blueprints (using JsonSchema.Net)
+- ✅ NO secrets in code or configuration files (use User Secrets for dev, Azure Key Vault for prod)
+- ⚠️ Authentication/Authorization: NOT YET IMPLEMENTED (planned for future)
+- ⚠️ Rate limiting: NOT YET IMPLEMENTED (planned for future)
+- ⚠️ Security headers: Partially implemented (HTTPS redirect in Blazor, but not all services)
+- ⚠️ CORS: Currently permissive in API Gateway (needs tightening for production)
 
 ### 4. Testing Requirements
 - ✅ Unit tests REQUIRED for all business logic
@@ -87,18 +95,35 @@ This Specification Kit (spec-kit) defines the complete set of architectural prin
 ```
 Sorcha/
 ├── src/
-│   ├── Common/           # Shared libraries (Models, ServiceDefaults)
-│   ├── Core/             # Core business logic (Engine, Fluent, Schemas)
+│   ├── Common/                                    # Shared libraries
+│   │   ├── Sorcha.Blueprint.Models                # Domain models (Blueprint, Action, Participant)
+│   │   └── Sorcha.ServiceDefaults                 # Shared middleware & OpenTelemetry config
+│   ├── Core/                                      # Core business logic
+│   │   ├── Sorcha.Blueprint.Engine                # Blueprint execution (placeholder/minimal)
+│   │   ├── Sorcha.Blueprint.Fluent                # Fluent API builders
+│   │   └── Sorcha.Blueprint.Schemas               # Schema library & caching
 │   ├── Apps/
-│   │   ├── Hosting/      # Orchestration (AppHost, ServiceDefaults)
-│   │   ├── Services/     # Microservices (API, Gateway, Peer)
-│   │   └── UI/           # User interfaces (Designer Client & Server)
-│   └── Services/         # Background services
-├── tests/                # Test projects (mirrors src structure)
-├── docs/                 # Documentation
-├── infra/                # Infrastructure as Code (Azure Bicep)
-├── scripts/              # Utility scripts
-└── .ai/                  # AI assistance specifications (THIS DIRECTORY)
+│   │   ├── Hosting/                               # Orchestration
+│   │   │   ├── Sorcha.AppHost                     # .NET Aspire orchestration
+│   │   │   └── Sorcha.ServiceDefaults             # (duplicate of Common/ServiceDefaults)
+│   │   ├── Services/                              # Microservices
+│   │   │   ├── Sorcha.Blueprint.Api               # Blueprint REST API with in-memory storage
+│   │   │   ├── Sorcha.Peer.Service                # gRPC peer-to-peer service
+│   │   │   └── Sorcha.ApiGateway                  # YARP reverse proxy & OpenAPI aggregation
+│   │   └── UI/                                    # User interfaces
+│   │       ├── Sorcha.Blueprint.Designer          # Blazor Server application
+│   │       └── Sorcha.Blueprint.Designer.Client   # Blazor WebAssembly client
+├── tests/                                         # Test projects (xUnit, Moq, FluentAssertions)
+│   ├── Sorcha.Blueprint.Models.Tests
+│   ├── Sorcha.Blueprint.Fluent.Tests
+│   ├── Sorcha.Blueprint.Schemas.Tests
+│   ├── Sorcha.Peer.Service.Tests
+│   ├── Sorcha.Integration.Tests                   # End-to-end tests
+│   └── ... (10 test projects total)
+├── docs/                                          # Documentation
+├── infra/                                         # Infrastructure as Code (Azure Bicep)
+├── scripts/                                       # Utility scripts
+└── .ai/                                           # AI assistance specifications (THIS DIRECTORY)
 ```
 
 ---
@@ -119,12 +144,14 @@ Sorcha/
 ## Domain Model
 
 ### Core Entities
-- **Blueprint**: Root workflow definition with title, description, participants, and actions
-- **Action**: Workflow step with data schemas, routing, disclosures, and calculations
-- **Participant**: Workflow party with ID, name, organization, and DID
-- **Disclosure**: Data visibility rule using JSON Pointers
-- **Condition**: Routing logic using JSON Logic expressions
-- **Calculation**: Computed field with JSON Logic expressions
+- **Blueprint**: Root workflow definition with title, description, version, participants, actions, and optional JSON-LD context
+- **Action**: Workflow step with sender, target, data schemas, routing conditions, disclosures, calculations, and optional UI form controls
+- **Participant**: Workflow party with ID, name, organization, wallet address, optional DID (Decentralized Identifier), optional Verifiable Credential, and privacy features (stealth address support)
+- **Disclosure**: Data visibility rule using JSON Pointers to control what data participants can see
+- **Condition**: Routing logic using JSON Logic expressions for conditional workflow branching
+- **Calculation**: Computed field with JSON Logic expressions for deriving values
+- **PublishedBlueprint**: Immutable versioned snapshot of a blueprint with publish metadata
+- **SchemaDocument**: JSON Schema with metadata (source, category, usage statistics)
 
 ### Ubiquitous Language
 Use these terms consistently across code, docs, and discussions:
@@ -132,7 +159,9 @@ Use these terms consistently across code, docs, and discussions:
 - **Action** (not "step" or "task")
 - **Participant** (not "user" or "party")
 - **Disclosure** (not "visibility" or "access control")
-- **Execution Context** (not "runtime" or "session")
+- **Publish** (not "deploy" or "release") - creating immutable blueprint versions
+- **JSON-LD Context** - semantic web metadata for blueprints
+- **Fluent Builder** - API pattern for constructing blueprints programmatically
 
 ---
 
@@ -219,6 +248,7 @@ Changes that require spec-kit updates:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1.0 | 2025-11-12 | Updated to reflect actual codebase implementation, added accurate technology stack, clarified security status |
 | 1.0.0 | 2025-11-11 | Initial spec-kit creation |
 
 ---

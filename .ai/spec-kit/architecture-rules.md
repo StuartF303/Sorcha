@@ -1,6 +1,6 @@
 # Architecture Rules
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Status:** MANDATORY
 **Audience:** All developers and AI assistants
 
@@ -21,15 +21,17 @@ This document defines the architectural rules and patterns that MUST be followed
 │  Presentation Layer                                  │
 │  - Blazor Server UI (Designer)                      │
 │  - Blazor WASM Client                               │
-│  - OpenAPI/Swagger UI                               │
+│  - Scalar API Documentation UI                      │
 └─────────────────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────┐
-│  API Gateway Layer                                   │
+│  API Gateway Layer (YARP Reverse Proxy)             │
 │  - Request routing                                   │
-│  - Service discovery                                 │
-│  - Authentication/Authorization                      │
-│  - Rate limiting                                     │
+│  - Service discovery (via .NET Aspire)              │
+│  - OpenAPI aggregation                              │
+│  - CORS (currently permissive)                      │
+│  - ⚠️ Authentication/Authorization NOT YET IMPL     │
+│  - ⚠️ Rate limiting NOT YET IMPLEMENTED             │
 └─────────────────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────┐
@@ -111,14 +113,15 @@ Each service MUST be:
 
 ### Service Catalog
 
-| Service | Port(s) | Protocol | Responsibility |
-|---------|---------|----------|----------------|
-| **AppHost** | 15000-15100 | HTTP | Orchestration and service discovery |
-| **Blueprint.Api** | 8080, 8443 | HTTP/REST | Blueprint CRUD operations |
-| **Peer.Service** | 5050, 5051 | gRPC | P2P networking and consensus |
-| **ApiGateway** | 7070, 7071 | HTTP/REST | API routing and aggregation |
-| **Blueprint.Designer** | 5000, 5001 | HTTP/Blazor | Visual blueprint designer |
-| **Redis** | 6379 | Redis Protocol | Distributed caching |
+| Service | Port(s) | Protocol | Responsibility | Storage |
+|---------|---------|----------|----------------|---------|
+| **AppHost** | 15000-15100 | HTTP | .NET Aspire orchestration & service discovery | N/A |
+| **Blueprint.Api** | 8080, 8443 | HTTP/REST | Blueprint CRUD, publishing, version control | In-memory (InMemoryBlueprintStore) |
+| **Peer.Service** | 5050, 5051 | gRPC | P2P peer registration, transaction streaming, metrics | In-memory (InMemoryPeerRepository) |
+| **ApiGateway** | 7070, 7071 | HTTP/REST, YARP | Reverse proxy, OpenAPI aggregation, health aggregation | Stateless |
+| **Blueprint.Designer** | 5000, 5001 | HTTP/Blazor Server | Visual blueprint designer UI | Stateless (calls API Gateway) |
+| **Blueprint.Designer.Client** | Dynamic | HTTP/Blazor WASM | Client-side components | Blazored.LocalStorage |
+| **Redis** | 6379 | Redis Protocol | Distributed output caching | Persistent |
 
 ### ✅ RULES
 
@@ -196,17 +199,29 @@ POST   /api/createBlueprint
 GET    /api/blueprints/getById/{id}
 ```
 
-### OpenAPI/Swagger
+### OpenAPI/Scalar Documentation
 
 ```csharp
 // REQUIRED: OpenAPI generation
 builder.Services.AddOpenApi();
 
-app.MapOpenApi(); // Expose OpenAPI spec
+// Expose OpenAPI spec (development only)
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();  // Exposes /openapi/v1.json
 
-// REQUIRED: API documentation UI
-app.MapScalarApiReference(); // Or Swagger UI
+    // REQUIRED: Scalar API documentation UI (NOT Swagger UI)
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTitle("Blueprint API")
+            .WithTheme(ScalarTheme.Purple)
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+    });
+}
 ```
+
+**Note**: Sorcha uses **Scalar** (modern API documentation UI), not Swagger UI
 
 ### API Versioning
 
@@ -479,25 +494,51 @@ app.UseExceptionHandler(errorApp =>
 
 ## 8. Caching Strategy
 
-### Distributed Caching
+### Distributed Caching (Redis + Output Caching)
 
 ```csharp
-// REQUIRED: Use Redis for distributed caching
-builder.AddRedisOutputCache("redis");
+// REQUIRED: Use Redis for distributed output caching
+builder.AddRedisOutputCache("redis");  // Aspire.StackExchange.Redis.OutputCaching
 
-// Cache schemas (long TTL)
-app.MapGet("/api/schemas/{id}", async (string id, ISchemaRepository repo) =>
-{
-    return await repo.GetByIdAsync(id);
-})
-.CacheOutput(policy => policy.Expire(TimeSpan.FromHours(24)));
+app.UseOutputCache();  // Enable output caching middleware
 
-// Cache blueprints (shorter TTL)
-app.MapGet("/api/blueprints/{id}", async (string id, IBlueprintRepository repo) =>
+// Cache with tags for selective invalidation
+var blueprintGroup = app.MapGroup("/api/blueprints");
+
+blueprintGroup.MapGet("/", async (IBlueprintStore store) =>
 {
-    return await repo.GetByIdAsync(id);
+    return await store.GetAllAsync();
 })
-.CacheOutput(policy => policy.Expire(TimeSpan.FromMinutes(5)));
+.CacheOutput(policy => policy
+    .Expire(TimeSpan.FromMinutes(5))
+    .Tag("blueprints"));  // Tag for cache invalidation
+
+blueprintGroup.MapGet("/{id}", async (string id, IBlueprintStore store) =>
+{
+    var blueprint = await store.GetByIdAsync(id);
+    return blueprint is not null ? Results.Ok(blueprint) : Results.NotFound();
+})
+.CacheOutput(policy => policy
+    .Expire(TimeSpan.FromMinutes(5))
+    .Tag("blueprints"));
+
+// Cache invalidation on mutation
+blueprintGroup.MapPost("/", async (Blueprint blueprint, IBlueprintStore store, IOutputCacheStore cache) =>
+{
+    await store.AddAsync(blueprint);
+    await cache.EvictByTagAsync("blueprints", CancellationToken.None);  // Invalidate cache
+    return Results.Created($"/api/blueprints/{blueprint.Id}", blueprint);
+});
+
+// Published blueprints (immutable, long TTL)
+blueprintGroup.MapGet("/{id}/versions/{version}", async (string id, int version, IPublishedBlueprintStore store) =>
+{
+    var published = await store.GetVersionAsync(id, version);
+    return published is not null ? Results.Ok(published) : Results.NotFound();
+})
+.CacheOutput(policy => policy
+    .Expire(TimeSpan.FromDays(365))  // Long cache for immutable versions
+    .Tag("published"));
 ```
 
 ### Local Caching
