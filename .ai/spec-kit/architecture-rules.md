@@ -113,14 +113,14 @@ Each service MUST be:
 
 ### Service Catalog
 
-| Service | Port(s) | Protocol | Responsibility | Storage |
-|---------|---------|----------|----------------|---------|
-| **AppHost** | 15000-15100 | HTTP | .NET Aspire orchestration & service discovery | N/A |
-| **Blueprint.Service** | 8050, 8051 | HTTP/REST | Blueprint CRUD, publishing, version control | In-memory (InMemoryBlueprintStore) |
-| **Peer.Service** | 8070, 8071 | gRPC | P2P peer registration, transaction streaming, metrics | In-memory (InMemoryPeerRepository) |
-| **ApiGateway** | 8060, 8061 | HTTP/REST, YARP | Reverse proxy, OpenAPI aggregation, health aggregation | Stateless |
-| **Blueprint.Designer.Client** | 8080, 8081 | HTTP/Blazor WASM | Client-side Blazor application | Blazored.LocalStorage |
-| **Redis** | 6379 | Redis Protocol | Distributed output caching | Persistent |
+| Service | Port(s) | Protocol | Responsibility | Storage | Location |
+|---------|---------|----------|----------------|---------|----------|
+| **AppHost** | 15000-15100 | HTTP | .NET Aspire orchestration & service discovery | N/A | `src/Apps/Sorcha.AppHost/` |
+| **Blueprint.Service** | 8050, 8051 | HTTP/REST | Blueprint CRUD, publishing, version control | In-memory (InMemoryBlueprintStore) | `src/Services/Sorcha.Blueprint.Service/` |
+| **Peer.Service** | 8070, 8071 | gRPC | P2P peer registration, transaction streaming, metrics | In-memory (InMemoryPeerRepository) | `src/Services/Sorcha.Peer.Service/` |
+| **ApiGateway** | 8060, 8061 | HTTP/REST, YARP | Reverse proxy, OpenAPI aggregation, health aggregation | Stateless | `src/Services/Sorcha.ApiGateway/` |
+| **Blueprint.Designer.Client** | 8080, 8081 | HTTP/Blazor WASM | Client-side Blazor application | Blazored.LocalStorage | `src/Apps/UI/Sorcha.Blueprint.Designer.Client/` |
+| **Redis** | 6379 | Redis Protocol | Distributed output caching | Persistent | External dependency |
 
 ### ✅ RULES
 
