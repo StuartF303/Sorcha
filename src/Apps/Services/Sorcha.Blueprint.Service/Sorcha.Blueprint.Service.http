@@ -1,4 +1,4 @@
-@Sorcha.Blueprint.Api_HostAddress = http://localhost:5050
+@Sorcha.Blueprint.Api_HostAddress = http://localhost:8050
 
 GET {{Sorcha.Blueprint.Api_HostAddress}}/weatherforecast/
 Accept: application/json

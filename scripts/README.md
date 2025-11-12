@@ -17,10 +17,10 @@ bash scripts/cleanup-ports.sh
 ```
 
 ### Ports Cleaned
-- 5128 - Blazor client
-- 7080 - Blueprint API
-- 7081 - Peer Service
-- 7082 - API Gateway
+- 8050, 8051 - Blueprint Service
+- 8060, 8061 - API Gateway
+- 8070, 8071 - Peer Service
+- 8080, 8081 - Blazor Client
 - 17256 - Aspire Dashboard
 
 ## When to Use

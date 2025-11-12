@@ -116,11 +116,10 @@ Each service MUST be:
 | Service | Port(s) | Protocol | Responsibility | Storage |
 |---------|---------|----------|----------------|---------|
 | **AppHost** | 15000-15100 | HTTP | .NET Aspire orchestration & service discovery | N/A |
-| **Blueprint.Api** | 8080, 8443 | HTTP/REST | Blueprint CRUD, publishing, version control | In-memory (InMemoryBlueprintStore) |
-| **Peer.Service** | 5050, 5051 | gRPC | P2P peer registration, transaction streaming, metrics | In-memory (InMemoryPeerRepository) |
-| **ApiGateway** | 7070, 7071 | HTTP/REST, YARP | Reverse proxy, OpenAPI aggregation, health aggregation | Stateless |
-| **Blueprint.Designer** | 5000, 5001 | HTTP/Blazor Server | Visual blueprint designer UI | Stateless (calls API Gateway) |
-| **Blueprint.Designer.Client** | Dynamic | HTTP/Blazor WASM | Client-side components | Blazored.LocalStorage |
+| **Blueprint.Service** | 8050, 8051 | HTTP/REST | Blueprint CRUD, publishing, version control | In-memory (InMemoryBlueprintStore) |
+| **Peer.Service** | 8070, 8071 | gRPC | P2P peer registration, transaction streaming, metrics | In-memory (InMemoryPeerRepository) |
+| **ApiGateway** | 8060, 8061 | HTTP/REST, YARP | Reverse proxy, OpenAPI aggregation, health aggregation | Stateless |
+| **Blueprint.Designer.Client** | 8080, 8081 | HTTP/Blazor WASM | Client-side Blazor application | Blazored.LocalStorage |
 | **Redis** | 6379 | Redis Protocol | Distributed output caching | Persistent |
 
 ### ✅ RULES
