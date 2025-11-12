@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Sorcha.Cryptography.Enums;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.Cryptography.Models;
@@ -56,7 +59,7 @@ public class KeyManager : IKeyManager
 
             // Generate key set (RSA doesn't use seed)
             var keySetResult = await _cryptoModule.GenerateKeySetAsync(network, seed, cancellationToken);
-            if (!keySetResult.IsSuccess || keySetResult.Value == null)
+            if (!keySetResult.IsSuccess)
                 return CryptoResult<KeyRing>.Failure(keySetResult.Status, keySetResult.ErrorMessage);
 
             var keyRing = new KeyRing
@@ -105,7 +108,7 @@ public class KeyManager : IKeyManager
 
             // Generate key set from seed
             var keySetResult = await _cryptoModule.GenerateKeySetAsync(network, seed, cancellationToken);
-            if (!keySetResult.IsSuccess || keySetResult.Value == null)
+            if (!keySetResult.IsSuccess)
                 return CryptoResult<KeyRing>.Failure(keySetResult.Status, keySetResult.ErrorMessage);
 
             var keyRing = new KeyRing
