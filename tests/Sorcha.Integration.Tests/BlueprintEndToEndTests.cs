@@ -29,11 +29,9 @@ public class BlueprintEndToEndTests
                 .WithDescription("Buyer submits a purchase order")
                 .SentBy("buyer")
                 .RequiresData(d => d
-                    .WithTitle("Order Details")
-                    .WithDescription("Purchase order information")
-                    .AddProperty("itemName", "string", true, "Name of the item")
-                    .AddProperty("quantity", "integer", true, "Quantity to order")
-                    .AddProperty("unitPrice", "number", true, "Price per unit"))
+                    .AddString("itemName", f => f.IsRequired().WithTitle("Name of the item"))
+                    .AddInteger("quantity", f => f.IsRequired().WithTitle("Quantity to order"))
+                    .AddNumber("unitPrice", f => f.IsRequired().WithTitle("Price per unit")))
                 .Disclose("seller", d => d
                     .Field("/itemName")
                     .Field("/quantity")
@@ -99,7 +97,7 @@ public class BlueprintEndToEndTests
 
         personSchema.Should().NotBeNull();
         personSchema!.Metadata.Title.Should().Contain("Person");
-        personSchema.Schema.Should().NotBeNullOrEmpty();
+        personSchema.Schema.Should().NotBeNull();
     }
 
     [Fact]
@@ -116,9 +114,8 @@ public class BlueprintEndToEndTests
                 .WithTitle("Submit Application")
                 .SentBy("applicant")
                 .RequiresData(d => d
-                    .WithTitle("Application Data")
-                    .AddProperty("loanAmount", "number")
-                    .AddProperty("creditScore", "integer"))
+                    .AddNumber("loanAmount")
+                    .AddInteger("creditScore"))
                 .Disclose("processor", d => d
                     .AllFields())
                 .RouteToNext("processor"))
@@ -126,9 +123,9 @@ public class BlueprintEndToEndTests
                 .WithTitle("Process Application")
                 .SentBy("processor")
                 .RouteConditionally(c => c
-                    .If(cb => cb.GreaterThan("creditScore", 700))
-                    .Then("approver")
-                    .Else("applicant")))
+                    .When(cb => cb.GreaterThan("creditScore", 700))
+                    .ThenRoute("approver")
+                    .ElseRoute("applicant")))
             .AddAction(2, a => a
                 .WithTitle("Approve Loan")
                 .SentBy("approver"))
@@ -156,11 +153,10 @@ public class BlueprintEndToEndTests
                 .WithTitle("Share Medical Records")
                 .SentBy("patient")
                 .RequiresData(d => d
-                    .WithTitle("Medical Record")
-                    .AddProperty("patientName", "string")
-                    .AddProperty("diagnosis", "string")
-                    .AddProperty("treatment", "string")
-                    .AddProperty("cost", "number"))
+                    .AddString("patientName")
+                    .AddString("diagnosis")
+                    .AddString("treatment")
+                    .AddNumber("cost"))
                 .Disclose("doctor", d => d.AllFields())
                 .Disclose("specialist", d => d
                     .Field("/diagnosis")
@@ -176,13 +172,13 @@ public class BlueprintEndToEndTests
         blueprint.Participants.Should().HaveCount(4);
         blueprint.Actions[0].Disclosures.Should().HaveCount(3);
 
-        var doctorDisclosure = blueprint.Actions[0].Disclosures.First(d => d.ParticipantId == "doctor");
-        doctorDisclosure.Datapointers.Should().Contain("/*");
+        var doctorDisclosure = blueprint.Actions[0].Disclosures.First(d => d.ParticipantAddress == "doctor");
+        doctorDisclosure.DataPointers.Should().Contain("/*");
 
-        var specialistDisclosure = blueprint.Actions[0].Disclosures.First(d => d.ParticipantId == "specialist");
-        specialistDisclosure.Datapointers.Should().HaveCount(2);
+        var specialistDisclosure = blueprint.Actions[0].Disclosures.First(d => d.ParticipantAddress == "specialist");
+        specialistDisclosure.DataPointers.Should().HaveCount(2);
 
-        var insuranceDisclosure = blueprint.Actions[0].Disclosures.First(d => d.ParticipantId == "insurance");
-        insuranceDisclosure.Datapointers.Should().Contain("/cost");
+        var insuranceDisclosure = blueprint.Actions[0].Disclosures.First(d => d.ParticipantAddress == "insurance");
+        insuranceDisclosure.DataPointers.Should().Contain("/cost");
     }
 }

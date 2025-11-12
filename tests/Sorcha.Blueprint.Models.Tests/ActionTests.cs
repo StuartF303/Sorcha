@@ -206,7 +206,7 @@ public class ActionTests
 
         // Assert
         action.Participants.Should().HaveCount(2);
-        action.Participants.Should().Contain(p => p.ParticipantId == "participant-1");
+        action.Participants.Should().Contain(p => p.Principal == "participant-1");
     }
 
     [Fact]
@@ -248,8 +248,8 @@ public class ActionTests
         {
             new Disclosure
             {
-                ParticipantId = "p1",
-                Datapointers = new List<string> { "/field1", "/field2" }
+                ParticipantAddress = "p1",
+                DataPointers = new List<string> { "/field1", "/field2" }
             }
         };
 
@@ -258,7 +258,7 @@ public class ActionTests
 
         // Assert
         action.Disclosures.Should().HaveCount(1);
-        action.Disclosures.First().ParticipantId.Should().Be("p1");
+        action.Disclosures.First().ParticipantAddress.Should().Be("p1");
     }
 
     [Fact]
@@ -387,8 +387,8 @@ public class ActionTests
             {
                 new Disclosure
                 {
-                    ParticipantId = "reviewer",
-                    Datapointers = new List<string> { "/applicationData" }
+                    ParticipantAddress = "reviewer",
+                    DataPointers = new List<string> { "/applicationData" }
                 }
             }
         };

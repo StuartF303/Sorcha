@@ -3,6 +3,7 @@
 
 using FluentAssertions;
 using Sorcha.Blueprint.Fluent;
+using Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Fluent.Tests;
 
@@ -107,7 +108,7 @@ public class ActionBuilderTests
 
         // Assert
         blueprint.Actions[0].Participants.Should().NotBeNull();
-        blueprint.Actions[0].Participants.Should().Contain(p => p.ParticipantId == "p2");
+        blueprint.Actions[0].Participants.Should().Contain(p => p.Principal == "p2");
     }
 
     [Fact]
@@ -151,9 +152,9 @@ public class ActionBuilderTests
         // Assert
         blueprint.Actions[0].Disclosures.Should().HaveCount(1);
         var disclosure = blueprint.Actions[0].Disclosures.First();
-        disclosure.ParticipantId.Should().Be("seller");
-        disclosure.Datapointers.Should().Contain("/itemName");
-        disclosure.Datapointers.Should().Contain("/quantity");
+        disclosure.ParticipantAddress.Should().Be("seller");
+        disclosure.DataPointers.Should().Contain("/itemName");
+        disclosure.DataPointers.Should().Contain("/quantity");
     }
 
     [Fact]
@@ -188,9 +189,8 @@ public class ActionBuilderTests
                 .WithTitle("Order")
                 .SentBy("p1")
                 .RequiresData(d => d
-                    .WithTitle("Order Details")
-                    .AddProperty("itemName", "string")
-                    .AddProperty("quantity", "integer")));
+                    .AddString("itemName")
+                    .AddInteger("quantity")));
 
         // Act
         var blueprint = builder.Build();
@@ -236,8 +236,11 @@ public class ActionBuilderTests
                 .WithTitle("Order")
                 .SentBy("p1")
                 .WithForm(f => f
-                    .WithVerticalLayout(l => l
-                        .AddTextLine("name", "Name"))));
+                    .WithLayout(LayoutTypes.VerticalLayout)
+                    .AddControl(c => c
+                        .OfType(ControlTypes.TextLine)
+                        .WithTitle("Name")
+                        .BoundTo("#/name"))));
 
         // Act
         var blueprint = builder.Build();
@@ -260,10 +263,9 @@ public class ActionBuilderTests
                 .WithDescription("Buyer submits purchase order")
                 .SentBy("buyer")
                 .RequiresData(d => d
-                    .WithTitle("Order Data")
-                    .AddProperty("itemName", "string")
-                    .AddProperty("quantity", "integer")
-                    .AddProperty("price", "number"))
+                    .AddString("itemName")
+                    .AddInteger("quantity")
+                    .AddNumber("price"))
                 .Disclose("seller", d => d
                     .Field("/itemName")
                     .Field("/quantity")
@@ -283,6 +285,6 @@ public class ActionBuilderTests
         action.DataSchemas.Should().HaveCount(1);
         action.Disclosures.Should().HaveCount(1);
         action.Calculations.Should().ContainKey("total");
-        action.Participants.Should().Contain(p => p.ParticipantId == "seller");
+        action.Participants.Should().Contain(p => p.Principal == "seller");
     }
 }
