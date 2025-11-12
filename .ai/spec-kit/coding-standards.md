@@ -1,8 +1,10 @@
 # Coding Standards
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Status:** MANDATORY
 **Audience:** All developers and AI assistants
+
+**Note**: This document reflects the actual coding patterns used in the Sorcha codebase.
 
 ---
 

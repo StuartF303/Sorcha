@@ -1,8 +1,10 @@
 # Security Guidelines
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Status:** MANDATORY
 **Audience:** All developers and AI assistants
+
+**⚠️ IMPORTANT**: Authentication, Authorization, and Rate Limiting are NOT yet implemented in the current codebase. This document describes required future implementation.
 
 ---
 
@@ -16,10 +18,14 @@ This document defines the security requirements and best practices for the Sorch
 
 ### A01: Broken Access Control
 
-#### ✅ REQUIRED: Authorization Checks
+#### ⚠️ NOT YET IMPLEMENTED (Planned for Future)
+
+**Current Status**: No authorization checks are currently implemented. All endpoints are publicly accessible.
+
+#### Future Implementation: Authorization Checks
 
 ```csharp
-// ✅ CORRECT: Verify user has permission
+// PLANNED: Verify user has permission
 app.MapDelete("/api/blueprints/{id}", async (
     string id,
     ClaimsPrincipal user,
@@ -357,10 +363,14 @@ dotnet restore --locked-mode
 
 ### A07: Identification and Authentication Failures
 
-#### ✅ REQUIRED: Strong Authentication
+#### ⚠️ NOT YET IMPLEMENTED (Planned for Future)
+
+**Current Status**: No authentication or authorization is currently implemented. All API endpoints are publicly accessible in development.
+
+#### Future Implementation: Strong Authentication
 
 ```csharp
-// ✅ CORRECT: Use ASP.NET Core Identity or external providers
+// PLANNED: Use ASP.NET Core Identity or external providers
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -613,10 +623,14 @@ public async Task<string> FetchDataAsync(string url)
 
 ## 2. Rate Limiting
 
-### ✅ REQUIRED: API Rate Limiting
+### ⚠️ NOT YET IMPLEMENTED (Planned for Future)
+
+**Current Status**: No rate limiting is currently implemented in any service.
+
+**Future Implementation**: API Rate Limiting
 
 ```csharp
-// REQUIRED for all public APIs
+// PLANNED: Rate limiting for all public APIs
 builder.Services.AddRateLimiter(options =>
 {
     // Fixed window rate limiter
