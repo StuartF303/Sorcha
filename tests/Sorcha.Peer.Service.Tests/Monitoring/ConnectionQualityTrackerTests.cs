@@ -214,7 +214,7 @@ public class ConnectionQualityTrackerTests
     }
 
     [Fact]
-    public void RecordSuccess_ShouldIgnoreEmpty PeerId()
+    public void RecordSuccess_ShouldIgnoreEmptyPeerId()
     {
         // Act
         _tracker.RecordSuccess("", 50);
