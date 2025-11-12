@@ -3,13 +3,13 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS build
 WORKDIR /src
 
 # Copy csproj files and restore dependencies
-COPY ["src/Apps/Services/Sorcha.ApiGateway/Sorcha.ApiGateway.csproj", "src/Apps/Services/Sorcha.ApiGateway/"]
+COPY ["src/Services/Sorcha.ApiGateway/Sorcha.ApiGateway.csproj", "src/Services/Sorcha.ApiGateway/"]
 COPY ["src/Common/Sorcha.ServiceDefaults/Sorcha.ServiceDefaults.csproj", "src/Common/Sorcha.ServiceDefaults/"]
-RUN dotnet restore "src/Apps/Services/Sorcha.ApiGateway/Sorcha.ApiGateway.csproj"
+RUN dotnet restore "src/Services/Sorcha.ApiGateway/Sorcha.ApiGateway.csproj"
 
 # Copy source code and build
 COPY src/ ./src/
-WORKDIR "/src/src/Apps/Services/Sorcha.ApiGateway"
+WORKDIR "/src/src/Services/Sorcha.ApiGateway"
 RUN dotnet build "Sorcha.ApiGateway.csproj" -c Release -o /app/build
 
 # Publish stage
