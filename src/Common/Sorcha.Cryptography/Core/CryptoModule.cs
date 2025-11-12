@@ -1,5 +1,7 @@
 using System;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 using Sodium;
 using Sorcha.Cryptography.Enums;
 using Sorcha.Cryptography.Interfaces;
