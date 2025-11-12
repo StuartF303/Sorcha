@@ -5,6 +5,7 @@ using Grpc.Net.Client;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sorcha.Peer.Service.Core;
+using Sorcha.Peer.Service.Protos;
 
 namespace Sorcha.Peer.Service.Distribution;
 
@@ -34,7 +35,7 @@ public class TransactionDistributionService
     /// Distributes a transaction using gossip protocol
     /// </summary>
     public async Task<bool> DistributeTransactionAsync(
-        TransactionNotification transaction,
+        Core.TransactionNotification transaction,
         CancellationToken cancellationToken = default)
     {
         try
@@ -87,25 +88,21 @@ public class TransactionDistributionService
     /// </summary>
     private async Task<bool> SendToPeerAsync(
         Core.PeerNode peer,
-        TransactionNotification transaction,
+        Core.TransactionNotification transaction,
         CancellationToken cancellationToken)
     {
         try
         {
             var address = $"http://{peer.Address}:{peer.Port}";
             using var channel = GrpcChannel.ForAddress(address);
-            var client = new TransactionDistribution.TransactionDistributionClient(channel);
+            var client = new Protos.TransactionDistribution.TransactionDistributionClient(channel);
 
-            var request = new TransactionNotification
+            var request = new Protos.TransactionNotification
             {
-                TransactionId = transaction.TransactionId,
-                OriginPeerId = transaction.OriginPeerId,
+                TransactionHash = transaction.TransactionId,
+                SenderPeerId = transaction.OriginPeerId,
                 Timestamp = transaction.Timestamp.ToUnixTimeSeconds(),
-                DataSize = transaction.DataSize,
-                DataHash = transaction.DataHash,
-                GossipRound = transaction.GossipRound,
-                HopCount = transaction.HopCount,
-                Ttl = transaction.TTL
+                TransactionSize = transaction.DataSize
             };
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -114,9 +111,9 @@ public class TransactionDistributionService
             var response = await client.NotifyTransactionAsync(request, cancellationToken: cts.Token);
 
             _logger.LogDebug("Sent transaction {TxId} to peer {PeerId}: {Success}",
-                transaction.TransactionId, peer.PeerId, response.Accepted);
+                transaction.TransactionId, peer.PeerId, response.WillRequest || response.AlreadyKnown);
 
-            return response.Accepted;
+            return response.WillRequest || response.AlreadyKnown;
         }
         catch (Exception ex)
         {
@@ -130,7 +127,7 @@ public class TransactionDistributionService
     /// Queues a transaction for later distribution (offline mode)
     /// </summary>
     public async Task<bool> QueueTransactionAsync(
-        TransactionNotification transaction,
+        Core.TransactionNotification transaction,
         CancellationToken cancellationToken = default)
     {
         return await _queueManager.EnqueueAsync(transaction, cancellationToken);
