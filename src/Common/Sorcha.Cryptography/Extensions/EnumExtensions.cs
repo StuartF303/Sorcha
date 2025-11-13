@@ -63,7 +63,7 @@ public static class EnumExtensions
         EncryptionType.AES_128 => 16,
         EncryptionType.AES_256 => 16,
         EncryptionType.AES_GCM => 12,
-        EncryptionType.CHACHA20_POLY1305 => 12,
+        EncryptionType.CHACHA20_POLY1305 => 8,
         EncryptionType.XCHACHA20_POLY1305 => 24,
         _ => throw new ArgumentException($"Unknown encryption type: {type}", nameof(type))
     };
