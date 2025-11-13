@@ -1,11 +1,13 @@
 using System;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Sorcha.TransactionHandler.Enums;
 using Sorcha.TransactionHandler.Interfaces;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.Cryptography.Enums;
+using Sorcha.Blueprint.Models.JsonLd;
 
 namespace Sorcha.TransactionHandler.Core;
 
@@ -64,6 +66,17 @@ public class Transaction : ITransaction
 
     /// <inheritdoc/>
     public IPayloadManager PayloadManager { get; }
+
+    /// <summary>
+    /// Register (ledger) identifier for this transaction
+    /// Used for generating DID URIs in JSON-LD format
+    /// </summary>
+    public string? RegisterId { get; set; }
+
+    /// <summary>
+    /// Block number (docket ID) this transaction is sealed in
+    /// </summary>
+    public ulong? BlockNumber { get; set; }
 
     /// <inheritdoc/>
     public async Task<TransactionStatus> SignAsync(
@@ -171,6 +184,121 @@ public class Transaction : ITransaction
             WriteIndented = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
+    }
+
+    /// <summary>
+    /// Serializes the transaction to JSON-LD format
+    /// Implements the Blockchain Transaction Format specification
+    /// </summary>
+    /// <param name="includeContext">Whether to include the @context field (default: true)</param>
+    /// <returns>JSON-LD formatted transaction</returns>
+    public string SerializeToJsonLd(bool includeContext = true)
+    {
+        var jsonLd = new JsonObject();
+
+        // Add JSON-LD context
+        if (includeContext)
+        {
+            jsonLd["@context"] = BlockchainContext.ContextUrl;
+        }
+
+        // Add JSON-LD type
+        jsonLd["@type"] = "Transaction";
+
+        // Add DID URI if RegisterId is set
+        if (!string.IsNullOrWhiteSpace(RegisterId) && !string.IsNullOrWhiteSpace(TxId))
+        {
+            jsonLd["@id"] = BlockchainContext.GenerateDidUri(RegisterId, TxId);
+        }
+
+        // Add register identifier
+        if (!string.IsNullOrWhiteSpace(RegisterId))
+        {
+            jsonLd["registerId"] = RegisterId;
+        }
+
+        // Add transaction properties
+        if (!string.IsNullOrWhiteSpace(TxId))
+        {
+            jsonLd["txId"] = TxId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(PreviousTxHash))
+        {
+            jsonLd["previousTxHash"] = PreviousTxHash;
+        }
+
+        if (BlockNumber.HasValue)
+        {
+            jsonLd["blockNumber"] = BlockNumber.Value;
+        }
+
+        jsonLd["version"] = (uint)Version;
+
+        if (Timestamp.HasValue)
+        {
+            jsonLd["timestamp"] = Timestamp.Value.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(SenderWallet))
+        {
+            jsonLd["senderWallet"] = SenderWallet;
+        }
+
+        if (Recipients != null && Recipients.Length > 0)
+        {
+            var recipientsArray = new JsonArray();
+            foreach (var recipient in Recipients)
+            {
+                recipientsArray.Add(recipient);
+            }
+            jsonLd["recipients"] = recipientsArray;
+        }
+
+        // Add metadata as embedded JSON
+        if (!string.IsNullOrWhiteSpace(Metadata))
+        {
+            try
+            {
+                var metadataObj = JsonSerializer.Deserialize<JsonObject>(Metadata);
+                if (metadataObj != null)
+                {
+                    jsonLd["metadata"] = metadataObj;
+                }
+            }
+            catch
+            {
+                // If metadata is not valid JSON, store as string
+                jsonLd["metadata"] = Metadata;
+            }
+        }
+
+        // Add signature
+        if (Signature != null)
+        {
+            jsonLd["signature"] = Convert.ToBase64String(Signature);
+        }
+
+        // Add payload count
+        jsonLd["payloadCount"] = PayloadManager.Count;
+
+        return jsonLd.ToJsonString(new JsonSerializerOptions
+        {
+            WriteIndented = true
+        });
+    }
+
+    /// <summary>
+    /// Generates the DID URI for this transaction
+    /// Requires RegisterId and TxId to be set
+    /// </summary>
+    /// <returns>DID URI or null if RegisterId or TxId is not set</returns>
+    public string? GenerateDidUri()
+    {
+        if (string.IsNullOrWhiteSpace(RegisterId) || string.IsNullOrWhiteSpace(TxId))
+            return null;
+
+        return BlockchainContext.GenerateDidUri(RegisterId, TxId);
     }
 
     /// <summary>
