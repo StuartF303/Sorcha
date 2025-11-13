@@ -8,6 +8,7 @@ using Moq;
 using Sorcha.Peer.Service.Core;
 using Sorcha.Peer.Service.Discovery;
 using Sorcha.Peer.Service.Monitoring;
+using Sorcha.Peer.Service.Network;
 
 namespace Sorcha.Peer.Service.Tests.Monitoring;
 
@@ -40,10 +41,12 @@ public class HealthMonitorServiceTests
             _configMock.Object);
 
         var discoveryLoggerMock = new Mock<ILogger<PeerDiscoveryService>>();
+        var stunClientMock = new Mock<StunClient>();
         var networkServiceMock = new Mock<NetworkAddressService>(
             Mock.Of<ILogger<NetworkAddressService>>(),
             _configMock.Object,
-            new HttpClient());
+            new HttpClient(),
+            stunClientMock.Object);
 
         _peerDiscoveryServiceMock = new Mock<PeerDiscoveryService>(
             discoveryLoggerMock.Object,

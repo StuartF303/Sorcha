@@ -5,6 +5,7 @@ using Grpc.Core;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Logging;
 using Sorcha.Peer.Service.Core;
+using Sorcha.Peer.Service.Protos;
 
 namespace Sorcha.Peer.Service.Communication;
 

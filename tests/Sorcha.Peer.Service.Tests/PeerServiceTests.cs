@@ -6,6 +6,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Sorcha.Peer.Service.Core;
+using Sorcha.Peer.Service.Discovery;
+using Sorcha.Peer.Service.Monitoring;
+using Sorcha.Peer.Service.Network;
 
 namespace Sorcha.Peer.Service.Tests;
 
@@ -13,12 +16,20 @@ public class PeerServiceTests
 {
     private readonly Mock<ILogger<PeerService>> _loggerMock;
     private readonly Mock<IOptions<PeerServiceConfiguration>> _configMock;
+    private readonly Mock<PeerListManager> _peerListManagerMock;
+    private readonly Mock<NetworkAddressService> _networkAddressServiceMock;
+    private readonly Mock<PeerDiscoveryService> _peerDiscoveryServiceMock;
+    private readonly Mock<HealthMonitorService> _healthMonitorServiceMock;
     private readonly PeerServiceConfiguration _configuration;
 
     public PeerServiceTests()
     {
         _loggerMock = new Mock<ILogger<PeerService>>();
         _configMock = new Mock<IOptions<PeerServiceConfiguration>>();
+        _peerListManagerMock = new Mock<PeerListManager>();
+        _networkAddressServiceMock = new Mock<NetworkAddressService>();
+        _peerDiscoveryServiceMock = new Mock<PeerDiscoveryService>();
+        _healthMonitorServiceMock = new Mock<HealthMonitorService>();
         _configuration = new PeerServiceConfiguration
         {
             Enabled = true,
@@ -32,7 +43,7 @@ public class PeerServiceTests
     public void Constructor_ShouldInitializeWithDependencies()
     {
         // Act
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
 
         // Assert
         service.Should().NotBeNull();
@@ -43,7 +54,7 @@ public class PeerServiceTests
     public void Constructor_ShouldThrowArgumentNullException_WhenLoggerIsNull()
     {
         // Act
-        var act = () => new PeerService(null!, _configMock.Object);
+        var act = () => new PeerService(null!, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
@@ -54,7 +65,7 @@ public class PeerServiceTests
     public void Constructor_ShouldThrowArgumentNullException_WhenConfigurationIsNull()
     {
         // Act
-        var act = () => new PeerService(_loggerMock.Object, null!);
+        var act = () => new PeerService(_loggerMock.Object, null!, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
@@ -65,7 +76,7 @@ public class PeerServiceTests
     public void Status_ShouldInitiallyBeOffline()
     {
         // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
 
         // Assert
         service.Status.Should().Be(PeerServiceStatus.Offline);
@@ -76,7 +87,7 @@ public class PeerServiceTests
     {
         // Arrange
         _configuration.NodeId = null;
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
 
         // Act - Start the service to trigger initialization
         var cts = new CancellationTokenSource();
@@ -94,7 +105,7 @@ public class PeerServiceTests
     {
         // Arrange
         _configuration.NodeId = "custom-node-123";
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
 
         // Act - Start the service to trigger initialization
         var cts = new CancellationTokenSource();
@@ -111,7 +122,7 @@ public class PeerServiceTests
     {
         // Arrange
         _configuration.Enabled = false;
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
         // Act
@@ -134,7 +145,7 @@ public class PeerServiceTests
     {
         // Arrange
         _configuration.Enabled = true;
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
         // Act
@@ -157,7 +168,7 @@ public class PeerServiceTests
     public async Task StopAsync_ShouldStopGracefully()
     {
         // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
         var cts = new CancellationTokenSource();
 
         // Act
@@ -180,7 +191,7 @@ public class PeerServiceTests
     public async Task Service_ShouldLogNodeId_AfterInitialization()
     {
         // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
         var cts = new CancellationTokenSource();
 
         // Act
@@ -203,7 +214,7 @@ public class PeerServiceTests
     public async Task Service_ShouldHandleCancellation()
     {
         // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
 
         // Act
@@ -218,7 +229,7 @@ public class PeerServiceTests
     public void Dispose_ShouldCleanupResources()
     {
         // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
 
         // Act
         service.Dispose();
@@ -231,7 +242,7 @@ public class PeerServiceTests
     public async Task Service_ShouldLogStatusChange()
     {
         // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
         var cts = new CancellationTokenSource();
 
         // Act
@@ -254,7 +265,7 @@ public class PeerServiceTests
     public async Task MultipleStartStop_ShouldWorkCorrectly()
     {
         // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object);
+        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object);
 
         // Act & Assert - Start and stop multiple times
         for (int i = 0; i < 3; i++)

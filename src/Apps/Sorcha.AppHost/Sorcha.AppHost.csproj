@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="9.5.2" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>48b6d3c5-aac5-4b29-8ee0-7bd6e7561171</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.5.2" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="9.5.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Services\Sorcha.Peer.Service\Sorcha.Peer.Service.csproj" />
+    <ProjectReference Include="..\..\Services\Sorcha.Blueprint.Service\Sorcha.Blueprint.Service.csproj" />
+    <ProjectReference Include="..\..\Services\Sorcha.ApiGateway\Sorcha.ApiGateway.csproj" />
+    <ProjectReference Include="..\UI\Sorcha.Blueprint.Designer.Client\Sorcha.Blueprint.Designer.Client.csproj" />
+  </ItemGroup>
+
+</Project>

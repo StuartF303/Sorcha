@@ -106,7 +106,7 @@ Sorcha/
 ## Technology Stack
 
 ### Runtime & Frameworks
-- .NET 10 (RC2)
+- .NET 10 (10.0.100)
 - ASP.NET Core 10
 - C# 13 with nullable reference types
 - Implicit usings enabled

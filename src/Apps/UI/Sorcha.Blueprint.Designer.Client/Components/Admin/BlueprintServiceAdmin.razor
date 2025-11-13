@@ -1,5 +1,6 @@
 @using System.Net.Http.Json
 @using Sorcha.Blueprint.Designer.Client.Models.Admin
+@using Sorcha.Blueprint.Designer.Client.Services
 @inject HttpClient Http
 
 <MudGrid>
@@ -130,15 +131,15 @@
     {
         try
         {
-            // Call the real health endpoint
-            var healthResponse = await Http.GetFromJsonAsync<BlueprintHealthResponse>("https://localhost:7080/api/health");
+            // Call the real health endpoint via API Gateway
+            var healthResponse = await Http.GetFromJsonAsync<BlueprintHealthResponse>(ApiConfiguration.BlueprintStatusUrl);
 
             if (healthResponse != null && healthResponse.Status == "healthy")
             {
                 serviceStatus = new ServiceStatus
                 {
                     IsRunning = true,
-                    Endpoint = "https://localhost:7080"
+                    Endpoint = ApiConfiguration.BlueprintApiUrl
                 };
 
                 // Parse uptime string to seconds for display

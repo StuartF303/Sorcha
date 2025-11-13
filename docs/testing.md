@@ -241,7 +241,8 @@ dotnet test
 dotnet test --verbosity normal
 
 # Run tests in a specific project
-dotnet test tests/Sorcha.Blueprint.Models.Tests
+dotnet test tests/Sorcha.Blueprint.Api.Tests
+dotnet test tests/Sorcha.Cryptography.Tests
 
 # Run tests in parallel (default)
 dotnet test --parallel
@@ -251,9 +252,18 @@ dotnet test --collect:"XPlat Code Coverage"
 
 # Filter tests by name
 dotnet test --filter "FullyQualifiedName~BlueprintBuilder"
+dotnet test --filter "FullyQualifiedName~CryptoModule"
 
 # Filter tests by category
 dotnet test --filter "Category=Integration"
+
+# Run specific crypto algorithm tests
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~ED25519"
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~NISTP256"
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~RSA4096"
+
+# Watch mode (auto-rerun on file changes)
+dotnet watch test --project tests/Sorcha.Cryptography.Tests
 ```
 
 ### Visual Studio
@@ -468,6 +478,278 @@ public async Task GetAllSchemasAsync_ShouldCallRepository()
     // Assert
     mockRepo.Verify(r => r.GetAllSchemasAsync(It.IsAny<CancellationToken>()), Times.Once);
 }
+```
+
+## Cryptography Library Testing
+
+### Overview
+
+The Sorcha.Cryptography library includes comprehensive tests for:
+- **Key Generation**: ED25519, NISTP256, RSA4096
+- **Digital Signatures**: Sign and verify operations
+- **Encryption**: Symmetric and asymmetric encryption
+- **Hashing**: SHA-256, SHA-512
+- **Encoding**: Base64, Hex utilities
+
+### Running Crypto Tests
+
+```bash
+# Run all cryptography tests
+dotnet test tests/Sorcha.Cryptography.Tests
+
+# Run specific algorithm tests
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~ED25519"
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~NISTP256"
+dotnet test tests/Sorcha.Cryptography.Tests --filter "FullyQualifiedName~RSA4096"
+
+# Run with detailed output
+dotnet test tests/Sorcha.Cryptography.Tests --logger "console;verbosity=detailed"
+
+# Run with code coverage
+dotnet test tests/Sorcha.Cryptography.Tests --collect:"XPlat Code Coverage"
+```
+
+### Performance Testing Crypto Operations
+
+#### Example: Key Generation Performance Test
+
+```csharp
+using System.Diagnostics;
+using Sorcha.Cryptography.Core;
+using Sorcha.Cryptography.Enums;
+
+public class CryptoPerformanceTests
+{
+    [Fact]
+    public async Task KeyGeneration_ED25519_PerformanceTest()
+    {
+        // Arrange
+        var cryptoModule = new CryptoModule();
+        const int iterations = 1000;
+        var stopwatch = Stopwatch.StartNew();
+
+        // Act
+        for (int i = 0; i < iterations; i++)
+        {
+            var result = await cryptoModule.GenerateKeySetAsync(WalletNetworks.ED25519);
+            result.IsSuccess.Should().BeTrue();
+        }
+
+        stopwatch.Stop();
+
+        // Assert
+        var avgTimeMs = stopwatch.ElapsedMilliseconds / (double)iterations;
+        Console.WriteLine($"ED25519 Key Generation: {iterations} iterations in {stopwatch.ElapsedMilliseconds}ms");
+        Console.WriteLine($"Average: {avgTimeMs:F2}ms per key pair");
+
+        // Performance assertion (adjust based on your requirements)
+        avgTimeMs.Should().BeLessThan(10.0, "Key generation should be fast");
+    }
+
+    [Fact]
+    public async Task Signing_ED25519_PerformanceTest()
+    {
+        // Arrange
+        var cryptoModule = new CryptoModule();
+        var keySetResult = await cryptoModule.GenerateKeySetAsync(WalletNetworks.ED25519);
+        var keySet = keySetResult.Value!;
+        byte[] hash = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes("test data"));
+
+        const int iterations = 10000;
+        var stopwatch = Stopwatch.StartNew();
+
+        // Act
+        for (int i = 0; i < iterations; i++)
+        {
+            var signResult = await cryptoModule.SignAsync(
+                hash,
+                (byte)WalletNetworks.ED25519,
+                keySet.PrivateKey.Key!);
+            signResult.IsSuccess.Should().BeTrue();
+        }
+
+        stopwatch.Stop();
+
+        // Assert
+        var avgTimeMs = stopwatch.ElapsedMilliseconds / (double)iterations;
+        Console.WriteLine($"ED25519 Signing: {iterations} iterations in {stopwatch.ElapsedMilliseconds}ms");
+        Console.WriteLine($"Average: {avgTimeMs:F2}ms per signature");
+
+        // Performance assertion
+        avgTimeMs.Should().BeLessThan(1.0, "Signing should be very fast");
+    }
+}
+```
+
+#### Example: Algorithm Comparison Test
+
+```csharp
+[Theory]
+[InlineData(WalletNetworks.ED25519, "ED25519")]
+[InlineData(WalletNetworks.NISTP256, "NISTP256")]
+[InlineData(WalletNetworks.RSA4096, "RSA4096")]
+public async Task CompareKeyGenerationPerformance(WalletNetworks network, string name)
+{
+    // Arrange
+    var cryptoModule = new CryptoModule();
+    const int iterations = 100;
+    var stopwatch = Stopwatch.StartNew();
+
+    // Act
+    for (int i = 0; i < iterations; i++)
+    {
+        var result = await cryptoModule.GenerateKeySetAsync(network);
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    stopwatch.Stop();
+
+    // Assert & Report
+    var avgTimeMs = stopwatch.ElapsedMilliseconds / (double)iterations;
+    Console.WriteLine($"{name}: {avgTimeMs:F2}ms per key pair");
+}
+```
+
+#### Example: Load Testing Signature Verification
+
+```csharp
+[Fact]
+public async Task VerifySignature_UnderLoad_ShouldSucceed()
+{
+    // Arrange
+    var cryptoModule = new CryptoModule();
+    var keySetResult = await cryptoModule.GenerateKeySetAsync(WalletNetworks.ED25519);
+    var keySet = keySetResult.Value!;
+
+    // Create multiple test signatures
+    var testData = new List<(byte[] hash, byte[] signature)>();
+    for (int i = 0; i < 100; i++)
+    {
+        byte[] hash = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes($"test data {i}"));
+        var signResult = await cryptoModule.SignAsync(
+            hash,
+            (byte)WalletNetworks.ED25519,
+            keySet.PrivateKey.Key!);
+        testData.Add((hash, signResult.Value!));
+    }
+
+    // Act - Verify all signatures under load
+    var stopwatch = Stopwatch.StartNew();
+    var tasks = testData.Select(async data =>
+    {
+        for (int i = 0; i < 100; i++)
+        {
+            var result = await cryptoModule.VerifyAsync(
+                data.signature,
+                data.hash,
+                (byte)WalletNetworks.ED25519,
+                keySet.PublicKey.Key!);
+            result.IsSuccess.Should().BeTrue();
+        }
+    });
+
+    await Task.WhenAll(tasks);
+    stopwatch.Stop();
+
+    // Assert
+    var totalVerifications = testData.Count * 100;
+    var avgTimeMs = stopwatch.ElapsedMilliseconds / (double)totalVerifications;
+    Console.WriteLine($"Verified {totalVerifications} signatures in {stopwatch.ElapsedMilliseconds}ms");
+    Console.WriteLine($"Average: {avgTimeMs:F4}ms per verification");
+}
+```
+
+### Memory and Resource Testing
+
+```csharp
+[Fact]
+public async Task KeyGeneration_MultipleIterations_ShouldNotLeak()
+{
+    // Arrange
+    var cryptoModule = new CryptoModule();
+    var initialMemory = GC.GetTotalMemory(true);
+
+    // Act - Generate many keys
+    for (int i = 0; i < 1000; i++)
+    {
+        var result = await cryptoModule.GenerateKeySetAsync(WalletNetworks.ED25519);
+        result.IsSuccess.Should().BeTrue();
+
+        // Force cleanup periodically
+        if (i % 100 == 0)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+    }
+
+    // Force final cleanup
+    GC.Collect();
+    GC.WaitForPendingFinalizers();
+    var finalMemory = GC.GetTotalMemory(true);
+
+    // Assert - Memory should not grow significantly
+    var memoryGrowthMB = (finalMemory - initialMemory) / (1024.0 * 1024.0);
+    Console.WriteLine($"Memory growth: {memoryGrowthMB:F2} MB");
+
+    memoryGrowthMB.Should().BeLessThan(50.0, "Memory growth should be minimal");
+}
+```
+
+### Integration with NBomber (Load Testing)
+
+For comprehensive load testing, integrate with the performance test project:
+
+```csharp
+// In tests/Sorcha.Performance.Tests/CryptoLoadTests.cs
+using NBomber.CSharp;
+using Sorcha.Cryptography.Core;
+using Sorcha.Cryptography.Enums;
+
+public static class CryptoLoadTests
+{
+    public static void RunCryptoLoadTest()
+    {
+        var cryptoModule = new CryptoModule();
+
+        // Key generation scenario
+        var keyGenScenario = Scenario.Create("crypto_key_generation", async context =>
+        {
+            var result = await cryptoModule.GenerateKeySetAsync(WalletNetworks.ED25519);
+            return result.IsSuccess ? Response.Ok() : Response.Fail();
+        })
+        .WithLoadSimulations(
+            Simulation.Inject(rate: 50,
+                            interval: TimeSpan.FromSeconds(1),
+                            during: TimeSpan.FromSeconds(30))
+        );
+
+        // Run the test
+        NBomberRunner
+            .RegisterScenarios(keyGenScenario)
+            .Run();
+    }
+}
+```
+
+### Crypto Test Organization
+
+```
+tests/Sorcha.Cryptography.Tests/
+├── Unit/
+│   ├── CryptoModuleTests.cs        # Core crypto operations
+│   ├── KeyManagerTests.cs          # Key management
+│   ├── HashProviderTests.cs        # Hashing functions
+│   ├── SymmetricCryptoTests.cs     # Encryption/decryption
+│   └── EncodingUtilitiesTests.cs   # Encoding utilities
+├── Performance/
+│   ├── KeyGenerationBenchmarks.cs  # Key generation perf
+│   ├── SigningBenchmarks.cs        # Signing/verify perf
+│   └── EncryptionBenchmarks.cs     # Encryption perf
+└── Integration/
+    └── CryptoEndToEndTests.cs      # Full workflow tests
 ```
 
 ## Best Practices

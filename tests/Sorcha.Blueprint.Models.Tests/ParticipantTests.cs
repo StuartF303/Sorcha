@@ -19,8 +19,8 @@ public class ParticipantTests
         participant.Id.Should().BeEmpty();
         participant.Name.Should().BeEmpty();
         participant.Organisation.Should().BeEmpty();
-        participant.Address.Should().BeEmpty();
-        participant.Did.Should().BeEmpty();
+        participant.WalletAddress.Should().BeEmpty();
+        participant.DidUri.Should().BeNull();
         participant.UseStealthAddress.Should().BeFalse();
     }
 
@@ -181,28 +181,28 @@ public class ParticipantTests
     }
 
     [Fact]
-    public void Address_ShouldAcceptValidValue()
+    public void WalletAddress_ShouldAcceptValidValue()
     {
         // Arrange
         var participant = new Participant();
         var address = "0x1234567890abcdef";
 
         // Act
-        participant.Address = address;
+        participant.WalletAddress = address;
 
         // Assert
-        participant.Address.Should().Be(address);
+        participant.WalletAddress.Should().Be(address);
     }
 
     [Fact]
-    public void Address_CanBeEmpty()
+    public void WalletAddress_CanBeEmpty()
     {
         // Arrange
         var participant = new Participant
         {
             Id = "p1",
             Name = "John Doe",
-            Address = ""
+            WalletAddress = ""
         };
         var context = new ValidationContext(participant);
         var results = new List<ValidationResult>();
@@ -215,28 +215,28 @@ public class ParticipantTests
     }
 
     [Fact]
-    public void Did_ShouldAcceptValidValue()
+    public void DidUri_ShouldAcceptValidValue()
     {
         // Arrange
         var participant = new Participant();
         var did = "did:example:123456789abcdefghi";
 
         // Act
-        participant.Did = did;
+        participant.DidUri = did;
 
         // Assert
-        participant.Did.Should().Be(did);
+        participant.DidUri.Should().Be(did);
     }
 
     [Fact]
-    public void Did_CanBeEmpty()
+    public void DidUri_CanBeNull()
     {
         // Arrange
         var participant = new Participant
         {
             Id = "p1",
             Name = "John Doe",
-            Did = ""
+            DidUri = null
         };
         var context = new ValidationContext(participant);
         var results = new List<ValidationResult>();
@@ -330,8 +330,8 @@ public class ParticipantTests
             Id = "participant-001",
             Name = "John Doe",
             Organisation = "Acme Corp",
-            Address = "0x1234567890abcdef",
-            Did = "did:example:123456789",
+            WalletAddress = "0x1234567890abcdef",
+            DidUri = "did:example:123456789",
             UseStealthAddress = true
         };
         var context = new ValidationContext(participant);

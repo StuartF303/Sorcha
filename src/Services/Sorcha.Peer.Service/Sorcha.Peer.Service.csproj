@@ -9,24 +9,24 @@
 
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.60.0" />
+    <PackageReference Include="Grpc.AspNetCore.Server.Reflection" Version="2.60.0" />
     <PackageReference Include="Grpc.Tools" Version="2.60.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Google.Protobuf" Version="3.25.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="Protos\peer_discovery.proto" GrpcServices="Server" />
-    <Protobuf Include="Protos\peer_communication.proto" GrpcServices="Server" />
-    <Protobuf Include="Protos\transaction_distribution.proto" GrpcServices="Server" />
+    <Protobuf Include="Protos\peer_discovery.proto" GrpcServices="Both" />
+    <Protobuf Include="Protos\peer_communication.proto" GrpcServices="Both" />
+    <Protobuf Include="Protos\transaction_distribution.proto" GrpcServices="Both" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Common\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
-    <ProjectReference Include="..\..\Apps\Hosting\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\Common\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

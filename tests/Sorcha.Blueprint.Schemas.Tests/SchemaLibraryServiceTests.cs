@@ -152,7 +152,7 @@ public class SchemaLibraryServiceTests
                 Category = "Test",
                 Source = SchemaSource.BuiltIn
             },
-            Schema = "{}"
+            Schema = System.Text.Json.JsonDocument.Parse("{}")
         };
 
         // Act
@@ -178,7 +178,7 @@ public class SchemaLibraryServiceTests
                 Category = "Test",
                 Source = SchemaSource.BuiltIn
             },
-            Schema = "{}"
+            Schema = System.Text.Json.JsonDocument.Parse("{}")
         };
         service.AddToFavorites(schema);
 

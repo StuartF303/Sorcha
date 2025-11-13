@@ -1,0 +1,440 @@
+{
+  "id": "simple-unemployment-claim-v1",
+  "title": "Simple Unemployment Benefits Application",
+  "description": "A straightforward three-step workflow where a claimant applies for unemployment benefits, an agency reviews the application, and then approves or denies the claim.",
+  "version": 1,
+  "metadata": {
+    "sector": "Benefits & Entitlements",
+    "complexity": "Simple",
+    "actions": "3",
+    "category": "Unemployment Insurance",
+    "jurisdiction": "State Government"
+  },
+  "participants": [
+    {
+      "id": "claimant",
+      "name": "Jane Doe",
+      "organisation": "Self",
+      "walletAddress": "0xC1A1234567890ABCDEF1234567890ABCDEF12345",
+      "didUri": "did:example:claimant-jdoe",
+      "useStealthAddress": true
+    },
+    {
+      "id": "unemployment-office",
+      "name": "Claims Processor",
+      "organisation": "State Department of Labor - Unemployment Insurance Division",
+      "walletAddress": "0xD0L5678901234FEDCBA5678901234FEDCBA567890",
+      "didUri": "did:example:state-unemployment"
+    },
+    {
+      "id": "claims-supervisor",
+      "name": "Claims Supervisor",
+      "organisation": "State Department of Labor - Unemployment Insurance Division",
+      "walletAddress": "0xS0P9876543210ABCDEF9876543210ABCDEF987654",
+      "didUri": "did:example:state-supervisor"
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Submit Unemployment Claim",
+      "description": "Claimant submits initial unemployment benefits application",
+      "sender": "claimant",
+      "target": "unemployment-office",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "firstName": {
+              "type": "string",
+              "title": "First Name",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "lastName": {
+              "type": "string",
+              "title": "Last Name",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "ssn": {
+              "type": "string",
+              "title": "Social Security Number",
+              "pattern": "^\\d{3}-\\d{2}-\\d{4}$"
+            },
+            "dateOfBirth": {
+              "type": "string",
+              "format": "date",
+              "title": "Date of Birth"
+            },
+            "address": {
+              "type": "string",
+              "title": "Mailing Address",
+              "maxLength": 300
+            },
+            "phoneNumber": {
+              "type": "string",
+              "title": "Phone Number",
+              "maxLength": 20
+            },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "title": "Email Address"
+            },
+            "lastEmployer": {
+              "type": "string",
+              "title": "Last Employer Name",
+              "minLength": 2,
+              "maxLength": 200
+            },
+            "lastDayWorked": {
+              "type": "string",
+              "format": "date",
+              "title": "Last Day Worked"
+            },
+            "reasonForSeparation": {
+              "type": "string",
+              "title": "Reason for Job Separation",
+              "enum": ["Laid Off", "Discharged", "Quit", "Strike", "Other"],
+              "default": "Laid Off"
+            },
+            "reasonDetails": {
+              "type": "string",
+              "title": "Details about Separation",
+              "maxLength": 1000
+            },
+            "weeklyWages": {
+              "type": "number",
+              "title": "Average Weekly Wages (Last 6 months)",
+              "minimum": 0
+            },
+            "claimWeekStart": {
+              "type": "string",
+              "format": "date",
+              "title": "Week Beginning Date for Claim"
+            }
+          },
+          "required": [
+            "firstName",
+            "lastName",
+            "ssn",
+            "dateOfBirth",
+            "address",
+            "phoneNumber",
+            "lastEmployer",
+            "lastDayWorked",
+            "reasonForSeparation",
+            "weeklyWages",
+            "claimWeekStart"
+          ]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "unemployment-office",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {
+        "estimatedWeeklyBenefit": {
+          "*": [
+            { "var": "weeklyWages" },
+            0.5
+          ]
+        }
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Unemployment Claim Application",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Personal Information",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/firstName",
+                    "title": "First Name"
+                  },
+                  {
+                    "type": "TextLine",
+                    "scope": "/lastName",
+                    "title": "Last Name"
+                  }
+                ]
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/ssn",
+                    "title": "Social Security Number"
+                  },
+                  {
+                    "type": "DateTime",
+                    "scope": "/dateOfBirth",
+                    "title": "Date of Birth"
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "scope": "/address",
+                "title": "Mailing Address"
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  {
+                    "type": "TextLine",
+                    "scope": "/phoneNumber",
+                    "title": "Phone Number"
+                  },
+                  {
+                    "type": "TextLine",
+                    "scope": "/email",
+                    "title": "Email Address"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Employment Information",
+            "elements": [
+              {
+                "type": "TextLine",
+                "scope": "/lastEmployer",
+                "title": "Last Employer Name"
+              },
+              {
+                "type": "DateTime",
+                "scope": "/lastDayWorked",
+                "title": "Last Day Worked"
+              },
+              {
+                "type": "Selection",
+                "scope": "/reasonForSeparation",
+                "title": "Reason for Job Separation"
+              },
+              {
+                "type": "TextArea",
+                "scope": "/reasonDetails",
+                "title": "Please provide details about your job separation"
+              },
+              {
+                "type": "Numeric",
+                "scope": "/weeklyWages",
+                "title": "Average Weekly Wages (Last 6 months)"
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Claim Information",
+            "elements": [
+              {
+                "type": "DateTime",
+                "scope": "/claimWeekStart",
+                "title": "Week Beginning Date for Claim"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "title": "Review Claim",
+      "description": "Claims processor reviews the application and determines eligibility",
+      "sender": "unemployment-office",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "eligibilityDetermined": {
+              "type": "boolean",
+              "title": "Eligibility Determined"
+            },
+            "eligible": {
+              "type": "boolean",
+              "title": "Claimant is Eligible"
+            },
+            "weeklyBenefitAmount": {
+              "type": "number",
+              "title": "Weekly Benefit Amount",
+              "minimum": 0
+            },
+            "maxBenefitWeeks": {
+              "type": "integer",
+              "title": "Maximum Benefit Weeks",
+              "minimum": 0,
+              "maximum": 52
+            },
+            "requiresAdditionalReview": {
+              "type": "boolean",
+              "title": "Requires Supervisor Review",
+              "default": false
+            },
+            "reviewNotes": {
+              "type": "string",
+              "title": "Review Notes",
+              "maxLength": 1000
+            }
+          },
+          "required": ["eligibilityDetermined", "eligible"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "claims-supervisor",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "condition": {
+        "if": [
+          { "var": "requiresAdditionalReview" },
+          "claims-supervisor",
+          "claimant"
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Claim Review",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/eligibilityDetermined",
+            "title": "I have completed the eligibility determination"
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/eligible",
+            "title": "Claimant is eligible for benefits"
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              {
+                "type": "Numeric",
+                "scope": "/weeklyBenefitAmount",
+                "title": "Weekly Benefit Amount ($)"
+              },
+              {
+                "type": "Numeric",
+                "scope": "/maxBenefitWeeks",
+                "title": "Maximum Benefit Weeks"
+              }
+            ]
+          },
+          {
+            "type": "Checkbox",
+            "scope": "/requiresAdditionalReview",
+            "title": "This claim requires supervisor review"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/reviewNotes",
+            "title": "Review Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Final Decision",
+      "description": "Final decision on the claim (either by supervisor or automatic approval)",
+      "sender": "claims-supervisor",
+      "target": "claimant",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "approved": {
+              "type": "boolean",
+              "title": "Claim Approved"
+            },
+            "effectiveDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Effective Date"
+            },
+            "denialReason": {
+              "type": "string",
+              "title": "Reason for Denial (if applicable)",
+              "maxLength": 500
+            },
+            "appealRights": {
+              "type": "string",
+              "title": "Appeal Rights Information",
+              "maxLength": 1000
+            },
+            "supervisorNotes": {
+              "type": "string",
+              "title": "Supervisor Notes",
+              "maxLength": 500
+            }
+          },
+          "required": ["approved"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "claimant",
+          "dataPointers": ["/approved", "/effectiveDate", "/denialReason", "/appealRights"]
+        },
+        {
+          "participantAddress": "unemployment-office",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Final Claim Decision",
+        "elements": [
+          {
+            "type": "Checkbox",
+            "scope": "/approved",
+            "title": "Approve this claim"
+          },
+          {
+            "type": "DateTime",
+            "scope": "/effectiveDate",
+            "title": "Effective Date"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/denialReason",
+            "title": "Reason for Denial (if applicable)"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/appealRights",
+            "title": "Appeal Rights Information"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/supervisorNotes",
+            "title": "Supervisor Notes"
+          }
+        ]
+      }
+    }
+  ]
+}
