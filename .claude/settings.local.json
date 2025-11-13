@@ -25,7 +25,10 @@
       "Bash(dotnet list:*)",
       "Bash(del:*)",
       "Bash(git log:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(dir /s /b c:projectsSorchasrc)",
+      "Bash(dir:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []
