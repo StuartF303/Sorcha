@@ -50,7 +50,7 @@ Create a production-grade distributed ledger platform that combines the benefits
 
 ### Core Services
 
-#### 1. Tenant Service
+#### 1. Tenant Service (To Be Specified)
 **Purpose:** Multi-tenant management and identity federation
 
 **Key Features:**
@@ -59,30 +59,43 @@ Create a production-grade distributed ledger platform that combines the benefits
 - Tenant-specific configuration and policies
 - API authentication and authorization
 
+**Current Status:** Boilerplate specification available at [sorcha-tenant-service.md](.specify/specs/sorcha-tenant-service.md)
+Basic tenant isolation implemented at application level.
+
 **Dependencies:**
 - Redis (caching)
-- RabbitMQ (messaging)
-- SQL storage (tenant data)
+- .NET Aspire messaging
+- PostgreSQL (tenant data)
 - Identity providers
 
 #### 2. Wallet Service
 **Purpose:** Secure wallet management and cryptographic operations
 
+**Specification:** [sorcha-wallet-service.md](.specify/specs/sorcha-wallet-service.md)
+
 **Key Features:**
-- Wallet creation and management
-- Private key encryption and storage
-- Digital signature operations
-- Multi-signature support
+- HD wallet creation and recovery (BIP32/BIP39/BIP44)
+- Multi-algorithm support (ED25519, SECP256K1, RSA)
+- Private key encryption and storage (AES-256-GCM)
+- Transaction signing and verification
+- Encrypted key storage with multiple providers (Azure KV, AWS KMS, local)
 - Access control and delegation
+- Event-driven architecture
+- Cloud-native design with .NET Aspire
 
 **Dependencies:**
-- MySQL (wallet storage with EF Core/Pomelo)
-- Azure SQL (cloud deployments)
-- Redis (caching)
-- Encryption key management (Dapr secrets)
+- PostgreSQL (wallet storage with EF Core)
+- Redis (distributed caching)
+- Azure Key Vault or AWS KMS (encryption key management)
+- Sorcha.Cryptography (cryptographic operations)
+- Sorcha.TransactionHandler (transaction management)
+- .NET Aspire (service orchestration and messaging)
 
-#### 3. Register Service
+#### 3. Register Service (To Be Specified)
 **Purpose:** Distributed ledger and block management
+
+**Current Status:** Boilerplate specification available at [sorcha-register-service.md](.specify/specs/sorcha-register-service.md)
+Stub implementation provided for wallet service integration.
 
 **Key Features:**
 - Block creation and validation
@@ -90,11 +103,13 @@ Create a production-grade distributed ledger platform that combines the benefits
 - Merkle tree management
 - Block synchronization
 - Query capabilities for ledger data
+- Transaction history retrieval (for wallet recovery)
 
 **Dependencies:**
-- MongoDB (block storage via RegisterCoreMongoDBStorage)
-- RabbitMQ (event publishing)
+- MongoDB (block storage)
+- .NET Aspire messaging
 - Redis (caching)
+- Sorcha.TransactionHandler
 
 #### 4. Peer Service
 **Purpose:** Network communication and peer discovery
@@ -167,11 +182,11 @@ Create a production-grade distributed ledger platform that combines the benefits
 ### Supporting Components
 
 #### Common Libraries
-- **SiccarCommon:** Shared utilities and common functionality
-- **SiccarPlatform:** Core platform models and abstractions
-- **SiccarPlatformCryptography:** Cryptographic operations and key management
-- **SiccarApplication:** Application-level abstractions
-- **SiccarCommonServiceClients:** HTTP clients for service-to-service communication
+- **Sorcha.Cryptography:** Cryptographic operations and key management (ED25519, SECP256K1, RSA, BIP32/BIP39/BIP44)
+- **Sorcha.TransactionHandler:** Transaction building, payload management, and versioning
+- **Sorcha.Blueprint.Models:** Blueprint and domain models
+- **Sorcha.ServiceDefaults:** Shared service configurations, OpenTelemetry, health checks
+- **Sorcha.WalletService:** Wallet management library (new)
 
 #### SDK
 - **SiccarApplicationClient:** Client SDK for application development

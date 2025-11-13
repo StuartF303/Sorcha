@@ -43,10 +43,13 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 - Use secret management (Azure Key Vault, Kubernetes secrets, local secret stores)
 
 **Cryptographic Standards**
-- Use industry-standard cryptographic libraries (SiccarPlatformCryptography)
-- Encrypt sensitive data at rest (wallet encryption keys)
-- Implement secure key management practices
+- Use industry-standard cryptographic libraries (Sorcha.Cryptography)
+- Encrypt sensitive data at rest (wallet private keys using AES-256-GCM)
+- Implement secure key management practices (Azure Key Vault, AWS KMS, or local DPAPI)
+- Support multiple cryptographic algorithms (ED25519, SECP256K1, RSA)
+- Implement BIP32/BIP39/BIP44 for HD wallet support
 - Maintain audit trails for cryptographic operations
+- Never store mnemonics - user responsibility to backup
 
 **Identity and Access Management**
 - Integrate with external identity providers (Azure AD, B2C)
@@ -119,16 +122,22 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 ### 7. Data Management
 
 **Data Storage Principles**
-- Use appropriate storage for each service (MongoDB, MySQL, Redis)
+- Use appropriate storage for each service (PostgreSQL, MongoDB, Redis)
+- Prefer PostgreSQL for relational data (Wallet Service)
+- Use MongoDB for document-oriented data (Blueprint, Register Services)
+- Use Redis for distributed caching and session state
 - Implement database migrations for schema changes
 - Maintain data backup and recovery procedures
 - Design for data sovereignty and compliance
+- Implement soft deletes for sensitive data (wallets)
 
 **State Management**
-- Use Dapr state stores for service state
+- Use .NET Aspire for service orchestration and messaging
+- Implement event-driven architecture for service communication
 - Implement event sourcing where appropriate
-- Maintain audit logs for critical operations
+- Maintain audit logs for critical operations (especially wallet operations)
 - Design for data consistency across services
+- Use optimistic concurrency control where appropriate
 
 ### 8. Observability
 
