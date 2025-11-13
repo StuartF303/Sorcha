@@ -5,7 +5,7 @@
 **Priority:** Critical
 **Estimate:** 4 hours
 **Created:** 2025-11-13
-**Specification:** [siccar-register-service.md](../specs/siccar-register-service.md)
+**Specification:** [previous-codebase-register-service.md](../specs/previous-codebase-register-service.md)
 
 ## Objective
 
