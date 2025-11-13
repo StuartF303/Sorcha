@@ -2,6 +2,27 @@
 
 A modern .NET 10 blueprint execution engine and designer for data flow orchestration.
 
+## Development Status
+
+**Current Stage:** Active Development (70% Complete) | [View Detailed Status Report](docs/development-status.md)
+
+| Component | Status | Completion |
+|-----------|--------|------------|
+| Core Libraries | Production Ready | 90% |
+| Services & APIs | Functional | 75% |
+| Testing & CI/CD | Production Ready | 95% |
+| Execution Engine | In Development | 10% |
+
+**Key Milestones:**
+- ✅ Blueprint modeling and fluent API
+- ✅ REST API for blueprint management
+- ✅ Cryptography and transaction handling
+- ✅ Production-grade CI/CD pipeline
+- 🚧 Blueprint execution engine (in progress)
+- 🚧 Transaction processing in P2P service
+
+See the [detailed development status](docs/development-status.md) for complete information on modules, testing coverage, and infrastructure.
+
 ## Overview
 
 Sorcha is a modernized, cloud-native platform for defining, designing, and executing data flow blueprints. Built on .NET 10 and leveraging .NET Aspire for cloud-native orchestration, Sorcha provides a flexible and scalable solution for workflow automation and data processing pipelines.
