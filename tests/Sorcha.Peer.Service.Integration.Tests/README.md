@@ -1,5 +1,15 @@
 # Sorcha Peer Service - Integration Tests
 
+⚠️ **STATUS: NOT COMPATIBLE - See [STATUS.md](STATUS.md) for details**
+
+These integration tests are currently **incompatible** with the refactored Peer Service architecture. The tests were written for an older, simpler service structure and need to be completely rewritten.
+
+**Do not attempt to run these tests** - they will fail. This test project has been removed from the solution until it can be updated.
+
+---
+
+## Original Documentation (For Reference)
+
 Comprehensive integration test suite for the Sorcha Peer Service covering peer discovery, communication, and streaming throughput.
 
 ## Overview
