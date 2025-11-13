@@ -1,11 +1,11 @@
-# Siccar.Cryptography Rewrite - Task Overview
+# Sorcha.Cryptography Rewrite - Task Overview
 
 **Last Updated:** 2025-11-12
 **Status:** Planning Phase
 
 ## Summary
 
-This document provides an overview of all tasks required to complete the Siccar.Cryptography library rewrite. The rewrite will transform the existing SiccarPlatformCryptography into a clean, standalone, reusable cryptography library.
+This document provides an overview of all tasks required to complete the Sorcha.Cryptography library rewrite. The rewrite will transform the existing SiccarPlatformCryptography into a clean, standalone, reusable cryptography library.
 
 ## Task Dependencies
 
@@ -38,12 +38,12 @@ TASK-001 (Project Setup)
 
 | ID | Task | Priority | Est. Hours | Status | Assignee |
 |----|------|----------|------------|--------|----------|
-| TASK-001 | Setup New Siccar.Cryptography Library Project | Critical | 4 | Not Started | - |
+| TASK-001 | Setup New Sorcha.Cryptography Library Project | Critical | 4 | Not Started | - |
 | TASK-002 | Implement Enums and Data Models | Critical | 6 | Not Started | - |
 | TASK-010 | Setup Test Project Structure | High | 4 | Not Started | - |
 
 **Deliverables:**
-- New Siccar.Cryptography project with minimal dependencies
+- New Sorcha.Cryptography project with minimal dependencies
 - All enums and models defined with XML docs
 - Test project structure ready
 - Build and packaging configured

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.0.11205.157 d18.0
+VisualStudioVersion = 18.0.11205.157
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Apps", "Apps", "{1787FE1D-075E-9E68-7218-25F1BD1BBEAB}"
 EndProject
@@ -56,6 +56,14 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Performance.Tests", "tests\Sorcha.Performance.Tests\Sorcha.Performance.Tests.csproj", "{DCC82966-0609-40E9-8296-D7B0250E157F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.UI.E2E.Tests", "tests\Sorcha.UI.E2E.Tests\Sorcha.UI.E2E.Tests.csproj", "{154ABCE4-1D32-4965-924F-8AFF7EC0B948}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{BFF2DF6E-AA54-47C7-211F-79ACCBB4577C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.TransactionHandler", "src\Common\Sorcha.TransactionHandler\Sorcha.TransactionHandler.csproj", "{CA7B1479-B46C-48D8-AB17-E037382305D7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.TransactionHandler.Tests", "tests\Sorcha.TransactionHandler.Tests\Sorcha.TransactionHandler.Tests.csproj", "{B239CB04-E08B-403C-8E94-EADC9EA66518}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -319,6 +327,30 @@ Global
 		{154ABCE4-1D32-4965-924F-8AFF7EC0B948}.Release|x64.Build.0 = Release|Any CPU
 		{154ABCE4-1D32-4965-924F-8AFF7EC0B948}.Release|x86.ActiveCfg = Release|Any CPU
 		{154ABCE4-1D32-4965-924F-8AFF7EC0B948}.Release|x86.Build.0 = Release|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Debug|x64.Build.0 = Debug|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Debug|x86.Build.0 = Debug|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Release|x64.ActiveCfg = Release|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Release|x64.Build.0 = Release|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Release|x86.ActiveCfg = Release|Any CPU
+		{CA7B1479-B46C-48D8-AB17-E037382305D7}.Release|x86.Build.0 = Release|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Debug|x64.Build.0 = Debug|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Debug|x86.Build.0 = Debug|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Release|x64.ActiveCfg = Release|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Release|x64.Build.0 = Release|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Release|x86.ActiveCfg = Release|Any CPU
+		{B239CB04-E08B-403C-8E94-EADC9EA66518}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -346,5 +378,8 @@ Global
 		{9C060B36-E0EE-4A99-A09C-6DE3145FE997} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{DCC82966-0609-40E9-8296-D7B0250E157F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{154ABCE4-1D32-4965-924F-8AFF7EC0B948} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{BFF2DF6E-AA54-47C7-211F-79ACCBB4577C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{CA7B1479-B46C-48D8-AB17-E037382305D7} = {BFF2DF6E-AA54-47C7-211F-79ACCBB4577C}
+		{B239CB04-E08B-403C-8E94-EADC9EA66518} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

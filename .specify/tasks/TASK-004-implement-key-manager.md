@@ -13,7 +13,7 @@
 Implement the Key Manager component responsible for generating, recovering, and managing cryptographic keys with BIP39-compatible mnemonic recovery phrases. This component provides the user-facing key management functionality.
 
 **Related Specifications:**
-- [Siccar.Cryptography Rewrite Spec - FR-2](../specs/siccar-cryptography-rewrite.md#fr-2-mnemonic-recovery-phrase)
+- [Sorcha.Cryptography Rewrite Spec - FR-2](../specs/siccar-cryptography-rewrite.md#fr-2-mnemonic-recovery-phrase)
 - [Current KeyManager Implementation](../../src/Common/SiccarPlatformCryptography/KeyManager.cs)
 
 **Dependencies:**
@@ -39,7 +39,7 @@ Implement IKeyManager interface and KeyManager class with full support for BIP39
 
 **Interface: Interfaces/IKeyManager.cs**
 ```csharp
-namespace Siccar.Cryptography.Interfaces;
+namespace Sorcha.Cryptography.Interfaces;
 
 /// <summary>
 /// Provides key management operations including mnemonic-based recovery.

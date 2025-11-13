@@ -13,7 +13,7 @@
 Implement data compression utilities with file type detection to avoid compressing already-compressed data. Used by payload management to reduce transaction size.
 
 **Related Specifications:**
-- [Siccar.Cryptography Rewrite Spec - FR-10](../specs/siccar-cryptography-rewrite.md#fr-10-compression)
+- [Sorcha.Cryptography Rewrite Spec - FR-10](../specs/siccar-cryptography-rewrite.md#fr-10-compression)
 - [Current WalletUtils Compression](../../src/Common/SiccarPlatformCryptography/WalletUtils.cs)
 
 **Dependencies:**
@@ -36,7 +36,7 @@ Implement ICompressionUtilities interface with Deflate compression, file type de
 
 **Interface: Interfaces/ICompressionUtilities.cs**
 ```csharp
-namespace Siccar.Cryptography.Interfaces;
+namespace Sorcha.Cryptography.Interfaces;
 
 /// <summary>
 /// Provides data compression and decompression utilities.
@@ -125,7 +125,7 @@ private static readonly Dictionary<byte[], string> MagicBytes = new()
 
 **Utilities/CompressionUtilities.cs**
 ```csharp
-namespace Siccar.Cryptography.Utilities;
+namespace Sorcha.Cryptography.Utilities;
 
 public sealed class CompressionUtilities : ICompressionUtilities
 {
@@ -245,7 +245,7 @@ public sealed class CompressionUtilities : ICompressionUtilities
 
 **Utilities/FileTypeDetector.cs**
 ```csharp
-namespace Siccar.Cryptography.Utilities;
+namespace Sorcha.Cryptography.Utilities;
 
 internal static class FileTypeDetector
 {

@@ -100,4 +100,4 @@ public interface ITransaction
 
 ---
 
-**Dependencies:** TX-001, TX-002, Siccar.Cryptography v2.0
+**Dependencies:** TX-001, TX-002, Sorcha.Cryptography v2.0

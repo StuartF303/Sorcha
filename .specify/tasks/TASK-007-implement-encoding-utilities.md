@@ -13,7 +13,7 @@
 Implement encoding and decoding utilities for Base58, Bech32, hexadecimal, and variable-length integer encoding. These utilities are essential for wallet address formatting, key encoding, and binary data serialization.
 
 **Related Specifications:**
-- [Siccar.Cryptography Rewrite Spec - FR-7, FR-8](../specs/siccar-cryptography-rewrite.md#fr-7-wallet-address-encoding)
+- [Sorcha.Cryptography Rewrite Spec - FR-7, FR-8](../specs/siccar-cryptography-rewrite.md#fr-7-wallet-address-encoding)
 - [Current WalletUtils Encoding](../../src/Common/SiccarPlatformCryptography/WalletUtils.cs)
 
 **Dependencies:**
@@ -38,7 +38,7 @@ Implement IEncodingProvider interface with support for Base58, Bech32, hexadecim
 
 **Interface: Interfaces/IEncodingProvider.cs**
 ```csharp
-namespace Siccar.Cryptography.Interfaces;
+namespace Sorcha.Cryptography.Interfaces;
 
 /// <summary>
 /// Provides encoding and decoding utilities.
@@ -75,7 +75,7 @@ public interface IEncodingProvider
 
 **Utilities/Base58Utilities.cs**
 ```csharp
-namespace Siccar.Cryptography.Utilities;
+namespace Sorcha.Cryptography.Utilities;
 
 /// <summary>
 /// Base58 encoding/decoding (Bitcoin-style).
@@ -204,7 +204,7 @@ public static class Base58Utilities
 
 **Utilities/Bech32Utilities.cs**
 ```csharp
-namespace Siccar.Cryptography.Utilities;
+namespace Sorcha.Cryptography.Utilities;
 
 /// <summary>
 /// Bech32 encoding/decoding (BIP 173).
@@ -371,7 +371,7 @@ Value           | Encoding
 
 **Utilities/VarIntUtilities.cs**
 ```csharp
-namespace Siccar.Cryptography.Utilities;
+namespace Sorcha.Cryptography.Utilities;
 
 /// <summary>
 /// Variable-length integer encoding (Bitcoin-style).

@@ -183,4 +183,4 @@ public async Task<PayloadResult<byte[]>> GetPayloadDataAsync(
 
 ---
 
-**Dependencies:** TX-001, TX-002, TX-003, Siccar.Cryptography v2.0
+**Dependencies:** TX-001, TX-002, TX-003, Sorcha.Cryptography v2.0

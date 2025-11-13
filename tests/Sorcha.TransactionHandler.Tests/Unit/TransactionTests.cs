@@ -1,0 +1,174 @@
+using System;
+using System.Threading.Tasks;
+using Xunit;
+using Sorcha.TransactionHandler.Core;
+using Sorcha.TransactionHandler.Enums;
+using Sorcha.TransactionHandler.Payload;
+using Sorcha.Cryptography.Core;
+using Sorcha.Cryptography.Enums;
+
+namespace Sorcha.TransactionHandler.Tests.Unit;
+
+/// <summary>
+/// Unit tests for Transaction core functionality.
+/// </summary>
+public class TransactionTests
+{
+    private readonly CryptoModule _cryptoModule;
+    private readonly HashProvider _hashProvider;
+
+    public TransactionTests()
+    {
+        _cryptoModule = new CryptoModule();
+        _hashProvider = new HashProvider();
+    }
+
+    [Fact]
+    public void Constructor_ShouldCreateTransaction()
+    {
+        // Arrange & Act
+        var payloadManager = new PayloadManager();
+        var transaction = new Transaction(
+            _cryptoModule,
+            _hashProvider,
+            payloadManager,
+            TransactionVersion.V4);
+
+        // Assert
+        Assert.NotNull(transaction);
+        Assert.Equal(TransactionVersion.V4, transaction.Version);
+        Assert.NotNull(transaction.Timestamp);
+    }
+
+    [Fact]
+    public void Recipients_ShouldSetAndGet()
+    {
+        // Arrange
+        var payloadManager = new PayloadManager();
+        var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
+        var recipients = new[] { "ws1qyqszqgp123", "ws1pqpszqgp456" };
+
+        // Act
+        transaction.Recipients = recipients;
+
+        // Assert
+        Assert.Equal(recipients, transaction.Recipients);
+    }
+
+    [Fact]
+    public void Metadata_ShouldSetAndGet()
+    {
+        // Arrange
+        var payloadManager = new PayloadManager();
+        var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
+        var metadata = "{\"type\": \"test\"}";
+
+        // Act
+        transaction.Metadata = metadata;
+
+        // Assert
+        Assert.Equal(metadata, transaction.Metadata);
+    }
+
+    [Fact]
+    public void PreviousTxHash_ShouldSetAndGet()
+    {
+        // Arrange
+        var payloadManager = new PayloadManager();
+        var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
+        var hash = "prev_hash_123";
+
+        // Act
+        transaction.PreviousTxHash = hash;
+
+        // Assert
+        Assert.Equal(hash, transaction.PreviousTxHash);
+    }
+
+    [Fact]
+    public async Task SignAsync_ShouldSetSignatureAndSenderWallet()
+    {
+        // Arrange
+        var payloadManager = new PayloadManager();
+        var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
+        var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
+
+        transaction.Recipients = new[] { "ws1qyqszqgp123" };
+
+        // Act
+        var status = await transaction.SignAsync(wallet.PrivateKeyWif);
+
+        // Assert
+        Assert.Equal(TransactionStatus.Success, status);
+        Assert.NotNull(transaction.Signature);
+        Assert.NotNull(transaction.SenderWallet);
+        Assert.NotNull(transaction.TxId);
+    }
+
+    [Fact]
+    public async Task SignAsync_ShouldFailWithEmptyKey()
+    {
+        // Arrange
+        var payloadManager = new PayloadManager();
+        var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
+
+        // Act
+        var status = await transaction.SignAsync(string.Empty);
+
+        // Assert
+        Assert.Equal(TransactionStatus.InvalidSignature, status);
+    }
+
+    [Fact]
+    public async Task VerifyAsync_ShouldSucceedForValidSignature()
+    {
+        // Arrange
+        var payloadManager = new PayloadManager();
+        var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
+        var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
+
+        transaction.Recipients = new[] { wallet.Address };
+
+        // Sign the transaction
+        await transaction.SignAsync(wallet.PrivateKeyWif);
+
+        // Act
+        var status = await transaction.VerifyAsync();
+
+        // Assert
+        Assert.Equal(TransactionStatus.Success, status);
+    }
+
+    [Fact]
+    public async Task VerifyAsync_ShouldFailForUnsignedTransaction()
+    {
+        // Arrange
+        var payloadManager = new PayloadManager();
+        var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
+
+        // Act
+        var status = await transaction.VerifyAsync();
+
+        // Assert
+        Assert.Equal(TransactionStatus.NotSigned, status);
+    }
+
+    [Theory]
+    [InlineData(TransactionVersion.V1)]
+    [InlineData(TransactionVersion.V2)]
+    [InlineData(TransactionVersion.V3)]
+    [InlineData(TransactionVersion.V4)]
+    public void Constructor_ShouldSupportAllVersions(TransactionVersion version)
+    {
+        // Arrange & Act
+        var payloadManager = new PayloadManager();
+        var transaction = new Transaction(
+            _cryptoModule,
+            _hashProvider,
+            payloadManager,
+            version);
+
+        // Assert
+        Assert.Equal(version, transaction.Version);
+    }
+}

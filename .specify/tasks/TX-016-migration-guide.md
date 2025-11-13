@@ -8,7 +8,7 @@
 
 ## Objective
 
-Create migration guide for transitioning from embedded transaction classes to Siccar.TransactionHandler.
+Create migration guide for transitioning from embedded transaction classes to Sorcha.TransactionHandler.
 
 ## Guide Structure
 
@@ -23,8 +23,8 @@ Create migration guide for transitioning from embedded transaction classes to Si
 <!-- They were in SiccarPlatformCryptography -->
 
 <!-- Add new packages -->
-<PackageReference Include="Siccar.Cryptography" Version="2.0.0" />
-<PackageReference Include="Siccar.TransactionHandler" Version="2.0.0" />
+<PackageReference Include="Sorcha.Cryptography" Version="2.0.0" />
+<PackageReference Include="Sorcha.TransactionHandler" Version="2.0.0" />
 ```
 
 ### 3. API Changes

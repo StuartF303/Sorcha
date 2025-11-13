@@ -13,7 +13,7 @@
 Implement symmetric encryption and decryption supporting multiple algorithms (AES-128/256, AES-GCM, ChaCha20-Poly1305, XChaCha20-Poly1305). This component handles bulk data encryption used by payload management.
 
 **Related Specifications:**
-- [Siccar.Cryptography Rewrite Spec - FR-5](../specs/siccar-cryptography-rewrite.md#fr-5-symmetric-encryption)
+- [Sorcha.Cryptography Rewrite Spec - FR-5](../specs/siccar-cryptography-rewrite.md#fr-5-symmetric-encryption)
 - [Current WalletUtils Encrypt/Decrypt](../../src/Common/SiccarPlatformCryptography/WalletUtils.cs)
 
 **Dependencies:**
@@ -37,7 +37,7 @@ Implement ISymmetricCrypto interface with support for five symmetric encryption 
 
 **Interface: Interfaces/ISymmetricCrypto.cs**
 ```csharp
-namespace Siccar.Cryptography.Interfaces;
+namespace Sorcha.Cryptography.Interfaces;
 
 /// <summary>
 /// Provides symmetric encryption and decryption operations.
@@ -80,7 +80,7 @@ public interface ISymmetricCrypto
 
 **Model: Models/SymmetricCiphertext.cs**
 ```csharp
-namespace Siccar.Cryptography.Models;
+namespace Sorcha.Cryptography.Models;
 
 /// <summary>
 /// Container for symmetrically encrypted data with metadata.
@@ -251,7 +251,7 @@ private Task<CryptoResult<SymmetricCiphertext>> EncryptXChaCha20Async(
 
 **Utilities/RandomnessProvider.cs**
 ```csharp
-namespace Siccar.Cryptography.Utilities;
+namespace Sorcha.Cryptography.Utilities;
 
 /// <summary>
 /// Provides cryptographically secure random number generation.

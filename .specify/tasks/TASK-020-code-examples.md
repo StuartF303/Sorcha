@@ -9,7 +9,7 @@
 
 ## Objective
 
-Create comprehensive code examples demonstrating common usage scenarios for the Siccar.Cryptography library.
+Create comprehensive code examples demonstrating common usage scenarios for the Sorcha.Cryptography library.
 
 ## Example Categories
 

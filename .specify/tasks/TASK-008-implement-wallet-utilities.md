@@ -13,7 +13,7 @@
 Implement wallet utilities for converting between public keys, wallet addresses, and WIF (Wallet Import Format) private keys. These utilities bridge cryptographic keys and user-friendly wallet addresses.
 
 **Related Specifications:**
-- [Siccar.Cryptography Rewrite Spec - FR-7, FR-8](../specs/siccar-cryptography-rewrite.md#fr-7-wallet-address-encoding)
+- [Sorcha.Cryptography Rewrite Spec - FR-7, FR-8](../specs/siccar-cryptography-rewrite.md#fr-7-wallet-address-encoding)
 - [Current WalletUtils](../../src/Common/SiccarPlatformCryptography/WalletUtils.cs)
 
 **Dependencies:**
@@ -38,7 +38,7 @@ Implement IWalletUtilities interface for wallet address generation, validation, 
 
 **Interface: Interfaces/IWalletUtilities.cs**
 ```csharp
-namespace Siccar.Cryptography.Interfaces;
+namespace Sorcha.Cryptography.Interfaces;
 
 /// <summary>
 /// Provides wallet address and WIF key utilities.
@@ -121,7 +121,7 @@ public string? PrivateKeyToWIF(byte[] privateKey, byte network)
 
 **Utilities/WalletUtilities.cs**
 ```csharp
-namespace Siccar.Cryptography.Utilities;
+namespace Sorcha.Cryptography.Utilities;
 
 public sealed class WalletUtilities : IWalletUtilities
 {

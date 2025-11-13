@@ -1,10 +1,11 @@
 # Task: Configure NuGet Package
 
 **ID:** TX-015
-**Status:** Not Started
+**Status:** ✅ Complete
 **Priority:** High
 **Estimate:** 3 hours
 **Created:** 2025-11-12
+**Completed:** 2025-11-13
 
 ## Objective
 
@@ -15,7 +16,7 @@ Configure NuGet package with proper metadata, versioning, and dependencies.
 ### .csproj Metadata
 ```xml
 <PropertyGroup>
-  <PackageId>Siccar.TransactionHandler</PackageId>
+  <PackageId>Sorcha.TransactionHandler</PackageId>
   <Version>2.0.0</Version>
   <Authors>Siccar Development Team</Authors>
   <Description>Transaction and payload management library for the Siccar distributed ledger platform. Provides transaction building, signing, verification, and multi-recipient payload encryption.</Description>
@@ -29,7 +30,7 @@ Configure NuGet package with proper metadata, versioning, and dependencies.
 
 ### Release Notes
 ```markdown
-# Siccar.TransactionHandler v2.0.0
+# Sorcha.TransactionHandler v2.0.0
 
 ## Features
 - ✅ Fluent TransactionBuilder API
@@ -41,7 +42,7 @@ Configure NuGet package with proper metadata, versioning, and dependencies.
 - ✅ Comprehensive test coverage (>90%)
 
 ## Dependencies
-- Siccar.Cryptography v2.0.0
+- Sorcha.Cryptography v2.0.0
 - System.Text.Json v9.0.0
 ```
 
