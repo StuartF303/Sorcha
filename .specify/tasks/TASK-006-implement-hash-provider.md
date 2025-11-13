@@ -13,7 +13,7 @@
 Implement hash provider supporting SHA-2 family (SHA-256, SHA-384, SHA-512) and Blake2b variants. This component provides cryptographic hashing for data integrity, signatures, and key derivation.
 
 **Related Specifications:**
-- [Siccar.Cryptography Rewrite Spec - FR-6](../specs/siccar-cryptography-rewrite.md#fr-6-hash-functions)
+- [Sorcha.Cryptography Rewrite Spec - FR-6](../specs/siccar-cryptography-rewrite.md#fr-6-hash-functions)
 - [Current WalletUtils Hashing](../../src/Common/SiccarPlatformCryptography/WalletUtils.cs)
 
 **Dependencies:**
@@ -35,7 +35,7 @@ Implement IHashProvider interface with support for five hash algorithms, includi
 
 **Interface: Interfaces/IHashProvider.cs**
 ```csharp
-namespace Siccar.Cryptography.Interfaces;
+namespace Sorcha.Cryptography.Interfaces;
 
 /// <summary>
 /// Provides cryptographic hash functions.
@@ -91,7 +91,7 @@ public interface IHashProvider
 **Implementation: Core/HashProvider.cs**
 
 ```csharp
-namespace Siccar.Cryptography.Core;
+namespace Sorcha.Cryptography.Core;
 
 /// <summary>
 /// Provides cryptographic hash functions.
@@ -241,7 +241,7 @@ hash2 = SHA256(hash1)  // Double hash
 
 **Extensions/ByteArrayExtensions.cs**
 ```csharp
-namespace Siccar.Cryptography.Extensions;
+namespace Sorcha.Cryptography.Extensions;
 
 /// <summary>
 /// Extension methods for byte array operations.

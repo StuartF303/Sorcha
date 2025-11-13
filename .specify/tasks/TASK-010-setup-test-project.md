@@ -15,8 +15,8 @@ Create comprehensive test project structure with proper organization for unit te
 
 ### Project Structure
 ```
-tests/Siccar.Cryptography.Tests/
-├── Siccar.Cryptography.Tests.csproj
+tests/Sorcha.Cryptography.Tests/
+├── Sorcha.Cryptography.Tests.csproj
 ├── Unit/
 │   ├── CryptoModuleTests.cs
 │   ├── KeyManagerTests.cs
@@ -64,7 +64,7 @@ tests/Siccar.Cryptography.Tests/
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Common\Siccar.Cryptography\Siccar.Cryptography.csproj" />
+    <ProjectReference Include="..\..\src\Common\Sorcha.Cryptography\Sorcha.Cryptography.csproj" />
   </ItemGroup>
 </Project>
 ```

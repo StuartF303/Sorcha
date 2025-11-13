@@ -17,11 +17,11 @@ Configure NuGet package generation with proper metadata, versioning, icon, READM
 ```xml
 <PropertyGroup>
   <!-- Package metadata -->
-  <PackageId>Siccar.Cryptography</PackageId>
+  <PackageId>Sorcha.Cryptography</PackageId>
   <Version>2.0.0</Version>
   <Authors>Siccar Development Team</Authors>
   <Company>Wallet.Services (Scotland) Ltd</Company>
-  <Product>Siccar.Cryptography</Product>
+  <Product>Sorcha.Cryptography</Product>
   <Description>Standalone cryptography library for the Siccar platform, providing key management, digital signatures, encryption, and encoding utilities for ED25519, NIST P-256, and RSA-4096.</Description>
   <Copyright>Copyright © 2025 Wallet.Services (Scotland) Ltd</Copyright>
 
@@ -62,12 +62,12 @@ Configure NuGet package generation with proper metadata, versioning, icon, READM
 
 Create `RELEASE_NOTES.md`:
 ```markdown
-# Siccar.Cryptography v2.0.0
+# Sorcha.Cryptography v2.0.0
 
 ## Breaking Changes
 - Complete rewrite of SiccarPlatformCryptography
 - New API with async/await support
-- Renamed namespaces from `SiccarPlatformCryptography` to `Siccar.Cryptography`
+- Renamed namespaces from `SiccarPlatformCryptography` to `Sorcha.Cryptography`
 
 ## New Features
 - ✅ ED25519, NIST P-256, and RSA-4096 support
@@ -102,7 +102,7 @@ See [MIGRATION.md](MIGRATION.md) for upgrading from v1.x
 4. **Test Package Locally**
    ```bash
    dotnet pack -c Release
-   dotnet nuget push bin/Release/Siccar.Cryptography.2.0.0.nupkg --source local-feed
+   dotnet nuget push bin/Release/Sorcha.Cryptography.2.0.0.nupkg --source local-feed
    ```
 
 ## Acceptance Criteria

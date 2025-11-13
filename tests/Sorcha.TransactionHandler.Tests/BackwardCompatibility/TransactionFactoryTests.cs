@@ -1,0 +1,166 @@
+using System.Threading.Tasks;
+using Xunit;
+using Sorcha.TransactionHandler.Core;
+using Sorcha.TransactionHandler.Enums;
+using Sorcha.TransactionHandler.Versioning;
+using Sorcha.Cryptography.Core;
+using Sorcha.Cryptography.Enums;
+
+namespace Sorcha.TransactionHandler.Tests.BackwardCompatibility;
+
+/// <summary>
+/// Tests for TransactionFactory backward compatibility.
+/// </summary>
+public class TransactionFactoryTests
+{
+    private readonly CryptoModule _cryptoModule;
+    private readonly HashProvider _hashProvider;
+    private readonly VersionDetector _versionDetector;
+    private readonly TransactionFactory _factory;
+
+    public TransactionFactoryTests()
+    {
+        _cryptoModule = new CryptoModule();
+        _hashProvider = new HashProvider();
+        _versionDetector = new VersionDetector();
+        _factory = new TransactionFactory(_cryptoModule, _hashProvider, _versionDetector);
+    }
+
+    [Theory]
+    [InlineData(TransactionVersion.V1)]
+    [InlineData(TransactionVersion.V2)]
+    [InlineData(TransactionVersion.V3)]
+    [InlineData(TransactionVersion.V4)]
+    public void Create_AllVersions_ShouldCreateTransaction(TransactionVersion version)
+    {
+        // Act
+        var transaction = _factory.Create(version);
+
+        // Assert
+        Assert.NotNull(transaction);
+        Assert.Equal(version, transaction.Version);
+    }
+
+    [Fact]
+    public async Task Deserialize_V4BinaryTransaction_ShouldSucceed()
+    {
+        // Arrange - Create a V4 transaction
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
+
+        var builderResult = await builder
+            .Create(TransactionVersion.V4)
+            .WithRecipients("ws1recipient")
+            .SignAsync(wallet.PrivateKeyWif);
+
+        var originalTransaction = builderResult.Build().Value!;
+
+        // Serialize it
+        var serializer = new Serialization.BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var binaryData = serializer.SerializeToBinary(originalTransaction);
+
+        // Act - Deserialize using factory
+        var deserializedTransaction = _factory.Deserialize(binaryData);
+
+        // Assert
+        Assert.NotNull(deserializedTransaction);
+        Assert.Equal(TransactionVersion.V4, deserializedTransaction.Version);
+    }
+
+    [Fact]
+    public async Task Deserialize_V4JsonTransaction_ShouldSucceed()
+    {
+        // Arrange - Create a V4 transaction
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
+
+        var builderResult = await builder
+            .Create(TransactionVersion.V4)
+            .WithRecipients("ws1recipient")
+            .SignAsync(wallet.PrivateKeyWif);
+
+        var originalTransaction = builderResult.Build().Value!;
+
+        // Serialize to JSON
+        var serializer = new Serialization.JsonTransactionSerializer(_cryptoModule, _hashProvider);
+        var json = serializer.SerializeToJson(originalTransaction);
+
+        // Act - Deserialize using factory
+        var deserializedTransaction = _factory.Deserialize(json);
+
+        // Assert
+        Assert.NotNull(deserializedTransaction);
+        Assert.Equal(TransactionVersion.V4, deserializedTransaction.Version);
+    }
+
+    [Fact]
+    public void Create_V1Transaction_ShouldCreateWithV1Marker()
+    {
+        // Act
+        var transaction = _factory.Create(TransactionVersion.V1);
+
+        // Assert
+        Assert.NotNull(transaction);
+        Assert.Equal(TransactionVersion.V1, transaction.Version);
+    }
+
+    [Fact]
+    public void Create_V2Transaction_ShouldCreateWithV2Marker()
+    {
+        // Act
+        var transaction = _factory.Create(TransactionVersion.V2);
+
+        // Assert
+        Assert.NotNull(transaction);
+        Assert.Equal(TransactionVersion.V2, transaction.Version);
+    }
+
+    [Fact]
+    public void Create_V3Transaction_ShouldCreateWithV3Marker()
+    {
+        // Act
+        var transaction = _factory.Create(TransactionVersion.V3);
+
+        // Assert
+        Assert.NotNull(transaction);
+        Assert.Equal(TransactionVersion.V3, transaction.Version);
+    }
+
+    [Fact]
+    public void Create_InvalidVersion_ShouldThrow()
+    {
+        // Arrange
+        var invalidVersion = (TransactionVersion)99;
+
+        // Act & Assert
+        Assert.Throws<NotSupportedException>(() => _factory.Create(invalidVersion));
+    }
+
+    [Fact]
+    public void Deserialize_NullBinaryData_ShouldThrow()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => _factory.Deserialize((byte[])null!));
+    }
+
+    [Fact]
+    public void Deserialize_EmptyBinaryData_ShouldThrow()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => _factory.Deserialize(System.Array.Empty<byte>()));
+    }
+
+    [Fact]
+    public void Deserialize_NullJsonData_ShouldThrow()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => _factory.Deserialize((string)null!));
+    }
+
+    [Fact]
+    public void Deserialize_EmptyJsonData_ShouldThrow()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => _factory.Deserialize(string.Empty));
+    }
+}

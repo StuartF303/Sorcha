@@ -12,8 +12,8 @@ Create test project with organized structure for unit tests, integration tests, 
 
 ## Project Structure
 ```
-tests/Siccar.TransactionHandler.Tests/
-├── Siccar.TransactionHandler.Tests.csproj
+tests/Sorcha.TransactionHandler.Tests/
+├── Sorcha.TransactionHandler.Tests.csproj
 ├── Unit/
 │   ├── TransactionTests.cs
 │   ├── TransactionBuilderTests.cs

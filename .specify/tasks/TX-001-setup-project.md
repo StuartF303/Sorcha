@@ -1,4 +1,4 @@
-# Task: Setup Siccar.TransactionHandler Project
+# Task: Setup Sorcha.TransactionHandler Project
 
 **ID:** TX-001
 **Status:** Not Started
@@ -8,7 +8,7 @@
 
 ## Objective
 
-Create the new `Siccar.TransactionHandler` library project with proper configuration, dependencies on Siccar.Cryptography v2.0, and organized folder structure.
+Create the new `Sorcha.TransactionHandler` library project with proper configuration, dependencies on Sorcha.Cryptography v2.0, and organized folder structure.
 
 ## Implementation Details
 
@@ -21,7 +21,7 @@ Create the new `Siccar.TransactionHandler` library project with proper configura
     <Nullable>enable</Nullable>
 
     <!-- Package info -->
-    <PackageId>Siccar.TransactionHandler</PackageId>
+    <PackageId>Sorcha.TransactionHandler</PackageId>
     <Version>2.0.0</Version>
     <Authors>Siccar Development Team</Authors>
     <Company>Wallet.Services (Scotland) Ltd</Company>
@@ -44,7 +44,7 @@ Create the new `Siccar.TransactionHandler` library project with proper configura
 
   <ItemGroup>
     <!-- Core dependency -->
-    <PackageReference Include="Siccar.Cryptography" Version="2.0.0" />
+    <PackageReference Include="Sorcha.Cryptography" Version="2.0.0" />
     <PackageReference Include="System.Text.Json" Version="9.0.0" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
@@ -53,8 +53,8 @@ Create the new `Siccar.TransactionHandler` library project with proper configura
 
 ### Folder Structure
 ```
-src/Common/Siccar.TransactionHandler/
-├── Siccar.TransactionHandler.csproj
+src/Common/Sorcha.TransactionHandler/
+├── Sorcha.TransactionHandler.csproj
 ├── Enums/
 ├── Interfaces/
 ├── Core/
@@ -67,7 +67,7 @@ src/Common/Siccar.TransactionHandler/
 ## Acceptance Criteria
 
 - [ ] New project created in correct location
-- [ ] Depends on Siccar.Cryptography v2.0
+- [ ] Depends on Sorcha.Cryptography v2.0
 - [ ] All folders created
 - [ ] Project builds without errors
 - [ ] XML documentation enabled
@@ -75,4 +75,4 @@ src/Common/Siccar.TransactionHandler/
 
 ---
 
-**Dependencies:** Siccar.Cryptography v2.0 must be available
+**Dependencies:** Sorcha.Cryptography v2.0 must be available
