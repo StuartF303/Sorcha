@@ -9,6 +9,9 @@
 - [sorcha-wallet-service.md](sorcha-wallet-service.md)
 - [sorcha-transaction-handler.md](sorcha-transaction-handler.md)
 
+**Related Documentation:**
+- [Blockchain Transaction Format - JSON-LD Specification](../../docs/blockchain-transaction-format.md)
+
 ## Executive Summary
 
 This specification defines the requirements for creating the **Sorcha.Register.Service** - a distributed ledger and block management service for the Sorcha platform. This service handles register (ledger) creation, transaction storage, docket (block) management, and distributed data synchronization. The implementation follows Sorcha's cloud-native architecture using .NET Aspire for orchestration, microservices patterns, and pluggable storage abstractions.
@@ -89,6 +92,12 @@ A **Transaction** represents a signed data submission to a register. Each transa
 - Contains blueprint metadata for workflow tracking
 - Is cryptographically signed for integrity
 - Tracks version for schema evolution
+
+**JSON-LD Representation:**
+All transactions MUST be representable in JSON-LD format following the [Blockchain Transaction Format specification](../../docs/blockchain-transaction-format.md). Transactions are addressable via DID URIs:
+- DID Format: `did:sorcha:register:{registerId}/tx/{txId}`
+- JSON-LD Context: `https://sorcha.io/contexts/blockchain/v1.jsonld`
+- Supports semantic web integration and universal resolvability
 
 ### Docket
 
@@ -307,11 +316,38 @@ public enum RegisterStatus
 ```csharp
 namespace Sorcha.Register.Models;
 
+using System.Text.Json.Serialization;
+
 /// <summary>
-/// Represents a signed transaction in a register
+/// Represents a signed transaction in a register with JSON-LD support
 /// </summary>
 public class TransactionModel
 {
+    /// <summary>
+    /// JSON-LD context for semantic web integration
+    /// </summary>
+    [JsonPropertyName("@context")]
+    public string? Context { get; set; } = "https://sorcha.io/contexts/blockchain/v1.jsonld";
+
+    /// <summary>
+    /// JSON-LD type designation
+    /// </summary>
+    [JsonPropertyName("@type")]
+    public string? Type { get; set; } = "Transaction";
+
+    /// <summary>
+    /// JSON-LD universal identifier (DID URI)
+    /// Format: did:sorcha:register:{registerId}/tx/{txId}
+    /// </summary>
+    [JsonPropertyName("@id")]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// Register identifier this transaction belongs to
+    /// </summary>
+    [Required]
+    public string RegisterId { get; set; } = string.Empty;
+
     /// <summary>
     /// Transaction identifier (64 character hex hash)
     /// </summary>
@@ -324,6 +360,11 @@ public class TransactionModel
     /// </summary>
     [StringLength(64, MinimumLength = 64)]
     public string PrevTxId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Block number (docket ID) this transaction is sealed in
+    /// </summary>
+    public ulong? BlockNumber { get; set; }
 
     /// <summary>
     /// Transaction format version
@@ -366,6 +407,11 @@ public class TransactionModel
     /// </summary>
     [Required]
     public string Signature { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Generates the DID URI for this transaction
+    /// </summary>
+    public string GenerateDidUri() => $"did:sorcha:register:{RegisterId}/tx/{TxId}";
 }
 ```
 
@@ -852,6 +898,24 @@ public class RegisterHeightUpdatedEvent
 - Support LINQ expression queries at repository level
 - Return queryable interfaces for efficient pagination
 - Support full-text search on metadata (future)
+
+### FR-REG-004A: JSON-LD and DID Resolution
+
+**As a** semantic web application
+**I want to** resolve DID URIs to transaction data in JSON-LD format
+**So that** I can integrate with W3C standards and enable universal addressability
+
+**Acceptance Criteria:**
+- Support DID URI format: `did:sorcha:register:{registerId}/tx/{txId}`
+- Resolve DID URIs via GET endpoint: `/api/registers/{registerId}/transactions/{txId}`
+- Return transactions in JSON-LD format with `@context`, `@type`, and `@id` fields
+- Support content negotiation for `application/ld+json` Accept header
+- Generate DID URIs automatically when transactions are stored
+- Include DID URI in all API responses containing transactions
+- Validate DID URI format in API requests
+- Support both compact and expanded JSON-LD forms
+- Serve blockchain JSON-LD context at: `https://sorcha.io/contexts/blockchain/v1.jsonld`
+- Cache JSON-LD contexts for performance
 
 ### FR-REG-005: Multi-Tenant Isolation
 

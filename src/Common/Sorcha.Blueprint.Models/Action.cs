@@ -31,8 +31,11 @@ public class Action
 
     /// <summary>
     /// Reference to the previous transaction ID
+    /// Supports both legacy format (transaction hash) and DID URI format
+    /// Preferred format: did:sorcha:register:{registerId}/tx/{txId}
+    /// See: docs/blockchain-transaction-format.md
     /// </summary>
-    [DataAnnotations.MaxLength(64)]
+    [DataAnnotations.MaxLength(256)]
     [JsonPropertyName("previousTxId")]
     public string PreviousTxId { get; set; } = string.Empty;
 
