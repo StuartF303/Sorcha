@@ -145,7 +145,7 @@ WALLET-001 (Project Setup)
 - Integrate with Sorcha.AppHost
 - Integrate with Sorcha.ApiGateway
 - API integration tests
-- OpenAPI/Swagger documentation
+- .NET 10 built-in OpenAPI documentation with Scalar UI
 
 ### Phase 7: Testing & Performance (Week 13)
 

@@ -823,8 +823,8 @@ public class RegisterHeightUpdatedEvent
 
 **API:**
 - OData V4 for advanced queries
-- OpenAPI/Swagger for documentation
-- Scalar for API explorer UI
+- .NET 10 built-in OpenAPI (Microsoft.AspNetCore.OpenApi)
+- Scalar.AspNetCore for interactive API documentation UI
 
 **Testing:**
 - xUnit for test framework

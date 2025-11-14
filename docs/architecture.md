@@ -233,7 +233,7 @@ REST API for blueprint execution and management (IN DEVELOPMENT).
 
 **Technology:**
 - ASP.NET Core Minimal APIs
-- OpenAPI/Swagger documentation
+- .NET 10 built-in OpenAPI documentation with Scalar UI
 - Dependency Injection
 - Background services for long-running tasks (planned)
 
@@ -352,7 +352,7 @@ YARP-based API Gateway for routing and aggregation.
 **Responsibilities:**
 - API routing and reverse proxy
 - Health check aggregation across services
-- OpenAPI/Swagger aggregation
+- OpenAPI document aggregation
 - Client download service
 - Load balancing and failover
 
@@ -382,7 +382,7 @@ REST API service for Blueprint management and operations.
 
 **Features:**
 - RESTful API endpoints
-- OpenAPI/Swagger documentation
+- .NET 10 built-in OpenAPI documentation with Scalar UI
 - JSON-LD middleware for semantic web support
 - Output caching with Redis
 - Health monitoring
@@ -561,9 +561,12 @@ Build Pipeline:
 ### 3. API-First
 
 - RESTful APIs using minimal API pattern
-- **OpenAPI/Swagger documentation REQUIRED for all REST endpoints**
+- **OpenAPI documentation REQUIRED for all REST endpoints**
+- Use .NET 10's built-in OpenAPI support (Microsoft.AspNetCore.OpenApi)
 - Auto-generated OpenAPI specifications from code annotations
-- Interactive API documentation via Scalar or Swagger UI
+- Interactive API documentation via Scalar.AspNetCore (NOT Swagger)
+- OpenAPI spec available at `/openapi/v1.json`
+- Interactive UI available at `/scalar/v1`
 - Versioned APIs (planned)
 - Standard HTTP status codes
 - JSON request/response

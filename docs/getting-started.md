@@ -88,7 +88,8 @@ Once running, you can access:
 - **Aspire Dashboard**: `http://localhost:15888`
 - **Blueprint Designer**: `https://localhost:7002` (or the URL shown in console)
 - **Blueprint Engine API**: `https://localhost:7001` (or the URL shown in console)
-- **API Documentation**: `https://localhost:7001/swagger`
+- **API Documentation**: `https://localhost:7001/scalar/v1` (interactive Scalar UI)
+- **OpenAPI Spec**: `https://localhost:7001/openapi/v1.json`
 
 ## Your First Blueprint
 
