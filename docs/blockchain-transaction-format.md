@@ -51,7 +51,7 @@ This format provides:
 ### 3. Semantic Consistency
 
 Use standardized vocabularies:
-- `https://sorcha.io/blockchain/v1#` - Sorcha blockchain vocabulary
+- `https://sorcha.dev/blockchain/v1#` - Sorcha blockchain vocabulary
 - `https://w3id.org/security#` - W3C security vocabulary
 - `https://w3id.org/blockchain/v1#` - Generic blockchain vocabulary (community standard)
 
@@ -72,7 +72,7 @@ The canonical JSON-LD context for Sorcha blockchain transactions:
 {
   "@context": {
     "@version": 1.1,
-    "@vocab": "https://sorcha.io/blockchain/v1#",
+    "@vocab": "https://sorcha.dev/blockchain/v1#",
     "sec": "https://w3id.org/security#",
     "blockchain": "https://w3id.org/blockchain/v1#",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
@@ -130,7 +130,7 @@ The canonical JSON-LD context for Sorcha blockchain transactions:
 }
 ```
 
-**Context Location:** `https://sorcha.io/contexts/blockchain/v1.jsonld`
+**Context Location:** `https://sorcha.dev/contexts/blockchain/v1.jsonld`
 
 ## Transaction Reference Format
 
@@ -140,7 +140,7 @@ For referencing a transaction without full details:
 
 ```json
 {
-  "@context": "https://sorcha.io/contexts/blockchain/v1.jsonld",
+  "@context": "https://sorcha.dev/contexts/blockchain/v1.jsonld",
   "@type": "TransactionReference",
   "@id": "did:sorcha:register:a1b2c3d4-e5f6-7890-abcd-ef1234567890/tx/abc123def456",
   "registerId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -155,7 +155,7 @@ Complete transaction with all metadata:
 
 ```json
 {
-  "@context": "https://sorcha.io/contexts/blockchain/v1.jsonld",
+  "@context": "https://sorcha.dev/contexts/blockchain/v1.jsonld",
   "@type": "Transaction",
   "@id": "did:sorcha:register:a1b2c3d4-e5f6-7890-abcd-ef1234567890/tx/abc123def456",
 
@@ -216,7 +216,7 @@ GET /api/registers/{registerId}/transactions/{txId}
 Response:
 ```json
 {
-  "@context": "https://sorcha.io/contexts/blockchain/v1.jsonld",
+  "@context": "https://sorcha.dev/contexts/blockchain/v1.jsonld",
   "@type": "Transaction",
   "@id": "did:sorcha:register:{registerId}/tx/{txId}",
   ...
@@ -232,8 +232,8 @@ The `Action` model MUST use DID-based transaction references:
 ```json
 {
   "@context": [
-    "https://sorcha.io/blueprint/v1",
-    "https://sorcha.io/contexts/blockchain/v1.jsonld"
+    "https://sorcha.dev/blueprint/v1",
+    "https://sorcha.dev/contexts/blockchain/v1.jsonld"
   ],
   "@type": "as:Activity",
   "id": 1,
@@ -427,8 +427,8 @@ All implementations MUST:
 ```json
 {
   "@context": [
-    "https://sorcha.io/blueprint/v1",
-    "https://sorcha.io/contexts/blockchain/v1.jsonld"
+    "https://sorcha.dev/blueprint/v1",
+    "https://sorcha.dev/contexts/blockchain/v1.jsonld"
   ],
   "title": "Purchase Order Workflow",
   "actions": [
@@ -452,7 +452,7 @@ All implementations MUST:
 
 ```json
 {
-  "@context": "https://sorcha.io/contexts/blockchain/v1.jsonld",
+  "@context": "https://sorcha.dev/contexts/blockchain/v1.jsonld",
   "@type": "Transaction",
   "@id": "did:sorcha:register:550e8400-e29b-41d4-a716-446655440000/tx/def456",
 

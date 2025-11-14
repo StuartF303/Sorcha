@@ -164,8 +164,8 @@ public class PeerDiscoveryConfigurationTests
         var config = new PeerDiscoveryConfiguration();
 
         // Act
-        config.BootstrapNodes.Add("bootstrap1.sorcha.org:5001");
-        config.BootstrapNodes.Add("bootstrap2.sorcha.org:5001");
+        config.BootstrapNodes.Add("bootstrap1.sorcha.dev:5001");
+        config.BootstrapNodes.Add("bootstrap2.sorcha.dev:5001");
 
         // Assert
         config.BootstrapNodes.Should().HaveCount(2);

@@ -292,7 +292,7 @@ When creating new sample blueprints:
 
 ## Support & Documentation
 
-- **Full Documentation**: [https://docs.sorcha.io](https://docs.sorcha.io)
+- **Full Documentation**: [https://docs.sorcha.dev](https://docs.sorcha.dev)
 - **Blueprint Schema**: `src/Common/blueprint.schema.json`
 - **API Reference**: See project documentation
 - **Issues**: Report bugs or request features via GitHub Issues

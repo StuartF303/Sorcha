@@ -183,7 +183,7 @@ Add `@context` to blueprints for semantic interoperability:
 ```json
 {
   "@context": {
-    "@vocab": "https://sorcha.io/blueprint/v1#",
+    "@vocab": "https://sorcha.dev/blueprint/v1#",
     "schema": "https://schema.org/",
     "did": "https://www.w3.org/ns/did#",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
@@ -1019,7 +1019,7 @@ Add semantic meaning with JSON-LD:
 ```json
 {
   "@context": {
-    "@vocab": "https://sorcha.io/blueprint/v1#",
+    "@vocab": "https://sorcha.dev/blueprint/v1#",
     "schema": "https://schema.org/",
     "did": "https://www.w3.org/ns/did#",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
@@ -1041,7 +1041,7 @@ Add semantic meaning with JSON-LD:
       "@type": "schema:MonetaryAmount"
     }
   },
-  "id": "https://sorcha.io/blueprints/loan-app-simple-001",
+  "id": "https://sorcha.dev/blueprints/loan-app-simple-001",
   "type": "Blueprint",
   "title": "Simple Loan Application",
   "participants": [
@@ -1153,7 +1153,7 @@ First, define a parameterized template:
 
     "blueprintTemplate": {
       "@context": {
-        "@vocab": "https://sorcha.io/blueprint/v1#",
+        "@vocab": "https://sorcha.dev/blueprint/v1#",
         "schema": "https://schema.org/",
         "gs1": "https://gs1.org/voc/",
         "did": "https://www.w3.org/ns/did#",
@@ -1597,7 +1597,7 @@ After JSON-e evaluation with the provided context:
 ```json
 {
   "@context": {
-    "@vocab": "https://sorcha.io/blueprint/v1#",
+    "@vocab": "https://sorcha.dev/blueprint/v1#",
     "schema": "https://schema.org/",
     "gs1": "https://gs1.org/voc/",
     "did": "https://www.w3.org/ns/did#",
@@ -1685,7 +1685,7 @@ After JSON-e evaluation with the provided context:
 
 ```json
 {
-  "@context": "https://sorcha.io/blueprint/v1#",
+  "@context": "https://sorcha.dev/blueprint/v1#",
   "transactionId": "0xabc123def456789...",
   "blueprintId": "supply-chain-po-001",
   "actionId": 0,
@@ -1847,7 +1847,7 @@ After JSON-e evaluation with the provided context:
 
 **Example RDF Triple:**
 ```turtle
-<did:example:acme-buyer> schema:participant <https://sorcha.io/blueprints/supply-chain-po-001> .
+<did:example:acme-buyer> schema:participant <https://sorcha.dev/blueprints/supply-chain-po-001> .
 <GTIN-12345> schema:name "Industrial Sensor Model X200" .
 <GTIN-12345> schema:price "125.00"^^xsd:decimal .
 ```
@@ -2041,7 +2041,7 @@ public static class BlueprintJsonLdContext
 {
     public static readonly JsonNode Default = JsonNode.Parse(@"
     {
-      ""@vocab"": ""https://sorcha.io/blueprint/v1#"",
+      ""@vocab"": ""https://sorcha.dev/blueprint/v1#"",
       ""schema"": ""https://schema.org/"",
       ""did"": ""https://www.w3.org/ns/did#"",
       ""id"": ""@id"",

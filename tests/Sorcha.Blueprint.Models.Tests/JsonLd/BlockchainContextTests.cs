@@ -131,7 +131,7 @@ public class BlockchainContextTests
         var contextObj = context["@context"]?.AsObject();
         contextObj.Should().NotBeNull();
         contextObj!["@version"]?.ToString().Should().Be("1.1");
-        contextObj["@vocab"]?.ToString().Should().Contain("sorcha.io/blockchain");
+        contextObj["@vocab"]?.ToString().Should().Contain("sorcha.dev/blockchain");
     }
 
     [Fact]
@@ -141,14 +141,14 @@ public class BlockchainContextTests
         var url = BlockchainContext.ContextUrl;
 
         // Assert
-        url.Should().Be("https://sorcha.io/contexts/blockchain/v1.jsonld");
+        url.Should().Be("https://sorcha.dev/contexts/blockchain/v1.jsonld");
     }
 
     [Fact]
     public void MergeWithBlueprintContext_ReturnsArrayWithBothContexts()
     {
         // Arrange
-        var blueprintContext = JsonNode.Parse(@"{""@vocab"": ""https://sorcha.io/blueprint/v1#""}")!;
+        var blueprintContext = JsonNode.Parse(@"{""@vocab"": ""https://sorcha.dev/blueprint/v1#""}")!;
 
         // Act
         var merged = BlockchainContext.MergeWithBlueprintContext(blueprintContext);

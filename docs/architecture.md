@@ -432,7 +432,7 @@ Peers Repeat Gossip → 90% Network Coverage in < 1 minute
 {
   "PeerService": {
     "Enabled": true,
-    "BootstrapNodes": ["https://peer.sorcha.org:5001"],
+    "BootstrapNodes": ["https://peer.sorcha.dev:5001"],
     "RefreshIntervalMinutes": 15,
     "GossipProtocol": {
       "FanoutFactor": 3,

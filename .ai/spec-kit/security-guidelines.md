@@ -312,8 +312,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowedOrigins", policy =>
     {
         policy.WithOrigins(
-                "https://app.sorcha.io",
-                "https://designer.sorcha.io")
+                "https://app.sorcha.dev",
+                "https://designer.sorcha.dev")
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials();
@@ -374,7 +374,7 @@ dotnet restore --locked-mode
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = "https://identity.sorcha.io";
+        options.Authority = "https://identity.sorcha.dev";
         options.Audience = "sorcha-api";
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -587,7 +587,7 @@ public async Task<string> FetchExternalDataAsync(string url)
         throw new ArgumentException("Invalid URL");
 
     // Whitelist allowed hosts
-    var allowedHosts = new[] { "api.trusted.com", "data.sorcha.io" };
+    var allowedHosts = new[] { "api.trusted.com", "data.sorcha.dev" };
     if (!allowedHosts.Contains(uri.Host))
         throw new SecurityException($"Host {uri.Host} not allowed");
 
