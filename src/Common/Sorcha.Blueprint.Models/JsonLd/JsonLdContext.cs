@@ -17,7 +17,7 @@ public static class JsonLdContext
     /// </summary>
     public static readonly JsonNode DefaultContext = JsonNode.Parse(@"
     {
-      ""@vocab"": ""https://sorcha.io/blueprint/v1#"",
+      ""@vocab"": ""https://sorcha.dev/blueprint/v1#"",
       ""schema"": ""https://schema.org/"",
       ""gs1"": ""https://gs1.org/voc/"",
       ""did"": ""https://www.w3.org/ns/did#"",
@@ -69,7 +69,7 @@ public static class JsonLdContext
     /// </summary>
     public static readonly JsonNode SupplyChainContext = JsonNode.Parse(@"
     {
-      ""@vocab"": ""https://sorcha.io/blueprint/v1#"",
+      ""@vocab"": ""https://sorcha.dev/blueprint/v1#"",
       ""schema"": ""https://schema.org/"",
       ""gs1"": ""https://gs1.org/voc/"",
       ""did"": ""https://www.w3.org/ns/did#"",
@@ -104,7 +104,7 @@ public static class JsonLdContext
     /// </summary>
     public static readonly JsonNode FinanceContext = JsonNode.Parse(@"
     {
-      ""@vocab"": ""https://sorcha.io/blueprint/v1#"",
+      ""@vocab"": ""https://sorcha.dev/blueprint/v1#"",
       ""schema"": ""https://schema.org/"",
       ""did"": ""https://www.w3.org/ns/did#"",
       ""xsd"": ""http://www.w3.org/2001/XMLSchema#"",

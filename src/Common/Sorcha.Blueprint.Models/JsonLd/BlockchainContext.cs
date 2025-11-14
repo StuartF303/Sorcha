@@ -11,7 +11,7 @@ namespace Sorcha.Blueprint.Models.JsonLd;
 /// </summary>
 /// <remarks>
 /// See: docs/blockchain-transaction-format.md for complete specification
-/// Context URL: https://sorcha.io/contexts/blockchain/v1.jsonld
+/// Context URL: https://sorcha.dev/contexts/blockchain/v1.jsonld
 /// </remarks>
 public static class BlockchainContext
 {
@@ -23,7 +23,7 @@ public static class BlockchainContext
     {
       ""@context"": {
         ""@version"": 1.1,
-        ""@vocab"": ""https://sorcha.io/blockchain/v1#"",
+        ""@vocab"": ""https://sorcha.dev/blockchain/v1#"",
         ""sec"": ""https://w3id.org/security#"",
         ""blockchain"": ""https://w3id.org/blockchain/v1#"",
         ""xsd"": ""http://www.w3.org/2001/XMLSchema#"",
@@ -87,7 +87,7 @@ public static class BlockchainContext
     {
       ""@context"": {
         ""@version"": 1.1,
-        ""@vocab"": ""https://sorcha.io/blockchain/v1#"",
+        ""@vocab"": ""https://sorcha.dev/blockchain/v1#"",
         ""blockchain"": ""https://w3id.org/blockchain/v1#"",
         ""xsd"": ""http://www.w3.org/2001/XMLSchema#"",
 
@@ -160,7 +160,7 @@ public static class BlockchainContext
     /// <summary>
     /// Gets the blockchain context URL for external reference
     /// </summary>
-    public static string ContextUrl => "https://sorcha.io/contexts/blockchain/v1.jsonld";
+    public static string ContextUrl => "https://sorcha.dev/contexts/blockchain/v1.jsonld";
 
     /// <summary>
     /// Creates a compact transaction reference with JSON-LD context

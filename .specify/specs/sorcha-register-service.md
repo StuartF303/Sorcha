@@ -96,7 +96,7 @@ A **Transaction** represents a signed data submission to a register. Each transa
 **JSON-LD Representation:**
 All transactions MUST be representable in JSON-LD format following the [Blockchain Transaction Format specification](../../docs/blockchain-transaction-format.md). Transactions are addressable via DID URIs:
 - DID Format: `did:sorcha:register:{registerId}/tx/{txId}`
-- JSON-LD Context: `https://sorcha.io/contexts/blockchain/v1.jsonld`
+- JSON-LD Context: `https://sorcha.dev/contexts/blockchain/v1.jsonld`
 - Supports semantic web integration and universal resolvability
 
 ### Docket
@@ -327,7 +327,7 @@ public class TransactionModel
     /// JSON-LD context for semantic web integration
     /// </summary>
     [JsonPropertyName("@context")]
-    public string? Context { get; set; } = "https://sorcha.io/contexts/blockchain/v1.jsonld";
+    public string? Context { get; set; } = "https://sorcha.dev/contexts/blockchain/v1.jsonld";
 
     /// <summary>
     /// JSON-LD type designation
@@ -914,7 +914,7 @@ public class RegisterHeightUpdatedEvent
 - Include DID URI in all API responses containing transactions
 - Validate DID URI format in API requests
 - Support both compact and expanded JSON-LD forms
-- Serve blockchain JSON-LD context at: `https://sorcha.io/contexts/blockchain/v1.jsonld`
+- Serve blockchain JSON-LD context at: `https://sorcha.dev/contexts/blockchain/v1.jsonld`
 - Cache JSON-LD contexts for performance
 
 ### FR-REG-005: Multi-Tenant Isolation

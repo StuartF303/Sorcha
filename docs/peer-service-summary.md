@@ -63,7 +63,7 @@ The Peer Service transforms Sorcha into a **decentralized peer-to-peer network**
 
 1. **Peer Discovery Service**
    - Automatically finds and connects to other peers
-   - Uses bootstrap nodes (e.g., peer.sorcha.org)
+   - Uses bootstrap nodes (e.g., peer.sorcha.dev)
    - Maintains list of healthy peers
    - Runs every 15 minutes (configurable)
 
