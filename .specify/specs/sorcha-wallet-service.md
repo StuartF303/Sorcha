@@ -149,7 +149,7 @@ The Sorcha platform currently lacks a dedicated wallet service. This specificati
 2. **API Service**
    - Minimal API endpoints for wallet operations
    - Integration with Sorcha.ApiGateway
-   - OpenAPI/Swagger documentation
+   - .NET 10 built-in OpenAPI documentation with Scalar UI
    - Health checks and observability
 
 ### Out of Scope
