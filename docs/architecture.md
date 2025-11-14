@@ -4,8 +4,8 @@
 
 Sorcha is a modern .NET 10 platform for defining, designing, and executing multi-participant data flow orchestration workflows (called "Blueprints"). Built on .NET Aspire for cloud-native orchestration, Sorcha provides a flexible and scalable solution for workflow automation with selective data disclosure and conditional routing.
 
-**Last Updated:** 2025-01-12
-**Version:** 2.0.0
+**Last Updated:** 2025-11-14
+**Version:** 2.1.0
 **Status:** Active Development
 
 ## High-Level Architecture
@@ -561,11 +561,14 @@ Build Pipeline:
 ### 3. API-First
 
 - RESTful APIs using minimal API pattern
-- OpenAPI/Swagger documentation
+- **OpenAPI/Swagger documentation REQUIRED for all REST endpoints**
+- Auto-generated OpenAPI specifications from code annotations
+- Interactive API documentation via Scalar or Swagger UI
 - Versioned APIs (planned)
 - Standard HTTP status codes
 - JSON request/response
 - Consistent error responses (ProblemDetails)
+- All endpoints must document authentication/authorization requirements
 
 ### 4. Modular Architecture
 
