@@ -1,4 +1,9 @@
+using Scalar.AspNetCore;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Add service defaults (OpenTelemetry, health checks, service discovery)
+builder.AddServiceDefaults();
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -6,10 +11,23 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+// Map default endpoints (health checks)
+app.MapDefaultEndpoints();
+
 // Configure the HTTP request pipeline.
+// OpenAPI spec available in all environments for API consumers
+app.MapOpenApi();
+
+// Configure Scalar API documentation UI (development only)
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTitle("Wallet Service API")
+            .WithTheme(ScalarTheme.Purple)
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+    });
 }
 
 app.UseHttpsRedirection();

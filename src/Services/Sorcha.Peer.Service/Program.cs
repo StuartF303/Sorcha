@@ -2,6 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Scalar.AspNetCore;
 using Sorcha.Peer.Service;
 using Sorcha.Peer.Service.Communication;
 using Sorcha.Peer.Service.Core;
@@ -11,6 +12,9 @@ using Sorcha.Peer.Service.Monitoring;
 using Sorcha.Peer.Service.Network;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add service defaults (OpenTelemetry, health checks, service discovery)
+builder.AddServiceDefaults();
 
 // Configure Kestrel for gRPC
 builder.WebHost.ConfigureKestrel(options =>
@@ -25,6 +29,9 @@ builder.WebHost.ConfigureKestrel(options =>
 // Add services
 builder.Services.AddGrpc();
 builder.Services.AddGrpcReflection();
+
+// Add OpenAPI for REST endpoints
+builder.Services.AddOpenApi();
 
 // Configure peer service
 builder.Services.Configure<PeerServiceConfiguration>(
@@ -53,6 +60,24 @@ builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
+// Map default endpoints (health checks)
+app.MapDefaultEndpoints();
+
+// Configure OpenAPI (available in all environments for API consumers)
+app.MapOpenApi();
+
+// Configure Scalar API documentation UI (development only)
+if (app.Environment.IsDevelopment())
+{
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTitle("Peer Service")
+            .WithTheme(ScalarTheme.Purple)
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+    });
+}
+
 // Map gRPC services
 app.MapGrpcService<PeerDiscoveryServiceImpl>();
 
@@ -62,6 +87,11 @@ if (app.Environment.IsDevelopment())
     app.MapGrpcReflectionService();
 }
 
-app.MapGet("/", () => "Sorcha Peer Service - gRPC endpoints available on port 5000");
+app.MapGet("/", () => "Sorcha Peer Service - gRPC endpoints available on port 5000")
+    .WithName("GetServiceInfo")
+    .WithSummary("Get service information")
+    .WithDescription("Returns basic information about the Peer Service and its gRPC endpoints")
+    .WithTags("Info")
+    .WithOpenApi();
 
 app.Run();
