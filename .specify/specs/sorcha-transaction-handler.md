@@ -1,10 +1,13 @@
 # Sorcha.TransactionHandler Library Specification
 
-**Version:** 1.0
-**Date:** 2025-11-12
+**Version:** 1.1
+**Date:** 2025-11-13
 **Status:** Proposed
 **Related Constitution:** [constitution.md](../constitution.md)
 **Related Specification:** [Sorcha-cryptography-rewrite.md](Sorcha-cryptography-rewrite.md)
+
+**Related Documentation:**
+- [Blockchain Transaction Format - JSON-LD Specification](../../docs/blockchain-transaction-format.md)
 
 ## Executive Summary
 
@@ -83,6 +86,7 @@ The existing transaction and payload management code is embedded within `SorchaP
 4. **Serialization Formats**
    - Binary serialization (variable-length encoding)
    - JSON serialization (for APIs)
+   - JSON-LD serialization (for semantic web integration)
    - Transport format (for network transmission)
    - Format conversion utilities
 
@@ -167,6 +171,7 @@ src/
       ├── Serialization/
       │   ├── BinarySerializer.cs
       │   ├── JsonSerializer.cs
+      │   ├── JsonLdSerializer.cs
       │   ├── TransportSerializer.cs
       │   └── SerializationHelpers.cs
       ├── Models/
