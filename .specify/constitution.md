@@ -156,7 +156,6 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 ### 9. Dependency Management
 
 **Dependency Strategy**
-- Use private NuGet feed for internal packages
 - Keep dependencies up to date with security patches
 - Document dependency upgrade procedures
 - Minimize external dependencies
@@ -170,7 +169,7 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 ### 10. License and Copyright
 
 **Licensing Requirements**
-- All code is proprietary under Siccar Proprietary Limited Use License
+- All code is license under MIT terms 
 - Maintain copyright notices in all source files
 - Document third-party licenses and attributions
 - Ensure compliance with license terms

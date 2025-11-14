@@ -200,25 +200,201 @@ GET    /api/blueprints/getById/{id}
 
 ### OpenAPI/Scalar Documentation
 
-```csharp
-// REQUIRED: OpenAPI generation
-builder.Services.AddOpenApi();
+#### ✅ MANDATORY RULES for All API Services
 
-// Expose OpenAPI spec (development only)
+1. **OpenAPI Specification REQUIRED**
+   - ALL services exposing HTTP REST APIs MUST generate OpenAPI specifications
+   - OpenAPI spec MUST be exposed at `/openapi/v1.json` endpoint
+   - Specification MUST include all endpoints, schemas, and response types
+
+2. **Scalar UI Documentation REQUIRED**
+   - ALL API services MUST provide Scalar API documentation UI
+   - Scalar UI MUST be accessible in development environments
+   - Use Scalar (NOT Swagger UI or Redoc)
+
+3. **Service Identification**
+   - Each service MUST have a unique, descriptive API title
+   - API title MUST match service name (e.g., "Blueprint Service API", "Peer Service API")
+   - Version information MUST be included in the OpenAPI document
+
+4. **API Gateway Aggregation**
+   - ApiGateway MUST aggregate OpenAPI specs from ALL backend services
+   - Combined spec MUST present a complete, unified API surface
+   - Aggregated spec MUST be accessible via `/openapi/v1.json` at gateway level
+   - Scalar UI at gateway MUST display all available endpoints across services
+
+#### Implementation
+
+```csharp
+// REQUIRED in ALL API services
+using Microsoft.AspNetCore.OpenApi;
+using Scalar.AspNetCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// REQUIRED: OpenAPI generation
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        // REQUIRED: Set service-specific metadata
+        document.Info = new()
+        {
+            Title = "Blueprint Service API",  // MUST be unique per service
+            Version = "v1",
+            Description = "Blueprint CRUD, publishing, and version control operations",
+            Contact = new()
+            {
+                Name = "Sorcha Development Team"
+            }
+        };
+        return Task.CompletedTask;
+    });
+});
+
+var app = builder.Build();
+
+// REQUIRED: Expose OpenAPI spec
+app.MapOpenApi();  // Exposes /openapi/v1.json (always, not just dev)
+
+// REQUIRED: Scalar API documentation UI
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();  // Exposes /openapi/v1.json
-
-    // REQUIRED: Scalar API documentation UI (NOT Swagger UI)
     app.MapScalarApiReference(options =>
     {
         options
-            .WithTitle("Blueprint API")
+            .WithTitle("Blueprint Service API")  // MUST match OpenAPI title
+            .WithTheme(ScalarTheme.Purple)
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+    });
+}
+
+app.Run();
+```
+
+#### API Gateway OpenAPI Aggregation
+
+```csharp
+// REQUIRED in ApiGateway service
+using Yarp.ReverseProxy.Transforms;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer(async (document, context, cancellationToken) =>
+    {
+        // REQUIRED: Set gateway metadata
+        document.Info = new()
+        {
+            Title = "Sorcha API Gateway",
+            Version = "v1",
+            Description = "Unified API surface for all Sorcha services"
+        };
+
+        // REQUIRED: Aggregate OpenAPI specs from backend services
+        var httpClient = context.RequestServices.GetRequiredService<IHttpClientFactory>()
+            .CreateClient();
+
+        var services = new[]
+        {
+            ("http://blueprint-service", "/openapi/v1.json"),
+            ("http://peer-service", "/openapi/v1.json")
+            // Add all backend services here
+        };
+
+        foreach (var (serviceUrl, specPath) in services)
+        {
+            try
+            {
+                var spec = await httpClient.GetFromJsonAsync<OpenApiDocument>(
+                    $"{serviceUrl}{specPath}", cancellationToken);
+
+                if (spec?.Paths != null)
+                {
+                    // Merge paths from backend service
+                    foreach (var path in spec.Paths)
+                    {
+                        document.Paths.Add(path.Key, path.Value);
+                    }
+                }
+
+                if (spec?.Components?.Schemas != null)
+                {
+                    // Merge schemas from backend service
+                    foreach (var schema in spec.Components.Schemas)
+                    {
+                        document.Components ??= new();
+                        document.Components.Schemas ??= new Dictionary<string, OpenApiSchema>();
+                        document.Components.Schemas.TryAdd(schema.Key, schema.Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log but don't fail - allow partial API surface
+                context.RequestServices.GetRequiredService<ILogger<Program>>()
+                    .LogWarning(ex, "Failed to fetch OpenAPI spec from {Service}", serviceUrl);
+            }
+        }
+
+        return Task.CompletedTask;
+    });
+});
+
+var app = builder.Build();
+
+// REQUIRED: Expose aggregated OpenAPI spec
+app.MapOpenApi();
+
+// REQUIRED: Scalar UI showing complete API surface
+if (app.Environment.IsDevelopment())
+{
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTitle("Sorcha Complete API")
             .WithTheme(ScalarTheme.Purple)
             .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
     });
 }
 ```
+
+#### Endpoint Documentation Standards
+
+```csharp
+// REQUIRED: Document all endpoints with summaries and descriptions
+app.MapGet("/api/blueprints/{id}", async (string id, IBlueprintStore store) =>
+{
+    var blueprint = await store.GetByIdAsync(id);
+    return blueprint is not null ? Results.Ok(blueprint) : Results.NotFound();
+})
+.WithName("GetBlueprint")
+.WithSummary("Get a blueprint by ID")
+.WithDescription("Retrieves a specific blueprint by its unique identifier")
+.WithOpenApi(operation =>
+{
+    operation.Parameters[0].Description = "The unique identifier of the blueprint";
+    return operation;
+})
+.Produces<Blueprint>(StatusCodes.Status200OK)
+.Produces(StatusCodes.Status404NotFound)
+.WithTags("Blueprints");
+```
+
+#### Validation Checklist
+
+Before deploying any API service:
+
+- [ ] OpenAPI spec is generated and accessible at `/openapi/v1.json`
+- [ ] Scalar UI is configured and accessible in development
+- [ ] API title is unique and descriptive
+- [ ] All endpoints have summaries and descriptions
+- [ ] All response types are documented with `.Produces<T>()`
+- [ ] All parameters have descriptions
+- [ ] All endpoints are tagged appropriately
+- [ ] ApiGateway successfully aggregates the service's OpenAPI spec
+- [ ] Complete API surface is visible through gateway's Scalar UI
 
 **Note**: Sorcha uses **Scalar** (modern API documentation UI), not Swagger UI
 
@@ -723,6 +899,10 @@ Before committing code, verify:
 - [ ] Health checks implemented
 - [ ] OpenTelemetry integrated
 - [ ] APIs follow REST standards
+- [ ] **OpenAPI specification generated and exposed at `/openapi/v1.json`**
+- [ ] **Scalar UI configured for API documentation**
+- [ ] **All endpoints documented with summaries and descriptions**
+- [ ] **API Gateway aggregates service OpenAPI specs (if applicable)**
 - [ ] All inputs validated
 - [ ] Errors handled globally
 - [ ] Configuration strongly-typed

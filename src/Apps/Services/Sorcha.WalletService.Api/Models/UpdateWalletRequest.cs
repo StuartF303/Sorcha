@@ -1,0 +1,20 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace Sorcha.WalletService.Api.Models;
+
+/// <summary>
+/// Request model for updating wallet metadata
+/// </summary>
+public class UpdateWalletRequest
+{
+    /// <summary>
+    /// New wallet name
+    /// </summary>
+    [StringLength(100, MinimumLength = 1)]
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Metadata tags to add/update
+    /// </summary>
+    public Dictionary<string, string>? Tags { get; set; }
+}

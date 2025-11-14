@@ -65,7 +65,10 @@
       "Bash(if exist \"tests\\Sorcha.TransactionHandler.Tests\\UnitTest1.cs\" del \"tests\\Sorcha.TransactionHandler.Tests\\UnitTest1.cs\")",
       "Bash(Sorcha.sln.local)",
       "Bash(Sorcha.sln.origin)",
-      "Bash(if not exist \"docs\" mkdir docs)"
+      "Bash(if not exist \"docs\" mkdir docs)",
+      "Bash(rm:*)",
+      "Bash(Select-String -Pattern \"error|Build succeeded|Build FAILED\")",
+      "Bash(Select-Object -Last 5)"
     ],
     "deny": [],
     "ask": []
