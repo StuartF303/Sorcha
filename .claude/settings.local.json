@@ -68,7 +68,9 @@
       "Bash(if not exist \"docs\" mkdir docs)",
       "Bash(rm:*)",
       "Bash(Select-String -Pattern \"error|Build succeeded|Build FAILED\")",
-      "Bash(Select-Object -Last 5)"
+      "Bash(Select-Object -Last 5)",
+      "Bash(if exist \"src\\Services\\Sorcha.WalletService.Api\" rmdir /s /q \"src\\Services\\Sorcha.WalletService.Api\")",
+      "Bash(cmd /c \"if exist src\\Services\\Sorcha.WalletService.Api rmdir /s /q src\\Services\\Sorcha.WalletService.Api\")"
     ],
     "deny": [],
     "ask": []
