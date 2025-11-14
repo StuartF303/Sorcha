@@ -31,10 +31,12 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 app.MapDefaultEndpoints();
 
-// Configure Scalar API documentation (better than Swagger)
+// Configure OpenAPI (available in all environments for API consumers)
+app.MapOpenApi();
+
+// Configure Scalar API documentation UI (development only)
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
     app.MapScalarApiReference(options =>
     {
         options
