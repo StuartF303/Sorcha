@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Sorcha.Blueprint.Models;
+
 namespace Sorcha.Blueprint.Engine.Models;
 
 /// <summary>
@@ -28,7 +30,7 @@ public class ExecutionContext
     /// <summary>
     /// The current action being executed within the blueprint.
     /// </summary>
-    public required Models.Action Action { get; init; }
+    public required Sorcha.Blueprint.Models.Action Action { get; init; }
 
     /// <summary>
     /// The action data submitted by the participant.

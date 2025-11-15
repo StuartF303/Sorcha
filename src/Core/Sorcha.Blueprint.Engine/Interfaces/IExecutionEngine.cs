@@ -2,6 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Text.Json.Nodes;
+using Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Interfaces;
 
@@ -36,7 +37,7 @@ public interface IExecutionEngine
     /// 4. Creates selective disclosure payloads for each participant
     /// </remarks>
     Task<ActionExecutionResult> ExecuteActionAsync(
-        ExecutionContext context,
+        Engine.Models.ExecutionContext context,
         CancellationToken ct = default);
 
     /// <summary>
@@ -84,8 +85,8 @@ public interface IExecutionEngine
     /// before publishing a blueprint.
     /// </remarks>
     Task<RoutingResult> DetermineRoutingAsync(
-        Blueprint blueprint,
-        Models.Action currentAction,
+        Sorcha.Blueprint.Models.Blueprint blueprint,
+        Sorcha.Blueprint.Models.Action currentAction,
         Dictionary<string, object> data,
         CancellationToken ct = default);
 

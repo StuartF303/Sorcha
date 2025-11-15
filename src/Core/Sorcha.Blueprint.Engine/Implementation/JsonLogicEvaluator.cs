@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using Json.Logic;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Engine.Models;
+using Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Implementation;
 

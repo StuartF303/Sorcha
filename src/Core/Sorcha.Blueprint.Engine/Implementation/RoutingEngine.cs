@@ -3,6 +3,7 @@
 
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Engine.Models;
+using Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Implementation;
 
@@ -28,8 +29,8 @@ public class RoutingEngine : IRoutingEngine
     /// Determine the next action and participant based on routing conditions.
     /// </summary>
     public async Task<RoutingResult> DetermineNextAsync(
-        Blueprint blueprint,
-        Models.Action currentAction,
+        Sorcha.Blueprint.Models.Blueprint blueprint,
+        Sorcha.Blueprint.Models.Action currentAction,
         Dictionary<string, object> data,
         CancellationToken ct = default)
     {
@@ -85,9 +86,9 @@ public class RoutingEngine : IRoutingEngine
     /// the current action, but this is a simplified implementation.
     /// In a real system, you might have explicit routing references.
     /// </remarks>
-    private static Models.Action? FindNextActionForParticipant(
-        Blueprint blueprint,
-        Models.Action currentAction,
+    private static Sorcha.Blueprint.Models.Action? FindNextActionForParticipant(
+        Sorcha.Blueprint.Models.Blueprint blueprint,
+        Sorcha.Blueprint.Models.Action currentAction,
         string participantId)
     {
         // Get all actions after the current one

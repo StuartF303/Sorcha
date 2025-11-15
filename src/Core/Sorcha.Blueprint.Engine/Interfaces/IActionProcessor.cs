@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Sorcha.Blueprint.Engine.Models;
+
 namespace Sorcha.Blueprint.Engine.Interfaces;
 
 /// <summary>
@@ -69,6 +71,6 @@ public interface IActionProcessor
     /// <exception cref="ArgumentNullException">If context is null.</exception>
     /// <exception cref="InvalidOperationException">If the blueprint or action is malformed.</exception>
     Task<ActionExecutionResult> ProcessAsync(
-        ExecutionContext context,
+        Engine.Models.ExecutionContext context,
         CancellationToken ct = default);
 }

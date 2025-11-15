@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Sorcha.Blueprint.Engine.Models;
+using Sorcha.Blueprint.Models;
+
 namespace Sorcha.Blueprint.Engine.Interfaces;
 
 /// <summary>
@@ -52,8 +55,8 @@ public interface IRoutingEngine
     /// - Error: Condition matched but next action not found
     /// </remarks>
     Task<RoutingResult> DetermineNextAsync(
-        Blueprint blueprint,
-        Models.Action currentAction,
+        Sorcha.Blueprint.Models.Blueprint blueprint,
+        Sorcha.Blueprint.Models.Action currentAction,
         Dictionary<string, object> data,
         CancellationToken ct = default);
 }
