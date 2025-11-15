@@ -74,7 +74,7 @@ Created comprehensive JSON-LD context support in [JsonLdContext.cs](../src/Commo
 
 #### Default Context
 Maps blueprint fields to standard vocabularies:
-- `@vocab`: https://sorcha.io/blueprint/v1#
+- `@vocab`: https://sorcha.dev/blueprint/v1#
 - `schema`: https://schema.org/
 - `did`: https://www.w3.org/ns/did#
 - `as`: https://www.w3.org/ns/activitystreams#
@@ -291,7 +291,7 @@ var blueprint = BlueprintBuilder.Create()
 ```json
 {
   "@context": {
-    "@vocab": "https://sorcha.io/blueprint/v1#",
+    "@vocab": "https://sorcha.dev/blueprint/v1#",
     "schema": "https://schema.org/",
     "did": "https://www.w3.org/ns/did#",
     "as": "https://www.w3.org/ns/activitystreams#",
@@ -396,7 +396,7 @@ var credential = JsonNode.Parse(@"{
 Currently contexts are embedded in code. For production:
 
 **Recommended approach:**
-1. Host contexts at actual URLs (e.g., https://sorcha.io/contexts/v1/default.jsonld)
+1. Host contexts at actual URLs (e.g., https://sorcha.dev/contexts/v1/default.jsonld)
 2. Use versioned URLs for stability
 3. Support content negotiation on context URLs
 4. Implement caching headers (immutable contexts)
@@ -404,7 +404,7 @@ Currently contexts are embedded in code. For production:
 **Example hosted context:**
 ```json
 {
-  "@context": "https://sorcha.io/contexts/v1/finance.jsonld"
+  "@context": "https://sorcha.dev/contexts/v1/finance.jsonld"
 }
 ```
 

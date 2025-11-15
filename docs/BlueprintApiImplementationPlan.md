@@ -6,7 +6,8 @@
 - **.NET 10** with **Minimal APIs**
 - **Aspire 9.5** for orchestration
 - **Redis** for distributed caching and output caching
-- **Scalar** for OpenAPI documentation (better than Swagger)
+- **.NET 10 built-in OpenAPI** (Microsoft.AspNetCore.OpenApi)
+- **Scalar.AspNetCore** for interactive API documentation UI
 - **Docker** Linux containers
 - **OpenAPI 3.1** specification
 
@@ -112,12 +113,18 @@ src/
 
 ## OpenAPI Documentation
 
-### Scalar Configuration
+### .NET 10 Built-in OpenAPI
+- Use Microsoft.AspNetCore.OpenApi package
+- Auto-generated OpenAPI 3.1 specifications
+- OpenAPI document available at `/openapi/v1.json`
+- No Swagger/Swashbuckle dependencies
+
+### Scalar Interactive UI
 - Interactive API explorer at `/scalar/v1`
-- Better UX than Swagger
-- Dark mode support
+- Modern UI with dark mode support
 - Request/response examples
 - Authentication testing
+- Better developer experience than Swagger UI
 
 ### Documentation Features
 - Full XML comments on all endpoints

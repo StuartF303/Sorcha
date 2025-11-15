@@ -145,7 +145,7 @@ This document outlines the implementation plan for the Sorcha distributed ledger
 
 **Deliverables:**
 - Minimal API endpoints for wallet operations
-- OpenAPI/Swagger documentation
+- .NET 10 built-in OpenAPI documentation with Scalar UI
 - Integrated with Sorcha.AppHost
 - Integrated with Sorcha.ApiGateway
 - E2E tests

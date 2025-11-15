@@ -24,7 +24,7 @@ The existing `SorchaPlatformCryptography` library has several issues that preven
    - Entity Framework Core (full suite) - not needed in crypto library
    - Serilog (multiple sinks) - logging should be optional
    - FluentValidation - validation not core to crypto
-   - Swagger - API documentation tool
+   - Swagger/Swashbuckle - API documentation tool (if API needed, use .NET 10 built-in OpenAPI + Scalar)
    - Test framework packages in library project (should be in test project only)
 
 2. **Inappropriate Project References**

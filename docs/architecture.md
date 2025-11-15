@@ -4,8 +4,8 @@
 
 Sorcha is a modern .NET 10 platform for defining, designing, and executing multi-participant data flow orchestration workflows (called "Blueprints"). Built on .NET Aspire for cloud-native orchestration, Sorcha provides a flexible and scalable solution for workflow automation with selective data disclosure and conditional routing.
 
-**Last Updated:** 2025-01-12
-**Version:** 2.0.0
+**Last Updated:** 2025-11-14
+**Version:** 2.1.0
 **Status:** Active Development
 
 ## High-Level Architecture
@@ -233,7 +233,7 @@ REST API for blueprint execution and management (IN DEVELOPMENT).
 
 **Technology:**
 - ASP.NET Core Minimal APIs
-- OpenAPI/Swagger documentation
+- .NET 10 built-in OpenAPI documentation with Scalar UI
 - Dependency Injection
 - Background services for long-running tasks (planned)
 
@@ -352,7 +352,7 @@ YARP-based API Gateway for routing and aggregation.
 **Responsibilities:**
 - API routing and reverse proxy
 - Health check aggregation across services
-- OpenAPI/Swagger aggregation
+- OpenAPI document aggregation
 - Client download service
 - Load balancing and failover
 
@@ -382,7 +382,7 @@ REST API service for Blueprint management and operations.
 
 **Features:**
 - RESTful API endpoints
-- OpenAPI/Swagger documentation
+- .NET 10 built-in OpenAPI documentation with Scalar UI
 - JSON-LD middleware for semantic web support
 - Output caching with Redis
 - Health monitoring
@@ -432,7 +432,7 @@ Peers Repeat Gossip → 90% Network Coverage in < 1 minute
 {
   "PeerService": {
     "Enabled": true,
-    "BootstrapNodes": ["https://peer.sorcha.org:5001"],
+    "BootstrapNodes": ["https://peer.sorcha.dev:5001"],
     "RefreshIntervalMinutes": 15,
     "GossipProtocol": {
       "FanoutFactor": 3,
@@ -561,11 +561,17 @@ Build Pipeline:
 ### 3. API-First
 
 - RESTful APIs using minimal API pattern
-- OpenAPI/Swagger documentation
+- **OpenAPI documentation REQUIRED for all REST endpoints**
+- Use .NET 10's built-in OpenAPI support (Microsoft.AspNetCore.OpenApi)
+- Auto-generated OpenAPI specifications from code annotations
+- Interactive API documentation via Scalar.AspNetCore (NOT Swagger)
+- OpenAPI spec available at `/openapi/v1.json`
+- Interactive UI available at `/scalar/v1`
 - Versioned APIs (planned)
 - Standard HTTP status codes
 - JSON request/response
 - Consistent error responses (ProblemDetails)
+- All endpoints must document authentication/authorization requirements
 
 ### 4. Modular Architecture
 

@@ -172,8 +172,8 @@ public class PeerService : BackgroundService
 {
   "PeerDiscovery": {
     "BootstrapNodes": [
-      "https://peer.sorcha.org:5001",
-      "https://peer2.sorcha.org:5001"
+      "https://peer.sorcha.dev:5001",
+      "https://peer2.sorcha.dev:5001"
     ],
     "RefreshIntervalMinutes": 15,
     "MaxPeersInList": 1000,
@@ -736,7 +736,7 @@ public class TransactionQueue
 
     "PeerDiscovery": {
       "BootstrapNodes": [
-        "https://peer.sorcha.org:5001"
+        "https://peer.sorcha.dev:5001"
       ],
       "RefreshIntervalMinutes": 15,
       "MaxPeersInList": 1000,

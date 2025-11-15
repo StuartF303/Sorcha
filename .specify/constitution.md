@@ -1,7 +1,7 @@
 # SORCHA Project Constitution
 
-**Version:** 1.0
-**Last Updated:** 2025-11-11
+**Version:** 1.1
+**Last Updated:** 2025-11-14
 **Status:** Active
 
 ## Purpose
@@ -71,6 +71,18 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 - Leverage dependency injection throughout
 - Follow RESTful API design principles
 
+**API Documentation Standards**
+- All REST endpoints MUST have OpenAPI documentation
+- Use .NET 10's built-in OpenAPI support (Microsoft.AspNetCore.OpenApi)
+- Use Scalar.AspNetCore for interactive API documentation UI
+- OpenAPI specifications must be auto-generated from code annotations
+- Document all request/response models with XML comments
+- Include examples for complex request/response payloads
+- Define appropriate HTTP status codes for all endpoints
+- Document authentication and authorization requirements
+- Version APIs appropriately and document breaking changes
+- DO NOT use Swagger/Swashbuckle - use built-in .NET 10 OpenAPI
+
 **Version Control**
 - Use Git with feature branch workflow
 - Write clear, descriptive commit messages
@@ -95,9 +107,12 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 
 **Code Documentation**
 - Document all public APIs with XML comments
+- All REST endpoints must include OpenAPI documentation using .NET 10 built-in support
 - Maintain README files for each service
 - Document configuration requirements and dependencies
 - Keep architectural decision records (ADRs)
+- API documentation must be accessible via /scalar endpoint (interactive UI)
+- OpenAPI specifications must be available at /openapi/v1.json
 
 **Operational Documentation**
 - Document deployment procedures
