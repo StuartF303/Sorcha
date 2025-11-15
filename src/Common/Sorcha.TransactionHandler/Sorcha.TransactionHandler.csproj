@@ -30,7 +30,7 @@
     <!-- Core dependency -->
     <ProjectReference Include="..\Sorcha.Cryptography\Sorcha.Cryptography.csproj" />
     <ProjectReference Include="..\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
-    <PackageReference Include="System.Text.Json" Version="9.0.0" />
+    <PackageReference Include="System.Text.Json" Version="10.0.0" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
 </Project>
