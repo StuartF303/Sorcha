@@ -1,0 +1,502 @@
+{
+  "id": "supply-chain-order-001",
+  "title": "Supply Chain Order Workflow Template",
+  "description": "Reusable template for multi-party supply chain workflows with quality checks, finance approval, and shipment tracking",
+  "version": 1,
+  "category": "supply-chain",
+  "tags": ["supply-chain", "procurement", "logistics", "GS1"],
+  "author": "Sorcha Team",
+  "published": true,
+  "template": {
+    "$eval": "blueprintTemplate",
+    "context": {
+      "blueprintTemplate": {
+        "@context": {
+          "@vocab": "https://sorcha.dev/blueprint/v1#",
+          "schema": "https://schema.org/",
+          "gs1": "https://gs1.org/voc/",
+          "did": "https://www.w3.org/ns/did#",
+          "id": "@id",
+          "type": "@type",
+          "Order": "schema:Order",
+          "Product": "schema:Product",
+          "orderNumber": "schema:orderNumber",
+          "productId": "gs1:gtin",
+          "quantity": "schema:orderQuantity",
+          "trackingNumber": "gs1:trackingNumber"
+        },
+        "@type": "Blueprint",
+        "id": { "$eval": "blueprintId" },
+        "title": { "$eval": "blueprintTitle" },
+        "description": { "$eval": "blueprintDescription" },
+        "version": 1,
+        "metadata": {
+          "category": "supply-chain",
+          "author": "Sorcha Team"
+        },
+        "participants": {
+          "$flattenDeep": [
+            [
+              {
+                "id": "buyer",
+                "type": "Participant",
+                "name": "Buyer",
+                "organisation": { "$eval": "buyerOrg" },
+                "didUri": "did:example:buyer"
+              },
+              {
+                "id": "supplier",
+                "type": "Participant",
+                "name": "Supplier",
+                "organisation": { "$eval": "supplierOrg" },
+                "didUri": "did:example:supplier"
+              }
+            ],
+            {
+              "$if": "requiresQualityCheck",
+              "then": [
+                {
+                  "id": "quality",
+                  "type": "Participant",
+                  "name": "Quality Assurance",
+                  "organisation": { "$eval": "buyerOrg" },
+                  "didUri": "did:example:quality"
+                }
+              ],
+              "else": []
+            },
+            {
+              "$if": "requiresFinanceApproval",
+              "then": [
+                {
+                  "id": "finance",
+                  "type": "Participant",
+                  "name": "Finance Department",
+                  "organisation": { "$eval": "buyerOrg" },
+                  "didUri": "did:example:finance"
+                }
+              ],
+              "else": []
+            },
+            [
+              {
+                "id": "logistics",
+                "type": "Participant",
+                "name": "Logistics Provider",
+                "organisation": { "$eval": "logisticsProvider" },
+                "didUri": "did:example:logistics"
+              }
+            ]
+          ]
+        },
+        "actions": {
+          "$flattenDeep": [
+            [
+              {
+                "id": 0,
+                "type": "CreateAction",
+                "title": "Create Purchase Order",
+                "description": "Buyer creates purchase order with line items",
+                "sender": "buyer",
+                "dataSchemas": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "orderNumber": {
+                        "type": "string",
+                        "title": "Order Number",
+                        "minLength": 5
+                      },
+                      "orderDate": {
+                        "type": "string",
+                        "title": "Order Date",
+                        "format": "date"
+                      },
+                      "items": {
+                        "type": "array",
+                        "title": "Order Items",
+                        "minItems": 1,
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "productId": { "type": "string", "title": "Product ID (GTIN)" },
+                            "productName": { "type": "string", "title": "Product Name" },
+                            "quantity": { "type": "number", "title": "Quantity", "minimum": 1 },
+                            "unitPrice": { "type": "number", "title": "Unit Price", "minimum": 0 },
+                            "category": { "type": "string", "title": "Product Category" }
+                          },
+                          "required": ["productId", "productName", "quantity", "unitPrice"]
+                        }
+                      },
+                      "deliveryAddress": {
+                        "type": "string",
+                        "title": "Delivery Address"
+                      },
+                      "deliveryDate": {
+                        "type": "string",
+                        "title": "Requested Delivery Date",
+                        "format": "date"
+                      },
+                      "paymentTerms": {
+                        "type": "string",
+                        "title": "Payment Terms",
+                        "enum": ["net-30", "net-60", "net-90", "prepaid"]
+                      }
+                    },
+                    "required": ["orderNumber", "items", "deliveryAddress", "paymentTerms"]
+                  }
+                ],
+                "disclosures": [
+                  { "participantAddress": "supplier", "dataPointers": ["/*"] },
+                  {
+                    "$if": "requiresQualityCheck",
+                    "then": { "participantAddress": "quality", "dataPointers": ["/items"] }
+                  },
+                  {
+                    "$if": "requiresFinanceApproval",
+                    "then": { "participantAddress": "finance", "dataPointers": ["/*"] }
+                  }
+                ],
+                "calculations": {
+                  "totalAmount": {
+                    "reduce": [
+                      {
+                        "map": [
+                          { "var": "items" },
+                          { "*": [{ "var": "quantity" }, { "var": "unitPrice" }] }
+                        ]
+                      },
+                      { "+": [{ "var": "accumulator" }, { "var": "current" }] },
+                      0
+                    ]
+                  },
+                  "requiresQualityCheck": {
+                    "some": [
+                      { "var": "items" },
+                      { "in": [{ "var": "category" }, ["electronics", "medical", "food"]] }
+                    ]
+                  },
+                  "requiresFinanceApproval": {
+                    "or": [
+                      { ">": [{ "var": "totalAmount" }, { "$eval": "financeThreshold" }] },
+                      { "in": [{ "var": "paymentTerms" }, ["net-60", "net-90"]] }
+                    ]
+                  }
+                },
+                "condition": {
+                  "$if": "requiresFinanceApproval",
+                  "then": {
+                    "if": [
+                      { "var": "requiresFinanceApproval" },
+                      "finance",
+                      {
+                        "$if": "requiresQualityCheck",
+                        "then": {
+                          "if": [{ "var": "requiresQualityCheck" }, "quality", "supplier"]
+                        },
+                        "else": "supplier"
+                      }
+                    ]
+                  },
+                  "else": {
+                    "$if": "requiresQualityCheck",
+                    "then": {
+                      "if": [{ "var": "requiresQualityCheck" }, "quality", "supplier"]
+                    },
+                    "else": "supplier"
+                  }
+                }
+              }
+            ],
+            {
+              "$if": "requiresFinanceApproval",
+              "then": [
+                {
+                  "id": 1,
+                  "type": "AcceptAction",
+                  "title": "Finance Approval",
+                  "description": "Finance department approves high-value or extended-payment orders",
+                  "sender": "finance",
+                  "dataSchemas": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "decision": {
+                          "type": "string",
+                          "title": "Finance Decision",
+                          "enum": ["approved", "rejected", "needs-info"]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "title": "Finance Notes",
+                          "maxLength": 1000
+                        },
+                        "budgetCode": {
+                          "type": "string",
+                          "title": "Budget Code"
+                        }
+                      },
+                      "required": ["decision"]
+                    }
+                  ],
+                  "condition": {
+                    "if": [
+                      { "==": [{ "var": "decision" }, "rejected"] },
+                      null,
+                      {
+                        "$if": "requiresQualityCheck",
+                        "then": { "if": [{ "var": "requiresQualityCheck" }, "quality", "supplier"] },
+                        "else": "supplier"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "else": []
+            },
+            {
+              "$if": "requiresQualityCheck",
+              "then": [
+                {
+                  "id": 2,
+                  "type": "AcceptAction",
+                  "title": "Quality Pre-Approval",
+                  "description": "Quality team reviews and approves product categories before ordering",
+                  "sender": "quality",
+                  "dataSchemas": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "decision": {
+                          "type": "string",
+                          "title": "Quality Decision",
+                          "enum": ["approved", "rejected", "needs-review"]
+                        },
+                        "inspectionNotes": {
+                          "type": "string",
+                          "title": "Inspection Notes",
+                          "maxLength": 1000
+                        },
+                        "certificationRequired": {
+                          "type": "boolean",
+                          "title": "Certification Required"
+                        }
+                      },
+                      "required": ["decision"]
+                    }
+                  ],
+                  "condition": {
+                    "if": [
+                      { "==": [{ "var": "decision" }, "rejected"] },
+                      null,
+                      "supplier"
+                    ]
+                  }
+                }
+              ],
+              "else": []
+            },
+            [
+              {
+                "id": 3,
+                "type": "AcceptAction",
+                "title": "Acknowledge Order",
+                "description": "Supplier acknowledges order and confirms availability",
+                "sender": "supplier",
+                "dataSchemas": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "acknowledgment": {
+                        "type": "string",
+                        "title": "Acknowledgment",
+                        "enum": ["accepted", "rejected", "partially-available"]
+                      },
+                      "estimatedShipDate": {
+                        "type": "string",
+                        "title": "Estimated Ship Date",
+                        "format": "date"
+                      },
+                      "notes": {
+                        "type": "string",
+                        "title": "Supplier Notes"
+                      }
+                    },
+                    "required": ["acknowledgment"]
+                  }
+                ],
+                "condition": {
+                  "if": [
+                    { "==": [{ "var": "acknowledgment" }, "rejected"] },
+                    null,
+                    "logistics"
+                  ]
+                }
+              },
+              {
+                "id": 4,
+                "type": "UpdateAction",
+                "title": "Ship Order",
+                "description": "Logistics provider ships order and provides tracking",
+                "sender": "logistics",
+                "dataSchemas": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "trackingNumber": {
+                        "type": "string",
+                        "title": "Tracking Number",
+                        "minLength": 5
+                      },
+                      "carrier": {
+                        "type": "string",
+                        "title": "Shipping Carrier"
+                      },
+                      "shipDate": {
+                        "type": "string",
+                        "title": "Ship Date",
+                        "format": "date"
+                      },
+                      "estimatedDeliveryDate": {
+                        "type": "string",
+                        "title": "Estimated Delivery",
+                        "format": "date"
+                      }
+                    },
+                    "required": ["trackingNumber", "carrier", "shipDate"]
+                  }
+                ],
+                "disclosures": [
+                  { "participantAddress": "buyer", "dataPointers": ["/*"] },
+                  { "participantAddress": "supplier", "dataPointers": ["/*"] }
+                ]
+              }
+            ]
+          ]
+        }
+      },
+      "blueprintId": { "$eval": "blueprintId" },
+      "blueprintTitle": { "$eval": "blueprintTitle" },
+      "blueprintDescription": { "$eval": "blueprintDescription" },
+      "buyerOrg": { "$eval": "buyerOrg" },
+      "supplierOrg": { "$eval": "supplierOrg" },
+      "logisticsProvider": { "$eval": "logisticsProvider" },
+      "requiresQualityCheck": { "$eval": "requiresQualityCheck" },
+      "requiresFinanceApproval": { "$eval": "requiresFinanceApproval" },
+      "financeThreshold": { "$eval": "financeThreshold" }
+    }
+  },
+  "parameterSchema": {
+    "type": "object",
+    "properties": {
+      "blueprintId": {
+        "type": "string",
+        "description": "Unique identifier for the generated blueprint"
+      },
+      "blueprintTitle": {
+        "type": "string",
+        "description": "Title for the blueprint",
+        "minLength": 3
+      },
+      "blueprintDescription": {
+        "type": "string",
+        "description": "Description of the blueprint",
+        "minLength": 5
+      },
+      "buyerOrg": {
+        "type": "string",
+        "description": "Buyer organization name"
+      },
+      "supplierOrg": {
+        "type": "string",
+        "description": "Supplier organization name"
+      },
+      "logisticsProvider": {
+        "type": "string",
+        "description": "Logistics provider name"
+      },
+      "requiresQualityCheck": {
+        "type": "boolean",
+        "description": "Whether to include quality pre-approval step"
+      },
+      "requiresFinanceApproval": {
+        "type": "boolean",
+        "description": "Whether to include finance approval for high-value orders"
+      },
+      "financeThreshold": {
+        "type": "number",
+        "description": "Order value threshold for automatic finance approval",
+        "minimum": 0
+      }
+    },
+    "required": [
+      "blueprintId",
+      "blueprintTitle",
+      "blueprintDescription",
+      "buyerOrg",
+      "supplierOrg",
+      "logisticsProvider",
+      "requiresQualityCheck",
+      "requiresFinanceApproval",
+      "financeThreshold"
+    ]
+  },
+  "defaultParameters": {
+    "blueprintId": "supply-chain-generated",
+    "blueprintTitle": "Supply Chain Order Workflow",
+    "blueprintDescription": "Multi-party supply chain procurement and fulfillment workflow",
+    "buyerOrg": "Acme Manufacturing Corp",
+    "supplierOrg": "Global Suppliers Inc",
+    "logisticsProvider": "Express Logistics Ltd",
+    "requiresQualityCheck": true,
+    "requiresFinanceApproval": true,
+    "financeThreshold": 5000
+  },
+  "examples": [
+    {
+      "name": "standard-procurement",
+      "description": "Standard procurement with all approvals",
+      "parameters": {
+        "blueprintId": "standard-procurement-001",
+        "blueprintTitle": "Standard Procurement Workflow",
+        "blueprintDescription": "Standard multi-stage procurement with quality and finance approvals",
+        "buyerOrg": "Acme Manufacturing Corp",
+        "supplierOrg": "Global Suppliers Inc",
+        "logisticsProvider": "Express Logistics Ltd",
+        "requiresQualityCheck": true,
+        "requiresFinanceApproval": true,
+        "financeThreshold": 5000
+      }
+    },
+    {
+      "name": "simple-order",
+      "description": "Simple order without approvals",
+      "parameters": {
+        "blueprintId": "simple-order-001",
+        "blueprintTitle": "Simple Order Workflow",
+        "blueprintDescription": "Streamlined order workflow without approval gates",
+        "buyerOrg": "Small Business LLC",
+        "supplierOrg": "Direct Supplier Co",
+        "logisticsProvider": "Local Delivery Service",
+        "requiresQualityCheck": false,
+        "requiresFinanceApproval": false,
+        "financeThreshold": 100000
+      }
+    },
+    {
+      "name": "high-value-procurement",
+      "description": "High-value procurement with strict controls",
+      "parameters": {
+        "blueprintId": "high-value-procurement-001",
+        "blueprintTitle": "High-Value Procurement Workflow",
+        "blueprintDescription": "Stringent procurement process for high-value orders with multiple approval stages",
+        "buyerOrg": "Enterprise Corporation",
+        "supplierOrg": "Premium Suppliers Ltd",
+        "logisticsProvider": "Secure Logistics International",
+        "requiresQualityCheck": true,
+        "requiresFinanceApproval": true,
+        "financeThreshold": 1000
+      }
+    }
+  ]
+}
