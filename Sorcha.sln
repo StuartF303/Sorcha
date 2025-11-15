@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.0.11205.157
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Apps", "Apps", "{1787FE1D-075E-9E68-7218-25F1BD1BBEAB}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.AppHost", "src\Apps\Sorcha.AppHost\Sorcha.AppHost.csproj", "{8415A6DE-64EE-4FA5-B194-C26121856EB6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Peer.Service", "src\Services\Sorcha.Peer.Service\Sorcha.Peer.Service.csproj", "{59043B65-2161-45CD-B5C9-D37CCC029E95}"
@@ -24,8 +22,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Blueprint.Schemas", "src\Core\Sorcha.Blueprint.Schemas\Sorcha.Blueprint.Schemas.csproj", "{895EB229-1A04-44AB-A2DD-5DF66266F8CE}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "UI", "UI", "{E98D06B3-1836-C841-A91F-F8BF7727761E}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{881589EE-639B-0A35-DBCE-5D94E4FC90C0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Cryptography", "src\Common\Sorcha.Cryptography\Sorcha.Cryptography.csproj", "{5C66D946-BB01-4F77-BAEB-A93D099E017A}"
 EndProject
@@ -73,9 +69,49 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.WalletService.Integr
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Apps", "Apps", "{AD2A5A3B-A595-3E96-334A-002D08FE630C}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{E39AFF09-0404-B0E1-E9DF-C77467378E03}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.WalletService.Api", "src\Apps\Services\Sorcha.WalletService.Api\Sorcha.WalletService.Api.csproj", "{F7643110-C6DB-4AF8-8A73-F4344FEA1CA9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{1A7A2863-164E-4E57-8D10-7CC734740A50}"
+	ProjectSection(SolutionItems) = preProject
+		docs\architecture.md = docs\architecture.md
+		docs\blockchain-transaction-format.md = docs\blockchain-transaction-format.md
+		docs\blueprint-architecture.md = docs\blueprint-architecture.md
+		docs\blueprint-designer-plan.md = docs\blueprint-designer-plan.md
+		docs\blueprint-format.md = docs\blueprint-format.md
+		docs\blueprint-schema.md = docs\blueprint-schema.md
+		docs\BlueprintApiImplementationPlan.md = docs\BlueprintApiImplementationPlan.md
+		docs\development-status.md = docs\development-status.md
+		docs\getting-started.md = docs\getting-started.md
+		docs\json-ld-implementation-summary.md = docs\json-ld-implementation-summary.md
+		docs\json-ld-quick-reference.md = docs\json-ld-quick-reference.md
+		docs\nuget-setup-guide.md = docs\nuget-setup-guide.md
+		docs\peer-service-completion.md = docs\peer-service-completion.md
+		docs\peer-service-design.md = docs\peer-service-design.md
+		docs\peer-service-implementation-plan.md = docs\peer-service-implementation-plan.md
+		docs\peer-service-summary.md = docs\peer-service-summary.md
+		docs\project-structure.md = docs\project-structure.md
+		docs\README.md = docs\README.md
+		docs\schema-caching-implementation.md = docs\schema-caching-implementation.md
+		docs\schema-library-architecture.md = docs\schema-library-architecture.md
+		docs\STRUCTURE_CHANGES.md = docs\STRUCTURE_CHANGES.md
+		docs\testing.md = docs\testing.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F7E461FF-5506-42A9-9864-02AA021A6994}"
+	ProjectSection(SolutionItems) = preProject
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+		CHANGELOG.md = CHANGELOG.md
+		CODE_OF_CONDUCT.md = CODE_OF_CONDUCT.md
+		CONTRIBUTING.md = CONTRIBUTING.md
+		DEPLOYMENT.md = DEPLOYMENT.md
+		docker-compose.yml = docker-compose.yml
+		LICENSE = LICENSE
+		nuget.config = nuget.config
+		PROJECT_STRUCTURE.md = PROJECT_STRUCTURE.md
+		README.md = README.md
+		TROUBLESHOOTING.md = TROUBLESHOOTING.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -416,18 +452,20 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{8415A6DE-64EE-4FA5-B194-C26121856EB6} = {1787FE1D-075E-9E68-7218-25F1BD1BBEAB}
+		{8415A6DE-64EE-4FA5-B194-C26121856EB6} = {AD2A5A3B-A595-3E96-334A-002D08FE630C}
 		{59043B65-2161-45CD-B5C9-D37CCC029E95} = {5854FF58-B8C5-05C6-5BF2-ACE42193F22B}
-		{606A593C-4E67-4575-9105-A09B81F7469B} = {881589EE-639B-0A35-DBCE-5D94E4FC90C0}
-		{968916AB-C2D2-4101-ABB9-2F940F0336C2} = {881589EE-639B-0A35-DBCE-5D94E4FC90C0}
+		{606A593C-4E67-4575-9105-A09B81F7469B} = {BFF2DF6E-AA54-47C7-211F-79ACCBB4577C}
+		{968916AB-C2D2-4101-ABB9-2F940F0336C2} = {BFF2DF6E-AA54-47C7-211F-79ACCBB4577C}
 		{DBDBDA02-A857-48A0-B326-D11E59D6A81D} = {5854FF58-B8C5-05C6-5BF2-ACE42193F22B}
 		{76ACE34D-EB6B-49E9-9DC2-8ECB9F06177A} = {5854FF58-B8C5-05C6-5BF2-ACE42193F22B}
 		{56D63ADD-BA7F-44FF-937C-E7A79E65A21B} = {E98D06B3-1836-C841-A91F-F8BF7727761E}
 		{26629583-D1B0-43D0-BAFD-80A6D2DB4831} = {FBF56CC3-7AE6-AD2D-3F14-7F97FD322CD6}
 		{895EB229-1A04-44AB-A2DD-5DF66266F8CE} = {FBF56CC3-7AE6-AD2D-3F14-7F97FD322CD6}
-		{E98D06B3-1836-C841-A91F-F8BF7727761E} = {1787FE1D-075E-9E68-7218-25F1BD1BBEAB}
-		{5C66D946-BB01-4F77-BAEB-A93D099E017A} = {881589EE-639B-0A35-DBCE-5D94E4FC90C0}
+		{E98D06B3-1836-C841-A91F-F8BF7727761E} = {AD2A5A3B-A595-3E96-334A-002D08FE630C}
+		{5C66D946-BB01-4F77-BAEB-A93D099E017A} = {BFF2DF6E-AA54-47C7-211F-79ACCBB4577C}
+		{FBF56CC3-7AE6-AD2D-3F14-7F97FD322CD6} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{EBF9BE4E-5E48-44B1-A854-D80DEF7AB403} = {FBF56CC3-7AE6-AD2D-3F14-7F97FD322CD6}
+		{5854FF58-B8C5-05C6-5BF2-ACE42193F22B} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{955DC5DC-7050-4C61-94C7-BAEC132E269D} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{401060E8-069C-4B33-ACE3-52011955F73A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{ABEC131D-4CE8-4EDA-A65E-EEFBBFE89663} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
@@ -445,7 +483,6 @@ Global
 		{EE19FC42-DE11-42AF-BCD2-3D52C2FCD704} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{5D94E4AB-3B0C-4A86-AE55-62E726D4D5AF} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{AD2A5A3B-A595-3E96-334A-002D08FE630C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{E39AFF09-0404-B0E1-E9DF-C77467378E03} = {AD2A5A3B-A595-3E96-334A-002D08FE630C}
-		{F7643110-C6DB-4AF8-8A73-F4344FEA1CA9} = {E39AFF09-0404-B0E1-E9DF-C77467378E03}
+		{F7643110-C6DB-4AF8-8A73-F4344FEA1CA9} = {5854FF58-B8C5-05C6-5BF2-ACE42193F22B}
 	EndGlobalSection
 EndGlobal
