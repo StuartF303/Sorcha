@@ -1,0 +1,534 @@
+{
+  "id": "approval-workflow-001",
+  "title": "Multi-Tier Approval Workflow Template",
+  "description": "Flexible multi-tier approval workflow with configurable approval stages, escalation paths, and rejection handling",
+  "version": 1,
+  "category": "approval",
+  "tags": ["approval", "workflow", "governance", "compliance"],
+  "author": "Sorcha Team",
+  "published": true,
+  "template": {
+    "$eval": "blueprintTemplate",
+    "context": {
+      "blueprintTemplate": {
+        "@type": "Blueprint",
+        "id": { "$eval": "blueprintId" },
+        "title": { "$eval": "blueprintTitle" },
+        "description": { "$eval": "blueprintDescription" },
+        "version": 1,
+        "metadata": {
+          "category": "approval",
+          "author": "Sorcha Team"
+        },
+        "participants": {
+          "$flattenDeep": [
+            [
+              {
+                "id": "requester",
+                "type": "Participant",
+                "name": "Requester",
+                "organisation": { "$eval": "organization" },
+                "didUri": "did:example:requester"
+              }
+            ],
+            {
+              "$if": "requiresManagerApproval",
+              "then": [
+                {
+                  "id": "manager",
+                  "type": "Participant",
+                  "name": { "$eval": "managerTitle" },
+                  "organisation": { "$eval": "organization" },
+                  "didUri": "did:example:manager"
+                }
+              ],
+              "else": []
+            },
+            {
+              "$if": "requiresDirectorApproval",
+              "then": [
+                {
+                  "id": "director",
+                  "type": "Participant",
+                  "name": { "$eval": "directorTitle" },
+                  "organisation": { "$eval": "organization" },
+                  "didUri": "did:example:director"
+                }
+              ],
+              "else": []
+            },
+            {
+              "$if": "requiresExecutiveApproval",
+              "then": [
+                {
+                  "id": "executive",
+                  "type": "Participant",
+                  "name": { "$eval": "executiveTitle" },
+                  "organisation": { "$eval": "organization" },
+                  "didUri": "did:example:executive"
+                }
+              ],
+              "else": []
+            },
+            {
+              "$if": "requiresComplianceReview",
+              "then": [
+                {
+                  "id": "compliance",
+                  "type": "Participant",
+                  "name": "Compliance Officer",
+                  "organisation": { "$eval": "organization" },
+                  "didUri": "did:example:compliance"
+                }
+              ],
+              "else": []
+            }
+          ]
+        },
+        "actions": {
+          "$flattenDeep": [
+            [
+              {
+                "id": 0,
+                "type": "CreateAction",
+                "title": { "$eval": "requestActionTitle" },
+                "description": { "$eval": "requestActionDescription" },
+                "sender": "requester",
+                "dataSchemas": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "requestType": {
+                        "type": "string",
+                        "title": "Request Type",
+                        "enum": { "$eval": "requestTypes" }
+                      },
+                      "amount": {
+                        "type": "number",
+                        "title": { "$eval": "amountFieldLabel" },
+                        "minimum": 0
+                      },
+                      "description": {
+                        "type": "string",
+                        "title": "Description",
+                        "minLength": 10,
+                        "maxLength": 2000
+                      },
+                      "urgency": {
+                        "type": "string",
+                        "title": "Urgency",
+                        "enum": ["low", "medium", "high", "critical"]
+                      },
+                      "justification": {
+                        "type": "string",
+                        "title": "Business Justification",
+                        "minLength": 20,
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": ["requestType", "amount", "description", "justification"]
+                  }
+                ],
+                "calculations": {
+                  "requiresManagerApproval": { "$eval": "requiresManagerApproval" },
+                  "requiresDirectorApproval": {
+                    "or": [
+                      { ">": [{ "var": "amount" }, { "$eval": "directorThreshold" }] },
+                      { "==": [{ "var": "urgency" }, "critical"] }
+                    ]
+                  },
+                  "requiresExecutiveApproval": {
+                    ">": [{ "var": "amount" }, { "$eval": "executiveThreshold" }]
+                  },
+                  "requiresComplianceReview": {
+                    "or": [
+                      { "$eval": "requiresComplianceReview" },
+                      { "in": [{ "var": "requestType" }, { "$eval": "complianceReviewTypes" }] }
+                    ]
+                  }
+                },
+                "condition": {
+                  "if": [
+                    { "$eval": "requiresComplianceReview" },
+                    {
+                      "if": [
+                        { "var": "requiresComplianceReview" },
+                        "compliance",
+                        {
+                          "$if": "requiresManagerApproval",
+                          "then": "manager",
+                          "else": null
+                        }
+                      ]
+                    },
+                    {
+                      "$if": "requiresManagerApproval",
+                      "then": "manager",
+                      "else": null
+                    }
+                  ]
+                }
+              }
+            ],
+            {
+              "$if": "requiresComplianceReview",
+              "then": [
+                {
+                  "id": 1,
+                  "type": "AcceptAction",
+                  "title": "Compliance Review",
+                  "description": "Compliance officer reviews request for regulatory compliance",
+                  "sender": "compliance",
+                  "dataSchemas": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "decision": {
+                          "type": "string",
+                          "title": "Compliance Decision",
+                          "enum": ["approved", "rejected", "needs-clarification"]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "title": "Compliance Notes",
+                          "maxLength": 2000
+                        },
+                        "riskLevel": {
+                          "type": "string",
+                          "title": "Risk Level",
+                          "enum": ["low", "medium", "high"]
+                        }
+                      },
+                      "required": ["decision"]
+                    }
+                  ],
+                  "condition": {
+                    "if": [
+                      { "==": [{ "var": "decision" }, "rejected"] },
+                      null,
+                      { "==": [{ "var": "decision" }, "needs-clarification"] },
+                      "requester",
+                      {
+                        "$if": "requiresManagerApproval",
+                        "then": "manager",
+                        "else": null
+                      }
+                    ]
+                  }
+                }
+              ],
+              "else": []
+            },
+            {
+              "$if": "requiresManagerApproval",
+              "then": [
+                {
+                  "id": 2,
+                  "type": "AcceptAction",
+                  "title": "Manager Approval",
+                  "description": "Manager reviews and approves request",
+                  "sender": "manager",
+                  "dataSchemas": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "decision": {
+                          "type": "string",
+                          "title": "Decision",
+                          "enum": ["approved", "rejected", "escalate"]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "title": "Manager Notes",
+                          "maxLength": 1000
+                        },
+                        "modifiedAmount": {
+                          "type": "number",
+                          "title": "Modified Amount (if changed)",
+                          "minimum": 0
+                        }
+                      },
+                      "required": ["decision"]
+                    }
+                  ],
+                  "condition": {
+                    "if": [
+                      { "==": [{ "var": "decision" }, "rejected"] },
+                      null,
+                      { "==": [{ "var": "decision" }, "escalate"] },
+                      {
+                        "$if": "requiresDirectorApproval",
+                        "then": "director",
+                        "else": null
+                      },
+                      {
+                        "$if": "requiresDirectorApproval",
+                        "then": {
+                          "if": [
+                            {
+                              "or": [
+                                { "var": "requiresDirectorApproval" },
+                                { "!!": { "var": "modifiedAmount" } }
+                              ]
+                            },
+                            "director",
+                            null
+                          ]
+                        },
+                        "else": null
+                      }
+                    ]
+                  }
+                }
+              ],
+              "else": []
+            },
+            {
+              "$if": "requiresDirectorApproval",
+              "then": [
+                {
+                  "id": 3,
+                  "type": "AcceptAction",
+                  "title": "Director Approval",
+                  "description": "Director reviews high-value or escalated requests",
+                  "sender": "director",
+                  "dataSchemas": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "decision": {
+                          "type": "string",
+                          "title": "Decision",
+                          "enum": ["approved", "rejected", "escalate"]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "title": "Director Notes",
+                          "maxLength": 1000
+                        },
+                        "conditions": {
+                          "type": "string",
+                          "title": "Approval Conditions",
+                          "maxLength": 500
+                        }
+                      },
+                      "required": ["decision"]
+                    }
+                  ],
+                  "condition": {
+                    "if": [
+                      { "==": [{ "var": "decision" }, "rejected"] },
+                      null,
+                      { "==": [{ "var": "decision" }, "escalate"] },
+                      {
+                        "$if": "requiresExecutiveApproval",
+                        "then": "executive",
+                        "else": null
+                      },
+                      {
+                        "$if": "requiresExecutiveApproval",
+                        "then": {
+                          "if": [{ "var": "requiresExecutiveApproval" }, "executive", null]
+                        },
+                        "else": null
+                      }
+                    ]
+                  }
+                }
+              ],
+              "else": []
+            },
+            {
+              "$if": "requiresExecutiveApproval",
+              "then": [
+                {
+                  "id": 4,
+                  "type": "AcceptAction",
+                  "title": "Executive Approval",
+                  "description": "Executive leadership approves exceptional or high-value requests",
+                  "sender": "executive",
+                  "dataSchemas": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "decision": {
+                          "type": "string",
+                          "title": "Decision",
+                          "enum": ["approved", "rejected"]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "title": "Executive Notes",
+                          "maxLength": 1000
+                        },
+                        "specialConditions": {
+                          "type": "string",
+                          "title": "Special Conditions or Requirements",
+                          "maxLength": 1000
+                        }
+                      },
+                      "required": ["decision"]
+                    }
+                  ]
+                }
+              ],
+              "else": []
+            }
+          ]
+        }
+      },
+      "blueprintId": { "$eval": "blueprintId" },
+      "blueprintTitle": { "$eval": "blueprintTitle" },
+      "blueprintDescription": { "$eval": "blueprintDescription" },
+      "organization": { "$eval": "organization" },
+      "managerTitle": { "$eval": "managerTitle" },
+      "directorTitle": { "$eval": "directorTitle" },
+      "executiveTitle": { "$eval": "executiveTitle" },
+      "requestActionTitle": { "$eval": "requestActionTitle" },
+      "requestActionDescription": { "$eval": "requestActionDescription" },
+      "amountFieldLabel": { "$eval": "amountFieldLabel" },
+      "requestTypes": { "$eval": "requestTypes" },
+      "requiresManagerApproval": { "$eval": "requiresManagerApproval" },
+      "requiresDirectorApproval": { "$eval": "requiresDirectorApproval" },
+      "requiresExecutiveApproval": { "$eval": "requiresExecutiveApproval" },
+      "requiresComplianceReview": { "$eval": "requiresComplianceReview" },
+      "directorThreshold": { "$eval": "directorThreshold" },
+      "executiveThreshold": { "$eval": "executiveThreshold" },
+      "complianceReviewTypes": { "$eval": "complianceReviewTypes" }
+    }
+  },
+  "parameterSchema": {
+    "type": "object",
+    "properties": {
+      "blueprintId": { "type": "string", "minLength": 3 },
+      "blueprintTitle": { "type": "string", "minLength": 3 },
+      "blueprintDescription": { "type": "string", "minLength": 5 },
+      "organization": { "type": "string", "minLength": 2 },
+      "managerTitle": { "type": "string", "default": "Manager" },
+      "directorTitle": { "type": "string", "default": "Director" },
+      "executiveTitle": { "type": "string", "default": "Executive" },
+      "requestActionTitle": { "type": "string", "default": "Submit Request" },
+      "requestActionDescription": { "type": "string", "default": "User submits request for approval" },
+      "amountFieldLabel": { "type": "string", "default": "Amount" },
+      "requestTypes": {
+        "type": "array",
+        "items": { "type": "string" },
+        "minItems": 1
+      },
+      "requiresManagerApproval": { "type": "boolean" },
+      "requiresDirectorApproval": { "type": "boolean" },
+      "requiresExecutiveApproval": { "type": "boolean" },
+      "requiresComplianceReview": { "type": "boolean" },
+      "directorThreshold": { "type": "number", "minimum": 0 },
+      "executiveThreshold": { "type": "number", "minimum": 0 },
+      "complianceReviewTypes": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "required": [
+      "blueprintId",
+      "blueprintTitle",
+      "blueprintDescription",
+      "organization",
+      "requestTypes",
+      "requiresManagerApproval",
+      "directorThreshold",
+      "executiveThreshold"
+    ]
+  },
+  "defaultParameters": {
+    "blueprintId": "approval-generated",
+    "blueprintTitle": "Approval Workflow",
+    "blueprintDescription": "Multi-tier approval workflow with configurable thresholds",
+    "organization": "Acme Corporation",
+    "managerTitle": "Department Manager",
+    "directorTitle": "Department Director",
+    "executiveTitle": "Chief Executive Officer",
+    "requestActionTitle": "Submit Request",
+    "requestActionDescription": "Submit request for multi-tier approval",
+    "amountFieldLabel": "Request Amount",
+    "requestTypes": ["expense", "purchase", "budget", "contract", "headcount"],
+    "requiresManagerApproval": true,
+    "requiresDirectorApproval": true,
+    "requiresExecutiveApproval": true,
+    "requiresComplianceReview": false,
+    "directorThreshold": 10000,
+    "executiveThreshold": 50000,
+    "complianceReviewTypes": ["contract", "legal", "regulatory"]
+  },
+  "examples": [
+    {
+      "name": "expense-approval",
+      "description": "3-tier expense approval workflow",
+      "parameters": {
+        "blueprintId": "expense-approval-001",
+        "blueprintTitle": "Expense Approval Workflow",
+        "blueprintDescription": "Three-tier approval process for employee expenses",
+        "organization": "Global Enterprise Inc",
+        "managerTitle": "Expense Manager",
+        "directorTitle": "Finance Director",
+        "executiveTitle": "CFO",
+        "requestActionTitle": "Submit Expense Report",
+        "requestActionDescription": "Employee submits expense report for reimbursement",
+        "amountFieldLabel": "Expense Amount",
+        "requestTypes": ["travel", "meals", "equipment", "training", "other"],
+        "requiresManagerApproval": true,
+        "requiresDirectorApproval": true,
+        "requiresExecutiveApproval": true,
+        "requiresComplianceReview": false,
+        "directorThreshold": 5000,
+        "executiveThreshold": 25000,
+        "complianceReviewTypes": []
+      }
+    },
+    {
+      "name": "purchase-requisition",
+      "description": "Purchase requisition with compliance review",
+      "parameters": {
+        "blueprintId": "purchase-req-001",
+        "blueprintTitle": "Purchase Requisition Workflow",
+        "blueprintDescription": "Purchase requisition approval with compliance review for contracts",
+        "organization": "Manufacturing Corp",
+        "managerTitle": "Procurement Manager",
+        "directorTitle": "Procurement Director",
+        "executiveTitle": "Chief Procurement Officer",
+        "requestActionTitle": "Create Purchase Requisition",
+        "requestActionDescription": "Create purchase requisition for goods or services",
+        "amountFieldLabel": "Purchase Amount",
+        "requestTypes": ["equipment", "materials", "services", "contract", "software"],
+        "requiresManagerApproval": true,
+        "requiresDirectorApproval": true,
+        "requiresExecutiveApproval": true,
+        "requiresComplianceReview": true,
+        "directorThreshold": 10000,
+        "executiveThreshold": 100000,
+        "complianceReviewTypes": ["contract", "services"]
+      }
+    },
+    {
+      "name": "simple-approval",
+      "description": "Simple 2-tier approval",
+      "parameters": {
+        "blueprintId": "simple-approval-001",
+        "blueprintTitle": "Simple Approval Workflow",
+        "blueprintDescription": "Two-tier approval for routine requests",
+        "organization": "Small Business LLC",
+        "managerTitle": "Supervisor",
+        "directorTitle": "Department Head",
+        "executiveTitle": "Owner",
+        "requestActionTitle": "Submit Request",
+        "requestActionDescription": "Submit request for approval",
+        "amountFieldLabel": "Amount",
+        "requestTypes": ["general", "expense", "time-off"],
+        "requiresManagerApproval": true,
+        "requiresDirectorApproval": true,
+        "requiresExecutiveApproval": false,
+        "requiresComplianceReview": false,
+        "directorThreshold": 1000,
+        "executiveThreshold": 100000,
+        "complianceReviewTypes": []
+      }
+    }
+  ]
+}
