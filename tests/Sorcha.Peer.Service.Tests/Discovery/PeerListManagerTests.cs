@@ -241,7 +241,7 @@ public class PeerListManagerTests : IDisposable
         var randomPeers = _manager.GetRandomPeers(5);
 
         // Assert
-        randomPeers.Count.Should().BeLessOrEqualTo(5);
+        randomPeers.Count.Should().BeLessThanOrEqualTo(5);
     }
 
     [Fact]
