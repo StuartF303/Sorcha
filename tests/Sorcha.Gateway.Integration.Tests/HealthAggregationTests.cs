@@ -65,8 +65,8 @@ public class HealthAggregationTests : GatewayIntegrationTestBase
         var stats = JsonDocument.Parse(content);
 
         stats.RootElement.GetProperty("totalServices").GetInt32().Should().BeGreaterThan(0);
-        stats.RootElement.GetProperty("healthyServices").GetInt32().Should().BeGreaterOrEqualTo(0);
-        stats.RootElement.GetProperty("unhealthyServices").GetInt32().Should().BeGreaterOrEqualTo(0);
+        stats.RootElement.GetProperty("healthyServices").GetInt32().Should().BeGreaterThanOrEqualTo(0);
+        stats.RootElement.GetProperty("unhealthyServices").GetInt32().Should().BeGreaterThanOrEqualTo(0);
         stats.RootElement.GetProperty("timestamp").GetDateTimeOffset().Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1));
     }
 
