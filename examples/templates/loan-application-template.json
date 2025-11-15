@@ -1,0 +1,314 @@
+{
+  "id": "loan-application-001",
+  "title": "Loan Application Template",
+  "description": "Reusable template for creating loan application blueprints with configurable approval thresholds",
+  "version": 1,
+  "category": "finance",
+  "tags": ["finance", "loan", "approval"],
+  "author": "Sorcha Team",
+  "published": true,
+  "template": {
+    "$eval": "blueprintTemplate",
+    "context": {
+      "blueprintTemplate": {
+        "@context": {
+          "@vocab": "https://sorcha.dev/blueprint/v1#",
+          "schema": "https://schema.org/",
+          "did": "https://www.w3.org/ns/did#",
+          "xsd": "http://www.w3.org/2001/XMLSchema#",
+          "id": "@id",
+          "type": "@type",
+          "title": "schema:name",
+          "description": "schema:description",
+          "LoanApplication": "schema:LoanOrCredit",
+          "loanAmount": {
+            "@id": "schema:amount",
+            "@type": "schema:MonetaryAmount"
+          }
+        },
+        "id": { "$eval": "blueprintId" },
+        "type": "Blueprint",
+        "title": { "$eval": "blueprintTitle" },
+        "description": { "$eval": "blueprintDescription" },
+        "version": 1,
+        "metadata": {
+          "category": "finance",
+          "author": "Sorcha Team"
+        },
+        "participants": [
+          {
+            "id": "applicant",
+            "type": "Participant",
+            "name": "Loan Applicant",
+            "organisation": "Self",
+            "didUri": "did:example:applicant"
+          },
+          {
+            "id": "loan-officer",
+            "type": "Participant",
+            "name": "Loan Officer",
+            "organisation": { "$eval": "bankName" },
+            "didUri": "did:example:loan-officer"
+          },
+          {
+            "$if": "requiresSeniorApproval",
+            "then": {
+              "id": "senior-officer",
+              "type": "Participant",
+              "name": "Senior Loan Officer",
+              "organisation": { "$eval": "bankName" },
+              "didUri": "did:example:senior-officer"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "id": 0,
+            "type": "CreateAction",
+            "title": "Submit Loan Application",
+            "description": "Applicant submits loan application with personal and financial information",
+            "sender": "applicant",
+            "dataSchemas": [
+              {
+                "type": "object",
+                "properties": {
+                  "firstName": {
+                    "type": "string",
+                    "title": "First Name",
+                    "minLength": 2,
+                    "maxLength": 50
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "title": "Last Name",
+                    "minLength": 2,
+                    "maxLength": 50
+                  },
+                  "email": {
+                    "type": "string",
+                    "title": "Email Address",
+                    "format": "email"
+                  },
+                  "requestedAmount": {
+                    "type": "number",
+                    "title": "Requested Loan Amount",
+                    "minimum": { "$eval": "minLoanAmount" },
+                    "maximum": { "$eval": "maxLoanAmount" }
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "title": "Loan Purpose",
+                    "minLength": 10,
+                    "maxLength": 500
+                  },
+                  "creditScore": {
+                    "type": "integer",
+                    "title": "Credit Score",
+                    "minimum": 300,
+                    "maximum": 850
+                  }
+                },
+                "required": ["firstName", "lastName", "email", "requestedAmount", "purpose"]
+              }
+            ],
+            "disclosures": [
+              {
+                "participantAddress": "loan-officer",
+                "dataPointers": ["/*"]
+              },
+              {
+                "$if": "requiresSeniorApproval",
+                "then": {
+                  "participantAddress": "senior-officer",
+                  "dataPointers": ["/*"]
+                }
+              }
+            ],
+            "calculations": {
+              "estimatedMonthlyPayment": {
+                "/": [
+                  { "*": [{ "var": "requestedAmount" }, 1.05] },
+                  { "$eval": "loanTermMonths" }
+                ]
+              }
+            },
+            "condition": {
+              "$if": "requiresSeniorApproval",
+              "then": {
+                "if": [
+                  { ">": [{ "var": "requestedAmount" }, { "$eval": "seniorApprovalThreshold" }] },
+                  "senior-officer",
+                  "loan-officer"
+                ]
+              },
+              "else": {
+                "if": [true, "loan-officer"]
+              }
+            }
+          },
+          {
+            "id": 1,
+            "type": "AcceptAction",
+            "title": "Review Application",
+            "description": "Loan officer reviews and makes decision",
+            "sender": "loan-officer",
+            "dataSchemas": [
+              {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "title": "Decision",
+                    "enum": ["approved", "rejected", "needs-info"]
+                  },
+                  "notes": {
+                    "type": "string",
+                    "title": "Review Notes",
+                    "maxLength": 1000
+                  },
+                  "approvedAmount": {
+                    "type": "number",
+                    "title": "Approved Amount",
+                    "minimum": 0
+                  }
+                },
+                "required": ["decision"]
+              }
+            ],
+            "disclosures": [
+              {
+                "participantAddress": "applicant",
+                "dataPointers": ["/decision", "/notes", "/approvedAmount"]
+              }
+            ]
+          }
+        ]
+      },
+      "blueprintId": { "$eval": "blueprintId" },
+      "blueprintTitle": { "$eval": "blueprintTitle" },
+      "blueprintDescription": { "$eval": "blueprintDescription" },
+      "bankName": { "$eval": "bankName" },
+      "requiresSeniorApproval": { "$eval": "requiresSeniorApproval" },
+      "minLoanAmount": { "$eval": "minLoanAmount" },
+      "maxLoanAmount": { "$eval": "maxLoanAmount" },
+      "seniorApprovalThreshold": { "$eval": "seniorApprovalThreshold" },
+      "loanTermMonths": { "$eval": "loanTermMonths" }
+    }
+  },
+  "parameterSchema": {
+    "type": "object",
+    "properties": {
+      "blueprintId": {
+        "type": "string",
+        "description": "Unique identifier for the generated blueprint"
+      },
+      "blueprintTitle": {
+        "type": "string",
+        "description": "Title for the blueprint",
+        "minLength": 3
+      },
+      "blueprintDescription": {
+        "type": "string",
+        "description": "Description of the blueprint",
+        "minLength": 5
+      },
+      "bankName": {
+        "type": "string",
+        "description": "Name of the lending institution"
+      },
+      "requiresSeniorApproval": {
+        "type": "boolean",
+        "description": "Whether to include senior approval step for high-value loans"
+      },
+      "minLoanAmount": {
+        "type": "number",
+        "description": "Minimum loan amount",
+        "minimum": 0
+      },
+      "maxLoanAmount": {
+        "type": "number",
+        "description": "Maximum loan amount",
+        "minimum": 1000
+      },
+      "seniorApprovalThreshold": {
+        "type": "number",
+        "description": "Loan amount threshold for senior approval (if enabled)",
+        "minimum": 0
+      },
+      "loanTermMonths": {
+        "type": "integer",
+        "description": "Loan term in months for payment calculation",
+        "minimum": 12,
+        "maximum": 360
+      }
+    },
+    "required": [
+      "blueprintId",
+      "blueprintTitle",
+      "blueprintDescription",
+      "bankName",
+      "requiresSeniorApproval",
+      "minLoanAmount",
+      "maxLoanAmount",
+      "loanTermMonths"
+    ]
+  },
+  "defaultParameters": {
+    "blueprintId": "loan-app-generated",
+    "blueprintTitle": "Loan Application Workflow",
+    "blueprintDescription": "Standard loan application and approval workflow",
+    "bankName": "Community Bank",
+    "requiresSeniorApproval": true,
+    "minLoanAmount": 1000,
+    "maxLoanAmount": 500000,
+    "seniorApprovalThreshold": 50000,
+    "loanTermMonths": 60
+  },
+  "examples": [
+    {
+      "name": "standard-loan",
+      "description": "Standard loan application with senior approval",
+      "parameters": {
+        "blueprintId": "standard-loan-001",
+        "blueprintTitle": "Standard Loan Application",
+        "blueprintDescription": "Standard personal loan application workflow with two-tier approval",
+        "bankName": "First National Bank",
+        "requiresSeniorApproval": true,
+        "minLoanAmount": 1000,
+        "maxLoanAmount": 500000,
+        "seniorApprovalThreshold": 50000,
+        "loanTermMonths": 60
+      }
+    },
+    {
+      "name": "simple-loan",
+      "description": "Simple loan without senior approval",
+      "parameters": {
+        "blueprintId": "simple-loan-001",
+        "blueprintTitle": "Simple Loan Application",
+        "blueprintDescription": "Simple single-tier loan approval process",
+        "bankName": "Quick Credit Union",
+        "requiresSeniorApproval": false,
+        "minLoanAmount": 500,
+        "maxLoanAmount": 25000,
+        "seniorApprovalThreshold": 0,
+        "loanTermMonths": 36
+      }
+    },
+    {
+      "name": "high-value-loan",
+      "description": "High-value loan with lower threshold for senior review",
+      "parameters": {
+        "blueprintId": "high-value-loan-001",
+        "blueprintTitle": "High-Value Loan Application",
+        "blueprintDescription": "Loan application for high-value loans with stringent approval requirements",
+        "bankName": "Premium Finance Corp",
+        "requiresSeniorApproval": true,
+        "minLoanAmount": 10000,
+        "maxLoanAmount": 2000000,
+        "seniorApprovalThreshold": 25000,
+        "loanTermMonths": 120
+      }
+    }
+  ]
+}
