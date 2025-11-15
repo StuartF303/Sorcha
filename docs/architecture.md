@@ -4,9 +4,10 @@
 
 Sorcha is a modern .NET 10 platform for defining, designing, and executing multi-participant data flow orchestration workflows (called "Blueprints"). Built on .NET Aspire for cloud-native orchestration, Sorcha provides a flexible and scalable solution for workflow automation with selective data disclosure and conditional routing.
 
-**Last Updated:** 2025-11-14
-**Version:** 2.1.0
+**Last Updated:** 2025-11-15
+**Version:** 2.2.0
 **Status:** Active Development
+**Recent Changes:** Unified Blueprint Service design (merged Action Service)
 
 ## High-Level Architecture
 
@@ -207,35 +208,40 @@ Schema management with pluggable repositories and client-side caching.
 - Async/await patterns throughout
 
 #### Sorcha.Blueprint.Engine
-REST API for blueprint execution and management (IN DEVELOPMENT).
+**⭐ NEW: Portable execution engine library that runs client-side and server-side**
 
-**Current Status:** Template code only - not yet implemented
+**Current Status:** Ready for implementation (design approved)
 
-**Planned Responsibilities:**
-- Blueprint CRUD operations
-- Blueprint validation
-- Execution orchestration
-- State management
-- Action execution
-- Error handling and retry logic
+**Architecture:** Standalone class library (`net10.0`) with zero ASP.NET dependencies
 
-**Planned API Endpoints:**
-- `GET /api/blueprints` - List all blueprints
-- `GET /api/blueprints/{id}` - Get blueprint by ID
-- `POST /api/blueprints` - Create new blueprint
-- `PUT /api/blueprints/{id}` - Update blueprint
-- `DELETE /api/blueprints/{id}` - Delete blueprint
-- `POST /api/blueprints/{id}/execute` - Execute blueprint
-- `GET /api/blueprints/{id}/status` - Get execution status
-- `POST /api/blueprints/validate` - Validate blueprint
-- `GET /health` - Health check endpoint
-- `GET /alive` - Liveness check endpoint
+**Responsibilities:**
+- **Schema Validation** - JSON Schema Draft 2020-12 validation
+- **JSON Logic Evaluation** - Calculations and conditional routing
+- **Selective Disclosure** - Privacy-preserving data filtering using JSON Pointers
+- **Routing Determination** - Next participant resolution based on conditions
+- **Action Processing** - Complete action execution orchestration
+
+**Key Interfaces:**
+- `IExecutionEngine` - Main stateless execution engine
+- `IActionProcessor` - Action validation and processing
+- `ISchemaValidator` - JSON Schema validation
+- `IJsonLogicEvaluator` - JSON Logic expression evaluation
+- `IDisclosureProcessor` - Selective disclosure processing
+- `IRoutingEngine` - Routing logic
+
+**Key Features:**
+- **Stateless** - No internal state, all context passed as parameters
+- **Portable** - Runs in Blazor WASM (client-side) and ASP.NET Core (server-side)
+- **Pure Functions** - Deterministic results for same inputs
+- **Async Throughout** - Non-blocking operations
+- **Zero External Dependencies** - Only JSON processing libraries
+- **Highly Testable** - Easy to unit test in isolation
 
 **Technology:**
-- ASP.NET Core Minimal APIs
-- .NET 10 built-in OpenAPI documentation with Scalar UI
-- Dependency Injection
-- Background services for long-running tasks (planned)
+- .NET 10 Class Library (net10.0)
+- JsonSchema.Net 7.2.4 for validation
+- JsonLogic.Net 2.0.0 for expression evaluation
+- JsonPath.Net 1.1.3 for JSON Pointers
 
 ### 3. Apps Layer
 
@@ -369,28 +375,65 @@ YARP-based API Gateway for routing and aggregation.
 - Scalar.AspNetCore 2.10.0
 
 #### Sorcha.Blueprint.Service
-REST API service for Blueprint management and operations.
+**⭐ UPDATED: Unified Blueprint & Action Service**
 
 **Location:** `src/Services/Sorcha.Blueprint.Service/`
 
 **Responsibilities:**
-- Blueprint CRUD operations
-- JSON-LD context serving
-- Blueprint validation
-- Schema integration
-- API documentation
+- **Blueprint Management** - CRUD operations, publishing, versioning
+- **Action Operations** - Action retrieval, submission, rejection
+- **Execution Coordination** - Uses `Sorcha.Blueprint.Engine` for processing
+- **Payload Management** - Encryption/decryption via Wallet Service
+- **Transaction Building** - Coordinates with Register Service
+- **Real-Time Notifications** - SignalR hub for action updates
+- **File Handling** - Upload and download file attachments
+
+**API Endpoints:**
+
+*Blueprint Management:*
+- `GET/POST/PUT/DELETE /api/blueprints` - Blueprint CRUD
+- `POST /api/blueprints/{id}/publish` - Publish blueprint
+- `GET /api/blueprints/{id}/versions` - Version history
+- `POST /api/blueprints/validate` - Validate blueprint
+
+*Action Operations:*
+- `GET /api/actions/{wallet}/{register}/blueprints` - Get starting actions
+- `GET /api/actions/{wallet}/{register}` - Get pending actions
+- `GET /api/actions/{wallet}/{register}/{tx}` - Get action details
+- `POST /api/actions` - Submit action
+- `POST /api/actions/reject` - Reject action
+
+*Execution Helpers (for client-side validation):*
+- `POST /api/execution/validate` - Validate action data
+- `POST /api/execution/calculate` - Apply calculations
+- `POST /api/execution/route` - Determine routing
+- `POST /api/execution/disclose` - Apply disclosure rules
+
+*File Operations:*
+- `GET /api/files/{wallet}/{register}/{tx}/{fileId}` - Download file
+
+*SignalR Hub:*
+- `/actionshub` - Real-time notifications (ActionAvailable, ActionConfirmed, ActionRejected)
 
 **Features:**
-- RESTful API endpoints
+- RESTful API with Minimal APIs pattern
 - .NET 10 built-in OpenAPI documentation with Scalar UI
+- SignalR for real-time notifications (Redis backplane for scale-out)
 - JSON-LD middleware for semantic web support
 - Output caching with Redis
-- Health monitoring
+- FluentValidation for request validation
+- Integration with Wallet Service (encryption/decryption)
+- Integration with Register Service (transaction submission)
+- JWT Bearer authentication
+- Rate limiting and audit logging
 
 **Technology:**
-- ASP.NET Core 10.0
-- Aspire.StackExchange.Redis 13.0.0
+- ASP.NET Core 10.0 with Minimal APIs
+- Microsoft.AspNetCore.SignalR 1.0.0
+- FluentValidation.AspNetCore 11.3.0
+- Aspire.StackExchange.Redis 13.0.0 (caching + SignalR backplane)
 - Scalar.AspNetCore 2.10.0
+- References: Sorcha.Blueprint.Engine, Sorcha.Cryptography, Sorcha.TransactionHandler
 
 #### Sorcha.Peer.Service
 Peer-to-peer networking service for decentralized transaction distribution.
