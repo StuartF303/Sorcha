@@ -1,0 +1,137 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+using System.Text.Json.Nodes;
+using Sorcha.Blueprint.Engine.Interfaces;
+using Sorcha.Blueprint.Engine.Models;
+
+namespace Sorcha.Blueprint.Engine.Implementation;
+
+/// <summary>
+/// Action processor that orchestrates the complete action execution workflow.
+/// </summary>
+/// <remarks>
+/// Coordinates validation, calculation, routing, and disclosure processing
+/// using specialized components.
+/// 
+/// Thread-safe and can be used concurrently.
+/// </remarks>
+public class ActionProcessor : IActionProcessor
+{
+    private readonly ISchemaValidator _schemaValidator;
+    private readonly IJsonLogicEvaluator _jsonLogicEvaluator;
+    private readonly IDisclosureProcessor _disclosureProcessor;
+    private readonly IRoutingEngine _routingEngine;
+
+    public ActionProcessor(
+        ISchemaValidator schemaValidator,
+        IJsonLogicEvaluator jsonLogicEvaluator,
+        IDisclosureProcessor disclosureProcessor,
+        IRoutingEngine routingEngine)
+    {
+        _schemaValidator = schemaValidator ?? throw new ArgumentNullException(nameof(schemaValidator));
+        _jsonLogicEvaluator = jsonLogicEvaluator ?? throw new ArgumentNullException(nameof(jsonLogicEvaluator));
+        _disclosureProcessor = disclosureProcessor ?? throw new ArgumentNullException(nameof(disclosureProcessor));
+        _routingEngine = routingEngine ?? throw new ArgumentNullException(nameof(routingEngine));
+    }
+
+    /// <summary>
+    /// Process an action through the complete execution workflow.
+    /// </summary>
+    public async Task<ActionExecutionResult> ProcessAsync(
+        ExecutionContext context,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var result = new ActionExecutionResult();
+
+        try
+        {
+            // Step 1: Validate action data against schema
+            if (context.Action.Form?.Schema != null)
+            {
+                result.Validation = await _schemaValidator.ValidateAsync(
+                    context.ActionData,
+                    context.Action.Form.Schema,
+                    ct);
+
+                if (!result.Validation.IsValid)
+                {
+                    // Validation failed - short circuit
+                    result.Success = false;
+                    result.Errors.Add("Action data failed schema validation");
+                    return result;
+                }
+            }
+            else
+            {
+                // No schema defined - validation passes
+                result.Validation = ValidationResult.Valid();
+            }
+
+            // Step 2: Apply calculations using JSON Logic
+            var processedData = new Dictionary<string, object>(context.ActionData);
+
+            if (context.Action.Calculations?.Any() == true)
+            {
+                // Convert calculations dictionary to Calculation objects
+                var calculations = context.Action.Calculations
+                    .Select(kvp => Calculation.Create(kvp.Key, kvp.Value))
+                    .ToList();
+
+                processedData = await _jsonLogicEvaluator.ApplyCalculationsAsync(
+                    processedData,
+                    calculations,
+                    ct);
+
+                // Track calculated values separately
+                foreach (var kvp in processedData)
+                {
+                    if (!context.ActionData.ContainsKey(kvp.Key))
+                    {
+                        result.CalculatedValues[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+
+            result.ProcessedData = processedData;
+
+            // Step 3: Determine routing to next participant
+            result.Routing = await _routingEngine.DetermineNextAsync(
+                context.Blueprint,
+                context.Action,
+                processedData,
+                ct);
+
+            // Step 4: Create disclosure results for participants
+            if (context.Action.Disclosures?.Any() == true)
+            {
+                result.Disclosures = _disclosureProcessor.CreateDisclosures(
+                    processedData,
+                    context.Action.Disclosures);
+            }
+
+            // If we got here, execution succeeded
+            result.Success = true;
+
+            // Add informational warnings
+            if (result.Routing.IsWorkflowComplete)
+            {
+                result.Warnings.Add("Workflow complete - no next action");
+            }
+
+            if (!result.Disclosures.Any())
+            {
+                result.Warnings.Add("No disclosures defined for this action");
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.Errors.Add($"Action processing error: {ex.Message}");
+        }
+
+        return result;
+    }
+}
