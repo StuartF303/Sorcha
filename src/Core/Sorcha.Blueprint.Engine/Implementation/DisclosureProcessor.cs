@@ -4,6 +4,7 @@
 using System.Text.Json;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Engine.Models;
+using Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Implementation;
 

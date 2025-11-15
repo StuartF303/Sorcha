@@ -45,7 +45,7 @@ public class ExecutionEngine : IExecutionEngine
     /// routing, and disclosure processing.
     /// </summary>
     public async Task<ActionExecutionResult> ExecuteActionAsync(
-        ExecutionContext context,
+        Engine.Models.ExecutionContext context,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -59,7 +59,7 @@ public class ExecutionEngine : IExecutionEngine
     /// </summary>
     public async Task<ValidationResult> ValidateAsync(
         Dictionary<string, object> data,
-        Models.Action action,
+        Sorcha.Blueprint.Models.Action action,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(data);
@@ -79,7 +79,7 @@ public class ExecutionEngine : IExecutionEngine
     /// </summary>
     public async Task<Dictionary<string, object>> ApplyCalculationsAsync(
         Dictionary<string, object> data,
-        Models.Action action,
+        Sorcha.Blueprint.Models.Action action,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(data);
@@ -103,8 +103,8 @@ public class ExecutionEngine : IExecutionEngine
     /// Determine the next participant and action in the workflow.
     /// </summary>
     public async Task<RoutingResult> DetermineRoutingAsync(
-        Blueprint blueprint,
-        Models.Action action,
+        Sorcha.Blueprint.Models.Blueprint blueprint,
+        Sorcha.Blueprint.Models.Action action,
         Dictionary<string, object> data,
         CancellationToken ct = default)
     {
@@ -121,7 +121,7 @@ public class ExecutionEngine : IExecutionEngine
     /// </summary>
     public List<DisclosureResult> ApplyDisclosures(
         Dictionary<string, object> data,
-        Models.Action action)
+        Sorcha.Blueprint.Models.Action action)
     {
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(action);

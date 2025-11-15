@@ -2,6 +2,8 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Text.Json.Nodes;
+using Sorcha.Blueprint.Engine.Models;
+using Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Interfaces;
 

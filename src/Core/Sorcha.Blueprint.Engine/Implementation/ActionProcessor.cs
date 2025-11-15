@@ -39,7 +39,7 @@ public class ActionProcessor : IActionProcessor
     /// Process an action through the complete execution workflow.
     /// </summary>
     public async Task<ActionExecutionResult> ProcessAsync(
-        ExecutionContext context,
+        Engine.Models.ExecutionContext context,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(context);
