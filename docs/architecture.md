@@ -315,7 +315,7 @@ builder.AddProject<Projects.Sorcha_Blueprint_Designer_Client>("blueprint-designe
 ```
 
 **Technology:**
-- .NET Aspire 9.5.2
+- .NET Aspire 13.0.0
 - Service discovery
 - Health checks
 
@@ -340,7 +340,7 @@ Shared service configurations and cross-cutting concerns.
 **Technology:**
 - OpenTelemetry 1.12.0
 - Microsoft.Extensions.Http.Resilience 9.9.0
-- Microsoft.Extensions.ServiceDiscovery 9.5.2
+- Microsoft.Extensions.ServiceDiscovery 13.0.0
 
 ### 5. Services Layer
 
@@ -389,7 +389,7 @@ REST API service for Blueprint management and operations.
 
 **Technology:**
 - ASP.NET Core 10.0
-- Aspire.StackExchange.Redis 9.5.2
+- Aspire.StackExchange.Redis 13.0.0
 - Scalar.AspNetCore 2.10.0
 
 #### Sorcha.Peer.Service

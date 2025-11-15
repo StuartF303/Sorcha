@@ -124,8 +124,8 @@ tests/
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
-    <PackageReference Include="Aspire.StackExchange.Redis" Version="10.0.0" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.0.0" />
+    <PackageReference Include="Aspire.StackExchange.Redis" Version="13.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
   </ItemGroup>
 
@@ -230,7 +230,7 @@ app.Run();
     <PackageReference Include="Testcontainers.PostgreSql" Version="3.10.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
-    <PackageReference Include="Aspire.Hosting.Testing" Version="10.0.0" />
+    <PackageReference Include="Aspire.Hosting.Testing" Version="13.0.0" />
   </ItemGroup>
 
 </Project>

@@ -31,10 +31,10 @@ This Specification Kit (spec-kit) defines the complete set of architectural prin
 - **.NET 10** (10.0.100) with C# 13
 - **ASP.NET Core 10** (Minimal APIs)
 - **Blazor Server & WebAssembly**
-- **.NET Aspire 9.5.2** (Service orchestration & discovery)
+- **.NET Aspire 13.0.0** (Service orchestration & discovery)
 - **gRPC 2.71.0** (Peer-to-peer communication)
 - **YARP 2.2.0** (Reverse proxy & API Gateway)
-- **Redis** (Distributed output caching with Aspire.StackExchange.Redis)
+- **Redis** (Distributed output caching with Aspire.StackExchange.Redis 13.0.0)
 - **FluentValidation 11.10.0** (Input validation)
 - **JsonSchema.Net 7.4.0** (Blueprint schema validation)
 - **OpenTelemetry 1.12.0** (Metrics, tracing, logging)

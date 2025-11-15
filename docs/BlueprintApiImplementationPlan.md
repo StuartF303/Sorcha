@@ -4,7 +4,7 @@
 
 ### Technology Stack
 - **.NET 10** with **Minimal APIs**
-- **Aspire 9.5** for orchestration
+- **Aspire 13.0** for orchestration
 - **Redis** for distributed caching and output caching
 - **.NET 10 built-in OpenAPI** (Microsoft.AspNetCore.OpenApi)
 - **Scalar.AspNetCore** for interactive API documentation UI

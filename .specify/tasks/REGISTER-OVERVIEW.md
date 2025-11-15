@@ -471,7 +471,7 @@ These files contain detailed acceptance criteria, implementation guidance, and t
 - .NET 10 SDK
 - MongoDB 7.0+ or PostgreSQL 16+
 - Redis for caching
-- .NET Aspire 9.5+
+- .NET Aspire 13.0+
 
 **Internal Dependencies:**
 - Sorcha.Cryptography (for signature validation)

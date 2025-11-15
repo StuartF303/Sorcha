@@ -64,7 +64,7 @@ Sorcha/
 
 ### 1. Sorcha.AppHost
 - **Purpose**: .NET Aspire orchestration host
-- **Technology**: .NET Aspire 9.5.2
+- **Technology**: .NET Aspire 13.0.0
 - **Target Framework**: net10.0
 - **Role**: Manages service lifecycle, discovery, and configuration
 
@@ -112,7 +112,7 @@ Sorcha/
 - Implicit usings enabled
 
 ### Orchestration
-- .NET Aspire 9.5.2
+- .NET Aspire 13.0.0
 - Aspire.Hosting.AppHost
 - Service discovery
 - Configuration management

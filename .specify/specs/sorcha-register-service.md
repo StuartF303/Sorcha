@@ -43,9 +43,9 @@ The Register Service is the foundational ledger component of the Sorcha platform
 
 ## Background and Analysis
 
-### Architectural Evolution from Siccar V3
+### Architectural Evolution from previous
 
-The Sorcha Register Service is based on the proven architecture from Siccar V3 but modernized for cloud-native deployment:
+The Sorcha Register Service is based on the proven architecture from previous but modernized for cloud-native deployment:
 
 **Key Improvements:**
 - **.NET Aspire** replaces Dapr for service orchestration
@@ -81,13 +81,15 @@ A **Register** is a distributed ledger instance that stores transactions and doc
 - Can be advertised to the network or private
 - May be a full replica or partial node
 - Belongs to a specific tenant for access control
+- There will be many registers each with its own purpose and control
 
 ### Transaction
 
-A **Transaction** represents a signed data submission to a register. Each transaction:
+A **Transaction** represents a signed data submission to a register. They are the basic store of data for a Register. Each transaction:
 - Contains a unique transaction ID (64 char hex hash)
 - Links to a previous transaction (blockchain chain)
 - Includes sender and recipient wallet addresses
+- Has a type which can be 'Docket', 'Payload' or 'Control' 
 - Carries encrypted payloads with selective disclosure
 - Contains blueprint metadata for workflow tracking
 - Is cryptographically signed for integrity
@@ -113,6 +115,16 @@ A **Docket** (equivalent to a blockchain block) seals a collection of transactio
 ### Payload
 
 A **Payload** contains encrypted data within a transaction. Each payload:
+- Is encrypted using the encryption specified by the Blueprint for this chain
+- Specifies authorized wallets for decryption
+- Includes integrity hash (SHA-256)
+- Contains initialization vector and challenges for key derivation
+- Supports selective disclosure based on wallet access
+- Tracks size for storage management
+
+### Control
+
+A **Control** contains encrypted data within a transaction. Each Control:
 - Is encrypted using AES-256-GCM
 - Specifies authorized wallets for decryption
 - Includes integrity hash (SHA-256)
@@ -800,7 +812,7 @@ public class RegisterHeightUpdatedEvent
 - ASP.NET Core 10
 
 **Frameworks:**
-- .NET Aspire 9.5+ for orchestration
+- .NET Aspire 13.0+ for orchestration
 - Minimal APIs for REST endpoints
 - SignalR for real-time notifications
 - gRPC for service-to-service calls (optional)
