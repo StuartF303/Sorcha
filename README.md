@@ -11,14 +11,19 @@ A modern .NET 10 blueprint execution engine and designer for data flow orchestra
 | Core Libraries | Production Ready | 90% |
 | Services & APIs | Functional | 75% |
 | Testing & CI/CD | Production Ready | 95% |
-| Execution Engine | In Development | 10% |
+| **⭐ Execution Engine (Portable)** | **Design Approved** | **0%** |
+
+**Recent Update (2025-11-15):** Unified Blueprint Service design approved, merging Blueprint Service with Action Service capabilities.
 
 **Key Milestones:**
 - ✅ Blueprint modeling and fluent API
 - ✅ REST API for blueprint management
 - ✅ Cryptography and transaction handling
 - ✅ Production-grade CI/CD pipeline
-- 🚧 Blueprint execution engine (in progress)
+- **⭐ NEW: Portable execution engine designed (client + server side)**
+- **⭐ NEW: Unified Blueprint-Action service architecture**
+- 🚧 Blueprint execution engine implementation (starting)
+- 🚧 Action submission and validation (starting)
 - 🚧 Transaction processing in P2P service
 
 See the [detailed development status](docs/development-status.md) for complete information on modules, testing coverage, and infrastructure.
@@ -29,12 +34,34 @@ Sorcha is a modernized, cloud-native platform for defining, designing, and execu
 
 ## Features
 
-- **Blueprint Engine**: Execute data flow blueprints with high performance and reliability
+### Core Capabilities
+- **⭐ Portable Blueprint Execution Engine**: Stateless engine that runs client-side (Blazor WASM) and server-side
+  - JSON Schema validation (Draft 2020-12)
+  - JSON Logic evaluation for calculations and conditions
+  - Selective data disclosure using JSON Pointers
+  - Conditional routing between participants
+  - Privacy-preserving encrypted payloads
+
+- **Unified Blueprint-Action Service**: Complete workflow management
+  - Blueprint CRUD operations and versioning
+  - Action retrieval, submission, and rejection
+  - Real-time notifications via SignalR
+  - Integration with Wallet Service (encryption/decryption)
+  - Integration with Register Service (blockchain transactions)
+
 - **Blueprint Designer**: Visual designer for creating and managing workflows
+  - Blazor WASM client with offline capabilities
+  - Client-side validation using portable execution engine
+  - Real-time blueprint testing mode
+  - Schema browser and form designer
+
+### Platform Features
 - **.NET 10**: Built on the latest .NET platform for maximum performance
 - **.NET Aspire**: Cloud-native orchestration and service discovery
 - **Minimal APIs**: Modern, lightweight API design
+- **SignalR**: Real-time notifications with Redis backplane
 - **Observability**: Built-in OpenTelemetry support for monitoring and tracing
+- **Security**: JWT authentication, rate limiting, audit logging
 
 ## Project Structure
 
