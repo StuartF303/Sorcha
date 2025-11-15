@@ -25,7 +25,7 @@ public class ExecutionContext
     /// <summary>
     /// The blueprint definition containing all actions and workflow rules.
     /// </summary>
-    public required Blueprint Blueprint { get; init; }
+    public required Sorcha.Blueprint.Models.Blueprint Blueprint { get; init; }
 
     /// <summary>
     /// The current action being executed within the blueprint.

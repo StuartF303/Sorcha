@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Sorcha.Blueprint.Engine.Models;
 using Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Interfaces;

@@ -2,6 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Text.Json.Nodes;
+using Sorcha.Blueprint.Engine.Models;
 using Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Interfaces;
@@ -41,10 +42,10 @@ public interface IExecutionEngine
         CancellationToken ct = default);
 
     /// <summary>
-    /// Validate action data against schema without executing.
+    /// Validate action data against the action's schema.
     /// </summary>
-    /// <param name="schema">The JSON Schema to validate against (Draft 2020-12).</param>
     /// <param name="data">The data to validate.</param>
+    /// <param name="action">The action containing the schema.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Validation result with detailed error information if validation fails.</returns>
     /// <remarks>
@@ -52,15 +53,15 @@ public interface IExecutionEngine
     /// providing immediate feedback without executing the full workflow.
     /// </remarks>
     Task<ValidationResult> ValidateAsync(
-        JsonNode schema,
         Dictionary<string, object> data,
+        Sorcha.Blueprint.Models.Action action,
         CancellationToken ct = default);
 
     /// <summary>
-    /// Apply calculations to data using JSON Logic without full execution.
+    /// Apply calculations to data using the action's calculation definitions.
     /// </summary>
     /// <param name="data">The input data.</param>
-    /// <param name="calculations">The calculations to apply.</param>
+    /// <param name="action">The action containing the calculations.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The data with calculated fields added.</returns>
     /// <remarks>
@@ -69,7 +70,7 @@ public interface IExecutionEngine
     /// </remarks>
     Task<Dictionary<string, object>> ApplyCalculationsAsync(
         Dictionary<string, object> data,
-        IEnumerable<Calculation> calculations,
+        Sorcha.Blueprint.Models.Action action,
         CancellationToken ct = default);
 
     /// <summary>
@@ -91,10 +92,10 @@ public interface IExecutionEngine
         CancellationToken ct = default);
 
     /// <summary>
-    /// Apply disclosure rules without full execution.
+    /// Apply disclosure rules from the action without full execution.
     /// </summary>
     /// <param name="data">The action data.</param>
-    /// <param name="disclosures">The disclosure rules to apply.</param>
+    /// <param name="action">The action containing the disclosure rules.</param>
     /// <returns>List of disclosure results, one per participant.</returns>
     /// <remarks>
     /// Useful for previewing what data each participant will see
@@ -102,5 +103,5 @@ public interface IExecutionEngine
     /// </remarks>
     List<DisclosureResult> ApplyDisclosures(
         Dictionary<string, object> data,
-        IEnumerable<Disclosure> disclosures);
+        Sorcha.Blueprint.Models.Action action);
 }
