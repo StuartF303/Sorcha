@@ -26,6 +26,10 @@ builder.Services.AddSingleton<IPublishedBlueprintStore, InMemoryPublishedBluepri
 builder.Services.AddScoped<IBlueprintService, BlueprintService>();
 builder.Services.AddScoped<IPublishService, PublishService>();
 
+// Add Template services
+builder.Services.AddSingleton<Sorcha.Blueprint.Engine.Interfaces.IJsonEEvaluator, Sorcha.Blueprint.Engine.Implementation.JsonEEvaluator>();
+builder.Services.AddSingleton<Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService, Sorcha.Blueprint.Service.Templates.BlueprintTemplateService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
@@ -227,6 +231,140 @@ schemaGroup.MapGet("/", async (string? category = null, string? source = null, s
 .WithSummary("Get schemas")
 .WithDescription("Retrieve available data schemas with optional filtering")
 .CacheOutput(policy => policy.Expire(TimeSpan.FromMinutes(15)).Tag("schemas"));
+
+// ===========================
+// Template Endpoints
+// ===========================
+
+var templateGroup = app.MapGroup("/api/templates")
+    .WithTags("Templates")
+    .WithOpenApi();
+
+/// <summary>
+/// Get all published templates
+/// </summary>
+templateGroup.MapGet("/", async (Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService service, string? category = null) =>
+{
+    var templates = category != null
+        ? await service.GetTemplatesByCategoryAsync(category)
+        : await service.GetPublishedTemplatesAsync();
+
+    return Results.Ok(templates);
+})
+.WithName("GetTemplates")
+.WithSummary("Get all published templates")
+.WithDescription("Retrieve all published blueprint templates, optionally filtered by category")
+.CacheOutput(policy => policy.Expire(TimeSpan.FromMinutes(10)).Tag("templates"));
+
+/// <summary>
+/// Get template by ID
+/// </summary>
+templateGroup.MapGet("/{id}", async (string id, Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService service) =>
+{
+    var template = await service.GetTemplateAsync(id);
+    return template is not null ? Results.Ok(template) : Results.NotFound();
+})
+.WithName("GetTemplateById")
+.WithSummary("Get template by ID")
+.WithDescription("Retrieve a specific blueprint template by its unique identifier")
+.CacheOutput(policy => policy.Expire(TimeSpan.FromMinutes(10)).Tag("templates"));
+
+/// <summary>
+/// Create or update a template
+/// </summary>
+templateGroup.MapPost("/", async (
+    Sorcha.Blueprint.Models.BlueprintTemplate template,
+    Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService service,
+    IOutputCacheStore cache) =>
+{
+    var saved = await service.SaveTemplateAsync(template);
+    await cache.EvictByTagAsync("templates", default);
+
+    return Results.Ok(saved);
+})
+.WithName("SaveTemplate")
+.WithSummary("Create or update template")
+.WithDescription("Create a new template or update an existing one");
+
+/// <summary>
+/// Delete a template
+/// </summary>
+templateGroup.MapDelete("/{id}", async (
+    string id,
+    Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService service,
+    IOutputCacheStore cache) =>
+{
+    var deleted = await service.DeleteTemplateAsync(id);
+    if (!deleted) return Results.NotFound();
+
+    await cache.EvictByTagAsync("templates", default);
+    return Results.NoContent();
+})
+.WithName("DeleteTemplate")
+.WithSummary("Delete template")
+.WithDescription("Delete a blueprint template");
+
+/// <summary>
+/// Evaluate a template with parameters to generate a blueprint
+/// </summary>
+templateGroup.MapPost("/evaluate", async (
+    Sorcha.Blueprint.Models.TemplateEvaluationRequest request,
+    Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService service) =>
+{
+    var result = await service.EvaluateTemplateAsync(request);
+
+    if (!result.Success)
+    {
+        return Results.BadRequest(result);
+    }
+
+    return Results.Ok(result);
+})
+.WithName("EvaluateTemplate")
+.WithSummary("Evaluate template")
+.WithDescription("Evaluate a blueprint template with specific parameters to generate a blueprint");
+
+/// <summary>
+/// Validate template parameters
+/// </summary>
+templateGroup.MapPost("/{id}/validate", async (
+    string id,
+    Dictionary<string, object> parameters,
+    Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService service) =>
+{
+    var result = await service.ValidateParametersAsync(id, parameters);
+
+    return Results.Ok(new
+    {
+        valid = result.IsValid,
+        errors = result.Errors,
+        warnings = result.Warnings
+    });
+})
+.WithName("ValidateTemplateParameters")
+.WithSummary("Validate parameters")
+.WithDescription("Validate parameters against a template's parameter schema");
+
+/// <summary>
+/// Evaluate a template example
+/// </summary>
+templateGroup.MapGet("/{id}/examples/{exampleName}", async (
+    string id,
+    string exampleName,
+    Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService service) =>
+{
+    var result = await service.EvaluateExampleAsync(id, exampleName);
+
+    if (!result.Success)
+    {
+        return Results.BadRequest(result);
+    }
+
+    return Results.Ok(result);
+})
+.WithName("EvaluateTemplateExample")
+.WithSummary("Evaluate template example")
+.WithDescription("Evaluate a predefined example from the template");
 
 // ===========================
 // Health & Status Endpoints
