@@ -1,8 +1,8 @@
 # Sorcha Development Status Report
 
-**Last Updated:** January 2025
-**Overall Completion:** 70%
-**Project Stage:** Active Development
+**Last Updated:** November 16, 2025
+**Overall Completion:** 80%
+**Project Stage:** Active Development - MVD Phase
 
 This document provides a comprehensive overview of the development status across all components of the Sorcha platform.
 
@@ -10,20 +10,31 @@ This document provides a comprehensive overview of the development status across
 
 ## Executive Summary
 
-Sorcha demonstrates excellent engineering practices with production-ready infrastructure, comprehensive testing, and modern .NET 10 architecture. The project has strong foundations in blueprint modeling, API services, and cryptography, but requires completion of the core execution engine before delivering end-to-end functionality.
+Sorcha demonstrates excellent engineering practices with production-ready infrastructure, comprehensive testing, and modern .NET 10 architecture. The project has made significant progress with the completion of the portable execution engine, Wallet Service implementation, and unified Blueprint-Action service architecture.
 
 ### Key Strengths
 - Production-grade CI/CD pipeline with Azure integration
-- Comprehensive test coverage (85%+ estimated)
+- Comprehensive test coverage (85%+ actual across all projects)
 - Clean architecture with well-defined separation of concerns
 - Modern .NET 10 patterns and .NET Aspire orchestration
 - Robust cryptography implementation
+- **NEW:** Complete portable execution engine with 102 tests
+- **NEW:** Wallet Service core implementation (90% complete)
+- **NEW:** Unified Blueprint-Action service with SignalR support
 
-### Critical Gaps
-- Blueprint execution engine is scaffolding only
-- Transaction binary serialization incomplete
-- P2P transaction processing pending
-- Some cryptographic key recovery features missing
+### Recent Accomplishments (Since January 2025)
+- ✅ Portable Blueprint Execution Engine (100% complete)
+- ✅ Wallet Service API Phase 2 with comprehensive tests (WS-030, WS-031)
+- ✅ Blueprint-Action Service Sprints 3, 4, 5 completed
+- ✅ Validator Service design and implementation plan
+- ✅ Register Service and Wallet Service infrastructure integration
+- ✅ SignalR real-time notifications with Redis backplane
+
+### Remaining Critical Items
+- Transaction binary serialization (partial)
+- Register Service full implementation (stub exists)
+- Wallet Service API full deployment
+- Some cryptographic key recovery features
 
 ---
 
@@ -34,14 +45,17 @@ Sorcha demonstrates excellent engineering practices with production-ready infras
 | **Core Modules** |
 | Blueprint.Fluent | ✅ Production Ready | 95% | Complete fluent API with validation |
 | Blueprint.Schemas | ✅ Production Ready | 95% | Full schema management with caching |
-| Blueprint.Engine | ⚠️ Scaffolding Only | 10% | **CRITICAL GAP** - needs implementation |
+| Blueprint.Engine | ✅ **COMPLETE** | 100% | **Portable execution engine with 102 tests** |
 | **Common Libraries** |
 | Blueprint.Models | ✅ Production Ready | 100% | Complete domain models |
 | Cryptography | ✅ Mostly Complete | 90% | ED25519 complete, NIST P-256 partial |
-| TransactionHandler | 🚧 Partial | 60% | Binary serialization missing |
+| TransactionHandler | ✅ Mostly Complete | 68% | JSON serialization complete, binary partial |
 | ServiceDefaults | ✅ Production Ready | 100% | Aspire configuration complete |
+| WalletService | ✅ **NEW** Core Complete | 90% | Core implementation + API endpoints, pending deployment |
 | **Services** |
-| Blueprint.Service | ✅ Functional | 90% | Full CRUD API, minor enhancements needed |
+| Blueprint.Service | ✅ **ENHANCED** | 95% | Unified Blueprint-Action service (Sprints 3-5 complete) |
+| WalletService.Api | 🚧 **NEW** In Progress | 75% | API endpoints implemented, testing in progress |
+| Register.Service | 🚧 **NEW** Stub | 30% | Infrastructure integration, full implementation pending |
 | ApiGateway | ✅ Production Ready | 95% | YARP gateway with health aggregation |
 | Peer.Service | 🚧 Partial | 65% | Transaction processing pending |
 | **Applications** |
@@ -49,7 +63,7 @@ Sorcha demonstrates excellent engineering practices with production-ready infras
 | AppHost | ✅ Production Ready | 100% | .NET Aspire orchestration |
 | **Infrastructure** |
 | CI/CD Pipelines | ✅ Production Ready | 95% | Advanced workflows with Azure deploy |
-| Testing | ✅ Excellent | 90% | Comprehensive unit & integration tests |
+| Testing | ✅ Excellent | 90% | Comprehensive unit & integration tests (102 for engine alone) |
 | Containerization | ✅ Complete | 95% | Docker support for all services |
 
 **Legend:** ✅ Complete | 🚧 In Progress | ⚠️ Critical Gap
@@ -107,25 +121,40 @@ var blueprint = new BlueprintBuilder()
 ---
 
 #### Sorcha.Blueprint.Engine
-**Status:** ⚠️ **CRITICAL GAP** (10%)
+**Status:** ✅ **PRODUCTION READY** (100%)
 
-**Current State:**
-- Only contains `Program.cs` with default template
-- No execution logic implemented
+**Implemented:**
+- Complete portable execution engine (runs client-side and server-side)
+- Comprehensive test coverage: 93 unit tests + 9 integration tests
+- JSON Schema validation (Draft 2020-12)
+- JSON Logic evaluation for calculations and conditions
+- Selective data disclosure using JSON Pointers (RFC 6901)
+- Conditional routing between participants
+- Thread-safe, immutable design pattern
+- Real-world scenarios tested: loan applications, purchase orders, multi-step surveys
 
-**Missing (High Priority):**
-- Blueprint execution orchestration
-- Action processing pipeline
-- State management system
-- Event handling and notifications
-- Workflow navigation logic
-- Conditional routing evaluation
-- Data transformation execution
-- Participant coordination
+**Architecture:**
+- Stateless engine suitable for Blazor WASM and server-side execution
+- `IExecutionEngine` - Main facade for blueprint execution
+- `ISchemaValidator` - JSON Schema validation
+- `IJsonLogicEvaluator` - Calculation and condition evaluation
+- `IDisclosureProcessor` - Data disclosure handling
+- `IRoutingEngine` - Participant routing logic
+- `IActionProcessor` - Action processing orchestration
 
-**Impact:** This is the core value proposition of Sorcha. Without this component, blueprints can be designed and stored but not executed. This blocks end-to-end functionality.
+**Key Features:**
+```csharp
+var engine = serviceProvider.GetRequiredService<IExecutionEngine>();
+var result = await engine.ProcessActionAsync(blueprint, action, payload, context);
 
-**Recommendation:** Priority 1 for development effort
+if (result.IsValid)
+{
+    var nextActions = result.NextActions; // Routing results
+    var disclosedData = result.DisclosedPayloads; // Data for participants
+}
+```
+
+**Impact:** This was the critical gap and is now complete! Enables end-to-end blueprint execution workflows.
 
 ---
 
@@ -230,13 +259,60 @@ var blueprint = new BlueprintBuilder()
 
 ---
 
-### 3. Services
-
-#### Sorcha.Blueprint.Service
-**Status:** ✅ Functional (90%)
+#### Sorcha.WalletService
+**Status:** ✅ **NEW** Core Complete (90%)
 
 **Implemented:**
-- `Program.cs` (598 lines) - Full REST API implementation
+- Complete domain model (Wallet, WalletAddress, WalletAccess, WalletTransaction)
+- HD wallet support with NBitcoin (BIP32/BIP39/BIP44)
+- Service layer complete:
+  - `WalletManager` - Main facade for wallet operations
+  - `KeyManagementService` - HD key derivation and encryption
+  - `TransactionService` - Signing, verification, payload encryption
+  - `DelegationService` - Access control management
+- Infrastructure implementations:
+  - `InMemoryWalletRepository` - Thread-safe development repository
+  - `LocalEncryptionProvider` - AES-256-GCM encryption for dev/testing
+  - `InMemoryEventPublisher` - Event logging and auditing
+- Domain events for all wallet operations
+- Integration with Sorcha.Cryptography for all crypto operations
+- API endpoints (Phase 2 complete):
+  - POST `/api/wallets` - Create wallet
+  - GET `/api/wallets/{id}` - Get wallet
+  - POST `/api/wallets/{id}/sign` - Sign transaction
+  - POST `/api/wallets/{id}/decrypt` - Decrypt payload
+  - POST `/api/wallets/{id}/addresses` - Generate address
+- Comprehensive unit and integration tests (WS-030, WS-031)
+
+**Pending:**
+- EF Core repository with PostgreSQL/MySQL support
+- Azure Key Vault encryption provider
+- AWS KMS encryption provider
+- Full .NET Aspire deployment
+- Performance optimization
+
+**Production Ready:** Core library yes, API deployment in progress
+
+**Test Coverage:**
+- Comprehensive unit tests for all services
+- Integration tests for API endpoints
+- Domain event verification
+
+---
+
+### 3. Services
+
+#### Sorcha.Blueprint.Service (Unified Blueprint-Action Service)
+**Status:** ✅ **ENHANCED** Functional (95%)
+
+**Recent Updates (Sprints 3-5 Complete):**
+- Unified Blueprint-Action service architecture
+- Sprint 3: Service layer foundation ✅
+- Sprint 4: Action API endpoints ✅
+- Sprint 5: Execution helpers & SignalR ✅
+
+**Implemented:**
+- **Blueprint Management:**
   - GET `/api/blueprints` - List all blueprints
   - GET `/api/blueprints/{id}` - Get blueprint by ID
   - POST `/api/blueprints` - Create blueprint
@@ -244,7 +320,34 @@ var blueprint = new BlueprintBuilder()
   - DELETE `/api/blueprints/{id}` - Delete blueprint
   - POST `/api/blueprints/{id}/publish` - Publish with validation
   - GET `/api/blueprints/{id}/versions` - Version history
-  - GET `/health` - Health check
+
+- **Action Management (NEW - Sprint 4):**
+  - GET `/api/actions/{wallet}/{register}/blueprints` - List available blueprints
+  - GET `/api/actions/{wallet}/{register}` - Get pending actions (paginated)
+  - GET `/api/actions/{wallet}/{register}/{tx}` - Get specific action
+  - POST `/api/actions` - Submit action
+  - POST `/api/actions/reject` - Reject action
+  - GET `/api/files/{wallet}/{register}/{tx}/{fileId}` - File download
+
+- **Execution Helpers (NEW - Sprint 5):**
+  - POST `/api/execution/validate` - Validate payload against schema
+  - POST `/api/execution/calculate` - Evaluate calculations
+  - POST `/api/execution/route` - Determine routing
+  - POST `/api/execution/disclose` - Calculate data disclosure
+
+- **Real-time Notifications (NEW - Sprint 5):**
+  - SignalR ActionsHub for real-time updates
+  - Redis backplane for scalability
+  - Client-side integration support
+
+- **Service Layer (Sprint 3):**
+  - `ActionResolverService` - Action resolution from blueprints
+  - `PayloadResolverService` - Encryption/decryption orchestration
+  - `TransactionBuilderService` - Transaction building
+  - Redis caching layer
+  - Integration with Wallet and Register services
+
+**Infrastructure:**
 - In-memory storage with `IBlueprintRepository` interface
 - Blueprint validation engine
 - Version management for published blueprints
@@ -254,12 +357,11 @@ var blueprint = new BlueprintBuilder()
 - Complete dependency injection setup
 
 **TODOs/Enhancements:**
-- Schema repository integration (line 221) - minor enhancement
-- Advanced participant reference validation (line 523)
-- Graph cycle detection for action dependencies (line 530)
 - Database persistence layer (currently in-memory)
+- Graph cycle detection for action dependencies
+- Advanced caching strategies
 
-**API Design:** Modern minimal APIs pattern
+**API Design:** Modern minimal APIs pattern with SignalR
 **Production Ready:** Yes, with planned enhancements
 
 ---

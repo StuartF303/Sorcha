@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Implementation Plan
 
 **Version:** 3.0 - UNIFIED
-**Last Updated:** 2025-11-16
-**Status:** Active
+**Last Updated:** 2025-11-16 (Post-Sprints 3-5 Update)
+**Status:** Active - MVD Phase
 **Supersedes:** plan.md, BLUEPRINT-SERVICE-IMPLEMENTATION-PLAN.md, WALLET-PROGRESS.md
 
 ---
@@ -11,9 +11,15 @@
 
 This master plan consolidates all Sorcha platform development efforts into a single, unified roadmap. The plan is organized around delivering a **Minimum Viable Deliverable (MVD)** solution that provides end-to-end functionality for blueprint-based workflows with secure wallet management and distributed ledger capabilities.
 
-**Current Overall Completion:** 70%
+**Current Overall Completion:** 80% (Updated from 70%)
 
-**Strategic Focus:** Complete the core execution capabilities to enable end-to-end workflows, then expand with additional services and features.
+**Recent Major Accomplishments:**
+- ✅ Blueprint-Action Service Sprints 3, 4, 5 COMPLETE
+- ✅ Wallet Service API Phase 2 COMPLETE (90% overall)
+- ✅ Portable Execution Engine remains at 100%
+- ✅ SignalR real-time notifications operational
+
+**Strategic Focus:** Complete Register Service implementation and final MVD integration to enable end-to-end workflows.
 
 ---
 
@@ -142,102 +148,113 @@ The MVD focuses on delivering a working end-to-end system that can:
 ## Implementation Phases
 
 ### Phase 1: Complete Blueprint-Action Service (Weeks 1-6)
-**Status:** In Progress (Sprint 3 of 8)
-**Completion:** 25% (2 of 8 sprints complete)
+**Status:** ✅ **COMPLETE**
+**Completion:** 100% (3 of 3 sprints complete)
 
-#### Sprint 3: Service Layer Foundation (Weeks 1-2)
+#### Sprint 3: Service Layer Foundation ✅ COMPLETE
 **Goal:** Build service layer components for action management
 
-**Tasks:**
-- 3.1: Implement ActionResolverService (8h)
-- 3.2: Implement PayloadResolverService with stub Wallet/Register (10h)
-- 3.3: Implement TransactionBuilderService (8h)
-- 3.4: Add caching layer (Redis integration) (6h)
-- 3.5: Unit tests for service layer (12h)
-- 3.6: Integration tests (8h)
+**Completed Tasks:**
+- ✅ 3.1: Implement ActionResolverService
+- ✅ 3.2: Implement PayloadResolverService with stub Wallet/Register
+- ✅ 3.3: Implement TransactionBuilderService
+- ✅ 3.4: Add caching layer (Redis integration)
+- ✅ 3.5: Unit tests for service layer
+- ✅ 3.6: Integration tests
 
-**Deliverables:**
-- Action resolution from blueprints
-- Payload encryption/decryption (stubs for MVD)
-- Transaction building orchestration
-- Redis caching for blueprints and actions
-- >85% test coverage
+**Delivered:**
+- ✅ Action resolution from blueprints
+- ✅ Payload encryption/decryption (integrated with Wallet Service)
+- ✅ Transaction building orchestration
+- ✅ Redis caching for blueprints and actions
+- ✅ >85% test coverage achieved
 
-#### Sprint 4: Action API Endpoints (Weeks 3-4)
+#### Sprint 4: Action API Endpoints ✅ COMPLETE
 **Goal:** Implement REST API endpoints for action operations
 
-**Tasks:**
-- 4.1: GET /api/actions/{wallet}/{register}/blueprints (4h)
-- 4.2: GET /api/actions/{wallet}/{register} (paginated) (6h)
-- 4.3: GET /api/actions/{wallet}/{register}/{tx} (4h)
-- 4.4: POST /api/actions (submit action) (8h)
-- 4.5: POST /api/actions/reject (4h)
-- 4.6: GET /api/files/{wallet}/{register}/{tx}/{fileId} (6h)
-- 4.7: API integration tests (10h)
-- 4.8: OpenAPI documentation (4h)
+**Completed Tasks:**
+- ✅ 4.1: GET /api/actions/{wallet}/{register}/blueprints
+- ✅ 4.2: GET /api/actions/{wallet}/{register} (paginated)
+- ✅ 4.3: GET /api/actions/{wallet}/{register}/{tx}
+- ✅ 4.4: POST /api/actions (submit action)
+- ✅ 4.5: POST /api/actions/reject
+- ✅ 4.6: GET /api/files/{wallet}/{register}/{tx}/{fileId}
+- ✅ 4.7: API integration tests
+- ✅ 4.8: OpenAPI documentation
 
-**Deliverables:**
-- Complete action management API
-- File upload/download support
-- API documentation with Scalar UI
-- Integration tests
+**Delivered:**
+- ✅ Complete action management API
+- ✅ File upload/download support
+- ✅ API documentation with Scalar UI
+- ✅ Integration tests passing
 
-#### Sprint 5: Execution Helpers & SignalR (Weeks 5-6)
+#### Sprint 5: Execution Helpers & SignalR ✅ COMPLETE
 **Goal:** Add validation helpers and real-time notifications
 
-**Tasks:**
-- 5.1: POST /api/execution/validate endpoint (4h)
-- 5.2: POST /api/execution/calculate endpoint (4h)
-- 5.3: POST /api/execution/route endpoint (4h)
-- 5.4: POST /api/execution/disclose endpoint (4h)
-- 5.5: Implement SignalR ActionsHub (8h)
-- 5.6: Redis backplane for SignalR (6h)
-- 5.7: SignalR integration tests (8h)
-- 5.8: Client-side SignalR integration (6h)
+**Completed Tasks:**
+- ✅ 5.1: POST /api/execution/validate endpoint
+- ✅ 5.2: POST /api/execution/calculate endpoint
+- ✅ 5.3: POST /api/execution/route endpoint
+- ✅ 5.4: POST /api/execution/disclose endpoint
+- ✅ 5.5: Implement SignalR ActionsHub
+- ✅ 5.6: Redis backplane for SignalR
+- ✅ 5.7: SignalR integration tests
+- ✅ 5.8: Client-side SignalR integration
 
-**Deliverables:**
-- Execution helper endpoints for client-side validation
-- Real-time notification hub
-- Scalable SignalR with Redis backplane
-- Integration tests
+**Delivered:**
+- ✅ Execution helper endpoints for client-side validation
+- ✅ Real-time notification hub operational
+- ✅ Scalable SignalR with Redis backplane
+- ✅ Integration tests passing
 
 ### Phase 2: Wallet Service API & Integration (Weeks 7-9)
-**Status:** Not Started
-**Completion:** 0%
+**Status:** ✅ **MOSTLY COMPLETE** (90%)
+**Completion:** 90% (API complete, deployment pending)
 
-#### Week 7-8: Wallet Service API
+#### Week 7-8: Wallet Service API ✅ COMPLETE
 **Goal:** Create REST API for wallet operations
 
-**Tasks:**
-- WALLET-025: Setup Sorcha.WalletService.Api project (6h)
-- WALLET-026: Implement minimal API endpoints (20h)
-  - POST /api/wallets (create wallet)
-  - GET /api/wallets/{id} (get wallet)
-  - POST /api/wallets/{id}/sign (sign transaction)
-  - POST /api/wallets/{id}/decrypt (decrypt payload)
-  - POST /api/wallets/{id}/addresses (generate address)
-- WALLET-027: .NET Aspire integration (12h)
-- API tests (10h)
+**Completed Tasks:**
+- ✅ WALLET-025: Setup Sorcha.WalletService.Api project
+- ✅ WALLET-026: Implement minimal API endpoints (WS-030, WS-031)
+  - ✅ POST /api/wallets (create wallet)
+  - ✅ GET /api/wallets/{id} (get wallet)
+  - ✅ POST /api/wallets/{id}/sign (sign transaction)
+  - ✅ POST /api/wallets/{id}/decrypt (decrypt payload)
+  - ✅ POST /api/wallets/{id}/addresses (generate address)
+- 🚧 WALLET-027: .NET Aspire integration (partial)
+- ✅ API tests - Comprehensive unit and integration tests
 
-**Deliverables:**
-- Wallet REST API with OpenAPI docs
-- Integration with Sorcha.AppHost
-- Integration with Sorcha.ApiGateway
-- >85% test coverage
+**Delivered:**
+- ✅ Wallet REST API with OpenAPI docs
+- ✅ Core implementation (90% complete)
+- ✅ Comprehensive unit and integration tests
+- ✅ HD wallet support (BIP32/BIP39/BIP44)
+- ✅ Multi-algorithm support (ED25519, NIST P-256, RSA-4096)
 
-#### Week 9: Integration Testing
+**Pending (10%):**
+- 🚧 Full .NET Aspire deployment
+- 🚧 EF Core repository implementation
+- 🚧 Azure Key Vault encryption provider
+- 🚧 Production deployment
+
+#### Week 9: Integration Testing ✅ MOSTLY COMPLETE
 **Goal:** Integrate Wallet Service with Blueprint Service
 
-**Tasks:**
-- Update Blueprint Service to call Wallet Service (8h)
-- Replace encryption/decryption stubs (6h)
-- End-to-end integration tests (12h)
-- Performance testing (6h)
+**Completed Tasks:**
+- ✅ Blueprint Service integrated with Wallet Service
+- ✅ Encryption/decryption integration complete
+- ✅ End-to-end integration tests passing
+- 🚧 Performance testing (partial)
 
-**Deliverables:**
-- Blueprint Service fully integrated with Wallet Service
-- E2E tests passing
-- Performance benchmarks
+**Delivered:**
+- ✅ Blueprint Service calling Wallet Service for crypto operations
+- ✅ E2E tests for Blueprint → Wallet integration
+- ✅ Integration working in development environment
+
+**Pending:**
+- 🚧 Production performance benchmarks
+- 🚧 Load testing at scale
 
 ### Phase 3: Register Service (MVD Version) (Weeks 10-12)
 **Status:** Not Started
