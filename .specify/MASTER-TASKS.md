@@ -12,9 +12,9 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 138 (across all phases)
-**Completed:** 27 (20%)
+**Completed:** 35 (25%)
 **In Progress:** 18 (13%)
-**Not Started:** 93 (67%)
+**Not Started:** 85 (62%)
 
 ---
 
@@ -36,19 +36,19 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete |
 |-------|-------------|----------|-------------|-------------|------------|
-| **Phase 1: Blueprint-Action** | 56 | 14 | 16 | 26 | 25% |
+| **Phase 1: Blueprint-Action** | 56 | 22 | 16 | 18 | 39% |
 | **Phase 2: Wallet Service** | 32 | 13 | 0 | 19 | 41% |
 | **Phase 3: Register Service** | 15 | 0 | 0 | 15 | 0% |
 | **Phase 4: Enhancements** | 25 | 0 | 2 | 23 | 0% |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% |
-| **TOTAL** | **138** | **27** | **18** | **93** | **20%** |
+| **TOTAL** | **138** | **35** | **18** | **85** | **25%** |
 
 ### By Priority
 
 | Priority | Total | Complete | In Progress | Not Started |
 |----------|-------|----------|-------------|-------------|
-| **P0 - Critical (MVD Blocker)** | 45 | 14 | 10 | 21 |
-| **P1 - High (MVD Core)** | 38 | 8 | 6 | 24 |
+| **P0 - Critical (MVD Blocker)** | 45 | 19 | 10 | 16 |
+| **P1 - High (MVD Core)** | 38 | 11 | 6 | 21 |
 | **P2 - Medium (MVD Nice-to-Have)** | 30 | 5 | 2 | 23 |
 | **P3 - Low (Post-MVD)** | 25 | 0 | 0 | 25 |
 
@@ -75,7 +75,7 @@ Enhancement tasks that can be deferred until after MVD is complete.
 **Goal:** Complete the unified Blueprint-Action Service with full execution capabilities
 **Duration:** Weeks 1-6
 **Total Tasks:** 56
-**Completion:** 25% (14 complete, 16 in progress, 26 not started)
+**Completion:** 39% (22 complete, 16 in progress, 18 not started)
 
 ### Sprint 1: Execution Engine Foundation ✅ COMPLETE
 
@@ -120,21 +120,21 @@ Enhancement tasks that can be deferred until after MVD is complete.
 **Sprint 3 Status:** 📋 **NOT STARTED** (0/6 tasks, 52 hours)
 **Recommended Start:** Week 1
 
-### Sprint 4: Action API Endpoints
+### Sprint 4: Action API Endpoints ✅ COMPLETE
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| BP-4.1 | GET /api/actions/{wallet}/{register}/blueprints | P0 | 4h | 📋 Not Started | - |
-| BP-4.2 | GET /api/actions/{wallet}/{register} (paginated) | P0 | 6h | 📋 Not Started | - |
-| BP-4.3 | GET /api/actions/{wallet}/{register}/{tx} | P0 | 4h | 📋 Not Started | - |
-| BP-4.4 | POST /api/actions (submit action) | P0 | 8h | 📋 Not Started | - |
-| BP-4.5 | POST /api/actions/reject | P1 | 4h | 📋 Not Started | - |
-| BP-4.6 | GET /api/files/{wallet}/{register}/{tx}/{fileId} | P1 | 6h | 📋 Not Started | - |
-| BP-4.7 | API integration tests | P0 | 10h | 📋 Not Started | - |
-| BP-4.8 | OpenAPI documentation | P1 | 4h | 📋 Not Started | - |
+| BP-4.1 | GET /api/actions/{wallet}/{register}/blueprints | P0 | 4h | ✅ Complete | - |
+| BP-4.2 | GET /api/actions/{wallet}/{register} (paginated) | P0 | 6h | ✅ Complete | - |
+| BP-4.3 | GET /api/actions/{wallet}/{register}/{tx} | P0 | 4h | ✅ Complete | - |
+| BP-4.4 | POST /api/actions (submit action) | P0 | 8h | ✅ Complete | - |
+| BP-4.5 | POST /api/actions/reject | P1 | 4h | ✅ Complete | - |
+| BP-4.6 | GET /api/files/{wallet}/{register}/{tx}/{fileId} | P1 | 6h | ✅ Complete | - |
+| BP-4.7 | API integration tests | P0 | 10h | ✅ Complete | - |
+| BP-4.8 | OpenAPI documentation | P1 | 4h | ✅ Complete | - |
 
-**Sprint 4 Status:** 📋 **NOT STARTED** (0/8 tasks, 46 hours)
-**Recommended Start:** Week 3
+**Sprint 4 Status:** ✅ **COMPLETE** (8/8 tasks, 46 hours)
+**Completed:** 2025-11-16
 
 ### Sprint 5: Execution Helpers & SignalR
 
