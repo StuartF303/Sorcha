@@ -14,7 +14,7 @@ Create the foundational project structure for the new Siccar.RegisterService cor
 ## Tasks
 
 ### Project Creation
-- [ ] Create `Siccar.RegisterService` class library project (.NET 9.0)
+- [ ] Create `Siccar.RegisterService` class library project (.NET 10.0)
 - [ ] Configure project properties (nullable enabled, implicit usings disabled)
 - [ ] Set root namespace to `Siccar.RegisterService`
 - [ ] Create solution folder structure for register-related projects

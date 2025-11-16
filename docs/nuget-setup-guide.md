@@ -129,8 +129,8 @@ Or in a `.csproj` file:
 The pipeline includes:
 
 ### 🔨 Build & Test
-- Builds for both .NET 9.0 and .NET 10.0
-- Runs all unit tests for both frameworks
+- Builds for .NET 10.0
+- Runs all unit tests
 - Generates code coverage reports
 - Adds coverage summary to pull requests
 

@@ -55,8 +55,8 @@ Create the new `Sorcha.Cryptography` library project with proper configuration, 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- Multi-targeting -->
-    <TargetFrameworks>net9.0;netstandard2.1</TargetFrameworks>
+    <!-- Target framework -->
+    <TargetFramework>net10.0</TargetFramework>
 
     <!-- Language and nullable -->
     <LangVersion>12</LangVersion>
@@ -139,7 +139,7 @@ src/Common/Sorcha.Cryptography/
 ## Acceptance Criteria
 
 - [ ] New `Sorcha.Cryptography` project created in correct location
-- [ ] Project targets both .NET 9.0 and .NET Standard 2.1
+- [ ] Project targets .NET 10.0
 - [ ] Only Sodium.Core dependency present (plus SourceLink for dev)
 - [ ] All required folders created with .gitkeep files
 - [ ] Project builds without errors or warnings

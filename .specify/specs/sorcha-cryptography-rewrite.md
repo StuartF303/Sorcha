@@ -736,7 +736,7 @@ public class CryptoResult<T>
 - Deterministic builds
 - Source link support
 - Symbol packages
-- Multi-targeting (.NET 9.0 and .NET Standard 2.1)
+- Target framework (.NET 10.0)
 
 **Package Metadata:**
 ```xml

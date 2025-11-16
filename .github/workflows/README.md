@@ -174,7 +174,6 @@ Add the JSON output to the `AZURE_CREDENTIALS` secret.
 The workflows use these environment variables:
 
 ```yaml
-DOTNET_VERSION_9: '9.0.x'
 DOTNET_VERSION_10: '10.0.x'
 AZURE_RESOURCE_GROUP: sorcha
 AZURE_LOCATION: uksouth
