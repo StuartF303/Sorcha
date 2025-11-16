@@ -331,7 +331,119 @@ A: Yes, JSON Logic supports custom operators. The engine can be extended via dep
 
 ---
 
+---
+
+## Service Boundaries and Security Architecture
+
+**Date Added:** 2025-11-16
+**Related ADR:** [ADR-005: Validator Service Security Boundary](../docs/architecture/ADR-005-Validator-Service-Security-Boundary.md)
+
+### Register Service vs. Validator Service
+
+Sorcha maintains strict service boundaries based on security requirements:
+
+#### Register Service (Data Layer)
+**Responsibilities:**
+- CRUD operations for Registers, Transactions, Dockets
+- Query operations (get by ID, list, filter, paginate)
+- Data storage abstraction (MongoDB, PostgreSQL, InMemory)
+- Read-only blockchain access
+
+**Security Posture:**
+- ❌ No access to cryptographic signing keys
+- ❌ No blockchain modification capabilities
+- ✅ Read/write permissions for data storage
+- ✅ Query optimization and caching
+
+**Components:**
+- `Sorcha.Register.Models` - Domain models
+- `Sorcha.Register.Core` - Business logic (RegisterManager, TransactionManager, QueryManager)
+- `Sorcha.Register.Service` - REST API
+- `Sorcha.Register.Storage.*` - Repository implementations
+
+---
+
+#### Validator Service (Security Layer)
+**Responsibilities:**
+- **Docket Building** - Assembling validated Transactions into blocks
+- **Chain Validation** - Verifying cryptographic signatures and chain integrity
+- **Consensus Participation** - Multi-peer validation coordination
+- **Genesis Block Creation** - Initializing new Registers
+- **Cryptographic Operations** - Via Wallet Service integration
+
+**Security Posture:**
+- ✅ **Secured execution environment** (Intel SGX, AMD SEV, HSM)
+- ✅ **Access to cryptographic keys** (via Wallet Service)
+- ✅ **Audit logging** for all validation operations
+- ✅ **Enclave-compatible** core logic
+- ✅ **Rate limiting** to prevent DoS attacks
+
+**Components:**
+- `Sorcha.Validator.Models` - Validation-specific models
+- `Sorcha.Validator.Core` - **Enclave-safe** validation logic
+  - **DocketManager** - Builds and seals Dockets (moved from Register.Core)
+  - **ChainValidator** - Validates blockchain integrity (moved from Register.Core)
+  - **ConsensusEngine** - Coordinates distributed validation
+- `Sorcha.Validator.Service` - **Secured** REST API
+
+---
+
+### Why the Separation?
+
+**Security Principle:** *Principle of Least Privilege*
+
+| Operation | Needs Signing Keys? | Needs Enclave? | Service |
+|-----------|---------------------|----------------|---------|
+| Get Register by ID | ❌ No | ❌ No | Register Service |
+| List Transactions | ❌ No | ❌ No | Register Service |
+| Query blockchain | ❌ No | ❌ No | Register Service |
+| **Build Docket** | ✅ **Yes** | ✅ **Yes** | **Validator Service** |
+| **Seal Docket** | ✅ **Yes** | ✅ **Yes** | **Validator Service** |
+| **Validate chain** | ✅ **Yes** | ✅ **Yes** | **Validator Service** |
+| **Consensus vote** | ✅ **Yes** | ✅ **Yes** | **Validator Service** |
+
+**Key Insight:** General blockchain read/write operations don't need cryptographic keys, but consensus and validation operations do. This separation enables:
+1. Register Service to scale horizontally without key management
+2. Validator Service to run in secure enclaves with controlled key access
+3. Clear audit trail for all cryptographic operations
+4. Compliance with security standards (SOC 2, ISO 27001)
+
+---
+
+### Service Communication
+
+```
+┌─────────────────┐
+│ Blueprint       │
+│ Service         │
+└────────┬────────┘
+         │ Creates Transactions
+         ↓
+┌─────────────────┐      ┌─────────────────┐
+│ Validator       │◄────►│ Wallet Service  │
+│ Service         │      │ (Keys)          │
+│ (Secured)       │      └─────────────────┘
+└────────┬────────┘
+         │ Stores validated Dockets
+         ↓
+┌─────────────────┐
+│ Register        │
+│ Service         │
+│ (Data Layer)    │
+└─────────────────┘
+```
+
+**Flow:**
+1. Blueprint Service creates Transactions
+2. **Validator Service** builds Dockets (needs keys for signing)
+3. **Validator Service** validates chain integrity (cryptographic verification)
+4. Validator Service stores validated Dockets in Register Service
+5. Register Service provides read access to blockchain data
+
+---
+
 **Document Control**
 - **Created:** 2025-11-15
+- **Updated:** 2025-11-16 (Added Validator Service boundary)
 - **Status:** Approved
 - **Review Frequency:** As needed during implementation

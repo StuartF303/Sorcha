@@ -6,8 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.ComponentModel.Annotations" Version="10.0.0" />
-  </ItemGroup>
+  <!-- System.ComponentModel.Annotations is included in .NET 10 framework -->
 
 </Project>
