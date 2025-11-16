@@ -1,9 +1,9 @@
 # Sorcha.Register.Service Specification
 
-**Version:** 2.1
+**Version:** 2.2
 **Date:** 2025-11-16
-**Status:** Proposed
-**Last Updated:** 2025-11-16 - Architectural refinement: Moved DocketManager and ChainValidator to Validator.Service
+**Status:** Proposed - Enhanced
+**Last Updated:** 2025-11-16 - Added blockchain gateway integration, universal DID resolver, and high-performance query infrastructure requirements
 **Related Constitution:** [constitution.md](../constitution.md)
 **Related Specifications:**
 - [sorcha-cryptography-rewrite.md](sorcha-cryptography-rewrite.md)
@@ -169,39 +169,62 @@ A **Control** contains encrypted data within a transaction. Each Control:
 ### High-Level Design
 
 ```
-┌───────────────────────────────────────────────────────────────┐
-│                 Sorcha.Register.Service                        │
-│                  (Microservice Layer)                          │
-├───────────────────────────────────────────────────────────────┤
-│  API Layer (Minimal APIs)  │  Real-time Layer (SignalR)       │
-│  - RegistersAPI            │  - RegisterHub                   │
-│  - TransactionsAPI         │  - Group subscriptions           │
-│  - DocketsAPI              │  - Real-time events              │
-│  - QueryAPI (OData)        │                                  │
-├───────────────────────────────────────────────────────────────┤
-│  Business Logic Layer                                         │
-│  - RegisterManager         │  - TransactionManager            │
-│  - DocketManager           │  - QueryManager                  │
-│  - ChainValidator          │  - TenantResolver                │
-├───────────────────────────────────────────────────────────────┤
-│  Storage Abstraction Layer                                    │
-│  IRegisterRepository       │  IEventPublisher/Subscriber      │
-│  - MongoDB                 │  - Aspire Messaging              │
-│  - PostgreSQL (EF Core)    │  - RabbitMQ                      │
-│  - InMemory (testing)      │  - Azure Service Bus             │
-│  - CosmosDB (future)       │  - InMemory (testing)            │
-├───────────────────────────────────────────────────────────────┤
-│  Cross-Cutting Concerns                                       │
-│  - OpenTelemetry           │  - Health Checks                 │
-│  - Structured Logging      │  - Configuration                 │
-│  - Authentication/AuthZ    │  - Caching (Redis)               │
-└───────────────────────────────────────────────────────────────┘
-           │                          │                  │
-           ▼                          ▼                  ▼
-    ┌────────────┐         ┌──────────────┐    ┌──────────────┐
-    │  Storage   │         │  Validator   │    │    Wallet    │
-    │  Backend   │         │   Service    │    │   Service    │
-    └────────────┘         └──────────────┘    └──────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                    Sorcha.Register.Service                              │
+│                     (Microservice Layer)                                │
+├────────────────────────────────────────────────────────────────────────┤
+│  API Layer (Minimal APIs)    │  Real-time Layer (SignalR)              │
+│  - RegistersAPI              │  - RegisterHub                          │
+│  - TransactionsAPI           │  - Group subscriptions                  │
+│  - DocketsAPI                │  - Real-time events                     │
+│  - QueryAPI (OData)          │                                         │
+│  - DIDResolverAPI (NEW)      │  Blockchain Gateway Layer (NEW)         │
+│  - BlockchainGatewayAPI      │  - IBlockchainGateway                   │
+│                              │  - IUniversalResolver                   │
+├────────────────────────────────────────────────────────────────────────┤
+│  Business Logic Layer                                                  │
+│  - RegisterManager           │  - TransactionManager                   │
+│  - QueryManager              │  - TenantResolver                       │
+│  - BlockchainGatewayManager (NEW) - Gateway routing & coordination     │
+│  - UniversalResolverService (NEW) - DID resolution orchestration       │
+├────────────────────────────────────────────────────────────────────────┤
+│  Gateway Implementations (NEW)                                         │
+│  - SorchaRegisterGateway (native)  - Primary blockchain                │
+│  - EthereumGateway (external)      - Ethereum via Nethereum/Infura    │
+│  - CardanoGateway (external)       - Cardano via CardanoSharp/Blockfrost│
+│  - CustomGateway (extensible)      - Plugin architecture               │
+├────────────────────────────────────────────────────────────────────────┤
+│  DID Resolver Implementations (NEW)                                    │
+│  - SorchaDIDResolver (local)       - Local register resolution         │
+│  - EthereumDIDResolver (external)  - did:ethr via universal resolver   │
+│  - CardanoDIDResolver (external)   - did:cardano resolution            │
+│  - UniversalDIDResolver (external) - Generic W3C resolver integration  │
+├────────────────────────────────────────────────────────────────────────┤
+│  Storage Abstraction Layer                                             │
+│  IRegisterRepository         │  IEventPublisher/Subscriber             │
+│  - MongoDB                   │  - Aspire Messaging                     │
+│  - PostgreSQL (EF Core)      │  - RabbitMQ                             │
+│  - InMemory (testing)        │  - Azure Service Bus                    │
+│  - CosmosDB (future)         │  - InMemory (testing)                   │
+├────────────────────────────────────────────────────────────────────────┤
+│  Query Infrastructure (ENHANCED)                                       │
+│  - OData Query Translation   │  - LINQ to Database Converter           │
+│  - Query Result Caching      │  - Index Optimization Engine            │
+│  - Query Performance Monitor │  - Materialized View Manager            │
+├────────────────────────────────────────────────────────────────────────┤
+│  Cross-Cutting Concerns                                                │
+│  - OpenTelemetry             │  - Health Checks                        │
+│  - Structured Logging        │  - Configuration                        │
+│  - Authentication/AuthZ      │  - Caching (Redis)                      │
+└────────────────────────────────────────────────────────────────────────┘
+      │              │                │                 │
+      ▼              ▼                ▼                 ▼
+┌──────────┐  ┌───────────┐  ┌──────────────┐  ┌─────────────────┐
+│ Storage  │  │Validator  │  │   Wallet     │  │ External Chains │
+│ Backend  │  │ Service   │  │   Service    │  │ - Ethereum      │
+│          │  │           │  │              │  │ - Cardano       │
+└──────────┘  └───────────┘  └──────────────┘  │ - Others        │
+                                                └─────────────────┘
 ```
 
 ### Sorcha 4-Layer Architecture Alignment
@@ -226,16 +249,26 @@ Sorcha/
 │   │           └── ServiceConfiguration.cs
 │   │
 │   ├── Core/                           # Business Logic Layer
-│   │   ├── Sorcha.Register.Core/      # Core library (NEW)
+│   │   ├── Sorcha.Register.Core/      # Core library
 │   │   │   ├── Managers/
 │   │   │   │   ├── RegisterManager.cs
 │   │   │   │   ├── TransactionManager.cs
-│   │   │   │   ├── DocketManager.cs
-│   │   │   │   └── QueryManager.cs
+│   │   │   │   ├── QueryManager.cs
+│   │   │   │   ├── BlockchainGatewayManager.cs (NEW)
+│   │   │   │   └── UniversalResolverService.cs (NEW)
 │   │   │   ├── Storage/
 │   │   │   │   ├── IRegisterRepository.cs
 │   │   │   │   ├── ITransactionRepository.cs
 │   │   │   │   └── IDocketRepository.cs
+│   │   │   ├── Gateways/  (NEW)
+│   │   │   │   ├── IBlockchainGateway.cs
+│   │   │   │   ├── GatewayConfiguration.cs
+│   │   │   │   └── BlockchainGatewayException.cs
+│   │   │   ├── Resolvers/  (NEW)
+│   │   │   │   ├── IUniversalResolver.cs
+│   │   │   │   ├── IDIDResolver.cs
+│   │   │   │   ├── DIDDocument.cs
+│   │   │   │   └── ResolverConfiguration.cs
 │   │   │   ├── Events/
 │   │   │   │   ├── IEventPublisher.cs
 │   │   │   │   ├── IEventSubscriber.cs
@@ -243,6 +276,11 @@ Sorcha/
 │   │   │   ├── Validators/
 │   │   │   │   ├── ChainValidator.cs
 │   │   │   │   └── DocketValidator.cs
+│   │   │   ├── Query/  (ENHANCED)
+│   │   │   │   ├── IODataQueryTranslator.cs
+│   │   │   │   ├── IQueryOptimizer.cs
+│   │   │   │   ├── IQueryCache.cs
+│   │   │   │   └── QueryPerformanceMonitor.cs
 │   │   │   └── Authorization/
 │   │   │       ├── ITenantResolver.cs
 │   │   │       └── TenantAccessPolicy.cs
@@ -250,7 +288,30 @@ Sorcha/
 │   │   ├── Sorcha.Register.Storage.MongoDB/  # MongoDB implementation
 │   │   ├── Sorcha.Register.Storage.PostgreSQL/  # PostgreSQL implementation
 │   │   ├── Sorcha.Register.Storage.InMemory/    # Testing implementation
-│   │   └── Sorcha.Register.Events.Aspire/       # Aspire messaging
+│   │   ├── Sorcha.Register.Events.Aspire/       # Aspire messaging
+│   │   │
+│   │   ├── Sorcha.Register.Gateways.Ethereum/  (NEW)
+│   │   │   ├── EthereumGateway.cs
+│   │   │   ├── EthereumConfiguration.cs
+│   │   │   └── EthereumAddressConverter.cs
+│   │   ├── Sorcha.Register.Gateways.Cardano/  (NEW)
+│   │   │   ├── CardanoGateway.cs
+│   │   │   ├── CardanoConfiguration.cs
+│   │   │   └── CardanoAddressConverter.cs
+│   │   ├── Sorcha.Register.Gateways.Sorcha/  (NEW)
+│   │   │   └── SorchaRegisterGateway.cs
+│   │   │
+│   │   ├── Sorcha.Register.Resolvers.DID/  (NEW)
+│   │   │   ├── SorchaDIDResolver.cs
+│   │   │   ├── EthereumDIDResolver.cs
+│   │   │   ├── CardanoDIDResolver.cs
+│   │   │   └── UniversalDIDResolver.cs
+│   │   │
+│   │   └── Sorcha.Register.Query.OData/  (NEW)
+│   │       ├── ODataQueryTranslator.cs
+│   │       ├── MongoQueryTranslator.cs
+│   │       ├── SqlQueryTranslator.cs
+│   │       └── QueryCacheService.cs
 │   │
 │   └── Common/                         # Common Layer
 │       ├── Sorcha.Register.Models/    # Domain models (NEW)
@@ -705,6 +766,250 @@ public interface IRegisterRepository
 }
 ```
 
+### Blockchain Gateway Abstraction
+
+```csharp
+namespace Sorcha.Register.Core.Gateways;
+
+/// <summary>
+/// Abstraction for blockchain gateway implementations
+/// </summary>
+public interface IBlockchainGateway
+{
+    /// <summary>
+    /// Gateway name (e.g., "Ethereum", "Cardano", "Sorcha")
+    /// </summary>
+    string Name { get; }
+
+    /// <summary>
+    /// Whether gateway is currently available
+    /// </summary>
+    Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Submit transaction to blockchain
+    /// </summary>
+    Task<BlockchainTransactionResult> SubmitTransactionAsync(
+        TransactionModel transaction,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Query transaction status by blockchain-specific ID
+    /// </summary>
+    Task<BlockchainTransactionStatus> GetTransactionStatusAsync(
+        string blockchainTransactionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get blockchain-specific address format for a Sorcha address
+    /// </summary>
+    Task<string> ConvertAddressAsync(
+        string sorchaAddress,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get current block height of blockchain
+    /// </summary>
+    Task<ulong> GetBlockHeightAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get gateway configuration and metadata
+    /// </summary>
+    GatewayConfiguration Configuration { get; }
+}
+
+public class BlockchainTransactionResult
+{
+    public bool Success { get; set; }
+    public string? BlockchainTransactionId { get; set; }
+    public string? BlockHash { get; set; }
+    public ulong? BlockNumber { get; set; }
+    public string? ErrorMessage { get; set; }
+    public Dictionary<string, string>? Metadata { get; set; }
+}
+
+public enum BlockchainTransactionStatus
+{
+    Pending,
+    Confirmed,
+    Failed,
+    Unknown
+}
+
+public class GatewayConfiguration
+{
+    public string Name { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public string? Endpoint { get; set; }
+    public Dictionary<string, string> Settings { get; set; } = new();
+    public bool IsDefault { get; set; }
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
+}
+```
+
+### Universal DID Resolver Abstraction
+
+```csharp
+namespace Sorcha.Register.Core.Resolvers;
+
+/// <summary>
+/// Universal DID resolver supporting multiple DID methods
+/// </summary>
+public interface IUniversalResolver
+{
+    /// <summary>
+    /// Resolve a DID to its DID Document
+    /// </summary>
+    Task<DIDResolutionResult> ResolveDIDAsync(
+        string did,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Resolve DID with resolution options
+    /// </summary>
+    Task<DIDResolutionResult> ResolveDIDAsync(
+        string did,
+        DIDResolutionOptions options,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check if DID method is supported
+    /// </summary>
+    bool SupportsMethod(string didMethod);
+
+    /// <summary>
+    /// Get list of supported DID methods
+    /// </summary>
+    IEnumerable<string> SupportedMethods { get; }
+}
+
+/// <summary>
+/// Resolver for specific DID method
+/// </summary>
+public interface IDIDResolver
+{
+    /// <summary>
+    /// DID method this resolver handles (e.g., "sorcha", "ethr", "cardano")
+    /// </summary>
+    string Method { get; }
+
+    /// <summary>
+    /// Resolve DID to DID Document
+    /// </summary>
+    Task<DIDResolutionResult> ResolveAsync(
+        string did,
+        DIDResolutionOptions? options = null,
+        CancellationToken cancellationToken = default);
+}
+
+public class DIDResolutionResult
+{
+    [JsonPropertyName("didDocument")]
+    public DIDDocument? DIDDocument { get; set; }
+
+    [JsonPropertyName("didResolutionMetadata")]
+    public DIDResolutionMetadata ResolutionMetadata { get; set; } = new();
+
+    [JsonPropertyName("didDocumentMetadata")]
+    public DIDDocumentMetadata DocumentMetadata { get; set; } = new();
+}
+
+public class DIDDocument
+{
+    [JsonPropertyName("@context")]
+    public object Context { get; set; } = new[]
+    {
+        "https://www.w3.org/ns/did/v1",
+        "https://sorcha.dev/contexts/blockchain/v1.jsonld"
+    };
+
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("controller")]
+    public string? Controller { get; set; }
+
+    [JsonPropertyName("verificationMethod")]
+    public List<VerificationMethod>? VerificationMethod { get; set; }
+
+    [JsonPropertyName("authentication")]
+    public List<object>? Authentication { get; set; }
+
+    [JsonPropertyName("service")]
+    public List<ServiceEndpoint>? Service { get; set; }
+
+    [JsonPropertyName("alsoKnownAs")]
+    public List<string>? AlsoKnownAs { get; set; }
+}
+
+public class VerificationMethod
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [JsonPropertyName("controller")]
+    public string Controller { get; set; } = string.Empty;
+
+    [JsonPropertyName("publicKeyBase58")]
+    public string? PublicKeyBase58 { get; set; }
+
+    [JsonPropertyName("publicKeyJwk")]
+    public object? PublicKeyJwk { get; set; }
+}
+
+public class ServiceEndpoint
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [JsonPropertyName("serviceEndpoint")]
+    public string ServiceEndpointUrl { get; set; } = string.Empty;
+}
+
+public class DIDResolutionMetadata
+{
+    [JsonPropertyName("contentType")]
+    public string? ContentType { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("message")]
+    public string? Message { get; set; }
+
+    [JsonPropertyName("duration")]
+    public long? DurationMs { get; set; }
+}
+
+public class DIDDocumentMetadata
+{
+    [JsonPropertyName("created")]
+    public DateTime? Created { get; set; }
+
+    [JsonPropertyName("updated")]
+    public DateTime? Updated { get; set; }
+
+    [JsonPropertyName("versionId")]
+    public string? VersionId { get; set; }
+
+    [JsonPropertyName("deactivated")]
+    public bool? Deactivated { get; set; }
+}
+
+public class DIDResolutionOptions
+{
+    public string? Accept { get; set; }
+    public bool UseCache { get; set; } = true;
+    public TimeSpan? CacheTTL { get; set; }
+}
+```
+
 ### Event System
 
 ```csharp
@@ -1053,6 +1358,136 @@ public class RegisterHeightUpdatedEvent
 - Support pagination for large result sets
 - Cache frequently accessed addresses
 
+### FR-REG-011: Blockchain Gateway Integration
+
+**As a** platform integrator
+**I want to** interact with multiple blockchain networks through a unified gateway interface
+**So that** I can record transactions to external blockchains (Ethereum, Cardano, etc.) or Sorcha's own register
+
+**Acceptance Criteria:**
+- Simple, unified API access to register/blockchain transactions
+- Support Sorcha's native register functionality as the primary blockchain
+- Provide gateway/submanager pattern for external blockchain integration
+- Support Ethereum blockchain integration via external APIs
+  - Suggested: Web3.js, Ethers.js, Nethereum (.NET)
+  - Integration with Infura, Alchemy, or Quicknode RPC providers
+- Support Cardano blockchain integration via external APIs
+  - Suggested: Blockfrost API, Cardano Serialization Library
+  - Integration with CardanoSharp (.NET library)
+- Gateway architecture should be pluggable and extendable
+- Each gateway implementation should:
+  - Implement `IBlockchainGateway` interface
+  - Support basic transaction submission
+  - Support transaction status queries
+  - Handle blockchain-specific address formats
+  - Provide connection health monitoring
+- Configuration-driven gateway selection (per register or tenant)
+- Graceful fallback to Sorcha native register if external gateway unavailable
+- Document integration patterns for adding new blockchain gateways
+
+**External API Integration Sources:**
+
+**Ethereum:**
+- **Nethereum** - .NET integration library for Ethereum
+- **Infura** - Ethereum RPC provider (https://infura.io)
+- **Alchemy** - Enhanced Ethereum API (https://www.alchemy.com)
+- **Quicknode** - Multi-chain RPC provider (https://www.quicknode.com)
+
+**Cardano:**
+- **Blockfrost API** - Cardano API service (https://blockfrost.io)
+- **CardanoSharp** - .NET library for Cardano (https://github.com/CardanoSharp)
+- **Koios API** - Decentralized Cardano API (https://www.koios.rest)
+
+**Multi-Chain:**
+- **Moralis** - Unified blockchain API (https://moralis.io)
+- **Tatum** - Blockchain development platform (https://tatum.io)
+
+### FR-REG-012: Universal DID Resolver
+
+**As a** decentralized identity application
+**I want to** resolve Decentralized Identifiers (DIDs) to their corresponding documents
+**So that** I can discover and verify identity information across local and remote blockchains
+
+**Acceptance Criteria:**
+- Resolve Sorcha native DIDs: `did:sorcha:register:{registerId}/tx/{txId}`
+- Resolve Ethereum DIDs: `did:ethr:{address}` via external resolvers
+- Resolve Cardano DIDs (future): `did:cardano:{address}`
+- Support W3C DID Resolution specification (https://w3c-ccg.github.io/did-resolution/)
+- Implement `IUniversalResolver` interface with methods:
+  - `ResolveDIDAsync(string did)` - Returns DID Document
+  - `ResolveDIDMetadataAsync(string did)` - Returns resolution metadata
+- For local Sorcha registers:
+  - Direct database lookup for performance
+  - Return transaction data in DID Document format
+  - Include service endpoints for data access
+- For remote blockchains:
+  - Integrate with Universal Resolver (https://dev.uniresolver.io)
+  - Cache resolved DID Documents (configurable TTL)
+  - Support custom resolver endpoints per DID method
+- Return standardized DID Document format (JSON-LD)
+- Support DID URL dereferencing (fragment identifiers)
+- Handle resolver failures gracefully with appropriate error responses
+- Track resolver performance metrics (resolution time, cache hits)
+- Document supported DID methods and resolution paths
+
+**DID Resolution Flow:**
+```
+1. Parse DID to identify method (sorcha, ethr, cardano, etc.)
+2. Route to appropriate resolver:
+   - did:sorcha → Local RegisterRepository
+   - did:ethr → Ethereum Gateway + Universal Resolver
+   - did:cardano → Cardano Gateway + Universal Resolver
+   - Unknown methods → External Universal Resolver
+3. Transform blockchain data to W3C DID Document format
+4. Cache result (if applicable)
+5. Return DID Document with metadata
+```
+
+### FR-REG-013: High-Performance Query Infrastructure
+
+**As a** application developer
+**I want to** execute complex queries with exceptional performance
+**So that** I can build responsive applications on top of the register service
+
+**Acceptance Criteria:**
+- Support OData V4 query syntax for all collection endpoints
+  - $filter - Complex filtering with logical operators
+  - $select - Projection to reduce payload size
+  - $orderby - Sorting on multiple fields
+  - $top/$skip - Pagination
+  - $count - Total count with queries
+  - $expand - Related data inclusion (future)
+- Translate OData queries to native backend queries (MongoDB aggregation, SQL)
+- Push query execution down to storage layer (no in-memory filtering)
+- Support LINQ expression trees for programmatic queries
+- Implement query result streaming for large datasets
+- Index optimization recommendations:
+  - Composite indexes for common filter combinations
+  - Covered indexes for frequent projections
+  - Time-series indexes for timestamp-based queries
+- Query performance targets:
+  - Simple indexed queries: < 50ms (p99)
+  - Complex multi-field queries: < 200ms (p99)
+  - Aggregation queries: < 500ms (p99)
+  - Full-text search: < 300ms (p99)
+- Query caching strategy:
+  - Cache frequently accessed queries
+  - Invalidate cache on data mutations
+  - Configurable cache TTL per query type
+- Implement query result pagination with cursor-based navigation
+- Support GraphQL-style field selection for optimal data transfer
+- Monitor slow queries and provide query optimization suggestions
+- Implement query complexity limits to prevent resource exhaustion
+- Support materialized views for expensive aggregations (MongoDB, PostgreSQL)
+
+**Performance Optimization Techniques:**
+- **LINQ to Database Translation**: Convert LINQ expressions to native database queries
+- **Index Hints**: Allow query hints for index selection
+- **Query Plan Caching**: Cache compiled query execution plans
+- **Batch Operations**: Support batch reads to reduce round trips
+- **Compression**: Enable response compression for large payloads
+- **Parallel Queries**: Utilize parallel query execution where applicable
+
 ## Non-Functional Requirements
 
 ### NFR-REG-001: Performance
@@ -1300,16 +1735,91 @@ public class RegisterHeightUpdatedEvent
 - E2E test scenarios
 - Security assessment report
 
-### Phase 10: Documentation & Deployment (Sprint 14)
+### Phase 10: Blockchain Gateway Implementation (Sprint 14-15)
+**Goal:** Multi-chain integration via gateway pattern
+
+**Tasks:**
+- REG-049: Define IBlockchainGateway interface and abstractions
+- REG-050: Implement SorchaRegisterGateway (native blockchain)
+- REG-051: Implement EthereumGateway with Nethereum integration
+- REG-052: Configure Ethereum gateway (Infura/Alchemy)
+- REG-053: Implement CardanoGateway with CardanoSharp integration
+- REG-054: Configure Cardano gateway (Blockfrost)
+- REG-055: Implement BlockchainGatewayManager for routing
+- REG-056: Gateway configuration and tenant-based selection
+- REG-057: Gateway health monitoring and failover
+- REG-058: Integration tests for all gateways
+- REG-059: Performance benchmarks for gateway operations
+
+**Deliverables:**
+- Sorcha.Register.Gateways.Ethereum project
+- Sorcha.Register.Gateways.Cardano project
+- Sorcha.Register.Gateways.Sorcha project
+- Gateway configuration documentation
+- Gateway extensibility guide
+
+### Phase 11: Universal DID Resolver (Sprint 16-17)
+**Goal:** W3C-compliant DID resolution across blockchains
+
+**Tasks:**
+- REG-060: Define IUniversalResolver and IDIDResolver interfaces
+- REG-061: Implement SorchaDIDResolver for local resolution
+- REG-062: Implement EthereumDIDResolver with universal resolver integration
+- REG-063: Implement CardanoDIDResolver
+- REG-064: Implement UniversalDIDResolver for unknown DID methods
+- REG-065: DID Document transformation and caching
+- REG-066: DID URL dereferencing support
+- REG-067: Resolver performance optimization
+- REG-068: Integration with W3C Universal Resolver
+- REG-069: DID resolution API endpoints
+- REG-070: Resolution performance metrics and monitoring
+- REG-071: Integration tests for all resolver types
+
+**Deliverables:**
+- Sorcha.Register.Resolvers.DID project
+- W3C DID Document models
+- Resolver configuration
+- DID resolution documentation
+
+### Phase 12: High-Performance Query Infrastructure (Sprint 18-19)
+**Goal:** Exceptional query performance with OData and LINQ
+
+**Tasks:**
+- REG-072: Implement OData V4 query translation layer
+- REG-073: LINQ expression tree to MongoDB aggregation translator
+- REG-074: LINQ expression tree to SQL translator (PostgreSQL)
+- REG-075: Query result caching with Redis
+- REG-076: Query performance monitoring and slow query detection
+- REG-077: Index recommendation engine
+- REG-078: Materialized view support for MongoDB
+- REG-079: Query complexity analyzer and limiter
+- REG-080: Cursor-based pagination implementation
+- REG-081: Query result streaming for large datasets
+- REG-082: GraphQL-style field selection
+- REG-083: Query optimization benchmarks
+- REG-084: Load testing with complex queries
+
+**Deliverables:**
+- Sorcha.Register.Query.OData project
+- Query translation engine
+- Query cache implementation
+- Query optimization guide
+- Performance benchmark suite
+
+### Phase 13: Documentation & Deployment (Sprint 20)
 **Goal:** Production deployment readiness
 
 **Tasks:**
-- REG-049: API documentation and examples
-- REG-050: Architecture documentation
-- REG-051: Deployment guide (Aspire, Kubernetes)
-- REG-052: Migration guide from Siccar
-- REG-053: Operations runbook
-- REG-054: Final review and approval
+- REG-085: API documentation and examples
+- REG-086: Architecture documentation updates
+- REG-087: Gateway integration guide
+- REG-088: DID resolution guide
+- REG-089: Query optimization guide
+- REG-090: Deployment guide (Aspire, Kubernetes)
+- REG-091: Migration guide from Siccar
+- REG-092: Operations runbook
+- REG-093: Security audit
+- REG-094: Final review and approval
 
 **Deliverables:**
 - Complete documentation
@@ -1460,6 +1970,32 @@ The following items are explicitly out of scope for this specification:
 
 ## Version History
 
+- **2.2** (2025-11-16) - Blockchain gateway and query infrastructure enhancements
+  - Added blockchain gateway integration (FR-REG-011)
+    - IBlockchainGateway interface for multi-chain support
+    - Ethereum gateway via Nethereum/Infura/Alchemy
+    - Cardano gateway via CardanoSharp/Blockfrost
+    - Extensible gateway architecture
+  - Added universal DID resolver (FR-REG-012)
+    - W3C DID Resolution specification compliance
+    - IUniversalResolver and IDIDResolver interfaces
+    - Support for did:sorcha, did:ethr, did:cardano
+    - Integration with Universal Resolver (dev.uniresolver.io)
+  - Added high-performance query infrastructure (FR-REG-013)
+    - OData V4 query translation to native backend queries
+    - LINQ to database translation (MongoDB, PostgreSQL)
+    - Query result caching and optimization
+    - Performance targets: <50ms for indexed queries
+  - Updated architecture diagrams with gateway and resolver layers
+  - Added new project structure for gateways and resolvers
+  - Added implementation phases 10-13 (Sprints 14-20)
+  - Added comprehensive interface definitions and examples
+
+- **2.1** (2025-11-16) - Architectural refinement
+  - Moved DocketManager and ChainValidator to Validator.Service
+  - Enhanced security isolation for cryptographic operations
+  - Zero-trust architecture alignment
+
 - **2.0** (2025-11-13) - Sorcha platform upgrade
   - Migrated from Siccar V3 specification
   - Updated for .NET Aspire orchestration
@@ -1476,7 +2012,7 @@ The following items are explicitly out of scope for this specification:
 
 ---
 
-**Document Status:** Proposed - Ready for Review
+**Document Status:** Proposed - Enhanced with Multi-Chain and Query Features
 **Priority:** High (Core Platform Service)
 **Assigned To:** To Be Determined
 **Related Tasks:** See [.specify/tasks/REG-*.md]

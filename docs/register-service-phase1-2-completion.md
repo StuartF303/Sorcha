@@ -4,6 +4,13 @@
 **Status:** ✅ Completed
 **Related Specification:** [sorcha-register-service.md](../.specify/specs/sorcha-register-service.md)
 
+> **📝 Note (2025-11-16):** The specification has been enhanced with new requirements:
+> - **Blockchain Gateway Integration** (FR-REG-011) - Multi-chain support via gateway pattern
+> - **Universal DID Resolver** (FR-REG-012) - W3C-compliant DID resolution across blockchains
+> - **High-Performance Query Infrastructure** (FR-REG-013) - OData/LINQ query optimization
+>
+> These enhancements will be implemented in future phases (10-12). See the updated specification for details.
+
 ## Overview
 
 Successfully completed Phase 1 (Foundation) and Phase 2 (Core Business Logic) of the Register Service implementation. This establishes the complete foundation for the distributed ledger and block management service.
@@ -336,9 +343,34 @@ tests/
 ### Phase 5: API Layer
 - Upgrade Register.Service to use new architecture
 - Implement proper API endpoints
-- Add OData support
+- Add OData support with high-performance query translation
 - Add SignalR hub
 - API authentication and authorization
+
+### Phase 10: Blockchain Gateway Implementation (NEW)
+- Define IBlockchainGateway interface
+- Implement SorchaRegisterGateway (native blockchain)
+- Implement EthereumGateway with Nethereum/Infura
+- Implement CardanoGateway with CardanoSharp/Blockfrost
+- Gateway configuration and routing
+- Health monitoring and failover
+
+### Phase 11: Universal DID Resolver (NEW)
+- Define IUniversalResolver and IDIDResolver interfaces
+- Implement SorchaDIDResolver for local resolution
+- Implement EthereumDIDResolver (did:ethr)
+- Implement CardanoDIDResolver (did:cardano)
+- W3C Universal Resolver integration
+- DID Document caching and performance optimization
+
+### Phase 12: High-Performance Query Infrastructure (NEW)
+- OData V4 query translation layer
+- LINQ to MongoDB aggregation translator
+- LINQ to SQL translator (PostgreSQL)
+- Query result caching with Redis
+- Query performance monitoring
+- Index optimization engine
+- Materialized view support
 
 ### Immediate TODOs
 1. Add projects to solution file (Sorcha.sln)
