@@ -335,6 +335,181 @@ public class WalletsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Decrypt a payload using a wallet's private key
+    /// </summary>
+    /// <param name="address">Wallet address</param>
+    /// <param name="request">Encrypted payload data</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Decrypted payload</returns>
+    /// <response code="200">Payload decrypted successfully</response>
+    /// <response code="400">Invalid encrypted payload</response>
+    /// <response code="404">Wallet not found</response>
+    [HttpPost("{address}/decrypt")]
+    [ProducesResponseType(typeof(DecryptPayloadResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<DecryptPayloadResponse>> DecryptPayload(
+        string address,
+        [FromBody] DecryptPayloadRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var encryptedPayload = Convert.FromBase64String(request.EncryptedPayload);
+            var decryptedPayload = await _walletManager.DecryptPayloadAsync(
+                address,
+                encryptedPayload,
+                cancellationToken);
+
+            var response = new DecryptPayloadResponse
+            {
+                DecryptedPayload = Convert.ToBase64String(decryptedPayload),
+                DecryptedBy = address,
+                DecryptedAt = DateTime.UtcNow
+            };
+
+            return Ok(response);
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogWarning(ex, "Invalid base64 encrypted payload");
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Request",
+                Detail = "Encrypted payload must be valid base64 encoded string",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            return NotFound();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to decrypt payload for wallet {Address}", address);
+            return Problem(
+                title: "Payload Decryption Failed",
+                detail: "An error occurred while decrypting the payload",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// Encrypt a payload for a recipient wallet
+    /// </summary>
+    /// <param name="address">Recipient wallet address (if RecipientAddress not in request body)</param>
+    /// <param name="request">Payload data to encrypt</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Encrypted payload</returns>
+    /// <response code="200">Payload encrypted successfully</response>
+    /// <response code="400">Invalid payload data</response>
+    /// <response code="404">Recipient wallet not found</response>
+    [HttpPost("{address}/encrypt")]
+    [ProducesResponseType(typeof(EncryptPayloadResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<EncryptPayloadResponse>> EncryptPayload(
+        string address,
+        [FromBody] EncryptPayloadRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Use RecipientAddress from request body if provided, otherwise use address from route
+            var recipientAddress = request.RecipientAddress ?? address;
+
+            var payload = Convert.FromBase64String(request.Payload);
+            var encryptedPayload = await _walletManager.EncryptPayloadAsync(
+                recipientAddress,
+                payload,
+                cancellationToken);
+
+            var response = new EncryptPayloadResponse
+            {
+                EncryptedPayload = Convert.ToBase64String(encryptedPayload),
+                RecipientAddress = recipientAddress,
+                EncryptedAt = DateTime.UtcNow
+            };
+
+            return Ok(response);
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogWarning(ex, "Invalid base64 payload");
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Request",
+                Detail = "Payload must be valid base64 encoded string",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            return NotFound();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to encrypt payload for recipient {Address}", address);
+            return Problem(
+                title: "Payload Encryption Failed",
+                detail: "An error occurred while encrypting the payload",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// Generate a new address for a wallet
+    /// </summary>
+    /// <param name="address">Wallet address</param>
+    /// <param name="request">Address generation parameters</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Generated address</returns>
+    /// <response code="200">Address generated successfully</response>
+    /// <response code="404">Wallet not found</response>
+    /// <response code="501">Not implemented (requires mnemonic)</response>
+    [HttpPost("{address}/addresses")]
+    [ProducesResponseType(typeof(GenerateAddressResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status501NotImplemented)]
+    public async Task<ActionResult<GenerateAddressResponse>> GenerateAddress(
+        string address,
+        [FromBody] GenerateAddressRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Parse derivation path or use default
+            // Note: This functionality requires the wallet's mnemonic which is not stored
+            // This is a placeholder for future implementation
+            throw new NotImplementedException(
+                "Address generation requires the wallet's mnemonic, which is not stored for security. " +
+                "Consider implementing this via a secure enclave or requiring the user to provide their mnemonic.");
+        }
+        catch (NotImplementedException ex)
+        {
+            _logger.LogWarning("Address generation attempted but not implemented: {Message}", ex.Message);
+            return StatusCode(StatusCodes.Status501NotImplemented, new ProblemDetails
+            {
+                Title = "Not Implemented",
+                Detail = ex.Message,
+                Status = StatusCodes.Status501NotImplemented
+            });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            return NotFound();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate address for wallet {Address}", address);
+            return Problem(
+                title: "Address Generation Failed",
+                detail: "An error occurred while generating the address",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
     // Helper methods for authentication/authorization
     private string GetCurrentUser()
     {
