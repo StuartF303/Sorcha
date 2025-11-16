@@ -1,0 +1,1573 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Sorcha.Blueprint.Engine</name>
+    </assembly>
+    <members>
+        <member name="T:Sorcha.Blueprint.Engine.Caching.JsonLogicCache">
+            <summary>
+            Cache for compiled/parsed JSON Logic expressions
+            </summary>
+            <remarks>
+            Caches expressions by their hash to avoid re-parsing the same expression multiple times.
+            Significant performance improvement for frequently-used expressions.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Caching.JsonLogicCache.GetOrAdd``1(System.Text.Json.Nodes.JsonNode,System.Func{System.Text.Json.Nodes.JsonNode,``0})">
+            <summary>
+            Get or add an expression to the cache
+            </summary>
+            <typeparam name="T">Type of the cached value</typeparam>
+            <param name="expression">The JSON Logic expression</param>
+            <param name="factory">Factory function to create the value if not cached</param>
+            <returns>The cached or newly created value</returns>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Caching.JsonLogicCache.GetOrAddAsync``1(System.Text.Json.Nodes.JsonNode,System.Func{System.Text.Json.Nodes.JsonNode,System.Threading.Tasks.Task{``0}})">
+            <summary>
+            Get or add an expression to the cache asynchronously
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Caching.JsonLogicCache.TryGet``1(System.Text.Json.Nodes.JsonNode,``0@)">
+            <summary>
+            Try to get a cached value
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Caching.JsonLogicCache.Clear">
+            <summary>
+            Clear the cache
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Caching.JsonLogicCache.Remove(System.Text.Json.Nodes.JsonNode)">
+            <summary>
+            Remove a specific expression from the cache
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Caching.JsonLogicCache.ComputeHash(System.Text.Json.Nodes.JsonNode)">
+            <summary>
+            Compute a hash for the expression to use as cache key
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Caching.JsonLogicCache.GetStatistics">
+            <summary>
+            Get cache statistics
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Caching.CacheStatistics">
+            <summary>
+            Cache statistics
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Caching.CachedExpression`1">
+            <summary>
+            Cached expression wrapper
+            </summary>
+            <typeparam name="T">Type of the cached expression data</typeparam>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Caching.CachedExpression`1.Expression">
+            <summary>
+            The original expression
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Caching.CachedExpression`1.Data">
+            <summary>
+            The cached data
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Caching.CachedExpression`1.CachedAt">
+            <summary>
+            When this was cached
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Caching.CachedExpression`1.AccessCount">
+            <summary>
+            Number of times this has been accessed
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Implementation.ActionProcessor">
+            <summary>
+            Action processor that orchestrates the complete action execution workflow.
+            </summary>
+            <remarks>
+            Coordinates validation, calculation, routing, and disclosure processing
+            using specialized components.
+            
+            Thread-safe and can be used concurrently.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.ActionProcessor.ProcessAsync(Sorcha.Blueprint.Engine.Models.ExecutionContext,System.Threading.CancellationToken)">
+            <summary>
+            Process an action through the complete execution workflow.
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Implementation.DisclosureProcessor">
+            <summary>
+            Selective disclosure processor that filters data based on JSON Pointer rules.
+            </summary>
+            <remarks>
+            Implements privacy-preserving selective data disclosure by filtering
+            action data according to JSON Pointer specifications.
+            
+            Thread-safe and can be used concurrently.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.DisclosureProcessor.ApplyDisclosure(System.Collections.Generic.Dictionary{System.String,System.Object},Sorcha.Blueprint.Models.Disclosure)">
+            <summary>
+            Apply a single disclosure rule to filter data for one participant.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.DisclosureProcessor.CreateDisclosures(System.Collections.Generic.Dictionary{System.String,System.Object},System.Collections.Generic.IEnumerable{Sorcha.Blueprint.Models.Disclosure})">
+            <summary>
+            Create disclosure results for all participants in an action.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.DisclosureProcessor.ExtractFieldsFromPointer(System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Extracts fields from data using a JSON Pointer.
+            </summary>
+            <remarks>
+            Supports:
+            - Root level fields: "/fieldName"
+            - Nested fields: "/user/name"
+            - Array indices: "/items/0"
+            - Hash prefix: "#/fieldName" (same as "/fieldName")
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.DisclosureProcessor.NavigateToValue(System.Object,System.String[])">
+            <summary>
+            Navigates through a data structure using JSON Pointer segments.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.DisclosureProcessor.NavigateJsonElement(System.Text.Json.JsonElement,System.String)">
+            <summary>
+            Navigates through a JsonElement.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.DisclosureProcessor.ConvertJsonElement(System.Text.Json.JsonElement)">
+            <summary>
+            Converts a JsonElement to a .NET object.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.DisclosureProcessor.DecodePointerSegment(System.String)">
+            <summary>
+            Decodes JSON Pointer escape sequences.
+            </summary>
+            <remarks>
+            JSON Pointer escaping (RFC 6901):
+            - "~0" represents "~"
+            - "~1" represents "/"
+            </remarks>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Implementation.ExecutionEngine">
+             <summary>
+             Main execution engine facade that provides both full workflow execution
+             and access to individual processing components.
+             </summary>
+             <remarks>
+             This is the primary entry point for blueprint action execution.
+             It delegates to ActionProcessor for full workflow execution and provides
+             individual component methods for standalone use.
+            
+             Thread-safe and can be used concurrently.
+             </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.ExecutionEngine.ExecuteActionAsync(Sorcha.Blueprint.Engine.Models.ExecutionContext,System.Threading.CancellationToken)">
+            <summary>
+            Execute a complete action workflow including validation, calculations,
+            routing, and disclosure processing.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.ExecutionEngine.ValidateAsync(System.Collections.Generic.Dictionary{System.String,System.Object},Sorcha.Blueprint.Models.Action,System.Threading.CancellationToken)">
+            <summary>
+            Validate action data against the action's schema.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.ExecutionEngine.ApplyCalculationsAsync(System.Collections.Generic.Dictionary{System.String,System.Object},Sorcha.Blueprint.Models.Action,System.Threading.CancellationToken)">
+            <summary>
+            Apply calculations to data using the action's calculation definitions.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.ExecutionEngine.DetermineRoutingAsync(Sorcha.Blueprint.Models.Blueprint,Sorcha.Blueprint.Models.Action,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
+            <summary>
+            Determine the next participant and action in the workflow.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.ExecutionEngine.ApplyDisclosures(System.Collections.Generic.Dictionary{System.String,System.Object},Sorcha.Blueprint.Models.Action)">
+            <summary>
+            Create disclosure results for all participants based on the action's
+            disclosure definitions.
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Implementation.JsonEEvaluator">
+            <summary>
+            JSON-e template evaluator implementation using JsonE.Net
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonEEvaluator.EvaluateAsync(System.Text.Json.Nodes.JsonNode,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonEEvaluator.EvaluateAsync``1(System.Text.Json.Nodes.JsonNode,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonEEvaluator.ValidateTemplateAsync(System.Text.Json.Nodes.JsonNode)">
+            <inheritdoc />
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonEEvaluator.EvaluateWithTraceAsync(System.Text.Json.Nodes.JsonNode,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonEEvaluator.ConvertContextToJsonObject(System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Convert a context dictionary to JsonObject for template evaluation
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator">
+            <summary>
+            JSON Logic expression evaluator for calculations and conditional routing.
+            </summary>
+            <remarks>
+            This implementation uses Json.Logic.Net to evaluate JSON Logic expressions
+            as defined at https://jsonlogic.com
+            
+            Thread-safe and can be used concurrently.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator.Evaluate(System.Text.Json.Nodes.JsonNode,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Evaluate a JSON Logic expression against data.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator.ApplyCalculationsAsync(System.Collections.Generic.Dictionary{System.String,System.Object},System.Collections.Generic.IEnumerable{Sorcha.Blueprint.Engine.Models.Calculation},System.Threading.CancellationToken)">
+            <summary>
+            Apply multiple calculations to data.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator.EvaluateConditionsAsync(System.Collections.Generic.Dictionary{System.String,System.Object},System.Collections.Generic.IEnumerable{Sorcha.Blueprint.Models.Condition},System.Threading.CancellationToken)">
+            <summary>
+            Evaluate routing conditions to determine next participant.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator.ConvertToJsonNode(System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Converts a dictionary to JsonNode for JSON Logic evaluation.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator.ConvertFromJsonNode(System.Text.Json.Nodes.JsonNode)">
+            <summary>
+            Converts a JsonNode result back to a .NET object.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator.IsTruthy(System.Object)">
+            <summary>
+            Determines if a value is "truthy" for condition evaluation.
+            </summary>
+            <remarks>
+            Truthy values:
+            - true (boolean)
+            - non-zero numbers
+            - non-empty strings
+            - non-empty arrays/collections
+            - non-null objects
+            
+            Falsy values:
+            - false (boolean)
+            - 0 (number)
+            - "" (empty string)
+            - null
+            - empty arrays/collections
+            </remarks>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Implementation.RoutingEngine">
+            <summary>
+            Routing engine that determines the next action and participant in a workflow.
+            </summary>
+            <remarks>
+            Uses conditional routing based on JSON Logic expressions to determine
+            which participant should perform the next action.
+            
+            Thread-safe and can be used concurrently.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.RoutingEngine.DetermineNextAsync(Sorcha.Blueprint.Models.Blueprint,Sorcha.Blueprint.Models.Action,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
+            <summary>
+            Determine the next action and participant based on routing conditions.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.RoutingEngine.FindNextActionForParticipant(Sorcha.Blueprint.Models.Blueprint,Sorcha.Blueprint.Models.Action,System.String)">
+            <summary>
+            Finds the next action for a participant in the blueprint.
+            </summary>
+            <remarks>
+            The next action is typically the action with an ID greater than
+            the current action, but this is a simplified implementation.
+            In a real system, you might have explicit routing references.
+            </remarks>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Implementation.SchemaValidator">
+            <summary>
+            JSON Schema validator implementing JSON Schema Draft 2020-12.
+            </summary>
+            <remarks>
+            This implementation uses JsonSchema.Net to provide comprehensive
+            validation against JSON Schema specifications.
+            
+            Thread-safe and can be used concurrently.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.SchemaValidator.ValidateAsync(System.Collections.Generic.Dictionary{System.String,System.Object},System.Text.Json.Nodes.JsonNode,System.Threading.CancellationToken)">
+            <summary>
+            Validate data against a JSON Schema.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.SchemaValidator.ConvertToJsonNode(System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Converts a dictionary to JsonNode for validation.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.SchemaValidator.ConvertErrors(Json.Schema.EvaluationResults)">
+            <summary>
+            Converts JsonSchema.Net validation results to our ValidationError model.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.SchemaValidator.CollectErrors(Json.Schema.EvaluationResults,System.Collections.Generic.List{Sorcha.Blueprint.Engine.Models.ValidationError})">
+            <summary>
+            Recursively collects validation errors from the evaluation results.
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Interfaces.IActionProcessor">
+            <summary>
+            Action processor that orchestrates the complete action execution workflow.
+            </summary>
+            <remarks>
+            The action processor coordinates all aspects of blueprint action execution:
+            
+            1. **Validation** - Validates action data against JSON Schema
+            2. **Calculation** - Applies JSON Logic calculations to compute derived fields
+            3. **Routing** - Determines the next action and participant using conditions
+            4. **Disclosure** - Creates selective data views for each participant
+            
+            This interface is the main orchestrator used by IExecutionEngine.
+            It delegates to specialized components (validator, evaluator, etc.)
+            but coordinates the overall workflow.
+            
+            Execution flow:
+            ```
+            1. Validate data against action schema
+               ↓ (if invalid, stop and return errors)
+            2. Apply calculations to data
+               ↓
+            3. Determine next action via routing
+               ↓
+            4. Create disclosure payloads for participants
+               ↓
+            5. Return complete execution result
+            ```
+            
+            The processor is stateless and can be used concurrently.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IActionProcessor.ProcessAsync(Sorcha.Blueprint.Engine.Models.ExecutionContext,System.Threading.CancellationToken)">
+            <summary>
+            Process an action through the complete execution workflow.
+            </summary>
+            <param name="context">
+            The execution context containing:
+            - Blueprint definition
+            - Current action details
+            - Action data submitted by participant
+            - Historical context (previous actions)
+            </param>
+            <param name="ct">Cancellation token.</param>
+            <returns>
+            An action execution result containing:
+            - Validation result (success/failure with errors)
+            - Calculated data (original data + computed fields)
+            - Routing decision (next action and participant)
+            - Disclosure results (filtered data for each participant)
+            </returns>
+            <remarks>
+            If validation fails, the method returns immediately with validation errors.
+            Calculations, routing, and disclosure are only performed if validation succeeds.
+            
+            The processor uses dependency injection to obtain:
+            - ISchemaValidator for data validation
+            - IJsonLogicEvaluator for calculations and routing
+            - IDisclosureProcessor for selective disclosure
+            - IRoutingEngine for next action determination
+            
+            All operations are performed asynchronously to support large datasets
+            and complex blueprint definitions.
+            </remarks>
+            <exception cref="T:System.ArgumentNullException">If context is null.</exception>
+            <exception cref="T:System.InvalidOperationException">If the blueprint or action is malformed.</exception>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Interfaces.IDisclosureProcessor">
+            <summary>
+            Selective disclosure processor that filters data based on disclosure rules.
+            </summary>
+            <remarks>
+            Implements privacy-preserving selective data disclosure using JSON Pointers
+            to specify which fields each participant can see.
+            
+            Disclosure rules define:
+            - Which participant receives the disclosure
+            - Which fields from the action data are included
+            - Optional transformations (redaction, hashing)
+            
+            This enables workflows where different participants see different
+            subsets of the data, preserving privacy while maintaining workflow integrity.
+            
+            Example:
+            - Buyer sees: productId, price, quantity
+            - Seller sees: productId, quantity, buyerAddress
+            - Auditor sees: all fields
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IDisclosureProcessor.ApplyDisclosure(System.Collections.Generic.Dictionary{System.String,System.Object},Sorcha.Blueprint.Models.Disclosure)">
+            <summary>
+            Apply a single disclosure rule to filter data for one participant.
+            </summary>
+            <param name="data">The complete action data.</param>
+            <param name="disclosure">The disclosure rule defining which fields to include.</param>
+            <returns>
+            A dictionary containing only the fields specified in the disclosure rule.
+            Fields are selected using JSON Pointers from the disclosure.
+            </returns>
+            <remarks>
+            The disclosure rule contains a list of JSON Pointers (RFC 6901) that
+            specify which fields to extract from the data.
+            
+            Example disclosure rule:
+            {
+              "participantId": "buyer-wallet",
+              "fields": ["/productId", "/price", "/quantity"]
+            }
+            
+            If a pointer references a non-existent field, it is silently ignored.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IDisclosureProcessor.CreateDisclosures(System.Collections.Generic.Dictionary{System.String,System.Object},System.Collections.Generic.IEnumerable{Sorcha.Blueprint.Models.Disclosure})">
+            <summary>
+            Create disclosure results for all participants in an action.
+            </summary>
+            <param name="data">The complete action data.</param>
+            <param name="disclosures">The disclosure rules for all participants.</param>
+            <returns>
+            A list of disclosure results, one per participant, each containing
+            the participant ID and their filtered data.
+            </returns>
+            <remarks>
+            This method processes all disclosures in parallel for efficiency.
+            Each disclosure result can be used to:
+            - Create encrypted payloads for each participant
+            - Generate transaction metadata
+            - Send real-time notifications
+            </remarks>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Interfaces.IExecutionEngine">
+            <summary>
+            Stateless blueprint execution engine that can run client-side or server-side.
+            This is the main entry point for blueprint workflow execution.
+            </summary>
+            <remarks>
+            The execution engine orchestrates the complete action processing workflow:
+            - Schema validation against JSON Schema Draft 2020-12
+            - JSON Logic calculation execution
+            - Conditional routing determination
+            - Selective data disclosure
+            
+            The engine is designed to be portable and run in multiple contexts:
+            - Server-side: In Sorcha.Blueprint.Service for processing action submissions
+            - Client-side: In Blazor WASM Designer for pre-submission validation
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IExecutionEngine.ExecuteActionAsync(Sorcha.Blueprint.Engine.Models.ExecutionContext,System.Threading.CancellationToken)">
+            <summary>
+            Execute an action within a blueprint workflow.
+            </summary>
+            <param name="context">The execution context containing blueprint, action, and data.</param>
+            <param name="ct">Cancellation token.</param>
+            <returns>The result of action execution including validation, calculations, routing, and disclosures.</returns>
+            <remarks>
+            This method performs the complete action execution workflow:
+            1. Validates the action data against the schema
+            2. Applies calculations using JSON Logic
+            3. Determines the next action via routing conditions
+            4. Creates selective disclosure payloads for each participant
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IExecutionEngine.ValidateAsync(System.Collections.Generic.Dictionary{System.String,System.Object},Sorcha.Blueprint.Models.Action,System.Threading.CancellationToken)">
+            <summary>
+            Validate action data against the action's schema.
+            </summary>
+            <param name="data">The data to validate.</param>
+            <param name="action">The action containing the schema.</param>
+            <param name="ct">Cancellation token.</param>
+            <returns>Validation result with detailed error information if validation fails.</returns>
+            <remarks>
+            This is useful for client-side validation before submission,
+            providing immediate feedback without executing the full workflow.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IExecutionEngine.ApplyCalculationsAsync(System.Collections.Generic.Dictionary{System.String,System.Object},Sorcha.Blueprint.Models.Action,System.Threading.CancellationToken)">
+            <summary>
+            Apply calculations to data using the action's calculation definitions.
+            </summary>
+            <param name="data">The input data.</param>
+            <param name="action">The action containing the calculations.</param>
+            <param name="ct">Cancellation token.</param>
+            <returns>The data with calculated fields added.</returns>
+            <remarks>
+            Useful for previewing calculation results in the designer
+            before publishing a blueprint.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IExecutionEngine.DetermineRoutingAsync(Sorcha.Blueprint.Models.Blueprint,Sorcha.Blueprint.Models.Action,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
+            <summary>
+            Determine routing without full execution.
+            </summary>
+            <param name="blueprint">The blueprint definition.</param>
+            <param name="currentAction">The current action.</param>
+            <param name="data">The action data.</param>
+            <param name="ct">Cancellation token.</param>
+            <returns>Routing decision indicating next action and participant.</returns>
+            <remarks>
+            Useful for testing routing logic in the designer
+            before publishing a blueprint.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IExecutionEngine.ApplyDisclosures(System.Collections.Generic.Dictionary{System.String,System.Object},Sorcha.Blueprint.Models.Action)">
+            <summary>
+            Apply disclosure rules from the action without full execution.
+            </summary>
+            <param name="data">The action data.</param>
+            <param name="action">The action containing the disclosure rules.</param>
+            <returns>List of disclosure results, one per participant.</returns>
+            <remarks>
+            Useful for previewing what data each participant will see
+            before publishing a blueprint.
+            </remarks>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Interfaces.IJsonEEvaluator">
+             <summary>
+             JSON-e template evaluator for dynamic blueprint generation.
+             </summary>
+             <remarks>
+             Evaluates JSON-e templates as defined at https://json-e.js.org
+            
+             JSON-e provides:
+             - Variable substitution: $eval
+             - Conditional rendering: $if/$then/$else
+             - Iteration: $map, $flattenDeep
+             - Expression evaluation
+             - Nested template composition
+             </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IJsonEEvaluator.EvaluateAsync(System.Text.Json.Nodes.JsonNode,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
+            <summary>
+            Evaluate a JSON-e template with the given context.
+            </summary>
+            <param name="template">The JSON-e template to evaluate.</param>
+            <param name="context">The context data for template variables.</param>
+            <param name="ct">Cancellation token.</param>
+            <returns>The evaluated JSON result.</returns>
+            <exception cref="T:System.ArgumentNullException">If template is null.</exception>
+            <exception cref="T:System.InvalidOperationException">If the template is malformed or evaluation fails.</exception>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IJsonEEvaluator.EvaluateAsync``1(System.Text.Json.Nodes.JsonNode,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
+            <summary>
+            Evaluate a JSON-e template and deserialize to a specific type.
+            </summary>
+            <typeparam name="T">The target type to deserialize to.</typeparam>
+            <param name="template">The JSON-e template to evaluate.</param>
+            <param name="context">The context data for template variables.</param>
+            <param name="ct">Cancellation token.</param>
+            <returns>The evaluated and deserialized result.</returns>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IJsonEEvaluator.ValidateTemplateAsync(System.Text.Json.Nodes.JsonNode)">
+            <summary>
+            Validate a JSON-e template for syntax errors.
+            </summary>
+            <param name="template">The template to validate.</param>
+            <returns>Validation result with any errors found.</returns>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IJsonEEvaluator.EvaluateWithTraceAsync(System.Text.Json.Nodes.JsonNode,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
+            <summary>
+            Evaluate with detailed trace information for debugging.
+            </summary>
+            <param name="template">The JSON-e template to evaluate.</param>
+            <param name="context">The context data for template variables.</param>
+            <param name="ct">Cancellation token.</param>
+            <returns>Evaluation result with trace information.</returns>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Interfaces.TemplateValidationResult">
+            <summary>
+            Result of template validation
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.TemplateValidationResult.IsValid">
+            <summary>
+            Whether the template is valid
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.TemplateValidationResult.Errors">
+            <summary>
+            Validation errors
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.TemplateValidationResult.Warnings">
+            <summary>
+            Validation warnings
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Interfaces.EvaluationTrace">
+            <summary>
+            Evaluation trace for debugging
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.EvaluationTrace.Result">
+            <summary>
+            The evaluation result
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.EvaluationTrace.Steps">
+            <summary>
+            Step-by-step evaluation trace
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.EvaluationTrace.Duration">
+            <summary>
+            Total evaluation time
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.EvaluationTrace.Success">
+            <summary>
+            Whether evaluation was successful
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.EvaluationTrace.Error">
+            <summary>
+            Error message if evaluation failed
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Interfaces.TraceStep">
+            <summary>
+            A single step in the evaluation trace
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.TraceStep.Step">
+            <summary>
+            Step number
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.TraceStep.Description">
+            <summary>
+            Description of what was evaluated
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.TraceStep.Input">
+            <summary>
+            Input to this step
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.TraceStep.Output">
+            <summary>
+            Output from this step
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Interfaces.TraceStep.Duration">
+            <summary>
+            Time taken for this step
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Interfaces.IJsonLogicEvaluator">
+            <summary>
+            JSON Logic expression evaluator for calculations and conditional routing.
+            </summary>
+            <remarks>
+            Evaluates JSON Logic expressions as defined at https://jsonlogic.com
+            
+            Supported operators:
+            - Comparison: ==, !=, ===, !==, &lt;, &gt;, &lt;=, &gt;=
+            - Logical: and, or, !, !!
+            - Arithmetic: +, -, *, /, %
+            - Array: map, filter, reduce, all, none, some, merge, in
+            - String: cat (concatenation), substr, in (contains)
+            - Data access: var (variable reference)
+            - Miscellaneous: if, missing, missing_some, log
+            
+            Variable references use {"var": "fieldName"} syntax to access data fields.
+            Nested field access is supported: {"var": "address.city"}
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IJsonLogicEvaluator.Evaluate(System.Text.Json.Nodes.JsonNode,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Evaluate a JSON Logic expression against data.
+            </summary>
+            <param name="expression">The JSON Logic expression to evaluate.</param>
+            <param name="data">The data context for variable references.</param>
+            <returns>The result of the expression evaluation.</returns>
+            <remarks>
+            This method is synchronous because JSON Logic evaluation is
+            typically fast and doesn't require I/O operations.
+            </remarks>
+            <exception cref="T:System.ArgumentNullException">If expression is null.</exception>
+            <exception cref="T:System.InvalidOperationException">If the expression is malformed or uses unsupported operators.</exception>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IJsonLogicEvaluator.ApplyCalculationsAsync(System.Collections.Generic.Dictionary{System.String,System.Object},System.Collections.Generic.IEnumerable{Sorcha.Blueprint.Engine.Models.Calculation},System.Threading.CancellationToken)">
+            <summary>
+            Apply multiple calculations to data.
+            </summary>
+            <param name="data">The input data.</param>
+            <param name="calculations">The calculations to apply.</param>
+            <param name="ct">Cancellation token.</param>
+            <returns>
+            The data with calculated fields added.
+            Calculated fields are added using the outputField name from each calculation.
+            </returns>
+            <remarks>
+            Calculations are applied in order, so later calculations can reference
+            the results of earlier calculations.
+            
+            Example calculation:
+            {
+              "name": "totalPrice",
+              "outputField": "total",
+              "expression": { "*": [{"var": "quantity"}, {"var": "unitPrice"}] }
+            }
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IJsonLogicEvaluator.EvaluateConditionsAsync(System.Collections.Generic.Dictionary{System.String,System.Object},System.Collections.Generic.IEnumerable{Sorcha.Blueprint.Models.Condition},System.Threading.CancellationToken)">
+            <summary>
+            Evaluate routing conditions to determine next participant.
+            </summary>
+            <param name="data">The action data.</param>
+            <param name="conditions">The routing conditions to evaluate.</param>
+            <param name="ct">Cancellation token.</param>
+            <returns>
+            The ID of the next participant whose condition evaluates to true,
+            or null if no conditions match.
+            </returns>
+            <remarks>
+            Conditions are evaluated in order. The first condition that evaluates
+            to true determines the next participant. If no conditions match,
+            returns null (which typically means workflow completion).
+            </remarks>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Interfaces.IRoutingEngine">
+            <summary>
+            Routing engine that determines the next action and participant in a workflow.
+            </summary>
+            <remarks>
+            Uses conditional routing based on JSON Logic expressions to determine
+            which participant should perform the next action.
+            
+            Routing flow:
+            1. Evaluate the current action's routing conditions in order
+            2. First condition that evaluates to true determines the next participant
+            3. Find the next action for that participant in the blueprint
+            4. Return routing decision
+            
+            Special cases:
+            - If no conditions match, the workflow is complete (terminal action)
+            - If a condition matches but no action exists for that participant, error
+            - If the next action is the same as current, it's a loop (usually an error)
+            
+            Example routing conditions:
+            [
+              { "participantId": "manager", "condition": { "&gt;": [{"var": "amount"}, 10000] } },
+              { "participantId": "clerk", "condition": true }  // default/fallback
+            ]
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.IRoutingEngine.DetermineNextAsync(Sorcha.Blueprint.Models.Blueprint,Sorcha.Blueprint.Models.Action,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
+            <summary>
+            Determine the next action and participant based on routing conditions.
+            </summary>
+            <param name="blueprint">The blueprint definition containing all actions.</param>
+            <param name="currentAction">The action that was just completed.</param>
+            <param name="data">The action data used to evaluate conditions.</param>
+            <param name="ct">Cancellation token.</param>
+            <returns>
+            A routing result containing:
+            - The next action to perform (or null if workflow is complete)
+            - The participant who should perform it
+            - The condition that matched (for audit purposes)
+            </returns>
+            <remarks>
+            This method evaluates routing conditions using the IJsonLogicEvaluator.
+            Conditions are evaluated in the order they appear in the action definition.
+            
+            The routing result can indicate:
+            - Success: Next action and participant determined
+            - Complete: No conditions matched (workflow finished)
+            - Error: Condition matched but next action not found
+            </remarks>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Interfaces.ISchemaValidator">
+            <summary>
+            JSON Schema validator implementing JSON Schema Draft 2020-12.
+            </summary>
+            <remarks>
+            Validates data against JSON Schema specifications, providing detailed
+            error messages with JSON Pointers for precise error locations.
+            
+            Supports:
+            - All JSON Schema Draft 2020-12 keywords
+            - Nested objects and arrays
+            - Custom formats (email, date-time, uri, etc.)
+            - Required fields and type validation
+            - String patterns (regex)
+            - Numeric constraints (min, max, multipleOf)
+            - Array constraints (minItems, maxItems, uniqueItems)
+            - Object constraints (required, properties, additionalProperties)
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Interfaces.ISchemaValidator.ValidateAsync(System.Collections.Generic.Dictionary{System.String,System.Object},System.Text.Json.Nodes.JsonNode,System.Threading.CancellationToken)">
+            <summary>
+            Validate data against a JSON Schema.
+            </summary>
+            <param name="data">The data to validate.</param>
+            <param name="schema">The JSON Schema (Draft 2020-12) to validate against.</param>
+            <param name="ct">Cancellation token.</param>
+            <returns>
+            A validation result indicating success or failure.
+            If validation fails, the result contains detailed error information
+            with JSON Pointers indicating the exact location of each error.
+            </returns>
+            <remarks>
+            This method is thread-safe and can be called concurrently.
+            Validation is performed asynchronously to support large schemas
+            with complex nested structures.
+            </remarks>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Models.ActionExecutionResult">
+            <summary>
+            Result of executing a blueprint action.
+            </summary>
+            <remarks>
+            Contains the complete result of action execution including:
+            - Validation results
+            - Processed data (original + calculated fields)
+            - Routing decision (next participant)
+            - Disclosure results (filtered data for each participant)
+            - Any errors or warnings
+            
+            This is the primary output from IExecutionEngine.ExecuteActionAsync()
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ActionExecutionResult.Success">
+            <summary>
+            Overall success status of the action execution.
+            </summary>
+            <remarks>
+            False if validation fails or any critical error occurs.
+            True if the action was processed successfully.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ActionExecutionResult.Validation">
+            <summary>
+            Validation result containing success/failure and detailed errors.
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ActionExecutionResult.ProcessedData">
+            <summary>
+            The processed action data (original data merged with calculated values).
+            </summary>
+            <remarks>
+            This contains:
+            - All original fields from ActionData
+            - All calculated fields added by JSON Logic calculations
+            
+            Only populated if validation succeeds.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ActionExecutionResult.CalculatedValues">
+            <summary>
+            Calculated values that were added to the data.
+            </summary>
+            <remarks>
+            This is a subset of ProcessedData containing only the fields
+            that were calculated (not submitted by the user).
+            Useful for debugging and audit trails.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ActionExecutionResult.Routing">
+            <summary>
+            Routing decision indicating the next action and participant.
+            </summary>
+            <remarks>
+            Only populated if validation and calculations succeed.
+            Determines where the workflow goes next.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ActionExecutionResult.Disclosures">
+            <summary>
+            Disclosure results containing filtered data for each participant.
+            </summary>
+            <remarks>
+            Each participant receives a filtered view of the data
+            based on their disclosure rules. This enables privacy-preserving
+            workflows where different participants see different data.
+            
+            Only populated if validation and calculations succeed.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ActionExecutionResult.Errors">
+            <summary>
+            Critical errors that prevented execution.
+            </summary>
+            <remarks>
+            Examples:
+            - "Blueprint not found"
+            - "Action not found in blueprint"
+            - "Invalid participant"
+            
+            If any errors exist, Success will be false.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ActionExecutionResult.Warnings">
+            <summary>
+            Non-critical warnings about the execution.
+            </summary>
+            <remarks>
+            Examples:
+            - "Calculation produced null value"
+            - "No routing conditions matched (workflow complete)"
+            
+            Warnings don't prevent execution but should be reviewed.
+            </remarks>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Models.Calculation">
+            <summary>
+            Represents a calculation that uses JSON Logic to compute a derived field.
+            </summary>
+            <remarks>
+            Calculations allow blueprints to compute values from submitted data
+            using JSON Logic expressions.
+            
+            Example:
+            ```json
+            {
+              "outputField": "totalPrice",
+              "expression": { "*": [{"var": "quantity"}, {"var": "unitPrice"}] }
+            }
+            ```
+            
+            This would calculate totalPrice = quantity * unitPrice
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.Calculation.OutputField">
+            <summary>
+            The name of the field where the calculated value will be stored.
+            </summary>
+            <remarks>
+            This field name is added to the action data with the result
+            of evaluating the expression.
+            
+            If a field with this name already exists, it will be overwritten.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.Calculation.Expression">
+            <summary>
+            The JSON Logic expression to evaluate.
+            </summary>
+            <remarks>
+            This expression has access to all fields in the action data
+            via the {"var": "fieldName"} syntax.
+            
+            Calculations can reference:
+            - Original submitted fields
+            - Results from previous calculations (if applied in order)
+            
+            Example expressions:
+            - Simple arithmetic: { "*": [{"var": "quantity"}, {"var": "price"}] }
+            - Conditional: { "if": [{"&gt;": [{"var": "age"}, 18]}, "adult", "minor"] }
+            - String concatenation: { "cat": [{"var": "firstName"}, " ", {"var": "lastName"}] }
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.Calculation.Description">
+            <summary>
+            Optional description of what this calculation does.
+            </summary>
+            <remarks>
+            Useful for documentation and debugging.
+            Not used during execution.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Models.Calculation.Create(System.String,System.Text.Json.Nodes.JsonNode,System.String)">
+            <summary>
+            Creates a calculation.
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Models.DisclosureResult">
+            <summary>
+            Result of applying disclosure rules, containing filtered data for a specific participant.
+            </summary>
+            <remarks>
+            Disclosure results implement privacy-preserving selective data disclosure.
+            Each participant receives only the fields they are authorized to see,
+            as defined by the disclosure rules in the action.
+            
+            Example workflow:
+            1. Action submitted with complete data: { name, email, ssn, salary }
+            2. Disclosure rules define:
+               - HR sees: { name, email, ssn, salary }
+               - Manager sees: { name, email }
+               - Auditor sees: { name, salary }
+            3. Three DisclosureResults are created, one per participant,
+               each containing only their authorized fields
+            
+            The filtered data can then be:
+            - Encrypted for the participant's public key
+            - Stored in the blockchain transaction
+            - Sent as real-time notifications
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.DisclosureResult.ParticipantId">
+            <summary>
+            The participant ID (DID) who will receive this disclosed data.
+            </summary>
+            <remarks>
+            This is the participant's decentralized identifier (DID).
+            Examples:
+            - did:sorcha:wallet:0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+            - did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.DisclosureResult.DisclosedData">
+            <summary>
+            The filtered data containing only fields authorized for this participant.
+            </summary>
+            <remarks>
+            This is a subset of the complete action data, containing only
+            the fields specified in the participant's disclosure rules.
+            
+            Fields are selected using JSON Pointers from the disclosure configuration.
+            
+            Example:
+            Complete data: { "name": "Alice", "email": "alice@example.com", "ssn": "123-45-6789" }
+            Disclosure fields: ["/name", "/email"]
+            Result: { "name": "Alice", "email": "alice@example.com" }
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.DisclosureResult.DisclosureId">
+            <summary>
+            The disclosure rule that was applied (for audit purposes).
+            </summary>
+            <remarks>
+            Optional reference to the disclosure configuration.
+            Useful for debugging and audit trails.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Models.DisclosureResult.Create(System.String,System.Collections.Generic.Dictionary{System.String,System.Object},System.String)">
+            <summary>
+            Creates a disclosure result.
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Models.ExecutionContext">
+            <summary>
+            Execution context containing all information needed to execute a blueprint action.
+            </summary>
+            <remarks>
+            The execution context is passed to the execution engine and contains:
+            - Blueprint definition (the workflow template)
+            - Current action details (which step is being executed)
+            - Action data (submitted by the participant)
+            - Historical context (previous action data)
+            - Participant information (who is executing)
+            - Execution mode (validation-only or full execution)
+            
+            This context is immutable once created and can be safely shared
+            across multiple concurrent executions.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ExecutionContext.Blueprint">
+            <summary>
+            The blueprint definition containing all actions and workflow rules.
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ExecutionContext.Action">
+            <summary>
+            The current action being executed within the blueprint.
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ExecutionContext.ActionData">
+            <summary>
+            The action data submitted by the participant.
+            </summary>
+            <remarks>
+            This is the primary input data that will be:
+            1. Validated against the action's JSON Schema
+            2. Used as input for JSON Logic calculations
+            3. Evaluated against routing conditions
+            4. Filtered through disclosure rules
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ExecutionContext.PreviousData">
+            <summary>
+            Aggregated data from previous actions in the workflow instance.
+            </summary>
+            <remarks>
+            This allows actions to reference data from earlier steps.
+            For example, an approval action might reference the amount
+            from the initial request action.
+            
+            Null for the first action in a workflow instance.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ExecutionContext.PreviousTransactionHash">
+            <summary>
+            Hash or ID of the previous transaction in the workflow.
+            </summary>
+            <remarks>
+            Used to link actions together in the blockchain.
+            Null for the first action (workflow start).
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ExecutionContext.InstanceId">
+            <summary>
+            Unique identifier for this workflow instance.
+            </summary>
+            <remarks>
+            All actions in the same workflow instance share this ID.
+            Used for tracking and querying workflow progress.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ExecutionContext.ParticipantId">
+            <summary>
+            The participant ID (DID) of the user executing this action.
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ExecutionContext.WalletAddress">
+            <summary>
+            The wallet address of the participant executing this action.
+            </summary>
+            <remarks>
+            This may be a stealth/derived address for privacy.
+            Used for signing transactions and encryption.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ExecutionContext.Mode">
+            <summary>
+            Execution mode determining whether to perform full execution or validation only.
+            </summary>
+            <remarks>
+            - ValidationOnly: Used client-side for instant feedback
+            - Full: Used server-side for complete workflow execution
+            </remarks>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Models.ExecutionMode">
+            <summary>
+            Execution mode for the blueprint engine.
+            </summary>
+        </member>
+        <member name="F:Sorcha.Blueprint.Engine.Models.ExecutionMode.ValidationOnly">
+            <summary>
+            Validation-only mode: validates data but doesn't create transactions.
+            Used client-side in Blazor WASM for instant feedback.
+            </summary>
+        </member>
+        <member name="F:Sorcha.Blueprint.Engine.Models.ExecutionMode.Full">
+            <summary>
+            Full execution mode: validates, calculates, routes, and prepares transactions.
+            Used server-side in Blueprint Service.
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Models.RoutingResult">
+            <summary>
+            Result of routing determination indicating the next step in the workflow.
+            </summary>
+            <remarks>
+            The routing result is produced by evaluating routing conditions
+            against the action data to determine which participant should
+            perform the next action.
+            
+            Three possible outcomes:
+            1. Normal routing: NextActionId and NextParticipantId are set
+            2. Workflow complete: IsWorkflowComplete is true, no next action
+            3. Rejection: RejectedToParticipantId is set (workflow returns to sender)
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.RoutingResult.NextActionId">
+            <summary>
+            The ID of the next action to perform.
+            </summary>
+            <remarks>
+            Null if the workflow is complete or rejected.
+            This ID corresponds to an action in the blueprint.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.RoutingResult.NextParticipantId">
+            <summary>
+            The participant ID (DID) who should perform the next action.
+            </summary>
+            <remarks>
+            Null if the workflow is complete.
+            Determined by evaluating routing conditions.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.RoutingResult.IsWorkflowComplete">
+            <summary>
+            Indicates whether the workflow has reached completion.
+            </summary>
+            <remarks>
+            True when no routing conditions match, indicating
+            this is a terminal action with no further steps.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.RoutingResult.RejectedToParticipantId">
+            <summary>
+            If set, indicates the action was rejected and should return to this participant.
+            </summary>
+            <remarks>
+            Used in approval workflows where an action can be rejected
+            and sent back to the original requester.
+            
+            When set, this takes precedence over NextActionId/NextParticipantId.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.RoutingResult.MatchedCondition">
+            <summary>
+            The routing condition that matched (for audit/debugging).
+            </summary>
+            <remarks>
+            Contains the JSON Logic expression that evaluated to true.
+            Useful for understanding why a particular route was chosen.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Models.RoutingResult.Complete">
+            <summary>
+            Creates a routing result for workflow completion.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Models.RoutingResult.Next(System.String,System.String,System.String)">
+            <summary>
+            Creates a routing result for the next action.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Models.RoutingResult.Reject(System.String)">
+            <summary>
+            Creates a routing result for rejection.
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Models.ValidationError">
+            <summary>
+            Represents a single validation error with precise location information.
+            </summary>
+            <remarks>
+            Validation errors use JSON Pointers (RFC 6901) to indicate exactly
+            where in the data the validation failure occurred.
+            
+            Example:
+            If the field "/user/email" fails validation, the error would have:
+            - InstanceLocation: "/user/email"
+            - Message: "The value is not a valid email address"
+            - SchemaLocation: "#/properties/user/properties/email/format"
+            
+            This precise location information allows UIs to highlight the specific
+            field that needs correction.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ValidationError.InstanceLocation">
+            <summary>
+            JSON Pointer (RFC 6901) to the location in the data that failed validation.
+            </summary>
+            <remarks>
+            Examples:
+            - "" (root)
+            - "/email"
+            - "/address/zipCode"
+            - "/items/0/price"
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ValidationError.Message">
+            <summary>
+            Human-readable error message describing the validation failure.
+            </summary>
+            <remarks>
+            Examples:
+            - "The value is required but was not provided"
+            - "The value 'abc' is not a valid number"
+            - "The string length must be at least 5 characters"
+            - "The value must match the pattern '^[A-Z]{3}$'"
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ValidationError.SchemaLocation">
+            <summary>
+            JSON Pointer to the schema location that defined the constraint.
+            </summary>
+            <remarks>
+            Points to the specific keyword in the schema that was violated.
+            Useful for debugging schema issues.
+            
+            Examples:
+            - "#/properties/email/format"
+            - "#/properties/age/minimum"
+            - "#/required"
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ValidationError.Keyword">
+            <summary>
+            The schema keyword that was violated.
+            </summary>
+            <remarks>
+            Examples: "required", "type", "format", "minimum", "pattern", etc.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ValidationError.AdditionalInfo">
+            <summary>
+            Additional context about the validation error.
+            </summary>
+            <remarks>
+            May contain information like:
+            - The expected type vs actual type
+            - The minimum/maximum constraint values
+            - The required field names
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Models.ValidationError.Create(System.String,System.String)">
+            <summary>
+            Creates a simple validation error with just location and message.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Models.ValidationError.Create(System.String,System.String,System.String,System.String,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Creates a detailed validation error with all information.
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Models.ValidationResult">
+            <summary>
+            Result of JSON Schema validation.
+            </summary>
+            <remarks>
+            Contains validation success/failure status and detailed error information.
+            
+            If validation fails, the Errors list contains one or more ValidationError
+            objects, each describing a specific validation failure with its location
+            in the data (JSON Pointer) and the violated constraint.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ValidationResult.IsValid">
+            <summary>
+            Indicates whether the data passed validation.
+            </summary>
+            <remarks>
+            True if the data conforms to all schema constraints.
+            False if any validation errors occurred.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.ValidationResult.Errors">
+            <summary>
+            List of validation errors.
+            </summary>
+            <remarks>
+            Empty if IsValid is true.
+            Contains one or more errors if IsValid is false.
+            
+            Each error includes:
+            - The location in the data where the error occurred (JSON Pointer)
+            - The specific constraint that was violated
+            - A human-readable error message
+            - The schema path that defined the constraint
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Models.ValidationResult.Valid">
+            <summary>
+            Creates a successful validation result.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Models.ValidationResult.Invalid(System.Collections.Generic.List{Sorcha.Blueprint.Engine.Models.ValidationError})">
+            <summary>
+            Creates a failed validation result with errors.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Models.ValidationResult.Invalid(Sorcha.Blueprint.Engine.Models.ValidationError)">
+            <summary>
+            Creates a failed validation result with a single error.
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Testing.JsonLogicTester">
+            <summary>
+            Test runner for JSON Logic expressions
+            </summary>
+            <remarks>
+            Allows running multiple test cases against a JSON Logic expression
+            to verify expected behavior
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Testing.JsonLogicTester.RunTestAsync(System.Text.Json.Nodes.JsonNode,Sorcha.Blueprint.Engine.Testing.TestCase,System.Threading.CancellationToken)">
+            <summary>
+            Run a single test case
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Testing.JsonLogicTester.RunTestsAsync(System.Text.Json.Nodes.JsonNode,System.Collections.Generic.IEnumerable{Sorcha.Blueprint.Engine.Testing.TestCase},System.Threading.CancellationToken)">
+            <summary>
+            Run multiple test cases
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Testing.JsonLogicTester.CreateTest(System.String)">
+            <summary>
+            Create a test case builder
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Testing.TestCase">
+            <summary>
+            A single test case for a JSON Logic expression
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestCase.Name">
+            <summary>
+            Test case name/description
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestCase.InputData">
+            <summary>
+            Input data for the expression
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestCase.ExpectedOutput">
+            <summary>
+            Expected output from the expression
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestCase.Description">
+            <summary>
+            Optional description of what this test validates
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Testing.TestResult">
+            <summary>
+            Result of running a single test case
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestResult.Name">
+            <summary>
+            Test name
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestResult.Passed">
+            <summary>
+            Whether the test passed
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestResult.ActualOutput">
+            <summary>
+            Actual output from the expression
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestResult.ExpectedOutput">
+            <summary>
+            Expected output
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestResult.InputData">
+            <summary>
+            Input data used
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestResult.Duration">
+            <summary>
+            Test execution duration
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestResult.Error">
+            <summary>
+            Error message if test failed
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Testing.TestReport">
+            <summary>
+            Report of multiple test runs
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestReport.TotalTests">
+            <summary>
+            Total number of tests
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestReport.PassedTests">
+            <summary>
+            Number of passed tests
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestReport.FailedTests">
+            <summary>
+            Number of failed tests
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestReport.Results">
+            <summary>
+            Individual test results
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestReport.TotalDuration">
+            <summary>
+            Total duration of all tests
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestReport.Expression">
+            <summary>
+            The expression that was tested
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Testing.TestReport.PassRate">
+            <summary>
+            Pass rate (0.0 to 1.0)
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Testing.TestCaseBuilder">
+            <summary>
+            Fluent builder for test cases
+            </summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Validation.JsonLogicValidator">
+            <summary>
+            Validator for JSON Logic expressions
+            </summary>
+            <remarks>
+            Validates JSON Logic expressions for:
+            - Correct syntax
+            - Variable references match schema fields
+            - Type compatibility
+            - Complexity limits
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Validation.JsonLogicValidator.Validate(System.Text.Json.Nodes.JsonNode,Json.Schema.JsonSchema)">
+            <summary>
+            Validate a JSON Logic expression
+            </summary>
+            <param name="expression">The JSON Logic expression to validate</param>
+            <param name="dataSchema">Optional schema to validate variable references against</param>
+            <returns>Validation result with errors and warnings</returns>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Validation.JsonLogicValidator.CalculateDepth(System.Text.Json.Nodes.JsonNode,System.Int32)">
+            <summary>
+            Calculate the depth of an expression tree
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Validation.JsonLogicValidator.CountNodes(System.Text.Json.Nodes.JsonNode)">
+            <summary>
+            Count total nodes in an expression tree
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Validation.JsonLogicValidator.ValidateOperators(System.Text.Json.Nodes.JsonNode)">
+            <summary>
+            Validate operators in the expression
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Validation.JsonLogicValidator.ExtractVariables(System.Text.Json.Nodes.JsonNode)">
+            <summary>
+            Extract all variable references from an expression
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Validation.JsonLogicValidator.ValidateVariableReferences(System.Text.Json.Nodes.JsonNode,Json.Schema.JsonSchema)">
+            <summary>
+            Validate that all variable references exist in the schema
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Validation.JsonLogicValidator.VariableExistsInSchema(System.String,System.Text.Json.Nodes.JsonNode)">
+            <summary>
+            Check if a variable path exists in the schema
+            </summary>
+        </member>
+    </members>
+</doc>
