@@ -3,6 +3,15 @@
 **Date:** 2025-11-16
 **Status:** ✅ Completed
 **Related Specification:** [sorcha-register-service.md](../.specify/specs/sorcha-register-service.md)
+**Next Phase:** [Phase 5 - API Layer Completion](register-service-phase5-completion.md) ✅ Completed 2025-11-16
+
+> **✅ UPDATE (2025-11-16):** Phase 5 (API Layer) has been completed! The Register Service now has:
+> - Comprehensive REST API with 20+ endpoints
+> - SignalR hub for real-time notifications
+> - OData V4 support for advanced queries
+> - Full integration with the business logic layer from Phases 1 & 2
+>
+> See [Phase 5 Completion Summary](register-service-phase5-completion.md) for details.
 
 > **📝 Note (2025-11-16):** The specification has been enhanced with new requirements:
 > - **Blockchain Gateway Integration** (FR-REG-011) - Multi-chain support via gateway pattern

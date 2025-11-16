@@ -1,6 +1,229 @@
 @Sorcha.Register.Service_HostAddress = http://localhost:5290
 
-GET {{Sorcha.Register.Service_HostAddress}}/weatherforecast/
+### Health Check
+GET {{Sorcha.Register.Service_HostAddress}}/health
 Accept: application/json
+
+###
+
+### Alive Check
+GET {{Sorcha.Register.Service_HostAddress}}/alive
+Accept: application/json
+
+###
+
+# ===========================
+# Register Management API
+# ===========================
+
+### Create a new register
+POST {{Sorcha.Register.Service_HostAddress}}/api/registers
+Content-Type: application/json
+
+{
+  "name": "Test Register",
+  "tenantId": "tenant123",
+  "advertise": true,
+  "isFullReplica": true
+}
+
+###
+
+### Get all registers
+GET {{Sorcha.Register.Service_HostAddress}}/api/registers
+Accept: application/json
+
+###
+
+### Get registers by tenant
+GET {{Sorcha.Register.Service_HostAddress}}/api/registers?tenantId=tenant123
+Accept: application/json
+
+###
+
+### Get register by ID
+GET {{Sorcha.Register.Service_HostAddress}}/api/registers/{registerId}
+Accept: application/json
+
+###
+
+### Update register
+PUT {{Sorcha.Register.Service_HostAddress}}/api/registers/{registerId}
+Content-Type: application/json
+
+{
+  "name": "Updated Register Name",
+  "status": 1,
+  "advertise": false
+}
+
+###
+
+### Delete register
+DELETE {{Sorcha.Register.Service_HostAddress}}/api/registers/{registerId}?tenantId=tenant123
+
+###
+
+### Get register count
+GET {{Sorcha.Register.Service_HostAddress}}/api/registers/stats/count
+Accept: application/json
+
+###
+
+# ===========================
+# Transaction Management API
+# ===========================
+
+### Submit a transaction
+POST {{Sorcha.Register.Service_HostAddress}}/api/registers/{registerId}/transactions
+Content-Type: application/json
+
+{
+  "txId": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "prevTxId": "",
+  "version": 1,
+  "senderWallet": "wallet1234567890abcdef",
+  "recipientsWallets": ["walletabcdef1234567890"],
+  "payloadCount": 1,
+  "payloads": [
+    {
+      "walletAccess": ["wallet1234567890abcdef", "walletabcdef1234567890"],
+      "payloadSize": 1024,
+      "hash": "sha256hashhere",
+      "data": "base64encodeddata",
+      "payloadFlags": "encrypted"
+    }
+  ],
+  "signature": "signaturehere",
+  "metaData": {
+    "transactionType": 1,
+    "blueprintId": "blueprint123",
+    "instanceId": "instance456",
+    "actionId": 1
+  }
+}
+
+###
+
+### Get transaction by ID
+GET {{Sorcha.Register.Service_HostAddress}}/api/registers/{registerId}/transactions/{txId}
+Accept: application/json
+
+###
+
+### Get all transactions for a register
+GET {{Sorcha.Register.Service_HostAddress}}/api/registers/{registerId}/transactions?page=1&pageSize=20
+Accept: application/json
+
+###
+
+# ===========================
+# Query API
+# ===========================
+
+### Query transactions by wallet address
+GET {{Sorcha.Register.Service_HostAddress}}/api/query/wallets/wallet1234567890abcdef/transactions?registerId={registerId}&page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Query transactions by sender
+GET {{Sorcha.Register.Service_HostAddress}}/api/query/senders/wallet1234567890abcdef/transactions?registerId={registerId}&page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Query transactions by blueprint
+GET {{Sorcha.Register.Service_HostAddress}}/api/query/blueprints/blueprint123/transactions?registerId={registerId}&page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Query transactions by blueprint instance
+GET {{Sorcha.Register.Service_HostAddress}}/api/query/blueprints/blueprint123/transactions?registerId={registerId}&instanceId=instance456&page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Get transaction statistics
+GET {{Sorcha.Register.Service_HostAddress}}/api/query/stats?registerId={registerId}
+Accept: application/json
+
+###
+
+# ===========================
+# Docket Management API
+# ===========================
+
+### Get all dockets for a register
+GET {{Sorcha.Register.Service_HostAddress}}/api/registers/{registerId}/dockets
+Accept: application/json
+
+###
+
+### Get docket by ID
+GET {{Sorcha.Register.Service_HostAddress}}/api/registers/{registerId}/dockets/1
+Accept: application/json
+
+###
+
+### Get transactions in a docket
+GET {{Sorcha.Register.Service_HostAddress}}/api/registers/{registerId}/dockets/1/transactions
+Accept: application/json
+
+###
+
+# ===========================
+# OData Queries
+# ===========================
+
+### OData: Get all registers with filtering
+GET {{Sorcha.Register.Service_HostAddress}}/odata/Registers?$filter=Status eq 1&$orderby=CreatedAt desc
+Accept: application/json
+
+###
+
+### OData: Get registers with selection
+GET {{Sorcha.Register.Service_HostAddress}}/odata/Registers?$select=Id,Name,Height,Status
+Accept: application/json
+
+###
+
+### OData: Get register count
+GET {{Sorcha.Register.Service_HostAddress}}/odata/Registers/$count
+Accept: application/json
+
+###
+
+### OData: Get transactions with filtering
+GET {{Sorcha.Register.Service_HostAddress}}/odata/Transactions?$filter=RegisterId eq '{registerId}'&$orderby=TimeStamp desc&$top=10
+Accept: application/json
+
+###
+
+### OData: Get dockets with filtering
+GET {{Sorcha.Register.Service_HostAddress}}/odata/Dockets?$filter=RegisterId eq '{registerId}'&$orderby=Id desc
+Accept: application/json
+
+###
+
+# ===========================
+# SignalR Hub
+# ===========================
+
+# SignalR Hub URL: ws://localhost:5290/hubs/register
+#
+# Client methods you can call:
+# - SubscribeToRegister(registerId)
+# - UnsubscribeFromRegister(registerId)
+# - SubscribeToTenant(tenantId)
+# - UnsubscribeFromTenant(tenantId)
+#
+# Server events you'll receive:
+# - RegisterCreated(registerId, name)
+# - RegisterDeleted(registerId)
+# - TransactionConfirmed(registerId, transactionId)
+# - DocketSealed(registerId, docketId, hash)
+# - RegisterHeightUpdated(registerId, newHeight)
 
 ###
