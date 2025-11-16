@@ -321,7 +321,7 @@ public class JsonLogicTesterTests
         // Assert
         report.TotalDuration.Should().BeGreaterThan(TimeSpan.Zero);
         report.TotalDuration.Should().BeGreaterThanOrEqualTo(
-            report.Results.Sum(r => r.Duration.Ticks)
+            TimeSpan.FromTicks(report.Results.Sum(r => r.Duration.Ticks))
         );
     }
 

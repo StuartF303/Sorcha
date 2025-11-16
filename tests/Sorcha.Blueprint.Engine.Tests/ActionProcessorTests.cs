@@ -4,7 +4,7 @@
 using System.Text.Json.Nodes;
 using Sorcha.Blueprint.Engine.Implementation;
 using Sorcha.Blueprint.Engine.Interfaces;
-using Sorcha.Blueprint.Engine.Models;
+using EngineModels = Sorcha.Blueprint.Engine.Models;
 using BpModels = Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Tests;
@@ -39,7 +39,7 @@ public class ActionProcessorTests
         var blueprint = CreateSimpleBlueprint();
         var action = blueprint.Actions[0];
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = action,
@@ -66,16 +66,16 @@ public class ActionProcessorTests
     public async Task ProcessAsync_NoSchema_SkipsValidation()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-001",
             Title = "Test",
             Description = "Test",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user1", Name = "User 1" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
@@ -87,7 +87,7 @@ public class ActionProcessorTests
             }
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = blueprint.Actions[0],
@@ -115,7 +115,7 @@ public class ActionProcessorTests
         var blueprint = CreateSimpleBlueprint();
         var action = blueprint.Actions[0];
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = action,
@@ -145,7 +145,7 @@ public class ActionProcessorTests
         var blueprint = CreateBlueprintWithCalculations();
         var action = blueprint.Actions[0];
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = action,
@@ -177,7 +177,7 @@ public class ActionProcessorTests
         var blueprint = CreateBlueprintWithCalculations();
         var action = blueprint.Actions[0];
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = action,
@@ -204,16 +204,16 @@ public class ActionProcessorTests
     public async Task ProcessAsync_WithMultipleCalculations_AppliesInOrder()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-CALC",
             Title = "Calculation Test",
             Description = "Test",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user1", Name = "User 1" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
@@ -242,7 +242,7 @@ public class ActionProcessorTests
             }
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = blueprint.Actions[0],
@@ -278,7 +278,7 @@ public class ActionProcessorTests
         var action = blueprint.Actions[0];
 
         // Test high amount - should route to manager
-        var highAmountContext = new ExecutionContext
+        var highAmountContext = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = action,
@@ -291,7 +291,7 @@ public class ActionProcessorTests
         };
 
         // Test low amount - should route to clerk
-        var lowAmountContext = new ExecutionContext
+        var lowAmountContext = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = action,
@@ -319,28 +319,28 @@ public class ActionProcessorTests
     public async Task ProcessAsync_WorkflowComplete_SetsFlag()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-END",
             Title = "End Test",
             Description = "Test",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user1", Name = "User 1" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = 1,
                     Title = "Final Action",
                     Sender = "user1",
-                    Participants = new List<Condition>() // No next
+                    Participants = new List<BpModels.Condition>() // No next
                 }
             }
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = blueprint.Actions[0],
@@ -369,7 +369,7 @@ public class ActionProcessorTests
         var blueprint = CreateBlueprintWithDisclosures();
         var action = blueprint.Actions[0];
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = action,
@@ -406,28 +406,28 @@ public class ActionProcessorTests
     public async Task ProcessAsync_NoDisclosures_AddsWarning()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-NO-DISC",
             Title = "No Disclosures",
             Description = "Test",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user1", Name = "User 1" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = 1,
                     Title = "Test",
                     Sender = "user1",
-                    Disclosures = new List<Disclosure>() // Empty
+                    Disclosures = new List<BpModels.Disclosure>() // Empty
                 }
             }
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = blueprint.Actions[0],
@@ -456,7 +456,7 @@ public class ActionProcessorTests
         var blueprint = CreateCompleteBlueprint();
         var action = blueprint.Actions[0];
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = action,
@@ -590,11 +590,11 @@ public class ActionProcessorTests
             Id = "BP-CALC",
             Title = "Calculation Test",
             Description = "Test",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user1", Name = "User 1" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
@@ -684,12 +684,12 @@ public class ActionProcessorTests
             Id = "BP-DISC",
             Title = "Disclosure Test",
             Description = "Test",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "buyer", Name = "Buyer" },
                 new() { Id = "seller", Name = "Seller" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {

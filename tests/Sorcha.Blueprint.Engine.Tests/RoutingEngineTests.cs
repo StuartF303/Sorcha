@@ -32,19 +32,19 @@ public class RoutingEngineTests
             Id = "BP-001",
             Title = "Simple Workflow",
             Description = "A simple two-step workflow",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "requester", Name = "Requester" },
                 new() { Id = "approver", Name = "Approver" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new() // Action 1 - Requester submits
                 {
                     Id = 1,
                     Title = "Submit Request",
                     Sender = "requester",
-                    Participants = new List<Condition>
+                    Participants = new List<BpModels.Condition>
                     {
                         new("approver", true) // Always route to approver
                     }
@@ -79,18 +79,18 @@ public class RoutingEngineTests
             Id = "BP-001",
             Title = "Simple Workflow",
             Description = "A simple workflow",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user1", Name = "User 1" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = 1,
                     Title = "Final Action",
                     Sender = "user1",
-                    Participants = new List<Condition>() // No next participants
+                    Participants = new List<BpModels.Condition>() // No next participants
                 }
             }
         };
@@ -120,20 +120,20 @@ public class RoutingEngineTests
             Id = "BP-002",
             Title = "Approval Workflow",
             Description = "Routes based on amount",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "requester", Name = "Requester" },
                 new() { Id = "manager", Name = "Manager" },
                 new() { Id = "director", Name = "Director" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new() // Action 1 - Submit request
                 {
                     Id = 1,
                     Title = "Submit Request",
                     Sender = "requester",
-                    Participants = new List<Condition>
+                    Participants = new List<BpModels.Condition>
                     {
                         // Route to director if amount >= 10000
                         new("director", new List<string> { """{">=": [{"var": "amount"}, 10000]}""" }),
@@ -183,20 +183,20 @@ public class RoutingEngineTests
             Id = "BP-003",
             Title = "Complex Routing",
             Description = "Routes based on multiple conditions",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user", Name = "User" },
                 new() { Id = "admin", Name = "Admin" },
                 new() { Id = "superadmin", Name = "Super Admin" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = 1,
                     Title = "Submit",
                     Sender = "user",
-                    Participants = new List<Condition>
+                    Participants = new List<BpModels.Condition>
                     {
                         // Route to superadmin if amount > 50000 AND urgent == true
                         new("superadmin", new List<string>
@@ -278,19 +278,19 @@ public class RoutingEngineTests
             Id = "BP-004",
             Title = "Conditional Workflow",
             Description = "May or may not have next step",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user", Name = "User" },
                 new() { Id = "admin", Name = "Admin" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = 1,
                     Title = "Submit",
                     Sender = "user",
-                    Participants = new List<Condition>
+                    Participants = new List<BpModels.Condition>
                     {
                         // Only route to admin if approved == true
                         new("admin", new List<string>
@@ -332,19 +332,19 @@ public class RoutingEngineTests
             Id = "BP-005",
             Title = "Incomplete Workflow",
             Description = "Participant exists but no action defined",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user", Name = "User" },
                 new() { Id = "phantom", Name = "Phantom User" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = 1,
                     Title = "Submit",
                     Sender = "user",
-                    Participants = new List<Condition>
+                    Participants = new List<BpModels.Condition>
                     {
                         new("phantom", true) // Routes to phantom, but no action exists
                     }
@@ -372,19 +372,19 @@ public class RoutingEngineTests
             Id = "BP-006",
             Title = "No Data Workflow",
             Description = "Workflow that doesn't depend on data",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user1", Name = "User 1" },
                 new() { Id = "user2", Name = "User 2" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = 1,
                     Title = "Step 1",
                     Sender = "user1",
-                    Participants = new List<Condition>
+                    Participants = new List<BpModels.Condition>
                     {
                         new("user2", true) // Unconditional routing
                     }
@@ -422,19 +422,19 @@ public class RoutingEngineTests
             Id = "BP-007",
             Title = "Multi-Criteria Workflow",
             Description = "Requires multiple conditions to match",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user", Name = "User" },
                 new() { Id = "specialist", Name = "Specialist" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = 1,
                     Title = "Submit",
                     Sender = "user",
-                    Participants = new List<Condition>
+                    Participants = new List<BpModels.Condition>
                     {
                         new("specialist", new List<string>
                         {
@@ -486,7 +486,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_NullBlueprint_ThrowsArgumentNullException()
     {
         // Arrange
-        var action = new Models.Action { Id = 1, Title = "Test" };
+        var action = new BpModels.Action { Id = 1, Title = "Test" };
         var data = new Dictionary<string, object>();
 
         // Act & Assert
@@ -504,8 +504,8 @@ public class RoutingEngineTests
             Id = "BP-001",
             Title = "Test",
             Description = "Test",
-            Participants = new List<Participant>(),
-            Actions = new List<Models.Action>()
+            Participants = new List<BpModels.Participant>(),
+            Actions = new List<BpModels.Action>()
         };
         var data = new Dictionary<string, object>();
 
@@ -524,10 +524,10 @@ public class RoutingEngineTests
             Id = "BP-001",
             Title = "Test",
             Description = "Test",
-            Participants = new List<Participant>(),
-            Actions = new List<Models.Action>()
+            Participants = new List<BpModels.Participant>(),
+            Actions = new List<BpModels.Action>()
         };
-        var action = new Models.Action { Id = 1, Title = "Test" };
+        var action = new BpModels.Action { Id = 1, Title = "Test" };
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
@@ -555,7 +555,7 @@ public class RoutingEngineTests
             Id = "BP-PURCHASE",
             Title = "Purchase Approval",
             Description = "Multi-level purchase approval based on amount",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "employee", Name = "Employee" },
                 new() { Id = "team-lead", Name = "Team Lead" },
@@ -563,14 +563,14 @@ public class RoutingEngineTests
                 new() { Id = "finance", Name = "Finance Director" },
                 new() { Id = "ceo", Name = "CEO" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new() // Step 1: Employee submits
                 {
                     Id = 1,
                     Title = "Submit Purchase Request",
                     Sender = "employee",
-                    Participants = new List<Condition>
+                    Participants = new List<BpModels.Condition>
                     {
                         new("ceo", new List<string> { """{">=": [{"var": "amount"}, 100000]}""" }),
                         new("finance", new List<string> { """{">=": [{"var": "amount"}, 50000]}""" }),
