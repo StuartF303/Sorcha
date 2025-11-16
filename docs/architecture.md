@@ -572,12 +572,20 @@ Provide blockchain consensus and validation in a secured environment with access
 - [Validator Service Implementation Plan](validator-service-implementation-plan.md)
 - [Validator Service Quick Reference](VALIDATOR-SERVICE-QUICK-REFERENCE.md)
 
-**Architectural Note:**
-DocketManager and ChainValidator were moved from `Sorcha.Register.Core` to `Sorcha.Validator.Service` to ensure they run in a secured environment with proper access to encryption keys and cryptographic operations. This separation ensures:
-1. Security isolation for sensitive cryptographic operations
-2. Clear separation of concerns (storage vs. validation)
-3. Support for future enclave deployment
-4. Compliance with zero-trust security principles
+**Architectural Note (Updated 2025-11-16):**
+DocketManager and ChainValidator were permanently moved from `Sorcha.Register.Core` to `Sorcha.Validator.Service` to ensure they run in a secured environment with proper access to encryption keys and cryptographic operations.
+
+This architectural decision is now permanently captured in:
+- Functional Requirements: Components requiring cryptographic operations must run in secured environments
+- Non-Functional Requirements: Security isolation for cryptographic validation components
+- Component Placement Guidelines: See LEARNINGS.md for decision criteria
+
+The separation ensures:
+1. **Security Isolation**: Cryptographic operations (SHA256 hashing, chain validation) run in secured environment with key access
+2. **Separation of Concerns**: Storage (Register.Service) separate from validation/consensus (Validator.Service)
+3. **Enclave Support**: Pure validation logic can be deployed in Intel SGX/AMD SEV enclaves
+4. **Zero-Trust Architecture**: Security-sensitive components have explicit trust boundaries
+5. **Compliance**: Meets regulatory requirements for cryptographic operation isolation
 
 ## Testing Architecture
 
