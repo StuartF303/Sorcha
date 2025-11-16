@@ -48,6 +48,12 @@ public class Control
     public JsonDocument? Properties { get; set; }
 
     /// <summary>
+    /// JSON Schema for validating data in this control/form
+    /// </summary>
+    [JsonPropertyName("schema")]
+    public JsonNode? Schema { get; set; }
+
+    /// <summary>
     /// Sub-elements or sub-controls
     /// </summary>
     [JsonPropertyName("elements")]

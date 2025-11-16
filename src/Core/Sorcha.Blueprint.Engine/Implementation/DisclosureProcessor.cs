@@ -140,7 +140,7 @@ public class DisclosureProcessor : IDisclosureProcessor
     /// <summary>
     /// Navigates through a data structure using JSON Pointer segments.
     /// </summary>
-    private static object? NavigateToValue(object current, string[] segments)
+    private static object? NavigateToValue(object? current, string[] segments)
     {
         foreach (var segment in segments)
         {
