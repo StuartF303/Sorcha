@@ -2,35 +2,122 @@
 
 This directory contains the specification-driven development artifacts for the SORCHA project using the [Spec-Kit](https://github.com/github/spec-kit) methodology from GitHub.
 
+**Last Updated:** 2025-11-16 (Unified planning structure implemented)
+
+---
+
+## 📋 Quick Start - Essential Documents
+
+**For Active Development:**
+1. ⭐ **[MASTER-PLAN.md](MASTER-PLAN.md)** - Unified implementation plan (START HERE)
+2. ⭐ **[MASTER-TASKS.md](MASTER-TASKS.md)** - Consolidated task list with priorities
+3. 📜 **[constitution.md](constitution.md)** - Project principles and standards
+4. 📋 **[spec.md](spec.md)** - Requirements and architecture
+
+---
+
 ## Overview
 
 Spec-Kit is a specification-first development approach where specifications become executable and directly guide implementation. This directory organizes project intent, architecture, and requirements in a structured, version-controlled manner.
+
+**Recent Update (2025-11-16):** Consolidated multiple planning documents into a unified master plan structure for clarity and MVD focus.
+
+---
 
 ## Directory Structure
 
 ```
 .specify/
-├── README.md              # This file - overview of spec-kit structure
-├── constitution.md        # Project principles and development guidelines
-├── spec.md               # Requirements, goals, and user scenarios
-├── plan.md               # Technical implementation plan and architecture
-└── tasks/                # Individual work units (future use)
-    └── README.md         # Task organization guidelines
+├── README.md                           # This file - overview
+├── MASTER-PLAN.md                      # ⭐ Unified implementation plan (NEW)
+├── MASTER-TASKS.md                     # ⭐ Consolidated task list (NEW)
+├── constitution.md                     # Project principles and standards
+├── spec.md                            # Requirements, goals, and scenarios
+├── plan.md                            # ⚠️  SUPERSEDED (see MASTER-PLAN.md)
+├── UNIFIED-DESIGN-SUMMARY.md          # Blueprint service unified design
+├── BLUEPRINT-SERVICE-UNIFIED-DESIGN.md # Detailed design specification
+├── specs/                             # Service specifications
+│   ├── sorcha-wallet-service.md
+│   ├── sorcha-register-service.md
+│   ├── sorcha-tenant-service.md
+│   ├── sorcha-cryptography-rewrite.md
+│   └── sorcha-transaction-handler.md
+├── tasks/                             # Detailed task files (reference)
+│   ├── TASK-OVERVIEW.md              # Cryptography tasks
+│   ├── TX-OVERVIEW.md                # TransactionHandler tasks
+│   ├── WALLET-OVERVIEW.md            # Wallet service tasks
+│   └── [Individual task files...]
+└── archive/                           # Historical documents
+    └── pre-unified-plan-20251116/    # Archived planning documents
 ```
+
+---
 
 ## Core Documents
 
-### constitution.md
+### ⭐ Primary Planning Documents (Active)
+
+#### MASTER-PLAN.md (NEW - 2025-11-16)
+**Purpose:** Unified implementation plan consolidating all previous plans
+
+**Contains:**
+- Overall project strategy and phases
+- MVD (Minimum Viable Deliverable) definition with 12-week timeline
+- Three implementation phases (Blueprint-Action, Wallet, Register)
+- Timeline, milestones, and success criteria
+- Risk assessment and dependencies
+- Post-MVD roadmap
+
+**Replaces:** plan.md v2.0, BLUEPRINT-SERVICE-IMPLEMENTATION-PLAN.md, WALLET-PROGRESS.md, IMPLEMENTATION-SUMMARY.md
+
+**When to update:**
+- Phase completion
+- Milestone achievements
+- Major scope changes
+- Risk materialization
+
+**Review frequency:** Bi-weekly during active development
+**Status:** ✅ Active, authoritative
+
+---
+
+#### MASTER-TASKS.md (NEW - 2025-11-16)
+**Purpose:** Consolidated task list with priorities and status tracking
+
+**Contains:**
+- 138 tasks across 4 phases
+- P0 (MVD Blocker) → P3 (Post-MVD) prioritization
+- Task status, effort estimates, and dependencies
+- Sprint breakdowns for Blueprint-Action service
+- Wallet Service API tasks
+- Register Service MVD tasks
+- Post-MVD enhancement tasks
+
+**Replaces:** Task tracking scattered across multiple documents
+
+**When to update:**
+- Task completion
+- Status changes
+- New tasks discovered
+- Priority adjustments
+
+**Review frequency:** Weekly during active development
+**Status:** ✅ Active, authoritative
+
+---
+
+### 📜 Foundational Documents (Spec-Kit Core)
+
+#### constitution.md
 **Purpose:** Establishes non-negotiable principles and standards for the project
 
 **Contains:**
-- Core architectural principles
-- Security guidelines
-- Development standards
-- Testing requirements
-- Documentation standards
-- Infrastructure principles
-- Observability requirements
+- Core architectural principles (microservices, cloud-native, scalability)
+- Security guidelines (zero trust, cryptographic standards)
+- Development standards (code quality, .NET 10, testing)
+- API documentation requirements (.NET 10 OpenAPI, Scalar UI)
+- Infrastructure as code principles
+- Data management and observability standards
 
 **When to update:**
 - Major policy changes
@@ -39,17 +126,22 @@ Spec-Kit is a specification-first development approach where specifications beco
 - Development standard changes
 
 **Review frequency:** Quarterly
+**Version:** 1.1
+**Status:** ✅ Active
 
-### spec.md
+---
+
+#### spec.md
 **Purpose:** Captures project goals, requirements, and user needs
 
 **Contains:**
 - Executive summary and vision
+- Strategic goals (enterprise readiness, developer experience, security, performance, operational excellence)
 - System architecture overview
-- Core service descriptions
+- Core service descriptions (Wallet, Register, Blueprint, Peer, etc.)
 - User scenarios and workflows
-- Functional requirements (FR-*)
-- Non-functional requirements (NFR-*)
+- Functional requirements (FR-1 through FR-6)
+- Non-functional requirements (NFR-1 through NFR-7)
 - Technical constraints
 - Success metrics
 
@@ -60,74 +152,197 @@ Spec-Kit is a specification-first development approach where specifications beco
 - New user scenarios
 
 **Review frequency:** Monthly or per major release
+**Version:** 1.0
+**Status:** ✅ Active
 
-### plan.md
-**Purpose:** Describes technical approach, architecture, and implementation strategy
+---
+
+#### plan.md ⚠️ SUPERSEDED
+**Status:** SUPERSEDED by MASTER-PLAN.md as of 2025-11-16
+
+**Original Purpose:** Described technical approach, architecture, and implementation strategy
+
+**Why Superseded:**
+- Multiple overlapping plans caused confusion
+- Unclear prioritization across initiatives
+- Difficult to track critical path for MVD
+- Needed consolidated view
+
+**Replacement:** [MASTER-PLAN.md](MASTER-PLAN.md)
+
+**Historical Version:** Preserved in [archive/pre-unified-plan-20251116/plan.md](archive/pre-unified-plan-20251116/plan.md)
+
+---
+
+### 📐 Design Documents (Active)
+
+#### UNIFIED-DESIGN-SUMMARY.md
+**Purpose:** Blueprint-Action service unified design summary
 
 **Contains:**
-- Technical context and stack
-- Dependencies and tooling
-- Detailed architecture design
-- Communication patterns
-- Data architecture
-- Security architecture
-- Deployment architecture
-- Development workflow
-- Risk management
+- Portable execution engine overview (client/server)
+- Key architectural changes
+- Unified service approach
+- Technology stack updates
+- Implementation plan summary
+- Success criteria
 
 **When to update:**
-- Technology stack changes
+- Design changes
 - Architecture decisions
-- Deployment strategy changes
-- New infrastructure components
+- Implementation progress
 
-**Review frequency:** Monthly or per sprint
+**Status:** ✅ Active, approved 2025-11-15
+
+---
+
+#### BLUEPRINT-SERVICE-UNIFIED-DESIGN.md
+**Purpose:** Detailed technical specification for Blueprint-Action service
+
+**Contains:**
+- Complete technical design
+- 138-task implementation plan (8 sprints)
+- Interface definitions
+- Component architecture
+- Integration patterns
+- Testing strategy
+
+**When to update:**
+- Implementation discoveries
+- Technical decisions
+- Pattern refinements
+
+**Status:** ✅ Active, in implementation (Sprint 3 of 8)
+
+---
+
+### 📝 Service Specifications
+
+Located in **[specs/](specs/)** directory:
+
+**Active Specifications:**
+- **[sorcha-wallet-service.md](specs/sorcha-wallet-service.md)** - Complete wallet service specification
+  - HD wallet support (BIP32/BIP39/BIP44)
+  - Multi-algorithm cryptography (ED25519, SECP256K1, RSA)
+  - Encrypted key storage
+  - Transaction signing/verification
+  - .NET Aspire integration
+
+- **[sorcha-cryptography-rewrite.md](specs/sorcha-cryptography-rewrite.md)** - Cryptography library specification
+  - Core cryptographic operations
+  - Key management
+  - Hash providers
+  - Wallet utilities
+
+- **[sorcha-transaction-handler.md](specs/sorcha-transaction-handler.md)** - Transaction handler specification
+  - Transaction building and signing
+  - Multi-recipient payload management
+  - Serialization formats (binary, JSON)
+  - Version compatibility (v1-v4)
+
+**Stub Specifications (MVD Simplified):**
+- **[sorcha-register-service.md](specs/sorcha-register-service.md)** - Register service (simplified for MVD)
+- **[sorcha-tenant-service.md](specs/sorcha-tenant-service.md)** - Tenant service (simple provider for MVD)
+- **[sorcha-action-service.md](specs/sorcha-action-service.md)** - Action service (merged into Blueprint service)
+
+---
+
+### 📋 Task Breakdowns
+
+Located in **[tasks/](tasks/)** directory:
+
+**Note:** Individual task files are now consolidated into **[MASTER-TASKS.md](MASTER-TASKS.md)** for easier tracking. The task directory is maintained for historical reference and detailed technical specifications.
+
+**Reference Task Overviews:**
+- **[TASK-OVERVIEW.md](tasks/TASK-OVERVIEW.md)** - Cryptography library tasks (25 tasks, reference)
+- **[TX-OVERVIEW.md](tasks/TX-OVERVIEW.md)** - TransactionHandler tasks (19 tasks, reference)
+- **[WALLET-OVERVIEW.md](tasks/WALLET-OVERVIEW.md)** - Wallet service tasks (32 tasks, reference)
+
+**Individual Task Files:**
+- Detailed specifications for specific implementation tasks
+- Historical reference
+- Technical deep-dives
+
+---
+
+## 🎯 Document Status Legend
+
+- ✅ **Active** - Current, authoritative, use for development
+- ⭐ **Primary** - Most important, start here
+- ⚠️ **Superseded** - Replaced by newer document, see redirects
+- 📦 **Archived** - Historical reference only, see archive/
+- 🔄 **Under Review** - Being updated
+- 📐 **Design** - Technical design specification
+
+---
 
 ## Using Spec-Kit with AI Agents
 
 This specification structure is designed to work with AI coding assistants like Claude Code, GitHub Copilot, and others. AI agents can reference these documents to:
 
-1. **Understand Project Context**
-   - Constitution provides guardrails and principles
-   - Spec defines what needs to be built
-   - Plan explains how it's built
+### 1. Understand Project Context
 
-2. **Make Informed Decisions**
-   - Architecture choices guided by plan.md
-   - Feature development aligned with spec.md
-   - Code style consistent with constitution.md
+**New Unified Approach:**
+- **[MASTER-PLAN.md](MASTER-PLAN.md)** - Current implementation phase and priorities
+- **[MASTER-TASKS.md](MASTER-TASKS.md)** - Specific tasks to work on
+- **[constitution.md](constitution.md)** - Guardrails and principles
+- **[spec.md](spec.md)** - What needs to be built
+- Design documents - How it's architected
 
-3. **Maintain Consistency**
-   - All changes evaluated against constitutional principles
-   - Implementation follows established patterns
-   - Documentation stays synchronized
+### 2. Make Informed Decisions
+
+- **MVD Focus:** Check task priority (P0, P1, P2, P3) before starting work
+- **Architecture Choices:** Guided by design documents and spec.md
+- **Feature Development:** Aligned with spec.md requirements
+- **Code Style:** Consistent with constitution.md standards
+
+### 3. Maintain Consistency
+
+- All changes evaluated against constitutional principles
+- Implementation follows established patterns from design docs
+- Documentation stays synchronized across all documents
+- Progress tracked in MASTER-TASKS.md
+
+---
 
 ## Workflow
 
 ### Starting New Features
 
-1. **Consult constitution.md**
-   - Ensure feature aligns with project principles
-   - Check for any constraints or requirements
+1. **Check MASTER-PLAN.md**
+   - Confirm feature is in current phase
+   - Understand MVD priority
+   - Review dependencies
 
-2. **Review spec.md**
+2. **Find Task in MASTER-TASKS.md**
+   - Identify task ID and priority
+   - Check prerequisites and dependencies
+   - Estimate effort
+
+3. **Consult constitution.md**
+   - Ensure feature aligns with project principles
+   - Check for constraints or requirements
+   - Review coding standards
+
+4. **Review spec.md**
    - Understand related requirements
    - Check for existing user scenarios
    - Identify affected functional areas
 
-3. **Reference plan.md**
+5. **Reference Design Documents**
    - Understand relevant architecture patterns
    - Identify affected services and components
    - Review technical constraints
 
-4. **Implement**
+6. **Implement**
    - Follow established patterns
-   - Maintain test coverage requirements
+   - Maintain test coverage requirements (>85%)
    - Document significant decisions
+   - Update MASTER-TASKS.md status
 
 ### Making Architecture Changes
 
-1. **Propose changes in plan.md**
+1. **Propose changes in design documents**
    - Document rationale
    - Explain alternatives considered
    - Impact analysis
@@ -139,32 +354,36 @@ This specification structure is designed to work with AI coding assistants like 
 
 3. **Update related specifications**
    - Update spec.md if requirements change
-   - Update plan.md with new patterns
-   - Document in tasks/ if applicable
+   - Update design docs with new patterns
+   - Update MASTER-PLAN.md if phase changes
+   - Update MASTER-TASKS.md with new tasks
 
 4. **Review and approve**
    - Technical review by team
    - Architecture review for major changes
    - Update version numbers
 
-### Adding New Requirements
+### Tracking Progress
 
-1. **Document in spec.md**
-   - User scenarios
-   - Functional requirements
-   - Non-functional requirements
-   - Acceptance criteria
+1. **Daily/Weekly Updates**
+   - Update task status in MASTER-TASKS.md
+   - Mark completed tasks ✅
+   - Flag blockers
+   - Update effort estimates
 
-2. **Plan in plan.md**
-   - Technical approach
-   - Architecture impact
-   - Implementation strategy
-   - Risk assessment
+2. **Sprint Reviews**
+   - Review sprint completion in MASTER-PLAN.md
+   - Update phase progress
+   - Assess milestone achievement
+   - Adjust priorities if needed
 
-3. **Break down into tasks/**
-   - Create task files for work units
-   - Assign priorities
-   - Define dependencies
+3. **Phase Completion**
+   - Update MASTER-PLAN.md with completion date
+   - Document lessons learned
+   - Plan next phase
+   - Archive superseded documents
+
+---
 
 ## Version Control
 
@@ -176,6 +395,8 @@ All specification documents are version-controlled with the codebase:
 
 Version numbers tracked in document headers.
 
+---
+
 ## Document Maintenance
 
 ### Review Schedule
@@ -184,8 +405,10 @@ Version numbers tracked in document headers.
 |----------|-----------------|--------|
 | constitution.md | Quarterly | Architecture Team |
 | spec.md | Monthly or per release | Product + Engineering |
-| plan.md | Monthly or per sprint | Engineering Team |
-| tasks/* | Per sprint | Development Team |
+| MASTER-PLAN.md | Bi-weekly during development | Engineering Team |
+| MASTER-TASKS.md | Weekly during development | Development Team |
+| Design documents | Per sprint | Engineering Team |
+| Service specs | As needed | Service owners |
 
 ### Update Process
 
@@ -209,6 +432,8 @@ Version numbers tracked in document headers.
    - Clear commit message
    - Reference related issues/PRs
    - Update version numbers
+
+---
 
 ## Best Practices
 
@@ -237,82 +462,76 @@ Version numbers tracked in document headers.
 ### Using with AI
 
 1. **Provide Context**
-   - Point AI to relevant sections
-   - Reference specific requirements
+   - Start with MASTER-PLAN.md for current phase
+   - Point to specific tasks in MASTER-TASKS.md
+   - Reference relevant sections in spec.md
    - Cite constitutional principles
 
 2. **Validate Output**
    - Check against specifications
    - Verify constitutional compliance
    - Test against requirements
+   - Validate MVD priorities
 
 3. **Update Documentation**
-   - Document new patterns
-   - Update examples
+   - Document new patterns in design docs
+   - Update task status in MASTER-TASKS.md
    - Keep specifications current
+   - Archive superseded versions
 
-## Tools and Integration
-
-### Compatible AI Agents
-- Claude Code (Anthropic)
-- GitHub Copilot
-- Google Gemini CLI
-- Cursor
-- Other spec-aware coding assistants
-
-### Recommended Extensions
-- Markdown preview
-- Markdown linting
-- Link validation
-- Spell checking
-
-### CI/CD Integration
-- Specification validation in pipeline
-- Link checking
-- Version number validation
-- Document synchronization checks
+---
 
 ## Getting Started
 
 ### For New Team Members
 
-1. **Read in order:**
-   - README.md (this file)
-   - constitution.md (principles)
-   - spec.md (requirements)
-   - plan.md (implementation)
+**Read in order:**
+1. **README.md** (this file) - Understand the spec-kit structure
+2. **[MASTER-PLAN.md](MASTER-PLAN.md)** - Current project status and strategy
+3. **[constitution.md](constitution.md)** - Principles and standards
+4. **[spec.md](spec.md)** - Requirements and architecture
+5. **[MASTER-TASKS.md](MASTER-TASKS.md)** - Available tasks
 
-2. **Understand:**
-   - Project goals and vision
-   - Architectural principles
-   - Development standards
-   - Testing requirements
+**Understand:**
+- Project goals and vision (spec.md)
+- MVD definition and priorities (MASTER-PLAN.md)
+- Architectural principles (constitution.md)
+- Development standards (constitution.md)
+- Testing requirements (constitution.md)
 
-3. **Reference while coding:**
-   - Check constitution for standards
-   - Verify spec for requirements
-   - Follow plan for patterns
+**Reference while coding:**
+- Check MASTER-TASKS.md for your current task
+- Verify MASTER-PLAN.md for context
+- Follow constitution.md for standards
+- Consult spec.md for requirements
+- Review design docs for patterns
 
 ### For AI Agents
 
 When working on SORCHA:
 
-1. **Always reference:**
-   - `.specify/constitution.md` for principles and standards
-   - `.specify/spec.md` for requirements and features
-   - `.specify/plan.md` for architecture and patterns
+**Always reference:**
+1. **[MASTER-PLAN.md](MASTER-PLAN.md)** - Current phase and MVD priorities
+2. **[MASTER-TASKS.md](MASTER-TASKS.md)** - Specific task details and status
+3. **[constitution.md](constitution.md)** - Principles and standards
+4. **[spec.md](spec.md)** - Requirements and features
+5. **Design documents** - Architecture and patterns
 
-2. **Validate decisions against:**
-   - Constitutional principles
-   - Functional requirements
-   - Non-functional requirements
-   - Architecture patterns
+**Validate decisions against:**
+- MVD priorities (P0 > P1 > P2 > P3)
+- Constitutional principles
+- Functional requirements
+- Non-functional requirements
+- Architecture patterns
 
-3. **Maintain consistency with:**
-   - Established code patterns
-   - Documentation standards
-   - Testing requirements
-   - Security guidelines
+**Maintain consistency with:**
+- Established code patterns
+- Documentation standards
+- Testing requirements (>85% coverage)
+- Security guidelines
+- API documentation requirements (.NET 10 OpenAPI, Scalar UI)
+
+---
 
 ## Support and Questions
 
@@ -321,15 +540,21 @@ When working on SORCHA:
 - **Clarifications:** Update relevant document with clear explanation
 - **Conflicts:** Escalate through technical lead
 
+---
+
 ## References
 
 - [Spec-Kit GitHub Repository](https://github.com/github/spec-kit)
 - [Spec-Kit Documentation](https://github.github.com/spec-kit/)
 - [SORCHA Project README](../README.md)
+- [MASTER-PLAN.md](MASTER-PLAN.md) - Unified implementation plan
+- [MASTER-TASKS.md](MASTER-TASKS.md) - Consolidated task list
 
 ---
 
 **Document Control**
 - **Created:** 2025-11-11
+- **Last Major Update:** 2025-11-16 (Unified planning structure)
 - **Owner:** SORCHA Architecture Team
 - **Status:** Active
+- **Next Review:** 2025-12-16
