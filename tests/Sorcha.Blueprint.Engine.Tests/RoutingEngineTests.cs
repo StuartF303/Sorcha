@@ -3,6 +3,7 @@
 
 using Sorcha.Blueprint.Engine.Implementation;
 using Sorcha.Blueprint.Engine.Interfaces;
+using BpModels = Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Tests;
 
@@ -26,7 +27,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_SimpleRouting_ReturnsNextParticipant()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-001",
             Title = "Simple Workflow",
@@ -73,7 +74,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_LastAction_ReturnsComplete()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-001",
             Title = "Simple Workflow",
@@ -114,7 +115,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_ConditionalRouting_RoutesBasedOnAmount()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-002",
             Title = "Approval Workflow",
@@ -177,7 +178,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_ComplexCondition_EvaluatesCorrectly()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-003",
             Title = "Complex Routing",
@@ -272,7 +273,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_NoConditionsMatch_ReturnsComplete()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-004",
             Title = "Conditional Workflow",
@@ -326,7 +327,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_ParticipantMatchButNoAction_ReturnsComplete()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-005",
             Title = "Incomplete Workflow",
@@ -366,7 +367,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_EmptyData_Works()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-006",
             Title = "No Data Workflow",
@@ -416,7 +417,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_MultipleCriteriaAllMatch_Routes()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-007",
             Title = "Multi-Criteria Workflow",
@@ -498,7 +499,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_NullAction_ThrowsArgumentNullException()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-001",
             Title = "Test",
@@ -518,7 +519,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_NullData_ThrowsArgumentNullException()
     {
         // Arrange
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-001",
             Title = "Test",
@@ -549,7 +550,7 @@ public class RoutingEngineTests
     public async Task DetermineNextAsync_PurchaseApprovalWorkflow_Works()
     {
         // Arrange - A realistic purchase approval workflow
-        var blueprint = new Blueprint
+        var blueprint = new BpModels.Blueprint
         {
             Id = "BP-PURCHASE",
             Title = "Purchase Approval",

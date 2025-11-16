@@ -3,6 +3,7 @@
 
 using Sorcha.Blueprint.Engine.Implementation;
 using Sorcha.Blueprint.Engine.Interfaces;
+using BpModels = Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Tests;
 
@@ -31,7 +32,7 @@ public class DisclosureProcessorTests
             ["age"] = 30
         };
 
-        var disclosure = new Disclosure("participant1", new List<string> { "/*" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "/*" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -54,7 +55,7 @@ public class DisclosureProcessorTests
             ["field2"] = "value2"
         };
 
-        var disclosure = new Disclosure("participant1", new List<string> { "#/*" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "#/*" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -76,7 +77,7 @@ public class DisclosureProcessorTests
             ["ssn"] = "123-45-6789"
         };
 
-        var disclosure = new Disclosure("participant1", new List<string> { "/name" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "/name" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -101,7 +102,7 @@ public class DisclosureProcessorTests
             ["salary"] = 100000
         };
 
-        var disclosure = new Disclosure("participant1", new List<string>
+        var disclosure = new BpModels.Disclosure("participant1", new List<string>
         {
             "/name",
             "/email"
@@ -128,7 +129,7 @@ public class DisclosureProcessorTests
             ["field2"] = "value2"
         };
 
-        var disclosure = new Disclosure("participant1", new List<string> { "#/field1" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "#/field1" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -148,7 +149,7 @@ public class DisclosureProcessorTests
             ["name"] = "Alice"
         };
 
-        var disclosure = new Disclosure("participant1", new List<string> { "/nonexistent" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "/nonexistent" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -179,7 +180,7 @@ public class DisclosureProcessorTests
             }
         };
 
-        var disclosure = new Disclosure("participant1", new List<string> { "/user" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "/user" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -209,7 +210,7 @@ public class DisclosureProcessorTests
             }
         };
 
-        var disclosure = new Disclosure("participant1", new List<string> { "/company" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "/company" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -233,7 +234,7 @@ public class DisclosureProcessorTests
             ["tags"] = new List<string> { "tag1", "tag2", "tag3" }
         };
 
-        var disclosure = new Disclosure("participant1", new List<string> { "/tags" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "/tags" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -274,7 +275,7 @@ public class DisclosureProcessorTests
             }
         };
 
-        var disclosure = new Disclosure("participant1", new List<string>
+        var disclosure = new BpModels.Disclosure("participant1", new List<string>
         {
             "/orderId",
             "/customer",
@@ -310,7 +311,7 @@ public class DisclosureProcessorTests
 
         var disclosures = new[]
         {
-            new Disclosure("participant1", new List<string> { "/name", "/email" })
+            new BpModels.Disclosure("participant1", new List<string> { "/name", "/email" })
         };
 
         // Act
@@ -341,7 +342,7 @@ public class DisclosureProcessorTests
         var disclosures = new[]
         {
             // Buyer sees: order ID, product, quantity, price, buyer address
-            new Disclosure("buyer", new List<string>
+            new BpModels.Disclosure("buyer", new List<string>
             {
                 "/orderId",
                 "/productId",
@@ -350,7 +351,7 @@ public class DisclosureProcessorTests
                 "/buyerAddress"
             }),
             // Seller sees: order ID, product, quantity, seller address
-            new Disclosure("seller", new List<string>
+            new BpModels.Disclosure("seller", new List<string>
             {
                 "/orderId",
                 "/productId",
@@ -358,7 +359,7 @@ public class DisclosureProcessorTests
                 "/sellerAddress"
             }),
             // Auditor sees everything
-            new Disclosure("auditor", new List<string> { "/*" })
+            new BpModels.Disclosure("auditor", new List<string> { "/*" })
         };
 
         // Act
@@ -418,7 +419,7 @@ public class DisclosureProcessorTests
 
         var disclosures = new[]
         {
-            new Disclosure("participant1", new List<string> { "/nonexistent" })
+            new BpModels.Disclosure("participant1", new List<string> { "/nonexistent" })
         };
 
         // Act
@@ -444,7 +445,7 @@ public class DisclosureProcessorTests
         };
 
         // JSON Pointer escape: '/' becomes '~1'
-        var disclosure = new Disclosure("participant1", new List<string> { "/a~1b" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "/a~1b" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -464,7 +465,7 @@ public class DisclosureProcessorTests
         };
 
         // JSON Pointer escape: '~' becomes '~0'
-        var disclosure = new Disclosure("participant1", new List<string> { "/a~0b" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "/a~0b" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -482,7 +483,7 @@ public class DisclosureProcessorTests
     public void ApplyDisclosure_NullData_ThrowsArgumentNullException()
     {
         // Arrange
-        var disclosure = new Disclosure("participant1", new List<string> { "/field" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "/field" });
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => _processor.ApplyDisclosure(null!, disclosure));
@@ -527,7 +528,7 @@ public class DisclosureProcessorTests
             ["field"] = "value"
         };
 
-        var disclosure = new Disclosure("participant1", new List<string>());
+        var disclosure = new BpModels.Disclosure("participant1", new List<string>());
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -545,7 +546,7 @@ public class DisclosureProcessorTests
             ["field"] = "value"
         };
 
-        var disclosure = new Disclosure("participant1", new List<string> { "   ", "/field" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "   ", "/field" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -564,7 +565,7 @@ public class DisclosureProcessorTests
     {
         // Arrange
         var data = new Dictionary<string, object>();
-        var disclosure = new Disclosure("participant1", new List<string> { "/field" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "/field" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
@@ -582,7 +583,7 @@ public class DisclosureProcessorTests
             ["field"] = "value"
         };
 
-        var disclosure = new Disclosure("participant1", new List<string> { "/field", "/field" });
+        var disclosure = new BpModels.Disclosure("participant1", new List<string> { "/field", "/field" });
 
         // Act
         var result = _processor.ApplyDisclosure(data, disclosure);
