@@ -27,6 +27,8 @@ public class HealthAggregationService
         _serviceEndpoints = new Dictionary<string, string>
         {
             { "blueprint", configuration["Services:Blueprint:Url"] ?? "http://blueprint-api" },
+            { "wallet", configuration["Services:Wallet:Url"] ?? "http://wallet-service" },
+            { "register", configuration["Services:Register:Url"] ?? "http://register-service" },
             { "peer", configuration["Services:Peer:Url"] ?? "http://peer-service" },
             // Add more services as they're created
         };
