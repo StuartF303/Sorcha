@@ -52,7 +52,7 @@ public interface IJsonEEvaluator
     /// </summary>
     /// <param name="template">The template to validate.</param>
     /// <returns>Validation result with any errors found.</returns>
-    Task<ValidationResult> ValidateTemplateAsync(JsonNode template);
+    Task<TemplateValidationResult> ValidateTemplateAsync(JsonNode template);
 
     /// <summary>
     /// Evaluate with detailed trace information for debugging.
@@ -70,7 +70,7 @@ public interface IJsonEEvaluator
 /// <summary>
 /// Result of template validation
 /// </summary>
-public class ValidationResult
+public class TemplateValidationResult
 {
     /// <summary>
     /// Whether the template is valid
@@ -87,9 +87,9 @@ public class ValidationResult
     /// </summary>
     public List<string> Warnings { get; set; } = new();
 
-    public static ValidationResult Success() => new() { IsValid = true };
+    public static TemplateValidationResult Success() => new() { IsValid = true };
 
-    public static ValidationResult Failure(params string[] errors) => new()
+    public static TemplateValidationResult Failure(params string[] errors) => new()
     {
         IsValid = false,
         Errors = errors.ToList()

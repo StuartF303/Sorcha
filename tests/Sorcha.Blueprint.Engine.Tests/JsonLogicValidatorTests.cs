@@ -3,7 +3,7 @@
 
 using System.Text.Json.Nodes;
 using FluentAssertions;
-using JsonSchema.Net;
+using Json.Schema;
 using Sorcha.Blueprint.Engine.Validation;
 using Xunit;
 
