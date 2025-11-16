@@ -468,7 +468,7 @@ public class ExecutionEngineTests
             {
                 new()
                 {
-                    Id = "action1",
+                    Id = 1,
                     Title = "Action 1",
                     Form = new BpModels.Control
                     {
@@ -486,7 +486,7 @@ public class ExecutionEngineTests
                 },
                 new()
                 {
-                    Id = "action2",
+                    Id = 2,
                     Title = "Action 2"
                 }
             },
@@ -573,7 +573,7 @@ public class ExecutionEngineTests
     {
         return new BpModels.Action
         {
-            Id = "action1",
+            Id = 1,
             Title = "Test Action",
             Calculations = new Dictionary<string, JsonNode>
             {
