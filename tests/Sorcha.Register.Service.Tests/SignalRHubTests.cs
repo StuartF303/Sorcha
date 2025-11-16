@@ -1,0 +1,355 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+using System.Net.Http.Json;
+using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.SignalR.Client;
+using Sorcha.Register.Models;
+using Xunit;
+
+namespace Sorcha.Register.Service.Tests;
+
+public class SignalRHubTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
+{
+    private readonly WebApplicationFactory<Program> _factory;
+    private readonly HttpClient _client;
+    private HubConnection? _hubConnection;
+    private readonly List<string> _receivedMessages = new();
+
+    public SignalRHubTests(WebApplicationFactory<Program> factory)
+    {
+        _factory = factory;
+        _client = factory.CreateClient();
+    }
+
+    public async Task InitializeAsync()
+    {
+        var hubUrl = _factory.Server.BaseAddress + "hubs/register";
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl, options =>
+            {
+                options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
+            })
+            .Build();
+
+        await _hubConnection.StartAsync();
+    }
+
+    public async Task DisposeAsync()
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+        _client.Dispose();
+    }
+
+    [Fact]
+    public async Task HubConnection_ShouldConnectSuccessfully()
+    {
+        // Assert
+        _hubConnection!.State.Should().Be(HubConnectionState.Connected);
+    }
+
+    [Fact]
+    public async Task SubscribeToRegister_ShouldAllowSubscription()
+    {
+        // Arrange
+        var registerId = "test-register-123";
+
+        // Act
+        var exception = await Record.ExceptionAsync(async () =>
+            await _hubConnection!.InvokeAsync("SubscribeToRegister", registerId));
+
+        // Assert
+        exception.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UnsubscribeFromRegister_ShouldAllowUnsubscription()
+    {
+        // Arrange
+        var registerId = "test-register-123";
+        await _hubConnection!.InvokeAsync("SubscribeToRegister", registerId);
+
+        // Act
+        var exception = await Record.ExceptionAsync(async () =>
+            await _hubConnection.InvokeAsync("UnsubscribeFromRegister", registerId));
+
+        // Assert
+        exception.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SubscribeToTenant_ShouldAllowSubscription()
+    {
+        // Arrange
+        var tenantId = "test-tenant-123";
+
+        // Act
+        var exception = await Record.ExceptionAsync(async () =>
+            await _hubConnection!.InvokeAsync("SubscribeToTenant", tenantId));
+
+        // Assert
+        exception.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UnsubscribeFromTenant_ShouldAllowUnsubscription()
+    {
+        // Arrange
+        var tenantId = "test-tenant-123";
+        await _hubConnection!.InvokeAsync("SubscribeToTenant", tenantId);
+
+        // Act
+        var exception = await Record.ExceptionAsync(async () =>
+            await _hubConnection.InvokeAsync("UnsubscribeFromTenant", tenantId));
+
+        // Assert
+        exception.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RegisterCreated_ShouldReceiveEvent()
+    {
+        // Arrange
+        var tenantId = "signalr-test-tenant";
+        var registerCreatedReceived = false;
+        string? receivedRegisterId = null;
+        string? receivedName = null;
+
+        _hubConnection!.On<string, string>("RegisterCreated", (registerId, name) =>
+        {
+            registerCreatedReceived = true;
+            receivedRegisterId = registerId;
+            receivedName = name;
+        });
+
+        await _hubConnection.InvokeAsync("SubscribeToTenant", tenantId);
+
+        // Act
+        var createRequest = new
+        {
+            name = "SignalR Test Register",
+            tenantId = tenantId,
+            advertise = false,
+            isFullReplica = true
+        };
+        var response = await _client.PostAsJsonAsync("/api/registers", createRequest);
+        var register = await response.Content.ReadFromJsonAsync<RegisterResponse>();
+
+        // Wait for event
+        await Task.Delay(1000);
+
+        // Assert
+        registerCreatedReceived.Should().BeTrue();
+        receivedRegisterId.Should().Be(register!.Id);
+        receivedName.Should().Be("SignalR Test Register");
+    }
+
+    [Fact]
+    public async Task RegisterDeleted_ShouldReceiveEvent()
+    {
+        // Arrange
+        var tenantId = "signalr-delete-tenant";
+        var registerDeletedReceived = false;
+        string? receivedRegisterId = null;
+
+        _hubConnection!.On<string>("RegisterDeleted", (registerId) =>
+        {
+            registerDeletedReceived = true;
+            receivedRegisterId = registerId;
+        });
+
+        await _hubConnection.InvokeAsync("SubscribeToTenant", tenantId);
+
+        // Create a register
+        var createRequest = new
+        {
+            name = "To Delete",
+            tenantId = tenantId
+        };
+        var createResponse = await _client.PostAsJsonAsync("/api/registers", createRequest);
+        var register = await createResponse.Content.ReadFromJsonAsync<RegisterResponse>();
+
+        await Task.Delay(500); // Allow create event to process
+
+        // Act
+        await _client.DeleteAsync($"/api/registers/{register!.Id}?tenantId={tenantId}");
+
+        // Wait for event
+        await Task.Delay(1000);
+
+        // Assert
+        registerDeletedReceived.Should().BeTrue();
+        receivedRegisterId.Should().Be(register.Id);
+    }
+
+    [Fact]
+    public async Task TransactionConfirmed_ShouldReceiveEvent()
+    {
+        // Arrange
+        var transactionConfirmedReceived = false;
+        string? receivedRegisterId = null;
+        string? receivedTransactionId = null;
+
+        _hubConnection!.On<string, string>("TransactionConfirmed", (registerId, transactionId) =>
+        {
+            transactionConfirmedReceived = true;
+            receivedRegisterId = registerId;
+            receivedTransactionId = transactionId;
+        });
+
+        // Create a register
+        var createRequest = new { name = "SignalR Tx Test", tenantId = "tx-test-tenant" };
+        var createResponse = await _client.PostAsJsonAsync("/api/registers", createRequest);
+        var register = await createResponse.Content.ReadFromJsonAsync<RegisterResponse>();
+
+        await _hubConnection.InvokeAsync("SubscribeToRegister", register!.Id);
+
+        // Act
+        var transaction = CreateValidTransaction(register.Id);
+        var txResponse = await _client.PostAsJsonAsync($"/api/registers/{register.Id}/transactions", transaction);
+        var submittedTx = await txResponse.Content.ReadFromJsonAsync<TransactionModel>();
+
+        // Wait for event
+        await Task.Delay(1000);
+
+        // Assert
+        transactionConfirmedReceived.Should().BeTrue();
+        receivedRegisterId.Should().Be(register.Id);
+        receivedTransactionId.Should().Be(submittedTx!.TxId);
+    }
+
+    [Fact]
+    public async Task MultipleClients_ShouldReceiveSameEvent()
+    {
+        // Arrange
+        var tenantId = "multi-client-tenant";
+
+        // Create second hub connection
+        var hubUrl = _factory.Server.BaseAddress + "hubs/register";
+        var hubConnection2 = new HubConnectionBuilder()
+            .WithUrl(hubUrl, options =>
+            {
+                options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
+            })
+            .Build();
+        await hubConnection2.StartAsync();
+
+        var client1Received = false;
+        var client2Received = false;
+
+        _hubConnection!.On<string, string>("RegisterCreated", (_, _) => client1Received = true);
+        hubConnection2.On<string, string>("RegisterCreated", (_, _) => client2Received = true);
+
+        await _hubConnection.InvokeAsync("SubscribeToTenant", tenantId);
+        await hubConnection2.InvokeAsync("SubscribeToTenant", tenantId);
+
+        // Act
+        var createRequest = new { name = "Multi-Client Test", tenantId = tenantId };
+        await _client.PostAsJsonAsync("/api/registers", createRequest);
+
+        // Wait for events
+        await Task.Delay(1000);
+
+        // Assert
+        client1Received.Should().BeTrue();
+        client2Received.Should().BeTrue();
+
+        // Cleanup
+        await hubConnection2.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task UnsubscribedClient_ShouldNotReceiveEvent()
+    {
+        // Arrange
+        var tenantId = "unsubscribed-tenant";
+        var eventReceived = false;
+
+        _hubConnection!.On<string, string>("RegisterCreated", (_, _) => eventReceived = true);
+
+        // Don't subscribe to tenant
+
+        // Act
+        var createRequest = new { name = "Unsubscribed Test", tenantId = tenantId };
+        await _client.PostAsJsonAsync("/api/registers", createRequest);
+
+        // Wait
+        await Task.Delay(1000);
+
+        // Assert
+        eventReceived.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RegisterSubscription_ShouldOnlyReceiveRegisterSpecificEvents()
+    {
+        // Arrange
+        var register1ReceivedEvent = false;
+        var register2ReceivedEvent = false;
+
+        _hubConnection!.On<string, string>("TransactionConfirmed", (registerId, _) =>
+        {
+            if (registerId == "register1") register1ReceivedEvent = true;
+            if (registerId == "register2") register2ReceivedEvent = true;
+        });
+
+        // Create two registers
+        var reg1 = await CreateTestRegisterAsync("Register 1", "test-tenant");
+        var reg2 = await CreateTestRegisterAsync("Register 2", "test-tenant");
+
+        // Subscribe only to register 1
+        await _hubConnection.InvokeAsync("SubscribeToRegister", reg1.Id);
+
+        // Act - Submit transaction to register 1
+        var tx = CreateValidTransaction(reg1.Id);
+        await _client.PostAsJsonAsync($"/api/registers/{reg1.Id}/transactions", tx);
+
+        await Task.Delay(1000);
+
+        // Assert
+        register1ReceivedEvent.Should().BeTrue();
+        register2ReceivedEvent.Should().BeFalse();
+    }
+
+    private async Task<RegisterResponse> CreateTestRegisterAsync(string name, string tenantId)
+    {
+        var request = new { name, tenantId, advertise = false, isFullReplica = true };
+        var response = await _client.PostAsJsonAsync("/api/registers", request);
+        return (await response.Content.ReadFromJsonAsync<RegisterResponse>())!;
+    }
+
+    private TransactionModel CreateValidTransaction(string registerId)
+    {
+        var txId = Guid.NewGuid().ToString("N") + new string('0', 64);
+        txId = txId.Substring(0, 64);
+
+        return new TransactionModel
+        {
+            RegisterId = registerId,
+            TxId = txId,
+            PrevTxId = string.Empty,
+            Version = 1,
+            SenderWallet = "sender_wallet",
+            RecipientsWallets = new[] { "recipient_wallet" },
+            TimeStamp = DateTime.UtcNow,
+            PayloadCount = 1,
+            Payloads = new[]
+            {
+                new PayloadModel
+                {
+                    WalletAccess = new[] { "sender_wallet" },
+                    PayloadSize = 1024,
+                    Hash = "hash",
+                    Data = "data"
+                }
+            },
+            Signature = "signature"
+        };
+    }
+
+    private record RegisterResponse(string Id, string Name, string TenantId);
+}
