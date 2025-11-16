@@ -419,4 +419,90 @@ public class WalletManager : IWalletService
             throw;
         }
     }
+
+    /// <summary>
+    /// Decrypts a payload using the wallet's private key
+    /// </summary>
+    /// <param name="walletAddress">Wallet address</param>
+    /// <param name="encryptedPayload">Encrypted payload bytes</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Decrypted payload</returns>
+    public async Task<byte[]> DecryptPayloadAsync(
+        string walletAddress,
+        byte[] encryptedPayload,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(walletAddress))
+            throw new ArgumentException("Wallet address cannot be empty", nameof(walletAddress));
+        if (encryptedPayload == null || encryptedPayload.Length == 0)
+            throw new ArgumentException("Encrypted payload cannot be empty", nameof(encryptedPayload));
+
+        try
+        {
+            var wallet = await _repository.GetByAddressAsync(walletAddress, false, false, false, cancellationToken);
+            if (wallet == null)
+            {
+                throw new InvalidOperationException($"Wallet {walletAddress} not found");
+            }
+
+            // Decrypt private key
+            var privateKey = await _keyManagement.DecryptPrivateKeyAsync(
+                wallet.EncryptedPrivateKey,
+                wallet.EncryptionKeyId);
+
+            // Decrypt payload
+            var decryptedPayload = await _transactionService.DecryptPayloadAsync(
+                encryptedPayload, privateKey, wallet.Algorithm);
+
+            _logger.LogInformation("Decrypted payload for wallet {Address}", walletAddress);
+            return decryptedPayload;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to decrypt payload for wallet {Address}", walletAddress);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Encrypts a payload for a recipient wallet
+    /// </summary>
+    /// <param name="recipientAddress">Recipient wallet address</param>
+    /// <param name="payload">Payload bytes to encrypt</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Encrypted payload</returns>
+    public async Task<byte[]> EncryptPayloadAsync(
+        string recipientAddress,
+        byte[] payload,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(recipientAddress))
+            throw new ArgumentException("Recipient address cannot be empty", nameof(recipientAddress));
+        if (payload == null || payload.Length == 0)
+            throw new ArgumentException("Payload cannot be empty", nameof(payload));
+
+        try
+        {
+            var recipientWallet = await _repository.GetByAddressAsync(recipientAddress, false, false, false, cancellationToken);
+            if (recipientWallet == null)
+            {
+                throw new InvalidOperationException($"Recipient wallet {recipientAddress} not found");
+            }
+
+            // Get recipient's public key
+            var publicKey = Convert.FromHexString(recipientWallet.PublicKey);
+
+            // Encrypt payload
+            var encryptedPayload = await _transactionService.EncryptPayloadAsync(
+                payload, publicKey, recipientWallet.Algorithm);
+
+            _logger.LogInformation("Encrypted payload for recipient {Address}", recipientAddress);
+            return encryptedPayload;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to encrypt payload for recipient {Address}", recipientAddress);
+            throw;
+        }
+    }
 }

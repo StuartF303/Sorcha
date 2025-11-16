@@ -1,43 +1,26 @@
-using Sorcha.Cryptography;
-using Sorcha.Cryptography.Core;
-using Sorcha.Cryptography.Interfaces;
-using Sorcha.WalletService.Encryption.Interfaces;
-using Sorcha.WalletService.Encryption.Providers;
-using Sorcha.WalletService.Events.Interfaces;
-using Sorcha.WalletService.Events.Publishers;
-using Sorcha.WalletService.Repositories.Implementation;
-using Sorcha.WalletService.Repositories.Interfaces;
-using Sorcha.WalletService.Services.Implementation;
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+using Sorcha.WalletService.Api.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
+// Add Aspire service defaults (health checks, OpenTelemetry, service discovery)
+builder.AddServiceDefaults();
+
+// Add Wallet Service infrastructure and domain services
+builder.Services.AddWalletService();
+
+// Add API services
 builder.Services.AddControllers();
 
 // Configure OpenAPI (built-in .NET 10)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
-// Register Sorcha.Cryptography services
-builder.Services.AddSingleton<ICryptoModule, CryptoModule>();
-builder.Services.AddSingleton<IHashProvider, HashProvider>();
-builder.Services.AddSingleton<IWalletUtilities, Sorcha.Cryptography.Utilities.WalletUtilities>();
-
-// Register WalletService infrastructure
-builder.Services.AddSingleton<IEncryptionProvider, LocalEncryptionProvider>();
-builder.Services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
-builder.Services.AddSingleton<IWalletRepository, InMemoryWalletRepository>();
-
-// Register WalletService domain services
-builder.Services.AddScoped<KeyManagementService>();
-builder.Services.AddScoped<TransactionService>();
-builder.Services.AddScoped<DelegationService>();
-builder.Services.AddScoped<WalletManager>();
-
-// Configure logging
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
+// Add Wallet Service health checks
+builder.Services.AddHealthChecks()
+    .AddWalletServiceHealthChecks();
 
 // Configure CORS (for development)
 builder.Services.AddCors(options =>
@@ -51,6 +34,9 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Map default Aspire endpoints (/health, /alive)
+app.MapDefaultEndpoints();
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
