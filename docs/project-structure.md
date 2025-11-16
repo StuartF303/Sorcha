@@ -178,20 +178,20 @@ Common/
 
 | Project Type | Target Framework(s) | Reason |
 |--------------|-------------------|---------|
-| Apps/ (except Blazor WASM) | `net10.0` | Latest .NET for full framework features |
-| Blazor WASM | `net9.0` | Package compatibility with Blazor WASM |
-| Common/ libraries | `net9.0;net10.0` | Multi-target for Blazor WASM compatibility |
-| Core/ libraries | `net9.0;net10.0` | Multi-target for Blazor WASM compatibility |
+| Apps/ | `net10.0` | Latest .NET for full framework features |
+| Common/ libraries | `net10.0` | Latest .NET for all libraries |
+| Core/ libraries | `net10.0` | Latest .NET for all libraries |
 | Services/ | `net10.0` | Backend services use latest .NET |
-| Tests | `net9.0;net10.0` or `net10.0` | Match project under test |
+| Tests | `net10.0` | Match project under test |
 
-### Multi-Targeting Requirements
+### Target Framework Standard
 
-Projects that are referenced by Blazor WASM **MUST** multi-target `net9.0;net10.0`:
+All projects in the Sorcha solution target `net10.0`:
 - Sorcha.Blueprint.Models
 - Sorcha.Blueprint.Fluent
 - Sorcha.Blueprint.Schemas
-- Sorcha.Cryptography (if used by client)
+- Sorcha.Cryptography
+- All other projects
 
 ## Naming Conventions
 
@@ -229,8 +229,7 @@ Projects that are referenced by Blazor WASM **MUST** multi-target `net9.0;net10.
 2. ✅ Follow naming conventions
 
 3. ✅ Set correct target framework:
-   - Used by Blazor WASM? → `net9.0;net10.0`
-   - Backend only? → `net10.0`
+   - All projects → `net10.0`
 
 4. ✅ Add to solution file:
    ```bash
@@ -270,13 +269,13 @@ Common/ → Core/ → Common/   # Circular!
 
 **Solution**: Common should never depend on Core or Apps.
 
-### ❌ Wrong: Single Target for Shared Libraries
+### ❌ Wrong: Incorrect Target Framework
 
 ```xml
-<TargetFramework>net10.0</TargetFramework>   # Used by Blazor WASM (net9.0)!
+<TargetFramework>net8.0</TargetFramework>   # Outdated!
 ```
 
-**Solution**: Use `<TargetFrameworks>net9.0;net10.0</TargetFrameworks>` for shared libraries.
+**Solution**: Use `<TargetFramework>net10.0</TargetFramework>` for all projects.
 
 ## Migration Guide
 

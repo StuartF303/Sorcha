@@ -62,7 +62,7 @@ Implement BenchmarkDotNet performance benchmarks to measure and validate cryptog
 ## Benchmark Configuration
 ```csharp
 [MemoryDiagnoser]
-[SimpleJob(RuntimeMoniker.Net90)]
+[SimpleJob(RuntimeMoniker.Net100)]
 public class CryptoBenchmarks
 {
     [Params(1024, 1024 * 1024, 10 * 1024 * 1024)]

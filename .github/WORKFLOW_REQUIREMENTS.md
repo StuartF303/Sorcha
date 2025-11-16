@@ -171,7 +171,7 @@ When adding a new component, update workflows:
 - Only components in the `Common` or `Core` layers
 - Must have a `.csproj` with `<IsPackable>true</IsPackable>` (or no setting, defaults to true)
 - Must have proper package metadata (Version, Authors, Description)
-- Must be multi-targeted if applicable (e.g., net9.0;net10.0)
+- Must target net10.0
 
 **Publishing Conditions:**
 - Component source code has changed
@@ -238,7 +238,6 @@ Standard environment variables used across workflows:
 
 ```yaml
 env:
-  DOTNET_VERSION_9: '9.0.x'
   DOTNET_VERSION_10: '10.0.x'
   AZURE_RESOURCE_GROUP: sorcha
   AZURE_LOCATION: uksouth

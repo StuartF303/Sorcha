@@ -20,7 +20,7 @@
 
 ```csharp
 [MemoryDiagnoser]
-[SimpleJob(RuntimeMoniker.Net90)]
+[SimpleJob(RuntimeMoniker.Net100)]
 public class TransactionBenchmarks
 {
     [Benchmark]

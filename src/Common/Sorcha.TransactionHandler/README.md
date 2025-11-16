@@ -139,7 +139,7 @@ The library is organized into the following namespaces:
 ## Dependencies
 
 - **Sorcha.Cryptography** (>= 2.0.0): Cryptographic operations
-- **.NET 9.0 or .NET 10.0**: Target frameworks
+- **.NET 10.0**: Target framework
 
 ## Testing
 

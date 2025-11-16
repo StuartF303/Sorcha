@@ -4,7 +4,7 @@ This document describes the modernized Sorcha project structure, created from th
 
 ## Migration Summary
 
-**Source**: SiccarV3 (.NET 8/9, legacy architecture)
+**Source**: SiccarV3 (.NET 8, legacy architecture)
 **Target**: Sorcha (.NET 10, modern cloud-native architecture)
 
 ### Key Modernizations
