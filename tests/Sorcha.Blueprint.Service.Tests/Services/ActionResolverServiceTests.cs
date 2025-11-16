@@ -1,0 +1,286 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
+using Sorcha.Blueprint.Service.Services.Implementation;
+using Sorcha.Blueprint.Service.Services.Interfaces;
+using System.Text;
+using System.Text.Json;
+using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
+using ActionModel = Sorcha.Blueprint.Models.Action;
+using ParticipantModel = Sorcha.Blueprint.Models.Participant;
+
+namespace Sorcha.Blueprint.Service.Tests.Services;
+
+public class ActionResolverServiceTests
+{
+    private readonly Mock<IBlueprintStore> _mockBlueprintStore;
+    private readonly Mock<IDistributedCache> _mockCache;
+    private readonly Mock<ILogger<ActionResolverService>> _mockLogger;
+    private readonly ActionResolverService _service;
+
+    public ActionResolverServiceTests()
+    {
+        _mockBlueprintStore = new Mock<IBlueprintStore>();
+        _mockCache = new Mock<IDistributedCache>();
+        _mockLogger = new Mock<ILogger<ActionResolverService>>();
+        _service = new ActionResolverService(
+            _mockBlueprintStore.Object,
+            _mockCache.Object,
+            _mockLogger.Object);
+    }
+
+    [Fact]
+    public async Task GetBlueprintAsync_WithValidId_ReturnsBlueprint()
+    {
+        // Arrange
+        var blueprintId = "test-blueprint-1";
+        var blueprint = new BlueprintModel
+        {
+            Id = blueprintId,
+            Title = "Test Blueprint",
+            Description = "A test blueprint"
+        };
+
+        _mockCache.Setup(x => x.GetAsync(
+            It.Is<string>(k => k == $"blueprint:{blueprintId}"),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync((byte[]?)null);
+
+        _mockBlueprintStore.Setup(x => x.GetAsync(blueprintId))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _service.GetBlueprintAsync(blueprintId);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(blueprintId);
+        result.Title.Should().Be("Test Blueprint");
+
+        _mockBlueprintStore.Verify(x => x.GetAsync(blueprintId), Times.Once);
+        _mockCache.Verify(x => x.SetAsync(
+            It.Is<string>(k => k == $"blueprint:{blueprintId}"),
+            It.IsAny<byte[]>(),
+            It.IsAny<DistributedCacheEntryOptions>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetBlueprintAsync_WithCachedBlueprint_ReturnsCachedVersion()
+    {
+        // Arrange
+        var blueprintId = "test-blueprint-1";
+        var blueprint = new BlueprintModel
+        {
+            Id = blueprintId,
+            Title = "Cached Blueprint"
+        };
+
+        var cachedData = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(blueprint));
+        _mockCache.Setup(x => x.GetAsync(
+            It.Is<string>(k => k == $"blueprint:{blueprintId}"),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(cachedData);
+
+        // Act
+        var result = await _service.GetBlueprintAsync(blueprintId);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(blueprintId);
+        result.Title.Should().Be("Cached Blueprint");
+
+        _mockBlueprintStore.Verify(x => x.GetAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetBlueprintAsync_WithNonExistentId_ReturnsNull()
+    {
+        // Arrange
+        var blueprintId = "non-existent";
+
+        _mockCache.Setup(x => x.GetAsync(
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync((byte[]?)null);
+
+        _mockBlueprintStore.Setup(x => x.GetAsync(blueprintId))
+            .ReturnsAsync((BlueprintModel?)null);
+
+        // Act
+        var result = await _service.GetBlueprintAsync(blueprintId);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetBlueprintAsync_WithNullId_ThrowsArgumentException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _service.GetBlueprintAsync(null!));
+    }
+
+    [Fact]
+    public async Task GetBlueprintAsync_WithEmptyId_ThrowsArgumentException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _service.GetBlueprintAsync(""));
+    }
+
+    [Fact]
+    public void GetActionDefinition_WithValidAction_ReturnsAction()
+    {
+        // Arrange
+        var actionId = "action-1";
+        var blueprint = new BlueprintModel
+        {
+            Id = "blueprint-1",
+            Actions = new List<ActionModel>
+            {
+                new ActionModel { Id = actionId, Title = "Test Action" },
+                new ActionModel { Id = "action-2", Title = "Another Action" }
+            }
+        };
+
+        // Act
+        var result = _service.GetActionDefinition(blueprint, actionId);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(actionId);
+        result.Title.Should().Be("Test Action");
+    }
+
+    [Fact]
+    public void GetActionDefinition_WithNonExistentAction_ReturnsNull()
+    {
+        // Arrange
+        var blueprint = new BlueprintModel
+        {
+            Id = "blueprint-1",
+            Actions = new List<ActionModel>
+            {
+                new ActionModel { Id = "action-1", Title = "Test Action" }
+            }
+        };
+
+        // Act
+        var result = _service.GetActionDefinition(blueprint, "non-existent");
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void GetActionDefinition_WithNullBlueprint_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(
+            () => _service.GetActionDefinition(null!, "action-1"));
+    }
+
+    [Fact]
+    public void GetActionDefinition_WithNullActionId_ThrowsArgumentException()
+    {
+        // Arrange
+        var blueprint = new BlueprintModel { Id = "blueprint-1" };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(
+            () => _service.GetActionDefinition(blueprint, null!));
+    }
+
+    [Fact]
+    public async Task ResolveParticipantWalletsAsync_WithValidParticipants_ReturnsWalletMap()
+    {
+        // Arrange
+        var blueprint = new BlueprintModel
+        {
+            Id = "blueprint-1",
+            Participants = new List<ParticipantModel>
+            {
+                new ParticipantModel { Id = "participant-1", Name = "Alice" },
+                new ParticipantModel { Id = "participant-2", Name = "Bob" }
+            }
+        };
+
+        var participantIds = new[] { "participant-1", "participant-2" };
+
+        // Act
+        var result = await _service.ResolveParticipantWalletsAsync(blueprint, participantIds);
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().ContainKey("participant-1");
+        result.Should().ContainKey("participant-2");
+        result["participant-1"].Should().Contain("alice");
+        result["participant-2"].Should().Contain("bob");
+    }
+
+    [Fact]
+    public async Task ResolveParticipantWalletsAsync_WithNonExistentParticipant_SkipsInvalid()
+    {
+        // Arrange
+        var blueprint = new BlueprintModel
+        {
+            Id = "blueprint-1",
+            Participants = new List<ParticipantModel>
+            {
+                new ParticipantModel { Id = "participant-1", Name = "Alice" }
+            }
+        };
+
+        var participantIds = new[] { "participant-1", "non-existent" };
+
+        // Act
+        var result = await _service.ResolveParticipantWalletsAsync(blueprint, participantIds);
+
+        // Assert
+        result.Should().HaveCount(1);
+        result.Should().ContainKey("participant-1");
+        result.Should().NotContainKey("non-existent");
+    }
+
+    [Fact]
+    public async Task ResolveParticipantWalletsAsync_WithEmptyList_ReturnsEmpty()
+    {
+        // Arrange
+        var blueprint = new BlueprintModel
+        {
+            Id = "blueprint-1",
+            Participants = new List<ParticipantModel>()
+        };
+
+        var participantIds = Array.Empty<string>();
+
+        // Act
+        var result = await _service.ResolveParticipantWalletsAsync(blueprint, participantIds);
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ResolveParticipantWalletsAsync_WithNullBlueprint_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => _service.ResolveParticipantWalletsAsync(null!, new[] { "p1" }));
+    }
+
+    [Fact]
+    public async Task ResolveParticipantWalletsAsync_WithNullParticipantIds_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var blueprint = new BlueprintModel { Id = "blueprint-1" };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => _service.ResolveParticipantWalletsAsync(blueprint, null!));
+    }
+}
