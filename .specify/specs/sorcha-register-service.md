@@ -1,8 +1,9 @@
 # Sorcha.Register.Service Specification
 
-**Version:** 2.0
-**Date:** 2025-11-13
+**Version:** 2.1
+**Date:** 2025-11-16
 **Status:** Proposed
+**Last Updated:** 2025-11-16 - Architectural refinement: Moved DocketManager and ChainValidator to Validator.Service
 **Related Constitution:** [constitution.md](../constitution.md)
 **Related Specifications:**
 - [sorcha-cryptography-rewrite.md](sorcha-cryptography-rewrite.md)
@@ -69,6 +70,37 @@ The Sorcha Register Service is based on the proven architecture from previous bu
 ⚠️ **This service is being specified for implementation**
 
 A placeholder specification exists at `.specify/specs/sorcha-register-service.md` with minimal interface definitions. The Wallet Service is designed to gracefully degrade if the Register Service is unavailable.
+
+### Architectural Refinement (2025-11-16)
+
+**Component Relocation for Security:**
+
+As part of the security architecture refinement, the following components have been moved from `Sorcha.Register.Core` to `Sorcha.Validator.Service`:
+
+1. **DocketManager** - Now in `Sorcha.Validator.Service/Managers/`
+   - Reason: Performs cryptographic operations (SHA256 hashing) requiring secured environment
+   - Requires access to encryption keys for docket integrity operations
+   - Better isolation for security-sensitive blockchain operations
+
+2. **ChainValidator** - Now in `Sorcha.Validator.Service/Validators/`
+   - Reason: Validates chain integrity using cryptographic hash verification
+   - Critical security component requiring isolated execution
+   - Supports future enclave deployment (Intel SGX/AMD SEV)
+
+**Impact on Register.Service:**
+- Register.Service focuses on storage and retrieval (repository pattern)
+- Validation and consensus logic isolated in Validator.Service
+- Clean separation of concerns: Storage vs. Validation
+- Both services communicate via well-defined interfaces
+
+**Rationale:**
+This separation ensures:
+1. **Security Isolation**: Cryptographic operations run in secured environment
+2. **Separation of Concerns**: Storage separate from validation/consensus
+3. **Zero-Trust Architecture**: Security-sensitive components have explicit boundaries
+4. **Future Enclave Support**: Validator logic can run in secure enclaves (SGX/SEV)
+
+See [Validator Service Design](../../docs/validator-service-design.md) for complete details.
 
 ## Core Concepts
 
