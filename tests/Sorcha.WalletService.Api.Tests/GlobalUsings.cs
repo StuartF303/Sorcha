@@ -1,0 +1,10 @@
+global using Xunit;
+global using Moq;
+global using FluentAssertions;
+global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.Extensions.Logging;
+global using Sorcha.WalletService.Api.Controllers;
+global using Sorcha.WalletService.Api.Models;
+global using Sorcha.WalletService.Domain;
+global using Sorcha.WalletService.Domain.Entities;
+global using Sorcha.WalletService.Services.Implementation;
