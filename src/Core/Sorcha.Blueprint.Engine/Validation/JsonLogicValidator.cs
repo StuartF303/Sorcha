@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Text.Json.Nodes;
-using JsonSchema.Net;
+using Json.Schema;
 using Sorcha.Blueprint.Engine.Interfaces;
 
 namespace Sorcha.Blueprint.Engine.Validation;
@@ -28,7 +28,7 @@ public class JsonLogicValidator
     /// <param name="expression">The JSON Logic expression to validate</param>
     /// <param name="dataSchema">Optional schema to validate variable references against</param>
     /// <returns>Validation result with errors and warnings</returns>
-    public ValidationResult Validate(JsonNode expression, JsonSchema? dataSchema = null)
+    public TemplateValidationResult Validate(JsonNode expression, JsonSchema? dataSchema = null)
     {
         var errors = new List<string>();
         var warnings = new List<string>();
@@ -39,7 +39,7 @@ public class JsonLogicValidator
             if (expression == null)
             {
                 errors.Add("Expression cannot be null");
-                return new ValidationResult { IsValid = false, Errors = errors };
+                return new TemplateValidationResult { IsValid = false, Errors = errors };
             }
 
             // Check complexity
@@ -75,7 +75,7 @@ public class JsonLogicValidator
                 }
             }
 
-            return new ValidationResult
+            return new TemplateValidationResult
             {
                 IsValid = errors.Count == 0,
                 Errors = errors,
@@ -85,7 +85,7 @@ public class JsonLogicValidator
         catch (Exception ex)
         {
             errors.Add($"Validation error: {ex.Message}");
-            return new ValidationResult { IsValid = false, Errors = errors };
+            return new TemplateValidationResult { IsValid = false, Errors = errors };
         }
     }
 

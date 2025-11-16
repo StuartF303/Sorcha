@@ -3,10 +3,10 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
-using JsonSchema.Net;
+using Json.Schema;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Models;
-using ValidationResult = Sorcha.Blueprint.Engine.Interfaces.ValidationResult;
+using ValidationResult = Sorcha.Blueprint.Engine.Interfaces.TemplateValidationResult;
 
 namespace Sorcha.Blueprint.Service.Templates;
 

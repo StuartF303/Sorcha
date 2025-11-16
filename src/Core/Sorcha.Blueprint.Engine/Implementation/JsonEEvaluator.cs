@@ -79,7 +79,7 @@ public class JsonEEvaluator : IJsonEEvaluator
     }
 
     /// <inheritdoc />
-    public Task<ValidationResult> ValidateTemplateAsync(JsonNode template)
+    public Task<TemplateValidationResult> ValidateTemplateAsync(JsonNode template)
     {
         ArgumentNullException.ThrowIfNull(template);
 
@@ -91,11 +91,11 @@ public class JsonEEvaluator : IJsonEEvaluator
                 var emptyContext = JsonNode.Parse("{}")!;
                 _ = template.Evaluate(emptyContext);
 
-                return ValidationResult.Success();
+                return TemplateValidationResult.Success();
             }
             catch (Exception ex)
             {
-                return ValidationResult.Failure($"Template validation failed: {ex.Message}");
+                return TemplateValidationResult.Failure($"Template validation failed: {ex.Message}");
             }
         });
     }
