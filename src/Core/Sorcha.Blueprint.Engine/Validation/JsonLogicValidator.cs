@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Json.Schema;
 using Sorcha.Blueprint.Engine.Interfaces;
