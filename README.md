@@ -4,27 +4,35 @@ A modern .NET 10 blueprint execution engine and designer for data flow orchestra
 
 ## Development Status
 
-**Current Stage:** Active Development (75% Complete) | [View Detailed Status Report](docs/development-status.md)
+**Current Stage:** Active Development - MVD Phase (80% Complete) | [View Detailed Status Report](docs/development-status.md)
 
 | Component | Status | Completion |
 |-----------|--------|------------|
-| Core Libraries | Production Ready | 90% |
+| Core Libraries | Production Ready | 95% |
 | **⭐ Execution Engine (Portable)** | **✅ COMPLETE** | **100%** |
-| Services & APIs | In Development | 60% |
+| **⭐ Wallet Service** | **✅ Core Complete** | **90%** |
+| Services & APIs | Enhanced | 85% |
 | Testing & CI/CD | Production Ready | 95% |
 
-**Recent Update (2025-11-15):** Portable execution engine completed! Fully tested with 93 unit tests + 9 integration tests.
+**Recent Updates (2025-11-16):**
+- ✅ Wallet Service API Phase 2 complete with comprehensive tests (WS-030, WS-031)
+- ✅ Blueprint-Action Service Sprints 3, 4, 5 completed
+- ✅ SignalR real-time notifications with Redis backplane
+- ✅ Validator Service design and implementation plan complete
+- ✅ Register and Wallet Service infrastructure integration
 
 **Key Milestones:**
 - ✅ Blueprint modeling and fluent API
 - ✅ REST API for blueprint management
 - ✅ Cryptography and transaction handling
 - ✅ Production-grade CI/CD pipeline
-- **✅ NEW: Portable execution engine complete (client + server side)**
-- **✅ NEW: Comprehensive unit and integration test coverage**
-- **⭐ NEW: Unified Blueprint-Action service architecture designed**
-- 🚧 Service layer integration (next up)
-- 🚧 API endpoints for action management
+- ✅ Portable execution engine complete (client + server side)
+- ✅ Comprehensive unit and integration test coverage (102+ tests for engine alone)
+- ✅ **Unified Blueprint-Action service with SignalR**
+- ✅ **Wallet Service core implementation and API endpoints**
+- ✅ **Execution helper endpoints for client-side validation**
+- 🚧 Register Service full implementation (stub exists)
+- 🚧 Wallet Service EF Core repository and production deployment
 - 🚧 Transaction processing in P2P service
 
 See the [detailed development status](docs/development-status.md) for complete information on modules, testing coverage, and infrastructure.
@@ -45,12 +53,24 @@ Sorcha is a modernized, cloud-native platform for defining, designing, and execu
   - ✅ Comprehensive test coverage: 93 unit tests + 9 integration tests
   - ✅ Real-world scenarios tested: loan applications, purchase orders, multi-step surveys
 
-- **Unified Blueprint-Action Service**: Complete workflow management
-  - Blueprint CRUD operations and versioning
-  - Action retrieval, submission, and rejection
-  - Real-time notifications via SignalR
-  - Integration with Wallet Service (encryption/decryption)
-  - Integration with Register Service (blockchain transactions)
+- **✅ Unified Blueprint-Action Service** (Sprints 3-5 COMPLETE): Complete workflow management
+  - ✅ Blueprint CRUD operations and versioning
+  - ✅ Action retrieval, submission, and rejection (Sprint 4)
+  - ✅ Real-time notifications via SignalR with Redis backplane (Sprint 5)
+  - ✅ Execution helper endpoints (validate, calculate, route, disclose) (Sprint 5)
+  - ✅ File upload/download support
+  - ✅ Integration with Wallet Service (encryption/decryption) (Sprint 3)
+  - ✅ Integration with Register Service (blockchain transactions) (Sprint 3)
+
+- **✅ Wallet Service** (Core COMPLETE): Secure cryptographic wallet management
+  - ✅ HD wallet support with BIP32/BIP39/BIP44 standards
+  - ✅ Multi-algorithm support (ED25519, NIST P-256, RSA-4096)
+  - ✅ Transaction signing and verification
+  - ✅ Payload encryption/decryption
+  - ✅ Access delegation and control
+  - ✅ REST API endpoints (WS-030, WS-031 complete)
+  - 🚧 EF Core repository (pending)
+  - 🚧 Azure Key Vault integration (pending)
 
 - **Blueprint Designer**: Visual designer for creating and managing workflows
   - Blazor WASM client with offline capabilities
