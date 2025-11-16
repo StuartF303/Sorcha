@@ -2,6 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Sorcha.Blueprint.Models;
+using ValidationResult = Sorcha.Blueprint.Engine.Interfaces.TemplateValidationResult;
 
 namespace Sorcha.Blueprint.Service.Templates;
 
