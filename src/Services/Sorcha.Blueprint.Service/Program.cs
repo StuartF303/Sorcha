@@ -39,6 +39,9 @@ builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IActionR
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IPayloadResolverService, Sorcha.Blueprint.Service.Services.Implementation.PayloadResolverService>();
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService, Sorcha.Blueprint.Service.Services.Implementation.TransactionBuilderService>();
 
+// Add Action storage (Sprint 4)
+builder.Services.AddSingleton<Sorcha.Blueprint.Service.Storage.IActionStore, Sorcha.Blueprint.Service.Storage.InMemoryActionStore>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
@@ -374,6 +377,371 @@ templateGroup.MapGet("/{id}/examples/{exampleName}", async (
 .WithName("EvaluateTemplateExample")
 .WithSummary("Evaluate template example")
 .WithDescription("Evaluate a predefined example from the template");
+
+// ===========================
+// Action API Endpoints (Sprint 4)
+// ===========================
+
+var actionsGroup = app.MapGroup("/api/actions")
+    .WithTags("Actions")
+    .WithOpenApi();
+
+/// <summary>
+/// Get available blueprints for a wallet/register combination
+/// </summary>
+actionsGroup.MapGet("/{wallet}/{register}/blueprints", async (
+    string wallet,
+    string register,
+    IPublishedBlueprintStore publishedStore,
+    IBlueprintStore blueprintStore) =>
+{
+    // Get all published blueprints
+    var blueprints = await blueprintStore.GetAllAsync();
+    var availableBlueprints = new List<Sorcha.Blueprint.Service.Models.Responses.BlueprintInfo>();
+
+    foreach (var blueprint in blueprints)
+    {
+        var versions = await publishedStore.GetVersionsAsync(blueprint.Id);
+        var latestVersion = versions.OrderByDescending(v => v.Version).FirstOrDefault();
+
+        if (latestVersion != null)
+        {
+            // For MVP, all actions are available
+            // In future, apply routing rules to filter actions based on workflow state
+            var availableActions = blueprint.Actions
+                .Select(a => new Sorcha.Blueprint.Service.Models.Responses.ActionInfo
+                {
+                    ActionId = a.Id,
+                    Title = a.Title,
+                    Description = a.Description,
+                    IsAvailable = true, // TODO: Apply routing rules
+                    DataSchema = a.Data?.SchemaUri
+                })
+                .ToList();
+
+            availableBlueprints.Add(new Sorcha.Blueprint.Service.Models.Responses.BlueprintInfo
+            {
+                BlueprintId = blueprint.Id,
+                Title = blueprint.Title,
+                Description = blueprint.Description,
+                Version = latestVersion.Version,
+                AvailableActions = availableActions
+            });
+        }
+    }
+
+    var response = new Sorcha.Blueprint.Service.Models.Responses.AvailableBlueprintsResponse
+    {
+        WalletAddress = wallet,
+        RegisterAddress = register,
+        Blueprints = availableBlueprints
+    };
+
+    return Results.Ok(response);
+})
+.WithName("GetAvailableBlueprints")
+.WithSummary("Get available blueprints")
+.WithDescription("Retrieve blueprints and actions available to a specific wallet/register combination")
+.CacheOutput(policy => policy.Expire(TimeSpan.FromMinutes(5)).Tag("blueprints"));
+
+/// <summary>
+/// Get actions for a wallet/register (paginated)
+/// </summary>
+actionsGroup.MapGet("/{wallet}/{register}", async (
+    string wallet,
+    string register,
+    Sorcha.Blueprint.Service.Storage.IActionStore actionStore,
+    int page = 1,
+    int pageSize = 20) =>
+{
+    var skip = (page - 1) * pageSize;
+    var actions = await actionStore.GetActionsAsync(wallet, register, skip, pageSize);
+    var totalCount = await actionStore.GetActionCountAsync(wallet, register);
+
+    var result = new PagedResult<Sorcha.Blueprint.Service.Models.Responses.ActionDetailsResponse>
+    {
+        Items = actions,
+        Page = page,
+        PageSize = pageSize,
+        TotalCount = totalCount,
+        TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+    };
+
+    return Results.Ok(result);
+})
+.WithName("GetActions")
+.WithSummary("Get actions for wallet/register")
+.WithDescription("Retrieve paginated list of actions for a specific wallet and register");
+
+/// <summary>
+/// Get a specific action by transaction hash
+/// </summary>
+actionsGroup.MapGet("/{wallet}/{register}/{tx}", async (
+    string wallet,
+    string register,
+    string tx,
+    Sorcha.Blueprint.Service.Storage.IActionStore actionStore) =>
+{
+    var action = await actionStore.GetActionAsync(tx);
+
+    if (action == null)
+    {
+        return Results.NotFound(new { error = "Action not found" });
+    }
+
+    // Verify the action belongs to this wallet/register
+    if (action.SenderWallet != wallet || action.RegisterAddress != register)
+    {
+        return Results.NotFound(new { error = "Action not found" });
+    }
+
+    return Results.Ok(action);
+})
+.WithName("GetActionDetails")
+.WithSummary("Get action details")
+.WithDescription("Retrieve detailed information about a specific action transaction");
+
+/// <summary>
+/// Submit a new action
+/// </summary>
+actionsGroup.MapPost("/", async (
+    Sorcha.Blueprint.Service.Models.Requests.ActionSubmissionRequest request,
+    Sorcha.Blueprint.Service.Services.Interfaces.IActionResolverService actionResolver,
+    Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService txBuilder,
+    Sorcha.Blueprint.Service.Storage.IActionStore actionStore,
+    Sorcha.Cryptography.Interfaces.IHashProvider hashProvider) =>
+{
+    try
+    {
+        // 1. Get blueprint
+        var blueprint = await actionResolver.GetBlueprintAsync(request.BlueprintId);
+        if (blueprint == null)
+        {
+            return Results.BadRequest(new { error = "Blueprint not found" });
+        }
+
+        // 2. Get action definition
+        var actionDef = actionResolver.GetActionDefinition(blueprint, request.ActionId);
+        if (actionDef == null)
+        {
+            return Results.BadRequest(new { error = "Action not found in blueprint" });
+        }
+
+        // 3. Create encrypted payloads (stub for MVP)
+        var encryptedPayloads = new Dictionary<string, byte[]>
+        {
+            [request.SenderWallet] = System.Text.Encoding.UTF8.GetBytes(
+                System.Text.Json.JsonSerializer.Serialize(request.PayloadData))
+        };
+
+        // 4. Build transaction
+        var transaction = await txBuilder.BuildActionTransactionAsync(
+            request.BlueprintId,
+            request.ActionId,
+            request.InstanceId,
+            request.PreviousTransactionHash,
+            encryptedPayloads,
+            request.SenderWallet,
+            request.RegisterAddress);
+
+        // 5. Calculate transaction hash
+        var txHash = await hashProvider.ComputeHashAsync(
+            System.Text.Encoding.UTF8.GetBytes(transaction.Id ?? Guid.NewGuid().ToString()));
+        var txHashHex = BitConverter.ToString(txHash).Replace("-", "").ToLowerInvariant();
+
+        // 6. Build file transactions if any
+        List<string>? fileHashes = null;
+        if (request.Files != null && request.Files.Any())
+        {
+            var fileAttachments = request.Files.Select(f => new Sorcha.Blueprint.Service.Services.Interfaces.FileAttachment(
+                f.FileName,
+                f.ContentType,
+                Convert.FromBase64String(f.ContentBase64)
+            )).ToList();
+
+            var fileTxs = await txBuilder.BuildFileTransactionsAsync(
+                fileAttachments,
+                txHashHex,
+                request.SenderWallet,
+                request.RegisterAddress);
+
+            fileHashes = new List<string>();
+            var fileMetadataList = new List<Sorcha.Blueprint.Service.Models.Responses.FileMetadata>();
+
+            for (int i = 0; i < fileTxs.Count; i++)
+            {
+                var fileTx = fileTxs[i];
+                var fileHash = await hashProvider.ComputeHashAsync(
+                    System.Text.Encoding.UTF8.GetBytes(fileTx.Id ?? Guid.NewGuid().ToString()));
+                var fileHashHex = BitConverter.ToString(fileHash).Replace("-", "").ToLowerInvariant();
+                fileHashes.Add(fileHashHex);
+
+                // Store file content and metadata
+                var fileAttachment = fileAttachments[i];
+                await actionStore.StoreFileContentAsync(fileHashHex, fileAttachment.Content);
+
+                var fileMeta = new Sorcha.Blueprint.Service.Models.Responses.FileMetadata
+                {
+                    FileId = fileHashHex,
+                    FileName = fileAttachment.FileName,
+                    ContentType = fileAttachment.ContentType,
+                    Size = fileAttachment.Content.Length
+                };
+
+                await actionStore.StoreFileMetadataAsync(txHashHex, fileHashHex, fileMeta);
+                fileMetadataList.Add(fileMeta);
+            }
+        }
+
+        // 7. Generate instance ID if needed
+        var instanceId = request.InstanceId ?? Guid.NewGuid().ToString();
+
+        // 8. Store action
+        var actionDetails = new Sorcha.Blueprint.Service.Models.Responses.ActionDetailsResponse
+        {
+            TransactionHash = txHashHex,
+            BlueprintId = request.BlueprintId,
+            ActionId = request.ActionId,
+            InstanceId = instanceId,
+            SenderWallet = request.SenderWallet,
+            RegisterAddress = request.RegisterAddress,
+            PayloadData = request.PayloadData,
+            Timestamp = DateTimeOffset.UtcNow,
+            PreviousTransactionHash = request.PreviousTransactionHash
+        };
+
+        await actionStore.StoreActionAsync(actionDetails);
+
+        // 9. Return response
+        var response = new Sorcha.Blueprint.Service.Models.Responses.ActionSubmissionResponse
+        {
+            TransactionHash = txHashHex,
+            InstanceId = instanceId,
+            SerializedTransaction = System.Text.Json.JsonSerializer.Serialize(transaction),
+            FileTransactionHashes = fileHashes,
+            Timestamp = DateTimeOffset.UtcNow
+        };
+
+        return Results.Ok(response);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("SubmitAction")
+.WithSummary("Submit an action")
+.WithDescription("Submit a new action for execution in a blueprint workflow");
+
+/// <summary>
+/// Reject a pending action
+/// </summary>
+actionsGroup.MapPost("/reject", async (
+    Sorcha.Blueprint.Service.Models.Requests.ActionRejectionRequest request,
+    Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService txBuilder,
+    Sorcha.Blueprint.Service.Storage.IActionStore actionStore,
+    Sorcha.Cryptography.Interfaces.IHashProvider hashProvider) =>
+{
+    try
+    {
+        // 1. Verify original transaction exists
+        var originalAction = await actionStore.GetActionAsync(request.TransactionHash);
+        if (originalAction == null)
+        {
+            return Results.NotFound(new { error = "Original transaction not found" });
+        }
+
+        // 2. Build rejection transaction
+        var rejectionTx = await txBuilder.BuildRejectionTransactionAsync(
+            request.TransactionHash,
+            request.Reason,
+            request.SenderWallet,
+            request.RegisterAddress);
+
+        // 3. Calculate rejection transaction hash
+        var rejectionHash = await hashProvider.ComputeHashAsync(
+            System.Text.Encoding.UTF8.GetBytes(rejectionTx.Id ?? Guid.NewGuid().ToString()));
+        var rejectionHashHex = BitConverter.ToString(rejectionHash).Replace("-", "").ToLowerInvariant();
+
+        // 4. Store rejection action
+        var rejectionDetails = new Sorcha.Blueprint.Service.Models.Responses.ActionDetailsResponse
+        {
+            TransactionHash = rejectionHashHex,
+            BlueprintId = originalAction.BlueprintId,
+            ActionId = "rejection",
+            InstanceId = originalAction.InstanceId,
+            SenderWallet = request.SenderWallet,
+            RegisterAddress = request.RegisterAddress,
+            PayloadData = new Dictionary<string, object>
+            {
+                ["rejectedTransactionHash"] = request.TransactionHash,
+                ["reason"] = request.Reason
+            },
+            Timestamp = DateTimeOffset.UtcNow,
+            PreviousTransactionHash = request.TransactionHash
+        };
+
+        await actionStore.StoreActionAsync(rejectionDetails);
+
+        // 5. Return response
+        var response = new Sorcha.Blueprint.Service.Models.Responses.ActionSubmissionResponse
+        {
+            TransactionHash = rejectionHashHex,
+            InstanceId = rejectionDetails.InstanceId,
+            SerializedTransaction = System.Text.Json.JsonSerializer.Serialize(rejectionTx),
+            Timestamp = DateTimeOffset.UtcNow
+        };
+
+        return Results.Ok(response);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("RejectAction")
+.WithSummary("Reject an action")
+.WithDescription("Reject a pending action with a reason");
+
+/// <summary>
+/// Get file content by file ID
+/// </summary>
+app.MapGet("/api/files/{wallet}/{register}/{tx}/{fileId}", async (
+    string wallet,
+    string register,
+    string tx,
+    string fileId,
+    Sorcha.Blueprint.Service.Storage.IActionStore actionStore) =>
+{
+    // 1. Verify action exists and belongs to wallet/register
+    var action = await actionStore.GetActionAsync(tx);
+    if (action == null || action.SenderWallet != wallet || action.RegisterAddress != register)
+    {
+        return Results.NotFound(new { error = "Action not found" });
+    }
+
+    // 2. Get file metadata
+    var metadata = await actionStore.GetFileMetadataAsync(tx, fileId);
+    if (metadata == null)
+    {
+        return Results.NotFound(new { error = "File not found" });
+    }
+
+    // 3. Get file content
+    var content = await actionStore.GetFileContentAsync(fileId);
+    if (content == null)
+    {
+        return Results.NotFound(new { error = "File content not found" });
+    }
+
+    // 4. Return file
+    return Results.File(content, metadata.ContentType, metadata.FileName);
+})
+.WithName("GetFile")
+.WithSummary("Get file attachment")
+.WithDescription("Retrieve a file attachment from an action transaction")
+.WithTags("Actions")
+.WithOpenApi();
 
 // ===========================
 // Health & Status Endpoints
