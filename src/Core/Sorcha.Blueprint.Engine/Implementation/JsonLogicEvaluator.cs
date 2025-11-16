@@ -162,7 +162,7 @@ public class JsonLogicEvaluator : IJsonLogicEvaluator
     private static JsonNode ConvertToJsonNode(Dictionary<string, object> data)
     {
         var json = JsonSerializer.Serialize(data);
-        return JsonNode.Parse(json) ?? JsonValue.Create(new { });
+        return JsonNode.Parse(json) ?? new JsonObject();
     }
 
     /// <summary>

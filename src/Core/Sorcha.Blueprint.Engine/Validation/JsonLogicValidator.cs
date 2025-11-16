@@ -233,7 +233,7 @@ public class JsonLogicValidator
     {
         var errors = new List<string>();
         var variables = ExtractVariables(expression);
-        var schemaText = schema.ToJsonDocument().RootElement.GetRawText();
+        var schemaText = JsonSerializer.Serialize(schema);
         var schemaNode = JsonNode.Parse(schemaText);
 
         foreach (var variable in variables)

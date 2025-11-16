@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using Json.JsonE;
 using Json.More;
 using Sorcha.Blueprint.Engine.Interfaces;
+using JsonObject = System.Text.Json.Nodes.JsonObject;
 
 namespace Sorcha.Blueprint.Engine.Implementation;
 
@@ -41,11 +42,11 @@ public class JsonEEvaluator : IJsonEEvaluator
             {
                 ct.ThrowIfCancellationRequested();
 
-                // Convert context dictionary to JsonNode
-                var contextNode = ConvertContextToJsonNode(context);
+                // Convert context dictionary to JsonObject
+                var contextObject = ConvertContextToJsonObject(context);
 
                 // Evaluate the template using JsonE.Net
-                var result = template.Evaluate(contextNode);
+                var result = JsonE.Evaluate(template, contextObject);
 
                 return result ?? JsonNode.Parse("{}")!;
             }
@@ -88,8 +89,8 @@ public class JsonEEvaluator : IJsonEEvaluator
             try
             {
                 // Basic validation: try to parse and evaluate with empty context
-                var emptyContext = JsonNode.Parse("{}")!;
-                _ = template.Evaluate(emptyContext);
+                var emptyContext = JsonNode.Parse("{}")!.AsObject();
+                _ = JsonE.Evaluate(template, emptyContext);
 
                 return TemplateValidationResult.Success();
             }
@@ -114,15 +115,15 @@ public class JsonEEvaluator : IJsonEEvaluator
         {
             // Step 1: Convert context
             var stepStopwatch = Stopwatch.StartNew();
-            var contextNode = ConvertContextToJsonNode(context);
+            var contextObject = ConvertContextToJsonObject(context);
             stepStopwatch.Stop();
 
             steps.Add(new TraceStep
             {
                 Step = 1,
-                Description = "Convert context to JsonNode",
+                Description = "Convert context to JsonObject",
                 Input = JsonSerializer.Serialize(context, _serializerOptions),
-                Output = contextNode.ToJsonString(),
+                Output = contextObject.ToJsonString(),
                 Duration = stepStopwatch.Elapsed
             });
 
@@ -163,11 +164,11 @@ public class JsonEEvaluator : IJsonEEvaluator
     }
 
     /// <summary>
-    /// Convert a context dictionary to JsonNode for template evaluation
+    /// Convert a context dictionary to JsonObject for template evaluation
     /// </summary>
-    private JsonNode ConvertContextToJsonNode(Dictionary<string, object> context)
+    private JsonObject ConvertContextToJsonObject(Dictionary<string, object> context)
     {
         var json = JsonSerializer.Serialize(context, _serializerOptions);
-        return JsonNode.Parse(json) ?? JsonNode.Parse("{}")!;
+        return JsonNode.Parse(json)?.AsObject() ?? new JsonObject();
     }
 }

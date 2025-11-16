@@ -83,7 +83,7 @@ public class SchemaValidator : ISchemaValidator
     {
         // Serialize dictionary to JSON string and parse back to JsonNode
         var json = JsonSerializer.Serialize(data);
-        return JsonNode.Parse(json) ?? JsonValue.Create(new { });
+        return JsonNode.Parse(json) ?? new JsonObject();
     }
 
     /// <summary>
