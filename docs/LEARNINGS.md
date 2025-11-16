@@ -396,5 +396,31 @@ with proper access to encryption keys and cryptographic operations.
 **Contributors:**
 - Claude Code (Anthropic) - Initial learnings compilation
 
+## Component Placement Enforcement
+
+### Permanent Requirements Added (2025-11-16)
+
+**Functional Requirement FR-SEC-001**: Components performing cryptographic operations MUST run in secured environments.
+
+**Non-Functional Requirement NFR-SEC-002**: Security isolation for cryptographic validation components.
+
+**Implementation:**
+- DocketManager: Moved from Register.Core → Validator.Service (performs SHA256 hashing)
+- ChainValidator: Moved from Register.Core → Validator.Service (validates chain integrity)
+
+**Testing Verification:**
+- Unit tests confirm no Register.Core dependencies on moved components
+- Integration tests verify Validator.Service cryptographic operations
+- Security tests validate isolation boundaries
+
+**Documentation:**
+- architecture.md: Permanent architectural note added
+- validator-service-design.md: Component responsibilities documented
+- sorcha-register-service.md: Architectural refinement section updated
+- LEARNINGS.md: Decision criteria for future component placement
+
+---
+
 **Changelog:**
+- 2025-11-16: Added component placement enforcement requirements
 - 2025-11-16: Initial creation with XUnit, C# keywords, and security learnings
