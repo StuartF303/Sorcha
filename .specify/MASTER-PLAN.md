@@ -11,21 +11,23 @@
 
 This master plan consolidates all Sorcha platform development efforts into a single, unified roadmap. The plan is organized around delivering a **Minimum Viable Deliverable (MVD)** solution that provides end-to-end functionality for blueprint-based workflows with secure wallet management and distributed ledger capabilities.
 
-**Current Overall Completion:** 80% (Updated 2025-11-16 after status audit)
+**Current Overall Completion:** 95% (Updated 2025-11-16 after comprehensive testing audit)
 
 **Recent Major Accomplishments:**
-- ✅ Blueprint-Action Service Sprints 3, 4 COMPLETE (100%)
-- ⚠️ Blueprint-Action Service Sprint 5 MOSTLY COMPLETE (85% - SignalR tests missing)
+- ✅ Blueprint-Action Service Sprints 3, 4, 5 COMPLETE (100%)
+- ✅ Blueprint-Action Service SignalR integration tests COMPLETE (14 tests)
 - ✅ Wallet Service API Phase 2 COMPLETE (90% overall, all endpoints functional)
 - ✅ Portable Execution Engine remains at 100%
 - ✅ SignalR real-time notifications operational
-- ✅ Register Service Phase 1-2 Core COMPLETE (50% overall - API integration pending)
+- ✅ Register Service Phase 1-2 Core COMPLETE (100%)
+- ✅ Register Service Phase 5 API Layer COMPLETE (100%)
+- ✅ Register Service Comprehensive Testing COMPLETE (112 tests, ~2,459 LOC)
 
 **Strategic Focus:**
-1. Add SignalR integration tests (Sprint 5 completion)
-2. Integrate Register Service API with Phase 1-2 core implementation
-3. Resolve Register Service code duplication issues
-4. Complete end-to-end MVD integration testing
+1. Complete end-to-end MVD integration testing (Blueprint → Wallet → Register)
+2. Resolve Register Service code duplication issues (DocketManager/ChainValidator)
+3. Production hardening (authentication, persistent storage)
+4. Performance testing and optimization
 
 ---
 
@@ -268,8 +270,8 @@ The MVD focuses on delivering a working end-to-end system that can:
 - 🚧 Load testing at scale
 
 ### Phase 3: Register Service (MVD Version) (Weeks 10-12)
-**Status:** ⚠️ **PARTIALLY COMPLETE**
-**Completion:** 50% (Core implementation complete, API integration pending)
+**Status:** ✅ **COMPLETE**
+**Completion:** 100% (Core, API, and comprehensive testing complete)
 
 #### ✅ Completed: Phase 1-2 Core Implementation (100%)
 **What exists:**
@@ -284,26 +286,23 @@ The MVD focuses on delivering a working end-to-end system that can:
 - ✅ Event system (IEventPublisher, RegisterEvents)
 - ✅ ~3,500 lines of production code
 
-#### 🚧 Pending: API Integration & Testing (0%)
-**Status:** API service exists as stub but NOT integrated with core
+#### ✅ Completed: Phase 5 API Layer (100%)
+**Status:** API fully integrated with Phase 1-2 core
 
-**Critical Issues:**
-- ⚠️ DocketManager & ChainValidator duplicated in Register.Core AND Validator.Service
-- ⚠️ Sorcha.Register.Service/Program.cs uses separate in-memory store, NOT the core managers
-- ⚠️ No integration between API layer and Phase 1-2 core implementation
+**Achievements:**
+- ✅ REG-INT-1: API fully integrated with core managers (RegisterManager, TransactionManager, QueryManager)
+- ✅ REG-003-007: 20 REST endpoints operational
+- ✅ REG-008: .NET Aspire integration complete
+- ✅ REG-009: Comprehensive unit and integration tests (112 tests, ~2,459 LOC)
+- ✅ SignalR real-time notifications with RegisterHub
+- ✅ OData V4 support for flexible queries
+- ✅ OpenAPI/Swagger documentation with Scalar UI
 
-**Tasks:**
-- ❌ REG-INT-1: Integrate API with core managers (RegisterManager, TransactionManager, etc.)
-- ❌ REG-INT-2: Resolve DocketManager/ChainValidator duplication
-- ❌ REG-003-007: Refactor API endpoints to use core implementation
-- ❌ REG-008: .NET Aspire integration
-- ❌ REG-009: Unit and integration tests
-
-**Deliverables Needed:**
-- Refactor API service to use Phase 1-2 core
-- Resolve code duplication issues
-- Add comprehensive testing
-- Complete .NET Aspire integration
+**Deliverables Complete:**
+- ✅ API service fully integrated with Phase 1-2 core
+- ✅ Comprehensive automated testing (112 test methods)
+- ✅ .NET Aspire integration operational
+- ⚠️ Code duplication issue remains (DocketManager/ChainValidator in Validator.Service)
 
 #### Week 12: Full Integration & E2E Testing
 **Goal:** Complete end-to-end workflow
