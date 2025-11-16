@@ -11,15 +11,21 @@
 
 This master plan consolidates all Sorcha platform development efforts into a single, unified roadmap. The plan is organized around delivering a **Minimum Viable Deliverable (MVD)** solution that provides end-to-end functionality for blueprint-based workflows with secure wallet management and distributed ledger capabilities.
 
-**Current Overall Completion:** 80% (Updated from 70%)
+**Current Overall Completion:** 80% (Updated 2025-11-16 after status audit)
 
 **Recent Major Accomplishments:**
-- ✅ Blueprint-Action Service Sprints 3, 4, 5 COMPLETE
-- ✅ Wallet Service API Phase 2 COMPLETE (90% overall)
+- ✅ Blueprint-Action Service Sprints 3, 4 COMPLETE (100%)
+- ⚠️ Blueprint-Action Service Sprint 5 MOSTLY COMPLETE (85% - SignalR tests missing)
+- ✅ Wallet Service API Phase 2 COMPLETE (90% overall, all endpoints functional)
 - ✅ Portable Execution Engine remains at 100%
 - ✅ SignalR real-time notifications operational
+- ✅ Register Service Phase 1-2 Core COMPLETE (50% overall - API integration pending)
 
-**Strategic Focus:** Complete Register Service implementation and final MVD integration to enable end-to-end workflows.
+**Strategic Focus:**
+1. Add SignalR integration tests (Sprint 5 completion)
+2. Integrate Register Service API with Phase 1-2 core implementation
+3. Resolve Register Service code duplication issues
+4. Complete end-to-end MVD integration testing
 
 ---
 
@@ -148,8 +154,8 @@ The MVD focuses on delivering a working end-to-end system that can:
 ## Implementation Phases
 
 ### Phase 1: Complete Blueprint-Action Service (Weeks 1-6)
-**Status:** ✅ **COMPLETE**
-**Completion:** 100% (3 of 3 sprints complete)
+**Status:** ⚠️ **MOSTLY COMPLETE**
+**Completion:** 95% (Sprints 3-4 complete, Sprint 5 at 85%)
 
 #### Sprint 3: Service Layer Foundation ✅ COMPLETE
 **Goal:** Build service layer components for action management
@@ -188,7 +194,7 @@ The MVD focuses on delivering a working end-to-end system that can:
 - ✅ API documentation with Scalar UI
 - ✅ Integration tests passing
 
-#### Sprint 5: Execution Helpers & SignalR ✅ COMPLETE
+#### Sprint 5: Execution Helpers & SignalR ⚠️ MOSTLY COMPLETE (85%)
 **Goal:** Add validation helpers and real-time notifications
 
 **Completed Tasks:**
@@ -198,14 +204,17 @@ The MVD focuses on delivering a working end-to-end system that can:
 - ✅ 5.4: POST /api/execution/disclose endpoint
 - ✅ 5.5: Implement SignalR ActionsHub
 - ✅ 5.6: Redis backplane for SignalR
-- ✅ 5.7: SignalR integration tests
-- ✅ 5.8: Client-side SignalR integration
+- ❌ 5.7: SignalR integration tests (NOT IMPLEMENTED)
+- 🚧 5.8: Client-side SignalR integration (partial - needs testing)
 
 **Delivered:**
 - ✅ Execution helper endpoints for client-side validation
 - ✅ Real-time notification hub operational
 - ✅ Scalable SignalR with Redis backplane
-- ✅ Integration tests passing
+- ❌ SignalR integration tests missing
+
+**Pending:**
+- ❌ SignalR hub integration tests (testing subscription, unsubscription, notifications)
 
 ### Phase 2: Wallet Service API & Integration (Weeks 7-9)
 **Status:** ✅ **MOSTLY COMPLETE** (90%)
@@ -222,21 +231,23 @@ The MVD focuses on delivering a working end-to-end system that can:
   - ✅ POST /api/wallets/{id}/sign (sign transaction)
   - ✅ POST /api/wallets/{id}/decrypt (decrypt payload)
   - ✅ POST /api/wallets/{id}/addresses (generate address)
-- 🚧 WALLET-027: .NET Aspire integration (partial)
-- ✅ API tests - Comprehensive unit and integration tests
+- ✅ WALLET-027: .NET Aspire integration (COMPLETE)
+- ✅ API tests - Comprehensive unit and integration tests (WS-030, WS-031)
 
 **Delivered:**
-- ✅ Wallet REST API with OpenAPI docs
+- ✅ Wallet REST API with OpenAPI docs (14/15 endpoints)
 - ✅ Core implementation (90% complete)
-- ✅ Comprehensive unit and integration tests
+- ✅ Comprehensive unit and integration tests (60+ tests)
 - ✅ HD wallet support (BIP32/BIP39/BIP44)
 - ✅ Multi-algorithm support (ED25519, NIST P-256, RSA-4096)
+- ✅ .NET Aspire integration with health checks
+- ✅ API Gateway routing configured
 
 **Pending (10%):**
-- 🚧 Full .NET Aspire deployment
-- 🚧 EF Core repository implementation
+- 🚧 EF Core repository implementation (PostgreSQL/SQL Server)
 - 🚧 Azure Key Vault encryption provider
-- 🚧 Production deployment
+- 🚧 Production authentication/authorization
+- 🚧 GenerateAddress endpoint (requires mnemonic storage design)
 
 #### Week 9: Integration Testing ✅ MOSTLY COMPLETE
 **Goal:** Integrate Wallet Service with Blueprint Service
@@ -257,27 +268,42 @@ The MVD focuses on delivering a working end-to-end system that can:
 - 🚧 Load testing at scale
 
 ### Phase 3: Register Service (MVD Version) (Weeks 10-12)
-**Status:** Not Started
-**Completion:** 0%
+**Status:** ⚠️ **PARTIALLY COMPLETE**
+**Completion:** 50% (Core implementation complete, API integration pending)
 
-#### Week 10-11: Core Register Service
-**Goal:** Build simplified register service for MVD
+#### ✅ Completed: Phase 1-2 Core Implementation (100%)
+**What exists:**
+- ✅ Complete domain models (Register, TransactionModel, Docket, PayloadModel)
+- ✅ RegisterManager - CRUD operations for registers (204 lines)
+- ✅ TransactionManager - Transaction storage/retrieval (225 lines)
+- ✅ DocketManager - Block creation and sealing (255 lines)
+- ✅ QueryManager - Advanced queries with pagination (233 lines)
+- ✅ ChainValidator - Chain integrity validation (268 lines)
+- ✅ IRegisterRepository abstraction (214 lines, 20+ methods)
+- ✅ InMemoryRegisterRepository implementation (265 lines)
+- ✅ Event system (IEventPublisher, RegisterEvents)
+- ✅ ~3,500 lines of production code
+
+#### 🚧 Pending: API Integration & Testing (0%)
+**Status:** API service exists as stub but NOT integrated with core
+
+**Critical Issues:**
+- ⚠️ DocketManager & ChainValidator duplicated in Register.Core AND Validator.Service
+- ⚠️ Sorcha.Register.Service/Program.cs uses separate in-memory store, NOT the core managers
+- ⚠️ No integration between API layer and Phase 1-2 core implementation
 
 **Tasks:**
-- REG-001: Setup Register Service project (6h)
-- REG-002: Implement transaction storage (MongoDB or in-memory) (12h)
-- REG-003: POST /api/register/transactions (submit) (8h)
-- REG-004: GET /api/register/transactions/{id} (retrieve) (6h)
-- REG-005: GET /api/register/transactions/history/{wallet} (8h)
-- REG-006: Basic block creation (simplified, no consensus) (10h)
-- REG-007: .NET Aspire integration (8h)
-- Unit and integration tests (12h)
+- ❌ REG-INT-1: Integrate API with core managers (RegisterManager, TransactionManager, etc.)
+- ❌ REG-INT-2: Resolve DocketManager/ChainValidator duplication
+- ❌ REG-003-007: Refactor API endpoints to use core implementation
+- ❌ REG-008: .NET Aspire integration
+- ❌ REG-009: Unit and integration tests
 
-**Deliverables:**
-- Functional Register Service API
-- Transaction storage and retrieval
-- Basic block management
-- Integration with .NET Aspire
+**Deliverables Needed:**
+- Refactor API service to use Phase 1-2 core
+- Resolve code duplication issues
+- Add comprehensive testing
+- Complete .NET Aspire integration
 
 #### Week 12: Full Integration & E2E Testing
 **Goal:** Complete end-to-end workflow

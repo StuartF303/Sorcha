@@ -12,9 +12,11 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 138 (across all phases)
-**Completed:** 35 (25%)
-**In Progress:** 18 (13%)
-**Not Started:** 85 (62%)
+**Completed:** 49 (35%)
+**In Progress:** 2 (1%)
+**Not Started:** 87 (64%)
+
+**Note:** Counts updated 2025-11-16 after comprehensive status audit
 
 ---
 
@@ -36,20 +38,20 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete |
 |-------|-------------|----------|-------------|-------------|------------|
-| **Phase 1: Blueprint-Action** | 56 | 22 | 16 | 18 | 39% |
+| **Phase 1: Blueprint-Action** | 56 | 36 | 1 | 19 | 64% |
 | **Phase 2: Wallet Service** | 32 | 13 | 0 | 19 | 41% |
-| **Phase 3: Register Service** | 15 | 0 | 0 | 15 | 0% |
-| **Phase 4: Enhancements** | 25 | 0 | 2 | 23 | 0% |
+| **Phase 3: Register Service** | 15 | 0 | 1 | 14 | 0% |
+| **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% |
-| **TOTAL** | **138** | **35** | **18** | **85** | **25%** |
+| **TOTAL** | **138** | **49** | **2** | **87** | **35%** |
 
 ### By Priority
 
 | Priority | Total | Complete | In Progress | Not Started |
 |----------|-------|----------|-------------|-------------|
-| **P0 - Critical (MVD Blocker)** | 45 | 19 | 10 | 16 |
-| **P1 - High (MVD Core)** | 38 | 11 | 6 | 21 |
-| **P2 - Medium (MVD Nice-to-Have)** | 30 | 5 | 2 | 23 |
+| **P0 - Critical (MVD Blocker)** | 45 | 29 | 1 | 15 |
+| **P1 - High (MVD Core)** | 38 | 17 | 1 | 20 |
+| **P2 - Medium (MVD Nice-to-Have)** | 30 | 3 | 0 | 27 |
 | **P3 - Low (Post-MVD)** | 25 | 0 | 0 | 25 |
 
 ---
@@ -106,19 +108,19 @@ Enhancement tasks that can be deferred until after MVD is complete.
 
 **Sprint 2 Status:** ✅ **COMPLETE** (8/8 tasks, 62 hours)
 
-### Sprint 3: Service Layer Foundation 🚧 CURRENT SPRINT
+### Sprint 3: Service Layer Foundation ✅ COMPLETE
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| BP-3.1 | Implement ActionResolverService | P0 | 8h | 📋 Not Started | - |
-| BP-3.2 | Implement PayloadResolverService (stubs) | P0 | 10h | 📋 Not Started | - |
-| BP-3.3 | Implement TransactionBuilderService | P0 | 8h | 📋 Not Started | - |
-| BP-3.4 | Add Redis caching layer | P1 | 6h | 📋 Not Started | - |
-| BP-3.5 | Unit tests for service layer | P0 | 12h | 📋 Not Started | - |
-| BP-3.6 | Integration tests for services | P1 | 8h | 📋 Not Started | - |
+| BP-3.1 | Implement ActionResolverService | P0 | 8h | ✅ Complete | - |
+| BP-3.2 | Implement PayloadResolverService (stubs) | P0 | 10h | ✅ Complete | - |
+| BP-3.3 | Implement TransactionBuilderService | P0 | 8h | ✅ Complete | - |
+| BP-3.4 | Add Redis caching layer | P1 | 6h | ✅ Complete | - |
+| BP-3.5 | Unit tests for service layer | P0 | 12h | ✅ Complete | - |
+| BP-3.6 | Integration tests for services | P1 | 8h | ✅ Complete | - |
 
-**Sprint 3 Status:** 📋 **NOT STARTED** (0/6 tasks, 52 hours)
-**Recommended Start:** Week 1
+**Sprint 3 Status:** ✅ **COMPLETE** (6/6 tasks, 52 hours)
+**Completed:** 2025 (exact date from git history)
 
 ### Sprint 4: Action API Endpoints ✅ COMPLETE
 
@@ -136,21 +138,22 @@ Enhancement tasks that can be deferred until after MVD is complete.
 **Sprint 4 Status:** ✅ **COMPLETE** (8/8 tasks, 46 hours)
 **Completed:** 2025-11-16
 
-### Sprint 5: Execution Helpers & SignalR
+### Sprint 5: Execution Helpers & SignalR ⚠️ MOSTLY COMPLETE
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| BP-5.1 | POST /api/execution/validate endpoint | P1 | 4h | 📋 Not Started | - |
-| BP-5.2 | POST /api/execution/calculate endpoint | P1 | 4h | 📋 Not Started | - |
-| BP-5.3 | POST /api/execution/route endpoint | P1 | 4h | 📋 Not Started | - |
-| BP-5.4 | POST /api/execution/disclose endpoint | P1 | 4h | 📋 Not Started | - |
-| BP-5.5 | Implement SignalR ActionsHub | P0 | 8h | 📋 Not Started | - |
-| BP-5.6 | Redis backplane for SignalR | P1 | 6h | 📋 Not Started | - |
-| BP-5.7 | SignalR integration tests | P1 | 8h | 📋 Not Started | - |
-| BP-5.8 | Client-side SignalR integration | P2 | 6h | 📋 Not Started | - |
+| BP-5.1 | POST /api/execution/validate endpoint | P1 | 4h | ✅ Complete | - |
+| BP-5.2 | POST /api/execution/calculate endpoint | P1 | 4h | ✅ Complete | - |
+| BP-5.3 | POST /api/execution/route endpoint | P1 | 4h | ✅ Complete | - |
+| BP-5.4 | POST /api/execution/disclose endpoint | P1 | 4h | ✅ Complete | - |
+| BP-5.5 | Implement SignalR ActionsHub | P0 | 8h | ✅ Complete | - |
+| BP-5.6 | Redis backplane for SignalR | P1 | 6h | ✅ Complete | - |
+| BP-5.7 | SignalR integration tests | P1 | 8h | ❌ Not Implemented | - |
+| BP-5.8 | Client-side SignalR integration | P2 | 6h | 🚧 Partial | - |
 
-**Sprint 5 Status:** 📋 **NOT STARTED** (0/8 tasks, 44 hours)
-**Recommended Start:** Week 5
+**Sprint 5 Status:** ⚠️ **MOSTLY COMPLETE** (6/8 tasks complete, 1 missing, 1 partial = 85%)
+**Completed:** 2025
+**Remaining:** SignalR integration tests (BP-5.7)
 
 ### Sprint 6: Wallet/Register Integration (Stubs)
 
@@ -267,26 +270,40 @@ Enhancement tasks that can be deferred until after MVD is complete.
 **Goal:** Build simplified Register Service for transaction storage and retrieval
 **Duration:** Weeks 10-12
 **Total Tasks:** 15
-**Completion:** 0%
+**Completion:** 50% (Core complete, API integration needed)
 
-### Week 10-11: Core Implementation
+### ✅ Phase 1-2: Core Implementation (COMPLETE)
+
+**Status:** Completed outside of original task tracking
+
+**What Exists (~3,500 LOC):**
+- ✅ Domain models: Register, TransactionModel, Docket, PayloadModel, TransactionMetaData
+- ✅ RegisterManager - CRUD operations (204 lines)
+- ✅ TransactionManager - Storage/retrieval (225 lines)
+- ✅ DocketManager - Block creation/sealing (255 lines)
+- ✅ QueryManager - Advanced queries (233 lines)
+- ✅ ChainValidator - Integrity validation (268 lines)
+- ✅ IRegisterRepository abstraction (214 lines, 20+ methods)
+- ✅ InMemoryRegisterRepository implementation (265 lines)
+- ✅ Event system (IEventPublisher, RegisterEvents)
+
+### 🚧 API Integration Tasks (PENDING)
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| REG-001 | Setup Sorcha.Register.Service project | P0 | 6h | 📋 Not Started | - |
-| REG-002 | Implement transaction storage abstraction | P0 | 8h | 📋 Not Started | - |
+| REG-INT-1 | Refactor API to use core managers | P0 | 12h | 🚧 In Progress | - |
+| REG-INT-2 | Resolve DocketManager/ChainValidator duplication | P0 | 4h | 📋 Not Started | - |
 | REG-003 | MongoDB transaction repository | P1 | 12h | 📋 Not Started | - |
-| REG-004 | In-memory transaction repository (testing) | P1 | 8h | 📋 Not Started | - |
-| REG-005 | POST /api/register/transactions (submit) | P0 | 8h | 📋 Not Started | - |
-| REG-006 | GET /api/register/transactions/{id} | P0 | 6h | 📋 Not Started | - |
-| REG-007 | GET /api/register/transactions/history/{wallet} | P0 | 8h | 📋 Not Started | - |
-| REG-008 | Basic block creation (simplified) | P1 | 10h | 📋 Not Started | - |
+| REG-005 | Update POST /api/register/transactions | P0 | 8h | 📋 Not Started | - |
+| REG-006 | Update GET /api/register/transactions/{id} | P0 | 6h | 📋 Not Started | - |
+| REG-007 | Update GET /api/register/transactions/history | P0 | 8h | 📋 Not Started | - |
 | REG-009 | .NET Aspire integration | P0 | 8h | 📋 Not Started | - |
-| REG-010 | Unit tests for core logic | P0 | 10h | 📋 Not Started | - |
-| REG-011 | Integration tests | P0 | 12h | 📋 Not Started | - |
+| REG-010 | Unit tests for core logic | P0 | 16h | 📋 Not Started | - |
+| REG-011 | Integration tests | P0 | 16h | 📋 Not Started | - |
 
-**Core Implementation Status:** 📋 **NOT STARTED** (0/11 tasks, 96 hours)
-**Recommended Start:** Week 10
+**API Integration Status:** 🚧 **IN PROGRESS** (1/9 tasks, ~90 hours remaining)
+**Critical Issue:** API service stub exists but doesn't use Phase 1-2 core implementation
+**Recommended Start:** Immediate
 
 ### Week 12: Integration & Testing
 
