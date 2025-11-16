@@ -5,9 +5,9 @@ using FluentAssertions;
 using Sorcha.Blueprint.Engine.Implementation;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Engine.Models;
-using Sorcha.Blueprint.Models;
 using System.Text.Json.Nodes;
 using Xunit;
+using BpModels = Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Tests;
 
@@ -370,21 +370,21 @@ public class IntegrationTests
 
     #region Helper Methods - Loan Application Blueprint
 
-    private Blueprint CreateLoanApplicationBlueprint()
+    private BpModels.Blueprint CreateLoanApplicationBlueprint()
     {
-        return new Blueprint
+        return new BpModels.Blueprint
         {
             Id = "loan-application-v1",
             Title = "Loan Application Workflow",
             Description = "Complete loan application and approval workflow",
             Version = 1,
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = "submit-application",
                     Title = "Submit Loan Application",
-                    Form = new Form
+                    Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""
                         {
@@ -411,7 +411,7 @@ public class IntegrationTests
                         }
                         """)!
                     },
-                    Disclosures = new List<Disclosure>
+                    Disclosures = new List<BpModels.Disclosure>
                     {
                         new()
                         {
@@ -446,7 +446,7 @@ public class IntegrationTests
                     Title = "Manual Credit Review"
                 }
             },
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new()
                 {
@@ -459,7 +459,7 @@ public class IntegrationTests
                     Id = "underwriter",
                     WalletAddress = "underwriter-wallet",
                     Actions = new List<string> { "review-application" },
-                    Conditions = new List<Condition>
+                    Conditions = new List<BpModels.Condition>
                     {
                         new()
                         {
@@ -476,7 +476,7 @@ public class IntegrationTests
                     Id = "manual-reviewer",
                     WalletAddress = "reviewer-wallet",
                     Actions = new List<string> { "manual-review" },
-                    Conditions = new List<Condition>
+                    Conditions = new List<BpModels.Condition>
                     {
                         new()
                         {
@@ -496,21 +496,21 @@ public class IntegrationTests
 
     #region Helper Methods - Purchase Order Blueprint
 
-    private Blueprint CreatePurchaseOrderBlueprint()
+    private BpModels.Blueprint CreatePurchaseOrderBlueprint()
     {
-        return new Blueprint
+        return new BpModels.Blueprint
         {
             Id = "purchase-order-v1",
             Title = "Purchase Order Workflow",
             Description = "Purchase order creation and approval",
             Version = 1,
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = "create-order",
                     Title = "Create Purchase Order",
-                    Form = new Form
+                    Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""
                         {
@@ -565,7 +565,7 @@ public class IntegrationTests
                     Title = "Fulfill Order"
                 }
             },
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new()
                 {
@@ -578,7 +578,7 @@ public class IntegrationTests
                     Id = "approver",
                     WalletAddress = "approver-wallet",
                     Actions = new List<string> { "approve-order" },
-                    Conditions = new List<Condition>
+                    Conditions = new List<BpModels.Condition>
                     {
                         new()
                         {
@@ -595,7 +595,7 @@ public class IntegrationTests
                     Id = "vendor",
                     WalletAddress = "vendor-wallet",
                     Actions = new List<string> { "fulfill-order" },
-                    Conditions = new List<Condition>
+                    Conditions = new List<BpModels.Condition>
                     {
                         new()
                         {
@@ -615,21 +615,21 @@ public class IntegrationTests
 
     #region Helper Methods - Survey Blueprint
 
-    private Blueprint CreateSurveyBlueprint()
+    private BpModels.Blueprint CreateSurveyBlueprint()
     {
-        return new Blueprint
+        return new BpModels.Blueprint
         {
             Id = "survey-v1",
             Title = "Multi-Step Survey",
             Description = "Multi-step survey with demographic and preference questions",
             Version = 1,
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = "demographics",
                     Title = "Demographics Survey",
-                    Form = new Form
+                    Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""
                         {
@@ -648,7 +648,7 @@ public class IntegrationTests
                 {
                     Id = "preferences",
                     Title = "Preferences Survey",
-                    Form = new Form
+                    Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""
                         {
@@ -663,7 +663,7 @@ public class IntegrationTests
                     }
                 }
             },
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new()
                 {

@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using Sorcha.Blueprint.Engine.Implementation;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Engine.Models;
+using BpModels = Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Tests;
 
@@ -219,7 +220,7 @@ public class ActionProcessorTests
                     Id = 1,
                     Title = "Calculate",
                     Sender = "user1",
-                    Form = new Control
+                    Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""
                         {
@@ -535,26 +536,26 @@ public class ActionProcessorTests
 
     #region Helper Methods
 
-    private static Blueprint CreateSimpleBlueprint()
+    private static BpModels.Blueprint CreateSimpleBlueprint()
     {
-        return new Blueprint
+        return new BpModels.Blueprint
         {
             Id = "BP-SIMPLE",
             Title = "Simple Test",
             Description = "Test",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user1", Name = "User 1" },
                 new() { Id = "user2", Name = "User 2" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = 1,
                     Title = "Submit",
                     Sender = "user1",
-                    Form = new Control
+                    Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""
                         {
@@ -567,7 +568,7 @@ public class ActionProcessorTests
                         }
                         """)
                     },
-                    Participants = new List<Condition>
+                    Participants = new List<BpModels.Condition>
                     {
                         new("user2", true)
                     }
@@ -582,9 +583,9 @@ public class ActionProcessorTests
         };
     }
 
-    private static Blueprint CreateBlueprintWithCalculations()
+    private static BpModels.Blueprint CreateBlueprintWithCalculations()
     {
-        return new Blueprint
+        return new BpModels.Blueprint
         {
             Id = "BP-CALC",
             Title = "Calculation Test",
@@ -600,7 +601,7 @@ public class ActionProcessorTests
                     Id = 1,
                     Title = "Calculate Total",
                     Sender = "user1",
-                    Form = new Control
+                    Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""
                         {
@@ -622,27 +623,27 @@ public class ActionProcessorTests
         };
     }
 
-    private static Blueprint CreateBlueprintWithRouting()
+    private static BpModels.Blueprint CreateBlueprintWithRouting()
     {
-        return new Blueprint
+        return new BpModels.Blueprint
         {
             Id = "BP-ROUTE",
             Title = "Routing Test",
             Description = "Test",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "user", Name = "User" },
                 new() { Id = "manager", Name = "Manager" },
                 new() { Id = "clerk", Name = "Clerk" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = 1,
                     Title = "Submit Request",
                     Sender = "user",
-                    Form = new Control
+                    Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""
                         {
@@ -654,7 +655,7 @@ public class ActionProcessorTests
                         }
                         """)
                     },
-                    Participants = new List<Condition>
+                    Participants = new List<BpModels.Condition>
                     {
                         new("manager", new List<string> { """{">=": [{"var": "amount"}, 10000]}""" }),
                         new("clerk", true)
@@ -676,9 +677,9 @@ public class ActionProcessorTests
         };
     }
 
-    private static Blueprint CreateBlueprintWithDisclosures()
+    private static BpModels.Blueprint CreateBlueprintWithDisclosures()
     {
-        return new Blueprint
+        return new BpModels.Blueprint
         {
             Id = "BP-DISC",
             Title = "Disclosure Test",
@@ -695,7 +696,7 @@ public class ActionProcessorTests
                     Id = 1,
                     Title = "Order",
                     Sender = "buyer",
-                    Disclosures = new List<Disclosure>
+                    Disclosures = new List<BpModels.Disclosure>
                     {
                         new("buyer", new List<string> { "/orderId", "/productId", "/buyerAddress" }),
                         new("seller", new List<string> { "/orderId", "/productId", "/sellerAddress" })
@@ -705,26 +706,26 @@ public class ActionProcessorTests
         };
     }
 
-    private static Blueprint CreateCompleteBlueprint()
+    private static BpModels.Blueprint CreateCompleteBlueprint()
     {
-        return new Blueprint
+        return new BpModels.Blueprint
         {
             Id = "BP-COMPLETE",
             Title = "Complete Workflow",
             Description = "Test all features",
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new() { Id = "buyer", Name = "Buyer" },
                 new() { Id = "seller", Name = "Seller" }
             },
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = 1,
                     Title = "Create Order",
                     Sender = "buyer",
-                    Form = new Control
+                    Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""
                         {
@@ -742,11 +743,11 @@ public class ActionProcessorTests
                     {
                         ["totalPrice"] = JsonNode.Parse("""{"*": [{"var": "quantity"}, {"var": "unitPrice"}]}""")!
                     },
-                    Participants = new List<Condition>
+                    Participants = new List<BpModels.Condition>
                     {
                         new("seller", true)
                     },
-                    Disclosures = new List<Disclosure>
+                    Disclosures = new List<BpModels.Disclosure>
                     {
                         new("buyer", new List<string> { "/productId", "/quantity", "/totalPrice" }),
                         new("seller", new List<string> { "/productId", "/quantity", "/totalPrice" })

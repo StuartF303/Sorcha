@@ -4,10 +4,10 @@
 using FluentAssertions;
 using Sorcha.Blueprint.Engine.Implementation;
 using Sorcha.Blueprint.Engine.Models;
-using Sorcha.Blueprint.Models;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Xunit;
+using BpModels = Sorcha.Blueprint.Models;
 
 namespace Sorcha.Blueprint.Engine.Tests;
 
@@ -457,20 +457,20 @@ public class ExecutionEngineTests
 
     #region Helper Methods
 
-    private Blueprint CreateSimpleBlueprint()
+    private BpModels.Blueprint CreateSimpleBlueprint()
     {
-        return new Blueprint
+        return new BpModels.Blueprint
         {
             Id = "blueprint1",
             Title = "Test Blueprint",
             Version = 1,
-            Actions = new List<Models.Action>
+            Actions = new List<BpModels.Action>
             {
                 new()
                 {
                     Id = "action1",
                     Title = "Action 1",
-                    Form = new Form
+                    Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""
                         {
@@ -490,7 +490,7 @@ public class ExecutionEngineTests
                     Title = "Action 2"
                 }
             },
-            Participants = new List<Participant>
+            Participants = new List<BpModels.Participant>
             {
                 new()
                 {
@@ -508,7 +508,7 @@ public class ExecutionEngineTests
         };
     }
 
-    private Blueprint CreateBlueprintWithCalculations()
+    private BpModels.Blueprint CreateBlueprintWithCalculations()
     {
         var blueprint = CreateSimpleBlueprint();
         var action = blueprint.Actions.First();
@@ -539,12 +539,12 @@ public class ExecutionEngineTests
         return blueprint;
     }
 
-    private Blueprint CreateBlueprintWithConditionalRouting()
+    private BpModels.Blueprint CreateBlueprintWithConditionalRouting()
     {
         var blueprint = CreateSimpleBlueprint();
 
         // Add condition to participant2
-        blueprint.Participants[1].Conditions = new List<Condition>
+        blueprint.Participants[1].Conditions = new List<BpModels.Condition>
         {
             new()
             {
@@ -559,13 +559,13 @@ public class ExecutionEngineTests
         return blueprint;
     }
 
-    private Models.Action CreateActionWithSchema()
+    private BpModels.Action CreateActionWithSchema()
     {
-        return new Models.Action
+        return new BpModels.Action
         {
             Id = "action1",
             Title = "Test Action",
-            Form = new Form
+            Form = new BpModels.Control
             {
                 Schema = JsonNode.Parse("""
                 {
@@ -581,9 +581,9 @@ public class ExecutionEngineTests
         };
     }
 
-    private Models.Action CreateActionWithCalculations()
+    private BpModels.Action CreateActionWithCalculations()
     {
-        return new Models.Action
+        return new BpModels.Action
         {
             Id = "action1",
             Title = "Test Action",
@@ -601,13 +601,13 @@ public class ExecutionEngineTests
         };
     }
 
-    private Models.Action CreateActionWithDisclosures()
+    private BpModels.Action CreateActionWithDisclosures()
     {
-        return new Models.Action
+        return new BpModels.Action
         {
             Id = "action1",
             Title = "Test Action",
-            Disclosures = new List<Disclosure>
+            Disclosures = new List<BpModels.Disclosure>
             {
                 new()
                 {
