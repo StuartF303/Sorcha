@@ -1,0 +1,6 @@
+@Sorcha.Register.Service_HostAddress = http://localhost:5290
+
+GET {{Sorcha.Register.Service_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
