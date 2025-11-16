@@ -164,7 +164,7 @@ public class JsonLogicValidatorTests
         }")!;
 
         // Act
-        var result = _validator.Validate(expression, schema: null);
+        var result = _validator.Validate(expression, dataSchema: null);
 
         // Assert
         result.IsValid.Should().BeTrue();

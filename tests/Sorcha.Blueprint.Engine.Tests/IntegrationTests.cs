@@ -4,7 +4,7 @@
 using FluentAssertions;
 using Sorcha.Blueprint.Engine.Implementation;
 using Sorcha.Blueprint.Engine.Interfaces;
-using Sorcha.Blueprint.Engine.Models;
+using EngineModels = Sorcha.Blueprint.Engine.Models;
 using System.Text.Json.Nodes;
 using Xunit;
 using BpModels = Sorcha.Blueprint.Models;
@@ -47,7 +47,7 @@ public class IntegrationTests
     {
         // Arrange: Create a realistic loan application blueprint
         var blueprint = CreateLoanApplicationBlueprint();
-        var applicationAction = blueprint.Actions.First(a => a.Id == "submit-application");
+        var applicationAction = blueprint.Actions.First(a => a.Id == 1);
 
         var applicationData = new Dictionary<string, object>
         {
@@ -58,7 +58,7 @@ public class IntegrationTests
             ["employmentYears"] = 5
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = applicationAction,
@@ -113,7 +113,7 @@ public class IntegrationTests
     {
         // Arrange: Applicant with low credit score
         var blueprint = CreateLoanApplicationBlueprint();
-        var applicationAction = blueprint.Actions.First(a => a.Id == "submit-application");
+        var applicationAction = blueprint.Actions.First(a => a.Id == 1);
 
         var applicationData = new Dictionary<string, object>
         {
@@ -124,7 +124,7 @@ public class IntegrationTests
             ["employmentYears"] = 2
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = applicationAction,
@@ -147,7 +147,7 @@ public class IntegrationTests
     {
         // Arrange: Missing required fields
         var blueprint = CreateLoanApplicationBlueprint();
-        var applicationAction = blueprint.Actions.First(a => a.Id == "submit-application");
+        var applicationAction = blueprint.Actions.First(a => a.Id == 1);
 
         var invalidData = new Dictionary<string, object>
         {
@@ -156,7 +156,7 @@ public class IntegrationTests
             // Missing required fields: annualIncome, creditScore, employmentYears
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = applicationAction,
@@ -184,7 +184,7 @@ public class IntegrationTests
     {
         // Arrange: Purchase order with line items
         var blueprint = CreatePurchaseOrderBlueprint();
-        var createOrderAction = blueprint.Actions.First(a => a.Id == "create-order");
+        var createOrderAction = blueprint.Actions.First(a => a.Id == 1);
 
         var orderData = new Dictionary<string, object>
         {
@@ -194,7 +194,7 @@ public class IntegrationTests
             ["isPreferredCustomer"] = true
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = createOrderAction,
@@ -235,7 +235,7 @@ public class IntegrationTests
     {
         // Arrange: High-value order requiring approval
         var blueprint = CreatePurchaseOrderBlueprint();
-        var createOrderAction = blueprint.Actions.First(a => a.Id == "create-order");
+        var createOrderAction = blueprint.Actions.First(a => a.Id == 1);
 
         var orderData = new Dictionary<string, object>
         {
@@ -245,7 +245,7 @@ public class IntegrationTests
             ["isPreferredCustomer"] = false
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = createOrderAction,
@@ -272,7 +272,7 @@ public class IntegrationTests
     {
         // Arrange: Low-value order that doesn't need approval
         var blueprint = CreatePurchaseOrderBlueprint();
-        var createOrderAction = blueprint.Actions.First(a => a.Id == "create-order");
+        var createOrderAction = blueprint.Actions.First(a => a.Id == 1);
 
         var orderData = new Dictionary<string, object>
         {
@@ -282,7 +282,7 @@ public class IntegrationTests
             ["isPreferredCustomer"] = false
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = createOrderAction,
@@ -315,7 +315,7 @@ public class IntegrationTests
         var blueprint = CreateSurveyBlueprint();
 
         // Step 1: Demographics
-        var step1Action = blueprint.Actions.First(a => a.Id == "demographics");
+        var step1Action = blueprint.Actions.First(a => a.Id == 1);
         var step1Data = new Dictionary<string, object>
         {
             ["age"] = 35,
@@ -323,7 +323,7 @@ public class IntegrationTests
             ["occupation"] = "Engineer"
         };
 
-        var step1Context = new ExecutionContext
+        var step1Context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = step1Action,
@@ -341,14 +341,14 @@ public class IntegrationTests
         step1Result.Routing.NextActionId.Should().Be("preferences");
 
         // Step 2: Use data from step 1 and add new data
-        var step2Action = blueprint.Actions.First(a => a.Id == "preferences");
+        var step2Action = blueprint.Actions.First(a => a.Id == 2);
         var step2Data = new Dictionary<string, object>
         {
             ["favoriteColor"] = "Blue",
             ["rating"] = 8
         };
 
-        var step2Context = new ExecutionContext
+        var step2Context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = step2Action,
@@ -382,7 +382,7 @@ public class IntegrationTests
             {
                 new()
                 {
-                    Id = "submit-application",
+                    Id = 1,
                     Title = "Submit Loan Application",
                     Form = new BpModels.Control
                     {
@@ -415,14 +415,12 @@ public class IntegrationTests
                     {
                         new()
                         {
-                            Id = "applicant-disclosure",
-                            ParticipantId = "applicant",
+                            ParticipantAddress = "applicant",
                             DataPointers = new List<string> { "/*" } // All data
                         },
                         new()
                         {
-                            Id = "underwriter-disclosure",
-                            ParticipantId = "underwriter",
+                            ParticipantAddress = "underwriter",
                             DataPointers = new List<string>
                             {
                                 "/applicantName",
@@ -437,12 +435,12 @@ public class IntegrationTests
                 },
                 new()
                 {
-                    Id = "review-application",
+                    Id = 2,
                     Title = "Review Application"
                 },
                 new()
                 {
-                    Id = "manual-review",
+                    Id = 3,
                     Title = "Manual Credit Review"
                 }
             },
@@ -451,42 +449,17 @@ public class IntegrationTests
                 new()
                 {
                     Id = "applicant",
-                    WalletAddress = "applicant-wallet",
-                    Actions = new List<string> { "submit-application" }
+                    WalletAddress = "applicant-wallet"
                 },
                 new()
                 {
                     Id = "underwriter",
-                    WalletAddress = "underwriter-wallet",
-                    Actions = new List<string> { "review-application" },
-                    Conditions = new List<BpModels.Condition>
-                    {
-                        new()
-                        {
-                            Principal = "underwriter",
-                            Criteria = new List<string>
-                            {
-                                """{">=": [{"var": "creditScore"}, 700]}"""
-                            }
-                        }
-                    }
+                    WalletAddress = "underwriter-wallet"
                 },
                 new()
                 {
                     Id = "manual-reviewer",
-                    WalletAddress = "reviewer-wallet",
-                    Actions = new List<string> { "manual-review" },
-                    Conditions = new List<BpModels.Condition>
-                    {
-                        new()
-                        {
-                            Principal = "manual-reviewer",
-                            Criteria = new List<string>
-                            {
-                                """{"<": [{"var": "creditScore"}, 700]}"""
-                            }
-                        }
-                    }
+                    WalletAddress = "reviewer-wallet"
                 }
             }
         };
@@ -508,7 +481,7 @@ public class IntegrationTests
             {
                 new()
                 {
-                    Id = "create-order",
+                    Id = 1,
                     Title = "Create Purchase Order",
                     Form = new BpModels.Control
                     {
@@ -556,12 +529,12 @@ public class IntegrationTests
                 },
                 new()
                 {
-                    Id = "approve-order",
+                    Id = 2,
                     Title = "Approve Order"
                 },
                 new()
                 {
-                    Id = "fulfill-order",
+                    Id = 3,
                     Title = "Fulfill Order"
                 }
             },
@@ -570,42 +543,17 @@ public class IntegrationTests
                 new()
                 {
                     Id = "buyer",
-                    WalletAddress = "buyer-wallet",
-                    Actions = new List<string> { "create-order" }
+                    WalletAddress = "buyer-wallet"
                 },
                 new()
                 {
                     Id = "approver",
-                    WalletAddress = "approver-wallet",
-                    Actions = new List<string> { "approve-order" },
-                    Conditions = new List<BpModels.Condition>
-                    {
-                        new()
-                        {
-                            Principal = "approver",
-                            Criteria = new List<string>
-                            {
-                                """{">": [{"var": "total"}, 10000]}"""
-                            }
-                        }
-                    }
+                    WalletAddress = "approver-wallet"
                 },
                 new()
                 {
                     Id = "vendor",
-                    WalletAddress = "vendor-wallet",
-                    Actions = new List<string> { "fulfill-order" },
-                    Conditions = new List<BpModels.Condition>
-                    {
-                        new()
-                        {
-                            Principal = "vendor",
-                            Criteria = new List<string>
-                            {
-                                """{"<=": [{"var": "total"}, 10000]}"""
-                            }
-                        }
-                    }
+                    WalletAddress = "vendor-wallet"
                 }
             }
         };
@@ -627,7 +575,7 @@ public class IntegrationTests
             {
                 new()
                 {
-                    Id = "demographics",
+                    Id = 1,
                     Title = "Demographics Survey",
                     Form = new BpModels.Control
                     {
@@ -646,7 +594,7 @@ public class IntegrationTests
                 },
                 new()
                 {
-                    Id = "preferences",
+                    Id = 2,
                     Title = "Preferences Survey",
                     Form = new BpModels.Control
                     {
@@ -668,8 +616,7 @@ public class IntegrationTests
                 new()
                 {
                     Id = "respondent",
-                    WalletAddress = "respondent-wallet",
-                    Actions = new List<string> { "demographics", "preferences" }
+                    WalletAddress = "respondent-wallet"
                 }
             }
         };

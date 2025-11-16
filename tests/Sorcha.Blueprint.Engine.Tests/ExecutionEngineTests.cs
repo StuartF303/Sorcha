@@ -3,7 +3,7 @@
 
 using FluentAssertions;
 using Sorcha.Blueprint.Engine.Implementation;
-using Sorcha.Blueprint.Engine.Models;
+using EngineModels = Sorcha.Blueprint.Engine.Models;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Xunit;
@@ -53,7 +53,7 @@ public class ExecutionEngineTests
             ["age"] = 30
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = action,
@@ -85,7 +85,7 @@ public class ExecutionEngineTests
             // Missing required "age" field
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = action,
@@ -116,7 +116,7 @@ public class ExecutionEngineTests
             ["price"] = 5.5
         };
 
-        var context = new ExecutionContext
+        var context = new EngineModels.ExecutionContext
         {
             Blueprint = blueprint,
             Action = action,
@@ -192,7 +192,7 @@ public class ExecutionEngineTests
     public async Task ValidateAsync_WithNoSchema_ReturnsValidResult()
     {
         // Arrange
-        var action = new Models.Action { Id = "action1", Title = "Test" };
+        var action = new BpModels.Action { Id = 1, Title = "Test" };
         var data = new Dictionary<string, object>
         {
             ["anything"] = "goes"
@@ -258,7 +258,7 @@ public class ExecutionEngineTests
     public async Task ApplyCalculationsAsync_WithNoCalculations_ReturnsOriginalData()
     {
         // Arrange
-        var action = new Models.Action { Id = "action1", Title = "Test" };
+        var action = new BpModels.Action { Id = 1, Title = "Test" };
         var data = new Dictionary<string, object>
         {
             ["field1"] = "value1",
@@ -347,7 +347,7 @@ public class ExecutionEngineTests
     public async Task DetermineRoutingAsync_WithNullBlueprint_ThrowsArgumentNullException()
     {
         // Arrange
-        var action = new Models.Action { Id = "action1", Title = "Test" };
+        var action = new BpModels.Action { Id = 1, Title = "Test" };
         var data = new Dictionary<string, object>();
 
         // Act & Assert
@@ -417,7 +417,7 @@ public class ExecutionEngineTests
     public void ApplyDisclosures_WithNoDisclosures_ReturnsEmptyList()
     {
         // Arrange
-        var action = new Models.Action { Id = "action1", Title = "Test" };
+        var action = new BpModels.Action { Id = 1, Title = "Test" };
         var data = new Dictionary<string, object>
         {
             ["field1"] = "value1"
@@ -495,14 +495,12 @@ public class ExecutionEngineTests
                 new()
                 {
                     Id = "participant1",
-                    WalletAddress = "wallet1",
-                    Actions = new List<string> { "action1" }
+                    WalletAddress = "wallet1"
                 },
                 new()
                 {
                     Id = "participant2",
-                    WalletAddress = "wallet2",
-                    Actions = new List<string> { "action2" }
+                    WalletAddress = "wallet2"
                 }
             }
         };
@@ -543,18 +541,8 @@ public class ExecutionEngineTests
     {
         var blueprint = CreateSimpleBlueprint();
 
-        // Add condition to participant2
-        blueprint.Participants[1].Conditions = new List<BpModels.Condition>
-        {
-            new()
-            {
-                Principal = "participant2",
-                Criteria = new List<string>
-                {
-                    """{">=": [{"var": "age"}, 18]}"""
-                }
-            }
-        };
+        // Note: Conditions are part of Action.Participants, not Participant itself
+        // The routing logic is defined in the Action, not the Participant model
 
         return blueprint;
     }
@@ -563,7 +551,7 @@ public class ExecutionEngineTests
     {
         return new BpModels.Action
         {
-            Id = "action1",
+            Id = 1,
             Title = "Test Action",
             Form = new BpModels.Control
             {
@@ -605,20 +593,18 @@ public class ExecutionEngineTests
     {
         return new BpModels.Action
         {
-            Id = "action1",
+            Id = 1,
             Title = "Test Action",
             Disclosures = new List<BpModels.Disclosure>
             {
                 new()
                 {
-                    Id = "disclosure1",
-                    ParticipantId = "participant1",
+                    ParticipantAddress = "participant1",
                     DataPointers = new List<string> { "/name", "/age" }
                 },
                 new()
                 {
-                    Id = "disclosure2",
-                    ParticipantId = "participant2",
+                    ParticipantAddress = "participant2",
                     DataPointers = new List<string> { "/name" }
                 }
             }

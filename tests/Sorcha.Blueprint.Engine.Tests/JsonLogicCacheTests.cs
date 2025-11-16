@@ -237,7 +237,7 @@ public class JsonLogicCacheTests
 
         // Assert
         stringResult.Should().Be("string-value");
-        intResult.Should().Be("string-value"); // Returns first cached value regardless of type
+        intResult.Should().Be(42); // Each type has its own cache entry
     }
 
     [Fact]
