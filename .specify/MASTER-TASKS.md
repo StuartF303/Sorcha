@@ -12,11 +12,11 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 138 (across all phases)
-**Completed:** 85 (62%)
+**Completed:** 91 (66%)
 **In Progress:** 0 (0%)
-**Not Started:** 53 (38%)
+**Not Started:** 47 (34%)
 
-**Note:** Counts updated 2025-11-17 after Sprint 7 completion - Testing, documentation, and performance testing complete
+**Note:** Counts updated 2025-11-17 after Sprint 6 & 7 completion - End-to-end integration, testing, and documentation complete
 
 ---
 
@@ -38,12 +38,12 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete |
 |-------|-------------|----------|-------------|-------------|------------|
-| **Phase 1: Blueprint-Action** | 56 | 42 | 0 | 14 | 75% |
+| **Phase 1: Blueprint-Action** | 56 | 48 | 0 | 8 | 86% |
 | **Phase 2: Wallet Service** | 32 | 32 | 0 | 0 | 100% |
 | **Phase 3: Register Service** | 15 | 11 | 0 | 4 | 73% |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% |
-| **TOTAL** | **138** | **85** | **0** | **53** | **62%** |
+| **TOTAL** | **138** | **91** | **0** | **47** | **66%** |
 
 ### By Priority
 
@@ -155,19 +155,27 @@ Enhancement tasks that can be deferred until after MVD is complete.
 **Completed:** 2025
 **Remaining:** SignalR integration tests (BP-5.7)
 
-### Sprint 6: Wallet/Register Integration (Stubs)
+### Sprint 6: Wallet/Register Integration ✅ COMPLETE
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| BP-6.1 | Implement Wallet Service client | P0 | 8h | 📋 Not Started | - |
-| BP-6.2 | Implement Register Service client | P0 | 8h | 📋 Not Started | - |
-| BP-6.3 | Update PayloadResolverService with real integration | P0 | 6h | 📋 Not Started | - |
-| BP-6.4 | Update TransactionBuilderService integration | P0 | 6h | 📋 Not Started | - |
-| BP-6.5 | Integration tests with Wallet Service | P0 | 10h | 📋 Not Started | - |
-| BP-6.6 | Integration tests with Register Service | P0 | 10h | 📋 Not Started | - |
+| BP-6.1 | Implement Wallet Service client | P0 | 8h | ✅ Complete | - |
+| BP-6.2 | Implement Register Service client | P0 | 8h | ✅ Complete | - |
+| BP-6.3 | Update PayloadResolverService with real integration | P0 | 6h | ✅ Complete | - |
+| BP-6.4 | Update action submission endpoints with Register integration | P0 | 6h | ✅ Complete | - |
+| BP-6.5 | Integration tests with Wallet Service | P0 | 10h | ✅ Complete | - |
+| BP-6.6 | Integration tests with Register Service | P0 | 10h | ✅ Complete | - |
 
-**Sprint 6 Status:** 📋 **NOT STARTED** (0/6 tasks, 48 hours)
-**Recommended Start:** Week 9 (after Wallet API is ready)
+**Sprint 6 Status:** ✅ **COMPLETE** (6/6 tasks, 48 hours)
+**Completed:** 2025-11-17
+
+**Deliverables:**
+- ✅ WalletServiceClient - Full HTTP client with encrypt, decrypt, sign, get wallet (256 lines)
+- ✅ RegisterServiceClient - Full HTTP client with submit, get transaction(s), query (281 lines)
+- ✅ PayloadResolverService - Real integration with Wallet & Register services (195 lines)
+- ✅ Action submission endpoints - Submit transactions to Register Service after building
+- ✅ Integration tests - 58 test cases across WalletRegisterIntegrationTests, PayloadResolverIntegrationTests
+- ✅ End-to-end Blueprint → Wallet → Register flow operational
 
 ### Sprint 7: Testing & Documentation ✅ COMPLETE
 
