@@ -3,6 +3,10 @@
 
 using NBomber.CSharp;
 using NBomber.Contracts;
+using NBomber.Http.CSharp;
+using NBomber.Plugins.Http;
+using System.Text;
+using System.Text.Json;
 
 namespace Sorcha.Performance.Tests;
 
@@ -11,99 +15,485 @@ class Program
     static void Main(string[] args)
     {
         // Parse command line arguments
-        var gatewayUrl = args.Length > 0 ? args[0] : "https://localhost:7082";
+        var gatewayUrl = args.Length > 0 ? args[0] : "http://localhost:5000";
+        var duration = args.Length > 1 ? int.Parse(args[1]) : 60; // Default 60 seconds
+        var targetRps = args.Length > 2 ? int.Parse(args[2]) : 100; // Default 100 RPS
 
-        Console.WriteLine($"Running performance tests against: {gatewayUrl}");
-        Console.WriteLine("Press Ctrl+C to stop\n");
+        Console.WriteLine("╔════════════════════════════════════════════════════════════╗");
+        Console.WriteLine("║      Sorcha Platform - Performance Test Suite             ║");
+        Console.WriteLine("╚════════════════════════════════════════════════════════════╝");
+        Console.WriteLine($"\n🎯 Target: {gatewayUrl}");
+        Console.WriteLine($"⏱️  Duration: {duration} seconds");
+        Console.WriteLine($"📊 Target RPS: {targetRps}");
+        Console.WriteLine($"🔥 Press Ctrl+C to stop\n");
 
         // Run all scenarios
         NBomberRunner
             .RegisterScenarios(
-                CreateHealthCheckScenario(gatewayUrl),
-                CreateBlueprintApiScenario(gatewayUrl),
-                CreatePeerApiScenario(gatewayUrl),
-                CreateGatewayLoadScenario(gatewayUrl)
+                // Core Infrastructure
+                CreateHealthCheckScenario(gatewayUrl, duration, targetRps),
+
+                // Blueprint Service Scenarios
+                CreateBlueprintReadScenario(gatewayUrl, duration, targetRps / 2),
+                CreateBlueprintWriteScenario(gatewayUrl, duration, 10),
+                CreateActionSubmissionScenario(gatewayUrl, duration, 20),
+                CreateExecutionHelperScenario(gatewayUrl, duration, 50),
+
+                // Wallet Service Scenarios
+                CreateWalletReadScenario(gatewayUrl, duration, targetRps / 2),
+                CreateWalletSignScenario(gatewayUrl, duration, 30),
+                CreateWalletEncryptDecryptScenario(gatewayUrl, duration, 20),
+
+                // Register Service Scenarios
+                CreateRegisterReadScenario(gatewayUrl, duration, targetRps / 2),
+                CreateTransactionSubmissionScenario(gatewayUrl, duration, 25),
+
+                // Mixed Load Scenarios
+                CreateMixedWorkloadScenario(gatewayUrl, duration, targetRps),
+                CreateStressTestScenario(gatewayUrl, 30, targetRps * 2)
             )
+            .WithReportFolder("performance-reports")
+            .WithReportFormats(ReportFormat.Html, ReportFormat.Md, ReportFormat.Txt)
             .Run();
+
+        Console.WriteLine("\n✅ Performance tests completed!");
+        Console.WriteLine("📄 Reports generated in: ./performance-reports/");
     }
 
-    static ScenarioProps CreateHealthCheckScenario(string baseUrl)
-    {
-        var httpClient = new HttpClient();
+    #region Core Infrastructure Scenarios
 
-        return Scenario.Create("health_check_scenario", async context =>
+    static ScenarioProps CreateHealthCheckScenario(string baseUrl, int durationSec, int rps)
+    {
+        using var httpClient = new HttpClient();
+
+        var scenario = Scenario.Create("health_check", async context =>
         {
-            var response = await httpClient.GetAsync($"{baseUrl}/api/health");
+            var request = Http.CreateRequest("GET", $"{baseUrl}/api/health");
+
+            var response = await Http.Send(httpClient, request);
+
             return response.IsSuccessStatusCode
-                ? Response.Ok()
-                : Response.Fail();
+                ? Response.Ok(statusCode: (int)response.StatusCode)
+                : Response.Fail(statusCode: (int)response.StatusCode);
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
-            Simulation.Inject(rate: 100, interval: TimeSpan.FromSeconds(1), during: TimeSpan.FromSeconds(30))
+            Simulation.Inject(
+                rate: rps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec))
         );
+
+        return scenario;
     }
 
-    static ScenarioProps CreateBlueprintApiScenario(string baseUrl)
-    {
-        var http = new HttpClient();
+    #endregion
 
-        return Scenario.Create("blueprint_api_scenario", async context =>
+    #region Blueprint Service Scenarios
+
+    static ScenarioProps CreateBlueprintReadScenario(string baseUrl, int durationSec, int rps)
+    {
+        using var httpClient = new HttpClient();
+
+        var scenario = Scenario.Create("blueprint_read", async context =>
         {
-            var response = await http.GetAsync($"{baseUrl}/api/blueprint/blueprints");
+            var page = Random.Shared.Next(1, 10);
+            var request = Http.CreateRequest("GET", $"{baseUrl}/api/blueprints?page={page}&pageSize=20");
+
+            var response = await Http.Send(httpClient, request);
+
             return response.IsSuccessStatusCode
-                ? Response.Ok()
-                : Response.Fail();
+                ? Response.Ok(statusCode: (int)response.StatusCode, sizeBytes: response.Content.Headers.ContentLength ?? 0)
+                : Response.Fail(statusCode: (int)response.StatusCode);
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
-            Simulation.Inject(rate: 50, interval: TimeSpan.FromSeconds(1), during: TimeSpan.FromSeconds(30))
+            Simulation.Inject(
+                rate: rps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec))
         );
+
+        return scenario;
     }
 
-    static ScenarioProps CreatePeerApiScenario(string baseUrl)
+    static ScenarioProps CreateBlueprintWriteScenario(string baseUrl, int durationSec, int rps)
     {
-        var http = new HttpClient();
+        using var httpClient = new HttpClient();
 
-        return Scenario.Create("peer_api_scenario", async context =>
+        var scenario = Scenario.Create("blueprint_write", async context =>
         {
-            var response = await http.GetAsync($"{baseUrl}/api/peer/peers");
+            var blueprint = new
+            {
+                title = $"Performance Test Blueprint {context.InvocationNumber}",
+                description = "Created by performance test",
+                participants = new[]
+                {
+                    new { id = "p1", name = "Participant 1" },
+                    new { id = "p2", name = "Participant 2" }
+                },
+                actions = new[]
+                {
+                    new
+                    {
+                        id = "0",
+                        title = "Action 1",
+                        sender = "p1"
+                    }
+                }
+            };
+
+            var json = JsonSerializer.Serialize(blueprint);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var request = Http.CreateRequest("POST", $"{baseUrl}/api/blueprints")
+                .WithBody(new StringContent(json, Encoding.UTF8, "application/json"));
+
+            var response = await Http.Send(httpClient, request);
+
             return response.IsSuccessStatusCode
-                ? Response.Ok()
-                : Response.Fail();
+                ? Response.Ok(statusCode: (int)response.StatusCode)
+                : Response.Fail(statusCode: (int)response.StatusCode);
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
-            Simulation.Inject(rate: 50, interval: TimeSpan.FromSeconds(1), during: TimeSpan.FromSeconds(30))
+            Simulation.Inject(
+                rate: rps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec))
         );
+
+        return scenario;
     }
 
-    static ScenarioProps CreateGatewayLoadScenario(string baseUrl)
+    static ScenarioProps CreateActionSubmissionScenario(string baseUrl, int durationSec, int rps)
     {
-        var http = new HttpClient();
+        using var httpClient = new HttpClient();
 
-        return Scenario.Create("mixed_gateway_scenario", async context =>
+        var scenario = Scenario.Create("action_submission", async context =>
+        {
+            var action = new
+            {
+                blueprintId = "test-blueprint",
+                actionId = "0",
+                senderWallet = $"wallet-{context.InvocationNumber}",
+                registerAddress = "register-test",
+                payloadData = new Dictionary<string, object>
+                {
+                    ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    ["data"] = $"Performance test data {context.InvocationNumber}"
+                }
+            };
+
+            var json = JsonSerializer.Serialize(action);
+            var request = Http.CreateRequest("POST", $"{baseUrl}/api/actions")
+                .WithBody(new StringContent(json, Encoding.UTF8, "application/json"));
+
+            var response = await Http.Send(httpClient, request);
+
+            return response.IsSuccessStatusCode
+                ? Response.Ok(statusCode: (int)response.StatusCode)
+                : Response.Fail(statusCode: (int)response.StatusCode);
+        })
+        .WithWarmUpDuration(TimeSpan.FromSeconds(5))
+        .WithLoadSimulations(
+            Simulation.Inject(
+                rate: rps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec))
+        );
+
+        return scenario;
+    }
+
+    static ScenarioProps CreateExecutionHelperScenario(string baseUrl, int durationSec, int rps)
+    {
+        using var httpClient = new HttpClient();
+
+        var scenario = Scenario.Create("execution_helpers", async context =>
         {
             var endpoints = new[]
             {
-                $"{baseUrl}/api/health",
-                $"{baseUrl}/api/stats",
-                $"{baseUrl}/api/blueprint/status",
-                $"{baseUrl}/api/peer/status"
+                "/api/execution/validate",
+                "/api/execution/calculate",
+                "/api/execution/route",
+                "/api/execution/disclose"
             };
 
             var endpoint = endpoints[Random.Shared.Next(endpoints.Length)];
-            var response = await http.GetAsync(endpoint);
+            var requestData = new
+            {
+                blueprintId = "test-blueprint",
+                actionId = "0",
+                data = new Dictionary<string, object>
+                {
+                    ["value1"] = 100,
+                    ["value2"] = 200
+                }
+            };
+
+            var json = JsonSerializer.Serialize(requestData);
+            var request = Http.CreateRequest("POST", $"{baseUrl}{endpoint}")
+                .WithBody(new StringContent(json, Encoding.UTF8, "application/json"));
+
+            var response = await Http.Send(httpClient, request);
 
             return response.IsSuccessStatusCode
-                ? Response.Ok()
-                : Response.Fail();
+                ? Response.Ok(statusCode: (int)response.StatusCode)
+                : Response.Fail(statusCode: (int)response.StatusCode);
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
-            Simulation.RampingInject(rate: 10, interval: TimeSpan.FromSeconds(1), during: TimeSpan.FromSeconds(20)),
-            Simulation.Inject(rate: 100, interval: TimeSpan.FromSeconds(1), during: TimeSpan.FromSeconds(30)),
-            Simulation.RampingInject(rate: 0, interval: TimeSpan.FromSeconds(1), during: TimeSpan.FromSeconds(10))
+            Simulation.Inject(
+                rate: rps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec))
         );
+
+        return scenario;
     }
+
+    #endregion
+
+    #region Wallet Service Scenarios
+
+    static ScenarioProps CreateWalletReadScenario(string baseUrl, int durationSec, int rps)
+    {
+        using var httpClient = new HttpClient();
+
+        var scenario = Scenario.Create("wallet_read", async context =>
+        {
+            // In a real test, we'd use actual wallet IDs
+            var walletId = $"wallet-{Random.Shared.Next(1, 100)}";
+            var request = Http.CreateRequest("GET", $"{baseUrl}/api/wallets/{walletId}");
+
+            var response = await Http.Send(httpClient, request);
+
+            // 404 is expected for non-existent wallets in this test
+            return (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                ? Response.Ok(statusCode: (int)response.StatusCode)
+                : Response.Fail(statusCode: (int)response.StatusCode);
+        })
+        .WithWarmUpDuration(TimeSpan.FromSeconds(5))
+        .WithLoadSimulations(
+            Simulation.Inject(
+                rate: rps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec))
+        );
+
+        return scenario;
+    }
+
+    static ScenarioProps CreateWalletSignScenario(string baseUrl, int durationSec, int rps)
+    {
+        using var httpClient = new HttpClient();
+
+        var scenario = Scenario.Create("wallet_sign", async context =>
+        {
+            var signRequest = new
+            {
+                data = Convert.ToBase64String(Encoding.UTF8.GetBytes($"Test data {context.InvocationNumber}")),
+                algorithm = "ED25519"
+            };
+
+            var json = JsonSerializer.Serialize(signRequest);
+            var walletId = "test-wallet-001"; // Would be created in setup
+
+            var request = Http.CreateRequest("POST", $"{baseUrl}/api/wallets/{walletId}/sign")
+                .WithBody(new StringContent(json, Encoding.UTF8, "application/json"));
+
+            var response = await Http.Send(httpClient, request);
+
+            return response.IsSuccessStatusCode
+                ? Response.Ok(statusCode: (int)response.StatusCode)
+                : Response.Fail(statusCode: (int)response.StatusCode);
+        })
+        .WithWarmUpDuration(TimeSpan.FromSeconds(5))
+        .WithLoadSimulations(
+            Simulation.Inject(
+                rate: rps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec))
+        );
+
+        return scenario;
+    }
+
+    static ScenarioProps CreateWalletEncryptDecryptScenario(string baseUrl, int durationSec, int rps)
+    {
+        using var httpClient = new HttpClient();
+
+        var scenario = Scenario.Create("wallet_encrypt_decrypt", async context =>
+        {
+            var encryptRequest = new
+            {
+                data = $"Sensitive data {context.InvocationNumber}",
+                recipientWalletId = "test-wallet-002"
+            };
+
+            var json = JsonSerializer.Serialize(encryptRequest);
+            var walletId = "test-wallet-001";
+
+            var request = Http.CreateRequest("POST", $"{baseUrl}/api/wallets/{walletId}/encrypt")
+                .WithBody(new StringContent(json, Encoding.UTF8, "application/json"));
+
+            var response = await Http.Send(httpClient, request);
+
+            return response.IsSuccessStatusCode
+                ? Response.Ok(statusCode: (int)response.StatusCode)
+                : Response.Fail(statusCode: (int)response.StatusCode);
+        })
+        .WithWarmUpDuration(TimeSpan.FromSeconds(5))
+        .WithLoadSimulations(
+            Simulation.Inject(
+                rate: rps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec))
+        );
+
+        return scenario;
+    }
+
+    #endregion
+
+    #region Register Service Scenarios
+
+    static ScenarioProps CreateRegisterReadScenario(string baseUrl, int durationSec, int rps)
+    {
+        using var httpClient = new HttpClient();
+
+        var scenario = Scenario.Create("register_read", async context =>
+        {
+            var registerId = $"register-{Random.Shared.Next(1, 10)}";
+            var request = Http.CreateRequest("GET", $"{baseUrl}/api/registers/{registerId}/transactions");
+
+            var response = await Http.Send(httpClient, request);
+
+            return (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                ? Response.Ok(statusCode: (int)response.StatusCode)
+                : Response.Fail(statusCode: (int)response.StatusCode);
+        })
+        .WithWarmUpDuration(TimeSpan.FromSeconds(5))
+        .WithLoadSimulations(
+            Simulation.Inject(
+                rate: rps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec))
+        );
+
+        return scenario;
+    }
+
+    static ScenarioProps CreateTransactionSubmissionScenario(string baseUrl, int durationSec, int rps)
+    {
+        using var httpClient = new HttpClient();
+
+        var scenario = Scenario.Create("transaction_submission", async context =>
+        {
+            var transaction = new
+            {
+                transactionType = "Action",
+                senderAddress = $"wallet-{context.InvocationNumber}",
+                payload = Convert.ToBase64String(Encoding.UTF8.GetBytes($"Transaction {context.InvocationNumber}"))
+            };
+
+            var json = JsonSerializer.Serialize(transaction);
+            var registerId = "test-register-001";
+
+            var request = Http.CreateRequest("POST", $"{baseUrl}/api/registers/{registerId}/transactions")
+                .WithBody(new StringContent(json, Encoding.UTF8, "application/json"));
+
+            var response = await Http.Send(httpClient, request);
+
+            return response.IsSuccessStatusCode
+                ? Response.Ok(statusCode: (int)response.StatusCode)
+                : Response.Fail(statusCode: (int)response.StatusCode);
+        })
+        .WithWarmUpDuration(TimeSpan.FromSeconds(5))
+        .WithLoadSimulations(
+            Simulation.Inject(
+                rate: rps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec))
+        );
+
+        return scenario;
+    }
+
+    #endregion
+
+    #region Mixed & Stress Scenarios
+
+    static ScenarioProps CreateMixedWorkloadScenario(string baseUrl, int durationSec, int rps)
+    {
+        using var httpClient = new HttpClient();
+
+        var scenario = Scenario.Create("mixed_workload", async context =>
+        {
+            var operations = new[]
+            {
+                $"{baseUrl}/api/health",
+                $"{baseUrl}/api/blueprints",
+                $"{baseUrl}/api/wallets",
+                $"{baseUrl}/api/registers"
+            };
+
+            var url = operations[Random.Shared.Next(operations.Length)];
+            var request = Http.CreateRequest("GET", url);
+
+            var response = await Http.Send(httpClient, request);
+
+            return (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                ? Response.Ok(statusCode: (int)response.StatusCode)
+                : Response.Fail(statusCode: (int)response.StatusCode);
+        })
+        .WithWarmUpDuration(TimeSpan.FromSeconds(5))
+        .WithLoadSimulations(
+            Simulation.Inject(
+                rate: rps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec))
+        );
+
+        return scenario;
+    }
+
+    static ScenarioProps CreateStressTestScenario(string baseUrl, int durationSec, int maxRps)
+    {
+        using var httpClient = new HttpClient();
+
+        var scenario = Scenario.Create("stress_test", async context =>
+        {
+            var request = Http.CreateRequest("GET", $"{baseUrl}/api/health");
+
+            var response = await Http.Send(httpClient, request);
+
+            return response.IsSuccessStatusCode
+                ? Response.Ok(statusCode: (int)response.StatusCode)
+                : Response.Fail(statusCode: (int)response.StatusCode);
+        })
+        .WithWarmUpDuration(TimeSpan.FromSeconds(5))
+        .WithLoadSimulations(
+            // Ramp up to max RPS
+            Simulation.RampingInject(
+                rate: maxRps / 4,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec / 3)),
+            // Sustain max load
+            Simulation.Inject(
+                rate: maxRps,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec / 3)),
+            // Ramp down
+            Simulation.RampingInject(
+                rate: 0,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromSeconds(durationSec / 3))
+        );
+
+        return scenario;
+    }
+
+    #endregion
 }
