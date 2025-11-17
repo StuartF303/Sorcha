@@ -1,0 +1,22 @@
+namespace Sorcha.Wallet.Service.Models;
+
+/// <summary>
+/// Response model for transaction signing
+/// </summary>
+public class SignTransactionResponse
+{
+    /// <summary>
+    /// Base64-encoded digital signature
+    /// </summary>
+    public required string Signature { get; set; }
+
+    /// <summary>
+    /// Address of the wallet that signed the transaction
+    /// </summary>
+    public required string SignedBy { get; set; }
+
+    /// <summary>
+    /// Timestamp when the transaction was signed
+    /// </summary>
+    public DateTime SignedAt { get; set; }
+}

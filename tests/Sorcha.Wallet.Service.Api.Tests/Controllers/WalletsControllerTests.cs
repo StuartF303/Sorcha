@@ -1,4 +1,4 @@
-using Sorcha.Wallet.Service.Domain.ValueObjects;
+using Sorcha.Wallet.Core.Domain.ValueObjects;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 

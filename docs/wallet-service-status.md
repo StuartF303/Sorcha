@@ -1,7 +1,7 @@
 # Wallet Service Implementation Status
 
-**Version:** 1.0
-**Last Updated:** 2025-11-16
+**Version:** 1.1
+**Last Updated:** 2025-11-17
 **Completion:** 90% (Core Features Complete)
 **Production Ready:** 40% (Critical Infrastructure Pending)
 
@@ -16,19 +16,18 @@ The Sorcha Wallet Service is a feature-complete cryptographic wallet management 
 ```
 src/
 ├── Common/
-│   └── Sorcha.Wallet.Service/              # Core library (domain + services)
+│   └── Sorcha.Wallet.Core/                  # Core library (domain + services)
 │       ├── Domain/                          # Entities, value objects, events, enums
 │       ├── Services/                        # Business logic interfaces & implementations
 │       ├── Repositories/                    # Data access (in-memory only)
 │       ├── Encryption/                      # Key encryption (local provider only)
 │       └── Events/                          # Event publishing (in-memory only)
-└── Apps/
-    └── Services/
-        └── Sorcha.WalletService.Api/        # REST API with Controllers
-            ├── Controllers/                 # WalletsController, DelegationController
-            ├── Models/                      # DTOs and request/response models
-            ├── Mappers/                     # Entity-DTO mapping
-            └── Extensions/                  # DI configuration
+└── Services/
+    └── Sorcha.Wallet.Service/               # REST API with Minimal APIs
+        ├── Endpoints/                       # WalletEndpoints, DelegationEndpoints
+        ├── Models/                          # DTOs and request/response models
+        ├── Mappers/                         # Entity-DTO mapping
+        └── Extensions/                      # DI configuration
 
 tests/
 ├── Sorcha.Wallet.Service.Tests/             # Unit tests (111 test methods)

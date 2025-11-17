@@ -1,7 +1,7 @@
 # Sorcha Platform - Development Status Report
 
-**Date:** 2025-11-16
-**Version:** 2.3 (Updated after Register Service testing completion)
+**Date:** 2025-11-17
+**Version:** 2.4 (Updated after Wallet Service refactoring)
 **Overall Completion:** 95%
 
 ---
@@ -191,9 +191,8 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 
 **Overall Status:** 90% COMPLETE ✅
 **Locations:**
-- Core: `/home/user/Sorcha/src/Common/Sorcha.WalletService/`
-- API (Controller): `/home/user/Sorcha/src/Apps/Services/Sorcha.WalletService.Api/`
-- API (Minimal): `/home/user/Sorcha/src/Services/Sorcha.WalletService.Api/`
+- Core: `/home/user/Sorcha/src/Common/Sorcha.Wallet.Core/`
+- API: `/home/user/Sorcha/src/Services/Sorcha.Wallet.Service/`
 
 ### Core Library - 90% COMPLETE ✅
 

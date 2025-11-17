@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Sorcha.Wallet.Service.Api;
-using Sorcha.Wallet.Service.Api.Models;
-using Sorcha.Wallet.Service.Repositories.Implementation;
-using Sorcha.Wallet.Service.Events.Publishers;
+using Sorcha.Wallet.Core.Api;
+using Sorcha.Wallet.Core.Api.Models;
+using Sorcha.Wallet.Core.Repositories.Implementation;
+using Sorcha.Wallet.Core.Events.Publishers;
 
 namespace Sorcha.Wallet.Service.IntegrationTests;
 

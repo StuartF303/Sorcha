@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Services\Sorcha.WalletService.Api\Sorcha.WalletService.Api.csproj" />
-    <ProjectReference Include="..\..\src\Common\Sorcha.Wallet.Service\Sorcha.Wallet.Service.csproj" />
+    <ProjectReference Include="..\..\src\Services\Sorcha.Wallet.Service\Sorcha.Wallet.Service.csproj" />
+    <ProjectReference Include="..\..\src\Common\Sorcha.Wallet.Core\Sorcha.Wallet.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
