@@ -71,7 +71,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Wallet.Service.Api.T
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Apps", "Apps", "{AD2A5A3B-A595-3E96-334A-002D08FE630C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.WalletService.Api", "src\Apps\Services\Sorcha.WalletService.Api\Sorcha.WalletService.Api.csproj", "{F7643110-C6DB-4AF8-8A73-F4344FEA1CA9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.WalletService.Api", "src\Services\Sorcha.WalletService.Api\Sorcha.WalletService.Api.csproj", "{F7643110-C6DB-4AF8-8A73-F4344FEA1CA9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{1A7A2863-164E-4E57-8D10-7CC734740A50}"
 	ProjectSection(SolutionItems) = preProject

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
 using Microsoft.AspNetCore.Mvc;
 using Sorcha.WalletService.Api.Mappers;
 using Sorcha.WalletService.Api.Models;
@@ -5,55 +8,67 @@ using Sorcha.WalletService.Domain;
 using Sorcha.WalletService.Services.Implementation;
 using System.Security.Claims;
 
-namespace Sorcha.WalletService.Api.Controllers;
+namespace Sorcha.WalletService.Api.Endpoints;
 
 /// <summary>
-/// Wallet access control and delegation endpoints
+/// Wallet delegation and access control minimal API endpoints
 /// </summary>
-[ApiController]
-[Route("api/v1/wallets/{walletAddress}/access")]
-[Produces("application/json")]
-public class DelegationController : ControllerBase
+public static class DelegationEndpoints
 {
-    private readonly DelegationService _delegationService;
-    private readonly ILogger<DelegationController> _logger;
-
-    public DelegationController(
-        DelegationService delegationService,
-        ILogger<DelegationController> logger)
+    /// <summary>
+    /// Map all delegation-related endpoints
+    /// </summary>
+    public static IEndpointRouteBuilder MapDelegationEndpoints(this IEndpointRouteBuilder app)
     {
-        _delegationService = delegationService ?? throw new ArgumentNullException(nameof(delegationService));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        var delegationGroup = app.MapGroup("/api/v1/wallets/{walletAddress}/access")
+            .WithTags("Delegation")
+            .WithOpenApi();
+
+        // POST /api/v1/wallets/{walletAddress}/access - Grant access
+        delegationGroup.MapPost("/", GrantAccess)
+            .WithName("GrantAccess")
+            .WithSummary("Grant access to a wallet")
+            .WithDescription("Grant read or write access to a wallet for a specific subject (user or service)");
+
+        // GET /api/v1/wallets/{walletAddress}/access - List access grants
+        delegationGroup.MapGet("/", GetAccess)
+            .WithName("GetAccess")
+            .WithSummary("List active access grants")
+            .WithDescription("Retrieve all active access grants for a specific wallet");
+
+        // DELETE /api/v1/wallets/{walletAddress}/access/{subject} - Revoke access
+        delegationGroup.MapDelete("/{subject}", RevokeAccess)
+            .WithName("RevokeAccess")
+            .WithSummary("Revoke access to a wallet")
+            .WithDescription("Revoke a subject's access to a wallet");
+
+        // GET /api/v1/wallets/{walletAddress}/access/{subject}/check - Check access
+        delegationGroup.MapGet("/{subject}/check", CheckAccess)
+            .WithName("CheckAccess")
+            .WithSummary("Check if subject has access")
+            .WithDescription("Verify whether a subject has the required access level to a wallet");
+
+        return app;
     }
 
     /// <summary>
     /// Grant access to a wallet
     /// </summary>
-    /// <param name="walletAddress">Wallet address</param>
-    /// <param name="request">Access grant parameters</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Created access entry</returns>
-    /// <response code="201">Access granted successfully</response>
-    /// <response code="400">Invalid request parameters</response>
-    /// <response code="404">Wallet not found</response>
-    /// <response code="409">Access already exists</response>
-    [HttpPost]
-    [ProducesResponseType(typeof(WalletAccessDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<WalletAccessDto>> GrantAccess(
+    private static async Task<IResult> GrantAccess(
         string walletAddress,
         [FromBody] GrantAccessRequest request,
+        DelegationService delegationService,
+        HttpContext context,
+        ILogger<Program> logger,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var grantedBy = GetCurrentUser();
+            var grantedBy = GetCurrentUser(context);
 
             if (!Enum.TryParse<AccessRight>(request.AccessRight, out var accessRight))
             {
-                return BadRequest(new ProblemDetails
+                return Results.BadRequest(new ProblemDetails
                 {
                     Title = "Invalid Access Right",
                     Detail = $"Invalid access right: {request.AccessRight}. Valid values are: Owner, ReadWrite, ReadOnly",
@@ -61,11 +76,11 @@ public class DelegationController : ControllerBase
                 });
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Granting {AccessRight} access on wallet {WalletAddress} to {Subject}",
                 accessRight, walletAddress, request.Subject);
 
-            var access = await _delegationService.GrantAccessAsync(
+            var access = await delegationService.GrantAccessAsync(
                 walletAddress,
                 request.Subject,
                 accessRight,
@@ -74,15 +89,14 @@ public class DelegationController : ControllerBase
                 request.ExpiresAt,
                 cancellationToken);
 
-            return CreatedAtAction(
-                nameof(GetAccess),
-                new { walletAddress },
+            return Results.Created(
+                $"/api/v1/wallets/{walletAddress}/access",
                 access.ToDto());
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "Invalid access grant request");
-            return BadRequest(new ProblemDetails
+            logger.LogWarning(ex, "Invalid access grant request");
+            return Results.BadRequest(new ProblemDetails
             {
                 Title = "Invalid Request",
                 Detail = ex.Message,
@@ -91,11 +105,11 @@ public class DelegationController : ControllerBase
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
         {
-            return NotFound();
+            return Results.NotFound();
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("already exists"))
         {
-            return Conflict(new ProblemDetails
+            return Results.Conflict(new ProblemDetails
             {
                 Title = "Access Already Exists",
                 Detail = ex.Message,
@@ -104,8 +118,8 @@ public class DelegationController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to grant access on wallet {WalletAddress}", walletAddress);
-            return Problem(
+            logger.LogError(ex, "Failed to grant access on wallet {WalletAddress}", walletAddress);
+            return Results.Problem(
                 title: "Access Grant Failed",
                 detail: "An error occurred while granting access",
                 statusCode: StatusCodes.Status500InternalServerError);
@@ -115,25 +129,21 @@ public class DelegationController : ControllerBase
     /// <summary>
     /// List active access grants for a wallet
     /// </summary>
-    /// <param name="walletAddress">Wallet address</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>List of active access grants</returns>
-    /// <response code="200">Access list retrieved successfully</response>
-    [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<WalletAccessDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<WalletAccessDto>>> GetAccess(
+    private static async Task<IResult> GetAccess(
         string walletAddress,
+        DelegationService delegationService,
+        ILogger<Program> logger,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var access = await _delegationService.GetActiveAccessAsync(walletAddress, cancellationToken);
-            return Ok(access.Select(a => a.ToDto()));
+            var access = await delegationService.GetActiveAccessAsync(walletAddress, cancellationToken);
+            return Results.Ok(access.Select(a => a.ToDto()));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get access for wallet {WalletAddress}", walletAddress);
-            return Problem(
+            logger.LogError(ex, "Failed to get access for wallet {WalletAddress}", walletAddress);
+            return Results.Problem(
                 title: "Failed to Retrieve Access",
                 detail: "An error occurred while retrieving access grants",
                 statusCode: StatusCodes.Status500InternalServerError);
@@ -143,45 +153,39 @@ public class DelegationController : ControllerBase
     /// <summary>
     /// Revoke access to a wallet
     /// </summary>
-    /// <param name="walletAddress">Wallet address</param>
-    /// <param name="subject">Subject whose access to revoke</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>No content</returns>
-    /// <response code="204">Access revoked successfully</response>
-    /// <response code="404">Wallet or access not found</response>
-    [HttpDelete("{subject}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> RevokeAccess(
+    private static async Task<IResult> RevokeAccess(
         string walletAddress,
         string subject,
+        DelegationService delegationService,
+        HttpContext context,
+        ILogger<Program> logger,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var revokedBy = GetCurrentUser();
+            var revokedBy = GetCurrentUser(context);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Revoking access for {Subject} on wallet {WalletAddress}",
                 subject, walletAddress);
 
-            await _delegationService.RevokeAccessAsync(
+            await delegationService.RevokeAccessAsync(
                 walletAddress,
                 subject,
                 revokedBy,
                 cancellationToken);
 
-            return NoContent();
+            return Results.NoContent();
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
         {
-            return NotFound();
+            return Results.NotFound();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to revoke access for {Subject} on wallet {WalletAddress}",
+            logger.LogError(ex, "Failed to revoke access for {Subject} on wallet {WalletAddress}",
                 subject, walletAddress);
-            return Problem(
+            return Results.Problem(
                 title: "Access Revocation Failed",
                 detail: "An error occurred while revoking access",
                 statusCode: StatusCodes.Status500InternalServerError);
@@ -191,17 +195,11 @@ public class DelegationController : ControllerBase
     /// <summary>
     /// Check if a subject has access to a wallet
     /// </summary>
-    /// <param name="walletAddress">Wallet address</param>
-    /// <param name="subject">Subject identifier</param>
-    /// <param name="requiredRight">Required access right (Owner, ReadWrite, ReadOnly)</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Access check result</returns>
-    /// <response code="200">Access check completed</response>
-    [HttpGet("{subject}/check")]
-    [ProducesResponseType(typeof(AccessCheckResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<AccessCheckResponse>> CheckAccess(
+    private static async Task<IResult> CheckAccess(
         string walletAddress,
         string subject,
+        DelegationService delegationService,
+        ILogger<Program> logger,
         [FromQuery] string requiredRight = "ReadOnly",
         CancellationToken cancellationToken = default)
     {
@@ -209,7 +207,7 @@ public class DelegationController : ControllerBase
         {
             if (!Enum.TryParse<AccessRight>(requiredRight, out var accessRight))
             {
-                return BadRequest(new ProblemDetails
+                return Results.BadRequest(new ProblemDetails
                 {
                     Title = "Invalid Access Right",
                     Detail = $"Invalid access right: {requiredRight}. Valid values are: Owner, ReadWrite, ReadOnly",
@@ -217,13 +215,13 @@ public class DelegationController : ControllerBase
                 });
             }
 
-            var hasAccess = await _delegationService.HasAccessAsync(
+            var hasAccess = await delegationService.HasAccessAsync(
                 walletAddress,
                 subject,
                 accessRight,
                 cancellationToken);
 
-            return Ok(new AccessCheckResponse
+            return Results.Ok(new AccessCheckResponse
             {
                 WalletAddress = walletAddress,
                 Subject = subject,
@@ -233,19 +231,20 @@ public class DelegationController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check access for {Subject} on wallet {WalletAddress}",
+            logger.LogError(ex, "Failed to check access for {Subject} on wallet {WalletAddress}",
                 subject, walletAddress);
-            return Problem(
+            return Results.Problem(
                 title: "Access Check Failed",
                 detail: "An error occurred while checking access",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
     }
 
-    private string GetCurrentUser()
+    // Helper methods for authentication/authorization
+    private static string GetCurrentUser(HttpContext context)
     {
         // TODO: Extract from JWT claims
-        return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
+        return context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
     }
 }
 
