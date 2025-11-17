@@ -47,6 +47,26 @@ See the [detailed development status](docs/development-status.md) for complete i
 
 Sorcha is a modernized, cloud-native platform for defining, designing, and executing data flow blueprints. Built on .NET 10 and leveraging .NET Aspire for cloud-native orchestration, Sorcha provides a flexible and scalable solution for workflow automation and data processing pipelines.
 
+## Specification & Planning
+
+This project uses [Spec-Kit](https://github.com/github/spec-kit) for specification-driven development. All project specifications, architectural plans, and task tracking are maintained in the [.specify/](.specify/README.md) directory.
+
+**Key Documents:**
+- **[Constitution](.specify/constitution.md)** - Project principles and development standards
+- **[Specification](.specify/spec.md)** - Requirements, architecture, and user scenarios
+- **[Master Plan](.specify/MASTER-PLAN.md)** - Unified implementation strategy and phases
+- **[Master Tasks](.specify/MASTER-TASKS.md)** - Consolidated task list with priorities
+- **[Service Specs](.specify/specs/)** - Detailed specifications for each service
+
+**For Developers:**
+- Start with the [.specify README](.specify/README.md) to understand the specification structure
+- Check [MASTER-PLAN.md](.specify/MASTER-PLAN.md) for current development phase and priorities
+- Find tasks in [MASTER-TASKS.md](.specify/MASTER-TASKS.md) (P0 = MVD blockers, P1 = Core, P2 = Nice-to-have, P3 = Post-MVD)
+- Follow [constitution.md](.specify/constitution.md) for architectural principles and coding standards
+
+**For AI Agents:**
+All specifications are designed to provide context for AI-assisted development. Consult the constitution for guardrails, the spec for requirements, and the master plan for implementation priorities.
+
 ## Features
 
 ### Core Capabilities

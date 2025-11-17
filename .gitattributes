@@ -43,6 +43,10 @@
 LICENSE text
 AUTHORS text
 
+# Spec-Kit documentation (specification-driven development)
+.specify/** linguist-documentation
+.specify/**/*.md text diff=markdown merge=union
+
 # Docker
 Dockerfile text
 *.dockerignore text
