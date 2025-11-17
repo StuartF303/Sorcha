@@ -23,17 +23,12 @@ var registerService = builder.AddProject<Projects.Sorcha_Register_Service>("regi
 var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service")
     .WithReference(redis);
 
-// Add Wallet Service with Redis reference (internal only)
-var walletService = builder.AddProject<Projects.Sorcha_WalletService_Api>("wallet-service")
-    .WithReference(redis);
-
 // Add API Gateway as the single external entry point
 var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
     .WithReference(blueprintService)
     .WithReference(walletService)
     .WithReference(registerService)
     .WithReference(peerService)
-    .WithReference(walletService)
     .WithReference(redis)
     .WithExternalHttpEndpoints(); // Only the gateway is exposed externally
 
