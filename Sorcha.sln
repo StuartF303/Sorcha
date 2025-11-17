@@ -61,13 +61,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.TransactionHandler",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.TransactionHandler.Tests", "tests\Sorcha.TransactionHandler.Tests\Sorcha.TransactionHandler.Tests.csproj", "{B239CB04-E08B-403C-8E94-EADC9EA66518}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.WalletService", "src\Common\Sorcha.WalletService\Sorcha.WalletService.csproj", "{31B50C6E-E509-40C7-BBE1-B9A2CE3C2ECE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Wallet.Service", "src\Common\Sorcha.Wallet.Service\Sorcha.Wallet.Service.csproj", "{31B50C6E-E509-40C7-BBE1-B9A2CE3C2ECE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.WalletService.Tests", "tests\Sorcha.WalletService.Tests\Sorcha.WalletService.Tests.csproj", "{EE19FC42-DE11-42AF-BCD2-3D52C2FCD704}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Wallet.Service.Tests", "tests\Sorcha.Wallet.Service.Tests\Sorcha.Wallet.Service.Tests.csproj", "{EE19FC42-DE11-42AF-BCD2-3D52C2FCD704}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.WalletService.IntegrationTests", "tests\Sorcha.WalletService.IntegrationTests\Sorcha.WalletService.IntegrationTests.csproj", "{5D94E4AB-3B0C-4A86-AE55-62E726D4D5AF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Wallet.Service.IntegrationTests", "tests\Sorcha.Wallet.Service.IntegrationTests\Sorcha.Wallet.Service.IntegrationTests.csproj", "{5D94E4AB-3B0C-4A86-AE55-62E726D4D5AF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.WalletService.Api.Tests", "tests\Sorcha.WalletService.Api.Tests\Sorcha.WalletService.Api.Tests.csproj", "{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Wallet.Service.Api.Tests", "tests\Sorcha.Wallet.Service.Api.Tests\Sorcha.Wallet.Service.Api.Tests.csproj", "{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Apps", "Apps", "{AD2A5A3B-A595-3E96-334A-002D08FE630C}"
 EndProject
