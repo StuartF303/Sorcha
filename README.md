@@ -16,6 +16,8 @@ A modern .NET 10 blueprint execution engine and designer for data flow orchestra
 | Testing & CI/CD | Production Ready | 95% |
 
 **Recent Updates (2025-11-16):**
+- ✅ **Wallet Service codebase consolidated** - Removed duplicate directories, fixed solution references
+- ✅ **Wallet Service comprehensive status report** - 90% feature complete, 111 tests, 14 REST endpoints ([View Status](docs/wallet-service-status.md))
 - ✅ **Register Service 100% complete with comprehensive testing** (112 tests, ~2,459 LOC)
 - ✅ Register Service Phase 5 API fully integrated with core managers
 - ✅ Blueprint-Action Service SignalR integration tests complete (14 tests, 520+ LOC)
@@ -66,15 +68,19 @@ Sorcha is a modernized, cloud-native platform for defining, designing, and execu
   - ✅ Integration with Wallet Service (encryption/decryption) (Sprint 3)
   - ✅ Integration with Register Service (blockchain transactions) (Sprint 3)
 
-- **✅ Wallet Service** (Core COMPLETE): Secure cryptographic wallet management
-  - ✅ HD wallet support with BIP32/BIP39/BIP44 standards
-  - ✅ Multi-algorithm support (ED25519, NIST P-256, RSA-4096)
+- **✅ Wallet Service** (Core 90% COMPLETE): Secure cryptographic wallet management ([View Detailed Status](docs/wallet-service-status.md))
+  - ✅ HD wallet support with BIP32/BIP39/BIP44 standards (NBitcoin)
+  - ✅ Multi-algorithm support (ED25519, NISTP256, RSA-4096)
   - ✅ Transaction signing and verification
   - ✅ Payload encryption/decryption
-  - ✅ Access delegation and control
-  - ✅ REST API endpoints (WS-030, WS-031 complete)
-  - 🚧 EF Core repository (pending)
-  - 🚧 Azure Key Vault integration (pending)
+  - ✅ Access delegation and control (Owner/ReadWrite/ReadOnly)
+  - ✅ 14 REST API endpoints with comprehensive OpenAPI docs
+  - ✅ 111 unit tests (~75-80% coverage)
+  - ✅ In-memory repository implementation
+  - 🚧 EF Core repository (pending - P1)
+  - 🚧 Azure Key Vault integration (pending - P1)
+  - 🚧 Authentication & authorization (pending - P1)
+  - 🚧 HD address generation (not implemented - design needed)
 
 - **✅ Register Service** (100% COMPLETE): Distributed ledger for transaction storage
   - ✅ Complete domain models (Register, TransactionModel, Docket, PayloadModel)
@@ -463,11 +469,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [x] Core blueprint execution engine (100% - Portable, client + server)
 - [x] Blueprint validation and testing framework (100%)
 - [x] Unified Blueprint-Action Service with SignalR (100%)
-- [x] Wallet Service core implementation (90% - API complete)
+- [x] Wallet Service core implementation (90% - Features complete, production infra pending)
 - [x] Register Service with distributed ledger (100%)
+- [ ] Wallet Service production readiness (40% - Auth, storage, key mgmt needed)
 - [ ] End-to-end integration (Blueprint → Wallet → Register)
 - [ ] Visual blueprint designer (85% - functional, needs polish)
-- [ ] Production storage (EF Core repositories)
+- [ ] Production storage (EF Core repositories for Wallet/Register)
 - [ ] Plugin system for custom actions
 - [ ] Multi-tenant support
 - [ ] Cloud deployment templates (Azure, AWS, GCP)
@@ -481,6 +488,8 @@ Full documentation is available in the [docs](docs/) directory:
 - [Architecture Overview](docs/architecture.md)
 - [Getting Started Guide](docs/getting-started.md)
 - [Blueprint Schema](docs/blueprint-schema.md)
+- [Development Status](docs/development-status.md)
+- [Wallet Service Status](docs/wallet-service-status.md) ⭐ NEW
 - [API Reference](docs/api-reference.md)
 - [Deployment Guide](docs/deployment.md)
 
