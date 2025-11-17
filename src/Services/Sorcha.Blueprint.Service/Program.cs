@@ -47,6 +47,19 @@ builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IActionR
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IPayloadResolverService, Sorcha.Blueprint.Service.Services.Implementation.PayloadResolverService>();
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService, Sorcha.Blueprint.Service.Services.Implementation.TransactionBuilderService>();
 
+// Add HTTP clients for Wallet and Register services (Sprint 6)
+builder.Services.AddHttpClient<Sorcha.Blueprint.Service.Clients.IWalletServiceClient, Sorcha.Blueprint.Service.Clients.WalletServiceClient>(client =>
+{
+    // The service discovery will resolve "walletservice" to the actual endpoint
+    client.BaseAddress = new Uri("http://walletservice");
+});
+
+builder.Services.AddHttpClient<Sorcha.Blueprint.Service.Clients.IRegisterServiceClient, Sorcha.Blueprint.Service.Clients.RegisterServiceClient>(client =>
+{
+    // The service discovery will resolve "registerservice" to the actual endpoint
+    client.BaseAddress = new Uri("http://registerservice");
+});
+
 // Add Action storage (Sprint 4)
 builder.Services.AddSingleton<Sorcha.Blueprint.Service.Storage.IActionStore, Sorcha.Blueprint.Service.Storage.InMemoryActionStore>();
 
