@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Scalar.AspNetCore;
 using Sorcha.WalletService.Api.Extensions;
+using Sorcha.WalletService.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,11 +13,7 @@ builder.AddServiceDefaults();
 // Add Wallet Service infrastructure and domain services
 builder.Services.AddWalletService();
 
-// Add API services
-builder.Services.AddControllers();
-
-// Configure OpenAPI (built-in .NET 10)
-builder.Services.AddEndpointsApiExplorer();
+// Add OpenAPI services (built-in .NET 10)
 builder.Services.AddOpenApi();
 
 // Add Wallet Service health checks
@@ -38,20 +36,32 @@ var app = builder.Build();
 // Map default Aspire endpoints (/health, /alive)
 app.MapDefaultEndpoints();
 
-// Configure the HTTP request pipeline
+// Configure OpenAPI (available in all environments for API consumers)
+app.MapOpenApi();
+
+// Configure Scalar API documentation UI (development only)
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTitle("Wallet Service API")
+            .WithTheme(ScalarTheme.Purple)
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+    });
+
     app.UseCors("DevelopmentPolicy");
 }
 
 app.UseHttpsRedirection();
 
-// TODO: Add authentication middleware
+// TODO: Add authentication middleware when ready
 // app.UseAuthentication();
 // app.UseAuthorization();
 
-app.MapControllers();
+// Map Wallet API endpoints
+app.MapWalletEndpoints();
+app.MapDelegationEndpoints();
 
 app.Run();
 
