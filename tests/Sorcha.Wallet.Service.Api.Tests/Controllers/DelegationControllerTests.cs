@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
-using Sorcha.Wallet.Service.Domain.Entities;
+using Sorcha.Wallet.Core.Domain.Entities;
 
 namespace Sorcha.Wallet.Service.Api.Tests.Controllers;
 
