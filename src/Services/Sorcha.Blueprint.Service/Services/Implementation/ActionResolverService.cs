@@ -148,14 +148,20 @@ public class ActionResolverService : IActionResolverService
 
     private string? ResolveWalletFromParticipant(Sorcha.Blueprint.Models.Participant participant)
     {
-        // TODO: This is a placeholder implementation
-        // In a full implementation, this would:
-        // 1. Check if participant has a wallet address in metadata
-        // 2. Query a Participant service to get the wallet
-        // 3. Support different participant types (role-based, user-based, etc.)
+        // Return the wallet address from the participant if available
+        if (!string.IsNullOrWhiteSpace(participant.WalletAddress))
+        {
+            return participant.WalletAddress;
+        }
 
-        // For now, return a placeholder wallet based on participant name
-        // This will be replaced when Wallet Service integration is complete
-        return $"wallet_{participant.Name?.ToLowerInvariant().Replace(" ", "_") ?? participant.Id}";
+        // If no wallet address is set, log a warning
+        _logger.LogWarning(
+            "Participant {ParticipantId} ({ParticipantName}) does not have a wallet address configured",
+            participant.Id,
+            participant.Name);
+
+        // Return null to indicate no wallet available
+        // The calling code should handle this appropriately
+        return null;
     }
 }
