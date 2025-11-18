@@ -11,12 +11,12 @@
 
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
-**Total Tasks:** 148 (across all phases, including new production readiness tasks)
-**Completed:** 100 (68%)
+**Total Tasks:** 158 (across all phases, including production readiness and blueprint validation tasks)
+**Completed:** 100 (63%)
 **In Progress:** 0 (0%)
-**Not Started:** 48 (32%)
+**Not Started:** 58 (37%)
 
-**Note:** Counts updated 2025-11-18 after comprehensive task status audit - Corrected 12 task statuses and added 10 production readiness tasks. See [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md) for details.
+**Note:** Counts updated 2025-11-18 after comprehensive task status audit and addition of Blueprint Validation Test Plan (10 new tasks). See [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md) and [BLUEPRINT-VALIDATION-TEST-PLAN.md](BLUEPRINT-VALIDATION-TEST-PLAN.md) for details.
 
 ---
 
@@ -38,13 +38,13 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete |
 |-------|-------------|----------|-------------|-------------|------------|
-| **Phase 1: Blueprint-Action** | 56 | 54 | 0 | 2 | **96%** ✅ |
+| **Phase 1: Blueprint-Action** | 66 | 54 | 0 | 12 | **82%** ✅ |
 | **Phase 2: Wallet Service** | 32 | 32 | 0 | 0 | **100%** ✅ |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% |
 | **Production Readiness** (NEW) | 10 | 0 | 0 | 10 | 0% ⚠️ |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% |
-| **TOTAL** | **148** | **100** | **0** | **48** | **68%** |
+| **TOTAL** | **158** | **100** | **0** | **58** | **63%** |
 
 **Note:** Phase 1-3 completion increased significantly after audit corrections. Production Readiness tasks newly identified.
 
@@ -52,10 +52,10 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Priority | Total | Complete | In Progress | Not Started |
 |----------|-------|----------|-------------|-------------|
-| **P0 - Critical (MVD Blocker)** | 3 | 0 | 0 | 3 ⚠️ |
-| **P1 - High (Production Ready)** | 17 | 0 | 0 | 17 ⚠️ |
-| **P2 - Medium (Enhancements)** | 63 | 58 | 0 | 5 |
-| **P3 - Low (Post-MVD)** | 65 | 42 | 0 | 23 |
+| **P0 - Critical (MVD Blocker)** | 6 | 0 | 0 | 6 ⚠️ |
+| **P1 - High (Production Ready)** | 21 | 0 | 0 | 21 ⚠️ |
+| **P2 - Medium (Enhancements)** | 65 | 58 | 0 | 7 |
+| **P3 - Low (Post-MVD)** | 66 | 42 | 0 | 24 |
 
 **⚠️ Critical Note:** Priority classification SIGNIFICANTLY revised after audit. Most completed tasks were incorrectly classified as P0/P1. True P0 tasks are MVD blockers ONLY. See [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md) Section 3 for details.
 
@@ -80,9 +80,9 @@ Enhancement tasks that can be deferred until after MVD is complete.
 ## Phase 1: Blueprint-Action Service (MVD Core)
 
 **Goal:** Complete the unified Blueprint-Action Service with full execution capabilities
-**Duration:** Weeks 1-6
-**Total Tasks:** 56
-**Completion:** 39% (22 complete, 16 in progress, 18 not started)
+**Duration:** Weeks 1-14 (extended for validation testing)
+**Total Tasks:** 66
+**Completion:** 82% (54 complete, 0 in progress, 12 not started)
 
 ### Sprint 1: Execution Engine Foundation ✅ COMPLETE
 
@@ -204,17 +204,61 @@ Enhancement tasks that can be deferred until after MVD is complete.
 - ✅ Complete API documentation with examples and error codes
 - ✅ Comprehensive integration guide with multiple language examples
 
-### Sprint 8: Production Readiness
+### Sprint 8: Blueprint Validation Tests 📋 NEW
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| BP-8.1 | Performance optimization | P2 | 8h | 📋 Not Started | - |
-| BP-8.2 | Security hardening | P1 | 8h | 📋 Not Started | - |
-| BP-8.3 | Monitoring and alerting | P2 | 6h | 📋 Not Started | - |
-| BP-8.4 | Production deployment guide | P2 | 4h | 📋 Not Started | - |
+| BP-8.1 | Implement BlueprintStructuralValidationTests | P0 | 16h | 📋 Not Started | - |
+| BP-8.2 | Implement BlueprintWorkflowValidationTests | P0 | 24h | 📋 Not Started | - |
+| BP-8.3 | Implement graph cycle detection | P0 | 12h | 📋 Not Started | - |
+| BP-8.4 | Implement DisclosureValidationTests | P1 | 16h | 📋 Not Started | - |
+| BP-8.5 | Extend SchemaValidatorTests (Blueprint/Action schemas) | P1 | 16h | 📋 Not Started | - |
+| BP-8.6 | Implement JsonLogicValidationTests | P1 | 24h | 📋 Not Started | - |
+| BP-8.7 | Implement MultiParticipantWorkflowTests | P1 | 16h | 📋 Not Started | - |
+| BP-8.8 | Implement FormValidationTests | P2 | 8h | 📋 Not Started | - |
+| BP-8.9 | Extend BlueprintTemplateServiceTests | P2 | 16h | 📋 Not Started | - |
+| BP-8.10 | Extend JSON-LD validation tests | P3 | 8h | 📋 Not Started | - |
 
-**Sprint 8 Status:** 📋 **NOT STARTED** (0/4 tasks, 26 hours)
-**Recommended Start:** Week 12
+**Sprint 8 Status:** 📋 **NOT STARTED** (0/10 tasks, 156 hours ~20 days)
+**Recommended Start:** Week 12 (After Sprint 7 completion)
+**Reference:** [BLUEPRINT-VALIDATION-TEST-PLAN.md](BLUEPRINT-VALIDATION-TEST-PLAN.md)
+
+**Critical Tests (P0 - MVD Blockers):**
+- Structural validation: Participant references, wallet addresses, action/participant counts
+- Workflow validation: Action routing, sequence validation
+- **Graph cycle detection**: Prevent infinite Blueprint loops (BS-046)
+
+**Core Tests (P1):**
+- Disclosure validation: Data visibility rules and recipient validation
+- Schema validation: Blueprint/Action embedded schemas, PreviousData
+- JSON Logic: Conditions, calculations, participant routing
+- Multi-participant workflows: Linear, branching, round-robin patterns
+
+**Enhanced Tests (P2/P3):**
+- Form validation: UI control types and schema alignment
+- Template validation: Parameter substitution and instantiation
+- JSON-LD compliance: Semantic web and Verifiable Credentials
+
+**Deliverables:**
+- ~70 new test cases across 10 categories
+- Graph cycle detection implementation (critical for workflow integrity)
+- Participant reference integrity validation
+- Complete Blueprint schema validation coverage
+- Multi-participant workflow patterns validated
+
+**Related Tasks:** BS-045, BS-046, BP-3.5, BP-7.1
+
+### Sprint 9: Production Readiness
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| BP-9.1 | Performance optimization | P2 | 8h | 📋 Not Started | - |
+| BP-9.2 | Security hardening | P1 | 8h | 📋 Not Started | - |
+| BP-9.3 | Monitoring and alerting | P2 | 6h | 📋 Not Started | - |
+| BP-9.4 | Production deployment guide | P2 | 4h | 📋 Not Started | - |
+
+**Sprint 9 Status:** 📋 **NOT STARTED** (0/4 tasks, 26 hours)
+**Recommended Start:** Week 14
 
 ---
 
