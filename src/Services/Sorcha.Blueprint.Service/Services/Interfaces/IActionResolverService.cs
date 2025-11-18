@@ -16,7 +16,7 @@ public interface IActionResolverService
     /// <param name="blueprintId">The blueprint ID</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The blueprint if found, otherwise null</returns>
-    Task<Models.Blueprint?> GetBlueprintAsync(string blueprintId, CancellationToken cancellationToken = default);
+    Task<Sorcha.Blueprint.Models.Blueprint?> GetBlueprintAsync(string blueprintId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Extracts an action definition from a blueprint
@@ -24,7 +24,7 @@ public interface IActionResolverService
     /// <param name="blueprint">The blueprint</param>
     /// <param name="actionId">The action ID</param>
     /// <returns>The action if found, otherwise null</returns>
-    Models.Action? GetActionDefinition(Models.Blueprint blueprint, string actionId);
+    Sorcha.Blueprint.Models.Action? GetActionDefinition(Sorcha.Blueprint.Models.Blueprint blueprint, string actionId);
 
     /// <summary>
     /// Resolves participant IDs to wallet addresses
@@ -34,7 +34,7 @@ public interface IActionResolverService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Dictionary mapping participant IDs to wallet addresses</returns>
     Task<Dictionary<string, string>> ResolveParticipantWalletsAsync(
-        Models.Blueprint blueprint,
+        Sorcha.Blueprint.Models.Blueprint blueprint,
         IEnumerable<string> participantIds,
         CancellationToken cancellationToken = default);
 }

@@ -134,7 +134,7 @@ public class RegisterServiceEndToEndTests : IAsyncLifetime
         queryResponse.EnsureSuccessStatusCode();
 
         var transactions = await queryResponse.Content.ReadFromJsonAsync<JsonElement>();
-        transactions.GetArrayLength().Should().BeGreaterOrEqualTo(5);
+        transactions.GetArrayLength().Should().BeGreaterThanOrEqualTo(5);
     }
 
     [Fact(Skip = "Requires running services")]
@@ -173,7 +173,7 @@ public class RegisterServiceEndToEndTests : IAsyncLifetime
 
         var validation = await validationResponse.Content.ReadFromJsonAsync<JsonElement>();
         validation.GetProperty("isValid").GetBoolean().Should().BeTrue();
-        validation.GetProperty("docketCount").GetInt32().Should().BeGreaterOrEqualTo(3);
+        validation.GetProperty("docketCount").GetInt32().Should().BeGreaterThanOrEqualTo(3);
     }
 
     [Fact(Skip = "Requires running services")]
@@ -220,7 +220,7 @@ public class RegisterServiceEndToEndTests : IAsyncLifetime
         var transactions = await queryResponse.Content.ReadFromJsonAsync<JsonElement>();
         var items = transactions.EnumerateArray().ToList();
 
-        items.Should().HaveCountGreaterOrEqualTo(2);
+        items.Should().HaveCountGreaterThanOrEqualTo(2);
         items.Should().OnlyContain(tx =>
             tx.GetProperty("senderAddress").GetString() == targetSender);
     }
@@ -340,6 +340,6 @@ public class RegisterServiceEndToEndTests : IAsyncLifetime
         odataResponse.EnsureSuccessStatusCode();
 
         var results = await odataResponse.Content.ReadFromJsonAsync<JsonElement>();
-        results.GetArrayLength().Should().BeLessOrEqualTo(5);
+        results.GetArrayLength().Should().BeLessThanOrEqualTo(5);
     }
 }

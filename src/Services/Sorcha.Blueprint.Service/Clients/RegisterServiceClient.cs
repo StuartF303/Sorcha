@@ -241,7 +241,7 @@ public class RegisterServiceClient : IRegisterServiceClient
     }
 
     /// <inheritdoc/>
-    public async Task<Models.Register?> GetRegisterAsync(
+    public async Task<Sorcha.Register.Models.Register?> GetRegisterAsync(
         string registerId,
         CancellationToken cancellationToken = default)
     {
@@ -266,7 +266,7 @@ public class RegisterServiceClient : IRegisterServiceClient
 
             response.EnsureSuccessStatusCode();
 
-            var result = await response.Content.ReadFromJsonAsync<Models.Register>(_jsonOptions, cancellationToken);
+            var result = await response.Content.ReadFromJsonAsync<Sorcha.Register.Models.Register>(_jsonOptions, cancellationToken);
 
             _logger.LogInformation("Successfully retrieved register {RegisterId}", registerId);
 

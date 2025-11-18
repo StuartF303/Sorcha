@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Sorcha.Blueprint.Service.Models.Requests;
-using Sorcha.TransactionHandler;
+using Sorcha.TransactionHandler.Core;
 
 namespace Sorcha.Blueprint.Service.Services.Interfaces;
 

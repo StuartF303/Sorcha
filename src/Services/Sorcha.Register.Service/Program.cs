@@ -2,6 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Microsoft.AspNetCore.OData;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.OData.ModelBuilder;
 using Scalar.AspNetCore;
 using Sorcha.Register.Core.Events;
@@ -22,7 +23,7 @@ builder.Services.AddSignalR();
 
 // Configure OData
 var modelBuilder = new ODataConventionModelBuilder();
-modelBuilder.EntitySet<Models.Register>("Registers");
+modelBuilder.EntitySet<Sorcha.Register.Models.Register>("Registers");
 modelBuilder.EntitySet<TransactionModel>("Transactions");
 modelBuilder.EntitySet<Docket>("Dockets");
 
@@ -314,7 +315,11 @@ queryGroup.MapGet("/wallets/{address}/transactions", async (
 {
     if (registerId is not null)
     {
-        var result = await manager.GetTransactionsByWalletAsync(registerId, address, page, pageSize);
+        var result = await manager.GetTransactionsByWalletPaginatedAsync(
+            registerId,
+            address,
+            page,
+            pageSize);
         return Results.Ok(result);
     }
 
@@ -335,7 +340,13 @@ queryGroup.MapGet("/senders/{address}/transactions", async (
     int page = 1,
     int pageSize = 20) =>
 {
-    var result = await manager.GetTransactionsBySenderAsync(registerId, address, page, pageSize);
+    var result = await manager.GetTransactionsByWalletPaginatedAsync(
+        registerId,
+        address,
+        page,
+        pageSize,
+        asSender: true,
+        asRecipient: false);
     return Results.Ok(result);
 })
 .WithName("GetTransactionsBySender")
@@ -349,16 +360,12 @@ queryGroup.MapGet("/blueprints/{blueprintId}/transactions", async (
     QueryManager manager,
     string blueprintId,
     string registerId,
-    string? instanceId = null,
-    int page = 1,
-    int pageSize = 20) =>
+    string? instanceId = null) =>
 {
     var result = await manager.GetTransactionsByBlueprintAsync(
         registerId,
         blueprintId,
-        instanceId,
-        page,
-        pageSize);
+        instanceId);
 
     return Results.Ok(result);
 })

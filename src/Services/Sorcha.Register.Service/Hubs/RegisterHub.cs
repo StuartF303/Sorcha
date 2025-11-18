@@ -8,7 +8,7 @@ namespace Sorcha.Register.Service.Hubs;
 /// <summary>
 /// SignalR hub for real-time register notifications
 /// </summary>
-public class RegisterHub : Hub
+public class RegisterHub : Hub<IRegisterHubClient>
 {
     /// <summary>
     /// Subscribe to register updates

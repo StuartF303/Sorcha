@@ -4,7 +4,6 @@
 using NBomber.CSharp;
 using NBomber.Contracts;
 using NBomber.Http.CSharp;
-using NBomber.Plugins.Http;
 using System.Text;
 using System.Text.Json;
 

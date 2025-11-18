@@ -134,7 +134,7 @@ public class PayloadResolverService : IPayloadResolverService
 
                 // Find the payload for this wallet in the transaction's payloads
                 var payloadForWallet = transaction.Payloads?.FirstOrDefault(p =>
-                    p.Recipients?.Contains(wallet) == true);
+                    p.WalletAccess?.Contains(wallet) == true);
 
                 if (payloadForWallet == null)
                 {
@@ -143,9 +143,14 @@ public class PayloadResolverService : IPayloadResolverService
                 }
 
                 // Decrypt the payload using the Wallet Service
+                // PayloadModel.Data is Base64 encoded string, convert to bytes
+                var payloadBytes = !string.IsNullOrEmpty(payloadForWallet.Data)
+                    ? Convert.FromBase64String(payloadForWallet.Data)
+                    : Array.Empty<byte>();
+
                 var decryptedPayload = await _walletServiceClient.DecryptPayloadAsync(
                     wallet,
-                    payloadForWallet.Data ?? Array.Empty<byte>(),
+                    payloadBytes,
                     cancellationToken);
 
                 // Deserialize the decrypted payload

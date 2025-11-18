@@ -481,8 +481,7 @@ public class SecurityTests : IAsyncLifetime
         // Should reject overly large payloads
         response.StatusCode.Should().BeOneOf(
             HttpStatusCode.BadRequest,
-            HttpStatusCode.RequestEntityTooLarge,
-            HttpStatusCode.PayloadTooLarge);
+            HttpStatusCode.RequestEntityTooLarge);
     }
 
     [Fact(Skip = "Requires running services")]

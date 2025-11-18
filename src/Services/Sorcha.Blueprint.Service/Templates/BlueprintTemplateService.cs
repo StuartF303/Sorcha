@@ -131,7 +131,7 @@ public class BlueprintTemplateService : IBlueprintTemplateService
             }
 
             // Evaluate the template
-            Models.Blueprint? blueprint;
+            Sorcha.Blueprint.Models.Blueprint? blueprint;
             List<string>? trace = null;
 
             if (request.IncludeTrace)
@@ -152,13 +152,13 @@ public class BlueprintTemplateService : IBlueprintTemplateService
                     };
                 }
 
-                blueprint = traceResult.Result?.Deserialize<Models.Blueprint>();
+                blueprint = traceResult.Result?.Deserialize<Sorcha.Blueprint.Models.Blueprint>();
                 trace = traceResult.Steps.Select(s =>
                     $"Step {s.Step} ({s.Duration.TotalMilliseconds:F2}ms): {s.Description}").ToList();
             }
             else
             {
-                blueprint = await _jsonEEvaluator.EvaluateAsync<Models.Blueprint>(
+                blueprint = await _jsonEEvaluator.EvaluateAsync<Sorcha.Blueprint.Models.Blueprint>(
                     template.Template,
                     context,
                     ct);
@@ -344,7 +344,7 @@ public class BlueprintTemplateService : IBlueprintTemplateService
     /// <summary>
     /// Validate a generated blueprint using data annotations
     /// </summary>
-    private ValidationResult ValidateBlueprint(Models.Blueprint blueprint)
+    private ValidationResult ValidateBlueprint(Sorcha.Blueprint.Models.Blueprint blueprint)
     {
         var validationContext = new System.ComponentModel.DataAnnotations.ValidationContext(blueprint);
         var validationResults = new List<System.ComponentModel.DataAnnotations.ValidationResult>();

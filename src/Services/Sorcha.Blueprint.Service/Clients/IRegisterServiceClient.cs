@@ -70,7 +70,7 @@ public interface IRegisterServiceClient
     /// <param name="registerId">The register ID</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Register information, or null if not found</returns>
-    Task<Models.Register?> GetRegisterAsync(
+    Task<Sorcha.Register.Models.Register?> GetRegisterAsync(
         string registerId,
         CancellationToken cancellationToken = default);
 }

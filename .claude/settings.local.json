@@ -71,7 +71,9 @@
       "Bash(Select-Object -Last 5)",
       "Bash(if exist \"src\\Services\\Sorcha.WalletService.Api\" rmdir /s /q \"src\\Services\\Sorcha.WalletService.Api\")",
       "Bash(cmd /c \"if exist src\\Services\\Sorcha.WalletService.Api rmdir /s /q src\\Services\\Sorcha.WalletService.Api\")",
-      "Bash(Select-String -Pattern \"(Passed|Failed|Total tests:|Test run)\")"
+      "Bash(Select-String -Pattern \"(Passed|Failed|Total tests:|Test run)\")",
+      "Bash(Select-String -Pattern \"(Passed|Failed|Total tests:|Test run|Skipped|Error Message)\")",
+      "Bash(Select-Object -First 100)"
     ],
     "deny": [],
     "ask": []

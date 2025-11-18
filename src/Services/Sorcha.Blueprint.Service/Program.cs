@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.OutputCaching;
 using Scalar.AspNetCore;
 using System.Collections.Concurrent;
 using Sorcha.Blueprint.Service.JsonLd;
+using Sorcha.Cryptography.Core;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,8 +32,8 @@ builder.Services.AddSingleton<Sorcha.Blueprint.Engine.Interfaces.IJsonEEvaluator
 builder.Services.AddSingleton<Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService, Sorcha.Blueprint.Service.Templates.BlueprintTemplateService>();
 
 // Add Cryptography services (required for transaction building)
-builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.ICryptoModule, Sorcha.Cryptography.CryptoModule>();
-builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.IHashProvider, Sorcha.Cryptography.HashProvider>();
+builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.ICryptoModule, Sorcha.Cryptography.Core.CryptoModule>();
+builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.IHashProvider, Sorcha.Cryptography.Core.HashProvider>();
 
 // Add Execution Engine services (Sprint 5)
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.ISchemaValidator, Sorcha.Blueprint.Engine.Implementation.SchemaValidator>();
@@ -63,13 +64,9 @@ builder.Services.AddHttpClient<Sorcha.Blueprint.Service.Clients.IRegisterService
 // Add Action storage (Sprint 4)
 builder.Services.AddSingleton<Sorcha.Blueprint.Service.Storage.IActionStore, Sorcha.Blueprint.Service.Storage.InMemoryActionStore>();
 
-// Add SignalR with Redis backplane (Sprint 5)
-builder.Services.AddSignalR()
-    .AddStackExchangeRedis(builder.Configuration.GetConnectionString("redis")
-        ?? "localhost:6379", options =>
-    {
-        options.Configuration.ChannelPrefix = "sorcha:blueprint:signalr:";
-    });
+// Add SignalR (Sprint 5)
+// TODO: Add Redis backplane when Microsoft.AspNetCore.SignalR.StackExchangeRedis package is added
+builder.Services.AddSignalR();
 
 // Add Notification service (Sprint 5)
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.INotificationService,
@@ -447,11 +444,11 @@ actionsGroup.MapGet("/{wallet}/{register}/blueprints", async (
             var availableActions = blueprint.Actions
                 .Select(a => new Sorcha.Blueprint.Service.Models.Responses.ActionInfo
                 {
-                    ActionId = a.Id,
+                    ActionId = a.Id.ToString(),
                     Title = a.Title,
                     Description = a.Description,
                     IsAvailable = true, // TODO: Apply routing rules
-                    DataSchema = a.Data?.SchemaUri
+                    DataSchema = a.DataSchemas?.FirstOrDefault()?.RootElement.GetProperty("$id").GetString()
                 })
                 .ToList();
 
@@ -582,8 +579,9 @@ actionsGroup.MapPost("/", async (
             request.RegisterAddress);
 
         // 5. Calculate transaction hash
-        var txHash = await hashProvider.ComputeHashAsync(
-            System.Text.Encoding.UTF8.GetBytes(transaction.Id ?? Guid.NewGuid().ToString()));
+        var txHashBytes = System.Text.Encoding.UTF8.GetBytes(transaction.TxId ?? Guid.NewGuid().ToString());
+        using var txHashStream = new System.IO.MemoryStream(txHashBytes);
+        var txHash = await hashProvider.ComputeHashAsync(txHashStream);
         var txHashHex = BitConverter.ToString(txHash).Replace("-", "").ToLowerInvariant();
 
         // 6. Convert to Register TransactionModel and submit to Register Service
@@ -593,14 +591,14 @@ actionsGroup.MapPost("/", async (
             RegisterId = request.RegisterAddress,
             SenderWallet = request.SenderWallet,
             TimeStamp = DateTime.UtcNow,
-            PreviousTxId = request.PreviousTransactionHash,
+            PrevTxId = request.PreviousTransactionHash ?? string.Empty,
             MetaData = transaction.Metadata != null ?
                 System.Text.Json.JsonSerializer.Deserialize<Sorcha.Register.Models.TransactionMetaData>(transaction.Metadata) : null,
             Payloads = encryptedPayloads.Select(kvp => new Sorcha.Register.Models.PayloadModel
             {
-                Data = kvp.Value,
-                Recipients = new[] { kvp.Key }
-            }).ToList()
+                Data = Convert.ToBase64String(kvp.Value),
+                WalletAccess = new[] { kvp.Key }
+            }).ToArray()
         };
 
         // Submit to Register Service
@@ -628,8 +626,9 @@ actionsGroup.MapPost("/", async (
             for (int i = 0; i < fileTxs.Count; i++)
             {
                 var fileTx = fileTxs[i];
-                var fileHash = await hashProvider.ComputeHashAsync(
-                    System.Text.Encoding.UTF8.GetBytes(fileTx.Id ?? Guid.NewGuid().ToString()));
+                var fileHashBytes = System.Text.Encoding.UTF8.GetBytes(fileTx.TxId ?? Guid.NewGuid().ToString());
+                using var fileHashStream = new System.IO.MemoryStream(fileHashBytes);
+                var fileHash = await hashProvider.ComputeHashAsync(fileHashStream);
                 var fileHashHex = BitConverter.ToString(fileHash).Replace("-", "").ToLowerInvariant();
                 fileHashes.Add(fileHashHex);
 
@@ -717,8 +716,9 @@ actionsGroup.MapPost("/reject", async (
             request.RegisterAddress);
 
         // 3. Calculate rejection transaction hash
-        var rejectionHash = await hashProvider.ComputeHashAsync(
-            System.Text.Encoding.UTF8.GetBytes(rejectionTx.Id ?? Guid.NewGuid().ToString()));
+        var rejectionHashBytes = System.Text.Encoding.UTF8.GetBytes(rejectionTx.TxId ?? Guid.NewGuid().ToString());
+        using var rejectionHashStream = new System.IO.MemoryStream(rejectionHashBytes);
+        var rejectionHash = await hashProvider.ComputeHashAsync(rejectionHashStream);
         var rejectionHashHex = BitConverter.ToString(rejectionHash).Replace("-", "").ToLowerInvariant();
 
         // 4. Convert to Register TransactionModel and submit to Register Service
@@ -728,10 +728,10 @@ actionsGroup.MapPost("/reject", async (
             RegisterId = request.RegisterAddress,
             SenderWallet = request.SenderWallet,
             TimeStamp = DateTime.UtcNow,
-            PreviousTxId = request.TransactionHash,
+            PrevTxId = request.TransactionHash,
             MetaData = rejectionTx.Metadata != null ?
                 System.Text.Json.JsonSerializer.Deserialize<Sorcha.Register.Models.TransactionMetaData>(rejectionTx.Metadata) : null,
-            Payloads = new List<Sorcha.Register.Models.PayloadModel>()
+            Payloads = Array.Empty<Sorcha.Register.Models.PayloadModel>()
         };
 
         // Submit rejection to Register Service
@@ -842,8 +842,13 @@ executionGroup.MapPost("/validate", async (
             return Results.BadRequest(new { error = "Blueprint not found" });
         }
 
-        // Get action
-        var action = blueprint.Actions.FirstOrDefault(a => a.Id == request.ActionId);
+        // Get action (parse ActionId string to int)
+        if (!int.TryParse(request.ActionId, out var actionIdInt))
+        {
+            return Results.BadRequest(new { error = "Invalid action ID format" });
+        }
+
+        var action = blueprint.Actions.FirstOrDefault(a => a.Id == actionIdInt);
         if (action == null)
         {
             return Results.BadRequest(new { error = "Action not found in blueprint" });
@@ -857,9 +862,10 @@ executionGroup.MapPost("/validate", async (
             isValid = result.IsValid,
             errors = result.Errors.Select(e => new
             {
-                path = e.DataPath,
+                path = e.InstanceLocation,
                 message = e.Message,
-                constraint = e.Constraint
+                schemaLocation = e.SchemaLocation,
+                keyword = e.Keyword
             })
         });
     }
@@ -889,8 +895,13 @@ executionGroup.MapPost("/calculate", async (
             return Results.BadRequest(new { error = "Blueprint not found" });
         }
 
-        // Get action
-        var action = blueprint.Actions.FirstOrDefault(a => a.Id == request.ActionId);
+        // Get action (parse ActionId string to int)
+        if (!int.TryParse(request.ActionId, out var actionIdInt))
+        {
+            return Results.BadRequest(new { error = "Invalid action ID format" });
+        }
+
+        var action = blueprint.Actions.FirstOrDefault(a => a.Id == actionIdInt);
         if (action == null)
         {
             return Results.BadRequest(new { error = "Action not found in blueprint" });
@@ -931,8 +942,13 @@ executionGroup.MapPost("/route", async (
             return Results.BadRequest(new { error = "Blueprint not found" });
         }
 
-        // Get action
-        var action = blueprint.Actions.FirstOrDefault(a => a.Id == request.ActionId);
+        // Get action (parse ActionId string to int)
+        if (!int.TryParse(request.ActionId, out var actionIdInt))
+        {
+            return Results.BadRequest(new { error = "Invalid action ID format" });
+        }
+
+        var action = blueprint.Actions.FirstOrDefault(a => a.Id == actionIdInt);
         if (action == null)
         {
             return Results.BadRequest(new { error = "Action not found in blueprint" });
@@ -976,8 +992,13 @@ executionGroup.MapPost("/disclose", async (
             return Results.BadRequest(new { error = "Blueprint not found" });
         }
 
-        // Get action
-        var action = blueprint.Actions.FirstOrDefault(a => a.Id == request.ActionId);
+        // Get action (parse ActionId string to int)
+        if (!int.TryParse(request.ActionId, out var actionIdInt))
+        {
+            return Results.BadRequest(new { error = "Invalid action ID format" });
+        }
+
+        var action = blueprint.Actions.FirstOrDefault(a => a.Id == actionIdInt);
         if (action == null)
         {
             return Results.BadRequest(new { error = "Action not found in blueprint" });

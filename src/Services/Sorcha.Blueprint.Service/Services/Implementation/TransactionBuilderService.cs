@@ -7,6 +7,7 @@ using Sorcha.TransactionHandler;
 using Sorcha.TransactionHandler.Core;
 using Sorcha.TransactionHandler.Enums;
 using Sorcha.TransactionHandler.Interfaces;
+using Sorcha.TransactionHandler.Payload;
 using Sorcha.Cryptography.Interfaces;
 
 namespace Sorcha.Blueprint.Service.Services.Implementation;
@@ -79,17 +80,16 @@ public class TransactionBuilderService : ITransactionBuilderService
             timestamp = DateTimeOffset.UtcNow
         };
 
-        // Create payload manager (stub for now)
+        // Create payload manager
         var payloadManager = new PayloadManager();
 
-        // Create transaction
+        // Create transaction (note: SenderWallet is read-only and set during signing)
         var transaction = new Transaction(
             _cryptoModule,
             _hashProvider,
             payloadManager,
             TransactionVersion.V4)
         {
-            SenderWallet = senderWallet,
             Recipients = encryptedPayloads.Keys.ToArray(),
             Metadata = JsonSerializer.Serialize(metadata),
             PreviousTxHash = previousTransactionHash,
@@ -154,14 +154,13 @@ public class TransactionBuilderService : ITransactionBuilderService
         // Create payload manager
         var payloadManager = new PayloadManager();
 
-        // Create rejection transaction
+        // Create rejection transaction (note: SenderWallet is read-only and set during signing)
         var transaction = new Transaction(
             _cryptoModule,
             _hashProvider,
             payloadManager,
             TransactionVersion.V4)
         {
-            SenderWallet = senderWallet,
             Recipients = Array.Empty<string>(), // Rejection is sent back, recipients determined by routing
             Metadata = JsonSerializer.Serialize(metadata),
             PreviousTxHash = originalTransactionHash,
@@ -235,14 +234,13 @@ public class TransactionBuilderService : ITransactionBuilderService
             // Create payload manager
             var payloadManager = new PayloadManager();
 
-            // Create file transaction
+            // Create file transaction (note: SenderWallet is read-only and set during signing)
             var transaction = new Transaction(
                 _cryptoModule,
                 _hashProvider,
                 payloadManager,
                 TransactionVersion.V4)
             {
-                SenderWallet = senderWallet,
                 Recipients = Array.Empty<string>(), // Files are linked to parent transaction
                 Metadata = JsonSerializer.Serialize(metadata),
                 PreviousTxHash = parentTransactionHash,

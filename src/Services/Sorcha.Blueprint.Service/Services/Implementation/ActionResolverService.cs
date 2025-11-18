@@ -84,7 +84,14 @@ public class ActionResolverService : IActionResolverService
             throw new ArgumentException("Action ID cannot be null or empty", nameof(actionId));
         }
 
-        var action = blueprint.Actions?.FirstOrDefault(a => a.Id == actionId);
+        // Action.Id is an int, so parse the actionId string
+        if (!int.TryParse(actionId, out var actionIdInt))
+        {
+            _logger.LogWarning("Invalid action ID format: {ActionId}", actionId);
+            return null;
+        }
+
+        var action = blueprint.Actions?.FirstOrDefault(a => a.Id == actionIdInt);
         if (action == null)
         {
             _logger.LogWarning("Action {ActionId} not found in blueprint {BlueprintId}", actionId, blueprint.Id);
