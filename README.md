@@ -15,14 +15,15 @@ A modern .NET 10 blueprint execution engine and designer for data flow orchestra
 | Services & APIs | Enhanced | 95% |
 | Testing & CI/CD | Production Ready | 95% |
 
-**Recent Updates (2025-11-16):**
-- ✅ **Wallet Service codebase consolidated** - Removed duplicate directories, fixed solution references
+**Recent Updates (2025-11-18):**
+- ✅ **Performance baseline established** - Mean latency 1.16ms, P99 5.08ms, 55+ RPS sustained
+- ✅ **Performance test infrastructure fixed** - Resolved HttpClient disposal bug, NBomber 6.1.2 compatible
+- ✅ **Blueprint Validation Test Plan created** - 10 test categories, ~70 test cases, graph cycle detection
+- ✅ **Wallet Service integration complete** - Real cryptographic operations in Blueprint Service
+- ✅ **Transaction signing implemented** - All actions cryptographically signed via Wallet Service
 - ✅ **Wallet Service comprehensive status report** - 90% feature complete, 111 tests, 14 REST endpoints ([View Status](docs/wallet-service-status.md))
 - ✅ **Register Service 100% complete with comprehensive testing** (112 tests, ~2,459 LOC)
-- ✅ Register Service Phase 5 API fully integrated with core managers
-- ✅ Blueprint-Action Service SignalR integration tests complete (14 tests, 520+ LOC)
-- ✅ Wallet Service API Phase 2 complete with comprehensive tests (WS-030, WS-031)
-- ✅ Blueprint-Action Service Sprints 3, 4, 5 completed
+- ✅ Blueprint-Action Service Sprints 3-7 completed (96% Phase 1 complete)
 - ✅ SignalR real-time notifications with Redis backplane operational
 
 **Key Milestones:**
@@ -339,20 +340,53 @@ dotnet test tests/Sorcha.Gateway.Integration.Tests
 Load test the application using NBomber:
 
 ```bash
-# Run performance tests
-dotnet run --project tests/Sorcha.Performance.Tests
+# Run performance tests (30s duration, 50 RPS target)
+dotnet run --project tests/Sorcha.Performance.Tests --configuration Release -- http://localhost:5000 30 50
 
-# Target custom URL
-dotnet run --project tests/Sorcha.Performance.Tests https://your-api-url
+# Quick test (10s duration, 10 RPS)
+dotnet run --project tests/Sorcha.Performance.Tests --configuration Release -- http://localhost:5000 10 10
 ```
 
-**Example scenarios:**
-- Health endpoint load test (100 req/s)
-- Blueprint API load test (50 req/s)
-- Mixed workload with ramp-up/down
-- Sustained load (soak test)
+**Baseline Performance Metrics (Sprint 7 - 2025-11-18):**
 
-Reports are generated in `tests/Sorcha.Performance.Tests/performance-reports/`
+```
+Environment: .NET 10.0, Aspire 13.0.0, Windows 11
+Test Load: 13,065 requests over 30 seconds, 50 RPS target
+
+Average Latency:
+├─ Mean:    1.16 ms  ⚡ Excellent
+├─ P50:     0.84 ms  ⚡ Excellent
+├─ P95:     2.85 ms  ⚡ Excellent
+└─ P99:     5.08 ms  ✅ Very Good
+
+Throughput:
+├─ Peak RPS: 55.5 req/sec (stress test)
+└─ Average:  435.5 req/sec across all scenarios
+
+Top Performing Scenarios:
+├─ Stress Test (ramping):  0.98ms mean, 55.5 RPS
+├─ Health Check:           1.09ms mean, 50.0 RPS
+└─ Execution Helpers:      1.10ms mean, 50.0 RPS
+```
+
+**Test Scenarios:**
+- Health endpoint load test (50 RPS)
+- Blueprint CRUD operations (25 RPS)
+- Action submission workflow (20 RPS)
+- Wallet signing operations (30 RPS)
+- Register transaction queries (25 RPS)
+- Mixed workload with concurrent operations
+- Stress test with ramping load (up to 100 RPS)
+
+**Performance Tracking:**
+- Baseline metrics: `tests/Sorcha.Performance.Tests/PERFORMANCE-BASELINE.md`
+- Historical data: `tests/Sorcha.Performance.Tests/baseline-metrics.csv`
+- Reports generated in: `tests/Sorcha.Performance.Tests/performance-reports/`
+
+**Regression Detection:**
+- Mean latency >20% worse: **investigate**
+- P95 latency >20% worse: **investigate**
+- Throughput >20% lower: **investigate**
 
 ### Cryptography Library Tests
 
