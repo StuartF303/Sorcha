@@ -1,9 +1,10 @@
 # Sorcha Platform - Master Implementation Plan
 
-**Version:** 3.0 - UNIFIED
-**Last Updated:** 2025-11-16 (Post-Sprints 3-5 Update)
-**Status:** Active - MVD Phase
+**Version:** 3.1 - AUDITED
+**Last Updated:** 2025-11-18 (Post-Task Audit)
+**Status:** Active - MVD Phase Complete, Production Hardening Required
 **Supersedes:** plan.md, BLUEPRINT-SERVICE-IMPLEMENTATION-PLAN.md, WALLET-PROGRESS.md
+**Related:** [TASK-AUDIT-REPORT.md](.specify/TASK-AUDIT-REPORT.md)
 
 ---
 
@@ -11,23 +12,33 @@
 
 This master plan consolidates all Sorcha platform development efforts into a single, unified roadmap. The plan is organized around delivering a **Minimum Viable Deliverable (MVD)** solution that provides end-to-end functionality for blueprint-based workflows with secure wallet management and distributed ledger capabilities.
 
-**Current Overall Completion:** 95% (Updated 2025-11-16 after comprehensive testing audit)
+**Current Overall Completion:**
+- **MVD Core Functionality:** 97% ✅ (Updated 2025-11-18 after comprehensive task audit)
+- **Production Readiness:** 10% ⚠️ (Critical gaps identified in authentication, security, persistence)
 
-**Recent Major Accomplishments:**
-- ✅ Blueprint-Action Service Sprints 3, 4, 5 COMPLETE (100%)
-- ✅ Blueprint-Action Service SignalR integration tests COMPLETE (14 tests)
-- ✅ Wallet Service API Phase 2 COMPLETE (90% overall, all endpoints functional)
+**Recent Major Accomplishments (Post-Audit Corrections):**
+- ✅ Blueprint-Action Service Sprints 3-7 COMPLETE (96% - 54/56 tasks)
+- ✅ Blueprint-Action Service SignalR integration tests COMPLETE (16 tests, previously marked incomplete)
+- ✅ Wallet Service API Phase 2 COMPLETE (100% - all integration tasks verified)
 - ✅ Portable Execution Engine remains at 100%
-- ✅ SignalR real-time notifications operational
-- ✅ Register Service Phase 1-2 Core COMPLETE (100%)
-- ✅ Register Service Phase 5 API Layer COMPLETE (100%)
-- ✅ Register Service Comprehensive Testing COMPLETE (112 tests, ~2,459 LOC)
+- ✅ SignalR real-time notifications operational (ActionsHub + RegisterHub)
+- ✅ Register Service Core + API COMPLETE (93% - 14/15 tasks)
+- ✅ End-to-end integration COMPLETE (Blueprint → Wallet → Register flow verified)
+- ✅ Comprehensive testing COMPLETE (1,113 tests across 103 test files)
+- ✅ TransactionHandler regression testing COMPLETE (94 tests, previously marked in-progress)
 
-**Strategic Focus:**
-1. Complete end-to-end MVD integration testing (Blueprint → Wallet → Register)
-2. Resolve Register Service code duplication issues (DocketManager/ChainValidator)
-3. Production hardening (authentication, persistent storage)
-4. Performance testing and optimization
+**⚠️ CRITICAL GAPS IDENTIFIED:**
+1. ❌ Production authentication/authorization NOT IMPLEMENTED (all APIs completely open)
+2. ❌ Database persistence NOT IMPLEMENTED (all services using in-memory storage)
+3. ⚠️ Security hardening INCOMPLETE (HTTPS partial, no rate limiting, no input validation)
+4. 📋 Deployment documentation MISSING
+
+**Updated Strategic Focus:**
+1. **P0 - IMMEDIATE:** Implement JWT authentication and RBAC authorization (AUTH-001, AUTH-002)
+2. **P0 - IMMEDIATE:** Security hardening (SEC-001, HTTPS enforcement)
+3. **P1 - SHORT-TERM:** Database persistence (Wallet EF Core, Register MongoDB, Blueprint EF Core)
+4. **P1 - SHORT-TERM:** Azure Key Vault integration for production secrets
+5. **P1 - DEFERRED:** Resolve Register Service code duplication (REG-CODE-DUP)
 
 ---
 
@@ -156,8 +167,8 @@ The MVD focuses on delivering a working end-to-end system that can:
 ## Implementation Phases
 
 ### Phase 1: Complete Blueprint-Action Service (Weeks 1-6)
-**Status:** ⚠️ **MOSTLY COMPLETE**
-**Completion:** 95% (Sprints 3-4 complete, Sprint 5 at 85%)
+**Status:** ✅ **COMPLETE** (Post-Audit)
+**Completion:** 96% (54/56 tasks - Sprints 1-7 complete)
 
 #### Sprint 3: Service Layer Foundation ✅ COMPLETE
 **Goal:** Build service layer components for action management
@@ -196,7 +207,7 @@ The MVD focuses on delivering a working end-to-end system that can:
 - ✅ API documentation with Scalar UI
 - ✅ Integration tests passing
 
-#### Sprint 5: Execution Helpers & SignalR ⚠️ MOSTLY COMPLETE (85%)
+#### Sprint 5: Execution Helpers & SignalR ✅ SERVER COMPLETE (88%)
 **Goal:** Add validation helpers and real-time notifications
 
 **Completed Tasks:**
@@ -206,21 +217,21 @@ The MVD focuses on delivering a working end-to-end system that can:
 - ✅ 5.4: POST /api/execution/disclose endpoint
 - ✅ 5.5: Implement SignalR ActionsHub
 - ✅ 5.6: Redis backplane for SignalR
-- ❌ 5.7: SignalR integration tests (NOT IMPLEMENTED)
-- 🚧 5.8: Client-side SignalR integration (partial - needs testing)
+- ✅ 5.7: SignalR integration tests (COMPLETE - audit found 16 tests in SignalRIntegrationTests.cs)
+- ❌ 5.8: Client-side SignalR integration (NOT STARTED - no Blazor client code found)
 
 **Delivered:**
 - ✅ Execution helper endpoints for client-side validation
-- ✅ Real-time notification hub operational
+- ✅ Real-time notification hub operational (ActionsHub + RegisterHub)
 - ✅ Scalable SignalR with Redis backplane
-- ❌ SignalR integration tests missing
+- ✅ Comprehensive SignalR integration tests (16 tests covering subscription, notifications, multi-client)
 
-**Pending:**
-- ❌ SignalR hub integration tests (testing subscription, unsubscription, notifications)
+**Deferred to P3:**
+- ❌ Client-side SignalR integration (BP-5.8) - Not required for MVD server-side functionality
 
 ### Phase 2: Wallet Service API & Integration (Weeks 7-9)
-**Status:** ✅ **MOSTLY COMPLETE** (90%)
-**Completion:** 90% (API complete, deployment pending)
+**Status:** ✅ **COMPLETE** (Post-Audit)
+**Completion:** 100% (32/32 tasks - API and integration complete)
 
 #### Week 7-8: Wallet Service API ✅ COMPLETE
 **Goal:** Create REST API for wallet operations
@@ -251,27 +262,26 @@ The MVD focuses on delivering a working end-to-end system that can:
 - 🚧 Production authentication/authorization
 - 🚧 GenerateAddress endpoint (requires mnemonic storage design)
 
-#### Week 9: Integration Testing ✅ MOSTLY COMPLETE
+#### Week 9: Integration Testing ✅ COMPLETE
 **Goal:** Integrate Wallet Service with Blueprint Service
 
 **Completed Tasks:**
-- ✅ Blueprint Service integrated with Wallet Service
-- ✅ Encryption/decryption integration complete
-- ✅ End-to-end integration tests passing
-- 🚧 Performance testing (partial)
+- ✅ Blueprint Service integrated with Wallet Service (WalletServiceClient implemented)
+- ✅ Encryption/decryption integration complete (PayloadResolverService updated)
+- ✅ End-to-end integration tests complete (27 E2E tests found)
+- ✅ Performance testing complete (NBomber tests with 1000+ req/s scenarios)
 
 **Delivered:**
 - ✅ Blueprint Service calling Wallet Service for crypto operations
-- ✅ E2E tests for Blueprint → Wallet integration
+- ✅ E2E tests for Blueprint → Wallet integration (13+ tests in WalletRegisterIntegrationTests)
 - ✅ Integration working in development environment
+- ✅ Performance benchmarks established (load testing with ramp-up/ramp-down)
 
-**Pending:**
-- 🚧 Production performance benchmarks
-- 🚧 Load testing at scale
+**Audit Finding:** WS-INT-1 through WS-INT-4 completed under Sprint 6 & 7 task IDs (BP-6.x, BP-7.x)
 
 ### Phase 3: Register Service (MVD Version) (Weeks 10-12)
-**Status:** ✅ **COMPLETE**
-**Completion:** 100% (Core, API, and comprehensive testing complete)
+**Status:** ✅ **COMPLETE** (Post-Audit)
+**Completion:** 93% (14/15 tasks - Core, API, integration, and comprehensive testing complete)
 
 #### ✅ Completed: Phase 1-2 Core Implementation (100%)
 **What exists:**
