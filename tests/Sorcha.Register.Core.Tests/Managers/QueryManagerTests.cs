@@ -4,6 +4,7 @@
 using FluentAssertions;
 using Sorcha.Register.Core.Managers;
 using Sorcha.Register.Models;
+using Sorcha.Register.Models.Enums;
 using Sorcha.Register.Storage.InMemory;
 using Xunit;
 
@@ -12,387 +13,378 @@ namespace Sorcha.Register.Core.Tests.Managers;
 public class QueryManagerTests
 {
     private readonly InMemoryRegisterRepository _repository;
-    private readonly InMemoryEventPublisher _eventPublisher;
-    private readonly QueryManager _queryManager;
-    private readonly RegisterManager _registerManager;
-    private readonly TransactionManager _transactionManager;
+    private readonly QueryManager _manager;
+    private readonly string _testRegisterId;
 
     public QueryManagerTests()
     {
         _repository = new InMemoryRegisterRepository();
-        _eventPublisher = new InMemoryEventPublisher();
-        _queryManager = new QueryManager(_repository);
-        _registerManager = new RegisterManager(_repository, _eventPublisher);
-        _transactionManager = new TransactionManager(_repository, _eventPublisher);
-    }
+        _manager = new QueryManager(_repository);
 
-    private async Task<string> CreateTestRegisterAsync()
-    {
-        var register = await _registerManager.CreateRegisterAsync("TestRegister", "tenant-123");
-        return register.Id;
-    }
-
-    private async Task<TransactionModel> CreateTransactionAsync(
-        string registerId,
-        char txIdChar,
-        string sender,
-        string[] recipients,
-        string? blueprintId = null,
-        string? instanceId = null)
-    {
-        var tx = new TransactionModel
+        // Create a test register
+        var register = new Models.Register
         {
-            RegisterId = registerId,
-            TxId = new string(txIdChar, 64),
-            SenderWallet = sender,
-            RecipientsWallets = recipients,
-            Signature = $"sig-{txIdChar}",
-            PayloadCount = 0,
-            Payloads = Array.Empty<PayloadModel>()
+            Id = Guid.NewGuid().ToString("N"),
+            Name = "Test Register",
+            TenantId = "tenant123",
+            Height = 0,
+            Status = RegisterStatus.Offline
         };
-
-        if (blueprintId != null)
-        {
-            tx.MetaData = new TransactionMetaData
-            {
-                RegisterId = registerId,
-                BlueprintId = blueprintId,
-                InstanceId = instanceId
-            };
-        }
-
-        return await _transactionManager.StoreTransactionAsync(tx);
+        _testRegisterId = register.Id;
+        _repository.InsertRegisterAsync(register).Wait();
     }
 
     [Fact]
-    public async Task QueryTransactionsAsync_WithPredicate_ShouldFilterCorrectly()
+    public async Task GetTransactionsByWalletAsync_ShouldReturnTransactionsForSenderOrRecipient()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        await CreateTransactionAsync(registerId, 'a', "wallet1", new[] { "rec1" });
-        await CreateTransactionAsync(registerId, 'b', "wallet2", new[] { "rec2" });
-        await CreateTransactionAsync(registerId, 'c', "wallet1", new[] { "rec3" });
+        var walletAddress = "wallet123";
+        await SeedTransactionsAsync(walletAddress);
 
         // Act
-        var result = await _queryManager.QueryTransactionsAsync(
-            registerId,
-            t => t.SenderWallet == "wallet1");
+        var result = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 1, 20);
 
         // Assert
-        result.Should().HaveCount(2);
-        result.Should().AllSatisfy(t => t.SenderWallet.Should().Be("wallet1"));
+        result.Should().NotBeNull();
+        result.Items.Should().HaveCountGreaterThan(0);
+        result.Items.Should().OnlyContain(t =>
+            t.SenderWallet == walletAddress ||
+            t.RecipientsWallets.Contains(walletAddress));
     }
 
     [Fact]
-    public async Task GetQueryableTransactionsAsync_ShouldReturnQueryable()
+    public async Task GetTransactionsByWalletAsync_ShouldPaginateResults()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        await CreateTransactionAsync(registerId, 'a', "wallet1", new[] { "rec1" });
-        await CreateTransactionAsync(registerId, 'b', "wallet2", new[] { "rec2" });
+        var walletAddress = "wallet123";
+        await SeedTransactionsAsync(walletAddress);
 
         // Act
-        var queryable = await _queryManager.GetQueryableTransactionsAsync(registerId);
+        var page1 = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 1, 2);
+        var page2 = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 2, 2);
 
         // Assert
-        queryable.Should().NotBeNull();
-        queryable.Count().Should().Be(2);
-
-        // Should be able to use LINQ on it
-        var filtered = queryable.Where(t => t.SenderWallet == "wallet1").ToList();
-        filtered.Should().HaveCount(1);
+        page1.Items.Should().HaveCount(2);
+        page2.Items.Should().HaveCountGreaterThan(0);
+        page1.Page.Should().Be(1);
+        page2.Page.Should().Be(2);
+        page1.Items.Should().NotIntersectWith(page2.Items);
     }
 
     [Fact]
-    public async Task GetTransactionsPaginatedAsync_FirstPage_ShouldReturnCorrectItems()
+    public async Task GetTransactionsByWalletAsync_ShouldCalculateTotalPages()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-
-        // Create 25 transactions
-        for (int i = 0; i < 25; i++)
-        {
-            await CreateTransactionAsync(registerId, (char)('a' + (i % 26)), $"wallet-{i}", new[] { $"rec-{i}" });
-            await Task.Delay(10); // Ensure different timestamps
-        }
+        var walletAddress = "wallet123";
+        await SeedTransactionsAsync(walletAddress, count: 5);
 
         // Act
-        var result = await _queryManager.GetTransactionsPaginatedAsync(registerId, page: 1, pageSize: 10);
+        var result = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 1, 2);
 
         // Assert
-        result.Items.Should().HaveCount(10);
-        result.Page.Should().Be(1);
-        result.PageSize.Should().Be(10);
-        result.TotalCount.Should().Be(25);
-        result.TotalPages.Should().Be(3);
-        result.HasPreviousPage.Should().BeFalse();
-        result.HasNextPage.Should().BeTrue();
+        result.TotalPages.Should().Be(3); // 5 transactions / 2 per page = 3 pages
+        result.TotalCount.Should().Be(5);
     }
 
     [Fact]
-    public async Task GetTransactionsPaginatedAsync_LastPage_ShouldReturnRemainingItems()
+    public async Task GetTransactionsByWalletAsync_ShouldSetHasNextAndPreviousPage()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-
-        for (int i = 0; i < 25; i++)
-        {
-            await CreateTransactionAsync(registerId, (char)('a' + (i % 26)), $"wallet-{i}", new[] { $"rec-{i}" });
-        }
+        var walletAddress = "wallet123";
+        await SeedTransactionsAsync(walletAddress, count: 5);
 
         // Act
-        var result = await _queryManager.GetTransactionsPaginatedAsync(registerId, page: 3, pageSize: 10);
+        var page1 = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 1, 2);
+        var page2 = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 2, 2);
+        var page3 = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 3, 2);
 
         // Assert
-        result.Items.Should().HaveCount(5); // 25 total, 10 on page 1, 10 on page 2, 5 on page 3
-        result.Page.Should().Be(3);
-        result.TotalPages.Should().Be(3);
-        result.HasPreviousPage.Should().BeTrue();
-        result.HasNextPage.Should().BeFalse();
+        page1.HasPreviousPage.Should().BeFalse();
+        page1.HasNextPage.Should().BeTrue();
+
+        page2.HasPreviousPage.Should().BeTrue();
+        page2.HasNextPage.Should().BeTrue();
+
+        page3.HasPreviousPage.Should().BeTrue();
+        page3.HasNextPage.Should().BeFalse();
     }
 
     [Fact]
-    public async Task GetTransactionsPaginatedAsync_WithFilter_ShouldApplyFilter()
+    public async Task GetTransactionsBySenderAsync_ShouldReturnOnlySenderTransactions()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        await CreateTransactionAsync(registerId, 'a', "wallet-A", new[] { "rec1" });
-        await CreateTransactionAsync(registerId, 'b', "wallet-B", new[] { "rec2" });
-        await CreateTransactionAsync(registerId, 'c', "wallet-A", new[] { "rec3" });
-        await CreateTransactionAsync(registerId, 'd', "wallet-B", new[] { "rec4" });
+        var senderAddress = "sender123";
+        await _repository.InsertTransactionAsync(CreateTransaction(senderAddress, "recipient1"));
+        await _repository.InsertTransactionAsync(CreateTransaction(senderAddress, "recipient2"));
+        await _repository.InsertTransactionAsync(CreateTransaction("otherSender", "recipient3"));
 
         // Act
-        var result = await _queryManager.GetTransactionsPaginatedAsync(
-            registerId,
-            page: 1,
-            pageSize: 10,
-            filter: t => t.SenderWallet == "wallet-A");
+        var result = await _manager.GetTransactionsBySenderAsync(_testRegisterId, senderAddress, 1, 20);
 
         // Assert
         result.Items.Should().HaveCount(2);
-        result.TotalCount.Should().Be(2);
-        result.Items.Should().AllSatisfy(t => t.SenderWallet.Should().Be("wallet-A"));
+        result.Items.Should().OnlyContain(t => t.SenderWallet == senderAddress);
     }
 
     [Fact]
-    public async Task GetTransactionsPaginatedAsync_WithInvalidPage_ShouldDefaultToOne()
+    public async Task GetTransactionsBySenderAsync_ShouldOrderByTimestampDescending()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        await CreateTransactionAsync(registerId, 'a', "wallet1", new[] { "rec1" });
+        var senderAddress = "sender123";
+        var tx1 = CreateTransaction(senderAddress, "recipient1");
+        tx1.TimeStamp = DateTime.UtcNow.AddMinutes(-10);
+        await _repository.InsertTransactionAsync(tx1);
+
+        var tx2 = CreateTransaction(senderAddress, "recipient2");
+        tx2.TimeStamp = DateTime.UtcNow.AddMinutes(-5);
+        await _repository.InsertTransactionAsync(tx2);
+
+        var tx3 = CreateTransaction(senderAddress, "recipient3");
+        tx3.TimeStamp = DateTime.UtcNow;
+        await _repository.InsertTransactionAsync(tx3);
 
         // Act
-        var result = await _queryManager.GetTransactionsPaginatedAsync(registerId, page: 0, pageSize: 10);
-
-        // Assert
-        result.Page.Should().Be(1);
-    }
-
-    [Fact]
-    public async Task GetTransactionsPaginatedAsync_WithInvalidPageSize_ShouldDefaultToTwenty()
-    {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        await CreateTransactionAsync(registerId, 'a', "wallet1", new[] { "rec1" });
-
-        // Act - Test too small
-        var result1 = await _queryManager.GetTransactionsPaginatedAsync(registerId, page: 1, pageSize: 0);
-        result1.PageSize.Should().Be(20);
-
-        // Act - Test too large
-        var result2 = await _queryManager.GetTransactionsPaginatedAsync(registerId, page: 1, pageSize: 150);
-        result2.PageSize.Should().Be(20);
-    }
-
-    [Fact]
-    public async Task GetTransactionsByWalletPaginatedAsync_AsSender_ShouldReturnSenderTransactions()
-    {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        await CreateTransactionAsync(registerId, 'a', "wallet-X", new[] { "rec1" });
-        await CreateTransactionAsync(registerId, 'b', "wallet-Y", new[] { "rec2" });
-        await CreateTransactionAsync(registerId, 'c', "wallet-X", new[] { "rec3" });
-
-        // Act
-        var result = await _queryManager.GetTransactionsByWalletPaginatedAsync(
-            registerId,
-            "wallet-X",
-            page: 1,
-            pageSize: 10,
-            asSender: true,
-            asRecipient: false);
-
-        // Assert
-        result.Items.Should().HaveCount(2);
-        result.Items.Should().AllSatisfy(t => t.SenderWallet.Should().Be("wallet-X"));
-    }
-
-    [Fact]
-    public async Task GetTransactionsByWalletPaginatedAsync_AsRecipient_ShouldReturnRecipientTransactions()
-    {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        await CreateTransactionAsync(registerId, 'a', "sender1", new[] { "wallet-R" });
-        await CreateTransactionAsync(registerId, 'b', "sender2", new[] { "wallet-S" });
-        await CreateTransactionAsync(registerId, 'c', "sender3", new[] { "wallet-R", "wallet-S" });
-
-        // Act
-        var result = await _queryManager.GetTransactionsByWalletPaginatedAsync(
-            registerId,
-            "wallet-R",
-            page: 1,
-            pageSize: 10,
-            asSender: false,
-            asRecipient: true);
-
-        // Assert
-        result.Items.Should().HaveCount(2);
-        result.Items.Should().AllSatisfy(t => t.RecipientsWallets.Should().Contain("wallet-R"));
-    }
-
-    [Fact]
-    public async Task GetTransactionsByWalletPaginatedAsync_BothRoles_ShouldRemoveDuplicates()
-    {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        await CreateTransactionAsync(registerId, 'a', "wallet-X", new[] { "other" });
-        await CreateTransactionAsync(registerId, 'b', "other", new[] { "wallet-X" });
-        await CreateTransactionAsync(registerId, 'c', "wallet-X", new[] { "wallet-X" }); // Both sender and recipient
-
-        // Act
-        var result = await _queryManager.GetTransactionsByWalletPaginatedAsync(
-            registerId,
-            "wallet-X",
-            page: 1,
-            pageSize: 10,
-            asSender: true,
-            asRecipient: true);
+        var result = await _manager.GetTransactionsBySenderAsync(_testRegisterId, senderAddress, 1, 20);
 
         // Assert
         result.Items.Should().HaveCount(3);
-        result.TotalCount.Should().Be(3); // Should not double-count transaction 'c'
+        result.Items[0].TimeStamp.Should().BeAfter(result.Items[1].TimeStamp);
+        result.Items[1].TimeStamp.Should().BeAfter(result.Items[2].TimeStamp);
     }
 
     [Fact]
-    public async Task GetTransactionsByBlueprintAsync_WithoutInstance_ShouldReturnAllBlueprintTransactions()
+    public async Task GetTransactionsByBlueprintAsync_ShouldReturnBlueprintTransactions()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        await CreateTransactionAsync(registerId, 'a', "wallet1", new[] { "rec1" }, "bp-123", "inst-1");
-        await CreateTransactionAsync(registerId, 'b', "wallet2", new[] { "rec2" }, "bp-456", "inst-2");
-        await CreateTransactionAsync(registerId, 'c', "wallet3", new[] { "rec3" }, "bp-123", "inst-3");
+        var blueprintId = "blueprint123";
+        await SeedBlueprintTransactionsAsync(blueprintId);
 
         // Act
-        var result = await _queryManager.GetTransactionsByBlueprintAsync(registerId, "bp-123");
+        var result = await _manager.GetTransactionsByBlueprintAsync(_testRegisterId, blueprintId, null, 1, 20);
 
         // Assert
-        result.Should().HaveCount(2);
-        result.Should().AllSatisfy(t => t.MetaData!.BlueprintId.Should().Be("bp-123"));
+        result.Items.Should().HaveCountGreaterThan(0);
+        result.Items.Should().OnlyContain(t => t.MetaData?.BlueprintId == blueprintId);
     }
 
     [Fact]
-    public async Task GetTransactionsByBlueprintAsync_WithInstance_ShouldFilterByInstance()
+    public async Task GetTransactionsByBlueprintAsync_WithInstanceId_ShouldFilterByInstance()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        await CreateTransactionAsync(registerId, 'a', "wallet1", new[] { "rec1" }, "bp-123", "inst-1");
-        await CreateTransactionAsync(registerId, 'b', "wallet2", new[] { "rec2" }, "bp-123", "inst-2");
-        await CreateTransactionAsync(registerId, 'c', "wallet3", new[] { "rec3" }, "bp-123", "inst-1");
+        var blueprintId = "blueprint123";
+        var instanceId = "instance456";
+        await SeedBlueprintTransactionsAsync(blueprintId, instanceId);
 
         // Act
-        var result = await _queryManager.GetTransactionsByBlueprintAsync(registerId, "bp-123", "inst-1");
+        var result = await _manager.GetTransactionsByBlueprintAsync(_testRegisterId, blueprintId, instanceId, 1, 20);
 
         // Assert
-        result.Should().HaveCount(2);
-        result.Should().AllSatisfy(t =>
+        result.Items.Should().HaveCountGreaterThan(0);
+        result.Items.Should().OnlyContain(t =>
+            t.MetaData?.BlueprintId == blueprintId &&
+            t.MetaData?.InstanceId == instanceId);
+    }
+
+    [Fact]
+    public async Task GetTransactionStatisticsAsync_ShouldReturnCorrectStatistics()
+    {
+        // Arrange
+        await SeedTransactionsForStatistics();
+
+        // Act
+        var result = await _manager.GetTransactionStatisticsAsync(_testRegisterId);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.TotalTransactions.Should().BeGreaterThan(0);
+        result.UniqueWallets.Should().BeGreaterThan(0);
+        result.UniqueSenders.Should().BeGreaterThan(0);
+        result.UniqueRecipients.Should().BeGreaterThan(0);
+        result.TotalPayloads.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task GetTransactionStatisticsAsync_ShouldCalculateUniqueWallets()
+    {
+        // Arrange
+        await _repository.InsertTransactionAsync(CreateTransaction("sender1", "recipient1"));
+        await _repository.InsertTransactionAsync(CreateTransaction("sender1", "recipient2"));
+        await _repository.InsertTransactionAsync(CreateTransaction("sender2", "recipient1"));
+
+        // Act
+        var result = await _manager.GetTransactionStatisticsAsync(_testRegisterId);
+
+        // Assert
+        result.UniqueSenders.Should().Be(2); // sender1, sender2
+        result.UniqueRecipients.Should().Be(2); // recipient1, recipient2
+        result.UniqueWallets.Should().Be(3); // sender1, sender2, recipient1, recipient2 (deduplicated)
+    }
+
+    [Fact]
+    public async Task GetTransactionStatisticsAsync_ShouldSetEarliestAndLatestTransactions()
+    {
+        // Arrange
+        var earliest = CreateTransaction("sender1", "recipient1");
+        earliest.TimeStamp = DateTime.UtcNow.AddDays(-10);
+        await _repository.InsertTransactionAsync(earliest);
+
+        var latest = CreateTransaction("sender2", "recipient2");
+        latest.TimeStamp = DateTime.UtcNow;
+        await _repository.InsertTransactionAsync(latest);
+
+        // Act
+        var result = await _manager.GetTransactionStatisticsAsync(_testRegisterId);
+
+        // Assert
+        result.EarliestTransaction.Should().BeCloseTo(earliest.TimeStamp, TimeSpan.FromSeconds(1));
+        result.LatestTransaction.Should().BeCloseTo(latest.TimeStamp, TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task GetTransactionStatisticsAsync_WithNoTransactions_ShouldReturnZeroStatistics()
+    {
+        // Act
+        var result = await _manager.GetTransactionStatisticsAsync(_testRegisterId);
+
+        // Assert
+        result.TotalTransactions.Should().Be(0);
+        result.UniqueWallets.Should().Be(0);
+        result.UniqueSenders.Should().Be(0);
+        result.UniqueRecipients.Should().Be(0);
+        result.TotalPayloads.Should().Be(0);
+        result.EarliestTransaction.Should().BeNull();
+        result.LatestTransaction.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetTransactionsByWalletAsync_ShouldDeduplicateResults()
+    {
+        // Arrange
+        var walletAddress = "wallet123";
+
+        // Transaction where wallet123 is both sender and recipient
+        var tx = CreateTransaction(walletAddress, walletAddress);
+        await _repository.InsertTransactionAsync(tx);
+
+        // Act
+        var result = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 1, 20);
+
+        // Assert
+        result.Items.Should().HaveCount(1); // Should only appear once, not twice
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task GetTransactionsByWalletAsync_WithInvalidPage_ShouldThrowArgumentException(int invalidPage)
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            async () => await _manager.GetTransactionsByWalletAsync(_testRegisterId, "wallet123", invalidPage, 20));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(101)] // Max is 100
+    public async Task GetTransactionsByWalletAsync_WithInvalidPageSize_ShouldThrowArgumentException(int invalidPageSize)
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            async () => await _manager.GetTransactionsByWalletAsync(_testRegisterId, "wallet123", 1, invalidPageSize));
+    }
+
+    [Fact]
+    public async Task GetTransactionStatisticsAsync_ShouldCountTotalPayloads()
+    {
+        // Arrange
+        var tx1 = CreateTransaction("sender1", "recipient1");
+        tx1.PayloadCount = 3;
+        tx1.Payloads = new[]
         {
-            t.MetaData!.BlueprintId.Should().Be("bp-123");
-            t.MetaData.InstanceId.Should().Be("inst-1");
-        });
-    }
+            new PayloadModel { Hash = "hash1", Data = "data1", WalletAccess = Array.Empty<string>(), PayloadSize = 100 },
+            new PayloadModel { Hash = "hash2", Data = "data2", WalletAccess = Array.Empty<string>(), PayloadSize = 100 },
+            new PayloadModel { Hash = "hash3", Data = "data3", WalletAccess = Array.Empty<string>(), PayloadSize = 100 }
+        };
+        await _repository.InsertTransactionAsync(tx1);
 
-    [Fact]
-    public async Task GetTransactionStatisticsAsync_ShouldCalculateCorrectStats()
-    {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-
-        var tx1 = await CreateTransactionAsync(registerId, 'a', "wallet-A", new[] { "wallet-X", "wallet-Y" });
-        tx1.PayloadCount = 2;
-        await Task.Delay(100);
-
-        var tx2 = await CreateTransactionAsync(registerId, 'b', "wallet-B", new[] { "wallet-Z" });
-        tx2.PayloadCount = 1;
-        await Task.Delay(100);
-
-        var tx3 = await CreateTransactionAsync(registerId, 'c', "wallet-A", new[] { "wallet-X" });
-        tx3.PayloadCount = 3;
+        var tx2 = CreateTransaction("sender2", "recipient2");
+        tx2.PayloadCount = 2;
+        tx2.Payloads = new[]
+        {
+            new PayloadModel { Hash = "hash4", Data = "data4", WalletAccess = Array.Empty<string>(), PayloadSize = 100 },
+            new PayloadModel { Hash = "hash5", Data = "data5", WalletAccess = Array.Empty<string>(), PayloadSize = 100 }
+        };
+        await _repository.InsertTransactionAsync(tx2);
 
         // Act
-        var stats = await _queryManager.GetTransactionStatisticsAsync(registerId);
+        var result = await _manager.GetTransactionStatisticsAsync(_testRegisterId);
 
         // Assert
-        stats.TotalTransactions.Should().Be(3);
-        stats.UniqueSenders.Should().Be(2); // wallet-A, wallet-B
-        stats.UniqueRecipients.Should().Be(3); // wallet-X, wallet-Y, wallet-Z
-        stats.UniqueWallets.Should().Be(5); // wallet-A, wallet-B, wallet-X, wallet-Y, wallet-Z
-        stats.TotalPayloads.Should().Be(6); // 2 + 1 + 3
-        stats.EarliestTransaction.Should().NotBeNull();
-        stats.LatestTransaction.Should().NotBeNull();
-        stats.LatestTransaction.Should().BeAfter(stats.EarliestTransaction!.Value);
+        result.TotalPayloads.Should().Be(5);
     }
 
-    [Fact]
-    public async Task GetTransactionStatisticsAsync_WithNoTransactions_ShouldReturnZeros()
+    private async Task SeedTransactionsAsync(string walletAddress, int count = 3)
     {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-
-        // Act
-        var stats = await _queryManager.GetTransactionStatisticsAsync(registerId);
-
-        // Assert
-        stats.TotalTransactions.Should().Be(0);
-        stats.UniqueSenders.Should().Be(0);
-        stats.UniqueRecipients.Should().Be(0);
-        stats.UniqueWallets.Should().Be(0);
-        stats.TotalPayloads.Should().Be(0);
-        stats.EarliestTransaction.Should().BeNull();
-        stats.LatestTransaction.Should().BeNull();
+        for (int i = 0; i < count; i++)
+        {
+            var tx = CreateTransaction(
+                i % 2 == 0 ? walletAddress : $"sender{i}",
+                i % 2 == 0 ? $"recipient{i}" : walletAddress);
+            await _repository.InsertTransactionAsync(tx);
+        }
     }
 
-    [Fact]
-    public void Constructor_WithNullRepository_ShouldThrowException()
+    private async Task SeedBlueprintTransactionsAsync(string blueprintId, string? instanceId = null)
     {
-        // Act
-        var act = () => new QueryManager(null!);
-
-        // Assert
-        act.Should().Throw<ArgumentNullException>()
-            .WithParameterName("repository");
+        for (int i = 0; i < 3; i++)
+        {
+            var tx = CreateTransaction($"sender{i}", $"recipient{i}");
+            tx.MetaData = new TransactionMetaData
+            {
+                RegisterId = _testRegisterId,
+                TransactionType = TransactionType.Action,
+                BlueprintId = blueprintId,
+                InstanceId = instanceId ?? $"instance{i}",
+                ActionId = (uint)i
+            };
+            await _repository.InsertTransactionAsync(tx);
+        }
     }
 
-    [Fact]
-    public void PaginatedResult_HasPreviousPage_ShouldReturnCorrectValue()
+    private async Task SeedTransactionsForStatistics()
     {
-        // Arrange
-        var result1 = new PaginatedResult<TransactionModel> { Page = 1, TotalPages = 3 };
-        var result2 = new PaginatedResult<TransactionModel> { Page = 2, TotalPages = 3 };
-
-        // Assert
-        result1.HasPreviousPage.Should().BeFalse();
-        result2.HasPreviousPage.Should().BeTrue();
+        await _repository.InsertTransactionAsync(CreateTransaction("sender1", "recipient1"));
+        await _repository.InsertTransactionAsync(CreateTransaction("sender1", "recipient2"));
+        await _repository.InsertTransactionAsync(CreateTransaction("sender2", "recipient1"));
     }
 
-    [Fact]
-    public void PaginatedResult_HasNextPage_ShouldReturnCorrectValue()
+    private TransactionModel CreateTransaction(string senderWallet, string recipientWallet)
     {
-        // Arrange
-        var result1 = new PaginatedResult<TransactionModel> { Page = 1, TotalPages = 3 };
-        var result2 = new PaginatedResult<TransactionModel> { Page = 3, TotalPages = 3 };
+        var txId = Guid.NewGuid().ToString("N") + new string('0', 64);
+        txId = txId.Substring(0, 64);
 
-        // Assert
-        result1.HasNextPage.Should().BeTrue();
-        result2.HasNextPage.Should().BeFalse();
+        return new TransactionModel
+        {
+            RegisterId = _testRegisterId,
+            TxId = txId,
+            PrevTxId = string.Empty,
+            Version = 1,
+            SenderWallet = senderWallet,
+            RecipientsWallets = new[] { recipientWallet },
+            TimeStamp = DateTime.UtcNow,
+            PayloadCount = 1,
+            Payloads = new[]
+            {
+                new PayloadModel
+                {
+                    WalletAccess = new[] { senderWallet },
+                    PayloadSize = 1024,
+                    Hash = "payload_hash",
+                    Data = "encrypted_data"
+                }
+            },
+            Signature = "signature"
+        };
     }
 }

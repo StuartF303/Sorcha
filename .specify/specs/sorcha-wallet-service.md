@@ -1,8 +1,8 @@
-# Sorcha.WalletService Library Specification
+# Sorcha Wallet Service Specification
 
-**Version:** 1.0
-**Date:** 2025-11-13
-**Status:** Proposed
+**Version:** 1.1
+**Date:** 2025-11-17
+**Status:** Active
 **Related Constitution:** [constitution.md](../constitution.md)
 **Related Specifications:**
 - [sorcha-cryptography-rewrite.md](sorcha-cryptography-rewrite.md)
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-This specification defines the requirements for creating a standalone, reusable wallet management library named **Sorcha.WalletService**. This library will handle cryptographic wallet creation, key management, transaction signing, delegation/access control, and secure key storage for the Sorcha distributed ledger platform. The new implementation will be architected to be portable and importable into new system architectures.
+This specification defines the requirements for the Sorcha Wallet Service. This service handles cryptographic wallet creation, key management, transaction signing, delegation/access control, and secure key storage for the Sorcha distributed ledger platform. The implementation follows the standard Sorcha service architecture pattern.
 
 ## Background
 
@@ -18,13 +18,14 @@ This specification defines the requirements for creating a standalone, reusable 
 
 The Sorcha platform currently lacks a dedicated wallet service. This specification draws from the legacy Siccar implementation to create a modern, cloud-native wallet service suitable for the Sorcha architecture.
 
-#### Required Architecture
+#### Architecture
 
 **Project Structure:**
-- `Sorcha.WalletService` - Core wallet library (domain models, interfaces, services)
-- `Sorcha.WalletService.Api` - ASP.NET Core Minimal API service
-- `Sorcha.WalletService.Tests` - Unit test suite
-- `Sorcha.WalletService.IntegrationTests` - Integration test suite
+- `Sorcha.Wallet.Core` (in src/Common) - Core wallet library (domain models, interfaces, services)
+- `Sorcha.Wallet.Service` (in src/Services) - ASP.NET Core Minimal API service
+- `Sorcha.Wallet.Service.Tests` - Unit test suite
+- `Sorcha.Wallet.Service.IntegrationTests` - Integration test suite
+- `Sorcha.Wallet.Service.Api.Tests` - API endpoint test suite
 
 **Key Components:**
 - **IWalletService** - Main service interface for wallet operations

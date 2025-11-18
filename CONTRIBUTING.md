@@ -120,9 +120,57 @@ Fixed disposable resources not being properly released
 in long-running blueprint executions.
 ```
 
+## AI-Generated Code Requirements
+
+### Overview
+
+Sorcha welcomes the use of AI coding assistants (GitHub Copilot, Claude Code, ChatGPT, etc.) to enhance developer productivity. However, **all AI-generated code must meet the same quality standards as human-written code**, plus additional documentation requirements.
+
+### Mandatory Documentation Updates
+
+When you use AI tools to generate code, you **MUST** update the following documentation:
+
+1. **README Files**
+   - Project README if architecture/features change
+   - Component README for new APIs or configuration
+
+2. **Documentation Files** (`docs/`)
+   - API reference for new endpoints
+   - Architecture docs for new services
+   - Development status for completion updates
+
+3. **Spec-Kit Documentation** (`.specify/`)
+   - **MASTER-TASKS.md** - Update task status (Required!)
+   - Service specifications for API changes
+   - Status files for progress tracking
+
+4. **Code Documentation**
+   - XML comments for all public APIs
+   - OpenAPI documentation for REST endpoints
+   - Inline comments for complex logic
+
+### AI Code Checklist
+
+Before submitting a PR with AI-generated code:
+
+- [ ] All required documentation is updated (see policy below)
+- [ ] MASTER-TASKS.md reflects task completion
+- [ ] OpenAPI/XML documentation is complete
+- [ ] README files are current
+- [ ] Code passes all tests
+- [ ] Manual review of AI-generated code completed
+
+### Complete Policy
+
+See [.specify/AI-CODE-DOCUMENTATION-POLICY.md](.specify/AI-CODE-DOCUMENTATION-POLICY.md) for complete requirements, examples, and workflow.
+
+**Important:** PRs with AI-generated code will not be approved without proper documentation updates.
+
+---
+
 ## Pull Request Process
 
-1. **Update Documentation**: Ensure README.md and relevant docs are updated
+1. **Update Documentation**: Ensure README.md and relevant docs are updated (REQUIRED for AI-generated code - see above)
 2. **Add Tests**: Include unit tests for new functionality
 3. **Update Changelog**: Add entry to CHANGELOG.md if it exists
 4. **Follow Style**: Ensure code follows project style guidelines

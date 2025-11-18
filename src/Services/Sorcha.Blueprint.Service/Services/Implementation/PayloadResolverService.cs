@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
-using System.Text;
 using System.Text.Json;
+using Sorcha.Blueprint.Service.Clients;
 using Sorcha.Blueprint.Service.Services.Interfaces;
 
 namespace Sorcha.Blueprint.Service.Services.Implementation;
@@ -13,12 +13,17 @@ namespace Sorcha.Blueprint.Service.Services.Implementation;
 public class PayloadResolverService : IPayloadResolverService
 {
     private readonly ILogger<PayloadResolverService> _logger;
-    // TODO Sprint 6: Inject IWalletServiceClient when available
-    // TODO Sprint 6: Inject IRegisterServiceClient when available
+    private readonly IWalletServiceClient _walletServiceClient;
+    private readonly IRegisterServiceClient _registerServiceClient;
 
-    public PayloadResolverService(ILogger<PayloadResolverService> logger)
+    public PayloadResolverService(
+        ILogger<PayloadResolverService> logger,
+        IWalletServiceClient walletServiceClient,
+        IRegisterServiceClient registerServiceClient)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _walletServiceClient = walletServiceClient ?? throw new ArgumentNullException(nameof(walletServiceClient));
+        _registerServiceClient = registerServiceClient ?? throw new ArgumentNullException(nameof(registerServiceClient));
     }
 
     /// <inheritdoc/>
@@ -55,20 +60,18 @@ public class PayloadResolverService : IPayloadResolverService
 
             try
             {
-                // TODO Sprint 6: Replace with actual Wallet Service call
-                // var encryptedPayload = await _walletServiceClient.EncryptPayloadAsync(
-                //     wallet,
-                //     JsonSerializer.SerializeToUtf8Bytes(data),
-                //     cancellationToken);
-
-                // STUB: For now, just serialize to JSON (plaintext)
-                // This will be replaced with actual encryption in Sprint 6
+                // Serialize the data to JSON bytes
                 var jsonPayload = JsonSerializer.SerializeToUtf8Bytes(data);
-                var stubEncryptedPayload = CreateStubEncryptedPayload(jsonPayload, wallet);
 
-                encryptedPayloads[wallet] = stubEncryptedPayload;
+                // Encrypt the payload using the Wallet Service
+                var encryptedPayload = await _walletServiceClient.EncryptPayloadAsync(
+                    wallet,
+                    jsonPayload,
+                    cancellationToken);
 
-                _logger.LogDebug("Created encrypted payload for participant {ParticipantId} (wallet: {Wallet}) - STUB MODE",
+                encryptedPayloads[wallet] = encryptedPayload;
+
+                _logger.LogDebug("Created encrypted payload for participant {ParticipantId} (wallet: {Wallet})",
                     participantId, wallet);
             }
             catch (Exception ex)
@@ -78,7 +81,6 @@ public class PayloadResolverService : IPayloadResolverService
             }
         }
 
-        await Task.CompletedTask; // For async signature
         return encryptedPayloads;
     }
 
@@ -118,30 +120,48 @@ public class PayloadResolverService : IPayloadResolverService
         {
             try
             {
-                // TODO Sprint 6: Replace with actual Register Service call
-                // var transaction = await _registerServiceClient.GetTransactionAsync(
-                //     registerAddress,
-                //     txId,
-                //     cancellationToken);
+                // Get the transaction from the Register Service
+                var transaction = await _registerServiceClient.GetTransactionAsync(
+                    registerAddress,
+                    txId,
+                    cancellationToken);
 
-                // TODO Sprint 6: Replace with actual Wallet Service call for decryption
-                // var decryptedPayload = await _walletServiceClient.DecryptPayloadAsync(
-                //     wallet,
-                //     transaction.EncryptedPayload,
-                //     cancellationToken);
-
-                // STUB: Return placeholder data
-                // In reality, we would decrypt the payload and merge it into aggregatedData
-                var stubDecryptedData = GetStubTransactionData(txId);
-
-                // Merge the decrypted data into aggregated data
-                foreach (var (key, value) in stubDecryptedData)
+                if (transaction == null)
                 {
-                    // Later values overwrite earlier ones (most recent wins)
-                    aggregatedData[key] = value;
+                    _logger.LogWarning("Transaction {TxId} not found in register {RegisterAddress}, skipping", txId, registerAddress);
+                    continue;
                 }
 
-                _logger.LogDebug("Aggregated data from transaction {TxId} - STUB MODE", txId);
+                // Find the payload for this wallet in the transaction's payloads
+                var payloadForWallet = transaction.Payloads?.FirstOrDefault(p =>
+                    p.Recipients?.Contains(wallet) == true);
+
+                if (payloadForWallet == null)
+                {
+                    _logger.LogWarning("No payload found for wallet {Wallet} in transaction {TxId}, skipping", wallet, txId);
+                    continue;
+                }
+
+                // Decrypt the payload using the Wallet Service
+                var decryptedPayload = await _walletServiceClient.DecryptPayloadAsync(
+                    wallet,
+                    payloadForWallet.Data ?? Array.Empty<byte>(),
+                    cancellationToken);
+
+                // Deserialize the decrypted payload
+                var decryptedData = JsonSerializer.Deserialize<Dictionary<string, object>>(decryptedPayload);
+
+                if (decryptedData != null)
+                {
+                    // Merge the decrypted data into aggregated data
+                    foreach (var (key, value) in decryptedData)
+                    {
+                        // Later values overwrite earlier ones (most recent wins)
+                        aggregatedData[key] = value;
+                    }
+
+                    _logger.LogDebug("Aggregated data from transaction {TxId}", txId);
+                }
             }
             catch (Exception ex)
             {
@@ -150,38 +170,27 @@ public class PayloadResolverService : IPayloadResolverService
             }
         }
 
-        // TODO Sprint 6: Apply disclosure rules if provided
-        // If disclosureRules are provided, filter the aggregatedData to only include allowed fields
+        // Apply disclosure rules if provided
+        if (disclosureRules != null && disclosureRules.Any())
+        {
+            var allowedFields = new HashSet<string>(disclosureRules);
+            var filteredData = new Dictionary<string, object>();
 
-        await Task.CompletedTask; // For async signature
+            foreach (var (key, value) in aggregatedData)
+            {
+                if (allowedFields.Contains(key))
+                {
+                    filteredData[key] = value;
+                }
+            }
+
+            _logger.LogDebug("Applied disclosure rules: {OriginalCount} fields filtered to {FilteredCount} fields",
+                aggregatedData.Count, filteredData.Count);
+
+            return filteredData;
+        }
+
         return aggregatedData;
     }
 
-    /// <summary>
-    /// Creates a stub encrypted payload (Sprint 3 placeholder)
-    /// </summary>
-    private byte[] CreateStubEncryptedPayload(byte[] payload, string recipientWallet)
-    {
-        // STUB: Just add a prefix to simulate encryption
-        // In Sprint 6, this will be replaced with actual encryption via Wallet Service
-        var prefix = Encoding.UTF8.GetBytes($"ENCRYPTED_FOR:{recipientWallet}:");
-        var combined = new byte[prefix.Length + payload.Length];
-        Array.Copy(prefix, 0, combined, 0, prefix.Length);
-        Array.Copy(payload, 0, combined, prefix.Length, payload.Length);
-        return combined;
-    }
-
-    /// <summary>
-    /// Gets stub transaction data (Sprint 3 placeholder)
-    /// </summary>
-    private Dictionary<string, object> GetStubTransactionData(string txId)
-    {
-        // STUB: Return placeholder data
-        // In Sprint 6, this will be replaced with actual Register Service call and decryption
-        return new Dictionary<string, object>
-        {
-            ["previousTxId"] = txId,
-            ["stubDataField"] = $"Historical data from transaction {txId}"
-        };
-    }
 }

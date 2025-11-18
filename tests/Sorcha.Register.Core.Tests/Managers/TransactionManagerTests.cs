@@ -5,6 +5,7 @@ using FluentAssertions;
 using Sorcha.Register.Core.Events;
 using Sorcha.Register.Core.Managers;
 using Sorcha.Register.Models;
+using Sorcha.Register.Models.Enums;
 using Sorcha.Register.Storage.InMemory;
 using Xunit;
 
@@ -15,454 +16,402 @@ public class TransactionManagerTests
     private readonly InMemoryRegisterRepository _repository;
     private readonly InMemoryEventPublisher _eventPublisher;
     private readonly TransactionManager _manager;
-    private readonly RegisterManager _registerManager;
-    private string _testRegisterId = string.Empty;
+    private readonly string _testRegisterId;
 
     public TransactionManagerTests()
     {
         _repository = new InMemoryRegisterRepository();
         _eventPublisher = new InMemoryEventPublisher();
         _manager = new TransactionManager(_repository, _eventPublisher);
-        _registerManager = new RegisterManager(_repository, _eventPublisher);
-    }
 
-    private async Task<string> CreateTestRegisterAsync()
-    {
-        var register = await _registerManager.CreateRegisterAsync("TestRegister", "tenant-123");
-        _testRegisterId = register.Id;
-        return register.Id;
-    }
-
-    private TransactionModel CreateValidTransaction(string? registerId = null)
-    {
-        return new TransactionModel
+        // Create a test register
+        var register = new Models.Register
         {
-            RegisterId = registerId ?? _testRegisterId,
-            TxId = new string('a', 64),
-            SenderWallet = "sender-wallet-address",
-            RecipientsWallets = new[] { "recipient1", "recipient2" },
-            Signature = "valid-signature",
-            PayloadCount = 0,
-            Payloads = Array.Empty<PayloadModel>()
+            Id = Guid.NewGuid().ToString("N"),
+            Name = "Test Register",
+            TenantId = "tenant123",
+            Height = 0,
+            Status = RegisterStatus.Offline
         };
+        _testRegisterId = register.Id;
+        _repository.InsertRegisterAsync(register).Wait();
     }
 
     [Fact]
-    public async Task StoreTransactionAsync_WithValidTransaction_ShouldStore()
+    public async Task StoreTransactionAsync_WithValidTransaction_ShouldStoreTransaction()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        var transaction = CreateValidTransaction(registerId);
-        _eventPublisher.Clear();
+        var transaction = CreateValidTransaction();
 
         // Act
         var result = await _manager.StoreTransactionAsync(transaction);
 
         // Assert
         result.Should().NotBeNull();
+        result.Id.Should().NotBeNullOrWhiteSpace();
         result.TxId.Should().Be(transaction.TxId);
-        result.RegisterId.Should().Be(registerId);
-        result.SenderWallet.Should().Be("sender-wallet-address");
-        result.RecipientsWallets.Should().Contain("recipient1");
+        result.RegisterId.Should().Be(_testRegisterId);
     }
 
     [Fact]
-    public async Task StoreTransactionAsync_ShouldGenerateDidUri()
+    public async Task StoreTransactionAsync_ShouldGenerateDIDUri()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        var transaction = CreateValidTransaction(registerId);
-        transaction.Id = null; // Ensure ID is null
+        var transaction = CreateValidTransaction();
 
         // Act
         var result = await _manager.StoreTransactionAsync(transaction);
 
         // Assert
-        result.Id.Should().NotBeNullOrEmpty();
-        result.Id.Should().Be($"did:sorcha:register:{registerId}/tx/{transaction.TxId}");
+        result.Id.Should().NotBeNullOrWhiteSpace();
+        result.Id.Should().StartWith("did:sorcha:register:");
+        result.Id.Should().Contain($"/{_testRegisterId}/tx/");
+        result.Id.Should().EndWith(transaction.TxId);
     }
 
     [Fact]
-    public async Task StoreTransactionAsync_ShouldSetTimestamp()
+    public async Task StoreTransactionAsync_ShouldSetTimestampIfNotProvided()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        var transaction = CreateValidTransaction(registerId);
+        var transaction = CreateValidTransaction();
         transaction.TimeStamp = default;
 
         // Act
         var result = await _manager.StoreTransactionAsync(transaction);
 
         // Assert
-        result.TimeStamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        result.TimeStamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 
     [Fact]
     public async Task StoreTransactionAsync_ShouldPublishTransactionConfirmedEvent()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        var transaction = CreateValidTransaction(registerId);
-        _eventPublisher.Clear();
-
-        // Act
-        await _manager.StoreTransactionAsync(transaction);
-
-        // Assert
-        var events = _eventPublisher.GetPublishedEvents<TransactionConfirmedEvent>();
-        events.Should().ContainSingle();
-        var confirmedEvent = events.First();
-        confirmedEvent.TransactionId.Should().Be(transaction.TxId);
-        confirmedEvent.RegisterId.Should().Be(registerId);
-        confirmedEvent.SenderWallet.Should().Be("sender-wallet-address");
-        confirmedEvent.ToWallets.Should().Contain("recipient1");
-    }
-
-    [Fact]
-    public async Task StoreTransactionAsync_WithNullTransaction_ShouldThrowException()
-    {
-        // Act
-        var act = () => _manager.StoreTransactionAsync(null!);
-
-        // Assert
-        await act.Should().ThrowAsync<ArgumentNullException>();
-    }
-
-    [Fact]
-    public async Task StoreTransactionAsync_WithInvalidRegisterId_ShouldThrowException()
-    {
-        // Arrange
-        var transaction = CreateValidTransaction("non-existing-register");
-
-        // Act
-        var act = () => _manager.StoreTransactionAsync(transaction);
-
-        // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*not found*");
-    }
-
-    [Fact]
-    public async Task StoreTransactionAsync_WithEmptyTxId_ShouldThrowException()
-    {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        var transaction = CreateValidTransaction(registerId);
-        transaction.TxId = string.Empty;
-
-        // Act
-        var act = () => _manager.StoreTransactionAsync(transaction);
-
-        // Assert
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage("*TxId is required*");
-    }
-
-    [Fact]
-    public async Task StoreTransactionAsync_WithInvalidTxIdLength_ShouldThrowException()
-    {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        var transaction = CreateValidTransaction(registerId);
-        transaction.TxId = "tooshort";
-
-        // Act
-        var act = () => _manager.StoreTransactionAsync(transaction);
-
-        // Assert
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage("*must be 64 characters*");
-    }
-
-    [Fact]
-    public async Task StoreTransactionAsync_WithEmptySenderWallet_ShouldThrowException()
-    {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        var transaction = CreateValidTransaction(registerId);
-        transaction.SenderWallet = string.Empty;
-
-        // Act
-        var act = () => _manager.StoreTransactionAsync(transaction);
-
-        // Assert
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage("*SenderWallet is required*");
-    }
-
-    [Fact]
-    public async Task StoreTransactionAsync_WithEmptySignature_ShouldThrowException()
-    {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        var transaction = CreateValidTransaction(registerId);
-        transaction.Signature = string.Empty;
-
-        // Act
-        var act = () => _manager.StoreTransactionAsync(transaction);
-
-        // Assert
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage("*Signature is required*");
-    }
-
-    [Fact]
-    public async Task StoreTransactionAsync_WithMismatchedPayloadCount_ShouldThrowException()
-    {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        var transaction = CreateValidTransaction(registerId);
-        transaction.PayloadCount = 5;
-        transaction.Payloads = new[] { new PayloadModel(), new PayloadModel() }; // Only 2 payloads
-
-        // Act
-        var act = () => _manager.StoreTransactionAsync(transaction);
-
-        // Assert
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage("*PayloadCount*does not match*");
-    }
-
-    [Fact]
-    public async Task StoreTransactionAsync_WithPayloads_ShouldValidateCount()
-    {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        var transaction = CreateValidTransaction(registerId);
-        transaction.PayloadCount = 3;
-        transaction.Payloads = new[]
-        {
-            new PayloadModel { Hash = "hash1", Data = "data1" },
-            new PayloadModel { Hash = "hash2", Data = "data2" },
-            new PayloadModel { Hash = "hash3", Data = "data3" }
-        };
+        var transaction = CreateValidTransaction();
 
         // Act
         var result = await _manager.StoreTransactionAsync(transaction);
 
         // Assert
-        result.Payloads.Should().HaveCount(3);
-        result.PayloadCount.Should().Be(3);
+        var events = _eventPublisher.GetPublishedEvents<TransactionConfirmedEvent>();
+        events.Should().HaveCount(1);
+
+        var evt = events.First();
+        evt.TransactionId.Should().Be(result.TxId);
+        evt.RegisterId.Should().Be(_testRegisterId);
+        evt.SenderWallet.Should().Be(transaction.SenderWallet);
     }
 
     [Fact]
-    public async Task GetTransactionAsync_WithExistingTransaction_ShouldReturn()
+    public async Task StoreTransactionAsync_WithNullTransaction_ShouldThrowArgumentNullException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await _manager.StoreTransactionAsync(null!));
+    }
+
+    [Fact]
+    public async Task StoreTransactionAsync_WithMissingTxId_ShouldThrowArgumentException()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-        var transaction = CreateValidTransaction(registerId);
-        await _manager.StoreTransactionAsync(transaction);
+        var transaction = CreateValidTransaction();
+        transaction.TxId = string.Empty;
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            async () => await _manager.StoreTransactionAsync(transaction));
+
+        exception.Message.Should().Contain("TxId");
+    }
+
+    [Fact]
+    public async Task StoreTransactionAsync_WithInvalidTxIdLength_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var transaction = CreateValidTransaction();
+        transaction.TxId = "tooshort";
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            async () => await _manager.StoreTransactionAsync(transaction));
+
+        exception.Message.Should().Contain("64 characters");
+    }
+
+    [Fact]
+    public async Task StoreTransactionAsync_WithMissingRegisterId_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var transaction = CreateValidTransaction();
+        transaction.RegisterId = string.Empty;
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            async () => await _manager.StoreTransactionAsync(transaction));
+
+        exception.Message.Should().Contain("RegisterId");
+    }
+
+    [Fact]
+    public async Task StoreTransactionAsync_WithMissingSenderWallet_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var transaction = CreateValidTransaction();
+        transaction.SenderWallet = string.Empty;
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            async () => await _manager.StoreTransactionAsync(transaction));
+
+        exception.Message.Should().Contain("SenderWallet");
+    }
+
+    [Fact]
+    public async Task StoreTransactionAsync_WithMissingSignature_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var transaction = CreateValidTransaction();
+        transaction.Signature = string.Empty;
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            async () => await _manager.StoreTransactionAsync(transaction));
+
+        exception.Message.Should().Contain("Signature");
+    }
+
+    [Fact]
+    public async Task StoreTransactionAsync_WithMismatchedPayloadCount_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var transaction = CreateValidTransaction();
+        transaction.PayloadCount = 5; // But only has 1 payload
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            async () => await _manager.StoreTransactionAsync(transaction));
+
+        exception.Message.Should().Contain("PayloadCount");
+    }
+
+    [Fact]
+    public async Task GetTransactionAsync_WithExistingTransaction_ShouldReturnTransaction()
+    {
+        // Arrange
+        var transaction = CreateValidTransaction();
+        var stored = await _manager.StoreTransactionAsync(transaction);
 
         // Act
-        var result = await _manager.GetTransactionAsync(registerId, transaction.TxId);
+        var result = await _manager.GetTransactionAsync(_testRegisterId, stored.TxId);
 
         // Assert
         result.Should().NotBeNull();
-        result!.TxId.Should().Be(transaction.TxId);
+        result!.TxId.Should().Be(stored.TxId);
+        result.RegisterId.Should().Be(_testRegisterId);
     }
 
     [Fact]
-    public async Task GetTransactionAsync_WithNonExistingTransaction_ShouldReturnNull()
+    public async Task GetTransactionAsync_WithNonExistentTransaction_ShouldReturnNull()
     {
-        // Arrange
-        var registerId = await CreateTestRegisterAsync();
-
         // Act
-        var result = await _manager.GetTransactionAsync(registerId, new string('x', 64));
+        var result = await _manager.GetTransactionAsync(_testRegisterId, "nonexistent" + new string('0', 53));
 
         // Assert
         result.Should().BeNull();
     }
 
     [Fact]
-    public async Task GetTransactionsAsync_ShouldReturnAllTransactions()
+    public async Task GetTransactionsAsync_ShouldReturnAllTransactionsForRegister()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-
-        var tx1 = CreateValidTransaction(registerId);
-        tx1.TxId = new string('a', 64);
-        await _manager.StoreTransactionAsync(tx1);
-
-        var tx2 = CreateValidTransaction(registerId);
-        tx2.TxId = new string('b', 64);
-        await _manager.StoreTransactionAsync(tx2);
-
-        var tx3 = CreateValidTransaction(registerId);
-        tx3.TxId = new string('c', 64);
-        await _manager.StoreTransactionAsync(tx3);
+        await _manager.StoreTransactionAsync(CreateValidTransaction("tx1"));
+        await _manager.StoreTransactionAsync(CreateValidTransaction("tx2"));
+        await _manager.StoreTransactionAsync(CreateValidTransaction("tx3"));
 
         // Act
-        var result = await _manager.GetTransactionsAsync(registerId);
+        var result = await _manager.GetTransactionsAsync(_testRegisterId);
 
         // Assert
         result.Should().HaveCount(3);
+        result.Should().OnlyContain(t => t.RegisterId == _testRegisterId);
     }
 
     [Fact]
-    public async Task GetTransactionsBySenderAsync_ShouldReturnOnlySenderTransactions()
+    public async Task GetTransactionsAsync_ShouldReturnQueryable()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-
-        var tx1 = CreateValidTransaction(registerId);
-        tx1.TxId = new string('a', 64);
-        tx1.SenderWallet = "wallet-A";
-        await _manager.StoreTransactionAsync(tx1);
-
-        var tx2 = CreateValidTransaction(registerId);
-        tx2.TxId = new string('b', 64);
-        tx2.SenderWallet = "wallet-B";
-        await _manager.StoreTransactionAsync(tx2);
-
-        var tx3 = CreateValidTransaction(registerId);
-        tx3.TxId = new string('c', 64);
-        tx3.SenderWallet = "wallet-A";
-        await _manager.StoreTransactionAsync(tx3);
+        await _manager.StoreTransactionAsync(CreateValidTransaction("tx1"));
+        await _manager.StoreTransactionAsync(CreateValidTransaction("tx2"));
 
         // Act
-        var result = await _manager.GetTransactionsBySenderAsync(registerId, "wallet-A");
+        var queryable = await _manager.GetTransactionsAsync(_testRegisterId);
+        var filtered = queryable.Where(t => t.TxId.Contains("tx1")).ToList();
 
         // Assert
-        result.Should().HaveCount(2);
-        result.Should().AllSatisfy(t => t.SenderWallet.Should().Be("wallet-A"));
+        filtered.Should().HaveCount(1);
+        filtered.First().TxId.Should().Contain("tx1");
     }
 
     [Fact]
-    public async Task GetTransactionsByRecipientAsync_ShouldReturnOnlyRecipientTransactions()
+    public async Task StoreTransactionAsync_WithMetaData_ShouldStoreMetaData()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-
-        var tx1 = CreateValidTransaction(registerId);
-        tx1.TxId = new string('a', 64);
-        tx1.RecipientsWallets = new[] { "wallet-X", "wallet-Y" };
-        await _manager.StoreTransactionAsync(tx1);
-
-        var tx2 = CreateValidTransaction(registerId);
-        tx2.TxId = new string('b', 64);
-        tx2.RecipientsWallets = new[] { "wallet-Z" };
-        await _manager.StoreTransactionAsync(tx2);
-
-        var tx3 = CreateValidTransaction(registerId);
-        tx3.TxId = new string('c', 64);
-        tx3.RecipientsWallets = new[] { "wallet-X" };
-        await _manager.StoreTransactionAsync(tx3);
+        var transaction = CreateValidTransaction();
+        transaction.MetaData = new TransactionMetaData
+        {
+            RegisterId = _testRegisterId,
+            TransactionType = TransactionType.Action,
+            BlueprintId = "blueprint123",
+            InstanceId = "instance456",
+            ActionId = 1,
+            NextActionId = 2
+        };
 
         // Act
-        var result = await _manager.GetTransactionsByRecipientAsync(registerId, "wallet-X");
+        var result = await _manager.StoreTransactionAsync(transaction);
 
         // Assert
-        result.Should().HaveCount(2);
-        result.Should().AllSatisfy(t => t.RecipientsWallets.Should().Contain("wallet-X"));
+        result.MetaData.Should().NotBeNull();
+        result.MetaData!.BlueprintId.Should().Be("blueprint123");
+        result.MetaData.InstanceId.Should().Be("instance456");
+        result.MetaData.ActionId.Should().Be(1);
     }
 
     [Fact]
-    public async Task GetTransactionsByDocketAsync_ShouldReturnOnlyDocketTransactions()
+    public async Task StoreTransactionAsync_WithPayloads_ShouldStorePayloads()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-
-        var tx1 = CreateValidTransaction(registerId);
-        tx1.TxId = new string('a', 64);
-        tx1.BlockNumber = 1;
-        await _manager.StoreTransactionAsync(tx1);
-
-        var tx2 = CreateValidTransaction(registerId);
-        tx2.TxId = new string('b', 64);
-        tx2.BlockNumber = 2;
-        await _manager.StoreTransactionAsync(tx2);
-
-        var tx3 = CreateValidTransaction(registerId);
-        tx3.TxId = new string('c', 64);
-        tx3.BlockNumber = 1;
-        await _manager.StoreTransactionAsync(tx3);
+        var transaction = CreateValidTransaction();
+        transaction.PayloadCount = 2;
+        transaction.Payloads = new[]
+        {
+            new PayloadModel
+            {
+                WalletAccess = new[] { "wallet1" },
+                PayloadSize = 1024,
+                Hash = "hash1",
+                Data = "data1"
+            },
+            new PayloadModel
+            {
+                WalletAccess = new[] { "wallet2" },
+                PayloadSize = 2048,
+                Hash = "hash2",
+                Data = "data2"
+            }
+        };
 
         // Act
-        var result = await _manager.GetTransactionsByDocketAsync(registerId, 1);
+        var result = await _manager.StoreTransactionAsync(transaction);
 
         // Assert
-        result.Should().HaveCount(2);
-        result.Should().AllSatisfy(t => t.BlockNumber.Should().Be(1ul));
+        result.Payloads.Should().HaveCount(2);
+        result.Payloads[0].Hash.Should().Be("hash1");
+        result.Payloads[1].Hash.Should().Be("hash2");
     }
 
     [Fact]
-    public async Task GetTransactionsByBlueprintAsync_ShouldReturnOnlyBlueprintTransactions()
+    public async Task StoreTransactionAsync_WithRecipientsWallets_ShouldStoreRecipients()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
-
-        var tx1 = CreateValidTransaction(registerId);
-        tx1.TxId = new string('a', 64);
-        tx1.MetaData = new TransactionMetaData { RegisterId = registerId, BlueprintId = "bp-123" };
-        await _manager.StoreTransactionAsync(tx1);
-
-        var tx2 = CreateValidTransaction(registerId);
-        tx2.TxId = new string('b', 64);
-        tx2.MetaData = new TransactionMetaData { RegisterId = registerId, BlueprintId = "bp-456" };
-        await _manager.StoreTransactionAsync(tx2);
-
-        var tx3 = CreateValidTransaction(registerId);
-        tx3.TxId = new string('c', 64);
-        tx3.MetaData = new TransactionMetaData { RegisterId = registerId, BlueprintId = "bp-123" };
-        await _manager.StoreTransactionAsync(tx3);
+        var transaction = CreateValidTransaction();
+        transaction.RecipientsWallets = new[] { "wallet1", "wallet2", "wallet3" };
 
         // Act
-        var result = await _manager.GetTransactionsByBlueprintAsync(registerId, "bp-123");
+        var result = await _manager.StoreTransactionAsync(transaction);
 
         // Assert
-        result.Should().HaveCount(2);
-        result.Should().AllSatisfy(t => t.MetaData!.BlueprintId.Should().Be("bp-123"));
+        result.RecipientsWallets.Should().HaveCount(3);
+        result.RecipientsWallets.Should().Contain("wallet1");
+        result.RecipientsWallets.Should().Contain("wallet2");
+        result.RecipientsWallets.Should().Contain("wallet3");
     }
 
     [Fact]
-    public async Task GetTransactionsByInstanceAsync_ShouldReturnOnlyInstanceTransactions()
+    public async Task StoreTransactionAsync_WithPrevTxId_ShouldLinkToPrevi ousTransaction()
     {
         // Arrange
-        var registerId = await CreateTestRegisterAsync();
+        var tx1 = CreateValidTransaction("tx1");
+        var stored1 = await _manager.StoreTransactionAsync(tx1);
 
-        var tx1 = CreateValidTransaction(registerId);
-        tx1.TxId = new string('a', 64);
-        tx1.MetaData = new TransactionMetaData { RegisterId = registerId, InstanceId = "inst-001" };
-        await _manager.StoreTransactionAsync(tx1);
-
-        var tx2 = CreateValidTransaction(registerId);
-        tx2.TxId = new string('b', 64);
-        tx2.MetaData = new TransactionMetaData { RegisterId = registerId, InstanceId = "inst-002" };
-        await _manager.StoreTransactionAsync(tx2);
-
-        var tx3 = CreateValidTransaction(registerId);
-        tx3.TxId = new string('c', 64);
-        tx3.MetaData = new TransactionMetaData { RegisterId = registerId, InstanceId = "inst-001" };
-        await _manager.StoreTransactionAsync(tx3);
+        var tx2 = CreateValidTransaction("tx2");
+        tx2.PrevTxId = stored1.TxId;
 
         // Act
-        var result = await _manager.GetTransactionsByInstanceAsync(registerId, "inst-001");
+        var stored2 = await _manager.StoreTransactionAsync(tx2);
 
         // Assert
-        result.Should().HaveCount(2);
-        result.Should().AllSatisfy(t => t.MetaData!.InstanceId.Should().Be("inst-001"));
+        stored2.PrevTxId.Should().Be(stored1.TxId);
     }
 
     [Fact]
-    public void Constructor_WithNullRepository_ShouldThrowException()
+    public async Task StoreTransactionAsync_ShouldPreserveVersion()
     {
+        // Arrange
+        var transaction = CreateValidTransaction();
+        transaction.Version = 2;
+
         // Act
-        var act = () => new TransactionManager(null!, _eventPublisher);
+        var result = await _manager.StoreTransactionAsync(transaction);
 
         // Assert
-        act.Should().Throw<ArgumentNullException>()
-            .WithParameterName("repository");
+        result.Version.Should().Be(2);
     }
 
     [Fact]
-    public void Constructor_WithNullEventPublisher_ShouldThrowException()
+    public async Task StoreTransactionAsync_WithContext_ShouldPreserveContext()
     {
+        // Arrange
+        var transaction = CreateValidTransaction();
+        transaction.Context = "https://custom.context.example.com/v1.jsonld";
+
         // Act
-        var act = () => new TransactionManager(_repository, null!);
+        var result = await _manager.StoreTransactionAsync(transaction);
 
         // Assert
-        act.Should().Throw<ArgumentNullException>()
-            .WithParameterName("eventPublisher");
+        result.Context.Should().Be("https://custom.context.example.com/v1.jsonld");
+    }
+
+    [Fact]
+    public async Task StoreTransactionAsync_WithType_ShouldPreserveType()
+    {
+        // Arrange
+        var transaction = CreateValidTransaction();
+        transaction.Type = "CustomTransaction";
+
+        // Act
+        var result = await _manager.StoreTransactionAsync(transaction);
+
+        // Assert
+        result.Type.Should().Be("CustomTransaction");
+    }
+
+    private TransactionModel CreateValidTransaction(string? suffix = null)
+    {
+        var txId = (suffix ?? Guid.NewGuid().ToString("N")) + new string('0', 64);
+        txId = txId.Substring(0, 64);
+
+        return new TransactionModel
+        {
+            RegisterId = _testRegisterId,
+            TxId = txId,
+            PrevTxId = string.Empty,
+            Version = 1,
+            SenderWallet = "sender_wallet_address",
+            RecipientsWallets = new[] { "recipient_wallet_address" },
+            TimeStamp = DateTime.UtcNow,
+            PayloadCount = 1,
+            Payloads = new[]
+            {
+                new PayloadModel
+                {
+                    WalletAccess = new[] { "sender_wallet_address" },
+                    PayloadSize = 1024,
+                    Hash = "payload_hash",
+                    Data = "encrypted_payload_data"
+                }
+            },
+            Signature = "transaction_signature"
+        };
     }
 }

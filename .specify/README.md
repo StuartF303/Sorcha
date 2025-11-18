@@ -2,7 +2,7 @@
 
 This directory contains the specification-driven development artifacts for the SORCHA project using the [Spec-Kit](https://github.com/github/spec-kit) methodology from GitHub.
 
-**Last Updated:** 2025-11-16 (Unified planning structure implemented)
+**Last Updated:** 2025-11-17 (AI Code Documentation Policy added)
 
 ---
 
@@ -13,6 +13,7 @@ This directory contains the specification-driven development artifacts for the S
 2. ⭐ **[MASTER-TASKS.md](MASTER-TASKS.md)** - Consolidated task list with priorities
 3. 📜 **[constitution.md](constitution.md)** - Project principles and standards
 4. 📋 **[spec.md](spec.md)** - Requirements and architecture
+5. 🤖 **[AI-CODE-DOCUMENTATION-POLICY.md](AI-CODE-DOCUMENTATION-POLICY.md)** - AI code documentation requirements (NEW)
 
 ---
 
@@ -116,6 +117,7 @@ Spec-Kit is a specification-first development approach where specifications beco
 - Security guidelines (zero trust, cryptographic standards)
 - Development standards (code quality, .NET 10, testing)
 - API documentation requirements (.NET 10 OpenAPI, Scalar UI)
+- AI-generated code documentation requirements (NEW v1.2)
 - Infrastructure as code principles
 - Data management and observability standards
 
@@ -126,8 +128,37 @@ Spec-Kit is a specification-first development approach where specifications beco
 - Development standard changes
 
 **Review frequency:** Quarterly
-**Version:** 1.1
+**Version:** 1.2 (Updated: 2025-11-17)
 **Status:** ✅ Active
+
+---
+
+#### AI-CODE-DOCUMENTATION-POLICY.md 🤖 NEW
+**Purpose:** Mandatory documentation requirements for AI-generated code
+
+**Contains:**
+- Required documentation updates for AI-generated code
+- Documentation update workflow
+- AI-specific requirements for coding assistants
+- Examples and enforcement policies
+- Quality standards and metrics
+
+**When to apply:**
+- Using AI coding assistants (Claude Code, Copilot, ChatGPT, etc.)
+- Automated code generation tools
+- Code scaffolding and templates
+- ANY code not written entirely by humans
+
+**Key Requirements:**
+- README files must be updated
+- Documentation in docs/ must be updated
+- MASTER-TASKS.md must be updated
+- Status files must be updated
+- OpenAPI/XML documentation must be complete
+
+**Review frequency:** Quarterly
+**Version:** 1.0
+**Status:** ✅ Active, Mandatory
 
 ---
 
@@ -280,6 +311,26 @@ Located in **[tasks/](tasks/)** directory:
 
 This specification structure is designed to work with AI coding assistants like Claude Code, GitHub Copilot, and others. AI agents can reference these documents to:
 
+### 🤖 AI Code Documentation Requirements
+
+**IMPORTANT:** All AI-generated code MUST follow the [AI Code Documentation Policy](AI-CODE-DOCUMENTATION-POLICY.md).
+
+**Before generating code:**
+1. Identify which task you're working on in MASTER-TASKS.md
+2. Review relevant specifications and design documents
+3. Plan which documentation will need updates
+
+**After generating code:**
+1. Update MASTER-TASKS.md with task status
+2. Update README files if APIs/features changed
+3. Update docs/ files if architecture changed
+4. Update status files with progress
+5. Ensure OpenAPI/XML documentation is complete
+
+See [AI-CODE-DOCUMENTATION-POLICY.md](AI-CODE-DOCUMENTATION-POLICY.md) for complete requirements.
+
+---
+
 ### 1. Understand Project Context
 
 **New Unified Approach:**
@@ -287,6 +338,7 @@ This specification structure is designed to work with AI coding assistants like 
 - **[MASTER-TASKS.md](MASTER-TASKS.md)** - Specific tasks to work on
 - **[constitution.md](constitution.md)** - Guardrails and principles
 - **[spec.md](spec.md)** - What needs to be built
+- **[AI-CODE-DOCUMENTATION-POLICY.md](AI-CODE-DOCUMENTATION-POLICY.md)** - Documentation requirements (MANDATORY)
 - Design documents - How it's architected
 
 ### 2. Make Informed Decisions
@@ -511,11 +563,12 @@ Version numbers tracked in document headers.
 When working on SORCHA:
 
 **Always reference:**
-1. **[MASTER-PLAN.md](MASTER-PLAN.md)** - Current phase and MVD priorities
-2. **[MASTER-TASKS.md](MASTER-TASKS.md)** - Specific task details and status
-3. **[constitution.md](constitution.md)** - Principles and standards
-4. **[spec.md](spec.md)** - Requirements and features
-5. **Design documents** - Architecture and patterns
+1. **[AI-CODE-DOCUMENTATION-POLICY.md](AI-CODE-DOCUMENTATION-POLICY.md)** - ⚠️ MANDATORY documentation requirements
+2. **[MASTER-PLAN.md](MASTER-PLAN.md)** - Current phase and MVD priorities
+3. **[MASTER-TASKS.md](MASTER-TASKS.md)** - Specific task details and status
+4. **[constitution.md](constitution.md)** - Principles and standards
+5. **[spec.md](spec.md)** - Requirements and features
+6. **Design documents** - Architecture and patterns
 
 **Validate decisions against:**
 - MVD priorities (P0 > P1 > P2 > P3)
@@ -526,10 +579,19 @@ When working on SORCHA:
 
 **Maintain consistency with:**
 - Established code patterns
-- Documentation standards
+- Documentation standards (MUST update docs when generating code!)
 - Testing requirements (>85% coverage)
 - Security guidelines
 - API documentation requirements (.NET 10 OpenAPI, Scalar UI)
+
+**Documentation Requirements (MANDATORY):**
+When you generate code, you MUST also:
+- Update MASTER-TASKS.md task status
+- Update README files if features/APIs changed
+- Update docs/ files if architecture changed
+- Update status files with completion progress
+- Ensure OpenAPI/XML documentation is complete
+- See [AI-CODE-DOCUMENTATION-POLICY.md](AI-CODE-DOCUMENTATION-POLICY.md) for details
 
 ---
 
@@ -554,7 +616,7 @@ When working on SORCHA:
 
 **Document Control**
 - **Created:** 2025-11-11
-- **Last Major Update:** 2025-11-16 (Unified planning structure)
+- **Last Major Update:** 2025-11-17 (AI Code Documentation Policy added)
 - **Owner:** SORCHA Architecture Team
 - **Status:** Active
-- **Next Review:** 2025-12-16
+- **Next Review:** 2025-12-17

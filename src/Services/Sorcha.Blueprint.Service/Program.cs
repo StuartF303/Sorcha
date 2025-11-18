@@ -47,6 +47,19 @@ builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IActionR
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IPayloadResolverService, Sorcha.Blueprint.Service.Services.Implementation.PayloadResolverService>();
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService, Sorcha.Blueprint.Service.Services.Implementation.TransactionBuilderService>();
 
+// Add HTTP clients for Wallet and Register services (Sprint 6)
+builder.Services.AddHttpClient<Sorcha.Blueprint.Service.Clients.IWalletServiceClient, Sorcha.Blueprint.Service.Clients.WalletServiceClient>(client =>
+{
+    // The service discovery will resolve "walletservice" to the actual endpoint
+    client.BaseAddress = new Uri("http://walletservice");
+});
+
+builder.Services.AddHttpClient<Sorcha.Blueprint.Service.Clients.IRegisterServiceClient, Sorcha.Blueprint.Service.Clients.RegisterServiceClient>(client =>
+{
+    // The service discovery will resolve "registerservice" to the actual endpoint
+    client.BaseAddress = new Uri("http://registerservice");
+});
+
 // Add Action storage (Sprint 4)
 builder.Services.AddSingleton<Sorcha.Blueprint.Service.Storage.IActionStore, Sorcha.Blueprint.Service.Storage.InMemoryActionStore>();
 
@@ -531,6 +544,7 @@ actionsGroup.MapPost("/", async (
     Sorcha.Blueprint.Service.Models.Requests.ActionSubmissionRequest request,
     Sorcha.Blueprint.Service.Services.Interfaces.IActionResolverService actionResolver,
     Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService txBuilder,
+    Sorcha.Blueprint.Service.Clients.IRegisterServiceClient registerClient,
     Sorcha.Blueprint.Service.Storage.IActionStore actionStore,
     Sorcha.Cryptography.Interfaces.IHashProvider hashProvider) =>
 {
@@ -572,7 +586,27 @@ actionsGroup.MapPost("/", async (
             System.Text.Encoding.UTF8.GetBytes(transaction.Id ?? Guid.NewGuid().ToString()));
         var txHashHex = BitConverter.ToString(txHash).Replace("-", "").ToLowerInvariant();
 
-        // 6. Build file transactions if any
+        // 6. Convert to Register TransactionModel and submit to Register Service
+        var registerTransaction = new Sorcha.Register.Models.TransactionModel
+        {
+            TxId = txHashHex,
+            RegisterId = request.RegisterAddress,
+            SenderWallet = request.SenderWallet,
+            TimeStamp = DateTime.UtcNow,
+            PreviousTxId = request.PreviousTransactionHash,
+            MetaData = transaction.Metadata != null ?
+                System.Text.Json.JsonSerializer.Deserialize<Sorcha.Register.Models.TransactionMetaData>(transaction.Metadata) : null,
+            Payloads = encryptedPayloads.Select(kvp => new Sorcha.Register.Models.PayloadModel
+            {
+                Data = kvp.Value,
+                Recipients = new[] { kvp.Key }
+            }).ToList()
+        };
+
+        // Submit to Register Service
+        await registerClient.SubmitTransactionAsync(request.RegisterAddress, registerTransaction);
+
+        // 7. Build file transactions if any
         List<string>? fileHashes = null;
         if (request.Files != null && request.Files.Any())
         {
@@ -616,10 +650,10 @@ actionsGroup.MapPost("/", async (
             }
         }
 
-        // 7. Generate instance ID if needed
+        // 8. Generate instance ID if needed
         var instanceId = request.InstanceId ?? Guid.NewGuid().ToString();
 
-        // 8. Store action
+        // 9. Store action locally
         var actionDetails = new Sorcha.Blueprint.Service.Models.Responses.ActionDetailsResponse
         {
             TransactionHash = txHashHex,
@@ -635,7 +669,7 @@ actionsGroup.MapPost("/", async (
 
         await actionStore.StoreActionAsync(actionDetails);
 
-        // 9. Return response
+        // 10. Return response
         var response = new Sorcha.Blueprint.Service.Models.Responses.ActionSubmissionResponse
         {
             TransactionHash = txHashHex,
@@ -662,6 +696,7 @@ actionsGroup.MapPost("/", async (
 actionsGroup.MapPost("/reject", async (
     Sorcha.Blueprint.Service.Models.Requests.ActionRejectionRequest request,
     Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService txBuilder,
+    Sorcha.Blueprint.Service.Clients.IRegisterServiceClient registerClient,
     Sorcha.Blueprint.Service.Storage.IActionStore actionStore,
     Sorcha.Cryptography.Interfaces.IHashProvider hashProvider) =>
 {
@@ -686,7 +721,23 @@ actionsGroup.MapPost("/reject", async (
             System.Text.Encoding.UTF8.GetBytes(rejectionTx.Id ?? Guid.NewGuid().ToString()));
         var rejectionHashHex = BitConverter.ToString(rejectionHash).Replace("-", "").ToLowerInvariant();
 
-        // 4. Store rejection action
+        // 4. Convert to Register TransactionModel and submit to Register Service
+        var registerRejection = new Sorcha.Register.Models.TransactionModel
+        {
+            TxId = rejectionHashHex,
+            RegisterId = request.RegisterAddress,
+            SenderWallet = request.SenderWallet,
+            TimeStamp = DateTime.UtcNow,
+            PreviousTxId = request.TransactionHash,
+            MetaData = rejectionTx.Metadata != null ?
+                System.Text.Json.JsonSerializer.Deserialize<Sorcha.Register.Models.TransactionMetaData>(rejectionTx.Metadata) : null,
+            Payloads = new List<Sorcha.Register.Models.PayloadModel>()
+        };
+
+        // Submit rejection to Register Service
+        await registerClient.SubmitTransactionAsync(request.RegisterAddress, registerRejection);
+
+        // 5. Store rejection action locally
         var rejectionDetails = new Sorcha.Blueprint.Service.Models.Responses.ActionDetailsResponse
         {
             TransactionHash = rejectionHashHex,
@@ -706,7 +757,7 @@ actionsGroup.MapPost("/reject", async (
 
         await actionStore.StoreActionAsync(rejectionDetails);
 
-        // 5. Return response
+        // 6. Return response
         var response = new Sorcha.Blueprint.Service.Models.Responses.ActionSubmissionResponse
         {
             TransactionHash = rejectionHashHex,

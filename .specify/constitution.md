@@ -1,7 +1,7 @@
 # SORCHA Project Constitution
 
-**Version:** 1.1
-**Last Updated:** 2025-11-14
+**Version:** 1.2
+**Last Updated:** 2025-11-17
 **Status:** Active
 
 ## Purpose
@@ -114,6 +114,18 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 - API documentation must be accessible via /scalar endpoint (interactive UI)
 - OpenAPI specifications must be available at /openapi/v1.json
 
+**AI-Generated Code Documentation Requirements**
+- ALL automated or AI-generated code MUST follow the [AI Code Documentation Policy](AI-CODE-DOCUMENTATION-POLICY.md)
+- When AI generates code, the following documentation MUST be updated:
+  - README files (project and component level)
+  - Documentation files in docs/ directory
+  - Spec-Kit files (.specify/) including MASTER-TASKS.md and specs
+  - Status files and development status reports
+  - OpenAPI/XML documentation in code
+- Documentation updates are NOT optional - they are a mandatory part of code completion
+- PRs with AI-generated code will not be approved without corresponding documentation updates
+- See [AI-CODE-DOCUMENTATION-POLICY.md](AI-CODE-DOCUMENTATION-POLICY.md) for complete requirements
+
 **Operational Documentation**
 - Document deployment procedures
 - Maintain troubleshooting guides
@@ -217,9 +229,12 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 
 ## Related Documents
 
-- [Project Specification](.specify/spec.md)
-- [Implementation Plan](.specify/plan.md)
+- [Project Specification](spec.md)
+- [Master Plan](MASTER-PLAN.md)
+- [Master Tasks](MASTER-TASKS.md)
+- [AI Code Documentation Policy](AI-CODE-DOCUMENTATION-POLICY.md) ⭐ NEW
 - [Project README](../README.md)
+- [Contributing Guidelines](../CONTRIBUTING.md)
 - [License](../LICENCE.txt)
 - [Troubleshooting Guide](../TROUBLESHOOTING.md)
 

@@ -4,10 +4,10 @@
 
 Sorcha is a modern .NET 10 platform for defining, designing, and executing multi-participant data flow orchestration workflows (called "Blueprints"). Built on .NET Aspire for cloud-native orchestration, Sorcha provides a flexible and scalable solution for workflow automation with selective data disclosure and conditional routing.
 
-**Last Updated:** 2025-11-15
-**Version:** 2.2.0
+**Last Updated:** 2025-11-16
+**Version:** 2.3.0
 **Status:** Active Development
-**Recent Changes:** Unified Blueprint Service design (merged Action Service)
+**Recent Changes:** Added Validator.Service for secured docket validation and chain integrity
 
 ## High-Level Architecture
 
@@ -75,6 +75,7 @@ Sorcha/
 │   ├── Common/                          # Cross-cutting concerns
 │   │   ├── Sorcha.Blueprint.Models     # Domain models & contracts
 │   │   ├── Sorcha.Cryptography         # Cryptographic operations
+│   │   ├── Sorcha.Validator.Core       # Enclave-safe validation library
 │   │   └── Sorcha.ServiceDefaults      # Shared service configurations
 │   ├── Core/                            # Business logic layer
 │   │   ├── Sorcha.Blueprint.Engine     # Blueprint execution engine
@@ -83,7 +84,9 @@ Sorcha/
 │   └── Services/                        # Service layer
 │       ├── Sorcha.ApiGateway           # YARP API Gateway
 │       ├── Sorcha.Blueprint.Service    # Blueprint REST API
-│       └── Sorcha.Peer.Service         # P2P networking service
+│       ├── Sorcha.Peer.Service         # P2P networking service
+│       ├── Sorcha.Register.Service     # Register/blockchain storage service
+│       └── Sorcha.Validator.Service    # Blockchain validation service (SECURED)
 ├── tests/                               # Test projects
 │   ├── Sorcha.Blueprint.Models.Tests
 │   ├── Sorcha.Blueprint.Fluent.Tests
@@ -91,6 +94,8 @@ Sorcha/
 │   ├── Sorcha.Blueprint.Engine.Tests
 │   ├── Sorcha.Cryptography.Tests
 │   ├── Sorcha.Peer.Service.Tests
+│   ├── Sorcha.Validator.Core.Tests
+│   ├── Sorcha.Validator.Service.Tests
 │   ├── Sorcha.Integration.Tests
 │   ├── Sorcha.Gateway.Integration.Tests
 │   ├── Sorcha.UI.E2E.Tests
@@ -508,6 +513,79 @@ Peers Repeat Gossip → 90% Network Coverage in < 1 minute
 - Enable offline-first operation with automatic sync
 - Build decentralized blueprint registry
 - Support multi-region deployment without centralized coordination
+
+#### Sorcha.Validator.Service
+**🔒 SECURED SERVICE** - Blockchain validation and consensus service
+
+**Location:** `src/Services/Sorcha.Validator.Service/`
+
+**Status:** Active Development - See [Validator Service Design](validator-service-design.md)
+
+**Purpose:**
+Provide blockchain consensus and validation in a secured environment with access to encryption keys for cryptographic operations (SHA256 hashing, chain integrity validation).
+
+**Key Components:**
+- **DocketManager** - Manages docket operations (block creation, sealing, chain integrity)
+  - Creates new dockets from pending transactions
+  - Proposes dockets for consensus
+  - Seals dockets after approval
+  - Calculates and verifies SHA256 docket hashes
+  - **Security**: Requires secured environment for cryptographic operations
+
+- **ChainValidator** - Validates blockchain chain integrity for registers
+  - Validates entire docket chains
+  - Verifies docket hash integrity
+  - Checks sequential ID linking
+  - Validates previous hash linkage
+  - Confirms register height consistency
+  - **Security**: Critical security component requiring isolated execution
+
+**Security Architecture:**
+- Runs in secured environment with access to encryption keys
+- Performs cryptographic operations (SHA256) for docket hashing
+- Validates chain integrity to prevent tampering
+- Integrates with Wallet Service for signature verification
+- Supports enclave execution (Intel SGX/AMD SEV) for production environments
+
+**Integration:**
+- **Register Service**: Storage and retrieval of dockets and transactions
+- **Event Publisher**: Publishes docket confirmation and register update events
+- **Wallet Service** (planned): Signature verification and key management
+- **Peer Service** (planned): Docket broadcasting and consensus coordination
+
+**Features:**
+- SHA256-based docket hashing
+- Chain integrity validation (PreviousHash linkage)
+- Transaction-to-docket association
+- Register height management
+- Event-driven architecture
+- Async/await patterns throughout
+
+**Technology:**
+- ASP.NET Core 10.0 with Minimal APIs
+- System.Security.Cryptography for SHA256 hashing
+- Aspire.StackExchange.Redis for distributed state
+- Event-driven with IEventPublisher
+
+**Related Documentation:**
+- [Validator Service Design](validator-service-design.md)
+- [Validator Service Implementation Plan](validator-service-implementation-plan.md)
+- [Validator Service Quick Reference](VALIDATOR-SERVICE-QUICK-REFERENCE.md)
+
+**Architectural Note (Updated 2025-11-16):**
+DocketManager and ChainValidator were permanently moved from `Sorcha.Register.Core` to `Sorcha.Validator.Service` to ensure they run in a secured environment with proper access to encryption keys and cryptographic operations.
+
+This architectural decision is now permanently captured in:
+- Functional Requirements: Components requiring cryptographic operations must run in secured environments
+- Non-Functional Requirements: Security isolation for cryptographic validation components
+- Component Placement Guidelines: See LEARNINGS.md for decision criteria
+
+The separation ensures:
+1. **Security Isolation**: Cryptographic operations (SHA256 hashing, chain validation) run in secured environment with key access
+2. **Separation of Concerns**: Storage (Register.Service) separate from validation/consensus (Validator.Service)
+3. **Enclave Support**: Pure validation logic can be deployed in Intel SGX/AMD SEV enclaves
+4. **Zero-Trust Architecture**: Security-sensitive components have explicit trust boundaries
+5. **Compliance**: Meets regulatory requirements for cryptographic operation isolation
 
 ## Testing Architecture
 

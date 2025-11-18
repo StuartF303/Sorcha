@@ -5,6 +5,24 @@ All notable changes to the Sorcha project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2025-11-16
+
+### Added
+- **SignalR Integration Tests for Blueprint Service**
+  - 14 comprehensive tests (520+ lines) covering all hub functionality
+  - Hub connection/disconnection lifecycle tests
+  - Wallet subscription/unsubscription with error handling
+  - All notification types: ActionAvailable, ActionConfirmed, ActionRejected
+  - Multi-client broadcast scenarios
+  - Wallet-specific notification isolation
+  - Post-unsubscribe notification filtering
+
+### Changed
+- Blueprint-Action Service completion upgraded from 95% to 100%
+- Overall platform completion increased from 90% to 92%
+- Test coverage for Blueprint Service increased from 85% to >90%
+- Resolved Issue #3: Missing SignalR Integration Tests
+
 ## [0.8.0] - 2025-11-16
 
 ### Added - Major Features

@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <!-- System.ComponentModel.Annotations is included in .NET 10 framework -->
+  <ItemGroup>
+  </ItemGroup>
 
 </Project>

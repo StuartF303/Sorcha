@@ -3,6 +3,22 @@
 **Date:** 2025-11-16
 **Status:** ✅ Completed
 **Related Specification:** [sorcha-register-service.md](../.specify/specs/sorcha-register-service.md)
+**Next Phase:** [Phase 5 - API Layer Completion](register-service-phase5-completion.md) ✅ Completed 2025-11-16
+
+> **✅ UPDATE (2025-11-16):** Phase 5 (API Layer) has been completed! The Register Service now has:
+> - Comprehensive REST API with 20+ endpoints
+> - SignalR hub for real-time notifications
+> - OData V4 support for advanced queries
+> - Full integration with the business logic layer from Phases 1 & 2
+>
+> See [Phase 5 Completion Summary](register-service-phase5-completion.md) for details.
+
+> **📝 Note (2025-11-16):** The specification has been enhanced with new requirements:
+> - **Blockchain Gateway Integration** (FR-REG-011) - Multi-chain support via gateway pattern
+> - **Universal DID Resolver** (FR-REG-012) - W3C-compliant DID resolution across blockchains
+> - **High-Performance Query Infrastructure** (FR-REG-013) - OData/LINQ query optimization
+>
+> These enhancements will be implemented in future phases (10-12). See the updated specification for details.
 
 ## Overview
 
@@ -336,9 +352,34 @@ tests/
 ### Phase 5: API Layer
 - Upgrade Register.Service to use new architecture
 - Implement proper API endpoints
-- Add OData support
+- Add OData support with high-performance query translation
 - Add SignalR hub
 - API authentication and authorization
+
+### Phase 10: Blockchain Gateway Implementation (NEW)
+- Define IBlockchainGateway interface
+- Implement SorchaRegisterGateway (native blockchain)
+- Implement EthereumGateway with Nethereum/Infura
+- Implement CardanoGateway with CardanoSharp/Blockfrost
+- Gateway configuration and routing
+- Health monitoring and failover
+
+### Phase 11: Universal DID Resolver (NEW)
+- Define IUniversalResolver and IDIDResolver interfaces
+- Implement SorchaDIDResolver for local resolution
+- Implement EthereumDIDResolver (did:ethr)
+- Implement CardanoDIDResolver (did:cardano)
+- W3C Universal Resolver integration
+- DID Document caching and performance optimization
+
+### Phase 12: High-Performance Query Infrastructure (NEW)
+- OData V4 query translation layer
+- LINQ to MongoDB aggregation translator
+- LINQ to SQL translator (PostgreSQL)
+- Query result caching with Redis
+- Query performance monitoring
+- Index optimization engine
+- Materialized view support
 
 ### Immediate TODOs
 1. Add projects to solution file (Sorcha.sln)
