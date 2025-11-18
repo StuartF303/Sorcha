@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Services\Sorcha.Peer.Service\Sorcha.Peer.Service.csproj" />
     <ProjectReference Include="..\..\Services\Sorcha.Blueprint.Service\Sorcha.Blueprint.Service.csproj" />
+    <ProjectReference Include="..\..\Services\Sorcha.Register.Service\Sorcha.Register.Service.csproj" />
     <ProjectReference Include="..\..\Services\Sorcha.ApiGateway\Sorcha.ApiGateway.csproj" />
     <ProjectReference Include="..\..\Services\Sorcha.Wallet.Service\Sorcha.Wallet.Service.csproj" />
     <ProjectReference Include="..\UI\Sorcha.Blueprint.Designer.Client\Sorcha.Blueprint.Designer.Client.csproj" />
