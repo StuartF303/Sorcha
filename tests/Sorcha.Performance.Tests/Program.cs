@@ -52,7 +52,6 @@ class Program
                 CreateStressTestScenario(gatewayUrl, 30, targetRps * 2)
             )
             .WithReportFolder("performance-reports")
-            .WithReportFormats(ReportFormat.Html, ReportFormat.Md, ReportFormat.Txt)
             .Run();
 
         Console.WriteLine("\n✅ Performance tests completed!");
@@ -71,9 +70,9 @@ class Program
 
             var response = await Http.Send(httpClient, request);
 
-            return response.IsSuccessStatusCode
-                ? Response.Ok(statusCode: (int)response.StatusCode)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return response.Payload.Value.IsSuccessStatusCode
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString())
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
@@ -101,9 +100,9 @@ class Program
 
             var response = await Http.Send(httpClient, request);
 
-            return response.IsSuccessStatusCode
-                ? Response.Ok(statusCode: (int)response.StatusCode, sizeBytes: response.Content.Headers.ContentLength ?? 0)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return response.Payload.Value.IsSuccessStatusCode
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString(), sizeBytes: response.Payload.Value.Content.Headers.ContentLength ?? 0)
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
@@ -150,9 +149,9 @@ class Program
 
             var response = await Http.Send(httpClient, request);
 
-            return response.IsSuccessStatusCode
-                ? Response.Ok(statusCode: (int)response.StatusCode)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return response.Payload.Value.IsSuccessStatusCode
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString())
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
@@ -190,9 +189,9 @@ class Program
 
             var response = await Http.Send(httpClient, request);
 
-            return response.IsSuccessStatusCode
-                ? Response.Ok(statusCode: (int)response.StatusCode)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return response.Payload.Value.IsSuccessStatusCode
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString())
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
@@ -237,9 +236,9 @@ class Program
 
             var response = await Http.Send(httpClient, request);
 
-            return response.IsSuccessStatusCode
-                ? Response.Ok(statusCode: (int)response.StatusCode)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return response.Payload.Value.IsSuccessStatusCode
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString())
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
@@ -269,9 +268,9 @@ class Program
             var response = await Http.Send(httpClient, request);
 
             // 404 is expected for non-existent wallets in this test
-            return (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                ? Response.Ok(statusCode: (int)response.StatusCode)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return (response.Payload.Value.IsSuccessStatusCode || response.Payload.Value.StatusCode == System.Net.HttpStatusCode.NotFound)
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString())
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
@@ -304,9 +303,9 @@ class Program
 
             var response = await Http.Send(httpClient, request);
 
-            return response.IsSuccessStatusCode
-                ? Response.Ok(statusCode: (int)response.StatusCode)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return response.Payload.Value.IsSuccessStatusCode
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString())
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
@@ -339,9 +338,9 @@ class Program
 
             var response = await Http.Send(httpClient, request);
 
-            return response.IsSuccessStatusCode
-                ? Response.Ok(statusCode: (int)response.StatusCode)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return response.Payload.Value.IsSuccessStatusCode
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString())
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
@@ -369,9 +368,9 @@ class Program
 
             var response = await Http.Send(httpClient, request);
 
-            return (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                ? Response.Ok(statusCode: (int)response.StatusCode)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return (response.Payload.Value.IsSuccessStatusCode || response.Payload.Value.StatusCode == System.Net.HttpStatusCode.NotFound)
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString())
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
@@ -405,9 +404,9 @@ class Program
 
             var response = await Http.Send(httpClient, request);
 
-            return response.IsSuccessStatusCode
-                ? Response.Ok(statusCode: (int)response.StatusCode)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return response.Payload.Value.IsSuccessStatusCode
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString())
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
@@ -443,9 +442,9 @@ class Program
 
             var response = await Http.Send(httpClient, request);
 
-            return (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                ? Response.Ok(statusCode: (int)response.StatusCode)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return (response.Payload.Value.IsSuccessStatusCode || response.Payload.Value.StatusCode == System.Net.HttpStatusCode.NotFound)
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString())
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
@@ -468,9 +467,9 @@ class Program
 
             var response = await Http.Send(httpClient, request);
 
-            return response.IsSuccessStatusCode
-                ? Response.Ok(statusCode: (int)response.StatusCode)
-                : Response.Fail(statusCode: (int)response.StatusCode);
+            return response.Payload.Value.IsSuccessStatusCode
+                ? Response.Ok(statusCode: ((int)response.Payload.Value.StatusCode).ToString())
+                : Response.Fail(statusCode: ((int)response.Payload.Value.StatusCode).ToString());
         })
         .WithWarmUpDuration(TimeSpan.FromSeconds(5))
         .WithLoadSimulations(
