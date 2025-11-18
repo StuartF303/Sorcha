@@ -12,7 +12,7 @@ var blueprintService = builder.AddProject<Projects.Sorcha_Blueprint_Service>("bl
     .WithReference(redis);
 
 // Add Wallet Service with Redis reference (internal only)
-var walletService = builder.AddProject<Projects.Sorcha_WalletService_Api>("wallet-service")
+var walletService = builder.AddProject<Projects.Sorcha_Wallet_Service>("wallet-service")
     .WithReference(redis);
 
 // Add Register Service with Redis reference (internal only)

@@ -73,7 +73,18 @@
       "Bash(cmd /c \"if exist src\\Services\\Sorcha.WalletService.Api rmdir /s /q src\\Services\\Sorcha.WalletService.Api\")",
       "Bash(Select-String -Pattern \"(Passed|Failed|Total tests:|Test run)\")",
       "Bash(Select-String -Pattern \"(Passed|Failed|Total tests:|Test run|Skipped|Error Message)\")",
-      "Bash(Select-Object -First 100)"
+      "Bash(Select-Object -First 100)",
+      "Bash(if exist \"src\\Common\\Sorcha.Validator.Core\" rmdir /s /q \"src\\Common\\Sorcha.Validator.Core\")",
+      "Bash(if exist \"tests\\Sorcha.Validator.Core.Tests\" rmdir /s /q \"tests\\Sorcha.Validator.Core.Tests\")",
+      "Bash(if exist \"src\\Common\\Sorcha.WalletService\" rmdir /s /q \"src\\Common\\Sorcha.WalletService\")",
+      "Bash(if exist \"tests\\Sorcha.Wallet.Service.Tests\\UnitTest1.cs\" del \"tests\\Sorcha.Wallet.Service.Tests\\UnitTest1.cs\")",
+      "Bash(if exist \"tests\\Sorcha.Wallet.Service.Api.Tests\\Controllers\" rmdir /s /q \"tests\\Sorcha.Wallet.Service.Api.Tests\\Controllers\")",
+      "Bash(if exist \"src\\Services\\Sorcha.Wallet.Service\\Models\\CryptoPayloadRequest.cs\" del \"src\\Services\\Sorcha.Wallet.Service\\Models\\CryptoPayloadRequest.cs\")",
+      "Bash(git clean:*)",
+      "Bash(Select-String -Pattern \"bin|obj\")",
+      "Bash(measure-Object -Line)",
+      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error|warning)\")",
+      "Bash(Select-Object -First 20)"
     ],
     "deny": [],
     "ask": []
