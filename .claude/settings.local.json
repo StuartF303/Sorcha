@@ -84,7 +84,10 @@
       "Bash(Select-String -Pattern \"bin|obj\")",
       "Bash(measure-Object -Line)",
       "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error|warning)\")",
-      "Bash(Select-Object -First 20)"
+      "Bash(Select-Object -First 20)",
+      "Bash(gh run:*)",
+      "Bash(dotnet run:*)",
+      "Bash(timeout 15 curl:*)"
     ],
     "deny": [],
     "ask": []
