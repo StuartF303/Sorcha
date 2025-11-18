@@ -1,9 +1,9 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 3.1 - UNIFIED
-**Last Updated:** 2025-11-17
-**Status:** Active
-**Related:** [MASTER-PLAN.md](MASTER-PLAN.md)
+**Version:** 3.2 - AUDITED
+**Last Updated:** 2025-11-18
+**Status:** Active - Post-Audit
+**Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
 
@@ -11,12 +11,12 @@
 
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
-**Total Tasks:** 138 (across all phases)
-**Completed:** 91 (66%)
+**Total Tasks:** 148 (across all phases, including new production readiness tasks)
+**Completed:** 100 (68%)
 **In Progress:** 0 (0%)
-**Not Started:** 47 (34%)
+**Not Started:** 48 (32%)
 
-**Note:** Counts updated 2025-11-17 after Sprint 6 & 7 completion - End-to-end integration, testing, and documentation complete
+**Note:** Counts updated 2025-11-18 after comprehensive task status audit - Corrected 12 task statuses and added 10 production readiness tasks. See [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md) for details.
 
 ---
 
@@ -38,21 +38,26 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete |
 |-------|-------------|----------|-------------|-------------|------------|
-| **Phase 1: Blueprint-Action** | 56 | 48 | 0 | 8 | 86% |
-| **Phase 2: Wallet Service** | 32 | 32 | 0 | 0 | 100% |
-| **Phase 3: Register Service** | 15 | 11 | 0 | 4 | 73% |
+| **Phase 1: Blueprint-Action** | 56 | 54 | 0 | 2 | **96%** ✅ |
+| **Phase 2: Wallet Service** | 32 | 32 | 0 | 0 | **100%** ✅ |
+| **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% |
+| **Production Readiness** (NEW) | 10 | 0 | 0 | 10 | 0% ⚠️ |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% |
-| **TOTAL** | **138** | **91** | **0** | **47** | **66%** |
+| **TOTAL** | **148** | **100** | **0** | **48** | **68%** |
+
+**Note:** Phase 1-3 completion increased significantly after audit corrections. Production Readiness tasks newly identified.
 
 ### By Priority
 
 | Priority | Total | Complete | In Progress | Not Started |
 |----------|-------|----------|-------------|-------------|
-| **P0 - Critical (MVD Blocker)** | 45 | 29 | 1 | 15 |
-| **P1 - High (MVD Core)** | 38 | 17 | 1 | 20 |
-| **P2 - Medium (MVD Nice-to-Have)** | 30 | 3 | 0 | 27 |
-| **P3 - Low (Post-MVD)** | 25 | 0 | 0 | 25 |
+| **P0 - Critical (MVD Blocker)** | 3 | 0 | 0 | 3 ⚠️ |
+| **P1 - High (Production Ready)** | 17 | 0 | 0 | 17 ⚠️ |
+| **P2 - Medium (Enhancements)** | 63 | 58 | 0 | 5 |
+| **P3 - Low (Post-MVD)** | 65 | 42 | 0 | 23 |
+
+**⚠️ Critical Note:** Priority classification SIGNIFICANTLY revised after audit. Most completed tasks were incorrectly classified as P0/P1. True P0 tasks are MVD blockers ONLY. See [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md) Section 3 for details.
 
 ---
 
@@ -138,22 +143,22 @@ Enhancement tasks that can be deferred until after MVD is complete.
 **Sprint 4 Status:** ✅ **COMPLETE** (8/8 tasks, 46 hours)
 **Completed:** 2025-11-16
 
-### Sprint 5: Execution Helpers & SignalR ⚠️ MOSTLY COMPLETE
+### Sprint 5: Execution Helpers & SignalR ✅ SERVER COMPLETE
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| BP-5.1 | POST /api/execution/validate endpoint | P1 | 4h | ✅ Complete | - |
-| BP-5.2 | POST /api/execution/calculate endpoint | P1 | 4h | ✅ Complete | - |
-| BP-5.3 | POST /api/execution/route endpoint | P1 | 4h | ✅ Complete | - |
-| BP-5.4 | POST /api/execution/disclose endpoint | P1 | 4h | ✅ Complete | - |
-| BP-5.5 | Implement SignalR ActionsHub | P0 | 8h | ✅ Complete | - |
-| BP-5.6 | Redis backplane for SignalR | P1 | 6h | ✅ Complete | - |
-| BP-5.7 | SignalR integration tests | P1 | 8h | ❌ Not Implemented | - |
-| BP-5.8 | Client-side SignalR integration | P2 | 6h | 🚧 Partial | - |
+| BP-5.1 | POST /api/execution/validate endpoint | P2 | 4h | ✅ Complete | - |
+| BP-5.2 | POST /api/execution/calculate endpoint | P2 | 4h | ✅ Complete | - |
+| BP-5.3 | POST /api/execution/route endpoint | P2 | 4h | ✅ Complete | - |
+| BP-5.4 | POST /api/execution/disclose endpoint | P2 | 4h | ✅ Complete | - |
+| BP-5.5 | Implement SignalR ActionsHub | P2 | 8h | ✅ Complete | - |
+| BP-5.6 | Redis backplane for SignalR | P2 | 6h | ✅ Complete | - |
+| BP-5.7 | SignalR integration tests | P2 | 8h | ✅ Complete | - |
+| BP-5.8 | Client-side SignalR integration | P3 | 6h | ❌ Not Started | - |
 
-**Sprint 5 Status:** ⚠️ **MOSTLY COMPLETE** (6/8 tasks complete, 1 missing, 1 partial = 85%)
-**Completed:** 2025
-**Remaining:** SignalR integration tests (BP-5.7)
+**Sprint 5 Status:** ✅ **SERVER COMPLETE** (7/8 tasks, 1 client-side task deferred to P3)
+**Completed:** 2025-11-17
+**Audit Finding:** BP-5.7 found complete with 16 tests in SignalRIntegrationTests.cs; BP-5.8 has no client code
 
 ### Sprint 6: Wallet/Register Integration ✅ COMPLETE
 
@@ -262,17 +267,18 @@ Enhancement tasks that can be deferred until after MVD is complete.
 - YARP reverse proxy configured: /api/wallets/* → Wallet Service
 - GenerateAddress returns 501 Not Implemented (by design - mnemonic not stored)
 
-### Integration with Blueprint Service
+### Integration with Blueprint Service ✅ COMPLETE
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| WS-INT-1 | Update Blueprint Service to use Wallet API | P0 | 8h | 📋 Not Started | - |
-| WS-INT-2 | Replace encryption/decryption stubs | P0 | 6h | 📋 Not Started | - |
-| WS-INT-3 | End-to-end integration tests | P0 | 12h | 📋 Not Started | - |
-| WS-INT-4 | Performance testing | P1 | 6h | 📋 Not Started | - |
+| WS-INT-1 | Update Blueprint Service to use Wallet API | P2 | 8h | ✅ Complete | - |
+| WS-INT-2 | Replace encryption/decryption stubs | P2 | 6h | ✅ Complete | - |
+| WS-INT-3 | End-to-end integration tests | P2 | 12h | ✅ Complete | - |
+| WS-INT-4 | Performance testing | P2 | 6h | ✅ Complete | - |
 
-**Integration Status:** 📋 **NOT STARTED** (0/4 tasks, 32 hours)
-**Recommended Start:** Week 9
+**Integration Status:** ✅ **COMPLETE** (4/4 tasks, 32 hours)
+**Completed:** 2025-11-17 (completed under Sprint 6 & 7 task IDs: BP-6.1-6.6, BP-7.2)
+**Audit Finding:** WalletServiceClient implemented (256 LOC), PayloadResolverService updated, 27 E2E tests found, NBomber performance tests complete
 
 ### Optional: Enhanced Storage & Encryption (Post-MVD)
 
@@ -312,8 +318,8 @@ Enhancement tasks that can be deferred until after MVD is complete.
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| REG-INT-1 | Refactor API to use core managers | P0 | 12h | ✅ Complete | - |
-| REG-INT-2 | Resolve DocketManager/ChainValidator duplication | P0 | 4h | 📋 Deferred | - |
+| REG-INT-1 | Refactor API to use core managers | P2 | 12h | ✅ Complete | - |
+| REG-CODE-DUP | Resolve DocketManager/ChainValidator duplication | P1 | 4h | 📋 Deferred | - |
 | REG-003 | MongoDB transaction repository | P1 | 12h | 📋 Deferred | - |
 | REG-005 | Implement POST /api/registers/{id}/transactions | P0 | 8h | ✅ Complete | - |
 | REG-006 | Implement GET /api/registers/{id}/transactions/{txId} | P0 | 6h | ✅ Complete | - |
@@ -329,17 +335,19 @@ Enhancement tasks that can be deferred until after MVD is complete.
 **Achievement:** API fully integrated with comprehensive testing (112 tests, ~2,459 LOC)
 **Recommended Next:** End-to-end integration with Blueprint and Wallet services
 
-### Week 12: Integration & Testing
+### Week 12: Integration & Testing ✅ COMPLETE
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| REG-INT-1 | Integrate with Blueprint Service | P0 | 8h | 📋 Not Started | - |
-| REG-INT-2 | Update transaction submission flow | P0 | 6h | 📋 Not Started | - |
-| REG-INT-3 | End-to-end workflow tests | P0 | 16h | 📋 Not Started | - |
-| REG-INT-4 | Performance testing | P1 | 8h | 📋 Not Started | - |
+| REG-INT-2 | Integrate with Blueprint Service | P2 | 8h | ✅ Complete | - |
+| REG-INT-3 | Update transaction submission flow | P2 | 6h | ✅ Complete | - |
+| REG-INT-4 | End-to-end workflow tests | P2 | 16h | ✅ Complete | - |
+| REG-INT-5 | Performance testing | P2 | 8h | ✅ Complete | - |
 
-**Integration Status:** 📋 **NOT STARTED** (0/4 tasks, 38 hours)
-**Recommended Start:** Week 12
+**Integration Status:** ✅ **COMPLETE** (4/4 tasks, 38 hours)
+**Completed:** 2025-11-17 (completed under Sprint 6 & 7 task IDs: BP-6.2, BP-6.4, BP-6.6, BP-7.1-7.2)
+**Audit Finding:** RegisterServiceClient implemented (281 LOC), transaction submission working, E2E tests exist, performance testing complete
+**Note:** Task IDs renumbered to avoid duplication with REG-INT-1 and REG-CODE-DUP above
 
 ---
 
@@ -383,9 +391,11 @@ Enhancement tasks that can be deferred until after MVD is complete.
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| CRYPT-1 | Implement key recovery (RecoverKeySetAsync) | P2 | 8h | 🚧 In Progress | - |
+| CRYPT-1 | Implement key recovery (RecoverKeySetAsync) | P2 | 8h | ❌ Not Implemented | - |
 | CRYPT-2 | NIST P-256 ECIES encryption | P2 | 12h | 📋 Not Started | - |
 | CRYPT-3 | Additional hash algorithms | P3 | 6h | 📋 Not Started | - |
+
+**Note:** CRYPT-1 has stub method that returns "not yet implemented" error. See TASK-AUDIT-REPORT.md Section 4.
 
 ### TransactionHandler Enhancements
 
@@ -393,8 +403,10 @@ Enhancement tasks that can be deferred until after MVD is complete.
 |----|------|----------|--------|--------|----------|
 | TX-016 | Migration guide documentation | P2 | 4h | 📋 Not Started | - |
 | TX-017 | Code examples and samples | P2 | 6h | 📋 Not Started | - |
-| TX-018 | Service integration validation | P1 | 16h | 📋 Not Started | - |
-| TX-019 | Regression testing | P1 | 12h | 🚧 In Progress | - |
+| TX-018 | Service integration validation | P2 | 16h | ✅ Complete | - |
+| TX-019 | Regression testing | P2 | 12h | ✅ Complete | - |
+
+**Audit Finding:** TX-019 complete with 94 tests across 10 files (backward compatibility, integration, unit tests). TX-018 validated through Sprint 6 & 7 integration work.
 
 ### Performance & Monitoring
 
@@ -405,6 +417,57 @@ Enhancement tasks that can be deferred until after MVD is complete.
 | PERF-3 | Load balancing configuration | P3 | 6h | 📋 Not Started | - |
 | MON-1 | Advanced monitoring dashboards | P3 | 10h | 📋 Not Started | - |
 | MON-2 | Alerting configuration | P2 | 6h | 📋 Not Started | - |
+
+---
+
+## Production Readiness Tasks
+
+**Goal:** Critical security, authentication, and operational tasks required for production deployment
+**Duration:** 2-3 weeks (parallel with MVD demo preparation)
+**Total Tasks:** 10
+**Completion:** 0% (newly identified during audit)
+
+**⚠️ CRITICAL:** These tasks were NOT tracked in previous versions of this document but are ESSENTIAL for production deployment.
+
+### Authentication & Authorization (P0 - BLOCKERS)
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| AUTH-001 | Implement JWT authentication across all services | P0 | 16h | 📋 Not Started | - |
+| AUTH-002 | Implement role-based authorization (RBAC) | P0 | 12h | 📋 Not Started | - |
+| AUTH-003 | User identity management integration | P1 | 10h | 📋 Not Started | - |
+
+**Rationale:** Services currently have NO authentication/authorization. All APIs are completely open!
+
+### Security Hardening (P0-P1)
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| SEC-001 | HTTPS enforcement and certificate management | P0 | 4h | 🚧 Partial | - |
+| SEC-002 | API rate limiting and throttling | P1 | 8h | 📋 Not Started | - |
+| SEC-003 | Input validation hardening (OWASP compliance) | P1 | 12h | 📋 Not Started | - |
+| SEC-004 | Security headers (CSP, HSTS, X-Frame-Options) | P1 | 4h | 📋 Not Started | - |
+
+**Related:** BP-8.2 Security hardening task (promoted from P1 in Phase 1)
+
+### Operations & Monitoring (P1)
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| OPS-001 | Production logging infrastructure (Serilog/ELK) | P1 | 8h | 🚧 Partial | - |
+| OPS-002 | Health check endpoints (deep checks) | P1 | 4h | ✅ Complete | - |
+| OPS-003 | Deployment documentation and runbooks | P1 | 8h | 📋 Not Started | - |
+
+**Note:** OPS-002 already implemented via .NET Aspire health checks
+
+### Data Management (P1)
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| DATA-001 | Database backup and restore strategy | P1 | 6h | 📋 Not Started | - |
+| DATA-002 | Database migration scripts and versioning | P1 | 8h | 📋 Not Started | - |
+
+**Related:** ENH-WS-1, REG-003, ENH-BP-1 (database persistence implementations)
 
 ---
 
