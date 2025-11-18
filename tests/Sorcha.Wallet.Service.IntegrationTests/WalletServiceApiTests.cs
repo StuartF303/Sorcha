@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Sorcha.Wallet.Core.Api;
-using Sorcha.Wallet.Core.Api.Models;
-using Sorcha.Wallet.Core.Repositories.Implementation;
-using Sorcha.Wallet.Core.Events.Publishers;
+using Sorcha.Wallet.Service.Models;
 
 namespace Sorcha.Wallet.Service.IntegrationTests;
 
@@ -132,7 +129,7 @@ public class WalletServiceApiTests : IClassFixture<WebApplicationFactory<Program
 
         var wallets = await response.Content.ReadFromJsonAsync<List<WalletDto>>();
         wallets.Should().NotBeNull();
-        wallets!.Should().HaveCountGreaterOrEqualTo(2);
+        wallets!.Should().HaveCountGreaterThanOrEqualTo(2);
     }
 
     [Fact]
@@ -422,7 +419,7 @@ public class WalletServiceApiTests : IClassFixture<WebApplicationFactory<Program
 
         var accessList = await response.Content.ReadFromJsonAsync<List<WalletAccessDto>>();
         accessList.Should().NotBeNull();
-        accessList!.Should().HaveCountGreaterOrEqualTo(2);
+        accessList!.Should().HaveCountGreaterThanOrEqualTo(2);
     }
 
     [Fact]
@@ -578,30 +575,7 @@ public class WalletServiceApiTests : IClassFixture<WebApplicationFactory<Program
     #endregion
 }
 
-// Response DTOs for integration tests
-public class WalletDto
-{
-    public string Address { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string Algorithm { get; set; } = string.Empty;
-    public string Owner { get; set; } = string.Empty;
-    public string Tenant { get; set; } = string.Empty;
-    public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
-}
-
-public class WalletAccessDto
-{
-    public string WalletAddress { get; set; } = string.Empty;
-    public string Subject { get; set; } = string.Empty;
-    public string AccessRight { get; set; } = string.Empty;
-    public string GrantedBy { get; set; } = string.Empty;
-    public DateTime GrantedAt { get; set; }
-    public DateTime? ExpiresAt { get; set; }
-    public DateTime? RevokedAt { get; set; }
-    public string? Reason { get; set; }
-}
-
+// Using service models directly; define only the response type not present in models
 public class AccessCheckResponse
 {
     public string WalletAddress { get; set; } = string.Empty;

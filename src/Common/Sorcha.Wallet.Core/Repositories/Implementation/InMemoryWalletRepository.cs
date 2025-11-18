@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
-using Sorcha.Wallet.Service.Domain.Entities;
-using Sorcha.Wallet.Service.Repositories.Interfaces;
+using Sorcha.Wallet.Core.Domain.Entities;
+using WalletEntity = Sorcha.Wallet.Core.Domain.Entities.Wallet;
+using Sorcha.Wallet.Core.Repositories.Interfaces;
 
 namespace Sorcha.Wallet.Core.Repositories.Implementation;
 
@@ -10,12 +11,12 @@ namespace Sorcha.Wallet.Core.Repositories.Implementation;
 /// </summary>
 public class InMemoryWalletRepository : IWalletRepository
 {
-    private readonly ConcurrentDictionary<string, Wallet> _wallets = new();
+    private readonly ConcurrentDictionary<string, WalletEntity> _wallets = new();
     private readonly ConcurrentDictionary<string, List<WalletAddress>> _addresses = new();
     private readonly ConcurrentDictionary<string, List<WalletAccess>> _accessGrants = new();
 
     /// <inheritdoc/>
-    public Task AddAsync(Wallet wallet, CancellationToken cancellationToken = default)
+    public Task AddAsync(WalletEntity wallet, CancellationToken cancellationToken = default)
     {
         if (wallet == null)
             throw new ArgumentNullException(nameof(wallet));
@@ -42,7 +43,7 @@ public class InMemoryWalletRepository : IWalletRepository
     }
 
     /// <inheritdoc/>
-    public Task UpdateAsync(Wallet wallet, CancellationToken cancellationToken = default)
+    public Task UpdateAsync(WalletEntity wallet, CancellationToken cancellationToken = default)
     {
         if (wallet == null)
             throw new ArgumentNullException(nameof(wallet));
@@ -95,7 +96,7 @@ public class InMemoryWalletRepository : IWalletRepository
     }
 
     /// <inheritdoc/>
-    public Task<Wallet?> GetByAddressAsync(
+    public Task<WalletEntity?> GetByAddressAsync(
         string address,
         bool includeAddresses = false,
         bool includeDelegates = false,
@@ -109,7 +110,7 @@ public class InMemoryWalletRepository : IWalletRepository
 
         if (!_wallets.TryGetValue(address, out var wallet))
         {
-            return Task.FromResult<Wallet?>(null);
+            return Task.FromResult<WalletEntity?>(null);
         }
 
         // Create a copy to avoid reference issues
@@ -143,12 +144,11 @@ public class InMemoryWalletRepository : IWalletRepository
         {
             result.Transactions = new List<WalletTransaction>();
         }
-
-        return Task.FromResult<Wallet?>(result);
+        return Task.FromResult<WalletEntity?>(result);
     }
 
     /// <inheritdoc/>
-    public Task<IEnumerable<Wallet>> GetByOwnerAsync(
+    public Task<IEnumerable<WalletEntity>> GetByOwnerAsync(
         string owner,
         string tenant,
         CancellationToken cancellationToken = default)
@@ -165,11 +165,11 @@ public class InMemoryWalletRepository : IWalletRepository
             .Select(CloneWallet)
             .ToList();
 
-        return Task.FromResult<IEnumerable<Wallet>>(wallets);
+        return Task.FromResult<IEnumerable<WalletEntity>>(wallets);
     }
 
     /// <inheritdoc/>
-    public Task<IEnumerable<Wallet>> GetByTenantAsync(
+    public Task<IEnumerable<WalletEntity>> GetByTenantAsync(
         string tenant,
         int skip = 0,
         int take = 100,
@@ -188,7 +188,7 @@ public class InMemoryWalletRepository : IWalletRepository
             .Select(CloneWallet)
             .ToList();
 
-        return Task.FromResult<IEnumerable<Wallet>>(wallets);
+        return Task.FromResult<IEnumerable<WalletEntity>>(wallets);
     }
 
     /// <inheritdoc/>
@@ -347,9 +347,9 @@ public class InMemoryWalletRepository : IWalletRepository
     /// </summary>
     public int Count => _wallets.Count;
 
-    private static Wallet CloneWallet(Wallet wallet)
+    private static WalletEntity CloneWallet(WalletEntity wallet)
     {
-        return new Wallet
+        return new WalletEntity
         {
             Address = wallet.Address,
             EncryptedPrivateKey = wallet.EncryptedPrivateKey,

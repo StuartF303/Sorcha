@@ -1,10 +1,11 @@
 using Microsoft.Extensions.Logging;
-using Sorcha.Wallet.Service.Domain.Entities;
-using Sorcha.Wallet.Service.Domain.Events;
-using Sorcha.Wallet.Service.Domain.ValueObjects;
-using Sorcha.Wallet.Service.Events.Interfaces;
-using Sorcha.Wallet.Service.Repositories.Interfaces;
-using Sorcha.Wallet.Service.Services.Interfaces;
+using Sorcha.Wallet.Core.Domain.Entities;
+using WalletEntity = Sorcha.Wallet.Core.Domain.Entities.Wallet;
+using Sorcha.Wallet.Core.Domain.Events;
+using Sorcha.Wallet.Core.Domain.ValueObjects;
+using Sorcha.Wallet.Core.Events.Interfaces;
+using Sorcha.Wallet.Core.Repositories.Interfaces;
+using Sorcha.Wallet.Core.Services.Interfaces;
 
 namespace Sorcha.Wallet.Core.Services.Implementation;
 
@@ -37,7 +38,7 @@ public class WalletManager : IWalletService
     }
 
     /// <inheritdoc/>
-    public async Task<(Wallet Wallet, Mnemonic Mnemonic)> CreateWalletAsync(
+    public async Task<(WalletEntity Wallet, Mnemonic Mnemonic)> CreateWalletAsync(
         string name,
         string algorithm,
         string owner,
@@ -76,7 +77,7 @@ public class WalletManager : IWalletService
                 privateKey, string.Empty);
 
             // Create wallet entity
-            var wallet = new Wallet
+            var wallet = new WalletEntity
             {
                 Address = address,
                 PublicKey = Convert.ToBase64String(publicKey),
@@ -121,7 +122,7 @@ public class WalletManager : IWalletService
     }
 
     /// <inheritdoc/>
-    public async Task<Wallet> RecoverWalletAsync(
+    public async Task<WalletEntity> RecoverWalletAsync(
         Mnemonic mnemonic,
         string name,
         string algorithm,
@@ -165,7 +166,7 @@ public class WalletManager : IWalletService
                 primaryPrivateKey, string.Empty);
 
             // Create wallet entity
-            var wallet = new Wallet
+            var wallet = new WalletEntity
             {
                 Address = address,
                 PublicKey = Convert.ToBase64String(primaryPublicKey),
@@ -209,7 +210,7 @@ public class WalletManager : IWalletService
     }
 
     /// <inheritdoc/>
-    public async Task<Wallet?> GetWalletAsync(
+    public async Task<WalletEntity?> GetWalletAsync(
         string address,
         CancellationToken cancellationToken = default)
     {
@@ -237,7 +238,7 @@ public class WalletManager : IWalletService
     }
 
     /// <inheritdoc/>
-    public async Task<IEnumerable<Wallet>> GetWalletsByOwnerAsync(
+    public async Task<IEnumerable<WalletEntity>> GetWalletsByOwnerAsync(
         string owner,
         string tenant,
         CancellationToken cancellationToken = default)
@@ -260,7 +261,7 @@ public class WalletManager : IWalletService
     }
 
     /// <inheritdoc/>
-    public async Task<Wallet> UpdateWalletAsync(
+    public async Task<WalletEntity> UpdateWalletAsync(
         string address,
         string? name = null,
         string? description = null,

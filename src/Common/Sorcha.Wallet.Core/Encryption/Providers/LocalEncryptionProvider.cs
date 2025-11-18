@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
-using Sorcha.Wallet.Service.Encryption.Interfaces;
+using Sorcha.Wallet.Core.Encryption.Interfaces;
 
 namespace Sorcha.Wallet.Core.Encryption.Providers;
 

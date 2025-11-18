@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
-using Sorcha.Wallet.Service.Domain.Events;
-using Sorcha.Wallet.Service.Events.Interfaces;
+using Sorcha.Wallet.Core.Domain.Events;
+using Sorcha.Wallet.Core.Events.Interfaces;
 
 namespace Sorcha.Wallet.Core.Events.Publishers;
 

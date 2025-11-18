@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
-using Sorcha.Wallet.Service.Domain.Entities;
-using Sorcha.Wallet.Service.Repositories.Interfaces;
-using Sorcha.Wallet.Service.Services.Interfaces;
+using Sorcha.Wallet.Core.Domain.Entities;
+using Sorcha.Wallet.Core.Repositories.Interfaces;
+using Sorcha.Wallet.Core.Services.Interfaces;
 
 namespace Sorcha.Wallet.Core.Services.Implementation;
 

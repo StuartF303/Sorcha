@@ -13,6 +13,11 @@
     <ProjectReference Include="..\..\src\Common\Sorcha.Wallet.Core\Sorcha.Wallet.Core.csproj" />
   </ItemGroup>
 
+  <!-- Exclude legacy controller-based tests -->
+  <ItemGroup>
+    <Compile Remove="Controllers\**\*.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageReference Include="xunit" Version="2.9.3" />

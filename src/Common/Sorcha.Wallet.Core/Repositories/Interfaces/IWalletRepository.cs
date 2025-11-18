@@ -1,4 +1,5 @@
-using Sorcha.Wallet.Service.Domain.Entities;
+using Sorcha.Wallet.Core.Domain.Entities;
+using WalletEntity = Sorcha.Wallet.Core.Domain.Entities.Wallet;
 
 namespace Sorcha.Wallet.Core.Repositories.Interfaces;
 
@@ -12,14 +13,14 @@ public interface IWalletRepository
     /// </summary>
     /// <param name="wallet">Wallet to add</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    Task AddAsync(Wallet wallet, CancellationToken cancellationToken = default);
+    Task AddAsync(WalletEntity wallet, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Updates an existing wallet
     /// </summary>
     /// <param name="wallet">Wallet to update</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    Task UpdateAsync(Wallet wallet, CancellationToken cancellationToken = default);
+    Task UpdateAsync(WalletEntity wallet, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Deletes a wallet
@@ -37,7 +38,7 @@ public interface IWalletRepository
     /// <param name="includeTransactions">Include transactions</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Wallet if found</returns>
-    Task<Wallet?> GetByAddressAsync(
+    Task<WalletEntity?> GetByAddressAsync(
         string address,
         bool includeAddresses = false,
         bool includeDelegates = false,
@@ -51,7 +52,7 @@ public interface IWalletRepository
     /// <param name="tenant">Tenant identifier</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of wallets</returns>
-    Task<IEnumerable<Wallet>> GetByOwnerAsync(
+    Task<IEnumerable<WalletEntity>> GetByOwnerAsync(
         string owner,
         string tenant,
         CancellationToken cancellationToken = default);
@@ -64,7 +65,7 @@ public interface IWalletRepository
     /// <param name="take">Number of records to take</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of wallets</returns>
-    Task<IEnumerable<Wallet>> GetByTenantAsync(
+    Task<IEnumerable<WalletEntity>> GetByTenantAsync(
         string tenant,
         int skip = 0,
         int take = 100,

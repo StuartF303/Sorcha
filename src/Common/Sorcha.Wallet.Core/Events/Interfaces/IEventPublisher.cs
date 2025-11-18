@@ -1,4 +1,4 @@
-using Sorcha.Wallet.Service.Domain.Events;
+using Sorcha.Wallet.Core.Domain.Events;
 
 namespace Sorcha.Wallet.Core.Events.Interfaces;
 

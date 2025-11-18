@@ -1,5 +1,6 @@
-using Sorcha.WalletService.Api.Models;
-using Sorcha.WalletService.Domain.Entities;
+using Sorcha.Wallet.Service.Models;
+using WalletEntity = Sorcha.Wallet.Core.Domain.Entities.Wallet;
+using WalletAccessEntity = Sorcha.Wallet.Core.Domain.Entities.WalletAccess;
 
 namespace Sorcha.Wallet.Service.Mappers;
 
@@ -11,7 +12,7 @@ public static class WalletMapper
     /// <summary>
     /// Maps Wallet entity to WalletDto
     /// </summary>
-    public static WalletDto ToDto(this Wallet wallet)
+    public static WalletDto ToDto(this WalletEntity wallet)
     {
         return new WalletDto
         {
@@ -31,7 +32,7 @@ public static class WalletMapper
     /// <summary>
     /// Maps WalletAccess entity to WalletAccessDto
     /// </summary>
-    public static WalletAccessDto ToDto(this WalletAccess access)
+    public static WalletAccessDto ToDto(this WalletAccessEntity access)
     {
         return new WalletAccessDto
         {

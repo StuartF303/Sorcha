@@ -2,9 +2,9 @@ using Microsoft.Extensions.Logging;
 using NBitcoin;
 using Sorcha.Cryptography.Enums;
 using Sorcha.Cryptography.Interfaces;
-using Sorcha.Wallet.Service.Domain.ValueObjects;
-using Sorcha.Wallet.Service.Encryption.Interfaces;
-using Sorcha.Wallet.Service.Services.Interfaces;
+using Sorcha.Wallet.Core.Domain.ValueObjects;
+using Sorcha.Wallet.Core.Encryption.Interfaces;
+using Sorcha.Wallet.Core.Services.Interfaces;
 
 namespace Sorcha.Wallet.Core.Services.Implementation;
 

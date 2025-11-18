@@ -2,13 +2,13 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Sorcha.Cryptography;
 using Sorcha.Cryptography.Core;
 using Sorcha.Cryptography.Interfaces;
-using Sorcha.WalletService.Encryption.Interfaces;
-using Sorcha.WalletService.Encryption.Providers;
-using Sorcha.WalletService.Events.Interfaces;
-using Sorcha.WalletService.Events.Publishers;
-using Sorcha.WalletService.Repositories.Implementation;
-using Sorcha.WalletService.Repositories.Interfaces;
-using Sorcha.WalletService.Services.Implementation;
+using Sorcha.Wallet.Core.Encryption.Interfaces;
+using Sorcha.Wallet.Core.Encryption.Providers;
+using Sorcha.Wallet.Core.Events.Interfaces;
+using Sorcha.Wallet.Core.Events.Publishers;
+using Sorcha.Wallet.Core.Repositories.Implementation;
+using Sorcha.Wallet.Core.Repositories.Interfaces;
+using Sorcha.Wallet.Core.Services.Implementation;
 
 namespace Sorcha.Wallet.Service.Extensions;
 

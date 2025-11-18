@@ -1,4 +1,4 @@
-using Sorcha.Wallet.Service.Domain.ValueObjects;
+using Sorcha.Wallet.Core.Domain.ValueObjects;
 
 namespace Sorcha.Wallet.Core.Services.Interfaces;
 

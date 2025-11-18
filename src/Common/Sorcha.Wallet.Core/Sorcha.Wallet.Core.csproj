@@ -18,6 +18,7 @@
     <!-- Internal Dependencies -->
     <ProjectReference Include="..\Sorcha.Cryptography\Sorcha.Cryptography.csproj" />
     <ProjectReference Include="..\Sorcha.TransactionHandler\Sorcha.TransactionHandler.csproj" />
+    
 
     <!-- Database -->
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />

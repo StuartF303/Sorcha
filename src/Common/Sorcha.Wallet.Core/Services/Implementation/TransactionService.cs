@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Sorcha.Cryptography.Enums;
 using Sorcha.Cryptography.Interfaces;
-using Sorcha.Wallet.Service.Services.Interfaces;
+using Sorcha.Wallet.Core.Services.Interfaces;
 
 namespace Sorcha.Wallet.Core.Services.Implementation;
 

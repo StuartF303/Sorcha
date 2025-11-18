@@ -1,5 +1,6 @@
-using Sorcha.Wallet.Service.Domain.Entities;
-using Sorcha.Wallet.Service.Domain.ValueObjects;
+using Sorcha.Wallet.Core.Domain.Entities;
+using WalletEntity = Sorcha.Wallet.Core.Domain.Entities.Wallet;
+using Sorcha.Wallet.Core.Domain.ValueObjects;
 
 namespace Sorcha.Wallet.Core.Services.Interfaces;
 
@@ -19,7 +20,7 @@ public interface IWalletService
     /// <param name="passphrase">Optional BIP39 passphrase</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created wallet and the mnemonic (MUST be saved by caller)</returns>
-    Task<(Wallet Wallet, Mnemonic Mnemonic)> CreateWalletAsync(
+    Task<(WalletEntity Wallet, Mnemonic Mnemonic)> CreateWalletAsync(
         string name,
         string algorithm,
         string owner,
@@ -39,7 +40,7 @@ public interface IWalletService
     /// <param name="passphrase">Optional BIP39 passphrase</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Recovered wallet</returns>
-    Task<Wallet> RecoverWalletAsync(
+    Task<WalletEntity> RecoverWalletAsync(
         Mnemonic mnemonic,
         string name,
         string algorithm,
@@ -54,7 +55,7 @@ public interface IWalletService
     /// <param name="address">Wallet address</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Wallet if found</returns>
-    Task<Wallet?> GetWalletAsync(string address, CancellationToken cancellationToken = default);
+    Task<WalletEntity?> GetWalletAsync(string address, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all wallets for a given owner
@@ -63,7 +64,7 @@ public interface IWalletService
     /// <param name="tenant">Tenant identifier</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of wallets</returns>
-    Task<IEnumerable<Wallet>> GetWalletsByOwnerAsync(
+    Task<IEnumerable<WalletEntity>> GetWalletsByOwnerAsync(
         string owner,
         string tenant,
         CancellationToken cancellationToken = default);
@@ -77,7 +78,7 @@ public interface IWalletService
     /// <param name="tags">New tags</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Updated wallet</returns>
-    Task<Wallet> UpdateWalletAsync(
+    Task<WalletEntity> UpdateWalletAsync(
         string address,
         string? name = null,
         string? description = null,

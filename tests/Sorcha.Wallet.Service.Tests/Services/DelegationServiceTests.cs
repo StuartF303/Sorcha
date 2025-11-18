@@ -1,3 +1,15 @@
+using Microsoft.Extensions.Logging;
+using Moq;
+using Sorcha.Cryptography.Core;
+using Sorcha.Cryptography.Interfaces;
+using Sorcha.Wallet.Core.Domain;
+using Sorcha.Wallet.Core.Domain.Entities;
+using Sorcha.Wallet.Core.Encryption.Providers;
+using Sorcha.Wallet.Core.Events.Publishers;
+using Sorcha.Wallet.Core.Repositories.Implementation;
+using Sorcha.Wallet.Core.Services.Implementation;
+using WalletEntity = Sorcha.Wallet.Core.Domain.Entities.Wallet;
+
 namespace Sorcha.Wallet.Service.Tests.Services;
 
 public class DelegationServiceTests : IDisposable
@@ -5,7 +17,7 @@ public class DelegationServiceTests : IDisposable
     private readonly InMemoryWalletRepository _repository;
     private readonly DelegationService _delegationService;
     private readonly WalletManager _walletManager;
-    private Wallet _testWallet = null!;
+    private WalletEntity _testWallet = null!;
 
     public DelegationServiceTests()
     {
@@ -72,7 +84,7 @@ public class DelegationServiceTests : IDisposable
             .Returns((byte[] pk, byte network) => $"ws1{Convert.ToBase64String(pk)[..20]}");
     }
 
-    private async Task<Wallet> CreateTestWalletAsync()
+    private async Task<WalletEntity> CreateTestWalletAsync()
     {
         var (wallet, _) = await _walletManager.CreateWalletAsync(
             "Test Wallet", "ED25519", "owner-user", "test-tenant");

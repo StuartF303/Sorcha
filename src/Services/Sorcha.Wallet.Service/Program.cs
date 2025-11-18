@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
-using Scalar.AspNetCore;
-using Sorcha.WalletService.Api.Extensions;
-using Sorcha.WalletService.Api.Endpoints;
+using Sorcha.Wallet.Service.Extensions;
+using Sorcha.Wallet.Service.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,17 +38,9 @@ app.MapDefaultEndpoints();
 // Configure OpenAPI (available in all environments for API consumers)
 app.MapOpenApi();
 
-// Configure Scalar API documentation UI (development only)
+// Enable CORS policy in development
 if (app.Environment.IsDevelopment())
 {
-    app.MapScalarApiReference(options =>
-    {
-        options
-            .WithTitle("Wallet Service API")
-            .WithTheme(ScalarTheme.Purple)
-            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-    });
-
     app.UseCors("DevelopmentPolicy");
 }
 

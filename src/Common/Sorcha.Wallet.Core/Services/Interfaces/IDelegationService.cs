@@ -1,4 +1,4 @@
-using Sorcha.Wallet.Service.Domain.Entities;
+using Sorcha.Wallet.Core.Domain.Entities;
 
 namespace Sorcha.Wallet.Core.Services.Interfaces;
 

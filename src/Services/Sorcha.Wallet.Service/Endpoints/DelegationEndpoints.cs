@@ -2,10 +2,10 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Microsoft.AspNetCore.Mvc;
-using Sorcha.WalletService.Api.Mappers;
-using Sorcha.WalletService.Api.Models;
-using Sorcha.WalletService.Domain;
-using Sorcha.WalletService.Services.Implementation;
+using Sorcha.Wallet.Service.Mappers;
+using Sorcha.Wallet.Service.Models;
+using Sorcha.Wallet.Core.Domain;
+using Sorcha.Wallet.Core.Services.Implementation;
 using System.Security.Claims;
 
 namespace Sorcha.Wallet.Service.Endpoints;
