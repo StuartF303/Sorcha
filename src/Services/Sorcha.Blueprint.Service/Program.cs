@@ -540,7 +540,9 @@ actionsGroup.MapGet("/{wallet}/{register}/{tx}", async (
 actionsGroup.MapPost("/", async (
     Sorcha.Blueprint.Service.Models.Requests.ActionSubmissionRequest request,
     Sorcha.Blueprint.Service.Services.Interfaces.IActionResolverService actionResolver,
+    Sorcha.Blueprint.Service.Services.Interfaces.IPayloadResolverService payloadResolver,
     Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService txBuilder,
+    Sorcha.Blueprint.Service.Clients.IWalletServiceClient walletClient,
     Sorcha.Blueprint.Service.Clients.IRegisterServiceClient registerClient,
     Sorcha.Blueprint.Service.Storage.IActionStore actionStore,
     Sorcha.Cryptography.Interfaces.IHashProvider hashProvider) =>
@@ -561,14 +563,29 @@ actionsGroup.MapPost("/", async (
             return Results.BadRequest(new { error = "Action not found in blueprint" });
         }
 
-        // 3. Create encrypted payloads (stub for MVP)
-        var encryptedPayloads = new Dictionary<string, byte[]>
+        // 3. Determine participants who will receive payloads
+        // For MVP, encrypt payload for the sender wallet
+        // TODO: In full implementation, process disclosure rules to determine
+        // which data each participant should receive
+        var participantWalletMap = new Dictionary<string, string>
         {
-            [request.SenderWallet] = System.Text.Encoding.UTF8.GetBytes(
-                System.Text.Json.JsonSerializer.Serialize(request.PayloadData))
+            [request.SenderWallet] = request.SenderWallet
         };
 
-        // 4. Build transaction
+        // Simple disclosure: all participants get the full payload
+        // In production, use disclosure rules from actionDef
+        var disclosureResults = new Dictionary<string, object>
+        {
+            [request.SenderWallet] = request.PayloadData
+        };
+
+        // 4. Create encrypted payloads using Wallet Service
+        var encryptedPayloads = await payloadResolver.CreateEncryptedPayloadsAsync(
+            disclosureResults,
+            participantWalletMap,
+            request.SenderWallet);
+
+        // 5. Build transaction
         var transaction = await txBuilder.BuildActionTransactionAsync(
             request.BlueprintId,
             request.ActionId,
@@ -578,13 +595,20 @@ actionsGroup.MapPost("/", async (
             request.SenderWallet,
             request.RegisterAddress);
 
-        // 5. Calculate transaction hash
+        // 6. Calculate transaction hash
         var txHashBytes = System.Text.Encoding.UTF8.GetBytes(transaction.TxId ?? Guid.NewGuid().ToString());
         using var txHashStream = new System.IO.MemoryStream(txHashBytes);
         var txHash = await hashProvider.ComputeHashAsync(txHashStream);
         var txHashHex = BitConverter.ToString(txHash).Replace("-", "").ToLowerInvariant();
 
-        // 6. Convert to Register TransactionModel and submit to Register Service
+        // 7. Sign the transaction with Wallet Service
+        var transactionBytes = System.Text.Encoding.UTF8.GetBytes(
+            System.Text.Json.JsonSerializer.Serialize(transaction));
+        var signature = await walletClient.SignTransactionAsync(
+            request.SenderWallet,
+            transactionBytes);
+
+        // 8. Convert to Register TransactionModel and submit to Register Service
         var registerTransaction = new Sorcha.Register.Models.TransactionModel
         {
             TxId = txHashHex,
@@ -598,13 +622,16 @@ actionsGroup.MapPost("/", async (
             {
                 Data = Convert.ToBase64String(kvp.Value),
                 WalletAccess = new[] { kvp.Key }
-            }).ToArray()
+            }).ToArray(),
+            PayloadCount = (ulong)encryptedPayloads.Count,
+            // Add signature to transaction (Base64 encoded)
+            Signature = Convert.ToBase64String(signature)
         };
 
         // Submit to Register Service
         await registerClient.SubmitTransactionAsync(request.RegisterAddress, registerTransaction);
 
-        // 7. Build file transactions if any
+        // 9. Build file transactions if any
         List<string>? fileHashes = null;
         if (request.Files != null && request.Files.Any())
         {
@@ -649,10 +676,10 @@ actionsGroup.MapPost("/", async (
             }
         }
 
-        // 8. Generate instance ID if needed
+        // 10. Generate instance ID if needed
         var instanceId = request.InstanceId ?? Guid.NewGuid().ToString();
 
-        // 9. Store action locally
+        // 11. Store action locally
         var actionDetails = new Sorcha.Blueprint.Service.Models.Responses.ActionDetailsResponse
         {
             TransactionHash = txHashHex,
@@ -668,7 +695,7 @@ actionsGroup.MapPost("/", async (
 
         await actionStore.StoreActionAsync(actionDetails);
 
-        // 10. Return response
+        // 12. Return response
         var response = new Sorcha.Blueprint.Service.Models.Responses.ActionSubmissionResponse
         {
             TransactionHash = txHashHex,
