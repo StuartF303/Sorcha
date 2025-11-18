@@ -26,44 +26,47 @@ class Program
         Console.WriteLine($"📊 Target RPS: {targetRps}");
         Console.WriteLine($"🔥 Press Ctrl+C to stop\n");
 
+        // Create a shared HttpClient for all scenarios
+        var httpClient = new HttpClient();
+
         // Run all scenarios
         NBomberRunner
             .RegisterScenarios(
                 // Core Infrastructure
-                CreateHealthCheckScenario(gatewayUrl, duration, targetRps),
+                CreateHealthCheckScenario(httpClient, gatewayUrl, duration, targetRps),
 
                 // Blueprint Service Scenarios
-                CreateBlueprintReadScenario(gatewayUrl, duration, targetRps / 2),
-                CreateBlueprintWriteScenario(gatewayUrl, duration, 10),
-                CreateActionSubmissionScenario(gatewayUrl, duration, 20),
-                CreateExecutionHelperScenario(gatewayUrl, duration, 50),
+                CreateBlueprintReadScenario(httpClient, gatewayUrl, duration, targetRps / 2),
+                CreateBlueprintWriteScenario(httpClient, gatewayUrl, duration, 10),
+                CreateActionSubmissionScenario(httpClient, gatewayUrl, duration, 20),
+                CreateExecutionHelperScenario(httpClient, gatewayUrl, duration, 50),
 
                 // Wallet Service Scenarios
-                CreateWalletReadScenario(gatewayUrl, duration, targetRps / 2),
-                CreateWalletSignScenario(gatewayUrl, duration, 30),
-                CreateWalletEncryptDecryptScenario(gatewayUrl, duration, 20),
+                CreateWalletReadScenario(httpClient, gatewayUrl, duration, targetRps / 2),
+                CreateWalletSignScenario(httpClient, gatewayUrl, duration, 30),
+                CreateWalletEncryptDecryptScenario(httpClient, gatewayUrl, duration, 20),
 
                 // Register Service Scenarios
-                CreateRegisterReadScenario(gatewayUrl, duration, targetRps / 2),
-                CreateTransactionSubmissionScenario(gatewayUrl, duration, 25),
+                CreateRegisterReadScenario(httpClient, gatewayUrl, duration, targetRps / 2),
+                CreateTransactionSubmissionScenario(httpClient, gatewayUrl, duration, 25),
 
                 // Mixed Load Scenarios
-                CreateMixedWorkloadScenario(gatewayUrl, duration, targetRps),
-                CreateStressTestScenario(gatewayUrl, 30, targetRps * 2)
+                CreateMixedWorkloadScenario(httpClient, gatewayUrl, duration, targetRps),
+                CreateStressTestScenario(httpClient, gatewayUrl, 30, targetRps * 2)
             )
             .WithReportFolder("performance-reports")
             .Run();
 
         Console.WriteLine("\n✅ Performance tests completed!");
         Console.WriteLine("📄 Reports generated in: ./performance-reports/");
+
+        httpClient.Dispose();
     }
 
     #region Core Infrastructure Scenarios
 
-    static ScenarioProps CreateHealthCheckScenario(string baseUrl, int durationSec, int rps)
+    static ScenarioProps CreateHealthCheckScenario(HttpClient httpClient, string baseUrl, int durationSec, int rps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("health_check", async context =>
         {
             var request = Http.CreateRequest("GET", $"{baseUrl}/api/health");
@@ -89,10 +92,8 @@ class Program
 
     #region Blueprint Service Scenarios
 
-    static ScenarioProps CreateBlueprintReadScenario(string baseUrl, int durationSec, int rps)
+    static ScenarioProps CreateBlueprintReadScenario(HttpClient httpClient, string baseUrl, int durationSec, int rps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("blueprint_read", async context =>
         {
             var page = Random.Shared.Next(1, 10);
@@ -115,10 +116,8 @@ class Program
         return scenario;
     }
 
-    static ScenarioProps CreateBlueprintWriteScenario(string baseUrl, int durationSec, int rps)
+    static ScenarioProps CreateBlueprintWriteScenario(HttpClient httpClient, string baseUrl, int durationSec, int rps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("blueprint_write", async context =>
         {
             var blueprint = new
@@ -164,10 +163,8 @@ class Program
         return scenario;
     }
 
-    static ScenarioProps CreateActionSubmissionScenario(string baseUrl, int durationSec, int rps)
+    static ScenarioProps CreateActionSubmissionScenario(HttpClient httpClient, string baseUrl, int durationSec, int rps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("action_submission", async context =>
         {
             var action = new
@@ -204,10 +201,8 @@ class Program
         return scenario;
     }
 
-    static ScenarioProps CreateExecutionHelperScenario(string baseUrl, int durationSec, int rps)
+    static ScenarioProps CreateExecutionHelperScenario(HttpClient httpClient, string baseUrl, int durationSec, int rps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("execution_helpers", async context =>
         {
             var endpoints = new[]
@@ -255,10 +250,8 @@ class Program
 
     #region Wallet Service Scenarios
 
-    static ScenarioProps CreateWalletReadScenario(string baseUrl, int durationSec, int rps)
+    static ScenarioProps CreateWalletReadScenario(HttpClient httpClient, string baseUrl, int durationSec, int rps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("wallet_read", async context =>
         {
             // In a real test, we'd use actual wallet IDs
@@ -283,10 +276,8 @@ class Program
         return scenario;
     }
 
-    static ScenarioProps CreateWalletSignScenario(string baseUrl, int durationSec, int rps)
+    static ScenarioProps CreateWalletSignScenario(HttpClient httpClient, string baseUrl, int durationSec, int rps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("wallet_sign", async context =>
         {
             var signRequest = new
@@ -318,10 +309,8 @@ class Program
         return scenario;
     }
 
-    static ScenarioProps CreateWalletEncryptDecryptScenario(string baseUrl, int durationSec, int rps)
+    static ScenarioProps CreateWalletEncryptDecryptScenario(HttpClient httpClient, string baseUrl, int durationSec, int rps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("wallet_encrypt_decrypt", async context =>
         {
             var encryptRequest = new
@@ -357,10 +346,8 @@ class Program
 
     #region Register Service Scenarios
 
-    static ScenarioProps CreateRegisterReadScenario(string baseUrl, int durationSec, int rps)
+    static ScenarioProps CreateRegisterReadScenario(HttpClient httpClient, string baseUrl, int durationSec, int rps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("register_read", async context =>
         {
             var registerId = $"register-{Random.Shared.Next(1, 10)}";
@@ -383,10 +370,8 @@ class Program
         return scenario;
     }
 
-    static ScenarioProps CreateTransactionSubmissionScenario(string baseUrl, int durationSec, int rps)
+    static ScenarioProps CreateTransactionSubmissionScenario(HttpClient httpClient, string baseUrl, int durationSec, int rps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("transaction_submission", async context =>
         {
             var transaction = new
@@ -423,10 +408,8 @@ class Program
 
     #region Mixed & Stress Scenarios
 
-    static ScenarioProps CreateMixedWorkloadScenario(string baseUrl, int durationSec, int rps)
+    static ScenarioProps CreateMixedWorkloadScenario(HttpClient httpClient, string baseUrl, int durationSec, int rps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("mixed_workload", async context =>
         {
             var operations = new[]
@@ -457,10 +440,8 @@ class Program
         return scenario;
     }
 
-    static ScenarioProps CreateStressTestScenario(string baseUrl, int durationSec, int maxRps)
+    static ScenarioProps CreateStressTestScenario(HttpClient httpClient, string baseUrl, int durationSec, int maxRps)
     {
-        using var httpClient = new HttpClient();
-
         var scenario = Scenario.Create("stress_test", async context =>
         {
             var request = Http.CreateRequest("GET", $"{baseUrl}/api/health");
