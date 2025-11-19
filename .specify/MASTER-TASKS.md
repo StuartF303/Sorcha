@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 3.2 - AUDITED
-**Last Updated:** 2025-11-18
-**Status:** Active - Post-Audit
+**Version:** 3.3 - UPDATED
+**Last Updated:** 2025-11-19
+**Status:** Active - Validator Service Added
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -11,12 +11,16 @@
 
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
-**Total Tasks:** 158 (across all phases, including production readiness and blueprint validation tasks)
-**Completed:** 100 (63%)
+**Total Tasks:** 173 (across all phases, including production readiness, blueprint validation, and validator service)
+**Completed:** 100 (58%)
 **In Progress:** 0 (0%)
-**Not Started:** 58 (37%)
+**Not Started:** 73 (42%)
 
-**Note:** Counts updated 2025-11-18 after comprehensive task status audit and addition of Blueprint Validation Test Plan (10 new tasks). See [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md) and [BLUEPRINT-VALIDATION-TEST-PLAN.md](BLUEPRINT-VALIDATION-TEST-PLAN.md) for details.
+**Note:** Counts updated 2025-11-19:
+- Added Sprint 9: Validator Service (14 new tasks, 182 hours)
+- Added BP-8.4: Transaction Chain Validation Tests (20 hours)
+- Updated Sprint 8 total: 11 tasks, 176 hours
+- See [VALIDATOR-SERVICE-REQUIREMENTS.md](VALIDATOR-SERVICE-REQUIREMENTS.md) and [BLUEPRINT-VALIDATION-TEST-PLAN.md](BLUEPRINT-VALIDATION-TEST-PLAN.md)
 
 ---
 
@@ -211,15 +215,16 @@ Enhancement tasks that can be deferred until after MVD is complete.
 | BP-8.1 | Implement BlueprintStructuralValidationTests | P0 | 16h | 📋 Not Started | - |
 | BP-8.2 | Implement BlueprintWorkflowValidationTests | P0 | 24h | 📋 Not Started | - |
 | BP-8.3 | Implement graph cycle detection | P0 | 12h | 📋 Not Started | - |
-| BP-8.4 | Implement DisclosureValidationTests | P1 | 16h | 📋 Not Started | - |
-| BP-8.5 | Extend SchemaValidatorTests (Blueprint/Action schemas) | P1 | 16h | 📋 Not Started | - |
-| BP-8.6 | Implement JsonLogicValidationTests | P1 | 24h | 📋 Not Started | - |
-| BP-8.7 | Implement MultiParticipantWorkflowTests | P1 | 16h | 📋 Not Started | - |
-| BP-8.8 | Implement FormValidationTests | P2 | 8h | 📋 Not Started | - |
-| BP-8.9 | Extend BlueprintTemplateServiceTests | P2 | 16h | 📋 Not Started | - |
-| BP-8.10 | Extend JSON-LD validation tests | P3 | 8h | 📋 Not Started | - |
+| BP-8.4 | Implement TransactionChainValidationTests | P0 | 20h | 📋 Not Started | - |
+| BP-8.5 | Implement DisclosureValidationTests | P1 | 16h | 📋 Not Started | - |
+| BP-8.6 | Extend SchemaValidatorTests (Blueprint/Action schemas) | P1 | 16h | 📋 Not Started | - |
+| BP-8.7 | Implement JsonLogicValidationTests | P1 | 24h | 📋 Not Started | - |
+| BP-8.8 | Implement MultiParticipantWorkflowTests | P1 | 16h | 📋 Not Started | - |
+| BP-8.9 | Implement FormValidationTests | P2 | 8h | 📋 Not Started | - |
+| BP-8.10 | Extend BlueprintTemplateServiceTests | P2 | 16h | 📋 Not Started | - |
+| BP-8.11 | Extend JSON-LD validation tests | P3 | 8h | 📋 Not Started | - |
 
-**Sprint 8 Status:** 📋 **NOT STARTED** (0/10 tasks, 156 hours ~20 days)
+**Sprint 8 Status:** 📋 **NOT STARTED** (0/11 tasks, 176 hours ~22 days)
 **Recommended Start:** Week 12 (After Sprint 7 completion)
 **Reference:** [BLUEPRINT-VALIDATION-TEST-PLAN.md](BLUEPRINT-VALIDATION-TEST-PLAN.md)
 
@@ -227,6 +232,7 @@ Enhancement tasks that can be deferred until after MVD is complete.
 - Structural validation: Participant references, wallet addresses, action/participant counts
 - Workflow validation: Action routing, sequence validation
 - **Graph cycle detection**: Prevent infinite Blueprint loops (BS-046)
+- **Transaction chain validation**: previousId references, chain continuity, instance isolation
 
 **Core Tests (P1):**
 - Disclosure validation: Data visibility rules and recipient validation
@@ -240,24 +246,79 @@ Enhancement tasks that can be deferred until after MVD is complete.
 - JSON-LD compliance: Semantic web and Verifiable Credentials
 
 **Deliverables:**
-- ~70 new test cases across 10 categories
+- ~80 new test cases across 11 categories
 - Graph cycle detection implementation (critical for workflow integrity)
+- Transaction chain validation (previousId, continuity, instance tracking)
 - Participant reference integrity validation
 - Complete Blueprint schema validation coverage
 - Multi-participant workflow patterns validated
 
 **Related Tasks:** BS-045, BS-046, BP-3.5, BP-7.1
 
-### Sprint 9: Production Readiness
+### Sprint 9: Validator Service 📋 NEW
+
+**Goal:** Rebuild Sorcha.Validator.Service to validate transactions from memory pool against Blueprint rules
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| BP-9.1 | Performance optimization | P2 | 8h | 📋 Not Started | - |
-| BP-9.2 | Security hardening | P1 | 8h | 📋 Not Started | - |
-| BP-9.3 | Monitoring and alerting | P2 | 6h | 📋 Not Started | - |
-| BP-9.4 | Production deployment guide | P2 | 4h | 📋 Not Started | - |
+| VAL-9.1 | Design Validator Service architecture | P0 | 8h | 📋 Not Started | - |
+| VAL-9.2 | Implement Transaction Pool Poller (Redis) | P0 | 12h | 📋 Not Started | - |
+| VAL-9.3 | Implement Validation Engine core | P0 | 24h | 📋 Not Started | - |
+| VAL-9.4 | Implement Chain Validation logic | P0 | 16h | 📋 Not Started | - |
+| VAL-9.5 | Implement Blueprint Cache (Redis) | P0 | 8h | 📋 Not Started | - |
+| VAL-9.6 | Implement Verified Transaction Queue (in-memory) | P0 | 12h | 📋 Not Started | - |
+| VAL-9.7 | Implement Exception Response Handler | P0 | 10h | 📋 Not Started | - |
+| VAL-9.8 | Implement Docket Builder | P0 | 16h | 📋 Not Started | - |
+| VAL-9.9 | Peer Service integration (message source) | P0 | 12h | 📋 Not Started | - |
+| VAL-9.10 | Register Service integration (docket submission) | P0 | 8h | 📋 Not Started | - |
+| VAL-9.11 | Configuration system (memory limits, performance) | P1 | 8h | 📋 Not Started | - |
+| VAL-9.12 | Validator Service unit tests | P0 | 20h | 📋 Not Started | - |
+| VAL-9.13 | Validator Service integration tests | P1 | 16h | 📋 Not Started | - |
+| VAL-9.14 | Performance testing (validation throughput) | P1 | 12h | 📋 Not Started | - |
 
-**Sprint 9 Status:** 📋 **NOT STARTED** (0/4 tasks, 26 hours)
+**Sprint 9 Status:** 📋 **NOT STARTED** (0/14 tasks, 182 hours ~23 days)
+**Recommended Start:** Week 13 (After Sprint 8 completion)
+**Reference:** [VALIDATOR-SERVICE-REQUIREMENTS.md](VALIDATOR-SERVICE-REQUIREMENTS.md)
+
+**Key Features:**
+- Transaction validation against Blueprint JSON rules (DataSchemas, JSON Logic, Disclosures)
+- **Chain-based instance tracking** via previousId (no separate instance ID)
+- Exception responses sent to original sender via Peer Service
+- Configurable in-memory verified queue with size limits
+- Blueprint caching for performance
+- Docket building from verified transactions
+
+**Validation Rules:**
+1. Schema validation (JSON Schema Draft 2020-12)
+2. JSON Logic condition evaluation
+3. Disclosure rules and participant authorization
+4. **Chain validation** (previousId references, continuity, instance isolation)
+5. Previous data validation against chain
+6. Workflow integrity (action sequencing, routing)
+
+**Integration Points:**
+- Peer Service: Transaction messages (inbound) & exception responses (outbound)
+- Blueprint Service: Fetch Blueprint JSON (with caching)
+- Register Service: Docket submission
+- Redis: Memory pool, Blueprint cache, response queues
+
+**Configuration:**
+- Memory limits (verified queue, cache, total)
+- Performance tuning (concurrent validations, batch sizes)
+- Resilience (retries, circuit breakers, DLQ)
+
+**Related Tasks:** BP-8.4 (Chain validation tests)
+
+### Sprint 10: Production Readiness
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| BP-10.1 | Performance optimization | P2 | 8h | 📋 Not Started | - |
+| BP-10.2 | Security hardening | P1 | 8h | 📋 Not Started | - |
+| BP-10.3 | Monitoring and alerting | P2 | 6h | 📋 Not Started | - |
+| BP-10.4 | Production deployment guide | P2 | 4h | 📋 Not Started | - |
+
+**Sprint 10 Status:** 📋 **NOT STARTED** (0/4 tasks, 26 hours)
 **Recommended Start:** Week 14
 
 ---
