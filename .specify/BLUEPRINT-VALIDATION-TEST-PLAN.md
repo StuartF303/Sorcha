@@ -227,27 +227,65 @@ Based on `Sorcha.Blueprint.Models.Blueprint`:
 - [ ] Action @type (ActivityStreams Activity) validates
 - [ ] VerifiableCredential format validates as W3C VC
 
-### ⚠️ Category 9: Multi-Participant Workflow Tests (MISSING)
+### ⚠️ Category 9: Transaction Chain Validation (MISSING)
+
+**Priority:** P0 (MVD Blocker)
+**Location:** Create `Sorcha.Blueprint.Engine.Tests/TransactionChainValidationTests.cs`
+
+**Context:** Transaction chains track blueprint execution instances via previousId references.
+No separate blueprintExecutionInstanceId is needed - each chain branch represents a unique instance.
+
+#### 9.1 previousId Reference Validation
+- [ ] Transaction previousId must reference valid transaction
+- [ ] Transaction with null previousId fails validation (except genesis block)
+- [ ] Transaction with non-existent previousId fails validation
+- [ ] Transaction previousId referencing transaction from different blueprint fails
+
+#### 9.2 Chain Continuity Validation
+- [ ] Action 0 transaction must reference Blueprint publication transaction
+- [ ] Action N transaction must reference previous action in same instance
+- [ ] Chain with broken continuity (skipped action) should fail
+- [ ] Chain with correct sequence (0→1→2→3) should pass
+
+#### 9.3 Chain Branching and Instance Isolation
+- [ ] Multiple Action 0 transactions from same Blueprint create separate instances
+- [ ] Each branch maintains independent chain (txid1→txid2→txid3 vs txid1→txid4)
+- [ ] Chain merge detection (two chains converging) should fail
+- [ ] Parallel instances from same Blueprint should be valid
+
+#### 9.4 previousData Chain Validation
+- [ ] Action N previousData must match Action N-1 current data
+- [ ] previousData mismatch in chain should fail validation
+- [ ] First action (Action 0) previousData validation rules
+- [ ] previousData references resolved through chain walk
+
+#### 9.5 Chain Integrity
+- [ ] Chain with valid signatures at each step passes
+- [ ] Chain with tampered previousId fails validation
+- [ ] Chain timestamp sequence must be chronological
+- [ ] Chain nonce values must be unique per participant
+
+### ⚠️ Category 10: Multi-Participant Workflow Tests (MISSING)
 
 **Priority:** P1 (Core MVD)
 **Location:** Create `Sorcha.Blueprint.Engine.Tests/MultiParticipantWorkflowTests.cs`
 
-#### 9.1 Simple Linear Workflow (2 participants)
+#### 10.1 Simple Linear Workflow (2 participants)
 - [ ] Blueprint: Participant A → Action → Participant B
 - [ ] Action sender must match previous action target
 - [ ] Workflow completes with all participants involved
 
-#### 9.2 Branching Workflow (3+ participants)
+#### 10.2 Branching Workflow (3+ participants)
 - [ ] Blueprint: A → (B or C based on condition) → D
 - [ ] Conditional routing selects correct participant
 - [ ] All branches validated for participant references
 
-#### 9.3 Round-Robin Workflow
+#### 10.3 Round-Robin Workflow
 - [ ] Blueprint: A → B → C → A (endorsement loop)
 - [ ] Cycle detection allows controlled loops
 - [ ] Maximum iteration limits prevent infinite loops
 
-### ⚠️ Category 10: Blueprint Template Validation (PARTIAL)
+### ⚠️ Category 11: Blueprint Template Validation (PARTIAL)
 
 **Priority:** P2 (Enhanced MVD)
 **Location:** Extend `Sorcha.Blueprint.Engine.Tests/BlueprintTemplateServiceTests.cs`
@@ -277,15 +315,21 @@ Based on `Sorcha.Blueprint.Models.Blueprint`:
    - Action sequence validation
    - **Graph cycle detection** (CRITICAL)
 
+3. **TransactionChainValidationTests.cs** (2.5 days) **NEW**
+   - previousId reference validation
+   - Chain continuity and branching
+   - previousData chain validation
+   - Chain integrity (signatures, timestamps, nonces)
+
 ### Sprint 2: Core Execution Validation (P1)
 **Focus:** Data and disclosure validation
 
-3. **DisclosureValidationTests.cs** (2 days)
+4. **DisclosureValidationTests.cs** (2 days)
    - Disclosure requirements
    - Target validation
    - Data field validation
 
-4. **Extend SchemaValidatorTests.cs** (2 days)
+5. **Extend SchemaValidatorTests.cs** (2 days)
    - Blueprint DataSchemas
    - Action DataSchemas
    - PreviousData validation
@@ -293,12 +337,12 @@ Based on `Sorcha.Blueprint.Models.Blueprint`:
 ### Sprint 3: Logic Validation (P1)
 **Focus:** JSON Logic correctness
 
-5. **JsonLogicValidationTests.cs** (3 days)
+6. **JsonLogicValidationTests.cs** (3 days)
    - Condition validation
    - Participant routing conditions
    - Calculations validation
 
-6. **MultiParticipantWorkflowTests.cs** (2 days)
+7. **MultiParticipantWorkflowTests.cs** (2 days)
    - Linear workflows
    - Branching workflows
    - Round-robin patterns
@@ -306,18 +350,18 @@ Based on `Sorcha.Blueprint.Models.Blueprint`:
 ### Sprint 4: Enhanced Validation (P2)
 **Focus:** Forms and templates
 
-7. **FormValidationTests.cs** (1 day)
+8. **FormValidationTests.cs** (1 day)
    - Control type validation
    - Form-schema alignment
 
-8. **Extend BlueprintTemplateServiceTests.cs** (2 days)
+9. **Extend BlueprintTemplateServiceTests.cs** (2 days)
    - Template parameter validation
    - Template instantiation
 
 ### Sprint 5: Semantic Web (P3)
 **Focus:** JSON-LD compliance
 
-9. **Extend JsonLd tests** (1 day)
+10. **Extend JsonLd tests** (1 day)
    - Context validation
    - Type validation
    - Verifiable Credentials
@@ -337,6 +381,7 @@ tests/
 ├── Sorcha.Blueprint.Engine.Tests/
 │   ├── SchemaValidatorTests.cs ✅ (EXISTS - EXTEND)
 │   ├── BlueprintWorkflowValidationTests.cs ⚠️ (CREATE)
+│   ├── TransactionChainValidationTests.cs ⚠️ (CREATE - NEW)
 │   ├── DisclosureValidationTests.cs ⚠️ (CREATE)
 │   ├── JsonLogicValidationTests.cs ⚠️ (CREATE)
 │   ├── MultiParticipantWorkflowTests.cs ⚠️ (CREATE)
@@ -356,6 +401,7 @@ tests/
 - ⚠️ All Category 2 tests pass (structural validation)
 - ⚠️ All Category 3 tests pass (workflow validation)
 - ⚠️ All Category 5 tests pass (disclosure validation)
+- ⚠️ All Category 9 tests pass (transaction chain validation) **NEW**
 
 ### Production Ready
 - All P0 and P1 test categories implemented
@@ -363,9 +409,10 @@ tests/
 - Integration tests validate full Blueprint → Action → Register flow
 
 ### Complete
-- All 9 test categories fully implemented
+- All 11 test categories fully implemented
 - JSON-LD compliance verified
 - Template system validated
+- Transaction chain validation complete
 
 ---
 
