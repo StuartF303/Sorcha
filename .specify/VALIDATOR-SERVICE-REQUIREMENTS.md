@@ -15,9 +15,11 @@ The Validator Service validates transactions from the memory pool against Bluepr
 1. **Transaction Source:** Transactions arrive as **messages from Peer Service** and are queued in Redis memory pool
 2. **Validation Failures:** Invalid transactions are sent back to **original sender as exceptions** via Peer Service
 3. **Single Blueprint:** Transactions **cannot** reference multiple blueprints
-4. **Instance Isolation:** Action transactions are **instance data** of a specific blueprint flow execution
-5. **Memory Management:** Verified transactions stored in **configurable in-memory queue** with size limits
-6. **Docket Building:** Dockets built from verified in-memory transactions only
+4. **Chain-Based Instances:** Workflow instances tracked via **transaction chain** (previousId), not separate instance IDs
+5. **Instance Isolation:** Each chain branch from Blueprint = separate instance, action transactions are instance data
+6. **Memory Management:** Verified transactions stored in **configurable in-memory queue** with size limits
+7. **Docket Building:** Dockets built from verified in-memory transactions only
+8. **Chain Validation:** Validator must validate transaction chain continuity via previousId references
 
 ---
 
@@ -160,13 +162,35 @@ public async Task<ValidationResult> ValidateAsync(Transaction transaction)
     // 2. Identify target action
     var action = blueprint.Actions.FirstOrDefault(a => a.Id == transaction.ActionId);
 
-    // 3. Schema validation (DataSchemas)
+    // 3. Chain validation (previousId)
+    var chainValid = await ValidateChainAsync(transaction);
+    if (!chainValid.IsValid)
+    {
+        return chainValid;
+    }
+
+    // 4. Previous data validation
+    var previousTx = await FetchTransactionAsync(transaction.PreviousId);
+    if (transaction.PreviousData != null &&
+        !ValidatePreviousData(transaction.PreviousData, previousTx.Data))
+    {
+        return new ValidationResult
+        {
+            IsValid = false,
+            Errors = new List<ValidationError>
+            {
+                new ValidationError { Type = ValidationErrorType.PreviousDataMismatch }
+            }
+        };
+    }
+
+    // 5. Schema validation (DataSchemas)
     var schemaResult = await _schemaValidator.ValidateAsync(
         transaction.Data,
         action.DataSchemas
     );
 
-    // 4. JSON Logic condition evaluation (if applicable)
+    // 6. JSON Logic condition evaluation (if applicable)
     if (action.Condition != null)
     {
         var conditionResult = _jsonLogicEvaluator.Evaluate(
@@ -175,14 +199,14 @@ public async Task<ValidationResult> ValidateAsync(Transaction transaction)
         );
     }
 
-    // 5. Disclosure rules validation
+    // 7. Disclosure rules validation
     var disclosureResult = _disclosureProcessor.ValidateDisclosures(
         transaction.Data,
         action.Disclosures,
         transaction.Sender
     );
 
-    // 6. Participant authorization
+    // 8. Participant authorization
     var participantValid = blueprint.Participants.Any(
         p => p.Id == transaction.Sender
     );
@@ -192,6 +216,40 @@ public async Task<ValidationResult> ValidateAsync(Transaction transaction)
         IsValid = schemaResult.IsValid && participantValid,
         Errors = CollectErrors(...)
     };
+}
+
+private async Task<ValidationResult> ValidateChainAsync(Transaction tx)
+{
+    // Verify previousId references valid transaction
+    var previousTx = await FetchTransactionAsync(tx.PreviousId);
+    if (previousTx == null)
+    {
+        return new ValidationResult
+        {
+            IsValid = false,
+            Errors = new List<ValidationError>
+            {
+                new ValidationError { Type = ValidationErrorType.InvalidPreviousId }
+            }
+        };
+    }
+
+    // Verify chain continuity
+    // Action 0 should reference Blueprint publication transaction
+    // Action N should reference previous action in same instance
+    if (tx.ActionId == 0 && previousTx.BlueprintId != tx.BlueprintId)
+    {
+        return new ValidationResult
+        {
+            IsValid = false,
+            Errors = new List<ValidationError>
+            {
+                new ValidationError { Type = ValidationErrorType.BrokenChain }
+            }
+        };
+    }
+
+    return new ValidationResult { IsValid = true };
 }
 ```
 
@@ -278,10 +336,10 @@ public async Task<ValidationResult> ValidateAsync(Transaction transaction)
 
 ```json
 {
-  "id": "tx-uuid",
+  "id": "txid3",
   "blueprintId": "blueprint-uuid",
-  "blueprintExecutionInstanceId": "instance-uuid",
-  "actionId": 0,
+  "actionId": 1,
+  "previousId": "txid2",
   "sender": "participant-id",
   "data": {
     // Action-specific data (validated against DataSchemas)
@@ -295,22 +353,50 @@ public async Task<ValidationResult> ValidateAsync(Transaction transaction)
 }
 ```
 
+**Transaction Chain Model:**
+
+The transaction chain itself provides instance tracking through `previousId` - no separate instance ID needed.
+
+**Example: Two workflow instances from same Blueprint:**
+
+```
+Genesis Block
+  txid0
+    ↓
+Blueprint v1 Published
+  txid1 (previousId = txid0)
+    ├────────────────┬────────────────┐
+    │                │                │
+Instance 1       Instance 2      Instance 3
+Action 1         Action 1        Action 1
+  txid2            txid4           txid6
+  (prev=txid1)     (prev=txid1)    (prev=txid1)
+    ↓
+Instance 1
+Action 2
+  txid3
+  (prev=txid2)
+```
+
 **Blueprint Execution Model:**
 - **Single Blueprint Per Transaction:** Transactions **cannot** reference multiple blueprints
-- **Blueprint Flow Execution Instance:** Each transaction belongs to a specific blueprint execution instance
-  - `blueprintId`: The Blueprint definition (template/schema)
-  - `blueprintExecutionInstanceId`: Unique instance of this workflow execution
-  - Multiple executions of the same Blueprint can run concurrently (different instances)
+- **Chain-Based Instance Tracking:** Workflow instance is determined by the transaction chain via `previousId`
+- **Multiple Concurrent Instances:** Multiple executions of same Blueprint = multiple chains branching from the published Blueprint transaction
+- **Instance Isolation:** Each chain represents a separate workflow instance with its own state
 
 **Instance Data:**
-- If a Blueprint defines a shared data process, the action transactions are **instance data** of a particular blueprint flow execution
-- Each workflow instance maintains its own state/data
-- Example: Two expense approval workflows (same Blueprint) running simultaneously for different employees have separate `blueprintExecutionInstanceId` values
+- Instance tracking is **implicit in the transaction chain**
+- `previousId` links transactions in the same workflow instance
+- Action transactions are **instance data** of a particular blueprint flow execution
+- Example workflow chains:
+  - **Instance 1:** txid1 → txid2 → txid3 (employee Alice's expense approval)
+  - **Instance 2:** txid1 → txid4 (employee Bob's expense approval)
 
 **Data Isolation:**
-- Instance data is scoped to `blueprintExecutionInstanceId`
-- Previous action data (`previousData`) references the same execution instance
+- Instance data is scoped by the transaction chain (following `previousId`)
+- `previousData` references the transaction in the same chain
 - Cross-instance data access is not supported
+- Each branch from the Blueprint transaction = new instance
 
 ---
 
@@ -464,10 +550,20 @@ public async Task<ValidationResult> ValidateAsync(Transaction transaction)
 - Wallet signature must match participant's wallet address
 - Stealth address validation if enabled
 
-### 5. Workflow Integrity
+### 5. Workflow Integrity & Chain Validation
 - Transaction must reference valid Blueprint
 - Action ID must exist in Blueprint
-- Previous action data must match workflow path (if applicable)
+- **previousId must reference valid transaction:**
+  - For Action 0: `previousId` should reference the Blueprint publication transaction
+  - For Action N: `previousId` should reference previous action in the same instance
+  - Chain continuity validated (no broken chains)
+- **Previous action data validation:**
+  - `previousData` must match data from transaction referenced by `previousId`
+  - Previous action must be from same Blueprint instance (same chain)
+- **Instance chain validation:**
+  - Validate transaction is on correct chain branch
+  - Detect invalid chain merges
+  - Ensure action sequence follows Blueprint workflow
 
 ---
 
@@ -496,6 +592,13 @@ public enum ValidationErrorType
     BlueprintNotFound,
     ActionNotFound,
     InvalidActionSequence,
+
+    // Chain Validation Errors
+    InvalidPreviousId,
+    BrokenChain,
+    PreviousDataMismatch,
+    InvalidChainBranch,
+    ChainMergeDetected,
 
     // System Errors
     ValidationTimeout,
@@ -697,22 +800,27 @@ PUT /api/config/validation-rules    # Update validation rules
 1. **Blueprint Updates:**
    - How to handle Blueprint version changes during active workflow instances?
    - Should in-flight transactions validate against old Blueprint versions?
-   - Blueprint versioning strategy?
+   - Blueprint versioning strategy via transaction chain?
 
 2. **Docket Finality:**
    - What happens if Register.Service rejects a docket?
    - Retry logic? Rollback verified transactions?
    - How to handle partial docket acceptance?
 
-3. **Instance State Management:**
-   - Where is `blueprintExecutionInstanceId` state tracked?
-   - Who creates the execution instance ID?
-   - How long is instance state retained after workflow completion?
+3. **Chain Validation:**
+   - How far back should chain validation traverse (performance vs security)?
+   - Should validator cache previous transactions for chain validation?
+   - How to handle orphaned chains (previousId references missing transaction)?
 
 4. **Exception Response Delivery:**
    - Does Peer Service guarantee exception delivery to original sender?
    - What if the original sender is offline?
    - Retry policy for exception responses?
+
+5. **Blueprint Publication:**
+   - How is a Blueprint published to the chain (becomes txid1)?
+   - Who can publish Blueprints?
+   - Blueprint update/versioning process?
 
 ---
 
