@@ -281,6 +281,7 @@ Sorcha includes comprehensive test coverage across multiple layers.
 ### Test Projects
 
 - **Sorcha.Blueprint.Api.Tests** - API endpoint tests
+- **Sorcha.Blueprint.Engine.Tests** - Blueprint engine and workflow demo tests
 - **Sorcha.Blueprint.Fluent.Tests** - Fluent builder pattern tests
 - **Sorcha.Cryptography.Tests** - Cryptography library tests
 - **Sorcha.Gateway.Integration.Tests** - Gateway routing and integration tests
@@ -334,6 +335,49 @@ dotnet test tests/Sorcha.Gateway.Integration.Tests
 - Service-to-service communication
 - Health check aggregation
 - Redis caching
+
+### Workflow Demo Tests
+
+The Expense Approval Workflow demonstrates Blueprint functionality with JSON Logic routing:
+
+**Run the workflow demo tests:**
+```bash
+dotnet test tests/Sorcha.Blueprint.Engine.Tests --filter "FullyQualifiedName~ExpenseApprovalWorkflowDemoTests"
+```
+
+**What it demonstrates:**
+- **JSON Logic Routing**: Dynamic workflow paths based on expense amount:
+  - < $100 → Instant system approval
+  - $100-$1000 → Route to manager for review
+  - ≥ $1000 → Route to finance director for approval
+- **Participant Role Fulfillment**: Employee, Manager, Finance Director, and System roles
+- **Data Flow Visualization**: CLI output shows the complete approval workflow
+- **Workflow Execution**: Real-time routing decisions with formatted console output
+
+**Example output:**
+```
+╔═══════════════════════════════════════════════════════════╗
+║ Expense Approval - Manager Review ($100-$1000)            ║
+╚═══════════════════════════════════════════════════════════╝
+
+📝 Expense Claim Submitted:
+   Employee: Alice Johnson (employee)
+   Amount: $450
+   Description: Client dinner and entertainment
+   Category: Entertainment
+
+🔀 Routing Decision:
+   Next Action: 2 - Manager Review
+   Assigned To: Bob Smith (manager)
+
+👔 Manager: Bob Smith
+   Decision: APPROVED ✅
+   Comments: Approved - valid client entertainment expense
+
+✅ Result: APPROVED BY MANAGER
+   Amount: $450
+════════════════════════════════════════════════════════════
+```
 
 ### Performance Tests
 

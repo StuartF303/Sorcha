@@ -255,6 +255,11 @@
             Converts a JsonNode result back to a .NET object.
             </summary>
         </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator.GetJsonValueAsObject(System.Text.Json.Nodes.JsonValue)">
+            <summary>
+            Converts a JsonValue to the appropriate .NET type.
+            </summary>
+        </member>
         <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator.IsTruthy(System.Object)">
             <summary>
             Determines if a value is "truthy" for condition evaluation.

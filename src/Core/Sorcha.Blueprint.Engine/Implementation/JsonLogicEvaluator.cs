@@ -174,11 +174,32 @@ public class JsonLogicEvaluator : IJsonLogicEvaluator
 
         return node switch
         {
-            JsonValue value => value.GetValue<object>(),
+            JsonValue value => GetJsonValueAsObject(value),
             JsonObject obj => JsonSerializer.Deserialize<Dictionary<string, object>>(obj.ToJsonString()) ?? new Dictionary<string, object>(),
             JsonArray arr => JsonSerializer.Deserialize<List<object>>(arr.ToJsonString()) ?? new List<object>(),
             _ => node.ToJsonString()
         };
+    }
+
+    /// <summary>
+    /// Converts a JsonValue to the appropriate .NET type.
+    /// </summary>
+    private static object GetJsonValueAsObject(JsonValue value)
+    {
+        // Try to get the underlying value kind
+        if (value.TryGetValue(out bool boolValue))
+            return boolValue;
+        if (value.TryGetValue(out int intValue))
+            return intValue;
+        if (value.TryGetValue(out long longValue))
+            return longValue;
+        if (value.TryGetValue(out double doubleValue))
+            return doubleValue;
+        if (value.TryGetValue(out string? stringValue) && stringValue != null)
+            return stringValue;
+
+        // Fallback to string representation
+        return value.ToString();
     }
 
     /// <summary>
