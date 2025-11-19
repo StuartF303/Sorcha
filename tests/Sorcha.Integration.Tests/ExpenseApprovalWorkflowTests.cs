@@ -31,11 +31,23 @@ public class ExpenseApprovalWorkflowTests
 
     public ExpenseApprovalWorkflowTests()
     {
+        var schemaValidator = new SchemaValidator();
+        var jsonLogicEvaluator = new JsonLogicEvaluator();
+        var disclosureProcessor = new DisclosureProcessor();
+        var routingEngine = new RoutingEngine(jsonLogicEvaluator);
+        var actionProcessor = new ActionProcessor(
+            schemaValidator,
+            jsonLogicEvaluator,
+            disclosureProcessor,
+            routingEngine
+        );
+
         _engine = new ExecutionEngine(
-            new SchemaValidator(),
-            new JsonLogicEvaluator(),
-            new DisclosureProcessor(),
-            new RoutingEngine()
+            actionProcessor,
+            schemaValidator,
+            jsonLogicEvaluator,
+            disclosureProcessor,
+            routingEngine
         );
     }
 
@@ -69,20 +81,21 @@ public class ExpenseApprovalWorkflowTests
         WriteLine();
 
         var action0 = blueprint.Actions.First(a => a.Id == 0);
-        var routingResult = await _engine.EvaluateRoutingAsync(
-            action0.Condition!,
+        var routingResult = await _engine.DetermineRoutingAsync(
+            blueprint,
+            action0,
             expenseData
         );
 
         WriteLine($"🔀 Routing Decision: Action {routingResult.NextActionId}");
 
-        var nextAction = blueprint.Actions.First(a => a.Id == routingResult.NextActionId);
+        var nextAction = blueprint.Actions.First(a => a.Id.ToString() == routingResult.NextActionId);
         WriteLine($"   → {nextAction.Title}");
         WriteLine();
 
         // Assert
-        routingResult.IsSuccess.Should().BeTrue();
-        routingResult.NextActionId.Should().Be(1, "amounts under $100 should route to instant approval");
+        routingResult.NextActionId.Should().NotBeNull();
+        routingResult.NextActionId.Should().Be("1", "amounts under $100 should route to instant approval");
         nextAction.Title.Should().Be("Instant Approval");
 
         WriteLine("✅ Result: AUTOMATICALLY APPROVED");
@@ -122,14 +135,15 @@ public class ExpenseApprovalWorkflowTests
         WriteLine();
 
         var action0 = blueprint.Actions.First(a => a.Id == 0);
-        var routingResult = await _engine.EvaluateRoutingAsync(
-            action0.Condition!,
+        var routingResult = await _engine.DetermineRoutingAsync(
+            blueprint,
+            action0,
             expenseData
         );
 
         WriteLine($"🔀 Routing Decision: Action {routingResult.NextActionId}");
 
-        var nextAction = blueprint.Actions.First(a => a.Id == routingResult.NextActionId);
+        var nextAction = blueprint.Actions.First(a => a.Id.ToString() == routingResult.NextActionId);
         WriteLine($"   → {nextAction.Title}");
         WriteLine($"   Assigned to: {GetParticipantName(blueprint, nextAction.Sender)}");
         WriteLine();
@@ -148,8 +162,8 @@ public class ExpenseApprovalWorkflowTests
         WriteLine();
 
         // Assert
-        routingResult.IsSuccess.Should().BeTrue();
-        routingResult.NextActionId.Should().Be(2, "amounts $100-$1000 should route to manager");
+        routingResult.NextActionId.Should().NotBeNull();
+        routingResult.NextActionId.Should().Be("2", "amounts $100-$1000 should route to manager");
         nextAction.Title.Should().Be("Manager Review");
 
         WriteLine("✅ Result: APPROVED BY MANAGER");
@@ -190,14 +204,15 @@ public class ExpenseApprovalWorkflowTests
         WriteLine();
 
         var action0 = blueprint.Actions.First(a => a.Id == 0);
-        var routingResult = await _engine.EvaluateRoutingAsync(
-            action0.Condition!,
+        var routingResult = await _engine.DetermineRoutingAsync(
+            blueprint,
+            action0,
             expenseData
         );
 
         WriteLine($"🔀 Routing Decision: Action {routingResult.NextActionId}");
 
-        var nextAction = blueprint.Actions.First(a => a.Id == routingResult.NextActionId);
+        var nextAction = blueprint.Actions.First(a => a.Id.ToString() == routingResult.NextActionId);
         WriteLine($"   → {nextAction.Title}");
         WriteLine($"   Assigned to: {GetParticipantName(blueprint, nextAction.Sender)}");
         WriteLine();
@@ -218,8 +233,8 @@ public class ExpenseApprovalWorkflowTests
         WriteLine();
 
         // Assert
-        routingResult.IsSuccess.Should().BeTrue();
-        routingResult.NextActionId.Should().Be(3, "amounts >= $1000 should route to finance");
+        routingResult.NextActionId.Should().NotBeNull();
+        routingResult.NextActionId.Should().Be("3", "amounts >= $1000 should route to finance");
         nextAction.Title.Should().Be("Finance Review");
 
         WriteLine("✅ Result: APPROVED BY FINANCE");
@@ -270,14 +285,13 @@ public class ExpenseApprovalWorkflowTests
         WriteLine();
 
         // Act - Process disclosure
-        var disclosureResult = await _engine.ProcessDisclosuresAsync(
-            action0.Disclosures,
+        var disclosureResults = _engine.ApplyDisclosures(
             expenseData,
-            new List<string> { "manager" }
+            action0
         );
 
         WriteLine("👔 Manager View (After Disclosure):");
-        var managerData = disclosureResult.Results.First().DisclosedData;
+        var managerData = disclosureResults.First().DisclosedData;
         foreach (var kvp in managerData)
         {
             WriteLine($"   {kvp.Key}: {kvp.Value}");
@@ -285,7 +299,8 @@ public class ExpenseApprovalWorkflowTests
         WriteLine();
 
         // Assert
-        disclosureResult.IsSuccess.Should().BeTrue();
+        disclosureResults.Should().NotBeNull();
+        disclosureResults.Should().NotBeEmpty();
         managerData.Should().ContainKey("amount");
         managerData.Should().ContainKey("description");
         managerData.Should().NotContainKey("employeeSSN", "sensitive data should be hidden");
@@ -350,7 +365,7 @@ public class ExpenseApprovalWorkflowTests
         """);
 
         // Action 0: Employee submits expense claim
-        var submitClaim = new Models.Action
+        var submitClaim = new Sorcha.Blueprint.Models.Action
         {
             Id = 0,
             Title = "Submit Expense Claim",
@@ -359,11 +374,8 @@ public class ExpenseApprovalWorkflowTests
             DataSchemas = new[] { expenseSchema },
             Disclosures = new[]
             {
-                new Disclosure
-                {
-                    DataPointers = new[] { "/amount", "/description", "/category", "/date" },
-                    Recipients = new[] { "manager", "finance" }
-                }
+                new Disclosure("manager", new List<string> { "/amount", "/description", "/category", "/date" }),
+                new Disclosure("finance", new List<string> { "/amount", "/description", "/category", "/date" })
             },
             // Routing logic:
             // if amount < 100 then 1 (instant approval)
@@ -385,7 +397,7 @@ public class ExpenseApprovalWorkflowTests
         };
 
         // Action 1: Instant approval (< $100)
-        var instantApproval = new Models.Action
+        var instantApproval = new Sorcha.Blueprint.Models.Action
         {
             Id = 1,
             Title = "Instant Approval",
@@ -393,17 +405,13 @@ public class ExpenseApprovalWorkflowTests
             Sender = "system",
             Disclosures = new[]
             {
-                new Disclosure
-                {
-                    DataPointers = new[] { "/amount", "/description", "/approved" },
-                    Recipients = new[] { "employee" }
-                }
+                new Disclosure("employee", new List<string> { "/amount", "/description", "/approved" })
             },
             Condition = JsonNode.Parse("{ \"==\": [0, 0] }") // Terminal action
         };
 
         // Action 2: Manager review ($100 - $1000)
-        var managerReview = new Models.Action
+        var managerReview = new Sorcha.Blueprint.Models.Action
         {
             Id = 2,
             Title = "Manager Review",
@@ -424,17 +432,14 @@ public class ExpenseApprovalWorkflowTests
             },
             Disclosures = new[]
             {
-                new Disclosure
-                {
-                    DataPointers = new[] { "/amount", "/description", "/approved", "/comments" },
-                    Recipients = new[] { "employee", "finance" }
-                }
+                new Disclosure("employee", new List<string> { "/amount", "/description", "/approved", "/comments" }),
+                new Disclosure("finance", new List<string> { "/amount", "/description", "/approved", "/comments" })
             },
             Condition = JsonNode.Parse("{ \"==\": [0, 0] }") // Terminal action
         };
 
         // Action 3: Finance review (>= $1000)
-        var financeReview = new Models.Action
+        var financeReview = new Sorcha.Blueprint.Models.Action
         {
             Id = 3,
             Title = "Finance Review",
@@ -456,23 +461,20 @@ public class ExpenseApprovalWorkflowTests
             },
             Disclosures = new[]
             {
-                new Disclosure
-                {
-                    DataPointers = new[] { "/amount", "/description", "/approved", "/comments", "/budgetCode" },
-                    Recipients = new[] { "employee", "manager" }
-                }
+                new Disclosure("employee", new List<string> { "/amount", "/description", "/approved", "/comments", "/budgetCode" }),
+                new Disclosure("manager", new List<string> { "/amount", "/description", "/approved", "/comments", "/budgetCode" })
             },
             Condition = JsonNode.Parse("{ \"==\": [0, 0] }") // Terminal action
         };
 
-        return new Blueprint
+        return new Sorcha.Blueprint.Models.Blueprint
         {
             Id = Guid.NewGuid().ToString(),
             Title = "Expense Approval Workflow",
             Description = "Multi-level expense approval based on amount thresholds",
             Version = 1,
             Participants = new List<Participant> { employee, manager, finance, system },
-            Actions = new List<Models.Action> { submitClaim, instantApproval, managerReview, financeReview }
+            Actions = new List<Sorcha.Blueprint.Models.Action> { submitClaim, instantApproval, managerReview, financeReview }
         };
     }
 
