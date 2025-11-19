@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 3.3 - UPDATED
+**Version:** 3.4 - UPDATED
 **Last Updated:** 2025-11-19
-**Status:** Active - Validator Service Added
+**Status:** Active - Sprint 8 In Progress (4/11 P0 tasks complete)
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -12,14 +12,14 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 173 (across all phases, including production readiness, blueprint validation, and validator service)
-**Completed:** 100 (58%)
+**Completed:** 104 (60%)
 **In Progress:** 0 (0%)
-**Not Started:** 73 (42%)
+**Not Started:** 69 (40%)
 
 **Note:** Counts updated 2025-11-19:
+- Completed Sprint 8 P0 tasks (BP-8.1 through BP-8.4): 55 new tests added
 - Added Sprint 9: Validator Service (14 new tasks, 182 hours)
-- Added BP-8.4: Transaction Chain Validation Tests (20 hours)
-- Updated Sprint 8 total: 11 tasks, 176 hours
+- Sprint 8 progress: 4/11 tasks complete (72h completed, 104h remaining)
 - See [VALIDATOR-SERVICE-REQUIREMENTS.md](VALIDATOR-SERVICE-REQUIREMENTS.md) and [BLUEPRINT-VALIDATION-TEST-PLAN.md](BLUEPRINT-VALIDATION-TEST-PLAN.md)
 
 ---
@@ -212,10 +212,10 @@ Enhancement tasks that can be deferred until after MVD is complete.
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| BP-8.1 | Implement BlueprintStructuralValidationTests | P0 | 16h | 📋 Not Started | - |
-| BP-8.2 | Implement BlueprintWorkflowValidationTests | P0 | 24h | 📋 Not Started | - |
-| BP-8.3 | Implement graph cycle detection | P0 | 12h | 📋 Not Started | - |
-| BP-8.4 | Implement TransactionChainValidationTests | P0 | 20h | 📋 Not Started | - |
+| BP-8.1 | Implement BlueprintStructuralValidationTests | P0 | 16h | ✅ Complete | - |
+| BP-8.2 | Implement BlueprintWorkflowValidationTests | P0 | 24h | ✅ Complete | - |
+| BP-8.3 | Implement graph cycle detection | P0 | 12h | ✅ Complete | - |
+| BP-8.4 | Implement TransactionChainValidationTests | P0 | 20h | ✅ Complete | - |
 | BP-8.5 | Implement DisclosureValidationTests | P1 | 16h | 📋 Not Started | - |
 | BP-8.6 | Extend SchemaValidatorTests (Blueprint/Action schemas) | P1 | 16h | 📋 Not Started | - |
 | BP-8.7 | Implement JsonLogicValidationTests | P1 | 24h | 📋 Not Started | - |
@@ -224,7 +224,7 @@ Enhancement tasks that can be deferred until after MVD is complete.
 | BP-8.10 | Extend BlueprintTemplateServiceTests | P2 | 16h | 📋 Not Started | - |
 | BP-8.11 | Extend JSON-LD validation tests | P3 | 8h | 📋 Not Started | - |
 
-**Sprint 8 Status:** 📋 **NOT STARTED** (0/11 tasks, 176 hours ~22 days)
+**Sprint 8 Status:** 🚧 **IN PROGRESS** (4/11 tasks complete, 72h completed, 104h remaining)
 **Recommended Start:** Week 12 (After Sprint 7 completion)
 **Reference:** [BLUEPRINT-VALIDATION-TEST-PLAN.md](BLUEPRINT-VALIDATION-TEST-PLAN.md)
 
@@ -245,13 +245,20 @@ Enhancement tasks that can be deferred until after MVD is complete.
 - Template validation: Parameter substitution and instantiation
 - JSON-LD compliance: Semantic web and Verifiable Credentials
 
-**Deliverables:**
-- ~80 new test cases across 11 categories
-- Graph cycle detection implementation (critical for workflow integrity)
-- Transaction chain validation (previousId, continuity, instance tracking)
-- Participant reference integrity validation
-- Complete Blueprint schema validation coverage
-- Multi-participant workflow patterns validated
+**Completed Deliverables (4/11):**
+- ✅ BlueprintStructuralValidationTests: 18 tests (participant/action counts, references, wallet validation)
+- ✅ BlueprintWorkflowValidationTests: 16 tests (routing, sequence, cycle detection via DFS)
+- ✅ Graph cycle detection: Simple/complex/self-referencing cycle detection
+- ✅ TransactionChainValidationTests: 21 tests (previousId, continuity, branching, integrity)
+
+**Total Test Coverage Added:** 55 tests (34 structural/workflow + 21 chain validation)
+
+**Remaining Deliverables (7/11):**
+- Disclosure validation tests
+- Schema validation extension tests
+- JSON Logic validation tests
+- Multi-participant workflow tests
+- Form/template/JSON-LD validation tests
 
 **Related Tasks:** BS-045, BS-046, BP-3.5, BP-7.1
 
