@@ -1,13 +1,20 @@
 # Wallet Service Implementation Status
 
-**Version:** 1.1
-**Last Updated:** 2025-11-17
-**Completion:** 90% (Core Features Complete)
-**Production Ready:** 40% (Critical Infrastructure Pending)
+**Version:** 1.2
+**Last Updated:** 2025-11-19
+**Completion:** 95% (HD Wallet Features Complete)
+**Production Ready:** 45% (Critical Infrastructure Pending)
 
 ## Executive Summary
 
-The Sorcha Wallet Service is a feature-complete cryptographic wallet management library providing HD wallet support, multi-algorithm cryptography, transaction signing, and access delegation. The core implementation (~3,072 LOC) is operational with 111 unit tests, but requires authentication, persistent storage, and production key management infrastructure before deployment.
+The Sorcha Wallet Service is a feature-complete cryptographic wallet management library providing HD wallet support with client-side address derivation, multi-algorithm cryptography, transaction signing, and access delegation. The core implementation (~8,000 LOC) is operational with 29 integration tests (including comprehensive performance benchmarks), but requires authentication, persistent storage, and production key management infrastructure before deployment.
+
+**Latest Updates (2025-11-19):**
+- ✅ **HD Wallet Address Management**: Full BIP44 client-side derivation with 7 new endpoints
+- ✅ **Address Lifecycle**: Registration, listing, filtering, updates, usage tracking
+- ✅ **Gap Limit Enforcement**: BIP44-compliant 20-address gap limit per account/type
+- ✅ **Multi-Account Support**: Separate receive/change address chains per account
+- ✅ **Performance Tested**: 6 comprehensive performance tests, all passing
 
 ## Implementation Overview
 
@@ -97,7 +104,7 @@ tests/
 - `Domain/Events/WalletEvent.cs` (base + 7 derived events)
 - `Events/Publishers/InMemoryEventPublisher.cs`
 
-#### 6. REST API Endpoints (14 endpoints)
+#### 6. REST API Endpoints (21 endpoints)
 
 **Wallet Management** (`/api/v1/wallets`):
 - `POST /` - Create wallet → Returns wallet + mnemonic
@@ -112,6 +119,17 @@ tests/
 - `POST /decrypt` - Decrypt payload → Base64 data
 - `POST /encrypt` - Encrypt payload for recipient
 
+**HD Wallet Address Management** (`/api/v1/wallets/{address}/addresses`) **NEW**:
+- `POST /` - Register client-derived address → Returns WalletAddressDto
+- `GET /` - List addresses with filters (type, account, used, label, pagination)
+- `GET /{id}` - Get specific address by ID
+- `PATCH /{id}` - Update address metadata (label, notes, tags, metadata)
+- `POST /{id}/mark-used` - Mark address as used (sets timestamps)
+
+**HD Wallet Account Management** (`/api/v1/wallets/{address}`) **NEW**:
+- `GET /accounts` - List accounts with address statistics
+- `GET /gap-status` - Check BIP44 gap limit compliance
+
 **Delegation** (`/api/v1/wallets/{walletAddress}/access`):
 - `POST /` - Grant access to subject
 - `GET /` - List active access grants
@@ -119,8 +137,8 @@ tests/
 - `GET /{subject}/check` - Check permission (query param: requiredRight)
 
 **Files:**
-- `Controllers/WalletsController.cs` (526 lines, 10 endpoints)
-- `Controllers/DelegationController.cs` (277 lines, 4 endpoints)
+- `Endpoints/WalletEndpoints.cs` (965 lines, 17 endpoints)
+- `Endpoints/DelegationEndpoints.cs` (277 lines, 4 endpoints)
 
 #### 7. Domain Model
 **Entities:** Wallet, WalletAddress, WalletAccess, WalletTransaction
@@ -189,23 +207,58 @@ tests/
 - `Program.cs` (lines 50-52: authentication disabled)
 - `Controllers/` (extracting claims but no validation)
 
-### ❌ Not Implemented (0%)
+### ✅ Fully Implemented (100%) - NEW
 
-#### 11. HD Address Generation
-**Status:** Returns HTTP 501 Not Implemented
+#### 11. HD Wallet Address Management
+**Status:** ✅ Complete with Client-Side Derivation Model
 
-**Issue:** Requires wallet mnemonic, which is never stored (security requirement). No mechanism to derive new addresses without user providing mnemonic again.
+**Implementation:** Client-side derivation (BIP32/BIP39/BIP44) where mnemonic never leaves the client. Server tracks public keys, addresses, and metadata only.
 
-**Spec Requirement:** "Generate receive addresses from HD paths"
+**Features:**
+- ✅ Client-derived address registration with BIP44 path validation
+- ✅ Address filtering by type (receive/change), account, usage status, label
+- ✅ BIP44 gap limit enforcement (max 20 unused per account/type)
+- ✅ Address metadata management (label, notes, tags, custom metadata)
+- ✅ Usage tracking (isUsed, firstUsedAt, lastUsedAt timestamps)
+- ✅ Multi-account support with separate receive/change chains
+- ✅ Account statistics and gap status reporting
+- ✅ Pagination support (page, pageSize, hasMore)
+
+**Endpoints:** 7 new endpoints (see section 6 above)
+
+**Security Model:**
+- ✅ Mnemonic never stored or transmitted to server
+- ✅ Private keys never leave client
+- ✅ Only public keys and derived addresses sent to server
+- ✅ BIP44 path validation ensures correct derivation
+
+**Performance:**
+- ✅ Address registration: <100ms avg, <150ms P95
+- ✅ List operations: Sub-linear scaling (efficient up to 200+ addresses)
+- ✅ Gap status calc: <100ms even with 250 addresses across 5 accounts
+- ✅ Concurrent load: 100% success rate at 200 concurrent requests
+- ✅ All operations: <100ms average latency
 
 **Files:**
-- `WalletManager.GenerateAddressAsync()` throws `NotImplementedException`
-- `WalletsController.GenerateAddress()` returns `StatusCodes.Status501NotImplemented`
+- `Domain/Entities/WalletAddress.cs` (extended with tracking fields)
+- `Services/Implementation/WalletManager.cs` (RegisterDerivedAddressAsync + helpers)
+- `Endpoints/WalletEndpoints.cs` (7 new endpoints, lines 462-965)
+- `Models/RegisterDerivedAddressRequest.cs` (DTO with validation)
+- `Models/WalletAddressDto.cs` (response model)
+- `Models/AddressListResponse.cs` (paginated list)
+- `Models/UpdateAddressRequest.cs` (metadata updates)
+- `Models/GapStatusResponse.cs` (compliance reporting)
+- `Mappers/WalletMapper.cs` (ToDto for WalletAddress)
 
-**Potential Solutions:**
-1. Require user to re-enter mnemonic for address generation
-2. Use secure enclave/HSM to store master key
-3. Accept limitation: only support single address per wallet
+**Tests:** 10 comprehensive tests
+- 4 integration tests (`HDWalletAddressManagementTests.cs`)
+- 6 performance tests (`HDWalletPerformanceTests.cs`)
+
+**Documentation:**
+- Client integration guide: `docs/wallet-client-integration-guide.md`
+- Performance results: `tests/PERFORMANCE-RESULTS.md`
+
+### ❌ Not Implemented (0%)
 
 #### 12. Event Bus Integration
 **Missing:**
@@ -263,17 +316,42 @@ tests/
 **Spec Target:** >90% coverage - **NOT MET**
 
 ### Integration Tests
-**Status:** Limited
+**Status:** ✅ Comprehensive (29 tests)
 
-**Implemented:**
+**Location:** `tests/Sorcha.Wallet.Service.IntegrationTests/`
+
+**Test Files:**
+1. `WalletServiceApiTests.cs` - 19 API integration tests (wallet CRUD, signing, encryption, recovery)
+2. `HDWalletAddressManagementTests.cs` - 4 HD wallet workflow tests
+   - Complete workflow (13 steps demonstrating all features)
+   - Gap limit enforcement (BIP44 compliance)
+   - Change vs receive address separation
+   - Multi-account support
+3. `HDWalletPerformanceTests.cs` - 6 performance benchmark tests
+   - Address registration latency (100 iterations)
+   - List scalability (10-200 addresses)
+   - Gap status calculation (250 addresses, 5 accounts)
+   - Concurrent load (20 threads, 200 requests)
+   - Filtered query performance (7 query types)
+   - Update operations performance (50 addresses)
+
+**Test Results:**
+- ✅ All 29 tests passing
+- ✅ Performance targets met (<100ms avg latency)
+- ✅ BIP44 compliance verified
+- ✅ Thread safety confirmed (100% success under concurrent load)
+
+**Coverage:**
 - ✅ End-to-end wallet creation → signing → verification
+- ✅ HD wallet address lifecycle management
+- ✅ BIP44 gap limit enforcement
+- ✅ Performance and scalability validation
 - ✅ In-memory repository testing
 
 **Missing:**
-- ❌ Database integration tests (PostgreSQL, MySQL)
+- ❌ Database integration tests (PostgreSQL, MySQL, EF Core)
 - ❌ Azure Key Vault integration tests
 - ❌ Event bus integration tests
-- ❌ Performance/load testing
 
 ## Constitution & Spec Compliance
 

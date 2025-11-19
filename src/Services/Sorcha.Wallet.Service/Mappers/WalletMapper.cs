@@ -1,6 +1,7 @@
 using Sorcha.Wallet.Service.Models;
 using WalletEntity = Sorcha.Wallet.Core.Domain.Entities.Wallet;
 using WalletAccessEntity = Sorcha.Wallet.Core.Domain.Entities.WalletAccess;
+using WalletAddressEntity = Sorcha.Wallet.Core.Domain.Entities.WalletAddress;
 
 namespace Sorcha.Wallet.Service.Mappers;
 
@@ -44,6 +45,32 @@ public static class WalletMapper
             ExpiresAt = access.ExpiresAt,
             IsActive = access.IsActive,
             Reason = access.Reason
+        };
+    }
+
+    /// <summary>
+    /// Maps WalletAddress entity to WalletAddressDto
+    /// </summary>
+    public static WalletAddressDto ToDto(this WalletAddressEntity address)
+    {
+        return new WalletAddressDto
+        {
+            Id = address.Id,
+            ParentWalletAddress = address.ParentWalletAddress,
+            Address = address.Address,
+            PublicKey = address.PublicKey,
+            DerivationPath = address.DerivationPath,
+            Index = address.Index,
+            Account = address.Account,
+            IsChange = address.IsChange,
+            Label = address.Label,
+            Notes = address.Notes,
+            Tags = address.Tags,
+            IsUsed = address.IsUsed,
+            CreatedAt = address.CreatedAt,
+            FirstUsedAt = address.FirstUsedAt,
+            LastUsedAt = address.LastUsedAt,
+            Metadata = new Dictionary<string, string>(address.Metadata)
         };
     }
 }

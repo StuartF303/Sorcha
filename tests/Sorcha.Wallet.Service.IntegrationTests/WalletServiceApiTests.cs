@@ -116,7 +116,7 @@ public class WalletServiceApiTests : IClassFixture<WebApplicationFactory<Program
     {
         // Arrange - Create multiple wallets
         var wallet1 = new CreateWalletRequest { Name = "Wallet 1", Algorithm = "ED25519", WordCount = 12 };
-        var wallet2 = new CreateWalletRequest { Name = "Wallet 2", Algorithm = "SECP256K1", WordCount = 12 };
+        var wallet2 = new CreateWalletRequest { Name = "Wallet 2", Algorithm = "NISTP256", WordCount = 12 };
 
         await _client.PostAsJsonAsync("/api/v1/wallets", wallet1);
         await _client.PostAsJsonAsync("/api/v1/wallets", wallet2);
@@ -500,7 +500,7 @@ public class WalletServiceApiTests : IClassFixture<WebApplicationFactory<Program
 
     [Theory]
     [InlineData("ED25519")]
-    [InlineData("SECP256K1")]
+    [InlineData("NISTP256")]
     public async Task CreateWallet_ShouldSupportDifferentAlgorithms(string algorithm)
     {
         // Arrange

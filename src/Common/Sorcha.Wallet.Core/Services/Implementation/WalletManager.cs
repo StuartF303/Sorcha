@@ -156,9 +156,37 @@ public class WalletManager : IWalletService
 
             // Check if wallet already exists
             var existing = await _repository.GetByAddressAsync(address, false, false, false, cancellationToken);
-            if (existing != null)
+            if (existing != null && existing.Status != WalletStatus.Deleted)
             {
-                throw new InvalidOperationException($"Wallet {address} already exists");
+                throw new InvalidOperationException($"Wallet {address} already exists and is not deleted");
+            }
+
+            // If wallet was soft-deleted, reactivate it instead of creating a new one
+            if (existing != null && existing.Status == WalletStatus.Deleted)
+            {
+                existing.Status = WalletStatus.Active;
+                existing.Name = name;
+                existing.UpdatedAt = DateTime.UtcNow;
+                existing.LastAccessedAt = DateTime.UtcNow;
+                existing.DeletedAt = null;
+                existing.Metadata["Recovered"] = "true";
+                existing.Metadata["RecoveredAt"] = DateTime.UtcNow.ToString("O");
+
+                await _repository.UpdateAsync(existing, cancellationToken);
+
+                // Publish reactivation event
+                await _eventPublisher.PublishAsync(new WalletRecoveredEvent
+                {
+                    WalletAddress = existing.Address,
+                    OccurredAt = DateTime.UtcNow,
+                    Owner = existing.Owner,
+                    Tenant = existing.Tenant,
+                    Algorithm = existing.Algorithm
+                }, cancellationToken);
+
+                _logger.LogInformation("Reactivated soft-deleted wallet {Address} for owner {Owner}",
+                    existing.Address, owner);
+                return existing;
             }
 
             // Encrypt private key
@@ -219,7 +247,8 @@ public class WalletManager : IWalletService
 
         try
         {
-            var wallet = await _repository.GetByAddressAsync(address, false, false, false, cancellationToken);
+            // Include addresses by default for address management features
+            var wallet = await _repository.GetByAddressAsync(address, includeAddresses: true, false, false, cancellationToken);
 
             if (wallet != null)
             {
@@ -345,6 +374,7 @@ public class WalletManager : IWalletService
     }
 
     /// <inheritdoc/>
+    [Obsolete("Use RegisterDerivedAddressAsync for client-side derivation instead", true)]
     public async Task<WalletAddress> GenerateAddressAsync(
         string walletAddress,
         int index,
@@ -366,11 +396,140 @@ public class WalletManager : IWalletService
             // This requires the mnemonic or master key which we don't store
             throw new NotImplementedException(
                 "Address generation requires the wallet's mnemonic or master key. " +
-                "This should be provided by the caller or stored securely.");
+                "Use RegisterDerivedAddressAsync for client-side derivation instead.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to generate address for wallet {Address}", walletAddress);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Registers a client-derived HD wallet address.
+    /// The client derives the address locally and provides the public key and derivation path.
+    /// This maintains security by never storing the mnemonic on the server.
+    /// </summary>
+    /// <param name="walletAddress">Parent wallet address</param>
+    /// <param name="derivedPublicKey">Public key derived by client (base64 encoded)</param>
+    /// <param name="derivedAddress">The derived wallet address</param>
+    /// <param name="derivationPath">BIP44 derivation path (e.g., m/44'/0'/0'/0/1)</param>
+    /// <param name="label">Optional label for the address</param>
+    /// <param name="notes">Optional notes</param>
+    /// <param name="tags">Optional tags for categorization</param>
+    /// <param name="metadata">Optional metadata dictionary</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The created WalletAddress entity</returns>
+    /// <exception cref="ArgumentException">If parameters are invalid</exception>
+    /// <exception cref="InvalidOperationException">If wallet not found or validation fails</exception>
+    public async Task<WalletAddress> RegisterDerivedAddressAsync(
+        string walletAddress,
+        string derivedPublicKey,
+        string derivedAddress,
+        string derivationPath,
+        string? label = null,
+        string? notes = null,
+        string? tags = null,
+        Dictionary<string, string>? metadata = null,
+        CancellationToken cancellationToken = default)
+    {
+        // Validate inputs
+        if (string.IsNullOrWhiteSpace(walletAddress))
+            throw new ArgumentException("Wallet address cannot be empty", nameof(walletAddress));
+        if (string.IsNullOrWhiteSpace(derivedPublicKey))
+            throw new ArgumentException("Derived public key cannot be empty", nameof(derivedPublicKey));
+        if (string.IsNullOrWhiteSpace(derivedAddress))
+            throw new ArgumentException("Derived address cannot be empty", nameof(derivedAddress));
+        if (string.IsNullOrWhiteSpace(derivationPath))
+            throw new ArgumentException("Derivation path cannot be empty", nameof(derivationPath));
+
+        try
+        {
+            // Get parent wallet
+            var wallet = await _repository.GetByAddressAsync(walletAddress, includeAddresses: true, false, false, cancellationToken);
+            if (wallet == null)
+            {
+                throw new InvalidOperationException($"Wallet {walletAddress} not found");
+            }
+
+            // Parse and validate BIP44 derivation path
+            if (!DerivationPath.TryParseBip44(derivationPath, out uint coinType, out uint account, out uint change, out uint addressIndex))
+            {
+                throw new ArgumentException($"Invalid BIP44 derivation path: {derivationPath}", nameof(derivationPath));
+            }
+
+            // Validate change value (must be 0 or 1)
+            if (change > 1)
+            {
+                throw new ArgumentException($"Invalid change value in path: {change}. Must be 0 (receive) or 1 (change).", nameof(derivationPath));
+            }
+
+            bool isChange = change == 1;
+
+            // Check for duplicate address
+            if (wallet.Addresses.Any(a => a.Address == derivedAddress))
+            {
+                throw new InvalidOperationException($"Address {derivedAddress} already exists for this wallet");
+            }
+
+            // Check for duplicate derivation path
+            if (wallet.Addresses.Any(a => a.DerivationPath == derivationPath))
+            {
+                throw new InvalidOperationException($"Derivation path {derivationPath} already exists for this wallet");
+            }
+
+            // Gap limit check (BIP44 recommends max 20 unused addresses)
+            var unusedCount = wallet.Addresses
+                .Where(a => !a.IsUsed && a.Account == account && a.IsChange == isChange)
+                .Count();
+
+            if (unusedCount >= 20)
+            {
+                _logger.LogWarning(
+                    "Wallet {WalletAddress} has {UnusedCount} unused addresses for account {Account}, change={IsChange}. " +
+                    "BIP44 recommends max 20 gap. Consider marking addresses as used.",
+                    walletAddress, unusedCount, account, isChange);
+
+                throw new InvalidOperationException(
+                    $"Gap limit exceeded: {unusedCount} unused addresses already exist for account {account}, change={isChange}. " +
+                    "Maximum recommended gap is 20 (BIP44). Mark existing addresses as used before generating more.");
+            }
+
+            // Create new address entity
+            var walletAddressEntity = new WalletAddress
+            {
+                Id = Guid.NewGuid(),
+                ParentWalletAddress = walletAddress,
+                Address = derivedAddress,
+                PublicKey = derivedPublicKey,
+                DerivationPath = derivationPath,
+                Index = (int)addressIndex,
+                Account = account,
+                IsChange = isChange,
+                Label = label,
+                Notes = notes,
+                Tags = tags,
+                IsUsed = false,
+                CreatedAt = DateTime.UtcNow,
+                Metadata = metadata ?? new Dictionary<string, string>()
+            };
+
+            // Add to wallet's address collection
+            wallet.Addresses.Add(walletAddressEntity);
+            wallet.UpdatedAt = DateTime.UtcNow;
+
+            // Save to repository
+            await _repository.UpdateAsync(wallet, cancellationToken);
+
+            _logger.LogInformation(
+                "Registered derived address {DerivedAddress} for wallet {WalletAddress} at path {Path}",
+                derivedAddress, walletAddress, derivationPath);
+
+            return walletAddressEntity;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to register derived address for wallet {Address}", walletAddress);
             throw;
         }
     }
@@ -490,8 +649,8 @@ public class WalletManager : IWalletService
                 throw new InvalidOperationException($"Recipient wallet {recipientAddress} not found");
             }
 
-            // Get recipient's public key
-            var publicKey = Convert.FromHexString(recipientWallet.PublicKey);
+            // Get recipient's public key (stored as base64)
+            var publicKey = Convert.FromBase64String(recipientWallet.PublicKey);
 
             // Encrypt payload
             var encryptedPayload = await _transactionService.EncryptPayloadAsync(

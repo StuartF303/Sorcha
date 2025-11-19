@@ -51,6 +51,41 @@ public class WalletAddress
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>
+    /// Timestamp when address was first used
+    /// </summary>
+    public DateTime? FirstUsedAt { get; set; }
+
+    /// <summary>
+    /// Timestamp when address was last used
+    /// </summary>
+    public DateTime? LastUsedAt { get; set; }
+
+    /// <summary>
+    /// Public key for this derived address (base64 encoded)
+    /// </summary>
+    public string? PublicKey { get; set; }
+
+    /// <summary>
+    /// Optional notes about this address
+    /// </summary>
+    public string? Notes { get; set; }
+
+    /// <summary>
+    /// Tags for categorization (JSON array or comma-separated)
+    /// </summary>
+    public string? Tags { get; set; }
+
+    /// <summary>
+    /// Optional metadata (JSON object)
+    /// </summary>
+    public Dictionary<string, string> Metadata { get; set; } = new();
+
+    /// <summary>
+    /// BIP44 account number (from derivation path m/44'/coin'/account'/change/index)
+    /// </summary>
+    public uint Account { get; set; }
+
+    /// <summary>
     /// Navigation property to parent wallet
     /// </summary>
     public Wallet? Wallet { get; set; }

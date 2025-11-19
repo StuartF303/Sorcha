@@ -78,11 +78,49 @@ public static class WalletEndpoints
             .WithSummary("Encrypt a payload")
             .WithDescription("Encrypt a payload for a recipient wallet using their public key");
 
-        // POST /api/v1/wallets/{address}/addresses - Generate new address
-        walletGroup.MapPost("/{address}/addresses", GenerateAddress)
-            .WithName("GenerateAddress")
-            .WithSummary("Generate a new address")
-            .WithDescription("Generate a new derived address for the wallet (requires mnemonic - not yet implemented)");
+        // POST /api/v1/wallets/{address}/addresses - Register derived address
+        walletGroup.MapPost("/{address}/addresses", RegisterDerivedAddress)
+            .WithName("RegisterDerivedAddress")
+            .WithSummary("Register a client-derived HD address")
+            .WithDescription("Register an HD wallet address that was derived client-side. " +
+                "The client must derive the address using their mnemonic and provide the public key and derivation path. " +
+                "This maintains security by never storing the mnemonic on the server.");
+
+        // GET /api/v1/wallets/{address}/addresses - List derived addresses
+        walletGroup.MapGet("/{address}/addresses", ListAddresses)
+            .WithName("ListAddresses")
+            .WithSummary("List wallet addresses")
+            .WithDescription("List all derived addresses for a wallet with optional filtering by type (receive/change), used status, account, and labels");
+
+        // GET /api/v1/wallets/{address}/addresses/{id} - Get specific address
+        walletGroup.MapGet("/{address}/addresses/{id:guid}", GetAddress)
+            .WithName("GetAddress")
+            .WithSummary("Get address by ID")
+            .WithDescription("Retrieve detailed information about a specific derived address");
+
+        // PATCH /api/v1/wallets/{address}/addresses/{id} - Update address metadata
+        walletGroup.MapPatch("/{address}/addresses/{id:guid}", UpdateAddress)
+            .WithName("UpdateAddress")
+            .WithSummary("Update address metadata")
+            .WithDescription("Update address label, notes, tags, and metadata");
+
+        // POST /api/v1/wallets/{address}/addresses/{id}/mark-used - Mark address as used
+        walletGroup.MapPost("/{address}/addresses/{id:guid}/mark-used", MarkAddressAsUsed)
+            .WithName("MarkAddressAsUsed")
+            .WithSummary("Mark address as used")
+            .WithDescription("Mark an address as used (received a transaction). Updates gap limit calculations.");
+
+        // GET /api/v1/wallets/{address}/accounts - List accounts
+        walletGroup.MapGet("/{address}/accounts", ListAccounts)
+            .WithName("ListAccounts")
+            .WithSummary("List BIP44 accounts")
+            .WithDescription("List all BIP44 accounts for this wallet with address counts and gap status");
+
+        // GET /api/v1/wallets/{address}/gap-status - Get gap limit status
+        walletGroup.MapGet("/{address}/gap-status", GetGapStatus)
+            .WithName("GetGapStatus")
+            .WithSummary("Get gap limit status")
+            .WithDescription("Check BIP44 gap limit compliance for all accounts. Shows unused address counts and warnings.");
 
         return app;
     }
@@ -455,45 +493,467 @@ public static class WalletEndpoints
     }
 
     /// <summary>
-    /// Generate a new address for a wallet
+    /// Register a client-derived HD wallet address
     /// </summary>
-    private static async Task<IResult> GenerateAddress(
+    private static async Task<IResult> RegisterDerivedAddress(
         string address,
-        [FromBody] GenerateAddressRequest request,
+        [FromBody] RegisterDerivedAddressRequest request,
+        WalletManager walletManager,
         ILogger<Program> logger,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            // Parse derivation path or use default
-            // Note: This functionality requires the wallet's mnemonic which is not stored
-            // This is a placeholder for future implementation
-            throw new NotImplementedException(
-                "Address generation requires the wallet's mnemonic, which is not stored for security. " +
-                "Consider implementing this via a secure enclave or requiring the user to provide their mnemonic.");
+            logger.LogInformation("Registering derived address for wallet {WalletAddress}", address);
+
+            // Register the client-derived address
+            var walletAddress = await walletManager.RegisterDerivedAddressAsync(
+                walletAddress: address,
+                derivedPublicKey: request.DerivedPublicKey,
+                derivedAddress: request.DerivedAddress,
+                derivationPath: request.DerivationPath,
+                label: request.Label,
+                notes: request.Notes,
+                tags: request.Tags,
+                metadata: request.Metadata,
+                cancellationToken: cancellationToken);
+
+            // Map to DTO
+            var dto = walletAddress.ToDto();
+
+            logger.LogInformation(
+                "Successfully registered address {DerivedAddress} at path {Path}",
+                request.DerivedAddress, request.DerivationPath);
+
+            return Results.Created($"/api/v1/wallets/{address}/addresses/{walletAddress.Id}", dto);
         }
-        catch (NotImplementedException ex)
+        catch (ArgumentException ex)
         {
-            logger.LogWarning("Address generation attempted but not implemented: {Message}", ex.Message);
-            return Results.Json(
-                new ProblemDetails
-                {
-                    Title = "Not Implemented",
-                    Detail = ex.Message,
-                    Status = StatusCodes.Status501NotImplemented
-                },
-                statusCode: StatusCodes.Status501NotImplemented);
+            logger.LogWarning(ex, "Invalid request for wallet {Address}: {Message}", address, ex.Message);
+            return Results.BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Request",
+                Detail = ex.Message,
+                Status = StatusCodes.Status400BadRequest
+            });
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
         {
-            return Results.NotFound();
+            logger.LogWarning("Wallet {Address} not found", address);
+            return Results.NotFound(new ProblemDetails
+            {
+                Title = "Wallet Not Found",
+                Detail = $"Wallet {address} not found",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already exists"))
+        {
+            logger.LogWarning(ex, "Duplicate address for wallet {Address}", address);
+            return Results.Conflict(new ProblemDetails
+            {
+                Title = "Address Already Exists",
+                Detail = ex.Message,
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Gap limit"))
+        {
+            logger.LogWarning(ex, "Gap limit exceeded for wallet {Address}", address);
+            return Results.BadRequest(new ProblemDetails
+            {
+                Title = "Gap Limit Exceeded",
+                Detail = ex.Message,
+                Status = StatusCodes.Status400BadRequest
+            });
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to generate address for wallet {Address}", address);
+            logger.LogError(ex, "Failed to register derived address for wallet {Address}", address);
             return Results.Problem(
-                title: "Address Generation Failed",
-                detail: "An error occurred while generating the address",
+                title: "Address Registration Failed",
+                detail: "An error occurred while registering the derived address",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// List all addresses for a wallet with optional filtering
+    /// </summary>
+    private static async Task<IResult> ListAddresses(
+        string address,
+        WalletManager walletManager,
+        ILogger<Program> logger,
+        [FromQuery] string? type = null,
+        [FromQuery] bool? used = null,
+        [FromQuery] uint? account = null,
+        [FromQuery] string? label = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Get wallet with addresses
+            var wallet = await walletManager.GetWalletAsync(address, cancellationToken);
+            if (wallet == null)
+            {
+                return Results.NotFound(new ProblemDetails
+                {
+                    Title = "Wallet Not Found",
+                    Detail = $"Wallet {address} not found",
+                    Status = StatusCodes.Status404NotFound
+                });
+            }
+
+            // Apply filters
+            var addresses = wallet.Addresses.AsEnumerable();
+
+            if (!string.IsNullOrEmpty(type))
+            {
+                var isChange = type.Equals("change", StringComparison.OrdinalIgnoreCase);
+                addresses = addresses.Where(a => a.IsChange == isChange);
+            }
+
+            if (used.HasValue)
+            {
+                addresses = addresses.Where(a => a.IsUsed == used.Value);
+            }
+
+            if (account.HasValue)
+            {
+                addresses = addresses.Where(a => a.Account == account.Value);
+            }
+
+            if (!string.IsNullOrEmpty(label))
+            {
+                addresses = addresses.Where(a => a.Label != null && a.Label.Contains(label, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Pagination
+            var totalCount = addresses.Count();
+            var paginatedAddresses = addresses
+                .OrderBy(a => a.Account)
+                .ThenBy(a => a.IsChange)
+                .ThenBy(a => a.Index)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(a => a.ToDto())
+                .ToList();
+
+            var response = new AddressListResponse
+            {
+                WalletAddress = address,
+                Addresses = paginatedAddresses,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+
+            return Results.Ok(response);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to list addresses for wallet {Address}", address);
+            return Results.Problem(
+                title: "Failed to List Addresses",
+                detail: "An error occurred while listing addresses",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// Get a specific address by ID
+    /// </summary>
+    private static async Task<IResult> GetAddress(
+        string address,
+        Guid id,
+        WalletManager walletManager,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var wallet = await walletManager.GetWalletAsync(address, cancellationToken);
+            if (wallet == null)
+            {
+                return Results.NotFound(new ProblemDetails
+                {
+                    Title = "Wallet Not Found",
+                    Detail = $"Wallet {address} not found",
+                    Status = StatusCodes.Status404NotFound
+                });
+            }
+
+            var walletAddress = wallet.Addresses.FirstOrDefault(a => a.Id == id);
+            if (walletAddress == null)
+            {
+                return Results.NotFound(new ProblemDetails
+                {
+                    Title = "Address Not Found",
+                    Detail = $"Address {id} not found for wallet {address}",
+                    Status = StatusCodes.Status404NotFound
+                });
+            }
+
+            return Results.Ok(walletAddress.ToDto());
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to get address {Id} for wallet {Address}", id, address);
+            return Results.Problem(
+                title: "Failed to Get Address",
+                detail: "An error occurred while retrieving the address",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// Update address metadata
+    /// </summary>
+    private static async Task<IResult> UpdateAddress(
+        string address,
+        Guid id,
+        [FromBody] UpdateAddressRequest request,
+        WalletManager walletManager,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var wallet = await walletManager.GetWalletAsync(address, cancellationToken);
+            if (wallet == null)
+            {
+                return Results.NotFound(new ProblemDetails
+                {
+                    Title = "Wallet Not Found",
+                    Detail = $"Wallet {address} not found",
+                    Status = StatusCodes.Status404NotFound
+                });
+            }
+
+            var walletAddress = wallet.Addresses.FirstOrDefault(a => a.Id == id);
+            if (walletAddress == null)
+            {
+                return Results.NotFound(new ProblemDetails
+                {
+                    Title = "Address Not Found",
+                    Detail = $"Address {id} not found for wallet {address}",
+                    Status = StatusCodes.Status404NotFound
+                });
+            }
+
+            // Update fields if provided
+            if (request.Label != null)
+                walletAddress.Label = request.Label;
+            if (request.Notes != null)
+                walletAddress.Notes = request.Notes;
+            if (request.Tags != null)
+                walletAddress.Tags = request.Tags;
+            if (request.Metadata != null)
+            {
+                foreach (var (key, value) in request.Metadata)
+                {
+                    walletAddress.Metadata[key] = value;
+                }
+            }
+
+            // Note: Changes to wallet.Addresses collection are tracked, no explicit update needed
+            logger.LogInformation("Updated address {Id} for wallet {Address}", id, address);
+            return Results.Ok(walletAddress.ToDto());
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to update address {Id} for wallet {Address}", id, address);
+            return Results.Problem(
+                title: "Failed to Update Address",
+                detail: "An error occurred while updating the address",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// Mark an address as used
+    /// </summary>
+    private static async Task<IResult> MarkAddressAsUsed(
+        string address,
+        Guid id,
+        WalletManager walletManager,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var wallet = await walletManager.GetWalletAsync(address, cancellationToken);
+            if (wallet == null)
+            {
+                return Results.NotFound(new ProblemDetails
+                {
+                    Title = "Wallet Not Found",
+                    Detail = $"Wallet {address} not found",
+                    Status = StatusCodes.Status404NotFound
+                });
+            }
+
+            var walletAddress = wallet.Addresses.FirstOrDefault(a => a.Id == id);
+            if (walletAddress == null)
+            {
+                return Results.NotFound(new ProblemDetails
+                {
+                    Title = "Address Not Found",
+                    Detail = $"Address {id} not found for wallet {address}",
+                    Status = StatusCodes.Status404NotFound
+                });
+            }
+
+            if (!walletAddress.IsUsed)
+            {
+                walletAddress.IsUsed = true;
+                walletAddress.FirstUsedAt = DateTime.UtcNow;
+                walletAddress.LastUsedAt = DateTime.UtcNow;
+                logger.LogInformation("Marked address {Id} as used for wallet {Address}", id, address);
+            }
+            else
+            {
+                walletAddress.LastUsedAt = DateTime.UtcNow;
+                logger.LogInformation("Updated last used timestamp for address {Id} on wallet {Address}", id, address);
+            }
+
+            // Note: Changes to wallet.Addresses collection are tracked, no explicit save needed
+
+            return Results.Ok(walletAddress.ToDto());
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to mark address {Id} as used for wallet {Address}", id, address);
+            return Results.Problem(
+                title: "Failed to Mark Address as Used",
+                detail: "An error occurred while marking the address as used",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// List BIP44 accounts with address counts
+    /// </summary>
+    private static async Task<IResult> ListAccounts(
+        string address,
+        WalletManager walletManager,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var wallet = await walletManager.GetWalletAsync(address, cancellationToken);
+            if (wallet == null)
+            {
+                return Results.NotFound(new ProblemDetails
+                {
+                    Title = "Wallet Not Found",
+                    Detail = $"Wallet {address} not found",
+                    Status = StatusCodes.Status404NotFound
+                });
+            }
+
+            // Group addresses by account
+            var accountGroups = wallet.Addresses
+                .GroupBy(a => a.Account)
+                .Select(g => new
+                {
+                    Account = g.Key,
+                    TotalAddresses = g.Count(),
+                    ReceiveAddresses = g.Count(a => !a.IsChange),
+                    ChangeAddresses = g.Count(a => a.IsChange),
+                    UsedAddresses = g.Count(a => a.IsUsed),
+                    UnusedReceive = g.Count(a => !a.IsChange && !a.IsUsed),
+                    UnusedChange = g.Count(a => a.IsChange && !a.IsUsed),
+                    LastUsedReceiveIndex = g.Where(a => !a.IsChange && a.IsUsed).Max(a => (int?)a.Index),
+                    LastUsedChangeIndex = g.Where(a => a.IsChange && a.IsUsed).Max(a => (int?)a.Index)
+                })
+                .OrderBy(a => a.Account)
+                .ToList();
+
+            return Results.Ok(new
+            {
+                WalletAddress = address,
+                Accounts = accountGroups
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to list accounts for wallet {Address}", address);
+            return Results.Problem(
+                title: "Failed to List Accounts",
+                detail: "An error occurred while listing accounts",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// Get gap limit status for all accounts
+    /// </summary>
+    private static async Task<IResult> GetGapStatus(
+        string address,
+        WalletManager walletManager,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var wallet = await walletManager.GetWalletAsync(address, cancellationToken);
+            if (wallet == null)
+            {
+                return Results.NotFound(new ProblemDetails
+                {
+                    Title = "Wallet Not Found",
+                    Detail = $"Wallet {address} not found",
+                    Status = StatusCodes.Status404NotFound
+                });
+            }
+
+            var accountStatuses = new List<AccountGapStatus>();
+
+            // Group by account and address type
+            var groups = wallet.Addresses
+                .GroupBy(a => new { a.Account, a.IsChange });
+
+            foreach (var group in groups)
+            {
+                var unusedCount = group.Count(a => !a.IsUsed);
+                var lastUsedIndex = group.Where(a => a.IsUsed).Max(a => (int?)a.Index);
+
+                accountStatuses.Add(new AccountGapStatus
+                {
+                    Account = group.Key.Account,
+                    AddressType = group.Key.IsChange ? "change" : "receive",
+                    UnusedCount = unusedCount,
+                    LastUsedIndex = lastUsedIndex,
+                    MaxRecommendedGap = 20
+                });
+            }
+
+            var response = new GapStatusResponse
+            {
+                WalletAddress = address,
+                Accounts = accountStatuses
+            };
+
+            // Add warning if approaching limit
+            var approaching = accountStatuses.Where(a => a.UnusedCount >= 15 && a.UnusedCount < 20).ToList();
+            if (approaching.Any())
+            {
+                response.Warning = $"Warning: {approaching.Count} account/type combinations have 15+ unused addresses. " +
+                    "Consider marking addresses as used or avoid generating more until existing addresses are used.";
+            }
+
+            return Results.Ok(response);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to get gap status for wallet {Address}", address);
+            return Results.Problem(
+                title: "Failed to Get Gap Status",
+                detail: "An error occurred while checking gap status",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
     }

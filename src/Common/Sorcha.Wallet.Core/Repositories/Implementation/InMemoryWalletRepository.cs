@@ -382,12 +382,19 @@ public class InMemoryWalletRepository : IWalletRepository
             Id = address.Id,
             ParentWalletAddress = address.ParentWalletAddress,
             Address = address.Address,
+            PublicKey = address.PublicKey,
             DerivationPath = address.DerivationPath,
             Index = address.Index,
+            Account = address.Account,
             IsChange = address.IsChange,
             Label = address.Label,
+            Notes = address.Notes,
+            Tags = address.Tags,
             IsUsed = address.IsUsed,
-            CreatedAt = address.CreatedAt
+            CreatedAt = address.CreatedAt,
+            FirstUsedAt = address.FirstUsedAt,
+            LastUsedAt = address.LastUsedAt,
+            Metadata = address.Metadata != null ? new Dictionary<string, string>(address.Metadata) : new Dictionary<string, string>()
         };
     }
 
