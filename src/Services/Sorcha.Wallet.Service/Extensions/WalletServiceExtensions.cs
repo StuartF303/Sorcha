@@ -9,6 +9,7 @@ using Sorcha.Wallet.Core.Events.Publishers;
 using Sorcha.Wallet.Core.Repositories.Implementation;
 using Sorcha.Wallet.Core.Repositories.Interfaces;
 using Sorcha.Wallet.Core.Services.Implementation;
+using Sorcha.Wallet.Core.Services.Interfaces;
 
 namespace Sorcha.Wallet.Service.Extensions;
 
@@ -35,10 +36,17 @@ public static class WalletServiceExtensions
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
         services.AddSingleton<IWalletRepository, InMemoryWalletRepository>();
 
-        // Register domain services
+        // Register domain services with both interface and concrete types
+        // (endpoints inject concrete types for now)
         services.AddScoped<KeyManagementService>();
+        services.AddScoped<IKeyManagementService>(sp => sp.GetRequiredService<KeyManagementService>());
+
         services.AddScoped<TransactionService>();
+        services.AddScoped<ITransactionService>(sp => sp.GetRequiredService<TransactionService>());
+
         services.AddScoped<DelegationService>();
+        services.AddScoped<IDelegationService>(sp => sp.GetRequiredService<DelegationService>());
+
         services.AddScoped<WalletManager>();
 
         return services;
