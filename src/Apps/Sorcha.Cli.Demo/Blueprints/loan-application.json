@@ -1,0 +1,281 @@
+{
+  "id": "loan-application-demo",
+  "title": "Loan Application Process",
+  "description": "Multi-step loan application with credit check and conditional approval routing based on credit score. Score >= 700 routes to standard approval, < 700 requires underwriter review.",
+  "version": 1,
+  "participants": [
+    {
+      "id": "Applicant",
+      "name": "Loan Applicant",
+      "organisation": "Personal",
+      "walletAddress": {"$eval": "walletAddresses.Applicant"}
+    },
+    {
+      "id": "LoanOfficer",
+      "name": "Loan Officer",
+      "organisation": "First National Bank",
+      "walletAddress": {"$eval": "walletAddresses.LoanOfficer"}
+    },
+    {
+      "id": "CreditBureau",
+      "name": "Credit Bureau",
+      "organisation": "Credit Check Services",
+      "walletAddress": {"$eval": "walletAddresses.CreditBureau"}
+    },
+    {
+      "id": "Underwriter",
+      "name": "Underwriter",
+      "organisation": "First National Bank",
+      "walletAddress": {"$eval": "walletAddresses.Underwriter"}
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Submit Loan Application",
+      "description": "Applicant submits loan application with personal and financial details",
+      "sender": "Applicant",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "applicantName": {
+              "type": "string",
+              "title": "Full Name",
+              "minLength": 3,
+              "maxLength": 100
+            },
+            "loanAmount": {
+              "type": "number",
+              "title": "Requested Loan Amount ($)",
+              "minimum": 1000
+            },
+            "loanPurpose": {
+              "type": "string",
+              "title": "Loan Purpose",
+              "enum": ["Home Purchase", "Auto", "Business", "Personal", "Education"]
+            },
+            "annualIncome": {
+              "type": "number",
+              "title": "Annual Income ($)",
+              "minimum": 0
+            },
+            "employmentStatus": {
+              "type": "string",
+              "title": "Employment Status",
+              "enum": ["Full-time", "Part-time", "Self-employed", "Retired", "Unemployed"]
+            },
+            "address": {
+              "type": "string",
+              "title": "Address",
+              "minLength": 10,
+              "maxLength": 300
+            }
+          },
+          "required": ["applicantName", "loanAmount", "loanPurpose", "annualIncome", "employmentStatus", "address"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "LoanOfficer",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "CreditBureau",
+          "dataPointers": ["/applicantName", "/address"]
+        },
+        {
+          "participantAddress": "Underwriter",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {}
+    },
+    {
+      "id": 1,
+      "title": "Initial Review",
+      "description": "Loan officer performs initial application review",
+      "sender": "LoanOfficer",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "initialApproval": {
+              "type": "boolean",
+              "title": "Pass Initial Review"
+            },
+            "notes": {
+              "type": "string",
+              "title": "Officer Notes",
+              "maxLength": 500
+            }
+          },
+          "required": ["initialApproval"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "Applicant",
+          "dataPointers": ["/initialApproval"]
+        },
+        {
+          "participantAddress": "CreditBureau",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {},
+      "condition": {
+        "if": [
+          {"==": [{"var": "initialApproval"}, true]},
+          "CreditBureau",
+          "__Complete__"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Credit Check",
+      "description": "Credit bureau performs credit score check",
+      "sender": "CreditBureau",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "creditScore": {
+              "type": "integer",
+              "title": "Credit Score",
+              "minimum": 300,
+              "maximum": 850
+            },
+            "creditHistory": {
+              "type": "string",
+              "title": "Credit History Summary",
+              "maxLength": 1000
+            },
+            "outstandingDebts": {
+              "type": "number",
+              "title": "Outstanding Debts ($)",
+              "minimum": 0
+            }
+          },
+          "required": ["creditScore", "creditHistory"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "LoanOfficer",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "Underwriter",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "Applicant",
+          "dataPointers": ["/creditScore"]
+        }
+      ],
+      "calculations": {},
+      "condition": {
+        "if": [
+          {">=": [{"var": "creditScore"}, 700]},
+          "LoanOfficer",
+          "Underwriter"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "Final Approval (Standard)",
+      "description": "Loan officer approves loan for applicants with good credit",
+      "sender": "LoanOfficer",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "approved": {
+              "type": "boolean",
+              "title": "Loan Approved"
+            },
+            "interestRate": {
+              "type": "number",
+              "title": "Interest Rate (%)",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "loanTerm": {
+              "type": "integer",
+              "title": "Loan Term (months)",
+              "minimum": 12,
+              "maximum": 360
+            },
+            "conditions": {
+              "type": "string",
+              "title": "Approval Conditions",
+              "maxLength": 1000
+            }
+          },
+          "required": ["approved", "interestRate", "loanTerm"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "Applicant",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {}
+    },
+    {
+      "id": 4,
+      "title": "Underwriter Review",
+      "description": "Underwriter reviews loan for applicants with lower credit scores",
+      "sender": "Underwriter",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "approved": {
+              "type": "boolean",
+              "title": "Loan Approved"
+            },
+            "interestRate": {
+              "type": "number",
+              "title": "Interest Rate (%)",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "loanTerm": {
+              "type": "integer",
+              "title": "Loan Term (months)",
+              "minimum": 12,
+              "maximum": 360
+            },
+            "conditions": {
+              "type": "string",
+              "title": "Approval Conditions",
+              "maxLength": 1000
+            },
+            "underwriterNotes": {
+              "type": "string",
+              "title": "Underwriter Notes",
+              "maxLength": 1000
+            }
+          },
+          "required": ["approved", "interestRate", "loanTerm"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "Applicant",
+          "dataPointers": ["/approved", "/interestRate", "/loanTerm", "/conditions"]
+        },
+        {
+          "participantAddress": "LoanOfficer",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {}
+    }
+  ]
+}

@@ -1,0 +1,217 @@
+{
+  "id": "expense-approval-demo",
+  "title": "Expense Approval Workflow",
+  "description": "Multi-step expense approval with conditional routing based on amount. Expenses under $5,000 route to Manager, $5,000+ route to CFO.",
+  "version": 1,
+  "participants": [
+    {
+      "id": "Employee",
+      "name": "Employee",
+      "organisation": "ACME Corp",
+      "walletAddress": {"$eval": "walletAddresses.Employee"}
+    },
+    {
+      "id": "Manager",
+      "name": "Manager",
+      "organisation": "ACME Corp",
+      "walletAddress": {"$eval": "walletAddresses.Manager"}
+    },
+    {
+      "id": "Finance",
+      "name": "Finance Department",
+      "organisation": "ACME Corp",
+      "walletAddress": {"$eval": "walletAddresses.Finance"}
+    },
+    {
+      "id": "CFO",
+      "name": "Chief Financial Officer",
+      "organisation": "ACME Corp",
+      "walletAddress": {"$eval": "walletAddresses.CFO"}
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Submit Expense Report",
+      "description": "Employee submits an expense report for approval",
+      "sender": "Employee",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "employeeName": {
+              "type": "string",
+              "title": "Employee Name",
+              "minLength": 2,
+              "maxLength": 100
+            },
+            "amount": {
+              "type": "number",
+              "title": "Amount ($)",
+              "minimum": 0.01
+            },
+            "category": {
+              "type": "string",
+              "title": "Expense Category",
+              "enum": ["Travel", "Meals", "Office Supplies", "Equipment", "Other"]
+            },
+            "description": {
+              "type": "string",
+              "title": "Description",
+              "minLength": 5,
+              "maxLength": 500
+            },
+            "date": {
+              "type": "string",
+              "format": "date",
+              "title": "Expense Date"
+            },
+            "department": {
+              "type": "string",
+              "title": "Department"
+            }
+          },
+          "required": ["employeeName", "amount", "category", "description", "date"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "Manager",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "Finance",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "CFO",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {},
+      "condition": {
+        "if": [
+          {">=": [{"var": "amount"}, 5000]},
+          "CFO",
+          "Manager"
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "title": "Manager Review",
+      "description": "Manager reviews and approves expenses under $5,000",
+      "sender": "Manager",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "approved": {
+              "type": "boolean",
+              "title": "Approved"
+            },
+            "comments": {
+              "type": "string",
+              "title": "Manager Comments",
+              "maxLength": 500
+            }
+          },
+          "required": ["approved"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "Employee",
+          "dataPointers": ["/approved", "/comments"]
+        },
+        {
+          "participantAddress": "Finance",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {},
+      "condition": {
+        "if": [
+          {"==": [{"var": "approved"}, true]},
+          "Finance",
+          "__Complete__"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "CFO Approval",
+      "description": "CFO approves expenses $5,000 and above",
+      "sender": "CFO",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "approved": {
+              "type": "boolean",
+              "title": "Approved"
+            },
+            "comments": {
+              "type": "string",
+              "title": "CFO Comments",
+              "maxLength": 500
+            }
+          },
+          "required": ["approved"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "Employee",
+          "dataPointers": ["/approved", "/comments"]
+        },
+        {
+          "participantAddress": "Finance",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {},
+      "condition": {
+        "if": [
+          {"==": [{"var": "approved"}, true]},
+          "Finance",
+          "__Complete__"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "Finance Processing",
+      "description": "Finance department processes approved expense",
+      "sender": "Finance",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "processed": {
+              "type": "boolean",
+              "title": "Processed"
+            },
+            "paymentMethod": {
+              "type": "string",
+              "title": "Payment Method",
+              "enum": ["Direct Deposit", "Check", "Wire Transfer", "Reimbursement"]
+            },
+            "transactionId": {
+              "type": "string",
+              "title": "Transaction ID"
+            }
+          },
+          "required": ["processed", "paymentMethod"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "Employee",
+          "dataPointers": ["/processed", "/paymentMethod", "/transactionId"]
+        }
+      ],
+      "calculations": {}
+    }
+  ]
+}

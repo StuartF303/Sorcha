@@ -83,6 +83,14 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 - Version APIs appropriately and document breaking changes
 - DO NOT use Swagger/Swashbuckle - use built-in .NET 10 OpenAPI
 
+**Blueprint Creation Standards**
+- Blueprints MUST be created as JSON or YAML documents (primary format)
+- Use YAML for improved readability and space savings when appropriate
+- Fluent API (C# code-based) should ONLY be used for rare developer scenarios requiring runtime blueprint generation
+- Blueprint templates MUST use JSON-e (JsonE.NET) for runtime variable replacement (e.g., wallet addresses, timestamps)
+- AI agents and developers MUST create blueprint demos and templates as JSON/YAML files, not Fluent API code
+- Store blueprint templates in JSON/YAML format for version control and sharing
+
 **Version Control**
 - Use Git with feature branch workflow
 - Write clear, descriptive commit messages

@@ -87,7 +87,13 @@
       "Bash(Select-Object -First 20)",
       "Bash(gh run:*)",
       "Bash(dotnet run:*)",
-      "Bash(timeout 15 curl:*)"
+      "Bash(timeout 15 curl:*)",
+      "Bash(Select-String -Pattern \"Failed:|Passed:|Total:\")",
+      "Bash(Select-String -Pattern \"(=== |Performance_|Total tests:|Passed:)\")",
+      "Bash(Select-Object -Last 50)",
+      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error)\")",
+      "WebSearch",
+      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error|^  [A-Z])\")"
     ],
     "deny": [],
     "ask": []

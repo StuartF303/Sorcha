@@ -1,0 +1,235 @@
+{
+  "id": "purchase-order-demo",
+  "title": "Purchase Order Processing",
+  "description": "Multi-party purchase order workflow with supplier coordination, shipping tracking, and conditional routing based on delivery status.",
+  "version": 1,
+  "participants": [
+    {
+      "id": "Buyer",
+      "name": "Purchasing Department",
+      "organisation": "ACME Corp",
+      "walletAddress": {"$eval": "walletAddresses.Buyer"}
+    },
+    {
+      "id": "Supplier",
+      "name": "Supplier",
+      "organisation": "Supplier Inc",
+      "walletAddress": {"$eval": "walletAddresses.Supplier"}
+    },
+    {
+      "id": "Shipping",
+      "name": "Shipping Department",
+      "organisation": "Logistics Co",
+      "walletAddress": {"$eval": "walletAddresses.Shipping"}
+    },
+    {
+      "id": "Finance",
+      "name": "Finance Department",
+      "organisation": "ACME Corp",
+      "walletAddress": {"$eval": "walletAddresses.Finance"}
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Create Purchase Order",
+      "description": "Buyer creates a purchase order and sends to supplier",
+      "sender": "Buyer",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "itemName": {
+              "type": "string",
+              "title": "Item Name",
+              "minLength": 3,
+              "maxLength": 200
+            },
+            "quantity": {
+              "type": "integer",
+              "title": "Quantity",
+              "minimum": 1
+            },
+            "unitPrice": {
+              "type": "number",
+              "title": "Unit Price ($)",
+              "minimum": 0.01
+            },
+            "deliveryAddress": {
+              "type": "string",
+              "title": "Delivery Address",
+              "minLength": 10,
+              "maxLength": 300
+            },
+            "requestedDeliveryDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Requested Delivery Date"
+            }
+          },
+          "required": ["itemName", "quantity", "unitPrice", "deliveryAddress", "requestedDeliveryDate"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "Supplier",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "Shipping",
+          "dataPointers": ["/itemName", "/quantity", "/deliveryAddress", "/requestedDeliveryDate"]
+        },
+        {
+          "participantAddress": "Finance",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {
+        "totalPrice": {
+          "*": [{"var": "quantity"}, {"var": "unitPrice"}]
+        }
+      }
+    },
+    {
+      "id": 1,
+      "title": "Supplier Confirmation",
+      "description": "Supplier confirms the order and provides shipping details",
+      "sender": "Supplier",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "confirmed": {
+              "type": "boolean",
+              "title": "Order Confirmed"
+            },
+            "estimatedShipDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Estimated Ship Date"
+            },
+            "trackingNumber": {
+              "type": "string",
+              "title": "Tracking Number",
+              "minLength": 5,
+              "maxLength": 50
+            }
+          },
+          "required": ["confirmed", "estimatedShipDate", "trackingNumber"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "Buyer",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "Shipping",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {},
+      "condition": {
+        "if": [
+          {"==": [{"var": "confirmed"}, true]},
+          "Shipping",
+          "__Complete__"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Shipping Update",
+      "description": "Shipping department provides delivery status",
+      "sender": "Shipping",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "deliveryStatus": {
+              "type": "string",
+              "title": "Delivery Status",
+              "enum": ["in_transit", "out_for_delivery", "delivered", "delayed"]
+            },
+            "actualDeliveryDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Actual Delivery Date"
+            },
+            "notes": {
+              "type": "string",
+              "title": "Delivery Notes",
+              "maxLength": 500
+            }
+          },
+          "required": ["deliveryStatus"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "Buyer",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "Supplier",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "Finance",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {},
+      "condition": {
+        "if": [
+          {"==": [{"var": "deliveryStatus"}, "delivered"]},
+          "Finance",
+          "__Complete__"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "Payment Processing",
+      "description": "Finance processes payment to supplier",
+      "sender": "Finance",
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "paymentApproved": {
+              "type": "boolean",
+              "title": "Payment Approved"
+            },
+            "paymentMethod": {
+              "type": "string",
+              "title": "Payment Method",
+              "enum": ["Wire Transfer", "Check", "ACH", "Credit Card"]
+            },
+            "paymentDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Payment Date"
+            },
+            "invoiceNumber": {
+              "type": "string",
+              "title": "Invoice Number"
+            }
+          },
+          "required": ["paymentApproved", "paymentMethod", "paymentDate"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "Supplier",
+          "dataPointers": ["/paymentApproved", "/paymentMethod", "/paymentDate", "/invoiceNumber"]
+        },
+        {
+          "participantAddress": "Buyer",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "calculations": {}
+    }
+  ]
+}

@@ -140,6 +140,14 @@ The MVD delivers a working end-to-end system:
    - Leverage dependency injection
    - Target .NET 10 framework
 
+6. **Blueprint Creation Standards**
+   - ⚠️ **Always create blueprints as JSON or YAML documents** (primary format)
+   - Use YAML for improved readability when appropriate
+   - Fluent API is ONLY for rare developer scenarios requiring runtime generation
+   - Use JSON-e (JsonE.NET) for runtime variable replacement (e.g., wallet addresses)
+   - Store blueprint templates as JSON/YAML files, not C# code
+   - AI agents must create blueprint demos as JSON/YAML, not Fluent API
+
 **Full details:** [.specify/constitution.md](.specify/constitution.md)
 
 ---

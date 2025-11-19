@@ -4,6 +4,53 @@
 
 Blueprints are the core workflow definitions in Sorcha. They define multi-party, data-driven workflows with conditional routing, selective data disclosure, and JSON Logic-based business rules.
 
+## Primary Blueprint Format: JSON/YAML
+
+**IMPORTANT**: Blueprints should **always** be created as JSON or YAML documents. This is the primary and recommended format for:
+- Creating workflow templates and demos
+- Storing blueprint definitions
+- Sharing blueprint specifications
+- AI agent-generated blueprints
+
+**YAML Format** is supported for space savings and improved readability when needed.
+
+**Fluent API** (C# code-based blueprint creation) should only be used in rare cases where developers need to programmatically generate blueprints at runtime. For most use cases, use JSON or YAML documents.
+
+## Blueprint Templating with JSON-e
+
+Blueprints often need dynamic runtime values (e.g., wallet addresses, timestamps, user-specific data). Use **JSON-e** templating for runtime variable replacement:
+
+```json
+{
+  "participants": [
+    {
+      "id": "applicant",
+      "name": "Loan Applicant",
+      "walletAddress": {"$eval": "walletAddresses.applicant"}
+    },
+    {
+      "id": "officer",
+      "name": "Loan Officer",
+      "walletAddress": {"$eval": "walletAddresses.officer"}
+    }
+  ]
+}
+```
+
+At runtime, provide template context:
+```json
+{
+  "walletAddresses": {
+    "applicant": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+    "officer": "0x8Bb5C5e7b4e4C8d8D5e5B8c8B5d5e5B8c8B5d5e5"
+  }
+}
+```
+
+**JSON-e Resources:**
+- Specification: https://json-e.js.org/
+- NuGet Package: `JsonE.NET` for C# integration
+
 ## JSON Schema
 
 The complete JSON Schema is available at [`src/Common/blueprint.schema.json`](../src/Common/blueprint.schema.json).
@@ -239,13 +286,17 @@ Sorcha uses [JSON Logic](https://jsonlogic.com/) for conditional routing and cal
 }
 ```
 
-## Fluent API
+## Fluent API (Rare Developer Use Only)
 
-Blueprints can be created programmatically using the Fluent API:
+**NOTE**: The Fluent API should only be used in rare cases where developers need to programmatically generate blueprints at runtime within C# applications. For most use cases, including demos, templates, and AI-generated blueprints, **use JSON or YAML documents instead**.
+
+The Fluent API provides a code-first approach for dynamic blueprint generation:
 
 ```csharp
 using Sorcha.Blueprint.Fluent;
 
+// Only use Fluent API when blueprints must be generated programmatically
+// For static blueprints, use JSON/YAML files instead
 var blueprint = BlueprintBuilder.Create()
     .WithTitle("Purchase Order Workflow")
     .WithDescription("A workflow for creating and approving purchase orders")
@@ -285,6 +336,17 @@ var blueprint = BlueprintBuilder.Create()
                 .BoundTo("/item"))))
     .Build();
 ```
+
+**When to Use Fluent API:**
+- Building blueprint generation tools
+- Dynamic blueprint creation based on runtime conditions
+- Testing and unit test scenarios
+
+**When NOT to Use Fluent API:**
+- Creating workflow templates
+- Demo applications
+- Static blueprint definitions
+- AI-generated blueprints
 
 ## Complete Example
 
