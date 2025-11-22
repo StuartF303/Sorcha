@@ -3,9 +3,20 @@
 
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Add PostgreSQL for tenant service database
+var postgres = builder.AddPostgres("postgres")
+    .WithPgAdmin(); // Adds pgAdmin UI for development
+
+var tenantDb = postgres.AddDatabase("tenant-db", "sorcha_tenant");
+
 // Add Redis for distributed caching and output caching
 var redis = builder.AddRedis("redis")
     .WithRedisCommander(); // Adds Redis Commander UI for development
+
+// Add Tenant Service (authentication and authorization)
+var tenantService = builder.AddProject<Projects.Sorcha_Tenant_Service>("tenant-service")
+    .WithReference(tenantDb)
+    .WithReference(redis);
 
 // Add Blueprint Service with Redis reference (internal only)
 var blueprintService = builder.AddProject<Projects.Sorcha_Blueprint_Service>("blueprint-service")
@@ -25,6 +36,7 @@ var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service
 
 // Add API Gateway as the single external entry point
 var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
+    .WithReference(tenantService)
     .WithReference(blueprintService)
     .WithReference(walletService)
     .WithReference(registerService)

@@ -1,0 +1,100 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+namespace Sorcha.Tenant.Service.Models;
+
+/// <summary>
+/// Authenticated user within an organization.
+/// Stored in per-organization schema (org_{organization_id}).
+/// </summary>
+public class UserIdentity
+{
+    /// <summary>
+    /// Unique user identifier.
+    /// </summary>
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>
+    /// Organization membership (denormalized for queries).
+    /// </summary>
+    public Guid OrganizationId { get; set; }
+
+    /// <summary>
+    /// User ID from external IDP (sub claim from OIDC token).
+    /// Must be unique within organization.
+    /// </summary>
+    public string ExternalIdpUserId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// User email address.
+    /// </summary>
+    public string Email { get; set; } = string.Empty;
+
+    /// <summary>
+    /// User display name (friendly name shown in UI).
+    /// </summary>
+    public string DisplayName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// User roles within organization (Administrator, Auditor, Member).
+    /// Organization creator automatically gets Administrator role.
+    /// </summary>
+    public UserRole[] Roles { get; set; } = new[] { UserRole.Member };
+
+    /// <summary>
+    /// User account status (Active, Suspended, Deleted).
+    /// </summary>
+    public IdentityStatus Status { get; set; } = IdentityStatus.Active;
+
+    /// <summary>
+    /// User creation timestamp (UTC).
+    /// </summary>
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// Last successful login timestamp (UTC). Null if never logged in.
+    /// </summary>
+    public DateTimeOffset? LastLoginAt { get; set; }
+}
+
+/// <summary>
+/// User roles within an organization.
+/// </summary>
+public enum UserRole
+{
+    /// <summary>
+    /// Full administrative access to organization settings, users, and permissions.
+    /// </summary>
+    Administrator,
+
+    /// <summary>
+    /// Read-only access to audit logs and organization activity.
+    /// </summary>
+    Auditor,
+
+    /// <summary>
+    /// Standard user with permissions defined by organization policy.
+    /// </summary>
+    Member
+}
+
+/// <summary>
+/// User account status.
+/// </summary>
+public enum IdentityStatus
+{
+    /// <summary>
+    /// User account is active and can authenticate.
+    /// </summary>
+    Active,
+
+    /// <summary>
+    /// User account is temporarily suspended (cannot authenticate).
+    /// </summary>
+    Suspended,
+
+    /// <summary>
+    /// User account is soft-deleted (can be restored within 30 days).
+    /// </summary>
+    Deleted
+}

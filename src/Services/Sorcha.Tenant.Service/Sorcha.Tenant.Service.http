@@ -1,0 +1,6 @@
+@Sorcha.Tenant.Service_HostAddress = http://localhost:5110
+
+GET {{Sorcha.Tenant.Service_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

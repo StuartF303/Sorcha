@@ -152,8 +152,9 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
-appsettings.Development.json
 appsettings.Local.json
+# Note: appsettings.Development.json is committed (contains structure only, no secrets)
+# Actual secrets are in User Secrets (not committed)
 
 # macOS
 .DS_Store
@@ -174,6 +175,14 @@ $RECYCLE.BIN/
 
 # User secrets
 secrets.json
+
+# JWT keys and certificates (NEVER commit private keys)
+*.pem
+*.key
+*.pfx
+*.p12
+jwt_private.*
+jwt_public.*
 
 # Aspire
 .aspire/
