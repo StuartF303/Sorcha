@@ -93,7 +93,14 @@
       "Bash(Select-Object -Last 50)",
       "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error)\")",
       "WebSearch",
-      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error|^  [A-Z])\")"
+      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error|^  [A-Z])\")",
+      "Bash(git fetch:*)",
+      "Bash(dotnet user-secrets:*)",
+      "Bash(if exist \"specs\\001-tenant-auth\\setup-local-secrets.sh\" icacls \"specs\\001-tenant-auth\\setup-local-secrets.sh\" /grant Everyone:RX)",
+      "Bash(Select-String -Pattern \"(FAIL|Error Message|Stack Trace|at Sorcha)\" -Context 2,5)",
+      "Bash(git merge:*)",
+      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error|Sorcha.Tenant)\")",
+      "Bash(Select-Object -Last 20)"
     ],
     "deny": [],
     "ask": []
