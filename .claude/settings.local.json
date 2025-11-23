@@ -100,7 +100,10 @@
       "Bash(Select-String -Pattern \"(FAIL|Error Message|Stack Trace|at Sorcha)\" -Context 2,5)",
       "Bash(git merge:*)",
       "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error|Sorcha.Tenant)\")",
-      "Bash(Select-Object -Last 20)"
+      "Bash(Select-Object -Last 20)",
+      "Bash(Select-String -Pattern \"(Passed|Failed|Total tests:|Test run|error CS)\")",
+      "Bash(Select-String -Pattern \"(Failed|Passed|Total|Duration|Error Message|Stack Trace)\")",
+      "Bash(Select-Object -First 30)"
     ],
     "deny": [],
     "ask": []

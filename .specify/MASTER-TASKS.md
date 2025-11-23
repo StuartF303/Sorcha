@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 3.4 - UPDATED
-**Last Updated:** 2025-11-19
-**Status:** Active - Sprint 8 In Progress (4/11 P0 tasks complete)
+**Version:** 3.5 - UPDATED
+**Last Updated:** 2025-11-23
+**Status:** Active - Sprint 8 Complete (11/11 tasks complete)
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -12,14 +12,16 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 173 (across all phases, including production readiness, blueprint validation, and validator service)
-**Completed:** 104 (60%)
+**Completed:** 111 (64%)
 **In Progress:** 0 (0%)
-**Not Started:** 69 (40%)
+**Not Started:** 62 (36%)
 
-**Note:** Counts updated 2025-11-19:
-- Completed Sprint 8 P0 tasks (BP-8.1 through BP-8.4): 55 new tests added
+**Note:** Counts updated 2025-11-23:
+- ✅ **Sprint 8 COMPLETE**: All 11 tasks finished (176h total)
+  - BP-8.1 to BP-8.4: P0 structural/workflow validation (55 tests)
+  - BP-8.5 to BP-8.11: P1-P3 comprehensive validation (79 new tests added)
+  - Total: 134 new validation tests covering all Blueprint categories
 - Added Sprint 9: Validator Service (14 new tasks, 182 hours)
-- Sprint 8 progress: 4/11 tasks complete (72h completed, 104h remaining)
 - See [VALIDATOR-SERVICE-REQUIREMENTS.md](VALIDATOR-SERVICE-REQUIREMENTS.md) and [BLUEPRINT-VALIDATION-TEST-PLAN.md](BLUEPRINT-VALIDATION-TEST-PLAN.md)
 
 ---
@@ -42,7 +44,7 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete |
 |-------|-------------|----------|-------------|-------------|------------|
-| **Phase 1: Blueprint-Action** | 66 | 54 | 0 | 12 | **82%** ✅ |
+| **Phase 1: Blueprint-Action** | 66 | 61 | 0 | 5 | **92%** ✅ |
 | **Phase 2: Wallet Service** | 32 | 32 | 0 | 0 | **100%** ✅ |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% |
@@ -216,15 +218,15 @@ Enhancement tasks that can be deferred until after MVD is complete.
 | BP-8.2 | Implement BlueprintWorkflowValidationTests | P0 | 24h | ✅ Complete | - |
 | BP-8.3 | Implement graph cycle detection | P0 | 12h | ✅ Complete | - |
 | BP-8.4 | Implement TransactionChainValidationTests | P0 | 20h | ✅ Complete | - |
-| BP-8.5 | Implement DisclosureValidationTests | P1 | 16h | 📋 Not Started | - |
-| BP-8.6 | Extend SchemaValidatorTests (Blueprint/Action schemas) | P1 | 16h | 📋 Not Started | - |
-| BP-8.7 | Implement JsonLogicValidationTests | P1 | 24h | 📋 Not Started | - |
-| BP-8.8 | Implement MultiParticipantWorkflowTests | P1 | 16h | 📋 Not Started | - |
-| BP-8.9 | Implement FormValidationTests | P2 | 8h | 📋 Not Started | - |
-| BP-8.10 | Extend BlueprintTemplateServiceTests | P2 | 16h | 📋 Not Started | - |
-| BP-8.11 | Extend JSON-LD validation tests | P3 | 8h | 📋 Not Started | - |
+| BP-8.5 | Implement DisclosureValidationTests | P1 | 16h | ✅ Complete | 2025-11-23 |
+| BP-8.6 | Extend SchemaValidatorTests (Blueprint/Action schemas) | P1 | 16h | ✅ Complete | 2025-11-23 |
+| BP-8.7 | Implement JsonLogicValidationTests | P1 | 24h | ✅ Complete | 2025-11-23 |
+| BP-8.8 | Implement MultiParticipantWorkflowTests | P1 | 16h | ✅ Complete | 2025-11-23 |
+| BP-8.9 | Implement FormValidationTests | P2 | 8h | ✅ Complete | 2025-11-23 |
+| BP-8.10 | Extend BlueprintTemplateServiceTests | P2 | 16h | ✅ Complete | 2025-11-23 |
+| BP-8.11 | Extend JSON-LD validation tests | P3 | 8h | ✅ Complete | 2025-11-23 |
 
-**Sprint 8 Status:** 🚧 **IN PROGRESS** (4/11 tasks complete, 72h completed, 104h remaining)
+**Sprint 8 Status:** ✅ **COMPLETE** (11/11 tasks complete, 176h completed, 0h remaining)
 **Recommended Start:** Week 12 (After Sprint 7 completion)
 **Reference:** [BLUEPRINT-VALIDATION-TEST-PLAN.md](BLUEPRINT-VALIDATION-TEST-PLAN.md)
 

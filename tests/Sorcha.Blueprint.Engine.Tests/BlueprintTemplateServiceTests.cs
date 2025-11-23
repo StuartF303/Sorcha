@@ -383,4 +383,237 @@ public class BlueprintTemplateServiceTests
         };
         return template;
     }
+
+    #region Extended Validation Tests (Category 11)
+
+    [Fact]
+    public async Task EvaluateTemplateAsync_ValidatesBeforeInstantiation()
+    {
+        // Arrange - Template with validation enabled
+        var template = CreateTemplateWithParameterSchema();
+        await _service.SaveTemplateAsync(template);
+
+        var request = new TemplateEvaluationRequest
+        {
+            TemplateId = template.Id,
+            Parameters = new Dictionary<string, object>
+            {
+                ["blueprintId"] = "id", // Too short (minLength: 3)
+                ["blueprintTitle"] = "Title"
+            },
+            Validate = true
+        };
+
+        // Act
+        var result = await _service.EvaluateTemplateAsync(request);
+
+        // Assert
+        result.Success.Should().BeFalse("Validation should catch parameter errors before instantiation");
+        result.Error.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task EvaluateTemplateAsync_GeneratesValidBlueprintInstance()
+    {
+        // Arrange
+        var template = CreateSimpleTemplate();
+        await _service.SaveTemplateAsync(template);
+
+        var request = new TemplateEvaluationRequest
+        {
+            TemplateId = template.Id,
+            Parameters = new Dictionary<string, object>
+            {
+                ["blueprintId"] = "generated-blueprint",
+                ["blueprintTitle"] = "Generated Blueprint"
+            },
+            Validate = true
+        };
+
+        // Act
+        var result = await _service.EvaluateTemplateAsync(request);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Blueprint.Should().NotBeNull();
+        result.Blueprint!.Id.Should().Be("generated-blueprint");
+        result.Blueprint.Title.Should().Be("Generated Blueprint");
+        result.Blueprint.Participants.Should().HaveCountGreaterThan(0, "Valid blueprint must have participants");
+        result.Blueprint.Actions.Should().HaveCountGreaterThan(0, "Valid blueprint must have actions");
+    }
+
+    [Fact]
+    public async Task SaveTemplateAsync_UpdatesTimestamps()
+    {
+        // Arrange
+        var template = CreateSimpleTemplate();
+        await _service.SaveTemplateAsync(template);
+        var originalUpdatedAt = template.UpdatedAt;
+
+        await Task.Delay(100); // Ensure time passes
+
+        // Act - Update template
+        template.Title = "Updated Title";
+        var updated = await _service.SaveTemplateAsync(template);
+
+        // Assert
+        updated.UpdatedAt.Should().BeAfter(originalUpdatedAt, "UpdatedAt should be refreshed on save");
+    }
+
+    [Fact]
+    public async Task EvaluateTemplateAsync_ComplexParameterSubstitution_WorksCorrectly()
+    {
+        // Arrange - Template with multiple parameter references
+        var complexTemplate = new BlueprintTemplate
+        {
+            Id = "complex-template",
+            Title = "Complex Template",
+            Description = "Template with multiple parameters",
+            Version = 1,
+            Template = JsonNode.Parse(@"{
+                ""$eval"": ""blueprint"",
+                ""context"": {
+                    ""blueprint"": {
+                        ""id"": { ""$eval"": ""blueprintId"" },
+                        ""title"": { ""$eval"": ""title"" },
+                        ""description"": { ""$eval"": ""description"" },
+                        ""version"": { ""$eval"": ""version"" },
+                        ""participants"": [
+                            { ""id"": { ""$eval"": ""participantId1"" }, ""name"": { ""$eval"": ""participantName1"" } },
+                            { ""id"": { ""$eval"": ""participantId2"" }, ""name"": { ""$eval"": ""participantName2"" } }
+                        ],
+                        ""actions"": [
+                            { ""id"": 0, ""title"": ""Action"", ""sender"": { ""$eval"": ""participantId1"" } }
+                        ]
+                    },
+                    ""blueprintId"": { ""$eval"": ""blueprintId"" },
+                    ""title"": { ""$eval"": ""title"" },
+                    ""description"": { ""$eval"": ""description"" },
+                    ""version"": { ""$eval"": ""version"" },
+                    ""participantId1"": { ""$eval"": ""participantId1"" },
+                    ""participantName1"": { ""$eval"": ""participantName1"" },
+                    ""participantId2"": { ""$eval"": ""participantId2"" },
+                    ""participantName2"": { ""$eval"": ""participantName2"" }
+                }
+            }")!,
+            Published = true
+        };
+
+        await _service.SaveTemplateAsync(complexTemplate);
+
+        var request = new TemplateEvaluationRequest
+        {
+            TemplateId = complexTemplate.Id,
+            Parameters = new Dictionary<string, object>
+            {
+                ["blueprintId"] = "complex-bp",
+                ["title"] = "Complex Blueprint",
+                ["description"] = "Generated from complex template",
+                ["version"] = 1,
+                ["participantId1"] = "p1",
+                ["participantName1"] = "Participant One",
+                ["participantId2"] = "p2",
+                ["participantName2"] = "Participant Two"
+            },
+            Validate = false
+        };
+
+        // Act
+        var result = await _service.EvaluateTemplateAsync(request);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Blueprint.Should().NotBeNull();
+        result.Blueprint!.Id.Should().Be("complex-bp");
+        result.Blueprint.Title.Should().Be("Complex Blueprint");
+        result.Blueprint.Description.Should().Be("Generated from complex template");
+        result.Blueprint.Participants.Should().HaveCount(2);
+        result.Blueprint.Participants[0].Id.Should().Be("p1");
+        result.Blueprint.Participants[1].Id.Should().Be("p2");
+    }
+
+    [Fact]
+    public async Task ValidateParametersAsync_InvalidParameterType_ReturnsError()
+    {
+        // Arrange
+        var template = new BlueprintTemplate
+        {
+            Id = "type-validation-template",
+            Title = "Type Validation Template",
+            Template = JsonNode.Parse("{}")!,
+            ParameterSchema = JsonDocument.Parse(@"{
+                ""type"": ""object"",
+                ""properties"": {
+                    ""count"": { ""type"": ""number"" },
+                    ""name"": { ""type"": ""string"" }
+                },
+                ""required"": [""count"", ""name""]
+            }")
+        };
+
+        await _service.SaveTemplateAsync(template);
+
+        var invalidParameters = new Dictionary<string, object>
+        {
+            ["count"] = "not-a-number", // Should be number
+            ["name"] = "Valid Name"
+        };
+
+        // Act
+        var result = await _service.ValidateParametersAsync(template.Id, invalidParameters);
+
+        // Assert
+        result.IsValid.Should().BeFalse("Invalid parameter type should fail validation");
+        result.Errors.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTemplatesByCategoryAsync_NoMatchingCategory_ReturnsEmpty()
+    {
+        // Arrange
+        var template = CreateSimpleTemplate();
+        template.Category = "existing-category";
+        template.Published = true;
+        await _service.SaveTemplateAsync(template);
+
+        // Act
+        var results = await _service.GetTemplatesByCategoryAsync("nonexistent-category");
+
+        // Assert
+        results.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task EvaluateTemplateAsync_ParameterOverridesDefault_UsesProvidedValue()
+    {
+        // Arrange
+        var template = CreateSimpleTemplate();
+        template.DefaultParameters = new Dictionary<string, object>
+        {
+            ["blueprintId"] = "default-id",
+            ["blueprintTitle"] = "Default Title"
+        };
+        await _service.SaveTemplateAsync(template);
+
+        var request = new TemplateEvaluationRequest
+        {
+            TemplateId = template.Id,
+            Parameters = new Dictionary<string, object>
+            {
+                ["blueprintId"] = "override-id",
+                ["blueprintTitle"] = "Override Title"
+            },
+            Validate = false
+        };
+
+        // Act
+        var result = await _service.EvaluateTemplateAsync(request);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Blueprint!.Id.Should().Be("override-id", "Provided parameter should override default");
+        result.Blueprint.Title.Should().Be("Override Title", "Provided parameter should override default");
+    }
+
+    #endregion
 }
