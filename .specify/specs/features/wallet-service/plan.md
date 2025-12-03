@@ -2,7 +2,8 @@
 
 **Feature Branch**: `wallet-service`
 **Created**: 2025-12-03
-**Status**: 90% Complete (MVD Phase)
+**Status**: 95% Complete (HD Wallet Features Complete)
+**Production Ready**: 45% (Critical Infrastructure Pending)
 
 ## Summary
 
@@ -112,14 +113,26 @@ The Wallet Service provides cryptographic wallet management for the Sorcha platf
 |-----------|--------|-------|
 | Wallet.Core | 100% | Domain models and interfaces |
 | WalletManager | 100% | Creation and recovery |
-| KeyManager | 100% | HD derivation |
-| TransactionServiceAdapter | 90% | Signing complete, history pending |
-| DelegationManager | 100% | Access control |
-| EfCoreWalletRepository | 80% | Needs database testing |
-| AzureKeyVaultProvider | 90% | Integration tested |
-| LocalDpapiProvider | 100% | Development fallback |
-| API Endpoints | 90% | Documentation complete |
+| KeyManager | 100% | HD derivation with BIP44 |
+| TransactionService | 100% | Signing, verification, encryption |
+| DelegationService | 100% | Access control |
+| HD Address Management | 100% | Client-side derivation, gap limit |
+| InMemoryWalletRepository | 100% | Thread-safe development |
+| EfCoreWalletRepository | 0% | BLOCKER - Not implemented |
+| AzureKeyVaultProvider | 0% | BLOCKER - Not implemented |
+| LocalEncryptionProvider | 100% | AES-256-GCM development |
+| API Endpoints (21) | 100% | All implemented |
 | Unit Tests | 85% | 111 tests passing |
+| Integration Tests | 100% | 29 tests passing |
+| Performance Tests | 100% | 6 benchmarks passing |
+
+### Production Blockers
+
+| Blocker | Impact | Effort |
+|---------|--------|--------|
+| Authentication/Authorization | No security | 2-3 days |
+| EF Core Repository | Data lost on restart | 3-5 days |
+| Azure Key Vault Provider | No production key mgmt | 3-5 days |
 
 ### API Endpoints
 

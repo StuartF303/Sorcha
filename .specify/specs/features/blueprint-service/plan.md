@@ -2,7 +2,7 @@
 
 **Feature Branch**: `blueprint-service`
 **Created**: 2025-12-03
-**Status**: 90% Complete (MVD Phase)
+**Status**: 95% Complete (Unified Blueprint-Action Service)
 
 ## Summary
 
@@ -107,11 +107,17 @@ The Blueprint Service provides the core workflow definition and execution capabi
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Blueprint.Models | 100% | Core domain models complete |
+| Blueprint.Models | 100% | Core domain models with JSON-LD |
 | Blueprint.Fluent | 100% | Full fluent builder API |
-| Blueprint.Engine | 100% | Portable execution engine |
-| Blueprint.Api | 90% | Needs database persistence |
-| Blueprint.Api.Tests | 60% | Integration tests needed |
+| Blueprint.Engine | 100% | Portable execution engine (93 unit + 9 integration tests) |
+| Blueprint.Schemas | 100% | Schema management with caching |
+| Blueprint.Service | 95% | Unified Blueprint-Action service |
+| Action API Endpoints | 100% | Submit, reject, list actions |
+| Execution Helpers | 100% | Validate, calculate, route, disclose |
+| SignalR ActionsHub | 100% | Real-time notifications with Redis backplane |
+| Redis Caching | 100% | Output caching configured |
+| Unit Tests | 85%+ | Coverage target met |
+| Integration Tests | 100% | E2E workflows tested |
 
 ### API Endpoints
 

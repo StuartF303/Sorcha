@@ -2,7 +2,9 @@
 
 **Feature Branch**: `peer-service`
 **Created**: 2025-12-03
-**Status**: 65% Complete (Design Phase)
+**Status**: Design Complete - Awaiting Approval (0% Implementation)
+**Implementation Estimate**: 20 weeks (10 sprints)
+**Resource Requirement**: 2-3 developers
 
 ## Summary
 
@@ -110,16 +112,31 @@ The Peer Service is the distributed networking component of the Sorcha platform,
 
 | Component | Status | Notes |
 |-----------|--------|-------|
+| Design Documents | 100% | Comprehensive design complete |
 | Configuration | 100% | appsettings schema complete |
-| Proto definitions | 80% | gRPC protos defined |
+| Proto definitions | 100% | gRPC protos defined |
 | PeerNode model | 100% | Entity model complete |
-| PeerListManager | 60% | Persistence pending |
-| PeerDiscoveryService | 50% | Bootstrap logic pending |
-| AddressDiscoveryService | 40% | STUN client pending |
-| CommunicationManager | 30% | Protocol negotiation pending |
-| GossipProtocol | 20% | Algorithm defined |
-| TransactionQueue | 30% | Persistence pending |
-| Admin Dashboard | 0% | Not started |
+| **Implementation** | **0%** | **Awaiting approval** |
+
+### Implementation Roadmap (10 Sprints)
+
+| Sprint | Focus | Deliverables |
+|--------|-------|--------------|
+| 1-2 | Foundation & Address Discovery | Project setup, STUN client |
+| 3-4 | Peer Discovery | Bootstrap, recursive discovery |
+| 5-6 | Communication Layer | gRPC streaming, protocol fallback |
+| 7-8 | Transaction Distribution | Gossip protocol, offline mode |
+| 9 | Admin UI & Monitoring | Dashboard, metrics |
+| 10 | Hardening & Documentation | Security, performance testing |
+
+### Performance Targets
+
+| Metric | Target |
+|--------|--------|
+| Transaction distribution | <500ms to 90% of network |
+| Peer discovery | <30s for 100 peers |
+| Bandwidth per transaction | <10 KB notification |
+| Memory usage | <500 MB for 1000 peers |
 
 ### gRPC Service Definitions
 

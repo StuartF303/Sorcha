@@ -2,7 +2,8 @@
 
 **Feature Branch**: `validator-service`
 **Created**: 2025-12-03
-**Status**: 0% Complete (Specification Phase)
+**Status**: Design Complete (0% Implementation)
+**Implementation Estimate**: 10 weeks (6 phases)
 
 ## Summary
 
