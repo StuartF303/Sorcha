@@ -3,6 +3,7 @@ using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Engine.Models;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -57,6 +58,9 @@ public class BlueprintExecutor
                 AnsiConsole.MarkupLine($"[red]Error: No wallet found for participant '{participant}'[/]");
                 return;
             }
+
+            // Show what will happen in this action
+            ShowActionExplanation(action, workflowData);
 
             // Prompt for input data
             var inputData = PromptForActionData(action, workflowData);
@@ -136,6 +140,12 @@ public class BlueprintExecutor
                     }
                 });
 
+            // Show disclosure views after execution
+            if (context.Settings.ShowDisclosure && action.Disclosures != null && action.Disclosures.Any())
+            {
+                ShowDisclosureViews(action, inputData, context);
+            }
+
             if (context.Settings.StepByStepMode && currentActionIndex < blueprint.Actions.Count)
             {
                 AnsiConsole.WriteLine();
@@ -157,9 +167,6 @@ public class BlueprintExecutor
     {
         var data = new Dictionary<string, object>();
 
-        // For demo purposes, we'll generate sample data based on action requirements
-        // In a real implementation, this would prompt the user or read from a file
-
         if (action.DataSchemas != null && action.DataSchemas.Any())
         {
             var schema = action.DataSchemas.First();
@@ -171,27 +178,129 @@ public class BlueprintExecutor
                 var propsJson = JsonSerializer.Serialize(propsObj);
                 var properties = JsonSerializer.Deserialize<Dictionary<string, object>>(propsJson);
 
+                // Get required fields
+                var requiredFields = new List<string>();
+                if (schemaObj.TryGetValue("required", out var reqObj))
+                {
+                    var reqJson = JsonSerializer.Serialize(reqObj);
+                    var reqList = JsonSerializer.Deserialize<List<string>>(reqJson);
+                    if (reqList != null)
+                        requiredFields = reqList;
+                }
+
                 if (properties != null)
                 {
+                    AnsiConsole.MarkupLine("[yellow]📝 Enter data for this action:[/]");
+                    AnsiConsole.WriteLine();
+
                     foreach (var prop in properties.Keys)
                     {
-                        // Generate sample data based on property name
-                        data[prop] = GenerateSampleValue(prop, workflowData);
+                        var isRequired = requiredFields.Contains(prop);
+                        var propJson = JsonSerializer.Serialize(properties[prop]);
+                        var propDef = JsonSerializer.Deserialize<Dictionary<string, object>>(propJson);
+
+                        // Get property metadata
+                        var propType = propDef?.ContainsKey("type") == true ? propDef["type"].ToString() : "string";
+                        var propTitle = propDef?.ContainsKey("title") == true ? propDef["title"].ToString() : prop;
+                        var propEnum = propDef?.ContainsKey("enum") == true ? propDef["enum"] : null;
+
+                        // Prompt for value based on type
+                        data[prop] = PromptForValue(prop, propTitle!, propType!, propEnum, isRequired, workflowData);
                     }
+
+                    AnsiConsole.WriteLine();
                 }
             }
         }
 
-        // Display the input data
+        // Display the collected input data
         var inputPanel = new Panel(JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }))
         {
-            Header = new PanelHeader("[yellow]Action Input Data[/]"),
+            Header = new PanelHeader("[yellow]✅ Action Input Data (Collected)[/]"),
             Border = BoxBorder.Rounded
         };
         AnsiConsole.Write(inputPanel);
         AnsiConsole.WriteLine();
 
         return data;
+    }
+
+    /// <summary>
+    /// Prompts for a single value based on its type and constraints
+    /// </summary>
+    private object PromptForValue(
+        string propertyName,
+        string propertyTitle,
+        string propertyType,
+        object? enumValues,
+        bool isRequired,
+        Dictionary<string, object> workflowData)
+    {
+        var requiredMarker = isRequired ? "[red]*[/]" : "";
+        var defaultValue = GenerateSampleValue(propertyName, workflowData);
+
+        // If value exists in workflow data, offer to reuse it
+        if (workflowData.ContainsKey(propertyName))
+        {
+            var existingValue = workflowData[propertyName];
+            AnsiConsole.MarkupLine($"[dim]📌 Using value from previous action: {propertyName} = {JsonSerializer.Serialize(existingValue)}[/]");
+            return existingValue;
+        }
+
+        // Handle enum/choice fields
+        if (enumValues != null)
+        {
+            var enumJson = JsonSerializer.Serialize(enumValues);
+            var choices = JsonSerializer.Deserialize<List<string>>(enumJson);
+            if (choices != null && choices.Any())
+            {
+                var choice = AnsiConsole.Prompt(
+                    new SelectionPrompt<string>()
+                        .Title($"{requiredMarker} [cyan]{propertyTitle}[/]:")
+                        .AddChoices(choices)
+                        .AddChoices("<Use default>"));
+
+                return choice == "<Use default>" ? choices.First() : choice;
+            }
+        }
+
+        // Handle boolean fields
+        if (propertyType == "boolean")
+        {
+            var choice = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title($"{requiredMarker} [cyan]{propertyTitle}[/]:")
+                    .AddChoices(new[] { "Yes", "No", "<Use default: Yes>" }));
+
+            if (choice == "<Use default: Yes>")
+                return true;
+            return choice == "Yes";
+        }
+
+        // Handle number fields
+        if (propertyType == "number")
+        {
+            var input = AnsiConsole.Prompt(
+                new TextPrompt<string>($"{requiredMarker} [cyan]{propertyTitle}[/]:")
+                    .DefaultValue(defaultValue.ToString()!)
+                    .AllowEmpty());
+
+            if (string.IsNullOrWhiteSpace(input))
+                return defaultValue;
+
+            if (double.TryParse(input, out var numValue))
+                return numValue;
+
+            return defaultValue;
+        }
+
+        // Handle string fields (default)
+        var textInput = AnsiConsole.Prompt(
+            new TextPrompt<string>($"{requiredMarker} [cyan]{propertyTitle}[/]:")
+                .DefaultValue(defaultValue.ToString()!)
+                .AllowEmpty());
+
+        return string.IsNullOrWhiteSpace(textInput) ? defaultValue : textInput;
     }
 
     /// <summary>
@@ -272,20 +381,298 @@ public class BlueprintExecutor
             }
         }
 
-        // Show routing
+        // Show routing with detailed condition evaluation
         if (context.Settings.ShowRouting && result.Routing != null)
         {
-            var nextParticipant = result.Routing.NextParticipantId ?? "__Complete__";
-            var routingColor = nextParticipant == "__Complete__" ? "green" : "yellow";
-            AnsiConsole.MarkupLine($"  [dim]Routing:[/] [{routingColor}]→ {nextParticipant}[/]");
+            ShowRoutingDecision(result, context);
         }
 
-        // Show disclosure count
+        // Show disclosure summary
         if (context.Settings.ShowDisclosure && result.Disclosures.Count > 0)
         {
-            AnsiConsole.MarkupLine($"  [dim]Disclosure:[/] [cyan]{result.Disclosures.Count}[/] participants receive filtered data");
+            AnsiConsole.MarkupLine($"  [dim]Disclosure:[/] [cyan]{result.Disclosures.Count}[/] participant(s) will receive data (details below)");
         }
 
         AnsiConsole.WriteLine();
+    }
+
+    /// <summary>
+    /// Shows an explanation of what will happen during this action
+    /// </summary>
+    private void ShowActionExplanation(Sorcha.Blueprint.Models.Action action, Dictionary<string, object> workflowData)
+    {
+        var explanationText = new StringBuilder();
+        explanationText.AppendLine("[bold yellow]📖 What will happen in this action:[/]");
+        explanationText.AppendLine();
+
+        // Explain data collection
+        if (action.DataSchemas != null && action.DataSchemas.Any())
+        {
+            var schema = action.DataSchemas.First();
+            var schemaJson = JsonSerializer.Serialize(schema);
+            var schemaObj = JsonSerializer.Deserialize<Dictionary<string, object>>(schemaJson);
+
+            if (schemaObj != null && schemaObj.TryGetValue("properties", out var propsObj))
+            {
+                var propsJson = JsonSerializer.Serialize(propsObj);
+                var properties = JsonSerializer.Deserialize<Dictionary<string, object>>(propsJson);
+
+                if (properties != null)
+                {
+                    explanationText.AppendLine($"   [cyan]1. Data Collection:[/] You'll be prompted to enter [yellow]{properties.Count}[/] field(s)");
+                }
+            }
+        }
+
+        // Explain validation
+        explanationText.AppendLine($"   [cyan]2. Validation:[/] Input will be validated against JSON Schema");
+
+        // Explain calculations
+        if (action.Calculations != null && action.Calculations.Any())
+        {
+            explanationText.AppendLine($"   [cyan]3. Calculations:[/] [yellow]{action.Calculations.Count}[/] field(s) will be computed");
+        }
+
+        // Explain routing
+        if (action.Condition != null)
+        {
+            explanationText.AppendLine($"   [cyan]4. Routing:[/] The workflow will determine the next participant based on your input");
+
+            // Try to extract routing information from condition
+            var conditionJson = JsonSerializer.Serialize(action.Condition);
+            if (conditionJson.Contains("\"if\""))
+            {
+                explanationText.AppendLine($"      [dim]• Conditional routing will be evaluated[/]");
+            }
+        }
+        else
+        {
+            explanationText.AppendLine($"   [cyan]4. Routing:[/] Workflow will proceed to next action");
+        }
+
+        // Explain disclosure
+        if (action.Disclosures != null && action.Disclosures.Any())
+        {
+            explanationText.AppendLine($"   [cyan]5. Disclosure:[/] Data will be selectively shared with [yellow]{action.Disclosures.Count()}[/] participant(s)");
+            foreach (var disclosure in action.Disclosures.Take(5))
+            {
+                var recipientId = disclosure.ParticipantAddress ?? "Unknown";
+                var pointerCount = disclosure.DataPointers?.Count() ?? 0;
+                var dataScope = pointerCount == 1 && disclosure.DataPointers?.First() == "/*"
+                    ? "all fields"
+                    : $"only {pointerCount} field(s)";
+                var icon = dataScope.Contains("all") ? "👁️" : "🔒";
+                explanationText.AppendLine($"      [dim]{icon} {recipientId} → will see {dataScope}[/]");
+            }
+            explanationText.AppendLine($"      [dim]💡 After execution, you'll see what each participant receives[/]");
+        }
+
+        var panel = new Panel(explanationText.ToString())
+        {
+            Border = BoxBorder.Rounded,
+            BorderStyle = new Style(Color.Yellow)
+        };
+        AnsiConsole.Write(panel);
+        AnsiConsole.WriteLine();
+    }
+
+    /// <summary>
+    /// Shows detailed routing decision with condition evaluation
+    /// </summary>
+    private void ShowRoutingDecision(ActionExecutionResult result, DemoContext context)
+    {
+        var nextParticipant = result.Routing.NextParticipantId ?? "__Complete__";
+        var routingColor = nextParticipant == "__Complete__" ? "green" : "yellow";
+
+        var routingPanel = new Panel(BuildRoutingExplanation(result, context))
+        {
+            Header = new PanelHeader($"[bold cyan]🔀 Routing Decision[/]"),
+            Border = BoxBorder.Rounded
+        };
+
+        AnsiConsole.Write(routingPanel);
+        AnsiConsole.WriteLine();
+    }
+
+    /// <summary>
+    /// Builds a detailed explanation of the routing decision
+    /// </summary>
+    private string BuildRoutingExplanation(ActionExecutionResult result, DemoContext context)
+    {
+        var explanation = new StringBuilder();
+        var nextParticipant = result.Routing.NextParticipantId ?? "__Complete__";
+        var routingColor = nextParticipant == "__Complete__" ? "green" : "yellow";
+
+        // Show the decision
+        explanation.AppendLine($"[bold]Decision:[/] Route to [{routingColor}]{nextParticipant}[/]");
+        explanation.AppendLine();
+
+        // If there was a condition evaluated, show the details
+        if (result.Routing.MatchedCondition != null)
+        {
+            explanation.AppendLine($"[yellow]Matched Condition:[/]");
+            explanation.AppendLine($"[dim]{result.Routing.MatchedCondition}[/]");
+            explanation.AppendLine();
+        }
+
+        // Try to show the specific checks that were performed
+        var currentAction = context.CurrentBlueprint?.Actions.FirstOrDefault(a =>
+            result.ProcessedData.ContainsKey("actionId") &&
+            a.Id.ToString() == result.ProcessedData["actionId"].ToString());
+
+        if (currentAction?.Condition != null)
+        {
+            explanation.AppendLine($"[yellow]Condition Logic:[/]");
+
+            var conditionJson = JsonSerializer.Serialize(currentAction.Condition, new JsonSerializerOptions { WriteIndented = true });
+            var condition = JsonSerializer.Deserialize<Dictionary<string, object>>(conditionJson);
+
+            if (condition != null && condition.ContainsKey("if"))
+            {
+                var ifArray = JsonSerializer.Deserialize<object[]>(JsonSerializer.Serialize(condition["if"]));
+
+                if (ifArray != null && ifArray.Length >= 3)
+                {
+                    // Extract the condition, true path, and false path
+                    var checkCondition = ifArray[0];
+                    var truePath = ifArray[1];
+                    var falsePath = ifArray[2];
+
+                    explanation.AppendLine($"   IF: [cyan]{JsonSerializer.Serialize(checkCondition)}[/]");
+                    explanation.AppendLine($"   THEN: Route to [yellow]{truePath}[/]");
+                    explanation.AppendLine($"   ELSE: Route to [yellow]{falsePath}[/]");
+                    explanation.AppendLine();
+
+                    // Try to extract the actual values being checked
+                    var checkJson = JsonSerializer.Serialize(checkCondition);
+                    if (checkJson.Contains("\"var\""))
+                    {
+                        var checkObj = JsonSerializer.Deserialize<Dictionary<string, object>>(checkJson);
+                        if (checkObj != null)
+                        {
+                            // Extract operator and variable
+                            var op = checkObj.Keys.FirstOrDefault(k => k != "var");
+                            if (op != null)
+                            {
+                                explanation.AppendLine($"[yellow]Values Checked:[/]");
+
+                                // Show relevant data from processed data
+                                foreach (var kvp in result.ProcessedData.Take(5))
+                                {
+                                    if (checkJson.Contains($"\"{kvp.Key}\""))
+                                    {
+                                        explanation.AppendLine($"   • [cyan]{kvp.Key}[/] = [yellow]{JsonSerializer.Serialize(kvp.Value)}[/]");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return explanation.ToString();
+    }
+
+    /// <summary>
+    /// Shows what each participant sees based on disclosure settings
+    /// </summary>
+    private void ShowDisclosureViews(
+        Sorcha.Blueprint.Models.Action action,
+        Dictionary<string, object> fullData,
+        DemoContext context)
+    {
+        AnsiConsole.WriteLine();
+        var rule = new Rule("[bold yellow]📤 Data Distribution (Selective Disclosure)[/]")
+        {
+            Justification = Justify.Left,
+            Style = new Style(Color.Yellow)
+        };
+        AnsiConsole.Write(rule);
+        AnsiConsole.WriteLine();
+
+        // Show what the current participant submitted (full data)
+        var senderPanel = new Panel(JsonSerializer.Serialize(fullData, new JsonSerializerOptions { WriteIndented = true }))
+        {
+            Header = new PanelHeader($"[bold cyan]📝 {action.Sender} (Sender) - Full Data Submitted[/]"),
+            Border = BoxBorder.Rounded,
+            BorderStyle = new Style(Color.Cyan1)
+        };
+        AnsiConsole.Write(senderPanel);
+        AnsiConsole.WriteLine();
+
+        // Show what each disclosed recipient sees
+        if (action.Disclosures != null)
+        {
+            foreach (var disclosure in action.Disclosures)
+            {
+                var recipientId = disclosure.ParticipantAddress ?? "Unknown";
+
+                // Skip if recipient is the sender
+                if (recipientId == action.Sender)
+                    continue;
+
+                // Filter data based on disclosure pointers
+                var filteredData = FilterDataByPointers(fullData, disclosure.DataPointers);
+                var isFullDisclosure = disclosure.DataPointers?.Count() == 1 &&
+                                      disclosure.DataPointers.First() == "/*";
+
+                // Create panel showing what this participant receives
+                var disclosureType = isFullDisclosure ? "Full Data" : "Filtered Data";
+                var borderColor = isFullDisclosure ? Color.Green : Color.Yellow;
+                var icon = isFullDisclosure ? "👁️" : "🔒";
+
+                var recipientPanel = new Panel(
+                    JsonSerializer.Serialize(filteredData, new JsonSerializerOptions { WriteIndented = true }))
+                {
+                    Header = new PanelHeader($"[bold]{icon} {recipientId} (Recipient) - {disclosureType}[/]"),
+                    Border = BoxBorder.Rounded,
+                    BorderStyle = new Style(borderColor)
+                };
+
+                // Add explanation of what was filtered
+                if (!isFullDisclosure)
+                {
+                    var pointerList = string.Join(", ", disclosure.DataPointers ?? Enumerable.Empty<string>());
+                    AnsiConsole.MarkupLine($"[dim]  Disclosed fields: {pointerList}[/]");
+                }
+
+                AnsiConsole.Write(recipientPanel);
+                AnsiConsole.WriteLine();
+            }
+        }
+
+        AnsiConsole.MarkupLine("[dim]💡 Notice: Different participants see different data based on disclosure settings[/]");
+        AnsiConsole.WriteLine();
+    }
+
+    /// <summary>
+    /// Filters data based on JSON Pointer paths
+    /// </summary>
+    private Dictionary<string, object> FilterDataByPointers(
+        Dictionary<string, object> fullData,
+        IEnumerable<string>? pointers)
+    {
+        if (pointers == null || !pointers.Any())
+            return new Dictionary<string, object>();
+
+        // If wildcard pointer, return all data
+        if (pointers.Count() == 1 && pointers.First() == "/*")
+            return new Dictionary<string, object>(fullData);
+
+        var filtered = new Dictionary<string, object>();
+
+        foreach (var pointer in pointers)
+        {
+            // JSON Pointer format: "/fieldName"
+            var fieldName = pointer.TrimStart('/');
+
+            if (fullData.ContainsKey(fieldName))
+            {
+                filtered[fieldName] = fullData[fieldName];
+            }
+        }
+
+        return filtered;
     }
 }

@@ -124,9 +124,19 @@ public class ConsoleRenderer
     /// </summary>
     public void ShowBlueprintOverview(IBlueprintExample example)
     {
-        // Implementation will be added in Phase 5
-        AnsiConsole.MarkupLine($"[bold]Blueprint:[/] {example.Name}");
-        AnsiConsole.MarkupLine($"[dim]{example.Description}[/]");
+        var overview = new Panel($@"[bold cyan]{example.Name}[/]
+
+[dim]{example.Description}[/]
+
+[yellow]Participants:[/] {string.Join(", ", example.GetParticipants())}
+")
+        {
+            Header = new PanelHeader("[bold]📋 Blueprint Overview[/]"),
+            Border = BoxBorder.Double,
+            BorderStyle = new Style(Color.Cyan1)
+        };
+
+        AnsiConsole.Write(overview);
         AnsiConsole.WriteLine();
     }
 
@@ -135,15 +145,30 @@ public class ConsoleRenderer
     /// </summary>
     public void ShowWalletAssignments(string[] participants, DemoContext context)
     {
-        // Implementation will be added in Phase 5
-        AnsiConsole.MarkupLine("[bold]Participants and Wallets:[/]");
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .BorderColor(Color.Grey)
+            .AddColumn(new TableColumn("[bold]Participant[/]").Centered())
+            .AddColumn(new TableColumn("[bold]Wallet Address[/]"));
+
         foreach (var participant in participants)
         {
             if (context.ParticipantWallets.TryGetValue(participant, out var wallet))
             {
-                AnsiConsole.MarkupLine($"  [cyan]{participant}:[/] [dim]{wallet}[/]");
+                table.AddRow(
+                    $"[cyan]{participant}[/]",
+                    $"[dim]{wallet[..16]}...{wallet[^16..]}[/]"
+                );
             }
         }
+
+        var panel = new Panel(table)
+        {
+            Header = new PanelHeader("[bold]👛 Participant Wallets[/]"),
+            Border = BoxBorder.Rounded
+        };
+
+        AnsiConsole.Write(panel);
         AnsiConsole.WriteLine();
     }
 
@@ -152,8 +177,21 @@ public class ConsoleRenderer
     /// </summary>
     public void ShowTransactionChainSummary(DemoContext context)
     {
-        // Implementation will be added in Phase 7
-        AnsiConsole.MarkupLine($"[bold]Transaction Chain:[/] {context.TransactionChain.Count} transactions");
+        var summary = new Panel($@"[bold]Workflow Execution Summary[/]
+
+[cyan]Total Actions Executed:[/] {context.ExecutionData.Count}
+[cyan]Transactions Created:[/] {context.TransactionChain.Count}
+[cyan]Participants Involved:[/] {context.ParticipantWallets.Count}
+
+[green]✓ Workflow completed successfully![/]
+")
+        {
+            Header = new PanelHeader("[bold]📊 Summary[/]"),
+            Border = BoxBorder.Rounded,
+            BorderStyle = new Style(Color.Green)
+        };
+
+        AnsiConsole.Write(summary);
         AnsiConsole.WriteLine();
     }
 
@@ -162,16 +200,28 @@ public class ConsoleRenderer
     /// </summary>
     public void ShowActionHeader(int actionIndex, Sorcha.Blueprint.Models.Action action, string participant)
     {
-        var rule = new Rule($"[bold cyan]Step {actionIndex + 1}:[/] {action.Title}")
+        AnsiConsole.WriteLine();
+        AnsiConsole.WriteLine();
+
+        var rule = new Rule($"[bold cyan]Step {actionIndex + 1}: {action.Title}[/]")
         {
-            Justification = Justify.Left
+            Justification = Justify.Left,
+            Style = new Style(Color.Cyan1)
         };
         AnsiConsole.Write(rule);
-        AnsiConsole.MarkupLine($"[dim]Participant:[/] [cyan]{participant}[/]");
-        if (!string.IsNullOrEmpty(action.Description))
+        AnsiConsole.WriteLine();
+
+        var header = new Panel($@"[yellow]👤 Participant:[/] [bold cyan]{participant}[/]
+[yellow]📝 Action:[/] {action.Title}
+{(!string.IsNullOrEmpty(action.Description) ? $"[dim]{action.Description}[/]" : "")}
+")
         {
-            AnsiConsole.MarkupLine($"[dim]{action.Description}[/]");
-        }
+            Border = BoxBorder.Rounded,
+            BorderStyle = new Style(Color.Cyan1),
+            Padding = new Padding(1, 0, 1, 0)
+        };
+
+        AnsiConsole.Write(header);
         AnsiConsole.WriteLine();
     }
 }
