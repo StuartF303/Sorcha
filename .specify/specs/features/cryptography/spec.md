@@ -176,6 +176,41 @@ As a developer, I need to compute cryptographic hashes so that I can create tran
 - **.NET**: .NET 10 or later
 - **Runtime Check**: `MLDsa.IsSupported` and `MLKem.IsSupported` must return true
 
+### Client Deployment Constraints
+
+#### Blazor WebAssembly - Not Currently Supported
+
+The cryptography library **cannot run in Blazor WebAssembly** due to PQC algorithm dependencies on native OS cryptographic libraries:
+
+| Constraint | Reason |
+|------------|--------|
+| **ML-DSA/ML-KEM require native OS support** | .NET's `System.Security.Cryptography.MLDsa` and `MLKem` are thin wrappers around Windows CNG or Linux OpenSSL - not available in browser sandbox |
+| **`MLDsa.IsSupported` returns false in WASM** | No native crypto provider available |
+| **WebCrypto API lacks PQC** | W3C WebCrypto does not yet include ML-DSA or ML-KEM |
+
+#### Supported Client Deployment Models
+
+| Model | Status | Notes |
+|-------|--------|-------|
+| **Blazor Server** | ✅ Supported | Crypto executes server-side |
+| **Blazor Hybrid (MAUI)** | ✅ Supported | Native app has OS crypto access |
+| **Blazor WASM + Server Signing** | ✅ Supported | Client constructs unsigned transactions, Wallet Service API signs |
+| **Blazor WASM Native** | ❌ Blocked | Awaiting browser PQC support |
+
+#### Future Browser PQC Support
+
+When browser PQC support becomes available, client-side implementation should be straightforward because:
+
+1. **Interface-based design**: All crypto operations go through `ICryptoModule` interface - swap implementation without changing consumers
+2. **Platform availability pattern**: Existing `IsPqcSupported` property already handles capability detection
+3. **Algorithm abstraction**: `WalletNetworks` enum abstracts algorithm selection from implementation details
+4. **Potential future paths**:
+   - W3C WebCrypto adding ML-DSA/ML-KEM (NIST standardization may drive this)
+   - WebAssembly System Interface (WASI) crypto proposals
+   - Pure .NET PQC implementation (e.g., BouncyCastle adding FIPS 203/204)
+
+**Design Principle**: Keep `ICryptoModule` implementations swappable so a future `WasmCryptoModule` can be added when browser support materializes.
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes

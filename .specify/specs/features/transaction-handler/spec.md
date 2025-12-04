@@ -163,6 +163,21 @@ As a payload owner, I need to grant access to additional recipients using ML-KEM
 - **.NET**: .NET 10 or later
 - **Runtime Check**: `MLDsa.IsSupported` and `MLKem.IsSupported` must return true
 
+### Client Deployment Constraints
+
+The Transaction Handler library inherits all platform constraints from the Cryptography library. See [Cryptography Spec - Client Deployment Constraints](../cryptography/spec.md#client-deployment-constraints) for details.
+
+**Summary**: Blazor WebAssembly cannot perform signing or encryption natively. Use Blazor Server, Blazor Hybrid (MAUI), or delegate cryptographic operations to the Wallet Service API.
+
+**WASM-Compatible Operations**: The following Transaction Handler operations do NOT require PQC and could work in WASM:
+- Transaction model creation (unsigned)
+- Transaction serialization/deserialization (JSON, binary parsing)
+- Payload structure creation (unencrypted)
+- Transaction size estimation
+- TxId computation (SHA-256 hashing - available in WASM)
+
+This allows a future "thin client" pattern where WASM constructs transactions and a server-side service handles signing/encryption.
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
