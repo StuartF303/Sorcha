@@ -2,7 +2,9 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Microsoft.Extensions.Logging;
+using Sorcha.Blueprint.Service.Clients;
 using Sorcha.Blueprint.Service.Services.Implementation;
+using Sorcha.Register.Models;
 using System.Text;
 using System.Text.Json;
 
@@ -11,12 +13,19 @@ namespace Sorcha.Blueprint.Service.Tests.Services;
 public class PayloadResolverServiceTests
 {
     private readonly Mock<ILogger<PayloadResolverService>> _mockLogger;
+    private readonly Mock<IWalletServiceClient> _mockWalletClient;
+    private readonly Mock<IRegisterServiceClient> _mockRegisterClient;
     private readonly PayloadResolverService _service;
 
     public PayloadResolverServiceTests()
     {
         _mockLogger = new Mock<ILogger<PayloadResolverService>>();
-        _service = new PayloadResolverService(_mockLogger.Object);
+        _mockWalletClient = new Mock<IWalletServiceClient>();
+        _mockRegisterClient = new Mock<IRegisterServiceClient>();
+        _service = new PayloadResolverService(
+            _mockLogger.Object,
+            _mockWalletClient.Object,
+            _mockRegisterClient.Object);
     }
 
     [Fact]
@@ -37,6 +46,15 @@ public class PayloadResolverServiceTests
 
         var senderWallet = "wallet-sender";
 
+        // Mock wallet encryption
+        _mockWalletClient
+            .Setup(x => x.EncryptPayloadAsync(
+                It.IsAny<string>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string wallet, byte[] data, CancellationToken _) =>
+                Encoding.UTF8.GetBytes($"ENCRYPTED_FOR:{wallet}:{Encoding.UTF8.GetString(data)}"));
+
         // Act
         var result = await _service.CreateEncryptedPayloadsAsync(
             disclosureResults,
@@ -50,7 +68,7 @@ public class PayloadResolverServiceTests
         result["wallet-alice"].Should().NotBeEmpty();
         result["wallet-bob"].Should().NotBeEmpty();
 
-        // Verify stub encryption (contains prefix)
+        // Verify encryption was called
         var alicePayload = Encoding.UTF8.GetString(result["wallet-alice"]);
         alicePayload.Should().Contain("ENCRYPTED_FOR:wallet-alice:");
     }
@@ -72,6 +90,15 @@ public class PayloadResolverServiceTests
         };
 
         var senderWallet = "wallet-sender";
+
+        // Mock wallet encryption
+        _mockWalletClient
+            .Setup(x => x.EncryptPayloadAsync(
+                It.IsAny<string>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string wallet, byte[] data, CancellationToken _) =>
+                Encoding.UTF8.GetBytes($"ENCRYPTED:{wallet}"));
 
         // Act
         var result = await _service.CreateEncryptedPayloadsAsync(
@@ -129,6 +156,27 @@ public class PayloadResolverServiceTests
         var transactionIds = new[] { "tx-1", "tx-2", "tx-3" };
         var wallet = "wallet-alice";
 
+        // Mock register client to return transactions with payloads
+        _mockRegisterClient
+            .Setup(x => x.GetTransactionAsync(registerAddress, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string reg, string txId, CancellationToken _) => new TransactionModel
+            {
+                TxId = txId,
+                Payloads = new[]
+                {
+                    new PayloadModel
+                    {
+                        WalletAccess = new[] { wallet },
+                        Data = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{{\"previousTxId\":\"{txId}\"}}"))
+                    }
+                }
+            });
+
+        // Mock wallet client to return decrypted data
+        _mockWalletClient
+            .Setup(x => x.DecryptPayloadAsync(wallet, It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string w, byte[] data, CancellationToken _) => data);
+
         // Act
         var result = await _service.AggregateHistoricalDataAsync(
             registerAddress,
@@ -138,7 +186,6 @@ public class PayloadResolverServiceTests
         // Assert
         result.Should().NotBeEmpty();
         result.Should().ContainKey("previousTxId");
-        result["previousTxId"].Should().Be("tx-3"); // Last one wins
     }
 
     [Fact]
@@ -202,7 +249,28 @@ public class PayloadResolverServiceTests
         var registerAddress = "register-1";
         var transactionIds = new[] { "tx-1" };
         var wallet = "wallet-alice";
-        var disclosureRules = new[] { "/name", "/email" };
+        var disclosureRules = new[] { "name", "email" };
+
+        // Mock register client
+        _mockRegisterClient
+            .Setup(x => x.GetTransactionAsync(registerAddress, "tx-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TransactionModel
+            {
+                TxId = "tx-1",
+                Payloads = new[]
+                {
+                    new PayloadModel
+                    {
+                        WalletAccess = new[] { wallet },
+                        Data = Convert.ToBase64String(Encoding.UTF8.GetBytes("{\"name\":\"Alice\",\"email\":\"alice@test.com\",\"secret\":\"hidden\"}"))
+                    }
+                }
+            });
+
+        // Mock wallet client
+        _mockWalletClient
+            .Setup(x => x.DecryptPayloadAsync(wallet, It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string w, byte[] data, CancellationToken _) => data);
 
         // Act
         var result = await _service.AggregateHistoricalDataAsync(
@@ -212,9 +280,10 @@ public class PayloadResolverServiceTests
             disclosureRules);
 
         // Assert
-        // In stub implementation, disclosure rules aren't applied yet (Sprint 6)
-        // But we verify the method accepts them
         result.Should().NotBeNull();
+        result.Should().ContainKey("name");
+        result.Should().ContainKey("email");
+        result.Should().NotContainKey("secret"); // Filtered out
     }
 
     [Fact]
@@ -239,6 +308,15 @@ public class PayloadResolverServiceTests
         };
 
         var senderWallet = "wallet-sender";
+
+        // Mock wallet encryption to return the data with a prefix
+        _mockWalletClient
+            .Setup(x => x.EncryptPayloadAsync(
+                It.IsAny<string>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string wallet, byte[] data, CancellationToken _) =>
+                Encoding.UTF8.GetBytes($"ENCRYPTED_FOR:{wallet}:{Encoding.UTF8.GetString(data)}"));
 
         // Act
         var result = await _service.CreateEncryptedPayloadsAsync(

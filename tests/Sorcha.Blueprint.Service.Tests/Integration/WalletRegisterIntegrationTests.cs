@@ -167,7 +167,7 @@ public class WalletRegisterIntegrationTests
         var client = new WalletServiceClient(_httpClient, _walletLogger);
         var walletAddress = "nonexistent-wallet";
 
-        SetupHttpResponse(HttpStatusCode.NotFound, null);
+        SetupHttpResponse<object>(HttpStatusCode.NotFound, null);
 
         // Act
         var result = await client.GetWalletAsync(walletAddress);
@@ -240,7 +240,7 @@ public class WalletRegisterIntegrationTests
         var registerId = "register123";
         var transactionId = "nonexistent-tx";
 
-        SetupHttpResponse(HttpStatusCode.NotFound, null);
+        SetupHttpResponse<object>(HttpStatusCode.NotFound, null);
 
         // Act
         var result = await client.GetTransactionAsync(registerId, transactionId);
@@ -324,7 +324,7 @@ public class WalletRegisterIntegrationTests
             Id = registerId,
             Name = "Test Register",
             TenantId = "tenant123",
-            Status = Register.Models.Enums.RegisterStatus.Active
+            Status = Register.Models.Enums.RegisterStatus.Online
         };
 
         SetupHttpResponse(HttpStatusCode.OK, expectedRegister);
@@ -345,7 +345,7 @@ public class WalletRegisterIntegrationTests
         var client = new RegisterServiceClient(_httpClient, _registerLogger);
         var registerId = "nonexistent-register";
 
-        SetupHttpResponse(HttpStatusCode.NotFound, null);
+        SetupHttpResponse<object>(HttpStatusCode.NotFound, null);
 
         // Act
         var result = await client.GetRegisterAsync(registerId);

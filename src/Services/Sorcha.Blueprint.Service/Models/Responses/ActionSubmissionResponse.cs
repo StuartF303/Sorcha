@@ -9,9 +9,19 @@ namespace Sorcha.Blueprint.Service.Models.Responses;
 public record ActionSubmissionResponse
 {
     /// <summary>
-    /// The transaction hash
+    /// The transaction ID (hash)
     /// </summary>
-    public required string TransactionHash { get; init; }
+    public required string TransactionId { get; init; }
+
+    /// <summary>
+    /// Legacy alias for TransactionId for backwards compatibility
+    /// </summary>
+    public string TransactionHash => TransactionId;
+
+    /// <summary>
+    /// The serialized transaction (for signing by wallet) - legacy support
+    /// </summary>
+    public string? SerializedTransaction { get; init; }
 
     /// <summary>
     /// The workflow instance ID
@@ -19,9 +29,26 @@ public record ActionSubmissionResponse
     public required string InstanceId { get; init; }
 
     /// <summary>
-    /// The serialized transaction (for signing by wallet)
+    /// Next action(s) in the workflow.
+    /// Multiple actions indicate parallel branches.
+    /// Empty list indicates workflow completion.
     /// </summary>
-    public required string SerializedTransaction { get; init; }
+    public List<NextActionResponse> NextActions { get; init; } = [];
+
+    /// <summary>
+    /// Calculated values from JSON Logic expressions
+    /// </summary>
+    public Dictionary<string, object>? Calculations { get; init; }
+
+    /// <summary>
+    /// Whether the workflow is complete
+    /// </summary>
+    public bool IsComplete { get; init; }
+
+    /// <summary>
+    /// Validation warnings (non-blocking)
+    /// </summary>
+    public List<string>? Warnings { get; init; }
 
     /// <summary>
     /// File transaction hashes (if files were attached)
@@ -32,4 +59,30 @@ public record ActionSubmissionResponse
     /// Timestamp when the transaction was created
     /// </summary>
     public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// Information about the next action to be executed
+/// </summary>
+public record NextActionResponse
+{
+    /// <summary>
+    /// The action ID within the blueprint
+    /// </summary>
+    public required int ActionId { get; init; }
+
+    /// <summary>
+    /// Display title of the action
+    /// </summary>
+    public required string ActionTitle { get; init; }
+
+    /// <summary>
+    /// The participant ID who should execute this action
+    /// </summary>
+    public required string ParticipantId { get; init; }
+
+    /// <summary>
+    /// Branch ID for parallel workflows
+    /// </summary>
+    public string? BranchId { get; init; }
 }

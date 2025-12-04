@@ -108,10 +108,123 @@ public class NotificationService : INotificationService
     }
 
     /// <summary>
+    /// Notify a participant that a new action is available for them.
+    /// </summary>
+    public async Task NotifyActionAvailableAsync(
+        string instanceId,
+        int actionId,
+        string actionTitle,
+        string participantId,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var groupName = GetInstanceGroupName(instanceId);
+
+            await _hubContext.Clients
+                .Group(groupName)
+                .SendAsync("ActionAvailable", new
+                {
+                    InstanceId = instanceId,
+                    ActionId = actionId,
+                    ActionTitle = actionTitle,
+                    ParticipantId = participantId,
+                    Timestamp = DateTimeOffset.UtcNow
+                }, ct);
+
+            _logger.LogInformation(
+                "Sent ActionAvailable notification for instance {InstanceId}, action {ActionId} to participant {ParticipantId}",
+                instanceId, actionId, participantId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to send ActionAvailable notification for instance {InstanceId}, action {ActionId}",
+                instanceId, actionId);
+        }
+    }
+
+    /// <summary>
+    /// Notify a participant that an action was rejected and routed to a target action.
+    /// </summary>
+    public async Task NotifyActionRejectedAsync(
+        string instanceId,
+        int rejectedActionId,
+        int targetActionId,
+        string targetParticipantId,
+        string reason,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var groupName = GetInstanceGroupName(instanceId);
+
+            await _hubContext.Clients
+                .Group(groupName)
+                .SendAsync("ActionRejected", new
+                {
+                    InstanceId = instanceId,
+                    RejectedActionId = rejectedActionId,
+                    TargetActionId = targetActionId,
+                    TargetParticipantId = targetParticipantId,
+                    Reason = reason,
+                    Timestamp = DateTimeOffset.UtcNow
+                }, ct);
+
+            _logger.LogInformation(
+                "Sent ActionRejected notification for instance {InstanceId}, action {ActionId} rejected, routing to {TargetActionId}",
+                instanceId, rejectedActionId, targetActionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to send ActionRejected notification for instance {InstanceId}",
+                instanceId);
+        }
+    }
+
+    /// <summary>
+    /// Notify all participants that a workflow has completed.
+    /// </summary>
+    public async Task NotifyWorkflowCompletedAsync(string instanceId, CancellationToken ct = default)
+    {
+        try
+        {
+            var groupName = GetInstanceGroupName(instanceId);
+
+            await _hubContext.Clients
+                .Group(groupName)
+                .SendAsync("WorkflowCompleted", new
+                {
+                    InstanceId = instanceId,
+                    Timestamp = DateTimeOffset.UtcNow
+                }, ct);
+
+            _logger.LogInformation(
+                "Sent WorkflowCompleted notification for instance {InstanceId}",
+                instanceId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to send WorkflowCompleted notification for instance {InstanceId}",
+                instanceId);
+        }
+    }
+
+    /// <summary>
     /// Get the SignalR group name for a wallet address.
     /// </summary>
     private static string GetWalletGroupName(string walletAddress)
     {
         return $"wallet:{walletAddress}";
+    }
+
+    /// <summary>
+    /// Get the SignalR group name for a workflow instance.
+    /// </summary>
+    private static string GetInstanceGroupName(string instanceId)
+    {
+        return $"instance:{instanceId}";
     }
 }

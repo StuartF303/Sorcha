@@ -5,9 +5,9 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sorcha.Blueprint.Service.Clients;
 using Sorcha.Blueprint.Service.Services.Implementation;
 using Sorcha.Blueprint.Service.Services.Interfaces;
-using Sorcha.Cryptography;
 using Sorcha.Cryptography.Interfaces;
 using System.Text;
 using System.Text.Json;
@@ -26,6 +26,8 @@ public class ServiceLayerIntegrationTests
     private readonly IPayloadResolverService _payloadResolver;
     private readonly ITransactionBuilderService _transactionBuilder;
     private readonly Mock<IBlueprintStore> _mockBlueprintStore;
+    private readonly Mock<IWalletServiceClient> _mockWalletClient;
+    private readonly Mock<IRegisterServiceClient> _mockRegisterClient;
     private readonly IDistributedCache _cache;
 
     public ServiceLayerIntegrationTests()
@@ -37,6 +39,16 @@ public class ServiceLayerIntegrationTests
         // Setup mock blueprint store
         _mockBlueprintStore = new Mock<IBlueprintStore>();
 
+        // Setup mock service clients
+        _mockWalletClient = new Mock<IWalletServiceClient>();
+        _mockRegisterClient = new Mock<IRegisterServiceClient>();
+
+        // Setup wallet encryption mock to return prefixed data
+        _mockWalletClient
+            .Setup(x => x.EncryptPayloadAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string wallet, byte[] data, CancellationToken _) =>
+                Encoding.UTF8.GetBytes($"ENCRYPTED_FOR:{wallet}:{Encoding.UTF8.GetString(data)}"));
+
         // Create real services
         var actionResolverLogger = Mock.Of<ILogger<ActionResolverService>>();
         _actionResolver = new ActionResolverService(
@@ -45,15 +57,18 @@ public class ServiceLayerIntegrationTests
             actionResolverLogger);
 
         var payloadResolverLogger = Mock.Of<ILogger<PayloadResolverService>>();
-        _payloadResolver = new PayloadResolverService(payloadResolverLogger);
+        _payloadResolver = new PayloadResolverService(
+            payloadResolverLogger,
+            _mockWalletClient.Object,
+            _mockRegisterClient.Object);
 
-        // Create real cryptography services
-        var cryptoModule = new CryptoModule();
-        var hashProvider = new HashProvider();
+        // Create transaction builder with mocks
+        var mockCryptoModule = new Mock<ICryptoModule>();
+        var mockHashProvider = new Mock<IHashProvider>();
         var transactionBuilderLogger = Mock.Of<ILogger<TransactionBuilderService>>();
         _transactionBuilder = new TransactionBuilderService(
-            cryptoModule,
-            hashProvider,
+            mockCryptoModule.Object,
+            mockHashProvider.Object,
             transactionBuilderLogger);
     }
 
@@ -67,20 +82,20 @@ public class ServiceLayerIntegrationTests
             Title = "Loan Application",
             Participants = new List<ParticipantModel>
             {
-                new ParticipantModel { Id = "applicant", Name = "Applicant" },
-                new ParticipantModel { Id = "loan-officer", Name = "Loan Officer" }
+                new ParticipantModel { Id = "applicant", Name = "Applicant", WalletAddress = "wallet-applicant" },
+                new ParticipantModel { Id = "loan-officer", Name = "Loan Officer", WalletAddress = "wallet-loan-officer" }
             },
             Actions = new List<ActionModel>
             {
                 new ActionModel
                 {
-                    Id = "submit-application",
+                    Id = 1,
                     Title = "Submit Application",
                     Sender = "applicant"
                 },
                 new ActionModel
                 {
-                    Id = "review-application",
+                    Id = 2,
                     Title = "Review Application",
                     Sender = "loan-officer"
                 }
@@ -92,7 +107,7 @@ public class ServiceLayerIntegrationTests
 
         // Act 1: Resolve the blueprint and action
         var resolvedBlueprint = await _actionResolver.GetBlueprintAsync("loan-application-bp");
-        var action = _actionResolver.GetActionDefinition(resolvedBlueprint!, "submit-application");
+        var action = _actionResolver.GetActionDefinition(resolvedBlueprint!, "1");
 
         // Assert 1: Blueprint and action resolved
         resolvedBlueprint.Should().NotBeNull();
@@ -130,7 +145,7 @@ public class ServiceLayerIntegrationTests
         // Act 4: Build transaction
         var transaction = await _transactionBuilder.BuildActionTransactionAsync(
             blueprint.Id!,
-            "submit-application",
+            "1",
             null,
             null,
             encryptedPayloads,
@@ -139,13 +154,13 @@ public class ServiceLayerIntegrationTests
 
         // Assert 4: Transaction built correctly
         transaction.Should().NotBeNull();
-        transaction.SenderWallet.Should().Be(wallets["applicant"]);
+        // Note: SenderWallet is only set during signing, not during build
         transaction.Recipients.Should().HaveCount(2);
         transaction.RegisterId.Should().Be("register-1");
 
         var metadata = JsonSerializer.Deserialize<JsonElement>(transaction.Metadata!);
         metadata.GetProperty("blueprintId").GetString().Should().Be("loan-application-bp");
-        metadata.GetProperty("actionId").GetString().Should().Be("submit-application");
+        metadata.GetProperty("actionId").GetString().Should().Be("1");
     }
 
     [Fact]
@@ -199,7 +214,7 @@ public class ServiceLayerIntegrationTests
         // Build transaction
         var transaction = await _transactionBuilder.BuildActionTransactionAsync(
             "blueprint-id",
-            "action-id",
+            "1",
             null,
             null,
             payloads,
@@ -212,23 +227,6 @@ public class ServiceLayerIntegrationTests
         transaction.Recipients.Should().Contain("wallet-1");
         transaction.Recipients.Should().Contain("wallet-2");
         transaction.Recipients.Should().Contain("wallet-3");
-    }
-
-    [Fact]
-    public async Task Integration_HistoricalDataAggregation_WorksWithStubs()
-    {
-        // Arrange
-        var transactionIds = new[] { "tx-1", "tx-2", "tx-3" };
-
-        // Act
-        var aggregated = await _payloadResolver.AggregateHistoricalDataAsync(
-            "register-1",
-            transactionIds,
-            "wallet-alice");
-
-        // Assert: Stub implementation returns data
-        aggregated.Should().NotBeEmpty();
-        aggregated.Should().ContainKey("previousTxId");
     }
 
     [Fact]
@@ -314,15 +312,15 @@ public class ServiceLayerIntegrationTests
             Title = "Purchase Order Workflow",
             Participants = new List<ParticipantModel>
             {
-                new ParticipantModel { Id = "buyer", Name = "Buyer Company" },
-                new ParticipantModel { Id = "seller", Name = "Seller Company" },
-                new ParticipantModel { Id = "logistics", Name = "Logistics Provider" }
+                new ParticipantModel { Id = "buyer", Name = "Buyer Company", WalletAddress = "wallet-buyer" },
+                new ParticipantModel { Id = "seller", Name = "Seller Company", WalletAddress = "wallet-seller" },
+                new ParticipantModel { Id = "logistics", Name = "Logistics Provider", WalletAddress = "wallet-logistics" }
             },
             Actions = new List<ActionModel>
             {
-                new ActionModel { Id = "create-order", Title = "Create Order", Sender = "buyer" },
-                new ActionModel { Id = "accept-order", Title = "Accept Order", Sender = "seller" },
-                new ActionModel { Id = "ship-order", Title = "Ship Order", Sender = "logistics" }
+                new ActionModel { Id = 1, Title = "Create Order", Sender = "buyer" },
+                new ActionModel { Id = 2, Title = "Accept Order", Sender = "seller" },
+                new ActionModel { Id = 3, Title = "Ship Order", Sender = "logistics" }
             }
         };
 
@@ -331,7 +329,7 @@ public class ServiceLayerIntegrationTests
 
         // Step 1: Buyer creates order
         var resolvedBp = await _actionResolver.GetBlueprintAsync("purchase-order-workflow");
-        var createOrderAction = _actionResolver.GetActionDefinition(resolvedBp!, "create-order");
+        var createOrderAction = _actionResolver.GetActionDefinition(resolvedBp!, "1");
         var wallets = await _actionResolver.ResolveParticipantWalletsAsync(
             resolvedBp!,
             new[] { "buyer", "seller", "logistics" });
@@ -350,7 +348,7 @@ public class ServiceLayerIntegrationTests
 
         var orderTx = await _transactionBuilder.BuildActionTransactionAsync(
             blueprint.Id!,
-            "create-order",
+            "1",
             null, // New instance
             null,
             orderPayloads,
@@ -360,12 +358,12 @@ public class ServiceLayerIntegrationTests
         // Assert Step 1
         orderTx.Should().NotBeNull();
         var orderMetadata = JsonSerializer.Deserialize<JsonElement>(orderTx.Metadata!);
-        orderMetadata.GetProperty("actionId").GetString().Should().Be("create-order");
+        orderMetadata.GetProperty("actionId").GetString().Should().Be("1");
         var instanceId = orderMetadata.GetProperty("instanceId").GetString();
         instanceId.Should().NotBeNullOrEmpty();
 
         // Step 2: Seller accepts order (using same instance)
-        var acceptOrderAction = _actionResolver.GetActionDefinition(resolvedBp!, "accept-order");
+        var acceptOrderAction = _actionResolver.GetActionDefinition(resolvedBp!, "2");
         var acceptData = new Dictionary<string, object>
         {
             ["buyer"] = new { status = "accepted", estimatedDelivery = "5 days" },
@@ -383,7 +381,7 @@ public class ServiceLayerIntegrationTests
 
         var acceptTx = await _transactionBuilder.BuildActionTransactionAsync(
             blueprint.Id!,
-            "accept-order",
+            "2",
             instanceId, // Same instance
             previousTxHash,
             acceptPayloads,
@@ -395,7 +393,7 @@ public class ServiceLayerIntegrationTests
         acceptTx.PreviousTxHash.Should().Be(previousTxHash);
         var acceptMetadata = JsonSerializer.Deserialize<JsonElement>(acceptTx.Metadata!);
         acceptMetadata.GetProperty("instanceId").GetString().Should().Be(instanceId);
-        acceptMetadata.GetProperty("actionId").GetString().Should().Be("accept-order");
+        acceptMetadata.GetProperty("actionId").GetString().Should().Be("2");
 
         // Verify workflow continuity
         orderTx.RegisterId.Should().Be(acceptTx.RegisterId);

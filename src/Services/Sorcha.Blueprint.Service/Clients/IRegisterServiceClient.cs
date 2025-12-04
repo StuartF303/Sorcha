@@ -73,6 +73,19 @@ public interface IRegisterServiceClient
     Task<Sorcha.Register.Models.Register?> GetRegisterAsync(
         string registerId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all transactions associated with a workflow instance.
+    /// Used for state reconstruction during action execution.
+    /// </summary>
+    /// <param name="registerId">The register ID</param>
+    /// <param name="instanceId">The workflow instance ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of transactions for the instance, ordered by execution time</returns>
+    Task<List<TransactionModel>> GetTransactionsByInstanceIdAsync(
+        string registerId,
+        string instanceId,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

@@ -136,19 +136,19 @@ public class ActionResolverServiceTests
     public void GetActionDefinition_WithValidAction_ReturnsAction()
     {
         // Arrange
-        var actionId = "action-1";
+        var actionId = 1;
         var blueprint = new BlueprintModel
         {
             Id = "blueprint-1",
             Actions = new List<ActionModel>
             {
                 new ActionModel { Id = actionId, Title = "Test Action" },
-                new ActionModel { Id = "action-2", Title = "Another Action" }
+                new ActionModel { Id = 2, Title = "Another Action" }
             }
         };
 
         // Act
-        var result = _service.GetActionDefinition(blueprint, actionId);
+        var result = _service.GetActionDefinition(blueprint, actionId.ToString());
 
         // Assert
         result.Should().NotBeNull();
@@ -165,12 +165,12 @@ public class ActionResolverServiceTests
             Id = "blueprint-1",
             Actions = new List<ActionModel>
             {
-                new ActionModel { Id = "action-1", Title = "Test Action" }
+                new ActionModel { Id = 1, Title = "Test Action" }
             }
         };
 
         // Act
-        var result = _service.GetActionDefinition(blueprint, "non-existent");
+        var result = _service.GetActionDefinition(blueprint, "999");
 
         // Assert
         result.Should().BeNull();
@@ -196,6 +196,26 @@ public class ActionResolverServiceTests
     }
 
     [Fact]
+    public void GetActionDefinition_WithInvalidActionIdFormat_ReturnsNull()
+    {
+        // Arrange
+        var blueprint = new BlueprintModel
+        {
+            Id = "blueprint-1",
+            Actions = new List<ActionModel>
+            {
+                new ActionModel { Id = 1, Title = "Test Action" }
+            }
+        };
+
+        // Act - non-numeric action ID should return null (can't parse)
+        var result = _service.GetActionDefinition(blueprint, "non-numeric");
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
     public async Task ResolveParticipantWalletsAsync_WithValidParticipants_ReturnsWalletMap()
     {
         // Arrange
@@ -204,8 +224,8 @@ public class ActionResolverServiceTests
             Id = "blueprint-1",
             Participants = new List<ParticipantModel>
             {
-                new ParticipantModel { Id = "participant-1", Name = "Alice" },
-                new ParticipantModel { Id = "participant-2", Name = "Bob" }
+                new ParticipantModel { Id = "participant-1", Name = "Alice", WalletAddress = "wallet-alice" },
+                new ParticipantModel { Id = "participant-2", Name = "Bob", WalletAddress = "wallet-bob" }
             }
         };
 
@@ -218,8 +238,8 @@ public class ActionResolverServiceTests
         result.Should().HaveCount(2);
         result.Should().ContainKey("participant-1");
         result.Should().ContainKey("participant-2");
-        result["participant-1"].Should().Contain("alice");
-        result["participant-2"].Should().Contain("bob");
+        result["participant-1"].Should().Be("wallet-alice");
+        result["participant-2"].Should().Be("wallet-bob");
     }
 
     [Fact]
@@ -231,7 +251,7 @@ public class ActionResolverServiceTests
             Id = "blueprint-1",
             Participants = new List<ParticipantModel>
             {
-                new ParticipantModel { Id = "participant-1", Name = "Alice" }
+                new ParticipantModel { Id = "participant-1", Name = "Alice", WalletAddress = "wallet-alice" }
             }
         };
 

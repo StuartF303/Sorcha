@@ -30,4 +30,43 @@ public interface INotificationService
     /// <param name="notification">The action notification</param>
     /// <param name="ct">Cancellation token</param>
     Task NotifyActionRejectedAsync(ActionNotification notification, CancellationToken ct = default);
+
+    /// <summary>
+    /// Notify a participant that a new action is available for them.
+    /// </summary>
+    /// <param name="instanceId">The workflow instance ID</param>
+    /// <param name="actionId">The action ID</param>
+    /// <param name="actionTitle">The action title</param>
+    /// <param name="participantId">The participant who should execute the action</param>
+    /// <param name="ct">Cancellation token</param>
+    Task NotifyActionAvailableAsync(
+        string instanceId,
+        int actionId,
+        string actionTitle,
+        string participantId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Notify a participant that an action was rejected and routed to a target action.
+    /// </summary>
+    /// <param name="instanceId">The workflow instance ID</param>
+    /// <param name="rejectedActionId">The action that was rejected</param>
+    /// <param name="targetActionId">The action the workflow routes to</param>
+    /// <param name="targetParticipantId">The participant who receives the rejection</param>
+    /// <param name="reason">The rejection reason</param>
+    /// <param name="ct">Cancellation token</param>
+    Task NotifyActionRejectedAsync(
+        string instanceId,
+        int rejectedActionId,
+        int targetActionId,
+        string targetParticipantId,
+        string reason,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Notify all participants that a workflow has completed.
+    /// </summary>
+    /// <param name="instanceId">The workflow instance ID</param>
+    /// <param name="ct">Cancellation token</param>
+    Task NotifyWorkflowCompletedAsync(string instanceId, CancellationToken ct = default);
 }

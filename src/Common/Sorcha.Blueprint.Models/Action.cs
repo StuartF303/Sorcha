@@ -151,4 +151,39 @@ public class Action
         ControlType = ControlTypes.Layout,
         Layout = LayoutTypes.VerticalLayout
     };
+
+    /// <summary>
+    /// Rejection routing configuration.
+    /// Defines where the workflow routes when a participant rejects this action.
+    /// If not specified, rejection is not allowed for this action.
+    /// </summary>
+    [JsonPropertyName("rejectionConfig")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RejectionConfig? RejectionConfig { get; set; }
+
+    /// <summary>
+    /// Required prior action IDs for state reconstruction.
+    /// When executing this action, data from these prior actions will be fetched
+    /// and decrypted to build the accumulated state for routing evaluation.
+    /// If not specified, only the immediately preceding action is used.
+    /// </summary>
+    [JsonPropertyName("requiredPriorActions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IEnumerable<int>? RequiredPriorActions { get; set; }
+
+    /// <summary>
+    /// Whether this is a starting action that can initiate a workflow instance.
+    /// At least one action in a blueprint must be a starting action.
+    /// </summary>
+    [JsonPropertyName("isStartingAction")]
+    public bool IsStartingAction { get; set; } = false;
+
+    /// <summary>
+    /// Routing rules to determine next action(s).
+    /// Evaluated in order - first matching condition wins.
+    /// Supports parallel branches via multiple nextActionIds.
+    /// </summary>
+    [JsonPropertyName("routes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IEnumerable<Route>? Routes { get; set; }
 }

@@ -64,6 +64,15 @@ builder.Services.AddHttpClient<Sorcha.Blueprint.Service.Clients.IRegisterService
 // Add Action storage (Sprint 4)
 builder.Services.AddSingleton<Sorcha.Blueprint.Service.Storage.IActionStore, Sorcha.Blueprint.Service.Storage.InMemoryActionStore>();
 
+// Add Instance storage (Sprint 6 - Orchestration)
+builder.Services.AddSingleton<Sorcha.Blueprint.Service.Storage.IInstanceStore, Sorcha.Blueprint.Service.Storage.InMemoryInstanceStore>();
+
+// Add Orchestration services (Sprint 6)
+builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IStateReconstructionService,
+    Sorcha.Blueprint.Service.Services.Implementation.StateReconstructionService>();
+builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IActionExecutionService,
+    Sorcha.Blueprint.Service.Services.Implementation.ActionExecutionService>();
+
 // Add SignalR (Sprint 5)
 // TODO: Add Redis backplane when Microsoft.AspNetCore.SignalR.StackExchangeRedis package is added
 builder.Services.AddSignalR();
@@ -96,6 +105,9 @@ app.UseOutputCache();
 
 // Enable JSON-LD content negotiation
 app.UseJsonLdContentNegotiation();
+
+// Add Delegation Token Middleware (Sprint 6 - Orchestration)
+app.UseMiddleware<Sorcha.Blueprint.Service.Middleware.DelegationTokenMiddleware>();
 
 // Map SignalR hub (Sprint 5)
 app.MapHub<Sorcha.Blueprint.Service.Hubs.ActionsHub>("/actionshub");
@@ -698,7 +710,7 @@ actionsGroup.MapPost("/", async (
         // 12. Return response
         var response = new Sorcha.Blueprint.Service.Models.Responses.ActionSubmissionResponse
         {
-            TransactionHash = txHashHex,
+            TransactionId = txHashHex,
             InstanceId = instanceId,
             SerializedTransaction = System.Text.Json.JsonSerializer.Serialize(transaction),
             FileTransactionHashes = fileHashes,
@@ -787,7 +799,7 @@ actionsGroup.MapPost("/reject", async (
         // 6. Return response
         var response = new Sorcha.Blueprint.Service.Models.Responses.ActionSubmissionResponse
         {
-            TransactionHash = rejectionHashHex,
+            TransactionId = rejectionHashHex,
             InstanceId = rejectionDetails.InstanceId,
             SerializedTransaction = System.Text.Json.JsonSerializer.Serialize(rejectionTx),
             Timestamp = DateTimeOffset.UtcNow
@@ -1096,6 +1108,307 @@ notificationGroup.MapPost("/transaction-confirmed", async (
 .WithName("NotifyTransactionConfirmed")
 .WithSummary("Notify transaction confirmed")
 .WithDescription("Internal endpoint for Register Service to notify of transaction confirmations (requires service authentication)");
+
+// ===========================
+// Instance-Based Orchestration Endpoints (Sprint 6)
+// ===========================
+
+var instancesGroup = app.MapGroup("/api/instances")
+    .WithTags("Instances")
+    .WithOpenApi();
+
+/// <summary>
+/// Create a new workflow instance
+/// </summary>
+instancesGroup.MapPost("/", async (
+    CreateInstanceRequest request,
+    Sorcha.Blueprint.Service.Storage.IInstanceStore instanceStore,
+    IBlueprintStore blueprintStore) =>
+{
+    try
+    {
+        // Validate blueprint exists
+        var blueprint = await blueprintStore.GetAsync(request.BlueprintId);
+        if (blueprint == null)
+        {
+            return Results.BadRequest(new { error = "Blueprint not found" });
+        }
+
+        // Find starting actions
+        var startingActions = blueprint.Actions
+            .Where(a => a.IsStartingAction)
+            .Select(a => a.Id)
+            .ToList();
+
+        if (startingActions.Count == 0)
+        {
+            // Default to first action if none marked as starting
+            startingActions = [blueprint.Actions.First().Id];
+        }
+
+        // Create instance
+        var instance = new Sorcha.Blueprint.Service.Models.Instance
+        {
+            Id = Guid.NewGuid().ToString(),
+            BlueprintId = request.BlueprintId,
+            BlueprintVersion = 1, // TODO: Get actual published version
+            RegisterId = request.RegisterId,
+            CurrentActionIds = startingActions,
+            State = Sorcha.Blueprint.Service.Models.InstanceState.Active,
+            TenantId = request.TenantId ?? "default",
+            Metadata = request.Metadata?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToString() ?? "")
+                ?? new Dictionary<string, string>()
+        };
+
+        await instanceStore.CreateAsync(instance);
+
+        return Results.Created($"/api/instances/{instance.Id}", instance);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CreateInstance")
+.WithSummary("Create workflow instance")
+.WithDescription("Create a new workflow instance for a published blueprint");
+
+/// <summary>
+/// Get workflow instance by ID
+/// </summary>
+instancesGroup.MapGet("/{instanceId}", async (
+    string instanceId,
+    Sorcha.Blueprint.Service.Storage.IInstanceStore instanceStore) =>
+{
+    var instance = await instanceStore.GetAsync(instanceId);
+    if (instance == null)
+    {
+        return Results.NotFound(new { error = "Instance not found" });
+    }
+
+    return Results.Ok(instance);
+})
+.WithName("GetInstance")
+.WithSummary("Get workflow instance")
+.WithDescription("Retrieve a workflow instance by its ID");
+
+/// <summary>
+/// Execute an action in a workflow instance (with orchestration)
+/// </summary>
+instancesGroup.MapPost("/{instanceId}/actions/{actionId}/execute", async (
+    HttpContext context,
+    string instanceId,
+    int actionId,
+    Sorcha.Blueprint.Service.Models.Requests.ActionSubmissionRequest request,
+    Sorcha.Blueprint.Service.Services.Interfaces.IActionExecutionService actionExecutionService) =>
+{
+    try
+    {
+        // Get delegation token from context (set by middleware)
+        var delegationToken = context.Items["DelegationToken"] as string;
+        if (string.IsNullOrEmpty(delegationToken))
+        {
+            return Results.BadRequest(new { error = "X-Delegation-Token header is required for action execution" });
+        }
+
+        var response = await actionExecutionService.ExecuteAsync(
+            instanceId,
+            actionId,
+            request,
+            delegationToken);
+
+        return Results.Ok(response);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (KeyNotFoundException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("ExecuteAction")
+.WithSummary("Execute action with orchestration")
+.WithDescription("Execute an action in a workflow instance with full orchestration: state reconstruction, validation, routing, transaction building, and notification. Requires X-Delegation-Token header.");
+
+/// <summary>
+/// Reject an action in a workflow instance
+/// </summary>
+instancesGroup.MapPost("/{instanceId}/actions/{actionId}/reject", async (
+    HttpContext context,
+    string instanceId,
+    int actionId,
+    Sorcha.Blueprint.Service.Models.Requests.ActionRejectionRequest request,
+    Sorcha.Blueprint.Service.Services.Interfaces.IActionExecutionService actionExecutionService) =>
+{
+    try
+    {
+        // Get delegation token from context (set by middleware)
+        var delegationToken = context.Items["DelegationToken"] as string;
+        if (string.IsNullOrEmpty(delegationToken))
+        {
+            return Results.BadRequest(new { error = "X-Delegation-Token header is required for action rejection" });
+        }
+
+        var response = await actionExecutionService.RejectAsync(
+            instanceId,
+            actionId,
+            request,
+            delegationToken);
+
+        return Results.Ok(response);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (KeyNotFoundException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("RejectActionInInstance")
+.WithSummary("Reject action in workflow")
+.WithDescription("Reject an action in a workflow instance, routing to the configured rejection target. Requires X-Delegation-Token header.");
+
+/// <summary>
+/// Get accumulated state for a workflow instance
+/// </summary>
+instancesGroup.MapGet("/{instanceId}/state", async (
+    HttpContext context,
+    string instanceId,
+    Sorcha.Blueprint.Service.Services.Interfaces.IStateReconstructionService stateService,
+    Sorcha.Blueprint.Service.Storage.IInstanceStore instanceStore,
+    IBlueprintStore blueprintStore) =>
+{
+    try
+    {
+        // Get delegation token from context (set by middleware)
+        var delegationToken = context.Items["DelegationToken"] as string;
+        if (string.IsNullOrEmpty(delegationToken))
+        {
+            return Results.BadRequest(new { error = "X-Delegation-Token header is required to view state" });
+        }
+
+        var instance = await instanceStore.GetAsync(instanceId);
+        if (instance == null)
+        {
+            return Results.NotFound(new { error = "Instance not found" });
+        }
+
+        var blueprint = await blueprintStore.GetAsync(instance.BlueprintId);
+        if (blueprint == null)
+        {
+            return Results.BadRequest(new { error = "Blueprint not found" });
+        }
+
+        // Use the first current action for state reconstruction
+        var currentActionId = instance.CurrentActionIds.FirstOrDefault();
+        if (currentActionId == 0)
+        {
+            return Results.Ok(new
+            {
+                instanceId,
+                actionCount = 0,
+                previousTransactionId = (string?)null,
+                data = new Dictionary<string, object?>(),
+                branchStates = new Dictionary<string, object>()
+            });
+        }
+
+        var state = await stateService.ReconstructAsync(
+            blueprint,
+            instanceId,
+            currentActionId,
+            instance.RegisterId,
+            delegationToken,
+            instance.ParticipantWallets);
+
+        return Results.Ok(new
+        {
+            instanceId,
+            actionCount = state.ActionCount,
+            previousTransactionId = state.PreviousTransactionId,
+            data = state.GetFlattenedData(),
+            branchStates = state.BranchStates
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("GetInstanceState")
+.WithSummary("Get accumulated state")
+.WithDescription("Get the accumulated state from all prior actions in the workflow. Requires X-Delegation-Token header.");
+
+/// <summary>
+/// Get next available actions for a workflow instance
+/// </summary>
+instancesGroup.MapGet("/{instanceId}/next-actions", async (
+    string instanceId,
+    Sorcha.Blueprint.Service.Storage.IInstanceStore instanceStore,
+    IBlueprintStore blueprintStore) =>
+{
+    try
+    {
+        var instance = await instanceStore.GetAsync(instanceId);
+        if (instance == null)
+        {
+            return Results.NotFound(new { error = "Instance not found" });
+        }
+
+        var blueprint = await blueprintStore.GetAsync(instance.BlueprintId);
+        if (blueprint == null)
+        {
+            return Results.BadRequest(new { error = "Blueprint not found" });
+        }
+
+        var nextActions = new List<object>();
+        foreach (var actionId in instance.CurrentActionIds)
+        {
+            var action = blueprint.Actions.FirstOrDefault(a => a.Id == actionId);
+            if (action != null)
+            {
+                // Get participant info
+                var participant = action.Participants?.FirstOrDefault();
+                nextActions.Add(new
+                {
+                    actionId = action.Id,
+                    title = action.Title,
+                    description = action.Description,
+                    participantId = participant?.Principal,
+                    branchId = instance.ActiveBranches
+                        .FirstOrDefault(b => b.CurrentActionId == actionId)?.Id
+                });
+            }
+        }
+
+        return Results.Ok(new
+        {
+            instanceId,
+            state = instance.State.ToString().ToLowerInvariant(),
+            isComplete = instance.State == Sorcha.Blueprint.Service.Models.InstanceState.Completed,
+            nextActions
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("GetNextActions")
+.WithSummary("Get next available actions")
+.WithDescription("Get the next available actions that can be executed in the workflow instance");
 
 // ===========================
 // Health & Status Endpoints
@@ -1527,4 +1840,34 @@ public record TransactionConfirmationNotification
     public string? ActionId { get; init; }
     public string? InstanceId { get; init; }
     public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
+}
+
+// ===========================
+// Instance DTOs (Sprint 6)
+// ===========================
+
+/// <summary>
+/// Request to create a new workflow instance
+/// </summary>
+public record CreateInstanceRequest
+{
+    /// <summary>
+    /// The ID of the blueprint to instantiate
+    /// </summary>
+    public required string BlueprintId { get; init; }
+
+    /// <summary>
+    /// The register ID where transactions will be stored
+    /// </summary>
+    public required string RegisterId { get; init; }
+
+    /// <summary>
+    /// Optional tenant ID for isolation (defaults to "default")
+    /// </summary>
+    public string? TenantId { get; init; }
+
+    /// <summary>
+    /// Optional metadata to associate with the instance
+    /// </summary>
+    public Dictionary<string, object>? Metadata { get; init; }
 }

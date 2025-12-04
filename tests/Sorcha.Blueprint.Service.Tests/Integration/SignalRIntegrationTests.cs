@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Threading.Channels;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Sorcha.Blueprint.Service.Hubs;
@@ -14,13 +14,12 @@ namespace Sorcha.Blueprint.Service.Tests.Integration;
 /// Integration tests for SignalR real-time notifications (Sprint 5)
 /// Tests BP-5.7: SignalR integration tests
 /// </summary>
-public class SignalRIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
+public class SignalRIntegrationTests : IClassFixture<BlueprintServiceWebApplicationFactory>, IAsyncLifetime
 {
-    private readonly WebApplicationFactory<Program> _factory;
-    private HubConnection? _connection;
+    private readonly BlueprintServiceWebApplicationFactory _factory;
     private readonly List<HubConnection> _connections = new();
 
-    public SignalRIntegrationTests(WebApplicationFactory<Program> factory)
+    public SignalRIntegrationTests(BlueprintServiceWebApplicationFactory factory)
     {
         _factory = factory;
     }

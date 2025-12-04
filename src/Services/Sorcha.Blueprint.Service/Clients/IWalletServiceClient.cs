@@ -33,6 +33,21 @@ public interface IWalletServiceClient
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Decrypts a payload using delegated access authorization.
+    /// The delegation token grants the service permission to decrypt on behalf of the participant.
+    /// </summary>
+    /// <param name="walletAddress">The wallet address to use for decryption</param>
+    /// <param name="encryptedPayload">The encrypted payload to decrypt</param>
+    /// <param name="delegationToken">The credential token from STS granting delegated decrypt access</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The decrypted payload</returns>
+    Task<byte[]> DecryptWithDelegationAsync(
+        string walletAddress,
+        byte[] encryptedPayload,
+        string delegationToken,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Signs a transaction with a wallet's private key
     /// </summary>
     /// <param name="walletAddress">The wallet address to use for signing</param>

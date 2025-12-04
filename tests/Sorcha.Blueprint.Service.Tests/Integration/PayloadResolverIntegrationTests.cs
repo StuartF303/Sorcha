@@ -244,12 +244,12 @@ public class PayloadResolverIntegrationTests
         {
             TxId = "tx-2",
             RegisterId = registerAddress,
-            Payloads = new List<PayloadModel>
+            Payloads = new[]
             {
                 new PayloadModel
                 {
-                    Data = Encoding.UTF8.GetBytes("encrypted-data"),
-                    Recipients = new[] { "different-wallet" }
+                    Data = Convert.ToBase64String(Encoding.UTF8.GetBytes("encrypted-data")),
+                    WalletAccess = new[] { "different-wallet" }
                 }
             }
         };
@@ -311,12 +311,12 @@ public class PayloadResolverIntegrationTests
         {
             TxId = txId,
             RegisterId = "register-123",
-            Payloads = new List<PayloadModel>
+            Payloads = new[]
             {
                 new PayloadModel
                 {
-                    Data = encryptedData,
-                    Recipients = new[] { wallet }
+                    Data = Convert.ToBase64String(encryptedData),
+                    WalletAccess = new[] { wallet }
                 }
             }
         };

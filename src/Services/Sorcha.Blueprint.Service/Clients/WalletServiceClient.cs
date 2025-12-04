@@ -141,6 +141,70 @@ public class WalletServiceClient : IWalletServiceClient
     }
 
     /// <inheritdoc/>
+    public async Task<byte[]> DecryptWithDelegationAsync(
+        string walletAddress,
+        byte[] encryptedPayload,
+        string delegationToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(walletAddress))
+        {
+            throw new ArgumentException("Wallet address cannot be null or empty", nameof(walletAddress));
+        }
+
+        if (encryptedPayload == null || encryptedPayload.Length == 0)
+        {
+            throw new ArgumentException("Encrypted payload cannot be null or empty", nameof(encryptedPayload));
+        }
+
+        if (string.IsNullOrWhiteSpace(delegationToken))
+        {
+            throw new ArgumentException("Delegation token cannot be null or empty", nameof(delegationToken));
+        }
+
+        try
+        {
+            var request = new
+            {
+                EncryptedPayload = Convert.ToBase64String(encryptedPayload)
+            };
+
+            _logger.LogDebug("Decrypting payload with delegated access for wallet {WalletAddress} ({PayloadSize} bytes)",
+                walletAddress, encryptedPayload.Length);
+
+            // Create request with delegation token header
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/wallets/{walletAddress}/decrypt")
+            {
+                Content = JsonContent.Create(request, options: _jsonOptions)
+            };
+            httpRequest.Headers.Add("X-Delegation-Token", delegationToken);
+
+            var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<DecryptPayloadResponse>(_jsonOptions, cancellationToken);
+
+            if (result == null || string.IsNullOrEmpty(result.DecryptedPayload))
+            {
+                throw new InvalidOperationException("Wallet Service returned invalid decryption response");
+            }
+
+            var decryptedPayload = Convert.FromBase64String(result.DecryptedPayload);
+
+            _logger.LogInformation("Successfully decrypted payload with delegated access for wallet {WalletAddress} ({DecryptedSize} bytes)",
+                walletAddress, decryptedPayload.Length);
+
+            return decryptedPayload;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Failed to decrypt payload with delegated access for wallet {WalletAddress}", walletAddress);
+            throw new InvalidOperationException($"Failed to decrypt payload with delegation: {ex.Message}", ex);
+        }
+    }
+
+    /// <inheritdoc/>
     public async Task<byte[]> SignTransactionAsync(
         string walletAddress,
         byte[] transactionData,

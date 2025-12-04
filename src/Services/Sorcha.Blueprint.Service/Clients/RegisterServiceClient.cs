@@ -278,4 +278,58 @@ public class RegisterServiceClient : IRegisterServiceClient
             throw new InvalidOperationException($"Failed to get register: {ex.Message}", ex);
         }
     }
+
+    /// <inheritdoc/>
+    public async Task<List<TransactionModel>> GetTransactionsByInstanceIdAsync(
+        string registerId,
+        string instanceId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(registerId))
+        {
+            throw new ArgumentException("Register ID cannot be null or empty", nameof(registerId));
+        }
+
+        if (string.IsNullOrWhiteSpace(instanceId))
+        {
+            throw new ArgumentException("Instance ID cannot be null or empty", nameof(instanceId));
+        }
+
+        try
+        {
+            _logger.LogDebug("Getting transactions for instance {InstanceId} from register {RegisterId}",
+                instanceId, registerId);
+
+            var response = await _httpClient.GetAsync(
+                $"/api/registers/{registerId}/instances/{instanceId}/transactions",
+                cancellationToken);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                _logger.LogWarning("No transactions found for instance {InstanceId} in register {RegisterId}",
+                    instanceId, registerId);
+                return [];
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<List<TransactionModel>>(_jsonOptions, cancellationToken);
+
+            if (result == null)
+            {
+                return [];
+            }
+
+            _logger.LogInformation("Successfully retrieved {Count} transactions for instance {InstanceId} from register {RegisterId}",
+                result.Count, instanceId, registerId);
+
+            return result;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Failed to get transactions for instance {InstanceId} from register {RegisterId}",
+                instanceId, registerId);
+            throw new InvalidOperationException($"Failed to get transactions by instance: {ex.Message}", ex);
+        }
+    }
 }

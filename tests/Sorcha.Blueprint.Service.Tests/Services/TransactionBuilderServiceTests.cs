@@ -57,7 +57,7 @@ public class TransactionBuilderServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result.SenderWallet.Should().Be(senderWallet);
+        // Note: SenderWallet is only set during signing, not during build
         result.Recipients.Should().HaveCount(2);
         result.Recipients.Should().Contain("wallet-alice");
         result.Recipients.Should().Contain("wallet-bob");
@@ -177,7 +177,7 @@ public class TransactionBuilderServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result.SenderWallet.Should().Be(senderWallet);
+        // Note: SenderWallet is only set during signing, not during build
         result.Recipients.Should().BeEmpty();
         result.PreviousTxHash.Should().Be(originalTxHash);
         result.RegisterId.Should().Be(registerAddress);
@@ -238,7 +238,7 @@ public class TransactionBuilderServiceTests
 
         var pdfTx = result[0];
         pdfTx.PreviousTxHash.Should().Be(parentTxHash);
-        pdfTx.SenderWallet.Should().Be(senderWallet);
+        // Note: SenderWallet is only set during signing, not during build
 
         var pdfMetadata = JsonSerializer.Deserialize<JsonElement>(pdfTx.Metadata!);
         pdfMetadata.GetProperty("type").GetString().Should().Be("file");

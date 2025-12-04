@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 3.5 - UPDATED
-**Last Updated:** 2025-11-23
-**Status:** Active - Sprint 8 Complete (11/11 tasks complete)
+**Version:** 3.6 - UPDATED
+**Last Updated:** 2025-12-04
+**Status:** Active - Sprint 10 Complete (16/16 tasks complete)
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -11,12 +11,17 @@
 
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
-**Total Tasks:** 173 (across all phases, including production readiness, blueprint validation, and validator service)
-**Completed:** 111 (64%)
+**Total Tasks:** 189 (across all phases, including production readiness, blueprint validation, validator service, and orchestration)
+**Completed:** 127 (67%)
 **In Progress:** 0 (0%)
-**Not Started:** 62 (36%)
+**Not Started:** 62 (33%)
 
-**Note:** Counts updated 2025-11-23:
+**Note:** Counts updated 2025-12-04:
+- ✅ **Sprint 10 COMPLETE**: All 16 tasks finished (64h total)
+  - BP-10.1 to BP-10.16: Blueprint Service orchestration with delegation tokens
+  - StateReconstructionService, ActionExecutionService, DelegationTokenMiddleware
+  - Instance management with IInstanceStore
+  - 123 total tests passing (25 new orchestration tests)
 - ✅ **Sprint 8 COMPLETE**: All 11 tasks finished (176h total)
   - BP-8.1 to BP-8.4: P0 structural/workflow validation (55 tests)
   - BP-8.5 to BP-8.11: P1-P3 comprehensive validation (79 new tests added)
@@ -44,15 +49,15 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete |
 |-------|-------------|----------|-------------|-------------|------------|
-| **Phase 1: Blueprint-Action** | 66 | 61 | 0 | 5 | **92%** ✅ |
+| **Phase 1: Blueprint-Action** | 82 | 77 | 0 | 5 | **94%** ✅ |
 | **Phase 2: Wallet Service** | 32 | 32 | 0 | 0 | **100%** ✅ |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% |
 | **Production Readiness** (NEW) | 10 | 0 | 0 | 10 | 0% ⚠️ |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% |
-| **TOTAL** | **158** | **100** | **0** | **58** | **63%** |
+| **TOTAL** | **174** | **123** | **0** | **51** | **71%** |
 
-**Note:** Phase 1-3 completion increased significantly after audit corrections. Production Readiness tasks newly identified.
+**Note:** Phase 1 now includes Sprint 10 (16 orchestration tasks). Sprint 8 validation and Sprint 10 orchestration complete.
 
 ### By Priority
 
@@ -318,17 +323,59 @@ Enhancement tasks that can be deferred until after MVD is complete.
 
 **Related Tasks:** BP-8.4 (Chain validation tests)
 
-### Sprint 10: Production Readiness
+### Sprint 10: Blueprint Service Orchestration ✅ COMPLETE
+
+**Goal:** Implement full workflow orchestration with delegation tokens, state reconstruction, and instance management
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| BP-10.1 | Performance optimization | P2 | 8h | 📋 Not Started | - |
-| BP-10.2 | Security hardening | P1 | 8h | 📋 Not Started | - |
-| BP-10.3 | Monitoring and alerting | P2 | 6h | 📋 Not Started | - |
-| BP-10.4 | Production deployment guide | P2 | 4h | 📋 Not Started | - |
+| BP-10.1 | Update service clients with delegation token support | P0 | 4h | ✅ Complete | 2025-12-04 |
+| BP-10.2 | Implement AccumulatedState model | P0 | 2h | ✅ Complete | 2025-12-04 |
+| BP-10.3 | Implement Instance model | P0 | 2h | ✅ Complete | 2025-12-04 |
+| BP-10.4 | Implement Branch model | P0 | 1h | ✅ Complete | 2025-12-04 |
+| BP-10.5 | Implement NextAction model | P0 | 1h | ✅ Complete | 2025-12-04 |
+| BP-10.6 | Implement IStateReconstructionService interface | P0 | 2h | ✅ Complete | 2025-12-04 |
+| BP-10.7 | Implement IActionExecutionService interface | P0 | 2h | ✅ Complete | 2025-12-04 |
+| BP-10.8 | Implement StateReconstructionService | P0 | 8h | ✅ Complete | 2025-12-04 |
+| BP-10.9 | Implement ActionExecutionService | P0 | 12h | ✅ Complete | 2025-12-04 |
+| BP-10.10 | Implement DelegationTokenMiddleware | P0 | 4h | ✅ Complete | 2025-12-04 |
+| BP-10.11 | Implement IInstanceStore and InMemoryInstanceStore | P0 | 4h | ✅ Complete | 2025-12-04 |
+| BP-10.12 | Add orchestration API endpoints | P0 | 6h | ✅ Complete | 2025-12-04 |
+| BP-10.13 | Fix unit test compilation and failures | P0 | 4h | ✅ Complete | 2025-12-04 |
+| BP-10.14 | Fix integration test DI configuration | P0 | 4h | ✅ Complete | 2025-12-04 |
+| BP-10.15 | Write StateReconstructionService tests | P1 | 4h | ✅ Complete | 2025-12-04 |
+| BP-10.16 | Write ActionExecutionService tests | P1 | 4h | ✅ Complete | 2025-12-04 |
 
-**Sprint 10 Status:** 📋 **NOT STARTED** (0/4 tasks, 26 hours)
-**Recommended Start:** Week 14
+**Sprint 10 Status:** ✅ **COMPLETE** (16/16 tasks, 64 hours)
+**Completed:** 2025-12-04
+
+**Key Deliverables:**
+- ✅ StateReconstructionService - Reconstructs accumulated state from prior transactions using delegation tokens
+- ✅ ActionExecutionService - 15-step orchestration: instance lookup → state reconstruction → validation → routing → transaction building → signing → submission → notification
+- ✅ DelegationTokenMiddleware - Extracts X-Delegation-Token header and injects into request context
+- ✅ Instance management - Full CRUD operations via IInstanceStore with in-memory implementation
+- ✅ Orchestration models - AccumulatedState, Instance, Branch, NextAction, BranchState
+- ✅ Extended service clients - IWalletServiceClient.DecryptWithDelegationAsync, IRegisterServiceClient.GetTransactionsByInstanceIdAsync
+- ✅ New API endpoints - POST /api/instances/{id}/actions/{actionId}/execute, POST /api/instances/{id}/actions/{actionId}/reject, GET /api/instances/{id}/state
+- ✅ BlueprintServiceWebApplicationFactory - Custom test factory with mock HTTP handlers, in-memory cache, no-op output cache
+- ✅ 123 total tests passing (98 pre-existing + 25 new orchestration tests)
+
+**Test Coverage:**
+- StateReconstructionServiceTests: 10 tests (constructor validation, reconstruction scenarios, branch handling)
+- ActionExecutionServiceTests: 11 tests (constructor validation, execution validation, rejection validation)
+- Integration tests: 57 tests passing with proper DI configuration
+
+### Sprint 11: Production Readiness
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| BP-11.1 | Performance optimization | P2 | 8h | 📋 Not Started | - |
+| BP-11.2 | Security hardening | P1 | 8h | 📋 Not Started | - |
+| BP-11.3 | Monitoring and alerting | P2 | 6h | 📋 Not Started | - |
+| BP-11.4 | Production deployment guide | P2 | 4h | 📋 Not Started | - |
+
+**Sprint 11 Status:** 📋 **NOT STARTED** (0/4 tasks, 26 hours)
+**Recommended Start:** Week 15
 
 ---
 
