@@ -2,7 +2,7 @@
 
 **Feature Branch**: `validator-service`
 **Created**: 2025-12-03
-**Status**: Draft
+**Status**: Design Complete (0% Implementation)
 **Input**: Derived from `.specify/specs/sorcha-validator-service.md`
 
 ## User Scenarios & Testing *(mandatory)*
@@ -115,6 +115,8 @@ As an administrator, I need to control validation lifecycle so that I can manage
 - How does the system handle docket building during high transaction volume?
 - What happens when validator's Wallet Service is unavailable for signing?
 - How does chain recovery work after detecting fork?
+
+**Note**: Per constitution VII (DDD terminology), "Participant" is used instead of "user" where applicable.
 
 ## Requirements *(mandatory)*
 

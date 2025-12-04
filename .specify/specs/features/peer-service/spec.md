@@ -2,7 +2,7 @@
 
 **Feature Branch**: `peer-service`
 **Created**: 2025-12-03
-**Status**: Draft
+**Status**: Design Complete - Awaiting Approval (0% Implementation)
 **Input**: Derived from `docs/peer-service-design.md`
 
 ## User Scenarios & Testing *(mandatory)*
@@ -77,7 +77,7 @@ As a node operator, I need my node to automatically discover its external addres
 
 ### User Story 5 - Offline Mode (Priority: P1)
 
-As a node operator, I need transactions to be queued when the network is unavailable so that no transactions are lost.
+As a Participant node operator, I need transactions to be queued when the network is unavailable so that no transactions are lost.
 
 **Why this priority**: Ensures reliability in intermittent connectivity scenarios.
 
@@ -115,6 +115,8 @@ As a network administrator, I need to monitor the health of the peer network so 
 - How does the system handle malicious peers flooding notifications?
 - What happens when bloom filter false positive rate exceeds threshold?
 - How does the system handle concurrent transaction distributions for the same transaction?
+
+**Note**: Per constitution VII (DDD terminology), "Participant" is used instead of "user" where applicable.
 
 ## Requirements *(mandatory)*
 

@@ -2,14 +2,14 @@
 
 **Feature Branch**: `wallet-service`
 **Created**: 2025-12-03
-**Status**: Draft
+**Status**: 95% Complete (HD Wallet Features Complete)
 **Input**: Derived from `.specify/specs/sorcha-wallet-service.md`
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Create and Recover Wallets (Priority: P0)
 
-As a platform user, I need to create and recover cryptographic wallets so that I can securely participate in multi-party workflows and sign transactions.
+As a Participant, I need to create and recover cryptographic wallets so that I can securely participate in multi-party workflows and sign transactions.
 
 **Why this priority**: Core functionality - without wallets, users cannot sign transactions or participate in workflows.
 
@@ -111,6 +111,8 @@ As a tenant administrator, I need wallet operations to be isolated per tenant so
 - How does the system handle concurrent wallet creation with the same mnemonic?
 - What happens when a wallet address collision occurs (extremely rare)?
 - How does the system handle key rotation for active wallets?
+
+**Note**: Per constitution VII (DDD terminology), "Participant" is used instead of "user" throughout this specification.
 
 ## Requirements *(mandatory)*
 

@@ -104,7 +104,8 @@
       "Bash(Select-String -Pattern \"(Passed|Failed|Total tests:|Test run|error CS)\")",
       "Bash(Select-String -Pattern \"(Failed|Passed|Total|Duration|Error Message|Stack Trace)\")",
       "Bash(Select-Object -First 30)",
-      "Bash(Select-Object -First 80)"
+      "Bash(Select-Object -First 80)",
+      "WebFetch(domain:devblogs.microsoft.com)"
     ],
     "deny": [],
     "ask": []

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `api-gateway`
 **Created**: 2025-12-03
-**Status**: Draft
+**Status**: 95% Complete
 **Input**: Derived from `src/Services/Sorcha.ApiGateway` implementation
 
 ## User Scenarios & Testing *(mandatory)*
@@ -93,6 +93,8 @@ As a frontend application, I need CORS headers so that browser-based clients can
 - What happens when a backend service is temporarily unavailable?
 - How does the gateway handle request timeout to slow services?
 - What happens when OpenAPI aggregation fails for one service?
+
+**Note**: Per constitution VII (DDD terminology), "Participant" is used instead of "user" where applicable.
 
 ## Requirements *(mandatory)*
 

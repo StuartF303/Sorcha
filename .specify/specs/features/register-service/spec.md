@@ -2,7 +2,7 @@
 
 **Feature Branch**: `register-service`
 **Created**: 2025-12-03
-**Status**: Draft
+**Status**: 100% Complete (Core MVD)
 **Input**: Derived from `.specify/specs/sorcha-register-service.md`
 
 ## User Scenarios & Testing *(mandatory)*
@@ -76,7 +76,7 @@ As an application developer, I need to query transactions flexibly so that I can
 
 ### User Story 5 - Real-Time Notifications (Priority: P2)
 
-As an application user, I need to receive real-time updates when register state changes so that I can react to new transactions and dockets.
+As a Participant, I need to receive real-time updates when register state changes so that I can react to new transactions and dockets.
 
 **Why this priority**: Enhances user experience but not required for core functionality.
 
@@ -112,6 +112,8 @@ As a platform integrator, I need to interact with multiple blockchain networks t
 - How does the system handle concurrent docket creation for the same register?
 - What happens when MongoDB shard is unavailable?
 - How does chain validation recover from detected corruption?
+
+**Note**: Per constitution VII (DDD terminology), "Participant" is used instead of "user" where applicable.
 
 ## Requirements *(mandatory)*
 

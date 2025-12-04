@@ -2,7 +2,7 @@
 
 **Feature Branch**: `blueprint-service`
 **Created**: 2025-12-03
-**Status**: Draft
+**Status**: 95% Complete (Unified Blueprint-Action Service)
 **Input**: Derived from `docs/blueprint-architecture.md` and existing codebase analysis
 
 ## User Scenarios & Testing *(mandatory)*
@@ -106,9 +106,11 @@ As a UI developer, I need form definitions generated from action schemas so that
 ### Edge Cases
 
 - What happens when a blueprint has circular routing conditions?
-- How does the system handle missing participants in routing?
+- How does the system handle missing Participants in routing?
 - What happens when schema validation timeout occurs on large payloads?
 - How does concurrent action execution on the same instance behave?
+
+**Note**: Per constitution VII (DDD terminology), "Participant" is used instead of "user" throughout this specification.
 
 ## Requirements *(mandatory)*
 
