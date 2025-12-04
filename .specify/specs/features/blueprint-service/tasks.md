@@ -1,8 +1,9 @@
-# Tasks: Blueprint Service
+# Tasks: Blueprint Service (Workflow Orchestration)
 
 **Feature Branch**: `blueprint-service`
 **Created**: 2025-12-03
-**Status**: 95% Complete (Unified Blueprint-Action Service)
+**Updated**: 2025-12-04 (Orchestration enhancements added)
+**Status**: 95% Complete - Adding orchestration enhancements
 
 ## Task Summary
 
@@ -10,416 +11,250 @@
 |--------|-------|
 | Complete | 18 |
 | In Progress | 2 |
-| Pending | 3 |
-| **Total** | **23** |
+| Pending (Existing) | 3 |
+| **NEW: Orchestration** | **25** |
+| **Total** | **48** |
 
 ---
 
-## Tasks
+## Existing Tasks (Complete)
 
-### BP-001: Create Blueprint Domain Models
-- **Status**: Complete
-- **Priority**: P0
-- **Estimate**: 4 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: None
+### BP-001 to BP-012: Core Blueprint Functionality ✅
 
-**Description**: Define core domain models for Blueprint, Participant, Action, Disclosure, and Control with proper JSON serialization attributes and JSON-LD support.
+All complete:
+- Domain models, Fluent builders, JSON Schema validation
+- JSON Logic evaluator, API endpoints, Disclosure filter
+- Execution engine, Instance management, Form generation
+- Schema caching, Versioning, JSON-LD support
 
-**Acceptance Criteria**:
-- [x] Blueprint.cs with all required properties
-- [x] Participant.cs with DID/wallet support
-- [x] Action.cs with schemas, disclosures, routing
-- [x] Disclosure.cs with JSON Pointer support
-- [x] Control.cs for form definitions
-- [x] Unit tests for model serialization
+### BP-013: Integration Tests 🚧
+- Status: In Progress
+- Remaining: Action execution flow, error handling, concurrent access, performance
 
----
+### BP-014 to BP-016: Pending (Pre-existing)
+- BP-014: Database Persistence (PostgreSQL)
+- BP-015: Redis Distributed Caching
+- BP-016: JSON-e Template Support
 
-### BP-002: Implement Fluent Builder API
-- **Status**: Complete
-- **Priority**: P0
-- **Estimate**: 8 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-001
+### BP-017 to BP-023: Testing & Documentation ✅
 
-**Description**: Create type-safe fluent builder API for programmatic blueprint construction.
-
-**Acceptance Criteria**:
-- [x] BlueprintBuilder with chained methods
-- [x] ParticipantBuilder with identity options
-- [x] ActionBuilder with schema and routing support
-- [x] JsonLogicBuilder for routing conditions
-- [x] FormBuilder for UI definitions
-- [x] Comprehensive unit tests (102 tests)
+All complete.
 
 ---
 
-### BP-003: Implement JSON Schema Validation
-- **Status**: Complete
-- **Priority**: P0
-- **Estimate**: 6 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-001
+## NEW: Orchestration Enhancement Tasks
 
-**Description**: Implement JSON Schema validation for action data using NJsonSchema.
+### Format: `[ID] [P?] [Story?] Description`
 
-**Acceptance Criteria**:
-- [x] Schema validation service
-- [x] External `$ref` resolution
-- [x] Schema caching for performance
-- [x] Detailed validation error messages
-- [x] Support for Draft 7 features
+- **[P]**: Can run in parallel
+- **[Story]**: Maps to user story from spec.md
 
 ---
 
-### BP-004: Implement JSON Logic Evaluator
-- **Status**: Complete
-- **Priority**: P0
-- **Estimate**: 6 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-001
+## Phase 1: Setup (Service Client Updates)
 
-**Description**: Implement JSON Logic evaluation for routing conditions and calculations.
+**Purpose**: Update service clients to support delegated access
 
-**Acceptance Criteria**:
-- [x] JsonLogicEvaluator class
-- [x] Support for all standard operators
-- [x] Variable resolution from data
-- [x] Nested expression evaluation
-- [x] Error handling for invalid expressions
+- [ ] T001 Add delegation token parameter to IWalletServiceClient.DecryptAsync in src/Services/Sorcha.Blueprint.Service/Clients/IWalletServiceClient.cs
+- [ ] T002 [P] Implement DecryptWithDelegation in src/Services/Sorcha.Blueprint.Service/Clients/WalletServiceClient.cs
+- [ ] T003 [P] Add GetTransactionsByInstanceId to IRegisterServiceClient in src/Services/Sorcha.Blueprint.Service/Clients/IRegisterServiceClient.cs
+- [ ] T004 [P] Implement GetTransactionsByInstanceId in src/Services/Sorcha.Blueprint.Service/Clients/RegisterServiceClient.cs
 
 ---
 
-### BP-005: Create Blueprint API Endpoints
-- **Status**: Complete
-- **Priority**: P0
-- **Estimate**: 8 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-001, BP-003
+## Phase 2: Foundational (Orchestration Models)
 
-**Description**: Implement REST API endpoints for blueprint CRUD operations.
+**Purpose**: Core models for orchestration - BLOCKS user story implementation
 
-**Acceptance Criteria**:
-- [x] POST /api/blueprints - Create
-- [x] GET /api/blueprints - List
-- [x] GET /api/blueprints/{id} - Get by ID
-- [x] PUT /api/blueprints/{id} - Update
-- [x] DELETE /api/blueprints/{id} - Delete
-- [x] OpenAPI documentation
+- [ ] T005 Create AccumulatedState model in src/Services/Sorcha.Blueprint.Service/Models/AccumulatedState.cs
+- [ ] T006 [P] Create ActionSubmissionRequest model in src/Services/Sorcha.Blueprint.Service/Models/Requests/ActionSubmissionRequest.cs
+- [ ] T007 [P] Create ActionSubmissionResponse model in src/Services/Sorcha.Blueprint.Service/Models/Responses/ActionSubmissionResponse.cs
+- [ ] T008 [P] Create ActionRejectionRequest model in src/Services/Sorcha.Blueprint.Service/Models/Requests/ActionRejectionRequest.cs
+- [ ] T009 [P] Create ActionRejectionResponse model in src/Services/Sorcha.Blueprint.Service/Models/Responses/ActionRejectionResponse.cs
+- [ ] T010 [P] Create NextAction model in src/Services/Sorcha.Blueprint.Service/Models/NextAction.cs
+- [ ] T011 [P] Create Branch model in src/Services/Sorcha.Blueprint.Service/Models/Branch.cs
+- [ ] T012 [P] Add RejectionConfig to Action model in src/Core/Sorcha.Blueprint.Models/Action.cs
+- [ ] T013 [P] Add RequiredPriorActions property to Action model in src/Core/Sorcha.Blueprint.Models/Action.cs
+- [ ] T014 Update Instance model with CurrentActionIds and ActiveBranches in src/Services/Sorcha.Blueprint.Service/Models/Instance.cs
 
----
-
-### BP-006: Implement Disclosure Filter
-- **Status**: Complete
-- **Priority**: P1
-- **Estimate**: 4 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-001
-
-**Description**: Implement data filtering based on disclosure rules using JSON Pointers.
-
-**Acceptance Criteria**:
-- [x] DisclosureFilter service
-- [x] JSON Pointer path resolution
-- [x] Wildcard support (/* for all fields)
-- [x] Nested path support (/a/b/c)
-- [x] Unit tests for edge cases
+**Checkpoint**: Foundation ready for orchestration services
 
 ---
 
-### BP-007: Create Blueprint Execution Engine
-- **Status**: Complete
-- **Priority**: P0
-- **Estimate**: 12 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-003, BP-004, BP-006
+## Phase 3: User Story 2 - Execute Blueprint Actions (P1) 🎯 MVP
 
-**Description**: Create the portable execution engine for action execution.
+**Goal**: Full orchestration: fetch tx → decrypt → reconstruct state → validate → route → build tx → submit → notify
 
-**Acceptance Criteria**:
-- [x] ExecutionEngine class
-- [x] Action validation workflow
-- [x] Routing evaluation
-- [x] Calculation execution
-- [x] Disclosure application
-- [x] Stateless, portable design
+**Independent Test**: Create instance, execute starting action with delegation token, verify transaction created
 
----
+### Implementation
 
-### BP-008: Implement Instance Management
-- **Status**: Complete
-- **Priority**: P1
-- **Estimate**: 6 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-005, BP-007
+- [ ] T015 [US2] Create IStateReconstructionService interface in src/Services/Sorcha.Blueprint.Service/Services/Interfaces/IStateReconstructionService.cs
+- [ ] T016 [US2] Implement StateReconstructionService in src/Services/Sorcha.Blueprint.Service/Services/Implementation/StateReconstructionService.cs
+- [ ] T017 [US2] Add unit tests for StateReconstructionService in tests/Sorcha.Blueprint.Service.Tests/Unit/StateReconstructionServiceTests.cs
+- [ ] T018 [US2] Update IActionExecutionService with ExecuteAsync(request, delegationToken) in src/Services/Sorcha.Blueprint.Service/Services/Interfaces/IActionExecutionService.cs
+- [ ] T019 [US2] Implement full orchestration in ActionExecutionService.ExecuteAsync in src/Services/Sorcha.Blueprint.Service/Services/Implementation/ActionExecutionService.cs
+- [ ] T020 [US2] Add X-Delegation-Token header extraction middleware in src/Services/Sorcha.Blueprint.Service/Middleware/DelegationTokenMiddleware.cs
+- [ ] T021 [US2] Update action execution endpoint to use delegation token in src/Services/Sorcha.Blueprint.Service/Endpoints/ActionEndpoints.cs
+- [ ] T022 [US2] Add integration test for full action execution flow in tests/Sorcha.Blueprint.Service.Tests/Integration/ActionExecutionTests.cs
+- [ ] T023 [US2] Add OpenTelemetry tracing for orchestration steps in ActionExecutionService
 
-**Description**: Implement workflow instance lifecycle management.
-
-**Acceptance Criteria**:
-- [x] Instance creation endpoint
-- [x] Action execution endpoint
-- [x] State tracking
-- [x] Previous transaction linking
+**Checkpoint**: Action execution with state reconstruction works end-to-end
 
 ---
 
-### BP-009: Implement Form Generation
-- **Status**: Complete
-- **Priority**: P2
-- **Estimate**: 4 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-001
+## Phase 4: Rejection Routing (P1)
 
-**Description**: Generate form definitions from action schemas and control definitions.
+**Goal**: Support action rejection with configurable routing target
 
-**Acceptance Criteria**:
-- [x] Form schema generation
-- [x] Control type mapping
-- [x] Conditional display support
-- [x] Layout generation
+**Independent Test**: Submit rejection, verify rejection transaction created and routed
 
----
+### Implementation
 
-### BP-010: Add Schema Caching
-- **Status**: Complete
-- **Priority**: P1
-- **Estimate**: 4 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-003
+- [ ] T024 Add RejectAsync method to IActionExecutionService in src/Services/Sorcha.Blueprint.Service/Services/Interfaces/IActionExecutionService.cs
+- [ ] T025 Implement rejection handling in ActionExecutionService.RejectAsync in src/Services/Sorcha.Blueprint.Service/Services/Implementation/ActionExecutionService.cs
+- [ ] T026 Add rejection endpoint POST /api/instances/{id}/actions/{actionId}/reject in src/Services/Sorcha.Blueprint.Service/Endpoints/ActionEndpoints.cs
+- [ ] T027 Add rejection transaction building in TransactionBuilderService
+- [ ] T028 Add unit tests for rejection routing in tests/Sorcha.Blueprint.Service.Tests/Unit/RejectionRoutingTests.cs
+- [ ] T029 Add integration test for rejection flow in tests/Sorcha.Blueprint.Service.Tests/Integration/RejectionFlowTests.cs
 
-**Description**: Implement schema caching for improved validation performance.
-
-**Acceptance Criteria**:
-- [x] In-memory cache implementation
-- [x] Cache invalidation strategy
-- [x] Performance improvement (10x)
-- [x] See docs/schema-caching-implementation.md
+**Checkpoint**: Rejection with configurable routing working
 
 ---
 
-### BP-011: Implement Blueprint Versioning
-- **Status**: Complete
-- **Priority**: P1
-- **Estimate**: 4 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-005
+## Phase 5: User Story 3 - JSON Schema Validation (P2)
 
-**Description**: Add version tracking for blueprints with update semantics.
+**Goal**: Validate action data against JSON Schema, return detailed errors
 
-**Acceptance Criteria**:
-- [x] Version field auto-increment
-- [x] Version history tracking
-- [x] Concurrent update handling
+**Independent Test**: Submit invalid data, verify schema validation errors
 
----
+### Implementation
 
-### BP-012: Add JSON-LD Context Support
-- **Status**: Complete
-- **Priority**: P2
-- **Estimate**: 4 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-001
+- [ ] T030 [US3] Verify Blueprint Engine validation is called in orchestration flow in ActionExecutionService.cs
+- [ ] T031 [US3] Add schema validation error mapping to API response in ActionEndpoints.cs
+- [ ] T032 [US3] Add unit tests for validation error scenarios in tests/Sorcha.Blueprint.Service.Tests/Unit/ValidationErrorMappingTests.cs
 
-**Description**: Add JSON-LD context support for semantic interoperability.
-
-**Acceptance Criteria**:
-- [x] @context field on Blueprint
-- [x] Default Sorcha context
-- [x] Schema.org vocabulary mapping
-- [x] DID support for participants
+**Checkpoint**: Schema validation working with detailed errors
 
 ---
 
-### BP-013: Integration Tests
-- **Status**: In Progress
-- **Priority**: P1
-- **Estimate**: 8 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-005, BP-008
+## Phase 6: User Story 4 - JSON Logic Routing (P2)
 
-**Description**: Create comprehensive integration tests for Blueprint API.
+**Goal**: Evaluate routing conditions against accumulated state
 
-**Acceptance Criteria**:
-- [x] CRUD operation tests
-- [ ] Action execution flow tests
-- [ ] Error handling tests
-- [ ] Concurrent access tests
-- [ ] Performance benchmarks
+**Independent Test**: Submit data triggering conditional routing, verify correct next action
 
----
+### Implementation
 
-### BP-014: Database Persistence (PostgreSQL)
-- **Status**: Pending
-- **Priority**: P1
-- **Estimate**: 12 hours
-- **Assignee**: TBD
-- **Dependencies**: BP-005
+- [ ] T033 [US4] Ensure accumulated state passed to Blueprint Engine for routing in ActionExecutionService
+- [ ] T034 [US4] Add routing result handling for single next action in ActionExecutionService.cs
+- [ ] T035 [US4] Add calculation results to ActionSubmissionResponse
+- [ ] T036 [US4] Add unit tests for routing evaluation with prior state in tests/Sorcha.Blueprint.Service.Tests/Unit/RoutingEvaluationTests.cs
 
-**Description**: Implement PostgreSQL repository for blueprint persistence.
-
-**Acceptance Criteria**:
-- [ ] EF Core DbContext
-- [ ] Blueprint entity mapping
-- [ ] JSON column handling
-- [ ] Migration scripts
-- [ ] Repository interface implementation
+**Checkpoint**: Dynamic routing and calculations working
 
 ---
 
-### BP-015: Redis Distributed Caching
-- **Status**: Pending
-- **Priority**: P2
-- **Estimate**: 6 hours
-- **Assignee**: TBD
-- **Dependencies**: BP-010
+## Phase 7: User Story 5 - Disclosure Management (P2)
 
-**Description**: Add Redis as distributed cache for schema and blueprint caching.
+**Goal**: Apply disclosure rules when building transaction payloads
 
-**Acceptance Criteria**:
-- [ ] Redis cache provider
-- [ ] Cache serialization
-- [ ] TTL configuration
-- [ ] Fallback to in-memory
+**Independent Test**: Execute action, verify recipient only sees disclosed fields
 
----
+### Implementation
 
-### BP-016: JSON-e Template Support
-- **Status**: Pending
-- **Priority**: P3
-- **Estimate**: 8 hours
-- **Assignee**: TBD
-- **Dependencies**: BP-001
+- [ ] T037 [US5] Ensure disclosure results from Engine applied to payload encryption in ActionExecutionService.cs
+- [ ] T038 [US5] Add disclosed data filtering before encryption in TransactionBuilderService
+- [ ] T039 [US5] Add unit tests for disclosure filtering in tests/Sorcha.Blueprint.Service.Tests/Unit/DisclosureFilteringTests.cs
+- [ ] T040 [US5] Add instance state endpoint GET /api/instances/{id}/state in InstanceEndpoints.cs
 
-**Description**: Add JSON-e template evaluation for dynamic blueprint generation.
-
-**Acceptance Criteria**:
-- [ ] JsonE.NET integration
-- [ ] Template storage
-- [ ] Template evaluation endpoint
-- [ ] Parameter validation
+**Checkpoint**: Disclosure rules enforced on payloads
 
 ---
 
-### BP-017: Unit Tests - Models
-- **Status**: Complete
-- **Priority**: P0
-- **Estimate**: 4 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-001
+## Phase 8: Parallel Branch Support (P2)
 
-**Description**: Unit tests for domain models.
+**Goal**: Support routing to multiple next actions (parallel branches)
 
-**Acceptance Criteria**:
-- [x] Serialization round-trip tests
-- [x] Validation tests
-- [x] Edge case coverage
+**Independent Test**: Submit action routing to 2 parallel actions, verify both transactions
 
----
+### Implementation
 
-### BP-018: Unit Tests - Fluent Builders
-- **Status**: Complete
-- **Priority**: P0
-- **Estimate**: 6 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-002
+- [ ] T041 [P] Add parallel routing handling in ActionExecutionService (multiple NextActions)
+- [ ] T042 [P] Add Branch tracking to Instance model updates
+- [ ] T043 Implement branch transaction creation (one tx per branch) in ActionExecutionService
+- [ ] T044 Add branch ID to SignalR notifications in ActionsHub
+- [ ] T045 Add unit tests for parallel branch creation in tests/Sorcha.Blueprint.Service.Tests/Unit/ParallelBranchTests.cs
+- [ ] T046 Add integration test for parallel workflow in tests/Sorcha.Blueprint.Service.Tests/Integration/ParallelWorkflowTests.cs
 
-**Description**: Unit tests for fluent builder API.
-
-**Acceptance Criteria**:
-- [x] Builder chain tests
-- [x] Validation tests
-- [x] 102 tests passing
+**Checkpoint**: Parallel branches working
 
 ---
 
-### BP-019: Unit Tests - Engine
-- **Status**: Complete
-- **Priority**: P0
-- **Estimate**: 6 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-007
+## Phase 9: Polish & Cross-Cutting
 
-**Description**: Unit tests for execution engine.
+**Purpose**: Final improvements
 
-**Acceptance Criteria**:
-- [x] Execution flow tests
-- [x] Routing tests
-- [x] Calculation tests
-- [x] Error handling tests
+- [ ] T047 [P] Update OpenAPI documentation with new endpoints
+- [ ] T048 [P] Add OpenTelemetry metrics for state reconstruction time
+- [ ] T049 Add performance tests for state reconstruction (10 actions < 200ms)
+- [ ] T050 [P] Update service README with orchestration model
+- [ ] T051 Run quickstart.md validation scenarios
+- [ ] T052 Code cleanup and ensure >85% test coverage
 
 ---
 
-### BP-020: OpenAPI Documentation
-- **Status**: Complete
-- **Priority**: P1
-- **Estimate**: 4 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-005
+## Dependencies & Execution Order
 
-**Description**: Add comprehensive OpenAPI documentation.
+### Phase Dependencies
 
-**Acceptance Criteria**:
-- [x] All endpoints documented
-- [x] Request/response examples
-- [x] Error responses documented
-- [x] Scalar UI integration
+```
+Phase 1 (Setup) → Phase 2 (Foundational) → Phase 3-8 (Features) → Phase 9 (Polish)
+```
 
----
+### Feature Dependencies
 
-### BP-021: Service Registration
-- **Status**: Complete
-- **Priority**: P0
-- **Estimate**: 2 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-005
+- **Phase 3 (US2 - Action Execution)**: Core flow - MUST complete first
+- **Phase 4 (Rejection)**: Independent after US2
+- **Phase 5-7 (US3-5)**: Integrate with US2, can run in parallel
+- **Phase 8 (Parallel Branches)**: Independent after US2
 
-**Description**: Register Blueprint Service with .NET Aspire.
+### Parallel Opportunities
 
-**Acceptance Criteria**:
-- [x] Service defaults integration
-- [x] Health checks
-- [x] Service discovery
-- [x] Telemetry configuration
+Phase 2 (all [P] tasks):
+```
+T006, T007, T008, T009, T010, T011, T012, T013
+```
+
+After Phase 3:
+```
+Phase 4, 5, 6, 7, 8 can run in parallel
+```
 
 ---
 
-### BP-022: API Performance Testing
-- **Status**: In Progress
-- **Priority**: P2
-- **Estimate**: 4 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-013
+## Implementation Strategy
 
-**Description**: Performance testing for API endpoints.
+### MVP First
 
-**Acceptance Criteria**:
-- [ ] Load testing with NBomber
-- [ ] P95/P99 latency measurements
-- [ ] Throughput benchmarks
-- [ ] Performance baseline established
+1. Phase 1: Setup (T001-T004)
+2. Phase 2: Foundational (T005-T014)
+3. Phase 3: US2 Action Execution (T015-T023)
+4. **VALIDATE**: Full orchestration works → **MVP!**
 
----
+### Incremental Delivery
 
-### BP-023: README Documentation
-- **Status**: Complete
-- **Priority**: P1
-- **Estimate**: 2 hours
-- **Assignee**: AI Assistant
-- **Dependencies**: BP-005
-
-**Description**: Create comprehensive README for Blueprint Service.
-
-**Acceptance Criteria**:
-- [x] Service overview
-- [x] API documentation
-- [x] Configuration guide
-- [x] Examples
+1. MVP + Phase 4 (Rejection) → Error handling
+2. + Phases 5-7 → Validation, routing, disclosures
+3. + Phase 8 → Parallel branches
+4. + Phase 9 → Polish
 
 ---
 
 ## Notes
 
-- Blueprint Engine is 100% complete and portable
-- Database persistence is the primary remaining work for production readiness
-- JSON-e template support is deferred to post-MVD
+- Existing service is 95% complete - these tasks add orchestration
+- StateReconstructionService is the key new component
+- Delegation token required for all action execution
+- Parallel branches can defer if not MVP-critical
+- Test coverage target: >85%

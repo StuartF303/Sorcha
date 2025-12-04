@@ -2,8 +2,57 @@
 
 **Feature Branch**: `transaction-handler`
 **Created**: 2025-12-03
+**Updated**: 2025-12-04 (Workflow context added)
 **Status**: Draft - PQC Migration
 **Input**: Derived from `.specify/specs/sorcha-transaction-handler.md` and PQC migration plan
+
+## Workflow Context
+
+Transactions are the atomic unit of data flow in Blueprint workflows. Each action execution in a workflow produces a transaction that:
+
+1. **Links to previous transaction** via `PrevTxId` - maintaining workflow instance chain
+2. **Contains encrypted payloads** - per-recipient selective disclosure
+3. **Includes metadata** - `BlueprintId`, `InstanceId`, `ActionId`, `NextActionId`
+4. **Is signed** by the sender's wallet - non-repudiation
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TRANSACTION IN WORKFLOW                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Blueprint Instance (workflow execution)                        │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ Tx-A (Action 1)  →  Tx-B (Action 2)  →  Tx-C (Action 3) │   │
+│  │ PrevTxId: null      PrevTxId: Tx-A      PrevTxId: Tx-B  │   │
+│  │ ActionId: 1         ActionId: 2         ActionId: 3     │   │
+│  │ NextActionId: 2     NextActionId: 3     NextActionId: ∅ │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  Each transaction contains:                                     │
+│  • Sender wallet address (ML-DSA public key derived)            │
+│  • Recipients wallet addresses (for payload encryption)         │
+│  • Encrypted payloads (ML-KEM + AES-256-GCM per recipient)      │
+│  • Metadata (workflow tracking)                                 │
+│  • Signature (ML-DSA)                                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### State Reconstruction
+
+The Blueprint Service uses transaction chains to reconstruct workflow state:
+
+1. Query Register for transactions by `InstanceId`
+2. Decrypt relevant payloads (blueprint-defined scope)
+3. Accumulate state from decrypted data
+4. Evaluate routing via Blueprint Engine
+
+### Rejection Transactions
+
+Rejection is a valid workflow action that creates a transaction:
+- Rejection data (reason, field errors) as payload
+- Routes per blueprint action configuration
+- Maintains full audit trail
 
 ## Clarifications
 

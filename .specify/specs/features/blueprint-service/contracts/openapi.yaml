@@ -1,0 +1,820 @@
+openapi: 3.1.0
+info:
+  title: Blueprint Service API
+  description: |
+    API for managing multi-party workflow blueprints and executing actions.
+
+    ## Key Concepts
+    - **Blueprint**: Workflow definition with participants, actions, and schemas
+    - **Instance**: Running execution of a blueprint
+    - **Action**: Step in workflow executed by a participant
+    - **Disclosure**: Data visibility rules per participant
+
+    ## Authentication
+    All endpoints require Bearer token authentication.
+    Action execution requires delegation token for decrypt authorization.
+  version: 2.0.0
+  contact:
+    name: Sorcha Platform Team
+
+servers:
+  - url: https://api.sorcha.dev/blueprints
+    description: Production
+  - url: http://localhost:5180
+    description: Development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Blueprints
+    description: Blueprint CRUD operations
+  - name: Instances
+    description: Workflow instance management
+  - name: Actions
+    description: Action execution and rejection
+  - name: Schemas
+    description: Schema validation
+
+paths:
+  /api/blueprints:
+    post:
+      tags: [Blueprints]
+      summary: Create blueprint
+      operationId: createBlueprint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBlueprintRequest'
+      responses:
+        '201':
+          description: Blueprint created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Blueprint'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [Blueprints]
+      summary: List blueprints
+      operationId: listBlueprints
+      parameters:
+        - name: registerId
+          in: query
+          schema:
+            type: string
+          description: Filter by register
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Blueprint list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlueprintList'
+
+  /api/blueprints/{id}:
+    get:
+      tags: [Blueprints]
+      summary: Get blueprint
+      operationId: getBlueprint
+      parameters:
+        - $ref: '#/components/parameters/BlueprintId'
+      responses:
+        '200':
+          description: Blueprint details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Blueprint'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Blueprints]
+      summary: Update blueprint
+      operationId: updateBlueprint
+      parameters:
+        - $ref: '#/components/parameters/BlueprintId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBlueprintRequest'
+      responses:
+        '200':
+          description: Blueprint updated (version incremented)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Blueprint'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Blueprints]
+      summary: Delete blueprint
+      operationId: deleteBlueprint
+      parameters:
+        - $ref: '#/components/parameters/BlueprintId'
+      responses:
+        '204':
+          description: Blueprint deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot delete - active instances exist
+
+  /api/blueprints/{id}/instances:
+    post:
+      tags: [Instances]
+      summary: Create workflow instance
+      operationId: createInstance
+      parameters:
+        - $ref: '#/components/parameters/BlueprintId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInstanceRequest'
+      responses:
+        '201':
+          description: Instance created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/instances/{instanceId}:
+    get:
+      tags: [Instances]
+      summary: Get instance state
+      operationId: getInstance
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: Instance details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/instances/{instanceId}/state:
+    get:
+      tags: [Instances]
+      summary: Get accumulated workflow state
+      description: |
+        Reconstructs accumulated state from prior transactions.
+        Requires delegation token for decryption.
+      operationId: getInstanceState
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - $ref: '#/components/parameters/DelegationToken'
+      responses:
+        '200':
+          description: Accumulated state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccumulatedState'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/instances/{instanceId}/actions/{actionId}:
+    post:
+      tags: [Actions]
+      summary: Execute action
+      description: |
+        Executes a workflow action. Full orchestration flow:
+        1. Fetch prior transactions from Register
+        2. Decrypt payloads via Wallet Service (delegated)
+        3. Reconstruct accumulated state
+        4. Validate data, evaluate routing, apply disclosures
+        5. Build and sign transaction
+        6. Submit to Register
+        7. Notify next participants via SignalR
+      operationId: executeAction
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - $ref: '#/components/parameters/ActionId'
+        - $ref: '#/components/parameters/DelegationToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionSubmissionRequest'
+      responses:
+        '200':
+          description: Action executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionSubmissionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not authorized to execute this action
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/instances/{instanceId}/actions/{actionId}/reject:
+    post:
+      tags: [Actions]
+      summary: Reject action
+      description: |
+        Rejects incoming action data. Creates rejection transaction
+        and routes to target defined in blueprint action configuration.
+      operationId: rejectAction
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - $ref: '#/components/parameters/ActionId'
+        - $ref: '#/components/parameters/DelegationToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionRejectionRequest'
+      responses:
+        '200':
+          description: Action rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionRejectionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/schemas/validate:
+    post:
+      tags: [Schemas]
+      summary: Validate data against schema
+      operationId: validateSchema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidationRequest'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    BlueprintId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Blueprint ID
+
+    InstanceId:
+      name: instanceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Instance ID
+
+    ActionId:
+      name: actionId
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Action ID within blueprint
+
+    DelegationToken:
+      name: X-Delegation-Token
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Delegation token for decrypt authorization
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+    Unauthorized:
+      description: Authentication required or delegation token invalid
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+  schemas:
+    Blueprint:
+      type: object
+      required: [id, title, participants, actions, version, tenantId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        version:
+          type: integer
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Participant'
+          minItems: 2
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Action'
+          minItems: 1
+        schemas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Schema'
+        registerId:
+          type: string
+        tenantId:
+          type: string
+        context:
+          type: string
+          description: JSON-LD context
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Participant:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          maxLength: 100
+        name:
+          type: string
+          maxLength: 200
+        organization:
+          type: string
+          maxLength: 200
+        did:
+          type: string
+          description: Decentralized Identifier
+        walletAddress:
+          type: string
+          description: Bound at runtime
+
+    Action:
+      type: object
+      required: [id, title, sender]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+          maxLength: 200
+        sender:
+          type: string
+          description: Participant ID
+        isStartingAction:
+          type: boolean
+          default: false
+        dataSchema:
+          type: object
+          description: JSON Schema for validation
+        dataSchemaRef:
+          type: string
+          description: Reference to shared schema
+        disclosures:
+          type: array
+          items:
+            $ref: '#/components/schemas/Disclosure'
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Route'
+        calculations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Calculation'
+        form:
+          $ref: '#/components/schemas/Form'
+        rejectionConfig:
+          $ref: '#/components/schemas/RejectionConfig'
+        requiredPriorActions:
+          type: array
+          items:
+            type: string
+          description: Action IDs needed for state reconstruction
+
+    Disclosure:
+      type: object
+      required: [participantId, paths]
+      properties:
+        participantId:
+          type: string
+        paths:
+          type: array
+          items:
+            type: string
+          description: JSON Pointer paths
+
+    Route:
+      type: object
+      required: [id, nextActionIds]
+      properties:
+        id:
+          type: string
+        nextActionIds:
+          type: array
+          items:
+            type: integer
+          description: Supports parallel branches
+        condition:
+          type: object
+          description: JSON Logic condition
+        isDefault:
+          type: boolean
+          default: false
+
+    Calculation:
+      type: object
+      required: [outputField, expression]
+      properties:
+        outputField:
+          type: string
+        expression:
+          type: object
+          description: JSON Logic expression
+        description:
+          type: string
+
+    Form:
+      type: object
+      properties:
+        controls:
+          type: array
+          items:
+            $ref: '#/components/schemas/Control'
+        layout:
+          type: object
+
+    Control:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [text, number, date, select, checkbox, textarea, file]
+        binding:
+          type: string
+          description: JSON Pointer to data field
+        label:
+          type: string
+        required:
+          type: boolean
+        condition:
+          type: object
+          description: JSON Logic for conditional display
+
+    RejectionConfig:
+      type: object
+      required: [targetActionId]
+      properties:
+        targetActionId:
+          type: integer
+        targetParticipantId:
+          type: string
+        requireReason:
+          type: boolean
+          default: true
+        rejectionSchema:
+          type: object
+
+    Schema:
+      type: object
+      required: [id, schema]
+      properties:
+        id:
+          type: string
+        schema:
+          type: object
+          description: JSON Schema
+
+    Instance:
+      type: object
+      required: [id, blueprintId, registerId, state]
+      properties:
+        id:
+          type: string
+          format: uuid
+        blueprintId:
+          type: string
+          format: uuid
+        blueprintVersion:
+          type: integer
+        registerId:
+          type: string
+        state:
+          type: string
+          enum: [Active, Completed, Rejected, TimedOut, Cancelled]
+        currentActionIds:
+          type: array
+          items:
+            type: integer
+        participantWallets:
+          type: object
+          additionalProperties:
+            type: string
+        activeBranches:
+          type: array
+          items:
+            $ref: '#/components/schemas/Branch'
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    Branch:
+      type: object
+      properties:
+        id:
+          type: string
+        currentActionId:
+          type: integer
+        state:
+          type: string
+          enum: [Active, Completed, TimedOut]
+        lastTransactionId:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+
+    AccumulatedState:
+      type: object
+      properties:
+        actionData:
+          type: object
+          additionalProperties:
+            type: object
+          description: Decrypted data by action ID
+        previousTransactionId:
+          type: string
+        actionCount:
+          type: integer
+        branchStates:
+          type: object
+          additionalProperties:
+            type: string
+
+    CreateBlueprintRequest:
+      type: object
+      required: [title, participants, actions]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Participant'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Action'
+        schemas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Schema'
+        registerId:
+          type: string
+        context:
+          type: string
+
+    UpdateBlueprintRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Participant'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Action'
+        schemas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Schema'
+
+    CreateInstanceRequest:
+      type: object
+      required: [registerId, participantWallets]
+      properties:
+        registerId:
+          type: string
+        participantWallets:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map of participant ID to wallet address
+
+    ActionSubmissionRequest:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          description: Action data to submit
+        branchId:
+          type: string
+          description: Branch ID for parallel workflows
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              contentType:
+                type: string
+              data:
+                type: string
+                format: byte
+
+    ActionSubmissionResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+        nextActions:
+          type: array
+          items:
+            type: object
+            properties:
+              actionId:
+                type: integer
+              actionTitle:
+                type: string
+              participantId:
+                type: string
+              branchId:
+                type: string
+        calculations:
+          type: object
+        isComplete:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+
+    ActionRejectionRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          maxLength: 1000
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+        branchId:
+          type: string
+
+    ActionRejectionResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+        targetAction:
+          type: object
+          properties:
+            actionId:
+              type: integer
+            actionTitle:
+              type: string
+            participantId:
+              type: string
+
+    ValidationRequest:
+      type: object
+      required: [schema, data]
+      properties:
+        schema:
+          type: object
+        data:
+          type: object
+
+    ValidationResult:
+      type: object
+      properties:
+        isValid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+              message:
+                type: string
+              keyword:
+                type: string
+
+    BlueprintList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Blueprint'
+        totalCount:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        errors:
+          type: object
