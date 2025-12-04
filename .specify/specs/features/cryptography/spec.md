@@ -193,3 +193,25 @@ As a developer, I need to compute cryptographic hashes so that I can create tran
 - **SC-011**: All algorithms validated against NIST FIPS 203/204 test vectors
 - **SC-012**: Zero critical vulnerabilities in security audit
 - **SC-013**: Platform availability check completes under 10ms
+
+## Dependencies
+
+### Downstream Consumers
+
+The following components depend on this library and will require updates when PQC migration is complete:
+
+| Component | Dependency | Impact |
+|-----------|------------|--------|
+| **Transaction Handler** | ML-DSA signing, ML-KEM encryption | Version reset to V1 (PQC-only) |
+| **Wallet Service** | Key generation, signing, address encoding | Update KeyManagementService |
+| **Wallet Core** | HD derivation replacement | Remove NBitcoin, use HKDF |
+| **Register Service** | Signature verification | Update verification logic |
+| **Peer Service** | Transaction signing for gossip | Use ML-DSA signatures |
+
+### Implementation Order
+
+1. **Cryptography Library** (this spec) - Foundation
+2. **Transaction Handler** - Depends on signing/encryption
+3. **Wallet Service** - Depends on key management
+4. **Register Service** - Depends on verification
+5. **Peer Service** - Depends on transaction format
