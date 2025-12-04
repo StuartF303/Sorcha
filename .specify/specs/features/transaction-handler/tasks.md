@@ -11,9 +11,9 @@
 |--------|-------|
 | Complete | 8 |
 | In Progress | 0 |
-| Pending (Rewrite) | 12 |
+| Pending (Rewrite) | 13 |
 | ~~Removed~~ | 6 |
-| **Total** | **20** |
+| **Total** | **21** |
 
 **Note**: Tasks TXH-012, TXH-013, TXH-014, TXH-022 (backward compatibility) removed - no legacy version support needed.
 
@@ -381,6 +381,25 @@ public enum TransactionVersion : uint
 - [ ] @context support
 - [ ] @type mapping
 - [ ] @id generation
+
+---
+
+### TXH-021: OpenTelemetry & Events Integration
+- **Status**: Pending
+- **Priority**: P1
+- **Estimate**: 6 hours
+- **Assignee**: TBD
+- **Dependencies**: TXH-006, TXH-008
+
+**Description**: Add observability through OpenTelemetry metrics/traces and .NET events.
+
+**Acceptance Criteria**:
+- [ ] OpenTelemetry metrics: signing_duration_ms, encryption_duration_ms, payload_size_bytes
+- [ ] OpenTelemetry traces for distributed tracing across services
+- [ ] TransactionSigned event with signature algorithm and duration
+- [ ] PayloadEncrypted event with recipient count and payload size
+- [ ] TransactionVerified event with verification result and duration
+- [ ] ActivitySource for transaction operations
 
 ---
 

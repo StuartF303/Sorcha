@@ -12,6 +12,9 @@
 - Q: Should legacy transaction versions (V1-V4) be supported? → A: No - reset versioning to V1 (PQC-only). No existing data requires backward compatibility.
 - Q: What signing algorithm should be used? → A: ML-DSA-44 (default), configurable to ML-DSA-65/87 via blueprint policy.
 - Q: What encryption should payloads use? → A: ML-KEM-512 + AES-256-GCM hybrid encryption (default), configurable to ML-KEM-768/1024.
+- Q: What are the maximum transaction limits? → A: Permissive (1,000 recipients, 1GB total, 100MB per payload) with Blueprint Designer warnings when sizes approach unmanageable thresholds.
+- Q: What happens to symmetric keys after payload encryption? → A: Configurable - default to immediate zeroization, but allow retention via PayloadOptions.RetainSymmetricKey flag for re-encryption scenarios.
+- Q: How should observability be exposed? → A: Both OpenTelemetry integration (metrics/traces) AND extensible .NET events for custom consumer telemetry.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -131,6 +134,11 @@ As a payload owner, I need to grant access to additional recipients using ML-KEM
 - **FR-013**: Library MUST use transaction version V1 (PQC-only, no legacy versions)
 - **FR-014**: Library MUST NOT support legacy transaction versions or classical cryptography algorithms
 - **FR-015**: Library MUST check PQC platform availability and fail with clear error if unavailable
+- **FR-016**: Library MUST enforce maximum limits: 1,000 recipients, 1GB total payload, 100MB per payload
+- **FR-017**: Library MUST expose transaction size estimates for Blueprint Designer integration
+- **FR-018**: Library SHOULD log warnings when transaction size exceeds 10MB or recipients exceed 100
+- **FR-019**: Library MUST integrate with OpenTelemetry for metrics (signing time, encryption time, payload sizes) and distributed tracing
+- **FR-020**: Library MUST raise .NET events (TransactionSigned, PayloadEncrypted, TransactionVerified) for consumer telemetry extensibility
 
 ### Key Entities
 
