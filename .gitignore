@@ -49,6 +49,7 @@ bld/
 
 # User-specific files
 *.userprefs
+nul
 
 # Test results
 TestResults/
