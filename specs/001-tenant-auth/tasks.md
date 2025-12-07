@@ -17,19 +17,19 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create Sorcha.Tenant.Service project in src/Services/Sorcha.Tenant.Service/
-- [ ] T002 Create Sorcha.Tenant.Models project in src/Common/Sorcha.Tenant.Models/
-- [ ] T003 [P] Create Sorcha.Tenant.Service.Tests project in tests/Sorcha.Tenant.Service.Tests/
-- [ ] T004 [P] Create Sorcha.Tenant.Service.IntegrationTests project in tests/Sorcha.Tenant.Service.IntegrationTests/
-- [ ] T005 [P] Create Sorcha.Tenant.Service.PerformanceTests project in tests/Sorcha.Tenant.Service.PerformanceTests/
-- [ ] T006 Add NuGet packages to Sorcha.Tenant.Service (Microsoft.AspNetCore.Authentication.OpenIdConnect, System.IdentityModel.Tokens.Jwt, Fido2NetLib, EF Core, Npgsql, StackExchange.Redis, Aspire.Hosting, Scalar.AspNetCore)
-- [ ] T007 Add NuGet packages to test projects (xUnit, FluentAssertions, Moq, Testcontainers, NBomber)
-- [ ] T008 [P] Create directory structure per plan.md (Endpoints/, Models/, Data/, Services/, Extensions/)
-- [ ] T009 [P] Configure appsettings.json with ConnectionStrings, Redis, JwtSettings, Fido2 sections
-- [ ] T010 [P] Configure appsettings.Development.json with localhost database and Redis
-- [ ] T011 [P] Create README.md in src/Services/Sorcha.Tenant.Service/ with service overview
-- [ ] T012 Add Tenant Service to Sorcha.AppHost in src/Apps/Sorcha.AppHost/Program.cs
-- [ ] T013 [P] Configure Serilog with Seq sink and correlation IDs in Program.cs
+- [x] T001 Create Sorcha.Tenant.Service project in src/Services/Sorcha.Tenant.Service/
+- [x] T002 Create Sorcha.Tenant.Models project in src/Common/Sorcha.Tenant.Models/
+- [x] T003 [P] Create Sorcha.Tenant.Service.Tests project in tests/Sorcha.Tenant.Service.Tests/
+- [x] T004 [P] Create Sorcha.Tenant.Service.IntegrationTests project in tests/Sorcha.Tenant.Service.IntegrationTests/
+- [x] T005 [P] Create Sorcha.Tenant.Service.PerformanceTests project in tests/Sorcha.Tenant.Service.PerformanceTests/
+- [x] T006 Add NuGet packages to Sorcha.Tenant.Service (Microsoft.AspNetCore.Authentication.OpenIdConnect, System.IdentityModel.Tokens.Jwt, Fido2NetLib, EF Core, Npgsql, StackExchange.Redis, Aspire.Hosting, Scalar.AspNetCore)
+- [x] T007 Add NuGet packages to test projects (xUnit, FluentAssertions, Moq, Testcontainers, NBomber)
+- [x] T008 [P] Create directory structure per plan.md (Endpoints/, Models/, Data/, Services/, Extensions/)
+- [x] T009 [P] Configure appsettings.json with ConnectionStrings, Redis, JwtSettings, Fido2 sections
+- [x] T010 [P] Configure appsettings.Development.json with localhost database and Redis
+- [x] T011 [P] Create README.md in src/Services/Sorcha.Tenant.Service/ with service overview
+- [x] T012 Add Tenant Service to Sorcha.AppHost in src/Apps/Sorcha.AppHost/Program.cs
+- [x] T013 [P] Configure Serilog with Seq sink and correlation IDs in Program.cs
 - [ ] T014 [P] Configure OpenTelemetry with Zipkin exporter in Program.cs
 
 ---
@@ -42,30 +42,30 @@
 
 ### Shared Domain Models
 
-- [ ] T015 [P] Create Organization.cs in src/Services/Sorcha.Tenant.Service/Models/
-- [ ] T016 [P] Create IdentityProviderConfiguration.cs in src/Services/Sorcha.Tenant.Service/Models/
-- [ ] T017 [P] Create UserIdentity.cs in src/Services/Sorcha.Tenant.Service/Models/
-- [ ] T018 [P] Create PublicIdentity.cs in src/Services/Sorcha.Tenant.Service/Models/
-- [ ] T019 [P] Create OrganizationPermissionConfiguration.cs in src/Services/Sorcha.Tenant.Service/Models/
-- [ ] T020 [P] Create ServicePrincipal.cs in src/Services/Sorcha.Tenant.Service/Models/
-- [ ] T021 [P] Create AuditLogEntry.cs in src/Services/Sorcha.Tenant.Service/Models/
+- [x] T015 [P] Create Organization.cs in src/Services/Sorcha.Tenant.Service/Models/
+- [x] T016 [P] Create IdentityProviderConfiguration.cs in src/Services/Sorcha.Tenant.Service/Models/
+- [x] T017 [P] Create UserIdentity.cs in src/Services/Sorcha.Tenant.Service/Models/
+- [x] T018 [P] Create PublicIdentity.cs in src/Services/Sorcha.Tenant.Service/Models/
+- [x] T019 [P] Create OrganizationPermissionConfiguration.cs in src/Services/Sorcha.Tenant.Service/Models/
+- [x] T020 [P] Create ServicePrincipal.cs in src/Services/Sorcha.Tenant.Service/Models/
+- [x] T021 [P] Create AuditLogEntry.cs in src/Services/Sorcha.Tenant.Service/Models/
 
 ### Shared DTOs for Cross-Service Use
 
-- [ ] T022 [P] Create TokenClaims.cs in src/Common/Sorcha.Tenant.Models/
-- [ ] T023 [P] Create OrganizationContext.cs in src/Common/Sorcha.Tenant.Models/
-- [ ] T024 [P] Create PermissionFlags.cs in src/Common/Sorcha.Tenant.Models/
+- [x] T022 [P] Create TokenClaims.cs in src/Common/Sorcha.Tenant.Models/
+- [x] T023 [P] Create OrganizationContext.cs in src/Common/Sorcha.Tenant.Models/
+- [x] T024 [P] Create PermissionFlags.cs in src/Common/Sorcha.Tenant.Models/
 
 ### Database Infrastructure
 
-- [ ] T025 Create TenantDbContext.cs in src/Services/Sorcha.Tenant.Service/Data/ with multi-tenant schema support
-- [ ] T026 Configure entity relationships and indexes in TenantDbContext.OnModelCreating()
+- [x] T025 Create TenantDbContext.cs in src/Services/Sorcha.Tenant.Service/Data/ with multi-tenant schema support
+- [x] T026 Configure entity relationships and indexes in TenantDbContext.OnModelCreating()
 - [ ] T027 Create initial EF Core migration for public schema (Organizations, IdentityProviderConfigurations, PublicIdentities, ServicePrincipals)
 - [ ] T028 Create schema creation script for per-tenant tables (UserIdentities, OrganizationPermissionConfigurations, AuditLogEntries)
-- [ ] T029 [P] Create IOrganizationRepository.cs interface in src/Services/Sorcha.Tenant.Service/Data/Repositories/
-- [ ] T030 [P] Create OrganizationRepository.cs implementation in src/Services/Sorcha.Tenant.Service/Data/Repositories/
-- [ ] T031 [P] Create IIdentityRepository.cs interface in src/Services/Sorcha.Tenant.Service/Data/Repositories/
-- [ ] T032 [P] Create IdentityRepository.cs implementation in src/Services/Sorcha.Tenant.Service/Data/Repositories/
+- [x] T029 [P] Create IOrganizationRepository.cs interface in src/Services/Sorcha.Tenant.Service/Data/Repositories/
+- [x] T030 [P] Create OrganizationRepository.cs implementation in src/Services/Sorcha.Tenant.Service/Data/Repositories/
+- [x] T031 [P] Create IIdentityRepository.cs interface in src/Services/Sorcha.Tenant.Service/Data/Repositories/
+- [x] T032 [P] Create IdentityRepository.cs implementation in src/Services/Sorcha.Tenant.Service/Data/Repositories/
 
 ### Core Services (Shared Infrastructure)
 
@@ -73,8 +73,8 @@
 - [ ] T034 Create ServiceCollectionExtensions.cs in src/Services/Sorcha.Tenant.Service/Extensions/ with AddTenantServices() method
 - [ ] T035 Create AuthenticationExtensions.cs in src/Services/Sorcha.Tenant.Service/Extensions/ with AddTenantAuthentication() method
 - [ ] T036 Configure dependency injection in Program.cs (DbContext, repositories, services)
-- [ ] T037 [P] Create health check endpoints (/health/live, /health/ready) in Program.cs
-- [ ] T038 [P] Configure .NET 10 OpenAPI with Scalar in Program.cs (routes: /openapi/v1.json, /scalar)
+- [x] T037 [P] Create health check endpoints (/health/live, /health/ready) in Program.cs
+- [x] T038 [P] Configure .NET 10 OpenAPI with Scalar in Program.cs (routes: /openapi/v1.json, /scalar)
 
 ### Redis Infrastructure
 

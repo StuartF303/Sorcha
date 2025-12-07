@@ -2,8 +2,85 @@
 
 **Feature Branch**: `001-tenant-auth`
 **Created**: 2025-11-22
+**Updated**: 2025-12-07
 **Status**: Draft
 **Input**: User description: "Tenant Service which acts as the Secure Token Service provider for external identities that belong to a given organisation. It can be configured for multiple organisations, each one organisation having its own branding and identity provider - be that Azure Entra, Amazon or any other external Identity Provider (IDP). We can also have a public identity provider that allows for an identity to access the service based on a PassKey or other provided device token."
+
+## Deployment Topology
+
+### Overview
+
+Sorcha supports multiple deployment topologies to accommodate different organizational needs:
+
+1. **Master SaaS Deployment** - Hosted by Sorcha at `*.sorcha.io`
+2. **Enterprise Self-Hosted** - Large organizations running their own installation
+3. **Hosted Tenancy** - Smaller organizations using subdomains on the master deployment
+
+### Deployment Types
+
+#### Type 1: Master SaaS Deployment (Sorcha-Hosted)
+- **Domain**: `tenant.sorcha.io` (STS), `api.sorcha.io` (Gateway)
+- **Organizations**: Multiple orgs, each with subdomain (e.g., `acme.sorcha.io`)
+- **Operator**: Sorcha team
+- **Use Case**: Default offering for most customers
+
+#### Type 2: Enterprise Self-Hosted
+- **Domain**: Customer-owned (e.g., `auth.big-corporate.com`, `api.big-corporate.com`)
+- **Organizations**: Single org or multiple internal divisions
+- **Operator**: Customer IT team
+- **Use Case**: Large enterprises with data sovereignty requirements, air-gapped environments
+
+#### Type 3: Hosted Tenancy (Subdomain on Master)
+- **Domain**: Subdomain under master (e.g., `small-corp.tenants.sorcha.io`)
+- **Organizations**: Single org per subdomain
+- **Operator**: Sorcha team (infrastructure), Customer (configuration)
+- **Use Case**: SMBs wanting dedicated namespace without infrastructure overhead
+
+### Deployment Configuration Entity
+
+Each Sorcha installation has a **Deployment Configuration** that defines:
+
+```
+DeploymentConfiguration
+├── DeploymentId (GUID) - Unique installation identifier
+├── DeploymentName - Human-readable name ("Sorcha SaaS", "Big Corp Production")
+├── DeploymentType - SaaS | Enterprise | HostedTenant
+├── BaseDomain - Root domain for this deployment
+├── TenantServiceUrl - Full URL to Tenant Service (STS)
+├── ApiGatewayUrl - Full URL to API Gateway
+├── JwksUrl - JWKS endpoint for token verification
+├── TokenIssuer - JWT "iss" claim value
+├── AllowedAudiences[] - Valid "aud" claim values
+├── SigningKeySource - AzureKeyVault | LocalFile | EnvironmentVariable
+├── SigningKeyIdentifier - Key Vault key name or file path
+├── FederatedDeployments[] - Trusted peer deployments for cross-deployment auth
+└── Created/Updated timestamps
+```
+
+### Token Issuer Configuration
+
+**Critical**: The `iss` (issuer) claim in JWTs MUST match the deployment's configured `TokenIssuer`:
+
+| Deployment Type | Example Issuer | Example Audience |
+|----------------|----------------|------------------|
+| Master SaaS | `https://tenant.sorcha.io` | `https://api.sorcha.io` |
+| Enterprise | `https://auth.big-corporate.com` | `https://api.big-corporate.com` |
+| Hosted Tenant | `https://small-corp.tenants.sorcha.io` | `https://small-corp.api.sorcha.io` |
+
+### Cross-Deployment Trust (Federation)
+
+For peer-to-peer networking between different Sorcha deployments:
+
+1. **Deployment A** (e.g., `sorcha.io`) can trust tokens from **Deployment B** (e.g., `big-corporate.com`)
+2. Trust is established by adding Deployment B's `DeploymentId` and `JwksUrl` to Deployment A's `FederatedDeployments`
+3. Services validate federated tokens by:
+   - Checking `iss` claim matches a known federated deployment
+   - Fetching JWKS from the federated deployment's `JwksUrl`
+   - Verifying signature with federated deployment's public key
+4. Federated tokens include additional claims:
+   - `deployment_id` - Source deployment identifier
+   - `deployment_name` - Source deployment name
+   - `federated: true` - Marks token as cross-deployment
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -109,6 +186,40 @@ Internal Sorcha services (Blueprint Service, Wallet Service, Register Service) n
 
 ---
 
+### User Story 7 - Deployment Administrator Configures Installation (Priority: P0)
+
+A deployment administrator needs to configure the Sorcha installation with appropriate domain settings, token issuer URLs, and signing key configuration so that all services in the deployment use consistent authentication settings.
+
+**Why this priority**: This is P0 because without correct deployment configuration, no authentication can work. All other authentication features depend on having the correct issuer, audience, and signing keys configured.
+
+**Independent Test**: Can be fully tested by deploying Sorcha to a new domain, configuring the deployment settings, and verifying tokens are issued with correct issuer/audience claims and can be validated by all services.
+
+**Acceptance Scenarios**:
+
+1. **Given** a new Sorcha installation on domain `auth.big-corporate.com`, **When** the deployment administrator configures the deployment settings (issuer URL, audience, signing key source), **Then** all services read and use these settings for token issuance and validation
+2. **Given** an enterprise deployment with Azure Key Vault, **When** the administrator configures the signing key source as Azure Key Vault, **Then** the Tenant Service retrieves signing keys from Key Vault and all services can validate tokens using the JWKS endpoint
+3. **Given** a hosted tenant deployment at `small-corp.tenants.sorcha.io`, **When** the deployment is configured, **Then** tokens are issued with `iss: https://small-corp.tenants.sorcha.io` and services validate against this issuer
+4. **Given** two federated deployments (Sorcha SaaS and Big Corp), **When** trust is established between them, **Then** users from Big Corp can authenticate to Sorcha SaaS peer services using their Big Corp tokens
+
+---
+
+### User Story 8 - Cross-Deployment Peer Authentication (Priority: P2)
+
+A peer service from one Sorcha deployment needs to authenticate with a peer service in another federated Sorcha deployment for blockchain synchronization and transaction sharing.
+
+**Why this priority**: This enables the decentralized peer network to span multiple independent Sorcha installations. P2 because single-deployment functionality must work first.
+
+**Independent Test**: Can be fully tested by establishing federation between two deployments and having a peer service from Deployment A authenticate to Deployment B's Register Service.
+
+**Acceptance Scenarios**:
+
+1. **Given** Deployment A trusts Deployment B (federation configured), **When** a peer service from Deployment B presents its token to Deployment A, **Then** Deployment A validates the token using Deployment B's JWKS and accepts the request
+2. **Given** Deployment A does NOT trust Deployment C, **When** a peer service from Deployment C presents its token to Deployment A, **Then** Deployment A rejects the token with "untrusted issuer" error
+3. **Given** a federated token is presented, **When** the receiving service extracts claims, **Then** it can identify the source deployment and apply appropriate federation policies
+4. **Given** federation trust is revoked between two deployments, **When** tokens from the revoked deployment are presented, **Then** they are immediately rejected even if not yet expired
+
+---
+
 ### Edge Cases
 
 - What happens when an external IDP is temporarily unavailable during user authentication?
@@ -121,6 +232,11 @@ Internal Sorcha services (Blueprint Service, Wallet Service, Register Service) n
 - How does the system handle clock skew between services when validating JWT token expiration?
 - What happens when an organization is deleted while users are authenticated?
 - How does the system handle concurrent login attempts from different devices for the same user?
+- What happens when a deployment's signing key is rotated while tokens are in flight?
+- How does the system handle a federated deployment becoming unreachable (JWKS endpoint unavailable)?
+- What happens when deployment configuration is changed (e.g., domain migration from `old.com` to `new.com`)?
+- How does the system handle tokens issued before a federation trust was revoked?
+- What happens when two deployments have overlapping organization subdomains?
 
 ## Clarifications
 
@@ -133,13 +249,36 @@ Internal Sorcha services (Blueprint Service, Wallet Service, Register Service) n
 
 ### Functional Requirements
 
+#### Deployment Configuration (P0 - Foundation)
+
+- **FR-D01**: System MUST support configurable deployment settings including deployment ID, base domain, issuer URL, and audience URLs
+- **FR-D02**: System MUST support three deployment types: SaaS (multi-tenant), Enterprise (self-hosted), and HostedTenant (subdomain on SaaS)
+- **FR-D03**: Each deployment MUST have a unique `DeploymentId` (GUID) that identifies the installation globally
+- **FR-D04**: System MUST support configurable token signing key sources: Azure Key Vault, AWS KMS, local file, or environment variable
+- **FR-D05**: All services within a deployment MUST read deployment configuration from a shared configuration source (environment variables, configuration file, or .NET Aspire)
+- **FR-D06**: System MUST expose a `/.well-known/openid-configuration` endpoint returning deployment-specific OIDC metadata
+- **FR-D07**: System MUST expose a `/.well-known/jwks.json` endpoint returning the public keys for token verification
+- **FR-D08**: Deployment configuration MUST be immutable at runtime; changes require service restart or rolling deployment
+- **FR-D09**: System MUST validate deployment configuration at startup and fail fast if critical settings are missing or invalid
+
+#### Cross-Deployment Federation (P2 - Peer Networking)
+
+- **FR-F01**: System MUST support federation configuration defining trusted peer deployments
+- **FR-F02**: Federation trust MUST be established by registering a peer deployment's `DeploymentId`, `JwksUrl`, and `TokenIssuer`
+- **FR-F03**: Services MUST validate federated tokens by fetching JWKS from the source deployment's published endpoint
+- **FR-F04**: Federated tokens MUST include `deployment_id` and `federated: true` claims to identify cross-deployment origin
+- **FR-F05**: System MUST cache federated JWKS with configurable TTL (default: 1 hour) to minimize network calls
+- **FR-F06**: System MUST support immediate federation trust revocation, rejecting tokens from revoked deployments
+- **FR-F07**: Federation trust MUST be bidirectional - each deployment must explicitly trust the other
+- **FR-F08**: System MUST log all cross-deployment authentication events for security audit
+
 #### Core Authentication & Token Management
 
 - **FR-001**: System MUST act as an OAuth2/OIDC Secure Token Service (STS) issuing JWT tokens for authenticated identities
 - **FR-002**: System MUST support multiple organizations, each with independent configuration, branding, and identity provider
 - **FR-003**: System MUST integrate with external identity providers including Azure Entra ID, AWS Cognito, and any OIDC-compliant IDP
 - **FR-004**: System MUST support public user authentication using PassKeys (FIDO2/WebAuthn) and device tokens
-- **FR-005**: Issued tokens MUST contain claims for: identity (user ID), organization ID, roles, permitted blockchains, and permissions (can create blockchain, can publish blueprint)
+- **FR-005**: Issued tokens MUST contain claims for: identity (user ID), organization ID, deployment ID, roles, permitted blockchains, and permissions (can create blockchain, can publish blueprint)
 - **FR-006**: System MUST support token refresh flows to extend sessions without re-authentication
 - **FR-007**: System MUST validate tokens presented by services and extract claims for authorization decisions
 - **FR-008**: System MUST support immediate token revocation (logout, permission changes, security events)
@@ -194,9 +333,19 @@ Internal Sorcha services (Blueprint Service, Wallet Service, Register Service) n
 
 ### Key Entities
 
+- **Deployment Configuration**: Defines the Sorcha installation settings (singleton per deployment)
+  - Attributes: deployment ID (GUID), deployment name, deployment type (SaaS/Enterprise/HostedTenant), base domain, tenant service URL, API gateway URL, JWKS URL, token issuer, allowed audiences, signing key source, signing key identifier, created date, updated date
+  - Relationships: has many organizations, has many federated deployments
+  - Notes: Loaded from configuration at startup, immutable at runtime
+
+- **Federated Deployment**: Represents a trusted peer Sorcha installation for cross-deployment authentication
+  - Attributes: deployment ID (GUID), deployment name, token issuer URL, JWKS URL, trust status (active/suspended/revoked), established date, last verified date
+  - Relationships: belongs to one deployment configuration
+  - Notes: JWKS cached with configurable TTL
+
 - **Organization (Tenant)**: Represents a company or group using the platform
-  - Attributes: unique identifier, name, branding configuration (logo, colors), IDP configuration, creator identity, created date, status (active/suspended)
-  - Relationships: has many users, has one IDP configuration, has one permission configuration
+  - Attributes: unique identifier, name, subdomain, branding configuration (logo, colors), IDP configuration, creator identity, created date, status (active/suspended)
+  - Relationships: belongs to one deployment, has many users, has one IDP configuration, has one permission configuration
 
 - **Identity Provider Configuration**: External authentication provider settings for an organization
   - Attributes: IDP type (Azure Entra, AWS, OIDC generic), issuer URL, client ID, client secret (encrypted), authorization endpoint, token endpoint, scopes, metadata discovery URL
@@ -215,7 +364,7 @@ Internal Sorcha services (Blueprint Service, Wallet Service, Register Service) n
   - Relationships: belongs to one organization
 
 - **JWT Token (issued)**: Authentication token issued by the service
-  - Attributes: token ID (JTI), issuer, subject (user/service identity), organization ID, audience (target services), issued at, expires at, roles, permissions (blockchain access, create blockchain, publish blueprint), token type (user, service, delegated)
+  - Attributes: token ID (JTI), issuer (deployment-specific), subject (user/service identity), deployment ID, organization ID, audience (target services), issued at, expires at, roles, permissions (blockchain access, create blockchain, publish blueprint), token type (user, service, delegated), federated flag
   - Relationships: issued for one identity, revocable
 
 - **Service Principal**: Represents an internal Sorcha service for service-to-service authentication
@@ -223,7 +372,7 @@ Internal Sorcha services (Blueprint Service, Wallet Service, Register Service) n
   - Relationships: can have many service tokens
 
 - **Audit Log Entry**: Records authentication and authorization events
-  - Attributes: timestamp, event type (login, logout, token issued, token revoked, permission denied), identity identifier, organization identifier, IP address, user agent, success/failure, details
+  - Attributes: timestamp, event type (login, logout, token issued, token revoked, permission denied, federation event), identity identifier, organization identifier, deployment ID (for federated events), IP address, user agent, success/failure, details
   - Relationships: associated with one identity, one organization
 
 ## Success Criteria *(mandatory)*
@@ -268,6 +417,11 @@ Internal Sorcha services (Blueprint Service, Wallet Service, Register Service) n
 - Clock synchronization across services is maintained within 30 seconds for accurate token expiration validation
 - Initial implementation will support up to 100 organizations; horizontal scaling may be required beyond this
 - Peer reputation algorithm will use threshold-based scoring with manual override as clarified in FR-037
+- **Deployment configuration is set during installation and remains static during runtime**
+- **Each deployment has exactly one Tenant Service instance (or HA cluster) serving as STS**
+- **Federated deployments have network connectivity to fetch JWKS from each other**
+- **Signing keys are managed externally (Key Vault, KMS) for production deployments**
+- **Organization subdomains are unique within a deployment but may overlap across deployments**
 
 ### Out of Scope (Not Included)
 

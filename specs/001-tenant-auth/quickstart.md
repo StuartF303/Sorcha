@@ -357,9 +357,22 @@ dotnet ef database update
 For production-like testing, use environment variables instead of appsettings:
 
 ```bash
+# Database and cache
 export ConnectionStrings__TenantDatabase="Host=localhost;Port=5432;Database=sorcha_tenant;Username=sorcha_user;Password=dev_password"
 export Redis__ConnectionString="localhost:6379"
-export JwtSettings__Issuer="https://localhost:7080"
+
+# Deployment configuration (see deployment-configuration.md for details)
+export SORCHA_DEPLOYMENT_ID="dev-00000000-0000-0000-0000-000000000001"
+export SORCHA_DEPLOYMENT_NAME="Local Development"
+export SORCHA_DEPLOYMENT_TYPE="SaaS"
+export SORCHA_BASE_DOMAIN="localhost"
+export SORCHA_TENANT_SERVICE_URL="https://localhost:7080"
+export SORCHA_TOKEN_ISSUER="https://localhost:7080"
+export SORCHA_ALLOWED_AUDIENCES="https://localhost:7081,https://localhost:7082"
+export SORCHA_SIGNING_KEY_SOURCE="Local"
+export SORCHA_FEDERATION_ENABLED="false"
+
+# JWT settings
 export JwtSettings__AccessTokenLifetimeMinutes="60"
 
 dotnet run
@@ -425,5 +438,6 @@ curl https://localhost:7080/.well-known/jwks.json | jq
 - [Specification](spec.md)
 - [Implementation Plan](plan.md)
 - [Data Model](data-model.md)
+- [Deployment Configuration](deployment-configuration.md)
 - [API Contracts](contracts/)
 - [Research Decisions](research.md)

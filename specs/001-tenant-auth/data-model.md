@@ -2,12 +2,122 @@
 
 **Feature**: 001-tenant-auth
 **Date**: 2025-11-22
+**Updated**: 2025-12-07
 **Phase**: 1 (Design & Contracts)
 **Database**: PostgreSQL with Entity Framework Core 10
 
 ## Overview
 
 The Tenant Service data model supports multi-organization authentication with external IDP integration, PassKey support, role-based access control, and comprehensive audit logging. The model uses PostgreSQL schemas for tenant isolation (one schema per organization for sensitive data, shared public schema for metadata).
+
+**Key Addition (2025-12-07)**: Support for multiple deployment topologies (SaaS, Enterprise, Hosted Tenant) and cross-deployment federation.
+
+## Deployment Configuration
+
+### Configuration Source Hierarchy
+
+Deployment configuration is loaded from these sources (in priority order):
+
+1. **Environment Variables** (highest priority) - For containerized/cloud deployments
+2. **appsettings.{Environment}.json** - Environment-specific overrides
+3. **appsettings.json** - Base configuration
+4. **.NET Aspire Configuration** - Service discovery integration
+
+### Required Configuration Keys
+
+```json
+{
+  "Deployment": {
+    "DeploymentId": "00000000-0000-0000-0000-000000000001",
+    "DeploymentName": "Sorcha SaaS Production",
+    "DeploymentType": "SaaS",
+    "BaseDomain": "sorcha.io",
+    "TenantServiceUrl": "https://tenant.sorcha.io",
+    "ApiGatewayUrl": "https://api.sorcha.io",
+    "TokenIssuer": "https://tenant.sorcha.io",
+    "AllowedAudiences": [
+      "https://api.sorcha.io",
+      "https://blueprint.sorcha.io",
+      "https://wallet.sorcha.io",
+      "https://register.sorcha.io"
+    ],
+    "SigningKey": {
+      "Source": "AzureKeyVault",
+      "KeyVaultUri": "https://sorcha-prod.vault.azure.net/",
+      "KeyName": "jwt-signing-key",
+      "KeyVersion": "latest"
+    },
+    "Federation": {
+      "Enabled": true,
+      "TrustedDeployments": [
+        {
+          "DeploymentId": "11111111-1111-1111-1111-111111111111",
+          "DeploymentName": "Big Corp Production",
+          "TokenIssuer": "https://auth.big-corporate.com",
+          "JwksUrl": "https://auth.big-corporate.com/.well-known/jwks.json",
+          "TrustStatus": "Active"
+        }
+      ],
+      "JwksCacheTtlMinutes": 60
+    }
+  }
+}
+```
+
+### Environment Variable Mapping
+
+| Configuration Key | Environment Variable | Example |
+|-------------------|---------------------|---------|
+| `Deployment:DeploymentId` | `SORCHA_DEPLOYMENT_ID` | `00000000-0000-0000-0000-000000000001` |
+| `Deployment:DeploymentName` | `SORCHA_DEPLOYMENT_NAME` | `Sorcha SaaS Production` |
+| `Deployment:DeploymentType` | `SORCHA_DEPLOYMENT_TYPE` | `SaaS` |
+| `Deployment:BaseDomain` | `SORCHA_BASE_DOMAIN` | `sorcha.io` |
+| `Deployment:TenantServiceUrl` | `SORCHA_TENANT_SERVICE_URL` | `https://tenant.sorcha.io` |
+| `Deployment:ApiGatewayUrl` | `SORCHA_API_GATEWAY_URL` | `https://api.sorcha.io` |
+| `Deployment:TokenIssuer` | `SORCHA_TOKEN_ISSUER` | `https://tenant.sorcha.io` |
+| `Deployment:SigningKey:Source` | `SORCHA_SIGNING_KEY_SOURCE` | `AzureKeyVault` |
+| `Deployment:SigningKey:KeyVaultUri` | `SORCHA_KEY_VAULT_URI` | `https://sorcha-prod.vault.azure.net/` |
+
+### Deployment Type Configurations
+
+#### SaaS (Multi-Tenant)
+```json
+{
+  "Deployment": {
+    "DeploymentType": "SaaS",
+    "BaseDomain": "sorcha.io",
+    "TenantServiceUrl": "https://tenant.sorcha.io",
+    "TokenIssuer": "https://tenant.sorcha.io",
+    "OrganizationSubdomainPattern": "{org}.sorcha.io"
+  }
+}
+```
+
+#### Enterprise (Self-Hosted)
+```json
+{
+  "Deployment": {
+    "DeploymentType": "Enterprise",
+    "BaseDomain": "big-corporate.com",
+    "TenantServiceUrl": "https://auth.big-corporate.com",
+    "TokenIssuer": "https://auth.big-corporate.com",
+    "SingleOrganizationMode": true
+  }
+}
+```
+
+#### Hosted Tenant (Subdomain on SaaS)
+```json
+{
+  "Deployment": {
+    "DeploymentType": "HostedTenant",
+    "BaseDomain": "small-corp.tenants.sorcha.io",
+    "TenantServiceUrl": "https://small-corp.tenants.sorcha.io",
+    "TokenIssuer": "https://small-corp.tenants.sorcha.io",
+    "ParentDeploymentId": "00000000-0000-0000-0000-000000000001"
+  }
+}
+```
 
 ## Multi-Tenancy Strategy
 
@@ -24,6 +134,32 @@ The Tenant Service data model supports multi-organization authentication with ex
 ## Entity-Relationship Diagram
 
 ```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    DEPLOYMENT CONFIGURATION                          │
+│                    (appsettings.json / env vars)                     │
+│  - DeploymentId (GUID)                                              │
+│  - DeploymentName                                                    │
+│  - DeploymentType (SaaS | Enterprise | HostedTenant)                │
+│  - BaseDomain                                                        │
+│  - TenantServiceUrl                                                  │
+│  - TokenIssuer                                                       │
+│  - AllowedAudiences[]                                                │
+│  - SigningKeySource                                                  │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────┐
+│   FederatedDeployments      │ (public schema - database)
+│  - Id (PK)                  │
+│  - DeploymentId (GUID)      │  ← Remote deployment ID
+│  - DeploymentName           │
+│  - TokenIssuer              │
+│  - JwksUrl                  │
+│  - TrustStatus              │
+│  - EstablishedAt            │
+│  - LastVerifiedAt           │
+│  - JwksCacheExpiry          │
+└─────────────────────────────┘
+
 ┌─────────────────────────────┐
 │      Organizations          │ (public schema)
 │  - Id (PK)                  │
@@ -111,6 +247,84 @@ The Tenant Service data model supports multi-organization authentication with ex
 ```
 
 ## Entity Definitions
+
+### 0. FederatedDeployment (Public Schema)
+
+**Purpose**: Represents a trusted peer Sorcha installation for cross-deployment authentication
+
+**Table**: `FederatedDeployments` (schema: `public`)
+
+**Columns**:
+
+| Column | Type | Constraints | Description |
+|--------|------|------------|-------------|
+| Id | UUID | PRIMARY KEY | Local record identifier |
+| DeploymentId | UUID | UNIQUE, NOT NULL | Remote deployment's unique identifier |
+| DeploymentName | VARCHAR(200) | NOT NULL | Human-readable name for the remote deployment |
+| TokenIssuer | VARCHAR(500) | NOT NULL | Expected "iss" claim value from this deployment |
+| JwksUrl | VARCHAR(500) | NOT NULL | URL to fetch JSON Web Key Set |
+| TrustStatus | VARCHAR(20) | NOT NULL, DEFAULT 'Active' | Active, Suspended, Revoked |
+| EstablishedAt | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | When trust was established |
+| LastVerifiedAt | TIMESTAMPTZ | NULL | Last successful JWKS fetch |
+| JwksCachedKeys | JSONB | NULL | Cached JWKS response |
+| JwksCacheExpiry | TIMESTAMPTZ | NULL | When cached JWKS expires |
+| Notes | TEXT | NULL | Administrator notes about this federation |
+
+**Indexes**:
+- PRIMARY KEY: `Id`
+- UNIQUE: `DeploymentId`
+- UNIQUE: `TokenIssuer`
+- INDEX: `TrustStatus`
+
+**EF Core Entity**:
+
+```csharp
+public class FederatedDeployment
+{
+    public Guid Id { get; set; }
+    public Guid DeploymentId { get; set; }  // Remote deployment ID
+    public string DeploymentName { get; set; } = string.Empty;
+    public string TokenIssuer { get; set; } = string.Empty;
+    public string JwksUrl { get; set; } = string.Empty;
+    public FederationTrustStatus TrustStatus { get; set; } = FederationTrustStatus.Active;
+    public DateTimeOffset EstablishedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? LastVerifiedAt { get; set; }
+    public JsonDocument? JwksCachedKeys { get; set; }
+    public DateTimeOffset? JwksCacheExpiry { get; set; }
+    public string? Notes { get; set; }
+}
+
+public enum FederationTrustStatus
+{
+    Active,      // Tokens accepted
+    Suspended,   // Temporarily not accepting tokens (admin action)
+    Revoked      // Permanently revoked, tokens rejected
+}
+```
+
+**Validation Rules**:
+- `DeploymentId`: Required, must be unique (only one trust relationship per deployment)
+- `TokenIssuer`: Required, must be valid HTTPS URL, must be unique
+- `JwksUrl`: Required, must be valid HTTPS URL ending with `.well-known/jwks.json`
+- `TrustStatus`: Must be one of Active, Suspended, Revoked
+
+**JWKS Caching Strategy**:
+- Cache JWKS response in `JwksCachedKeys` column
+- Default TTL: 1 hour (configurable via `Deployment:Federation:JwksCacheTtlMinutes`)
+- Background job refreshes cache before expiry
+- On cache miss or expiry, fetch from `JwksUrl`
+- If fetch fails, use cached keys until next successful refresh (graceful degradation)
+
+**Trust Lifecycle**:
+```
+         Establish Trust
+               ↓
+            Active ←→ Suspended (admin toggle)
+               ↓
+            Revoked (permanent, requires re-establishment)
+```
+
+---
 
 ### 1. Organization (Public Schema)
 

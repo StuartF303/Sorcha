@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
+using Sorcha.Tenant.Service.Endpoints;
+using Sorcha.Tenant.Service.Extensions;
 
 // Configure Serilog first (before building the application)
 Log.Logger = new LoggerConfiguration()
@@ -56,43 +58,14 @@ try
         });
     });
 
-    // TODO: Add database context (EF Core)
-    // builder.Services.AddDbContext<TenantDbContext>(options =>
-    // {
-    //     var connectionString = builder.Configuration.GetConnectionString("TenantDatabase");
-    //     var password = builder.Configuration["ConnectionStrings:Password"];
-    //     // Inject password into connection string
-    //     connectionString = connectionString?.Replace("Password=placeholder", $"Password={password}");
-    //     options.UseNpgsql(connectionString);
-    // });
+    // Add Tenant Service dependencies (database, repositories, Redis, token revocation)
+    builder.Services.AddTenantServices(builder.Configuration);
 
-    // TODO: Add Redis distributed cache
-    // var redisConnection = builder.Configuration.GetValue<string>("Redis:ConnectionString");
-    // builder.Services.AddStackExchangeRedisCache(options =>
-    // {
-    //     options.Configuration = redisConnection;
-    //     options.InstanceName = builder.Configuration.GetValue<string>("Redis:InstanceName");
-    // });
+    // Add JWT authentication
+    builder.Services.AddTenantAuthentication(builder.Configuration);
 
-    // TODO: Add JWT authentication and validation services
-    // builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    //     .AddJwtBearer(options => { ... });
-
-    // TODO: Add authorization policies
-    // builder.Services.AddAuthorization(options => { ... });
-
-    // TODO: Add FIDO2/WebAuthn services
-    // builder.Services.AddFido2(...);
-
-    // TODO: Add application services
-    // builder.Services.AddScoped<IOrganizationService, OrganizationService>();
-    // builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
-    // builder.Services.AddScoped<ITokenService, TokenService>();
-    // builder.Services.AddScoped<IPassKeyService, PassKeyService>();
-
-    // TODO: Add repositories
-    // builder.Services.AddScoped<IOrganizationRepository, OrganizationRepository>();
-    // builder.Services.AddScoped<IUserRepository, UserRepository>();
+    // Add authorization policies
+    builder.Services.AddTenantAuthorization();
 
     // Add rate limiting
     builder.Services.AddRateLimiter(options =>
@@ -116,12 +89,8 @@ try
         }
     });
 
-    // Add health checks
-    builder.Services.AddHealthChecks();
-        // TODO: Add database health check
-        // .AddNpgSql(builder.Configuration.GetConnectionString("TenantDatabase"))
-        // TODO: Add Redis health check
-        // .AddRedis(builder.Configuration.GetValue<string>("Redis:ConnectionString"));
+    // Add health checks (PostgreSQL and Redis when configured)
+    builder.Services.AddTenantHealthChecks(builder.Configuration);
 
     var app = builder.Build();
 
@@ -159,16 +128,16 @@ try
 
     app.UseHttpsRedirection();
 
-    // TODO: Add authentication middleware
-    // app.UseAuthentication();
-    // app.UseAuthorization();
+    // Authentication and authorization middleware
+    app.UseAuthentication();
+    app.UseAuthorization();
 
     app.UseRateLimiter();
 
-    // TODO: Map endpoint groups
-    // app.MapAuthEndpoints();
-    // app.MapAdminEndpoints();
-    // app.MapAuditEndpoints();
+    // Map API endpoint groups
+    app.MapOrganizationEndpoints();
+    app.MapAuthEndpoints();
+    app.MapServiceAuthEndpoints();
 
     // Temporary health check endpoint
     app.MapGet("/health", () => Results.Ok(new
