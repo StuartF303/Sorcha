@@ -16,13 +16,16 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults (OpenTelemetry, health checks, service discovery)
 builder.AddServiceDefaults();
 
-// Configure Kestrel for gRPC
+// Configure Kestrel for gRPC with HTTP/1.1 fallback for health checks
+// Get port from environment variable (Docker uses 8080, local uses 5000)
+var httpPort = int.TryParse(Environment.GetEnvironmentVariable("ASPNETCORE_HTTP_PORTS"), out var envPort) ? envPort : 5000;
+
 builder.WebHost.ConfigureKestrel(options =>
 {
-    // HTTP/2 for gRPC
-    options.ListenAnyIP(5000, listenOptions =>
+    // Support both HTTP/1.1 (for health checks) and HTTP/2 (for gRPC)
+    options.ListenAnyIP(httpPort, listenOptions =>
     {
-        listenOptions.Protocols = HttpProtocols.Http2;
+        listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
     });
 });
 
@@ -38,6 +41,7 @@ builder.Services.Configure<PeerServiceConfiguration>(
     builder.Configuration.GetSection("PeerService"));
 
 // Register core services
+builder.Services.AddSingleton<StunClient>();
 builder.Services.AddSingleton<PeerListManager>();
 builder.Services.AddSingleton<NetworkAddressService>();
 builder.Services.AddSingleton<PeerDiscoveryService>();

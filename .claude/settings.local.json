@@ -126,7 +126,14 @@
       "Bash(specs/002-storage-abstraction/)",
       "Bash(gh pr create:*)",
       "Bash(gh pr merge:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose config:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(docker-compose down:*)"
     ],
     "deny": [],
     "ask": []

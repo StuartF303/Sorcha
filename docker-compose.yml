@@ -1,8 +1,13 @@
-version: '3.8'
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Sorcha Contributors
 
 services:
+  # ===========================
+  # Infrastructure Services
+  # ===========================
+
   redis:
-    image: redis:8.2
+    image: redis:8-alpine
     container_name: sorcha-redis
     restart: unless-stopped
     ports:
@@ -17,12 +22,60 @@ services:
       timeout: 3s
       retries: 5
 
-  blueprint-api:
-    image: sorcha/blueprint-api:latest
-    container_name: sorcha-blueprint-api
+  postgres:
+    image: postgres:17-alpine
+    container_name: sorcha-postgres
     restart: unless-stopped
+    ports:
+      - "5432:5432"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+      POSTGRES_USER: sorcha
+      POSTGRES_PASSWORD: sorcha_dev_password
+      POSTGRES_DB: sorcha
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - sorcha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sorcha"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  mongodb:
+    image: mongo:8
+    container_name: sorcha-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: sorcha
+      MONGO_INITDB_ROOT_PASSWORD: sorcha_dev_password
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - sorcha-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ===========================
+  # Application Services
+  # ===========================
+
+  blueprint-service:
+    build:
+      context: .
+      dockerfile: src/Services/Sorcha.Blueprint.Service/Dockerfile
+    image: sorcha/blueprint-service:latest
+    container_name: sorcha-blueprint-service
+    restart: unless-stopped
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Redis=redis:6379
     depends_on:
@@ -30,55 +83,121 @@ services:
         condition: service_healthy
     networks:
       - sorcha-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
+    # Note: Chiseled images don't include shell tools, so we disable container-level health checks
+    # Health monitoring is handled via the /health endpoint externally or via orchestrator probes
+
+  wallet-service:
+    build:
+      context: .
+      dockerfile: src/Services/Sorcha.Wallet.Service/Dockerfile
+    image: sorcha/wallet-service:latest
+    container_name: sorcha-wallet-service
+    restart: unless-stopped
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__PostgreSQL=Host=postgres;Database=sorcha;Username=sorcha;Password=sorcha_dev_password
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - sorcha-network
+
+  register-service:
+    build:
+      context: .
+      dockerfile: src/Services/Sorcha.Register.Service/Dockerfile
+    image: sorcha/register-service:latest
+    container_name: sorcha-register-service
+    restart: unless-stopped
+    ports:
+      - "5290:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__MongoDB=mongodb://sorcha:sorcha_dev_password@mongodb:27017
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - sorcha-network
+
+  tenant-service:
+    build:
+      context: .
+      dockerfile: src/Services/Sorcha.Tenant.Service/Dockerfile
+    image: sorcha/tenant-service:latest
+    container_name: sorcha-tenant-service
+    restart: unless-stopped
+    ports:
+      - "5110:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__PostgreSQL=Host=postgres;Database=sorcha;Username=sorcha;Password=sorcha_dev_password
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - sorcha-network
 
   peer-service:
+    build:
+      context: .
+      dockerfile: src/Services/Sorcha.Peer.Service/Dockerfile
     image: sorcha/peer-service:latest
     container_name: sorcha-peer-service
     restart: unless-stopped
+    ports:
+      - "5002:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_HTTP_PORTS=8080
       - ConnectionStrings__Redis=redis:6379
     depends_on:
       redis:
         condition: service_healthy
     networks:
       - sorcha-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
 
   api-gateway:
+    build:
+      context: .
+      dockerfile: src/Services/Sorcha.ApiGateway/Dockerfile
     image: sorcha/api-gateway:latest
     container_name: sorcha-api-gateway
     restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
-      - Services__Blueprint__Url=http://blueprint-api:8080
+      - Services__Blueprint__Url=http://blueprint-service:8080
+      - Services__Wallet__Url=http://wallet-service:8080
+      - Services__Register__Url=http://register-service:8080
+      - Services__Tenant__Url=http://tenant-service:8080
       - Services__Peer__Url=http://peer-service:8080
       - ConnectionStrings__Redis=redis:6379
     depends_on:
-      blueprint-api:
-        condition: service_healthy
-      peer-service:
-        condition: service_healthy
+      - blueprint-service
+      - wallet-service
+      - register-service
+      - tenant-service
+      - peer-service
     networks:
       - sorcha-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
 
 networks:
   sorcha-network:
@@ -86,3 +205,5 @@ networks:
 
 volumes:
   redis-data:
+  postgres-data:
+  mongodb-data:

@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Sorcha Contributors
+
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy project files for restore
+COPY ["src/Services/Sorcha.Register.Service/Sorcha.Register.Service.csproj", "src/Services/Sorcha.Register.Service/"]
+COPY ["src/Common/Sorcha.ServiceDefaults/Sorcha.ServiceDefaults.csproj", "src/Common/Sorcha.ServiceDefaults/"]
+COPY ["src/Common/Sorcha.TransactionHandler/Sorcha.TransactionHandler.csproj", "src/Common/Sorcha.TransactionHandler/"]
+COPY ["src/Common/Sorcha.Register.Models/Sorcha.Register.Models.csproj", "src/Common/Sorcha.Register.Models/"]
+COPY ["src/Core/Sorcha.Register.Core/Sorcha.Register.Core.csproj", "src/Core/Sorcha.Register.Core/"]
+COPY ["src/Core/Sorcha.Register.Storage.InMemory/Sorcha.Register.Storage.InMemory.csproj", "src/Core/Sorcha.Register.Storage.InMemory/"]
+
+# Restore dependencies
+RUN dotnet restore "src/Services/Sorcha.Register.Service/Sorcha.Register.Service.csproj"
+
+# Copy source code
+COPY src/ ./src/
+
+# Build the application
+WORKDIR "/src/src/Services/Sorcha.Register.Service"
+RUN dotnet build "Sorcha.Register.Service.csproj" -c Release -o /app/build
+
+# Publish stage
+FROM build AS publish
+RUN dotnet publish "Sorcha.Register.Service.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Final stage - Ubuntu Chiseled (distroless)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final
+WORKDIR /app
+
+# Expose ports
+EXPOSE 8080
+EXPOSE 8081
+
+# Copy published application
+COPY --from=publish /app/publish .
+
+# Set environment variables
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_HTTP_PORTS=8080
+
+# Run as non-root user (chiseled images are minimal and secure)
+USER $APP_UID
+
+ENTRYPOINT ["dotnet", "Sorcha.Register.Service.dll"]

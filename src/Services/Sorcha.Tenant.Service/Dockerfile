@@ -6,22 +6,22 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy project files for restore
-COPY ["src/Services/Sorcha.ApiGateway/Sorcha.ApiGateway.csproj", "src/Services/Sorcha.ApiGateway/"]
+COPY ["src/Services/Sorcha.Tenant.Service/Sorcha.Tenant.Service.csproj", "src/Services/Sorcha.Tenant.Service/"]
 COPY ["src/Common/Sorcha.ServiceDefaults/Sorcha.ServiceDefaults.csproj", "src/Common/Sorcha.ServiceDefaults/"]
 
 # Restore dependencies
-RUN dotnet restore "src/Services/Sorcha.ApiGateway/Sorcha.ApiGateway.csproj"
+RUN dotnet restore "src/Services/Sorcha.Tenant.Service/Sorcha.Tenant.Service.csproj"
 
 # Copy source code
 COPY src/ ./src/
 
 # Build the application
-WORKDIR "/src/src/Services/Sorcha.ApiGateway"
-RUN dotnet build "Sorcha.ApiGateway.csproj" -c Release -o /app/build
+WORKDIR "/src/src/Services/Sorcha.Tenant.Service"
+RUN dotnet build "Sorcha.Tenant.Service.csproj" -c Release -o /app/build
 
 # Publish stage
 FROM build AS publish
-RUN dotnet publish "Sorcha.ApiGateway.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "Sorcha.Tenant.Service.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Final stage - Ubuntu Chiseled (distroless)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final
@@ -41,4 +41,4 @@ ENV ASPNETCORE_HTTP_PORTS=8080
 # Run as non-root user (chiseled images are minimal and secure)
 USER $APP_UID
 
-ENTRYPOINT ["dotnet", "Sorcha.ApiGateway.dll"]
+ENTRYPOINT ["dotnet", "Sorcha.Tenant.Service.dll"]

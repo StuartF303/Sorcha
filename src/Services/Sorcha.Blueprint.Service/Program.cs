@@ -16,6 +16,9 @@ builder.AddServiceDefaults();
 // Add Redis output caching
 builder.AddRedisOutputCache("redis");
 
+// Add Redis distributed cache for IDistributedCache dependency
+builder.AddRedisDistributedCache("redis");
+
 // Add OpenAPI services
 builder.Services.AddOpenApi();
 
