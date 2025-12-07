@@ -10,14 +10,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add Wallet Service infrastructure and domain services
-builder.Services.AddWalletService();
+builder.Services.AddWalletService(builder.Configuration);
 
 // Add OpenAPI services (built-in .NET 10)
 builder.Services.AddOpenApi();
 
 // Add Wallet Service health checks
 builder.Services.AddHealthChecks()
-    .AddWalletServiceHealthChecks();
+    .AddWalletServiceHealthChecks(builder.Configuration);
 
 // Configure CORS (for development)
 builder.Services.AddCors(options =>

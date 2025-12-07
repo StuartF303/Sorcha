@@ -1,11 +1,14 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Sorcha.Cryptography;
 using Sorcha.Cryptography.Core;
 using Sorcha.Cryptography.Interfaces;
+using Sorcha.Wallet.Core.Data;
 using Sorcha.Wallet.Core.Encryption.Interfaces;
 using Sorcha.Wallet.Core.Encryption.Providers;
 using Sorcha.Wallet.Core.Events.Interfaces;
 using Sorcha.Wallet.Core.Events.Publishers;
+using Sorcha.Wallet.Core.Repositories;
 using Sorcha.Wallet.Core.Repositories.Implementation;
 using Sorcha.Wallet.Core.Repositories.Interfaces;
 using Sorcha.Wallet.Core.Services.Implementation;
@@ -22,8 +25,11 @@ public static class WalletServiceExtensions
     /// Adds Wallet Service infrastructure and domain services to the container
     /// </summary>
     /// <param name="services">The service collection</param>
+    /// <param name="configuration">Application configuration</param>
     /// <returns>The service collection for chaining</returns>
-    public static IServiceCollection AddWalletService(this IServiceCollection services)
+    public static IServiceCollection AddWalletService(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         // Register Cryptography services (required by WalletService)
         services.AddSingleton<ICryptoModule, CryptoModule>();
@@ -31,10 +37,11 @@ public static class WalletServiceExtensions
         services.AddSingleton<IWalletUtilities, Sorcha.Cryptography.Utilities.WalletUtilities>();
 
         // Register infrastructure services
-        // TODO: In production, replace these with persistent implementations
         services.AddSingleton<IEncryptionProvider, LocalEncryptionProvider>();
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
-        services.AddSingleton<IWalletRepository, InMemoryWalletRepository>();
+
+        // Register database and repository
+        services.AddWalletDatabase(configuration);
 
         // Register domain services with both interface and concrete types
         // (endpoints inject concrete types for now)
@@ -53,13 +60,68 @@ public static class WalletServiceExtensions
     }
 
     /// <summary>
+    /// Adds PostgreSQL database context for wallet persistence
+    /// Falls back to InMemory repository if no connection string is configured
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <param name="configuration">Application configuration</param>
+    /// <returns>The service collection for chaining</returns>
+    public static IServiceCollection AddWalletDatabase(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Try Aspire connection string name first, then fallback to standard name
+        var connectionString = configuration.GetConnectionString("wallet-db")
+                            ?? configuration.GetConnectionString("WalletDatabase");
+
+        if (!string.IsNullOrEmpty(connectionString))
+        {
+            // Configure PostgreSQL with EF Core
+            services.AddDbContext<WalletDbContext>(options =>
+            {
+                options.UseNpgsql(connectionString, npgsqlOptions =>
+                {
+                    npgsqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 3,
+                        maxRetryDelay: TimeSpan.FromSeconds(5),
+                        errorCodesToAdd: null);
+
+                    // Map to correct schema
+                    npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "wallet");
+                });
+            });
+
+            // Use EF Core repository for persistent storage
+            services.AddScoped<IWalletRepository, EfCoreWalletRepository>();
+        }
+        else
+        {
+            // Use in-memory repository for development/testing
+            services.AddSingleton<IWalletRepository, InMemoryWalletRepository>();
+        }
+
+        return services;
+    }
+
+    /// <summary>
     /// Adds health checks for Wallet Service dependencies
     /// </summary>
     /// <param name="builder">The health checks builder</param>
+    /// <param name="configuration">Application configuration</param>
     /// <returns>The health checks builder for chaining</returns>
-    public static IHealthChecksBuilder AddWalletServiceHealthChecks(this IHealthChecksBuilder builder)
+    public static IHealthChecksBuilder AddWalletServiceHealthChecks(
+        this IHealthChecksBuilder builder,
+        IConfiguration configuration)
     {
-        // Add health checks for dependencies
+        // Add PostgreSQL health check if connection string is configured
+        var connectionString = configuration.GetConnectionString("wallet-db")
+                            ?? configuration.GetConnectionString("WalletDatabase");
+
+        if (!string.IsNullOrEmpty(connectionString))
+        {
+            builder.AddNpgSql(connectionString, name: "wallet-postgresql");
+        }
+
         // Repository health check
         builder.AddCheck<WalletRepositoryHealthCheck>("wallet-repository");
 

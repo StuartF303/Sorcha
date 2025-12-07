@@ -3,11 +3,12 @@
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Add PostgreSQL for tenant service database
+// Add PostgreSQL for service databases
 var postgres = builder.AddPostgres("postgres")
     .WithPgAdmin(); // Adds pgAdmin UI for development
 
 var tenantDb = postgres.AddDatabase("tenant-db", "sorcha_tenant");
+var walletDb = postgres.AddDatabase("wallet-db", "sorcha_wallet");
 
 // Add Redis for distributed caching and output caching
 var redis = builder.AddRedis("redis")
@@ -22,8 +23,9 @@ var tenantService = builder.AddProject<Projects.Sorcha_Tenant_Service>("tenant-s
 var blueprintService = builder.AddProject<Projects.Sorcha_Blueprint_Service>("blueprint-service")
     .WithReference(redis);
 
-// Add Wallet Service with Redis reference (internal only)
+// Add Wallet Service with database and Redis reference (internal only)
 var walletService = builder.AddProject<Projects.Sorcha_Wallet_Service>("wallet-service")
+    .WithReference(walletDb)
     .WithReference(redis);
 
 // Add Register Service with Redis reference (internal only)
