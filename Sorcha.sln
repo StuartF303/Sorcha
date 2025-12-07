@@ -155,6 +155,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Register.Storage.Mon
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Register.Storage.MongoDB.Tests", "tests\Sorcha.Register.Storage.MongoDB.Tests\Sorcha.Register.Storage.MongoDB.Tests.csproj", "{98DD9FB5-EEBB-48EE-893A-3776D8707280}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Cli", "src\Apps\Sorcha.Cli\Sorcha.Cli.csproj", "{FE67A881-AA08-4350-A665-9BF892A02F3B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -741,6 +743,18 @@ Global
 		{98DD9FB5-EEBB-48EE-893A-3776D8707280}.Release|x64.Build.0 = Release|Any CPU
 		{98DD9FB5-EEBB-48EE-893A-3776D8707280}.Release|x86.ActiveCfg = Release|Any CPU
 		{98DD9FB5-EEBB-48EE-893A-3776D8707280}.Release|x86.Build.0 = Release|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Debug|x64.Build.0 = Debug|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Debug|x86.Build.0 = Debug|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Release|x64.ActiveCfg = Release|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Release|x64.Build.0 = Release|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Release|x86.ActiveCfg = Release|Any CPU
+		{FE67A881-AA08-4350-A665-9BF892A02F3B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -799,5 +813,6 @@ Global
 		{DFAC8DAA-64BF-47A2-856C-6ED07801A740} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{B4288B35-8936-47A7-B460-6A7593A14B23} = {8D626EA8-CB54-BC41-363A-217881BEBA6E}
 		{98DD9FB5-EEBB-48EE-893A-3776D8707280} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{FE67A881-AA08-4350-A665-9BF892A02F3B} = {AD2A5A3B-A595-3E96-334A-002D08FE630C}
 	EndGlobalSection
 EndGlobal
