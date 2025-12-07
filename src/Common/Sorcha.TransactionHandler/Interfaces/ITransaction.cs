@@ -6,7 +6,7 @@ using Sorcha.TransactionHandler.Enums;
 namespace Sorcha.TransactionHandler.Interfaces;
 
 /// <summary>
-/// Represents a transaction in the Siccar platform.
+/// Represents a transaction in the Sorcha platform.
 /// </summary>
 public interface ITransaction
 {

@@ -1,7 +1,7 @@
 # CLAUDE.md - AI Assistant Guide for Sorcha Project
 
-**Version:** 1.0
-**Created:** 2025-11-17
+**Version:** 1.1
+**Last Updated:** 2025-12-07
 **Status:** Active
 **Purpose:** Quick reference guide for AI coding assistants working on the Sorcha project
 
@@ -11,7 +11,7 @@
 
 This document is your starting point for understanding and working effectively with the Sorcha codebase. Sorcha is a distributed ledger platform built on .NET 10, using a microservices architecture with .NET Aspire orchestration.
 
-**Current Project Status:** MVD Phase - 95% Complete
+**Current Project Status:** MVD Phase - 97% Complete (Production Readiness: 10%)
 **Active Development Branch:** See Git context for current branch
 **Documentation Standard:** [Spec-Kit](https://github.com/github/spec-kit) methodology
 
@@ -35,7 +35,7 @@ Before making any code changes, familiarize yourself with these key documents:
 ### 2. **Understand the Architecture**
 
 **Sorcha Platform Components:**
-- **Blueprint Service** - Workflow definition and execution (90% complete)
+- **Blueprint Service** - Workflow definition and execution (100% complete)
 - **Wallet Service** - Cryptographic wallet management (90% complete)
 - **Register Service** - Distributed ledger for transactions (100% complete)
 - **Peer Service** - P2P networking (65% complete)
@@ -205,7 +205,7 @@ The MVD delivers a working end-to-end system:
 
 3. **Update Technical Docs**
    - docs/architecture.md if architecture changed
-   - docs/api-reference.md if endpoints added
+   - docs/API-DOCUMENTATION.md if endpoints added
    - docs/development-status.md with new completion %
 
 4. **Update Spec Files**
@@ -248,7 +248,7 @@ The MVD delivers a working end-to-end system:
 | [development-status.md](docs/development-status.md) | Current completion status |
 | [wallet-service-status.md](docs/wallet-service-status.md) | Detailed Wallet Service status |
 | [architecture.md](docs/architecture.md) | System architecture |
-| [api-reference.md](docs/api-reference.md) | API documentation |
+| [API-DOCUMENTATION.md](docs/API-DOCUMENTATION.md) | API documentation |
 
 ---
 
@@ -441,12 +441,12 @@ app.MapPost("/api/wallets", async (CreateWalletRequest request) => { });
 | Component | Completion | Lines of Code | Tests |
 |-----------|-----------|---------------|-------|
 | Blueprint Engine | 100% | ~4,500 | 102 |
+| Blueprint Service | 100% | ~6,000 | 123 |
 | Wallet Service | 90% | ~8,000 | 111 |
 | Register Service | 100% | ~3,500 | 112 |
 | Cryptography | 90% | ~3,200 | 85+ |
-| Blueprint Service | 90% | ~6,000 | 60+ |
 
-**Overall MVD Progress:** 95%
+**Overall MVD Progress:** 97% (Production Readiness: 10%)
 
 ---
 
@@ -459,7 +459,7 @@ app.MapPost("/api/wallets", async (CreateWalletRequest request) => { });
 3. Add unit tests for endpoint logic
 4. Add integration tests for HTTP calls
 5. Update service README with endpoint details
-6. Update docs/api-reference.md
+6. Update docs/API-DOCUMENTATION.md
 7. Update MASTER-TASKS.md task status
 
 ### Implement a New Service
@@ -592,10 +592,10 @@ Before submitting code, verify:
 
 **This Document:**
 - **Created:** 2025-11-17
-- **Version:** 1.0
+- **Last Updated:** 2025-12-07
+- **Version:** 1.1
 - **Owner:** Sorcha Architecture Team
 - **Review Frequency:** Monthly or per major milestone
-- **Next Review:** 2025-12-17
 
 **When to Update:**
 - New AI coding policies adopted
@@ -606,21 +606,23 @@ Before submitting code, verify:
 
 ---
 
-## 🎯 Current Sprint Focus
+## 🎯 Current Development Focus
 
-**Active Phase:** MVD Completion (Week 12 of 12)
+**Active Phase:** Production Hardening
 
-**Current Sprint Goals:**
-- Complete end-to-end integration testing
-- Wallet Service EF Core repository
-- Register Service MongoDB repository
-- Production authentication
+**MVD Core Status:** 97% Complete (Sprint 10 completed)
+
+**Current Focus Areas:**
+- Production authentication/authorization implementation
+- Database persistence (EF Core, MongoDB)
+- Security hardening
+- Performance optimization
 
 **Next Steps:**
-- Review MASTER-PLAN.md for detailed timeline
+- Review MASTER-PLAN.md for priorities
 - Check MASTER-TASKS.md for available tasks
+- Focus on P0 production readiness tasks
 - Read relevant service specifications
-- Begin implementation with TDD approach
 
 ---
 

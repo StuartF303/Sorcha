@@ -12,7 +12,7 @@ using Sorcha.Blueprint.Models.JsonLd;
 namespace Sorcha.TransactionHandler.Core;
 
 /// <summary>
-/// Represents a transaction in the Siccar platform.
+/// Represents a transaction in the Sorcha platform.
 /// </summary>
 public class Transaction : ITransaction
 {
