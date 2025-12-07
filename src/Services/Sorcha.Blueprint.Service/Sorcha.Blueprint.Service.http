@@ -1,6 +1,442 @@
-@Sorcha.Blueprint.Api_HostAddress = http://localhost:8050
+@Sorcha.Blueprint.Service_HostAddress = http://localhost:5000
+@sampleBlueprintId = sample-blueprint-id
+@sampleInstanceId = sample-instance-id
+@sampleActionId = 1
+@sampleWallet = wallet-address-here
+@sampleRegister = register-address-here
+@delegationToken = your-delegation-token-here
 
-GET {{Sorcha.Blueprint.Api_HostAddress}}/weatherforecast/
+### Health Check (with metrics)
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/health
+Accept: application/json
+
+###
+
+# ===========================
+# Blueprint CRUD Endpoints
+# ===========================
+
+### Get all blueprints (paginated)
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/blueprints?page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Get all blueprints with search
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/blueprints?search=approval&page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Get all blueprints with JSON-LD
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/blueprints
+Accept: application/ld+json
+
+###
+
+### Get blueprint by ID
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/blueprints/{{sampleBlueprintId}}
+Accept: application/json
+
+###
+
+### Get blueprint by ID with JSON-LD
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/blueprints/{{sampleBlueprintId}}
+Accept: application/ld+json
+
+###
+
+### Create a new blueprint
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/blueprints
+Content-Type: application/json
+
+{
+  "title": "Purchase Order Approval",
+  "description": "Workflow for approving purchase orders",
+  "participants": [
+    { "id": "requester", "name": "Purchase Requester", "type": "User" },
+    { "id": "approver", "name": "Manager", "type": "User" }
+  ],
+  "actions": [
+    {
+      "id": 1,
+      "title": "Submit Request",
+      "description": "Submit a purchase order request",
+      "isStartingAction": true,
+      "participants": [{ "principal": "requester" }]
+    },
+    {
+      "id": 2,
+      "title": "Approve Request",
+      "description": "Approve or reject the purchase order",
+      "isStartingAction": false,
+      "participants": [{ "principal": "approver" }]
+    }
+  ]
+}
+
+###
+
+### Update blueprint
+PUT {{Sorcha.Blueprint.Service_HostAddress}}/api/blueprints/{{sampleBlueprintId}}
+Content-Type: application/json
+
+{
+  "title": "Updated Purchase Order Approval",
+  "description": "Updated workflow description",
+  "participants": [
+    { "id": "requester", "name": "Purchase Requester", "type": "User" },
+    { "id": "approver", "name": "Manager", "type": "User" }
+  ],
+  "actions": [
+    {
+      "id": 1,
+      "title": "Submit Request",
+      "description": "Submit a purchase order request",
+      "isStartingAction": true
+    }
+  ]
+}
+
+###
+
+### Delete blueprint (soft delete)
+DELETE {{Sorcha.Blueprint.Service_HostAddress}}/api/blueprints/{{sampleBlueprintId}}
+
+###
+
+# ===========================
+# Blueprint Publishing
+# ===========================
+
+### Publish blueprint (validates and creates immutable version)
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/blueprints/{{sampleBlueprintId}}/publish
+
+###
+
+### Get all published versions of a blueprint
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/blueprints/{{sampleBlueprintId}}/versions
+Accept: application/json
+
+###
+
+### Get specific published version (immutable)
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/blueprints/{{sampleBlueprintId}}/versions/1
+Accept: application/json
+
+###
+
+# ===========================
+# Template Endpoints
+# ===========================
+
+### Get all published templates
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/templates
+Accept: application/json
+
+###
+
+### Get templates by category
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/templates?category=procurement
+Accept: application/json
+
+###
+
+### Get template by ID
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/templates/purchase-order-template
+Accept: application/json
+
+###
+
+### Create or update a template
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/templates
+Content-Type: application/json
+
+{
+  "id": "my-template",
+  "name": "My Custom Template",
+  "description": "A custom blueprint template",
+  "category": "custom",
+  "parameters": {
+    "workflowName": { "type": "string", "description": "Name of the workflow" }
+  },
+  "blueprint": {
+    "title": "{$workflowName}",
+    "participants": [],
+    "actions": []
+  }
+}
+
+###
+
+### Delete template
+DELETE {{Sorcha.Blueprint.Service_HostAddress}}/api/templates/my-template
+
+###
+
+### Evaluate template with parameters
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/templates/evaluate
+Content-Type: application/json
+
+{
+  "templateId": "purchase-order-template",
+  "parameters": {
+    "workflowName": "Office Supplies Order",
+    "approvalThreshold": 5000
+  }
+}
+
+###
+
+### Validate template parameters
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/templates/purchase-order-template/validate
+Content-Type: application/json
+
+{
+  "workflowName": "Test Workflow",
+  "approvalThreshold": 1000
+}
+
+###
+
+### Evaluate template example
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/templates/purchase-order-template/examples/basic
+Accept: application/json
+
+###
+
+# ===========================
+# Action API Endpoints
+# ===========================
+
+### Get available blueprints for wallet/register combination
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/actions/{{sampleWallet}}/{{sampleRegister}}/blueprints
+Accept: application/json
+
+###
+
+### Get actions for wallet/register (paginated)
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/actions/{{sampleWallet}}/{{sampleRegister}}?page=1&pageSize=20
+Accept: application/json
+
+###
+
+### Get specific action by transaction hash
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/actions/{{sampleWallet}}/{{sampleRegister}}/tx-hash-here
+Accept: application/json
+
+###
+
+### Submit a new action
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/actions
+Content-Type: application/json
+
+{
+  "blueprintId": "{{sampleBlueprintId}}",
+  "actionId": "1",
+  "instanceId": "{{sampleInstanceId}}",
+  "senderWallet": "{{sampleWallet}}",
+  "registerAddress": "{{sampleRegister}}",
+  "previousTransactionHash": null,
+  "payloadData": {
+    "itemDescription": "Office supplies",
+    "quantity": 10,
+    "unitPrice": 25.00,
+    "totalAmount": 250.00
+  }
+}
+
+###
+
+### Reject a pending action
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/actions/reject
+Content-Type: application/json
+
+{
+  "transactionHash": "tx-hash-to-reject",
+  "reason": "Insufficient budget allocation",
+  "senderWallet": "{{sampleWallet}}",
+  "registerAddress": "{{sampleRegister}}"
+}
+
+###
+
+### Get file attachment from action
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/files/{{sampleWallet}}/{{sampleRegister}}/tx-hash/file-id
+Accept: application/octet-stream
+
+###
+
+# ===========================
+# Execution Helper Endpoints
+# ===========================
+
+### Validate action data against schema
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/execution/validate
+Content-Type: application/json
+
+{
+  "blueprintId": "{{sampleBlueprintId}}",
+  "actionId": "1",
+  "data": {
+    "itemDescription": "Office supplies",
+    "quantity": 10,
+    "totalAmount": 250.00
+  }
+}
+
+###
+
+### Apply calculations to action data
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/execution/calculate
+Content-Type: application/json
+
+{
+  "blueprintId": "{{sampleBlueprintId}}",
+  "actionId": "1",
+  "data": {
+    "quantity": 10,
+    "unitPrice": 25.00
+  }
+}
+
+###
+
+### Determine routing based on conditions
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/execution/route
+Content-Type: application/json
+
+{
+  "blueprintId": "{{sampleBlueprintId}}",
+  "actionId": "1",
+  "data": {
+    "totalAmount": 5500.00,
+    "approved": true
+  }
+}
+
+###
+
+### Apply disclosure rules
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/execution/disclose
+Content-Type: application/json
+
+{
+  "blueprintId": "{{sampleBlueprintId}}",
+  "actionId": "1",
+  "data": {
+    "itemDescription": "Office supplies",
+    "internalNotes": "Confidential info",
+    "totalAmount": 250.00
+  }
+}
+
+###
+
+# ===========================
+# Notification Endpoints
+# ===========================
+
+### Notify transaction confirmed (internal - called by Register Service)
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/notifications/transaction-confirmed
+Content-Type: application/json
+
+{
+  "transactionHash": "tx-hash",
+  "walletAddress": "{{sampleWallet}}",
+  "registerAddress": "{{sampleRegister}}",
+  "blueprintId": "{{sampleBlueprintId}}",
+  "actionId": "1",
+  "instanceId": "{{sampleInstanceId}}"
+}
+
+###
+
+# ===========================
+# Instance-Based Orchestration (Sprint 6)
+# ===========================
+
+### Create a new workflow instance
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/instances
+Content-Type: application/json
+
+{
+  "blueprintId": "{{sampleBlueprintId}}",
+  "registerId": "{{sampleRegister}}",
+  "tenantId": "default",
+  "metadata": {
+    "createdBy": "user@example.com",
+    "department": "Procurement"
+  }
+}
+
+###
+
+### Get workflow instance by ID
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/instances/{{sampleInstanceId}}
+Accept: application/json
+
+###
+
+### Execute action in workflow (requires delegation token)
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/instances/{{sampleInstanceId}}/actions/{{sampleActionId}}/execute
+Content-Type: application/json
+X-Delegation-Token: {{delegationToken}}
+
+{
+  "blueprintId": "{{sampleBlueprintId}}",
+  "actionId": "{{sampleActionId}}",
+  "instanceId": "{{sampleInstanceId}}",
+  "senderWallet": "{{sampleWallet}}",
+  "registerAddress": "{{sampleRegister}}",
+  "payloadData": {
+    "itemDescription": "Laptop computer",
+    "quantity": 1,
+    "totalAmount": 1500.00
+  }
+}
+
+###
+
+### Reject action in workflow (requires delegation token)
+POST {{Sorcha.Blueprint.Service_HostAddress}}/api/instances/{{sampleInstanceId}}/actions/{{sampleActionId}}/reject
+Content-Type: application/json
+X-Delegation-Token: {{delegationToken}}
+
+{
+  "transactionHash": "previous-tx-hash",
+  "reason": "Budget exceeded for this quarter",
+  "senderWallet": "{{sampleWallet}}",
+  "registerAddress": "{{sampleRegister}}"
+}
+
+###
+
+### Get accumulated state for workflow instance (requires delegation token)
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/instances/{{sampleInstanceId}}/state
+Accept: application/json
+X-Delegation-Token: {{delegationToken}}
+
+###
+
+### Get next available actions for workflow instance
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/instances/{{sampleInstanceId}}/next-actions
+Accept: application/json
+
+###
+
+# ===========================
+# Schema Endpoints (Coming Soon)
+# ===========================
+
+### Get available schemas
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/schemas
+Accept: application/json
+
+###
+
+### Get schemas by category
+GET {{Sorcha.Blueprint.Service_HostAddress}}/api/schemas?category=procurement
 Accept: application/json
 
 ###

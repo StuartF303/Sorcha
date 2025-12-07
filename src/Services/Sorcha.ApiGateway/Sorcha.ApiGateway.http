@@ -1,0 +1,132 @@
+@Sorcha.ApiGateway_HostAddress = http://localhost:5080
+
+### Landing Page (HTML Dashboard)
+# Returns an HTML dashboard with system status and links
+GET {{Sorcha.ApiGateway_HostAddress}}/
+Accept: text/html
+
+###
+
+### Health Check
+GET {{Sorcha.ApiGateway_HostAddress}}/health
+Accept: application/json
+
+###
+
+### Alive Check
+GET {{Sorcha.ApiGateway_HostAddress}}/alive
+Accept: application/json
+
+###
+
+# ===========================
+# Aggregated Health & Stats
+# ===========================
+
+### Get aggregated health status from all backend services
+GET {{Sorcha.ApiGateway_HostAddress}}/api/health
+Accept: application/json
+
+###
+
+### Get system-wide statistics from all services
+GET {{Sorcha.ApiGateway_HostAddress}}/api/stats
+Accept: application/json
+
+###
+
+# ===========================
+# Client Download
+# ===========================
+
+### Get information about the Blazor client application
+GET {{Sorcha.ApiGateway_HostAddress}}/api/client/info
+Accept: application/json
+
+###
+
+### Download the Blazor client application source code as ZIP
+GET {{Sorcha.ApiGateway_HostAddress}}/api/client/download
+Accept: application/zip
+
+###
+
+### Get installation instructions for the client application (Markdown)
+GET {{Sorcha.ApiGateway_HostAddress}}/api/client/instructions
+Accept: text/markdown
+
+###
+
+# ===========================
+# OpenAPI Documentation
+# ===========================
+
+### Gateway's own OpenAPI specification
+GET {{Sorcha.ApiGateway_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###
+
+### Aggregated OpenAPI from all backend services
+GET {{Sorcha.ApiGateway_HostAddress}}/openapi/aggregated.json
+Accept: application/json
+
+###
+
+# ===========================
+# YARP Reverse Proxy Routes
+# ===========================
+#
+# The API Gateway uses YARP to proxy requests to backend services.
+# Routes are configured in appsettings.json under "ReverseProxy" section.
+#
+# Typical routing patterns:
+#   /api/blueprints/*    -> Blueprint Service
+#   /api/wallets/*       -> Wallet Service
+#   /api/registers/*     -> Register Service
+#   /api/tenants/*       -> Tenant Service
+#   /api/organizations/* -> Tenant Service
+#   /api/auth/*          -> Tenant Service
+#
+# All backend service endpoints are accessible through the gateway.
+# See individual service .http files for endpoint details.
+#
+# ===========================
+
+### Example: Proxied request to Blueprint Service
+GET {{Sorcha.ApiGateway_HostAddress}}/api/blueprints
+Accept: application/json
+
+###
+
+### Example: Proxied request to Wallet Service
+GET {{Sorcha.ApiGateway_HostAddress}}/api/v1/wallets
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Example: Proxied request to Register Service
+GET {{Sorcha.ApiGateway_HostAddress}}/api/registers
+Accept: application/json
+
+###
+
+### Example: Proxied request to Tenant Service health
+GET {{Sorcha.ApiGateway_HostAddress}}/api/organizations
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# ===========================
+# Scalar API Documentation UI
+# ===========================
+#
+# Interactive API documentation is available at:
+#   /scalar/v1           - Gateway-only endpoints
+#   /scalar              - Aggregated endpoints from all services
+#
+# ===========================
+
+###

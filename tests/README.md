@@ -12,6 +12,7 @@ This directory contains all test projects for the Sorcha application.
 
 ### Integration Tests
 - **Sorcha.Gateway.Integration.Tests** - Gateway routing and YARP proxy tests (uses Aspire TestHost)
+- **Sorcha.Tenant.Service.IntegrationTests** - Tenant Service API integration tests with test data seeding
 - **Sorcha.UI.E2E.Tests** - End-to-end Playwright tests
 
 ## Running Tests
@@ -120,6 +121,79 @@ dotnet test tests/Sorcha.UI.E2E.Tests -- NUnit.Headless=false
 # Run specific test
 dotnet test tests/Sorcha.UI.E2E.Tests --filter "FullyQualifiedName~HomePage_LoadsSuccessfully"
 ```
+
+## Tenant Service Integration Tests
+
+The Tenant Service integration tests verify multi-tenant authentication, organization management, user management, and service-to-service authentication.
+
+### Prerequisites
+
+The tests use an in-memory database and mock Redis - no external dependencies required.
+
+### Running Tenant Service Integration Tests
+
+```bash
+# Run all Tenant Service integration tests
+dotnet test tests/Sorcha.Tenant.Service.IntegrationTests
+
+# Run specific test class
+dotnet test tests/Sorcha.Tenant.Service.IntegrationTests --filter "FullyQualifiedName~OrganizationApiTests"
+dotnet test tests/Sorcha.Tenant.Service.IntegrationTests --filter "FullyQualifiedName~AuthApiTests"
+dotnet test tests/Sorcha.Tenant.Service.IntegrationTests --filter "FullyQualifiedName~ServiceAuthApiTests"
+```
+
+### Test Data Seeding
+
+The integration tests use a `TestDataSeeder` class that provides well-known test data for consistent testing. This ensures all tests can reliably reference the same organization and users.
+
+#### Well-Known Test Organization
+
+| Property | Value |
+|----------|-------|
+| **Organization ID** | `00000000-0000-0000-0000-000000000001` |
+| **Name** | `Test Organization` |
+| **Subdomain** | `test-org` |
+| **Status** | `Active` |
+
+#### Well-Known Test Users
+
+| User | ID | Email | Role |
+|------|-----|-------|------|
+| **Admin** | `00000000-0000-0000-0001-000000000001` | `admin@test-org.sorcha.io` | `Administrator` |
+| **Member** | `00000000-0000-0000-0001-000000000002` | `member@test-org.sorcha.io` | `Member` |
+| **Auditor** | `00000000-0000-0000-0001-000000000003` | `auditor@test-org.sorcha.io` | `Auditor` |
+
+#### Using Seeded Data in Tests
+
+```csharp
+// Access well-known IDs in test code
+var orgId = TestDataSeeder.TestOrganizationId;
+var adminId = TestDataSeeder.TestAdminUserId;
+var memberEmail = TestDataSeeder.TestMemberEmail;
+```
+
+### Test Factory Helper Methods
+
+The `TenantServiceWebApplicationFactory` provides convenience methods for creating authenticated HTTP clients:
+
+```csharp
+// Create client authenticated as a regular member
+var client = factory.CreateAuthenticatedClient();
+
+// Create client authenticated as an administrator
+var adminClient = factory.CreateAdminClient();
+
+// Create client with no authentication
+var unauthClient = factory.CreateUnauthenticatedClient();
+```
+
+### Test Categories
+
+- **OrganizationApiTests** (29 tests) - CRUD operations, user management, organization lifecycle
+- **AuthApiTests** (18 tests) - Token revocation, introspection, refresh, logout
+- **ServiceAuthApiTests** (20 tests) - Service principal management, client credentials, secret rotation
+
+---
 
 ## Cryptography Tests
 
@@ -329,15 +403,23 @@ public class MyIntegrationTests : IAsyncLifetime
 
 ```
 tests/
-├── Sorcha.Blueprint.Api.Tests/          # API unit tests
-├── Sorcha.Blueprint.Fluent.Tests/       # Fluent API tests
-├── Sorcha.Cryptography.Tests/           # Cryptography tests with perf benchmarks
-│   ├── Unit/                            # Unit tests for crypto operations
-│   └── README.md                        # Detailed crypto testing guide
-├── Sorcha.Gateway.Integration.Tests/    # Gateway integration tests
-├── Sorcha.UI.E2E.Tests/                 # End-to-end tests
-├── Sorcha.Performance.Tests/            # NBomber performance tests
-└── README.md                            # This file
+├── Sorcha.Blueprint.Api.Tests/               # API unit tests
+├── Sorcha.Blueprint.Fluent.Tests/            # Fluent API tests
+├── Sorcha.Cryptography.Tests/                # Cryptography tests with perf benchmarks
+│   ├── Unit/                                 # Unit tests for crypto operations
+│   └── README.md                             # Detailed crypto testing guide
+├── Sorcha.Gateway.Integration.Tests/         # Gateway integration tests
+├── Sorcha.Tenant.Service.IntegrationTests/   # Tenant Service integration tests
+│   ├── Fixtures/                             # Test infrastructure
+│   │   ├── TenantServiceWebApplicationFactory.cs  # Custom test factory
+│   │   ├── TestAuthHandler.cs               # Test authentication handler
+│   │   └── TestDataSeeder.cs                # Well-known test data seeding
+│   ├── OrganizationApiTests.cs              # Organization CRUD & user management
+│   ├── AuthApiTests.cs                      # Authentication endpoint tests
+│   └── ServiceAuthApiTests.cs               # Service-to-service auth tests
+├── Sorcha.UI.E2E.Tests/                     # End-to-end tests
+├── Sorcha.Performance.Tests/                # NBomber performance tests
+└── README.md                                # This file
 ```
 
 ## Continuous Testing

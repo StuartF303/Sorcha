@@ -1,6 +1,248 @@
-@Sorcha.WalletService.Api_HostAddress = http://localhost:5000
+@Sorcha.Wallet.Service_HostAddress = http://localhost:5001
+@sampleWalletAddress = wallet-address-here
+@sampleAddressId = 00000000-0000-0000-0000-000000000001
+@sampleSubject = user@example.com
 
-GET {{Sorcha.WalletService.Api_HostAddress}}/weatherforecast/
+### Health Check
+GET {{Sorcha.Wallet.Service_HostAddress}}/health
 Accept: application/json
+
+###
+
+# ===========================
+# Wallet Management
+# ===========================
+
+### Create a new wallet
+# Returns mnemonic phrase - BACKUP IMMEDIATELY (not stored on server)
+POST {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "My Primary Wallet",
+  "algorithm": "ED25519",
+  "wordCount": 24,
+  "passphrase": ""
+}
+
+###
+
+### Recover wallet from mnemonic
+POST {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/recover
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Recovered Wallet",
+  "algorithm": "ED25519",
+  "mnemonicWords": ["word1", "word2", "word3", "..."],
+  "passphrase": ""
+}
+
+###
+
+### List all wallets for current user
+GET {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Get wallet by address
+GET {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Update wallet metadata
+PATCH {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Updated Wallet Name",
+  "tags": ["production", "primary"]
+}
+
+###
+
+### Delete wallet (soft delete)
+DELETE {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}
+Authorization: Bearer {{token}}
+
+###
+
+# ===========================
+# Cryptographic Operations
+# ===========================
+
+### Sign a transaction
+# TransactionData must be Base64 encoded
+POST {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/sign
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "transactionData": "SGVsbG8gV29ybGQh"
+}
+
+###
+
+### Decrypt a payload
+# EncryptedPayload must be Base64 encoded
+POST {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/decrypt
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "encryptedPayload": "base64-encrypted-data-here"
+}
+
+###
+
+### Encrypt a payload for a recipient
+# Payload must be Base64 encoded
+POST {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/encrypt
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "payload": "SGVsbG8gV29ybGQh",
+  "recipientAddress": "recipient-wallet-address"
+}
+
+###
+
+# ===========================
+# HD Address Management (BIP44)
+# ===========================
+
+### Register a client-derived HD address
+# Client derives address using mnemonic and provides public key + derivation path
+POST {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/addresses
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "derivedPublicKey": "base64-public-key",
+  "derivedAddress": "derived-address-string",
+  "derivationPath": "m/44'/0'/0'/0/0",
+  "label": "Primary Receive Address",
+  "notes": "Used for main transactions",
+  "tags": ["receive", "primary"],
+  "metadata": {
+    "createdFor": "main-account"
+  }
+}
+
+###
+
+### List wallet addresses (with filtering)
+GET {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/addresses?type=receive&used=false&page=1&pageSize=50
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### List all addresses (no filter)
+GET {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/addresses
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Get specific address by ID
+GET {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/addresses/{{sampleAddressId}}
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Update address metadata
+PATCH {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/addresses/{{sampleAddressId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "label": "Updated Label",
+  "notes": "Updated notes for this address",
+  "tags": ["updated", "verified"],
+  "metadata": {
+    "lastVerified": "2025-01-01"
+  }
+}
+
+###
+
+### Mark address as used
+POST {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/addresses/{{sampleAddressId}}/mark-used
+Authorization: Bearer {{token}}
+
+###
+
+### List BIP44 accounts with address counts
+GET {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/accounts
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Get BIP44 gap limit status
+GET {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/gap-status
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# ===========================
+# Wallet Access Delegation
+# ===========================
+
+### Grant access to another user or service
+POST {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/access
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "subject": "{{sampleSubject}}",
+  "accessRight": "ReadWrite",
+  "reason": "Collaboration on project X",
+  "expiresAt": "2025-12-31T23:59:59Z"
+}
+
+###
+
+### Grant read-only access
+POST {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/access
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "subject": "auditor@example.com",
+  "accessRight": "ReadOnly",
+  "reason": "Audit access for Q4 2025"
+}
+
+###
+
+### List all access grants for a wallet
+GET {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/access
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Check if subject has access
+GET {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/access/{{sampleSubject}}/check?requiredRight=ReadWrite
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Revoke access from a subject
+DELETE {{Sorcha.Wallet.Service_HostAddress}}/api/v1/wallets/{{sampleWalletAddress}}/access/{{sampleSubject}}
+Authorization: Bearer {{token}}
 
 ###

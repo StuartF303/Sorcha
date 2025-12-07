@@ -1,6 +1,297 @@
 @Sorcha.Tenant.Service_HostAddress = http://localhost:5110
+@testOrgId = 00000000-0000-0000-0000-000000000001
+@testAdminUserId = 00000000-0000-0000-0001-000000000001
+@testMemberUserId = 00000000-0000-0000-0001-000000000002
 
-GET {{Sorcha.Tenant.Service_HostAddress}}/weatherforecast/
+### Health Check
+GET {{Sorcha.Tenant.Service_HostAddress}}/health
 Accept: application/json
+
+###
+
+# ===========================
+# Organization API
+# ===========================
+
+### Create a new organization (requires authentication)
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/organizations
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Acme Corporation",
+  "subdomain": "acme",
+  "description": "A test organization"
+}
+
+###
+
+### List all organizations (admin only)
+GET {{Sorcha.Tenant.Service_HostAddress}}/api/organizations?includeInactive=false
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Get organization by ID
+GET {{Sorcha.Tenant.Service_HostAddress}}/api/organizations/{{testOrgId}}
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Get organization by subdomain (public)
+GET {{Sorcha.Tenant.Service_HostAddress}}/api/organizations/by-subdomain/test-org
+Accept: application/json
+
+###
+
+### Update an organization (admin only)
+PUT {{Sorcha.Tenant.Service_HostAddress}}/api/organizations/{{testOrgId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Updated Organization Name",
+  "description": "Updated description"
+}
+
+###
+
+### Deactivate an organization (admin only)
+DELETE {{Sorcha.Tenant.Service_HostAddress}}/api/organizations/{{testOrgId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Validate subdomain availability (public)
+GET {{Sorcha.Tenant.Service_HostAddress}}/api/organizations/validate-subdomain/my-new-org
+Accept: application/json
+
+###
+
+# ===========================
+# Organization User Management
+# ===========================
+
+### Add user to organization (admin only)
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/organizations/{{testOrgId}}/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "email": "newuser@example.com",
+  "displayName": "New User",
+  "role": "Member"
+}
+
+###
+
+### List organization users
+GET {{Sorcha.Tenant.Service_HostAddress}}/api/organizations/{{testOrgId}}/users?includeInactive=false
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Get specific organization user
+GET {{Sorcha.Tenant.Service_HostAddress}}/api/organizations/{{testOrgId}}/users/{{testMemberUserId}}
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Update organization user (admin only)
+PUT {{Sorcha.Tenant.Service_HostAddress}}/api/organizations/{{testOrgId}}/users/{{testMemberUserId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "displayName": "Updated Name",
+  "role": "Administrator"
+}
+
+###
+
+### Remove user from organization (admin only)
+DELETE {{Sorcha.Tenant.Service_HostAddress}}/api/organizations/{{testOrgId}}/users/{{testMemberUserId}}
+Authorization: Bearer {{token}}
+
+###
+
+# ===========================
+# Authentication API
+# ===========================
+
+### Refresh access token
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/auth/token/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "your-refresh-token-here"
+}
+
+###
+
+### Revoke a token (authenticated)
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/auth/token/revoke
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "token": "token-to-revoke",
+  "tokenTypeHint": "access_token"
+}
+
+###
+
+### Introspect a token (service only)
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/auth/token/introspect
+Content-Type: application/json
+Authorization: Bearer {{serviceToken}}
+
+{
+  "token": "token-to-introspect"
+}
+
+###
+
+### Revoke all tokens for a user (admin only)
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/auth/token/revoke-user
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "userId": "{{testMemberUserId}}"
+}
+
+###
+
+### Revoke all tokens for an organization (admin only)
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/auth/token/revoke-organization
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "organizationId": "{{testOrgId}}"
+}
+
+###
+
+### Get current user info
+GET {{Sorcha.Tenant.Service_HostAddress}}/api/auth/me
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Logout (revoke current token)
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/auth/logout
+Authorization: Bearer {{token}}
+
+###
+
+# ===========================
+# Service-to-Service Authentication
+# ===========================
+
+### Get service token (client credentials flow)
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/service-auth/token
+Content-Type: application/json
+
+{
+  "clientId": "service-blueprintservice",
+  "clientSecret": "your-client-secret",
+  "grantType": "client_credentials",
+  "scope": "tenant:read tenant:write"
+}
+
+###
+
+### Get delegated token (act on behalf of user)
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/service-auth/token/delegated
+Content-Type: application/json
+
+{
+  "clientId": "service-blueprintservice",
+  "clientSecret": "your-client-secret",
+  "delegatedUserId": "{{testAdminUserId}}",
+  "delegatedOrganizationId": "{{testOrgId}}",
+  "scope": "tenant:read"
+}
+
+###
+
+### Rotate service principal secret
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/service-auth/rotate-secret?clientId=service-blueprintservice
+Content-Type: application/json
+
+{
+  "currentSecret": "your-current-secret"
+}
+
+###
+
+# ===========================
+# Service Principal Management (Admin Only)
+# ===========================
+
+### Register a new service principal
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/service-principals
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "serviceName": "new-service",
+  "scopes": ["tenant:read", "tenant:write"]
+}
+
+###
+
+### List all service principals
+GET {{Sorcha.Tenant.Service_HostAddress}}/api/service-principals?includeInactive=false
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Get service principal by ID
+GET {{Sorcha.Tenant.Service_HostAddress}}/api/service-principals/{servicePrincipalId}
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Get service principal by client ID
+GET {{Sorcha.Tenant.Service_HostAddress}}/api/service-principals/by-client/service-blueprintservice
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Update service principal scopes
+PUT {{Sorcha.Tenant.Service_HostAddress}}/api/service-principals/{servicePrincipalId}/scopes
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+["tenant:read", "tenant:write", "tenant:admin"]
+
+###
+
+### Suspend service principal
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/service-principals/{servicePrincipalId}/suspend
+Authorization: Bearer {{token}}
+
+###
+
+### Reactivate service principal
+POST {{Sorcha.Tenant.Service_HostAddress}}/api/service-principals/{servicePrincipalId}/reactivate
+Authorization: Bearer {{token}}
+
+###
+
+### Revoke (delete) service principal
+DELETE {{Sorcha.Tenant.Service_HostAddress}}/api/service-principals/{servicePrincipalId}
+Authorization: Bearer {{token}}
 
 ###

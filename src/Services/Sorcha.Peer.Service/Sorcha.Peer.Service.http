@@ -1,0 +1,47 @@
+@Sorcha.Peer.Service_HostAddress = http://localhost:5000
+
+### Service Info
+# Returns basic information about the Peer Service
+GET {{Sorcha.Peer.Service_HostAddress}}/
+Accept: application/json
+
+###
+
+### Health Check
+GET {{Sorcha.Peer.Service_HostAddress}}/health
+Accept: application/json
+
+###
+
+### Alive Check
+GET {{Sorcha.Peer.Service_HostAddress}}/alive
+Accept: application/json
+
+###
+
+# ===========================
+# gRPC Endpoints
+# ===========================
+#
+# The Peer Service primarily uses gRPC for peer-to-peer communication.
+# gRPC endpoints are available on port 5000 using HTTP/2.
+#
+# Available gRPC Services:
+# - PeerDiscoveryService: Peer discovery and network membership
+#
+# To test gRPC endpoints, use grpcurl or a gRPC client:
+#
+# List available services:
+#   grpcurl -plaintext localhost:5000 list
+#
+# Describe a service:
+#   grpcurl -plaintext localhost:5000 describe sorcha.peer.PeerDiscoveryService
+#
+# Call a method:
+#   grpcurl -plaintext -d '{"peer_id": "peer123"}' localhost:5000 sorcha.peer.PeerDiscoveryService/GetPeers
+#
+# gRPC Reflection is enabled in development mode for service discovery.
+#
+# ===========================
+
+###
