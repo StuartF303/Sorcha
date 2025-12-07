@@ -125,7 +125,8 @@
       "Bash(tests/Sorcha.Storage.InMemory.Tests/ )",
       "Bash(specs/002-storage-abstraction/)",
       "Bash(gh pr create:*)",
-      "Bash(gh pr merge:*)"
+      "Bash(gh pr merge:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []
