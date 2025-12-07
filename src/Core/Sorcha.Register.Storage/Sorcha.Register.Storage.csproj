@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>13</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <Description>Register Service storage implementation using multi-tier storage abstractions with verified cache</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Common\Sorcha.Register.Models\Sorcha.Register.Models.csproj" />
+    <ProjectReference Include="..\Sorcha.Register.Core\Sorcha.Register.Core.csproj" />
+    <ProjectReference Include="..\Sorcha.Register.Storage.InMemory\Sorcha.Register.Storage.InMemory.csproj" />
+    <ProjectReference Include="..\..\Common\Sorcha.Storage.Abstractions\Sorcha.Storage.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Common\Sorcha.Storage.InMemory\Sorcha.Storage.InMemory.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0-preview.7.24407.12" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0-preview.7.24407.12" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0-preview.7.24407.12" />
+  </ItemGroup>
+
+</Project>
