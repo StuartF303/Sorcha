@@ -754,7 +754,7 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 
 **Status:** CLOSED
 
-### Issue #2: DocketManager/ChainValidator Duplication (P1)
+### ✅ RESOLVED: Issue #2: DocketManager/ChainValidator Duplication (P1)
 
 **Problem:** DocketManager and ChainValidator exist in both Register.Core and Validator.Service
 
@@ -763,12 +763,16 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 - Potential for divergence
 - Unclear ownership
 
-**Resolution Options:**
-1. **Option A:** Move to Validator.Service (as spec suggests), remove from Register.Core
-2. **Option B:** Keep in Register.Core (shared library), remove from Validator.Service
-3. **Option C:** Create Sorcha.Register.Validation shared library
+**Resolution Completed 2025-12-09:**
+1. ✅ Confirmed implementations correctly moved to Validator.Service (per 2025-11-16 refactoring)
+2. ✅ Deleted orphaned test files from Register.Core.Tests:
+   - Removed tests/Sorcha.Register.Core.Tests/Managers/DocketManagerTests.cs
+   - Removed tests/Sorcha.Register.Core.Tests/Validators/ChainValidatorTests.cs
+3. ✅ Implementations now only in: src/Services/Sorcha.Validator.Service/
 
-**Estimated Effort:** 4-6 hours
+**Note:** Validator.Service will need comprehensive test coverage in the future (Sprint 9 - Validator Service implementation)
+
+**Status:** CLOSED
 
 ### ✅ RESOLVED: Issue #3: Missing SignalR Integration Tests (P1)
 

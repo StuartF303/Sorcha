@@ -89,6 +89,9 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 app.MapDefaultEndpoints();
 
+// Add OWASP security headers (SEC-004)
+app.UseApiSecurityHeaders();
+
 // Configure OpenAPI (available in all environments for API consumers)
 app.MapOpenApi();
 

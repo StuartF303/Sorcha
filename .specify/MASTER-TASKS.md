@@ -12,11 +12,18 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 189 (across all phases, including production readiness, blueprint validation, validator service, and orchestration)
-**Completed:** 127 (67%)
+**Completed:** 129 (68%)
 **In Progress:** 0 (0%)
-**Not Started:** 62 (33%)
+**Not Started:** 60 (32%)
 
-**Note:** Counts updated 2025-12-04:
+**Note:** Counts updated 2025-12-09:
+- ✅ **SEC-004 COMPLETE**: Security headers added to all services (4h)
+  - OWASP-recommended headers (X-Frame-Options, CSP, X-Content-Type-Options, etc.)
+  - UseApiSecurityHeaders() and UseSecurityHeaders() extension methods in ServiceDefaults
+  - Applied to Blueprint, Wallet, Register, Tenant, Peer services and API Gateway
+- ✅ **REG-CODE-DUP COMPLETE**: Resolved DocketManager/ChainValidator duplication (4h)
+  - Confirmed implementations correctly in Validator.Service (per 2025-11-16 refactoring)
+  - Deleted orphaned test files from Register.Core.Tests
 - ✅ **Sprint 10 COMPLETE**: All 16 tasks finished (64h total)
   - BP-10.1 to BP-10.16: Blueprint Service orchestration with delegation tokens
   - StateReconstructionService, ActionExecutionService, DelegationTokenMiddleware
@@ -480,7 +487,7 @@ Enhancement tasks that can be deferred until after MVD is complete.
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
 | REG-INT-1 | Refactor API to use core managers | P2 | 12h | ✅ Complete | - |
-| REG-CODE-DUP | Resolve DocketManager/ChainValidator duplication | P1 | 4h | 📋 Deferred | - |
+| REG-CODE-DUP | Resolve DocketManager/ChainValidator duplication | P1 | 4h | ✅ Complete | 2025-12-09 |
 | REG-003 | MongoDB transaction repository | P1 | 12h | 📋 Deferred | - |
 | REG-005 | Implement POST /api/registers/{id}/transactions | P0 | 8h | ✅ Complete | - |
 | REG-006 | Implement GET /api/registers/{id}/transactions/{txId} | P0 | 6h | ✅ Complete | - |
@@ -607,7 +614,7 @@ Enhancement tasks that can be deferred until after MVD is complete.
 | SEC-001 | HTTPS enforcement and certificate management | P0 | 4h | 🚧 Partial | - |
 | SEC-002 | API rate limiting and throttling | P1 | 8h | 📋 Not Started | - |
 | SEC-003 | Input validation hardening (OWASP compliance) | P1 | 12h | 📋 Not Started | - |
-| SEC-004 | Security headers (CSP, HSTS, X-Frame-Options) | P1 | 4h | 📋 Not Started | - |
+| SEC-004 | Security headers (CSP, HSTS, X-Frame-Options) | P1 | 4h | ✅ Complete | 2025-12-09 |
 
 **Related:** BP-8.2 Security hardening task (promoted from P1 in Phase 1)
 

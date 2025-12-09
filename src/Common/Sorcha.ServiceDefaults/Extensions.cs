@@ -123,4 +123,94 @@ public static class Extensions
 
         return app;
     }
+
+    /// <summary>
+    /// Adds OWASP-recommended security headers to all HTTP responses.
+    /// Implements SEC-004 security hardening requirements.
+    /// </summary>
+    /// <param name="app">The web application</param>
+    /// <returns>The web application for chaining</returns>
+    public static WebApplication UseSecurityHeaders(this WebApplication app)
+    {
+        app.Use(async (context, next) =>
+        {
+            // Prevent clickjacking attacks
+            context.Response.Headers["X-Frame-Options"] = "DENY";
+
+            // Prevent MIME type sniffing
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+
+            // Enable XSS filter
+            context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+
+            // Referrer policy - only send origin for cross-origin requests
+            context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+
+            // Content Security Policy - strict default with allowances for APIs
+            // Note: Adjust this CSP based on your specific needs (especially for UI apps)
+            context.Response.Headers["Content-Security-Policy"] =
+                "default-src 'self'; " +
+                "script-src 'self'; " +
+                "style-src 'self' 'unsafe-inline'; " +
+                "img-src 'self' data: https:; " +
+                "font-src 'self'; " +
+                "connect-src 'self'; " +
+                "frame-ancestors 'none'";
+
+            // Permissions Policy - restrict browser features
+            context.Response.Headers["Permissions-Policy"] =
+                "geolocation=(), " +
+                "microphone=(), " +
+                "camera=(), " +
+                "payment=(), " +
+                "usb=(), " +
+                "magnetometer=(), " +
+                "gyroscope=(), " +
+                "accelerometer=()";
+
+            await next();
+        });
+
+        return app;
+    }
+
+    /// <summary>
+    /// Adds security headers optimized for API services (less restrictive CSP).
+    /// Use this for services that don't serve HTML/UI content.
+    /// </summary>
+    /// <param name="app">The web application</param>
+    /// <returns>The web application for chaining</returns>
+    public static WebApplication UseApiSecurityHeaders(this WebApplication app)
+    {
+        app.Use(async (context, next) =>
+        {
+            // Prevent clickjacking attacks
+            context.Response.Headers["X-Frame-Options"] = "DENY";
+
+            // Prevent MIME type sniffing
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+
+            // Referrer policy
+            context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+
+            // API-optimized CSP (no script/style restrictions)
+            context.Response.Headers["Content-Security-Policy"] =
+                "default-src 'none'; frame-ancestors 'none'";
+
+            // Permissions Policy - restrict all browser features for APIs
+            context.Response.Headers["Permissions-Policy"] =
+                "geolocation=(), " +
+                "microphone=(), " +
+                "camera=(), " +
+                "payment=(), " +
+                "usb=(), " +
+                "magnetometer=(), " +
+                "gyroscope=(), " +
+                "accelerometer=()";
+
+            await next();
+        });
+
+        return app;
+    }
 }

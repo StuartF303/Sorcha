@@ -54,6 +54,9 @@ var app = builder.Build();
 // Map default endpoints (health checks)
 app.MapDefaultEndpoints();
 
+// Add OWASP security headers (SEC-004)
+app.UseApiSecurityHeaders();
+
 // Configure OpenAPI
 app.MapOpenApi();
 

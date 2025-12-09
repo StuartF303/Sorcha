@@ -43,6 +43,9 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 app.MapDefaultEndpoints();
 
+// Add OWASP security headers (SEC-004)
+app.UseApiSecurityHeaders();
+
 // Enable CORS
 app.UseCors();
 

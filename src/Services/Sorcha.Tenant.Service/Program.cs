@@ -97,6 +97,9 @@ try
     // Map default endpoints (OpenAPI, health checks)
     app.MapDefaultEndpoints();
 
+    // Add OWASP security headers (SEC-004)
+    app.UseApiSecurityHeaders();
+
     // Configure the HTTP request pipeline
     if (app.Environment.IsDevelopment())
     {
