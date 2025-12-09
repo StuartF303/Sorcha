@@ -39,8 +39,13 @@ public class SchemaValidator : ISchemaValidator
             // Parse the JSON Schema
             var jsonSchema = JsonSchema.FromText(schema.ToJsonString());
 
+            // Convert JsonNode to JsonElement for evaluation
+            var jsonString = dataJson.ToJsonString();
+            using var jsonDocument = JsonDocument.Parse(jsonString);
+            var dataElement = jsonDocument.RootElement;
+
             // Perform validation
-            var validationResults = jsonSchema.Evaluate(dataJson, new EvaluationOptions
+            var validationResults = jsonSchema.Evaluate(dataElement, new EvaluationOptions
             {
                 OutputFormat = OutputFormat.List,
                 RequireFormatValidation = true
