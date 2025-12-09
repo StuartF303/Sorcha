@@ -130,6 +130,39 @@ public static class WalletServiceExtensions
 
         return builder;
     }
+
+    /// <summary>
+    /// Applies pending database migrations (for production deployment)
+    /// </summary>
+    /// <param name="serviceProvider">The service provider</param>
+    /// <returns>Task</returns>
+    public static async Task ApplyWalletDatabaseMigrationsAsync(this IServiceProvider serviceProvider)
+    {
+        using var scope = serviceProvider.CreateScope();
+        var services = scope.ServiceProvider;
+
+        try
+        {
+            // Check if DbContext is registered (only if PostgreSQL is configured)
+            var context = services.GetService<WalletDbContext>();
+            if (context != null)
+            {
+                var logger = services.GetRequiredService<ILogger<WalletDbContext>>();
+                logger.LogInformation("Applying Wallet Service database migrations...");
+
+                // Apply pending migrations
+                await context.Database.MigrateAsync();
+
+                logger.LogInformation("Wallet Service database migrations applied successfully");
+            }
+        }
+        catch (Exception ex)
+        {
+            var logger = services.GetRequiredService<ILogger<WalletDbContext>>();
+            logger.LogError(ex, "An error occurred while applying Wallet Service migrations");
+            throw;
+        }
+    }
 }
 
 /// <summary>
@@ -180,9 +213,11 @@ internal class EncryptionProviderHealthCheck : IHealthCheck
     {
         try
         {
+            // Use the default key from the provider (always exists)
+            var keyId = _encryptionProvider.GetDefaultKeyId();
+
             // Test encryption/decryption with a simple test payload
             var testData = "health-check"u8.ToArray();
-            var keyId = "health-check-key";
 
             var encrypted = await _encryptionProvider.EncryptAsync(testData, keyId, cancellationToken);
             var decrypted = await _encryptionProvider.DecryptAsync(encrypted, keyId, cancellationToken);

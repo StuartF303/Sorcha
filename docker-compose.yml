@@ -99,7 +99,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Redis=redis:6379
-      - ConnectionStrings__PostgreSQL=Host=postgres;Database=sorcha;Username=sorcha;Password=sorcha_dev_password
+      - ConnectionStrings__wallet-db=Host=postgres;Database=sorcha;Username=sorcha;Password=sorcha_dev_password
     depends_on:
       redis:
         condition: service_healthy

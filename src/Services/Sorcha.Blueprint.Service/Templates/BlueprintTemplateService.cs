@@ -247,10 +247,13 @@ public class BlueprintTemplateService : IBlueprintTemplateService
 
             // Convert parameters to JSON for validation
             var parametersJson = JsonSerializer.Serialize(parameters);
-            var parametersNode = System.Text.Json.Nodes.JsonNode.Parse(parametersJson);
+
+            // Parse to JsonElement for schema validation
+            using var jsonDocument = JsonDocument.Parse(parametersJson);
+            var parametersElement = jsonDocument.RootElement;
 
             // Validate
-            var validationResult = schema.Evaluate(parametersNode);
+            var validationResult = schema.Evaluate(parametersElement);
 
             if (validationResult.IsValid)
             {

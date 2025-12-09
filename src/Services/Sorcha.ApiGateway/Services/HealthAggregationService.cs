@@ -26,10 +26,10 @@ public class HealthAggregationService
         // Load service endpoints from configuration
         _serviceEndpoints = new Dictionary<string, string>
         {
-            { "blueprint", configuration["Services:Blueprint:Url"] ?? "http://blueprint-api" },
-            { "wallet", configuration["Services:Wallet:Url"] ?? "http://wallet-service" },
-            { "register", configuration["Services:Register:Url"] ?? "http://register-service" },
-            { "peer", configuration["Services:Peer:Url"] ?? "http://peer-service" },
+            { "blueprint", configuration["Services:Blueprint:Url"] ?? "http://blueprint-service:8080" },
+            { "wallet", configuration["Services:Wallet:Url"] ?? "http://wallet-service:8080" },
+            { "register", configuration["Services:Register:Url"] ?? "http://register-service:8080" },
+            { "peer", configuration["Services:Peer:Url"] ?? "http://peer-service:8080" },
             // Add more services as they're created
         };
     }
@@ -111,17 +111,21 @@ public class HealthAggregationService
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(5);
 
-            var healthUrl = $"{endpoint}/api/health";
+            // Use Aspire default health endpoint
+            var healthUrl = $"{endpoint}/health";
             var response = await client.GetAsync(healthUrl, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync(cancellationToken);
-                var healthData = JsonSerializer.Deserialize<JsonElement>(content);
+
+                // Aspire health endpoint returns plain text "Healthy" or "Unhealthy"
+                // Not JSON with a status property
+                var status = content.Trim().ToLowerInvariant();
 
                 return new ServiceHealth
                 {
-                    Status = healthData.GetProperty("status").GetString() ?? "unknown",
+                    Status = status == "healthy" ? "healthy" : status == "unhealthy" ? "unhealthy" : "unknown",
                     Endpoint = endpoint
                 };
             }
@@ -156,18 +160,16 @@ public class HealthAggregationService
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(5);
 
-            var healthUrl = $"{endpoint}/api/health";
+            // Use Aspire default health endpoint
+            var healthUrl = $"{endpoint}/health";
             var response = await client.GetAsync(healthUrl, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
-                var content = await response.Content.ReadAsStringAsync(cancellationToken);
-                var healthData = JsonSerializer.Deserialize<JsonElement>(content);
-
-                if (healthData.TryGetProperty("metrics", out var metrics))
-                {
-                    return JsonSerializer.Deserialize<Dictionary<string, object>>(metrics.GetRawText());
-                }
+                // Aspire health endpoint returns plain text, not JSON with metrics
+                // Metrics would need a separate dedicated endpoint
+                // For now, return null as metrics are not available
+                return null;
             }
 
             return null;

@@ -140,7 +140,10 @@
       "Bash(Sorcha.Demo.exe --help)",
       "Bash(dotnet:*)",
       "Bash(cmd /c \"rmdir /s /q C:\\Projects\\Sorcha\\src\\Apps\\Sorcha.Cli\")",
-      "Bash(cmd /c \"rmdir /s /q C:\\Projects\\Sorcha\\src\\Apps\\Sorcha.Cli.Demo\")"
+      "Bash(cmd /c \"rmdir /s /q C:\\Projects\\Sorcha\\src\\Apps\\Sorcha.Cli.Demo\")",
+      "Bash(cmd /c \"dir /s /b C:\\Projects\\Sorcha\\docker-compose*.yml C:\\Projects\\Sorcha\\docker-compose*.yaml 2>nul\")",
+      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error CS)\")",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

@@ -32,6 +32,9 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Apply database migrations automatically (only if PostgreSQL is configured)
+await app.Services.ApplyWalletDatabaseMigrationsAsync();
+
 // Map default Aspire endpoints (/health, /alive)
 app.MapDefaultEndpoints();
 
