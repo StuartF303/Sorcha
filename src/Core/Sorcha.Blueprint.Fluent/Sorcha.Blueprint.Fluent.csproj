@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="JsonLogic" Version="5.4.3" />
+    <PackageReference Include="JsonLogic" Version="5.5.0" />
   </ItemGroup>
 
 </Project>

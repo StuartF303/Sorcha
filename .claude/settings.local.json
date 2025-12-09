@@ -136,7 +136,11 @@
       "Bash(docker-compose down:*)",
       "Bash(dotnet ef migrations add:*)",
       "Bash(dotnet tool install:*)",
-      "Bash(cmd /c \"dir /s /b *.csproj 2>nul | findstr /i CLI\")"
+      "Bash(cmd /c \"dir /s /b *.csproj 2>nul | findstr /i CLI\")",
+      "Bash(Sorcha.Demo.exe --help)",
+      "Bash(dotnet:*)",
+      "Bash(cmd /c \"rmdir /s /q C:\\Projects\\Sorcha\\src\\Apps\\Sorcha.Cli\")",
+      "Bash(cmd /c \"rmdir /s /q C:\\Projects\\Sorcha\\src\\Apps\\Sorcha.Cli.Demo\")"
     ],
     "deny": [],
     "ask": []

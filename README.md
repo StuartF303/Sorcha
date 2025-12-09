@@ -142,6 +142,7 @@ Sorcha/
 ├── src/
 │   ├── Apps/                        # Application layer
 │   │   ├── Sorcha.AppHost/         # .NET Aspire orchestration host
+│   │   ├── Sorcha.Demo/            # Blueprint workflow demo CLI
 │   │   └── UI/
 │   │       └── Sorcha.Blueprint.Designer.Client/  # Blazor WASM UI
 │   ├── Common/                      # Cross-cutting concerns
@@ -155,6 +156,9 @@ Sorcha/
 │   └── Services/                    # Service layer
 │       ├── Sorcha.ApiGateway/      # YARP API Gateway
 │       ├── Sorcha.Blueprint.Service/ # Blueprint REST API
+│       ├── Sorcha.Register.Service/ # Distributed ledger service
+│       ├── Sorcha.Wallet.Service/  # Wallet management service
+│       ├── Sorcha.Tenant.Service/  # Multi-tenancy service
 │       └── Sorcha.Peer.Service/    # P2P networking service
 ├── tests/                           # Test projects
 ├── docs/                            # Documentation

@@ -1,0 +1,180 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+using Microsoft.Extensions.Logging;
+using Sorcha.Blueprint.Models;
+using System.Text.Json;
+
+namespace Sorcha.Demo.Services.Api;
+
+/// <summary>
+/// Client for Blueprint Service API including orchestration endpoints
+/// </summary>
+public class BlueprintApiClient : ApiClientBase
+{
+    private readonly string _baseUrl;
+
+    public BlueprintApiClient(HttpClient httpClient, ILogger<BlueprintApiClient> logger, string baseUrl)
+        : base(httpClient, logger)
+    {
+        _baseUrl = baseUrl.TrimEnd('/');
+    }
+
+    #region Blueprint Management
+
+    /// <summary>
+    /// Creates a new blueprint
+    /// </summary>
+    public async Task<Sorcha.Blueprint.Models.Blueprint?> CreateBlueprintAsync(
+        Sorcha.Blueprint.Models.Blueprint blueprint,
+        CancellationToken ct = default)
+    {
+        return await PostAsync<Sorcha.Blueprint.Models.Blueprint, Sorcha.Blueprint.Models.Blueprint>($"{_baseUrl}/blueprints", blueprint, ct);
+    }
+
+    /// <summary>
+    /// Gets a blueprint by ID
+    /// </summary>
+    public async Task<Sorcha.Blueprint.Models.Blueprint?> GetBlueprintAsync(string blueprintId, CancellationToken ct = default)
+    {
+        return await GetAsync<Sorcha.Blueprint.Models.Blueprint>($"{_baseUrl}/blueprints/{blueprintId}", ct);
+    }
+
+    /// <summary>
+    /// Publishes a blueprint
+    /// </summary>
+    public async Task<Sorcha.Blueprint.Models.Blueprint?> PublishBlueprintAsync(string blueprintId, CancellationToken ct = default)
+    {
+        return await PostAsync<object, Sorcha.Blueprint.Models.Blueprint>($"{_baseUrl}/blueprints/{blueprintId}/publish", new { }, ct);
+    }
+
+    #endregion
+
+    #region Orchestration (Blueprint Instances)
+
+    /// <summary>
+    /// Creates a new blueprint instance for execution
+    /// </summary>
+    public async Task<BlueprintInstanceResponse?> CreateInstanceAsync(
+        string blueprintId,
+        string participantId,
+        string walletAddress,
+        Dictionary<string, object>? metadata = null,
+        CancellationToken ct = default)
+    {
+        var request = new
+        {
+            blueprintId,
+            participantId,
+            walletAddress,
+            metadata = metadata ?? new Dictionary<string, object>()
+        };
+
+        return await PostAsync<object, BlueprintInstanceResponse>($"{_baseUrl}/instances", request, ct);
+    }
+
+    /// <summary>
+    /// Executes an action in a blueprint instance (KEY ORCHESTRATION ENDPOINT)
+    /// This handles: validation, execution, transaction building, signing, and Register submission
+    /// </summary>
+    public async Task<ActionExecutionResponse?> ExecuteActionAsync(
+        string instanceId,
+        int actionId,
+        Dictionary<string, object> actionData,
+        string participantId,
+        string walletAddress,
+        CancellationToken ct = default)
+    {
+        var request = new
+        {
+            actionData,
+            participantId,
+            walletAddress
+        };
+
+        return await PostAsync<object, ActionExecutionResponse>(
+            $"{_baseUrl}/instances/{instanceId}/actions/{actionId}/execute",
+            request,
+            ct);
+    }
+
+    /// <summary>
+    /// Gets the current state of a blueprint instance
+    /// </summary>
+    public async Task<BlueprintInstanceResponse?> GetInstanceAsync(
+        string instanceId,
+        CancellationToken ct = default)
+    {
+        return await GetAsync<BlueprintInstanceResponse>($"{_baseUrl}/instances/{instanceId}", ct);
+    }
+
+    /// <summary>
+    /// Lists all instances for a blueprint
+    /// </summary>
+    public async Task<List<BlueprintInstanceResponse>?> ListInstancesAsync(
+        string? blueprintId = null,
+        CancellationToken ct = default)
+    {
+        var url = blueprintId != null
+            ? $"{_baseUrl}/instances?blueprintId={blueprintId}"
+            : $"{_baseUrl}/instances";
+
+        return await GetAsync<List<BlueprintInstanceResponse>>(url, ct);
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Checks Blueprint Service health
+    /// </summary>
+    public async Task<bool> CheckHealthAsync(CancellationToken ct = default)
+    {
+        return await base.CheckHealthAsync(_baseUrl, ct);
+    }
+}
+
+/// <summary>
+/// Response from blueprint instance creation/retrieval
+/// </summary>
+public class BlueprintInstanceResponse
+{
+    public string InstanceId { get; set; } = string.Empty;
+    public string BlueprintId { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty; // "Active", "Completed", "Failed"
+    public int CurrentActionIndex { get; set; }
+    public string? NextParticipant { get; set; }
+    public Dictionary<string, object> WorkflowState { get; set; } = new();
+    public List<ActionExecutionRecord> ExecutionHistory { get; set; } = new();
+    public DateTime CreatedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+}
+
+/// <summary>
+/// Response from action execution (orchestration endpoint)
+/// </summary>
+public class ActionExecutionResponse
+{
+    public bool Success { get; set; }
+    public string? TransactionHash { get; set; }
+    public string? RegisterId { get; set; }
+    public int CurrentActionIndex { get; set; }
+    public int? NextActionIndex { get; set; }
+    public string? NextParticipant { get; set; }
+    public Dictionary<string, object> ActionResult { get; set; } = new();
+    public Dictionary<string, object> WorkflowState { get; set; } = new();
+    public bool WorkflowComplete { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+/// <summary>
+/// Record of an action execution in instance history
+/// </summary>
+public class ActionExecutionRecord
+{
+    public int ActionIndex { get; set; }
+    public string ActionTitle { get; set; } = string.Empty;
+    public string Participant { get; set; } = string.Empty;
+    public string? TransactionHash { get; set; }
+    public DateTime ExecutedAt { get; set; }
+    public Dictionary<string, object> ActionData { get; set; } = new();
+}
