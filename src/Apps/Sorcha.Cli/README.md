@@ -99,22 +99,57 @@ The CLI uses well-known test credentials:
 
 ## UI Layout
 
+The CLI now features a **3-panel split-screen layout** with auto-scrolling and pause-after-step functionality:
+
 ```
-┌─────────────────────────────────────┬─────────────────────────────────────┐
-│  Workflow Progress                  │  Activity Log                       │
-│                                     │                                     │
-│  Progress: 3/6 steps (50%)          │  10:23:45.12  >> GET /health       │
-│                                     │  10:23:45.15  << 200 5ms           │
-│  ✓ 1. Check Blueprint Service       │  10:23:45.20  i  Blueprint healthy │
-│  ✓ 2. Check Wallet Service          │  10:23:45.25  >> GET /health       │
-│  ● 3. Check Tenant Service          │  10:23:45.28  << 200 3ms           │
-│  ○ 4. Check Register Service        │  10:23:45.30  ✓ Wallet healthy     │
-│  ○ 5. Check Peer Service            │                                     │
-│  ○ 6. Check API Gateway             │                                     │
-│                                     │                                     │
-└─────────────────────────────────────┴─────────────────────────────────────┘
-Press Ctrl+C to cancel | Logs auto-scroll
+┌─────────────────────┬─────────────────────┬──────────────────────────────────┐
+│  Workflow Progress  │  Activity Log       │  Payload Detail                  │
+│                     │                     │                                  │
+│  Progress: 3/6      │  10:23:45.12        │  Response: 200 OK (5ms)          │
+│  steps (50%)        │  >> GET /health     │  10:23:45.15                     │
+│                     │                     │  GET http://localhost:5000/...   │
+│  ✓ 1. Check BP Svc  │  10:23:45.15        │  Content-Type: application/json  │
+│      (⏸ PAUSED)     │  << 200 5ms         │  ──────────────────────────────  │
+│  ✓ 2. Check Wallet  │                     │  {                               │
+│  ● 3. Check Tenant  │  10:23:45.20        │    "status": "Healthy",          │
+│  ○ 4. Check Reg Svc │  i  Blueprint OK    │    "service": "Blueprint",       │
+│  ○ 5. Check Peer    │                     │    "version": "1.0.0",           │
+│  ○ 6. Check Gateway │  10:23:45.25        │    "dependencies": {             │
+│                     │  >> GET /health     │      "redis": "Connected",       │
+│                     │                     │      "database": "Healthy"       │
+│                     │  10:23:45.28        │    }                             │
+│                     │  << 200 3ms         │  }                               │
+│                     │                     │                                  │
+│                     │  10:23:45.30        │  ... (scroll for more)           │
+│                     │  ✓ Wallet OK        │                                  │
+└─────────────────────┴─────────────────────┴──────────────────────────────────┘
+Press Ctrl+C to cancel | Space to pause | Panels auto-scroll
 ```
+
+### New Features
+
+**✅ 3-Panel Layout:**
+- **Left Panel**: Workflow progress with step status indicators
+- **Middle Panel**: Activity log showing request/response timeline
+- **Right Panel**: Detailed payload viewer with JSON syntax highlighting
+
+**✅ Pause After Each Step:**
+- The CLI automatically pauses after each test completes
+- Press any key to continue to the next step
+- Gives you time to review the detailed payload data
+- Pause indicator shows: `(⏸ PAUSED - Press any key to continue)`
+
+**✅ Scrollable Panels:**
+- All three panels support auto-scrolling when content exceeds window height
+- Most recent activity and payloads are always visible
+- Long JSON payloads are formatted and truncated with scroll indicators
+
+**✅ JSON Syntax Highlighting:**
+- Property names in cyan
+- String values in green
+- Numbers in yellow
+- Booleans and null in magenta
+- Auto-formatted with proper indentation
 
 ## Architecture
 
@@ -131,8 +166,9 @@ Sorcha.Cli/
 │   └── RegisterApiClient.cs    # Register Service API client
 ├── UI/
 │   ├── ActivityLog.cs          # Thread-safe activity logging
-│   ├── WorkflowProgress.cs     # Step progress tracking
-│   └── SplitScreenRenderer.cs  # Split-screen UI renderer
+│   ├── WorkflowProgress.cs     # Step progress tracking with pause support
+│   ├── PayloadDetail.cs        # Detailed payload viewer with JSON highlighting
+│   └── SplitScreenRenderer.cs  # 3-panel split-screen UI renderer
 ├── Workflows/
 │   ├── IWorkflow.cs            # Workflow interface
 │   ├── HealthCheckWorkflow.cs  # Service health checks

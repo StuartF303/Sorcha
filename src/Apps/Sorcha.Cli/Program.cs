@@ -51,9 +51,10 @@ class Program
 
     static async Task RunAsync(string workflowName, bool interactive, bool verbose)
     {
-        // Setup activity log
+        // Setup activity log and payload detail
         var activityLog = new ActivityLog();
         var progress = new WorkflowProgress();
+        var payloadDetail = new PayloadDetail();
 
         // Setup DI
         var services = new ServiceCollection();
@@ -89,7 +90,7 @@ class Program
 
         if (interactive)
         {
-            await RunInteractiveAsync(workflows, progress, activityLog, cts.Token);
+            await RunInteractiveAsync(workflows, progress, activityLog, payloadDetail, cts.Token);
         }
         else
         {
@@ -159,9 +160,10 @@ class Program
         IEnumerable<IWorkflow> workflows,
         WorkflowProgress progress,
         ActivityLog activityLog,
+        PayloadDetail payloadDetail,
         CancellationToken ct)
     {
-        var renderer = new SplitScreenRenderer(progress, activityLog);
+        var renderer = new SplitScreenRenderer(progress, activityLog, payloadDetail);
 
         foreach (var workflow in workflows)
         {
@@ -172,13 +174,18 @@ class Program
             activityLog.LogInfo(workflow.Description);
 
             await renderer.RunLiveAsync(
-                async () => await workflow.ExecuteAsync(progress, activityLog, ct),
+                async () => await RunWorkflowWithPausesAsync(workflow, progress, activityLog, ct),
                 ct);
 
             if (!ct.IsCancellationRequested)
             {
                 activityLog.LogSuccess($"Workflow '{workflow.Name}' completed");
-                await Task.Delay(1000, ct); // Pause between workflows
+
+                // Pause at end of workflow
+                renderer.Render();
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("[yellow]Workflow complete. Press any key to continue to next workflow...[/]");
+                Console.ReadKey(true);
             }
         }
 
@@ -198,6 +205,53 @@ class Program
 
         AnsiConsole.MarkupLine("\n[grey]Press any key to exit...[/]");
         Console.ReadKey(true);
+    }
+
+    /// <summary>
+    /// Runs a workflow with pauses after each step completion
+    /// </summary>
+    static async Task RunWorkflowWithPausesAsync(
+        IWorkflow workflow,
+        WorkflowProgress progress,
+        ActivityLog activityLog,
+        CancellationToken ct)
+    {
+        // Track step count
+        var stepCount = workflow.StepNames.Count();
+        var completedSteps = 0;
+
+        // Subscribe to progress changes to detect step completions
+        void OnStepCompleted()
+        {
+            if (progress.CompletedCount > completedSteps)
+            {
+                completedSteps = progress.CompletedCount;
+
+                // Only pause if not the last step
+                if (completedSteps < stepCount && progress.PauseAfterEachStep)
+                {
+                    progress.WaitForContinue();
+
+                    // Wait for user keypress in a background thread
+                    Task.Run(() =>
+                    {
+                        Console.ReadKey(true);
+                        progress.Continue();
+                    });
+                }
+            }
+        }
+
+        progress.OnProgressChanged += OnStepCompleted;
+
+        try
+        {
+            await workflow.ExecuteAsync(progress, activityLog, ct);
+        }
+        finally
+        {
+            progress.OnProgressChanged -= OnStepCompleted;
+        }
     }
 
     static async Task RunSimpleAsync(

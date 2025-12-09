@@ -13,12 +13,18 @@ public class ActivityLog
 {
     private readonly ConcurrentQueue<LogEntry> _entries = new();
     private readonly int _maxEntries;
+    private PayloadDetail? _payloadDetail;
 
     public event Action? OnLogAdded;
 
     public ActivityLog(int maxEntries = 500)
     {
         _maxEntries = maxEntries;
+    }
+
+    public void SetPayloadDetail(PayloadDetail payloadDetail)
+    {
+        _payloadDetail = payloadDetail;
     }
 
     public void LogRequest(string method, string url, string? body = null)
@@ -31,6 +37,9 @@ public class ActivityLog
             Url = url,
             Body = body
         });
+
+        // Update payload detail viewer
+        _payloadDetail?.SetCurrentRequestPayload(method, url, body);
     }
 
     public void LogResponse(int statusCode, string? body = null, long elapsedMs = 0)
@@ -43,6 +52,9 @@ public class ActivityLog
             Body = body,
             ElapsedMs = elapsedMs
         });
+
+        // Update payload detail viewer
+        _payloadDetail?.SetCurrentResponsePayload(statusCode, body, elapsedMs);
     }
 
     public void LogInfo(string message)

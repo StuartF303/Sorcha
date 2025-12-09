@@ -14,8 +14,15 @@ public class WorkflowProgress
     private readonly List<WorkflowStep> _steps = [];
     private int _currentStepIndex = -1;
     private string _workflowName = "Workflow";
+    private bool _pauseAfterEachStep = true;
 
     public event Action? OnProgressChanged;
+
+    public bool PauseAfterEachStep
+    {
+        get => _pauseAfterEachStep;
+        set => _pauseAfterEachStep = value;
+    }
 
     public void StartWorkflow(string name, IEnumerable<string> stepNames)
     {
@@ -64,6 +71,29 @@ public class WorkflowProgress
             _steps[_currentStepIndex].Result = result;
         }
         OnProgressChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Waits for user input before continuing (if PauseAfterEachStep is enabled)
+    /// </summary>
+    public void WaitForContinue()
+    {
+        if (!_pauseAfterEachStep) return;
+
+        _steps[_currentStepIndex].IsPaused = true;
+        OnProgressChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Continues execution after pause
+    /// </summary>
+    public void Continue()
+    {
+        if (_currentStepIndex >= 0 && _currentStepIndex < _steps.Count)
+        {
+            _steps[_currentStepIndex].IsPaused = false;
+            OnProgressChanged?.Invoke();
+        }
     }
 
     public void FailStep(string error)
@@ -149,7 +179,9 @@ public class WorkflowProgress
                     ? " [grey](running...)[/]"
                     : "";
 
-            yield return new Markup($"  {icon} [{nameColor}]{index + 1}. {Markup.Escape(step.Name)}[/]{duration}");
+            var pauseIndicator = step.IsPaused ? " [yellow](⏸ PAUSED - Press any key to continue)[/]" : "";
+
+            yield return new Markup($"  {icon} [{nameColor}]{index + 1}. {Markup.Escape(step.Name)}[/]{duration}{pauseIndicator}");
 
             if (!string.IsNullOrEmpty(step.Description))
             {
@@ -178,6 +210,7 @@ public class WorkflowStep
     public DateTime? EndTime { get; set; }
     public string? Result { get; set; }
     public string? Error { get; set; }
+    public bool IsPaused { get; set; }
 }
 
 public enum StepStatus
