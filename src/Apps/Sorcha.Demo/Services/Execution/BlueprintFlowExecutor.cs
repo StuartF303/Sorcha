@@ -47,8 +47,12 @@ public class BlueprintFlowExecutor
 
         try
         {
-            // Step 1: Create blueprint instance
-            var instanceId = await CreateInstanceAsync(blueprint, context, ct);
+            // Step 1: Register blueprint with Blueprint Service (if needed)
+            // This returns the actual blueprint ID to use (may be different from the template ID)
+            var blueprintId = await EnsureBlueprintRegisteredAsync(blueprint, ct);
+
+            // Step 2: Create blueprint instance
+            var instanceId = await CreateInstanceAsync(blueprintId, context, ct);
             context.CurrentInstanceId = instanceId;
 
             // Step 2: Execute actions sequentially
@@ -131,40 +135,72 @@ public class BlueprintFlowExecutor
     }
 
     /// <summary>
+    /// Ensures blueprint is registered with Blueprint Service
+    /// Returns the actual blueprint ID to use
+    /// </summary>
+    private async Task<string> EnsureBlueprintRegisteredAsync(
+        Sorcha.Blueprint.Models.Blueprint blueprint,
+        CancellationToken ct)
+    {
+        _logger.LogInformation("Checking if blueprint exists: {BlueprintId}", blueprint.Id);
+
+        try
+        {
+            // Try to get the blueprint
+            var existing = await _blueprintClient.GetBlueprintAsync(blueprint.Id ?? "", ct);
+
+            if (existing != null)
+            {
+                _logger.LogInformation("Blueprint already registered: {BlueprintId}", existing.Id);
+                return existing.Id ?? blueprint.Id ?? "";
+            }
+        }
+        catch
+        {
+            // Blueprint doesn't exist, continue to create it
+        }
+
+        // Blueprint doesn't exist, create it
+        _logger.LogInformation("Registering blueprint: {BlueprintId}", blueprint.Id);
+        var created = await _blueprintClient.CreateBlueprintAsync(blueprint, ct);
+
+        if (created == null || string.IsNullOrEmpty(created.Id))
+        {
+            throw new InvalidOperationException($"Failed to register blueprint: {blueprint.Id}");
+        }
+
+        _logger.LogInformation("Blueprint registered successfully: {BlueprintId}", created.Id);
+        return created.Id;
+    }
+
+    /// <summary>
     /// Creates a blueprint instance via API
     /// </summary>
     private async Task<string> CreateInstanceAsync(
-        Sorcha.Blueprint.Models.Blueprint blueprint,
+        string blueprintId,
         DemoContext context,
         CancellationToken ct)
     {
-        _logger.LogInformation("Creating blueprint instance for: {BlueprintId}", blueprint.Id);
-
-        // Use first participant as initiator
-        var firstParticipant = context.Participants.Values.FirstOrDefault();
-        if (firstParticipant == null)
-        {
-            throw new InvalidOperationException("No participants available");
-        }
+        _logger.LogInformation("Creating blueprint instance for: {BlueprintId}", blueprintId);
 
         var response = await _blueprintClient.CreateInstanceAsync(
-            blueprintId: blueprint.Id ?? throw new InvalidOperationException("Blueprint has no ID"),
-            participantId: firstParticipant.ParticipantId,
-            walletAddress: firstParticipant.WalletAddress,
+            blueprintId: blueprintId,
+            registerId: context.RegisterId,
             metadata: new Dictionary<string, object>
             {
                 ["demoMode"] = true,
                 ["startedAt"] = DateTime.UtcNow
             },
+            tenantId: null,
             ct: ct);
 
-        if (response == null || string.IsNullOrEmpty(response.InstanceId))
+        if (response == null || string.IsNullOrEmpty(response.Id))
         {
             throw new InvalidOperationException("Failed to create blueprint instance");
         }
 
-        _logger.LogInformation("Created instance: {InstanceId}", response.InstanceId);
-        return response.InstanceId;
+        _logger.LogInformation("Created instance: {InstanceId}", response.Id);
+        return response.Id;
     }
 
     /// <summary>

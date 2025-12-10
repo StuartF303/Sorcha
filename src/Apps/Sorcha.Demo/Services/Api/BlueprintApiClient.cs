@@ -57,16 +57,16 @@ public class BlueprintApiClient : ApiClientBase
     /// </summary>
     public async Task<BlueprintInstanceResponse?> CreateInstanceAsync(
         string blueprintId,
-        string participantId,
-        string walletAddress,
+        string registerId,
         Dictionary<string, object>? metadata = null,
+        string? tenantId = null,
         CancellationToken ct = default)
     {
         var request = new
         {
             blueprintId,
-            participantId,
-            walletAddress,
+            registerId,
+            tenantId,
             metadata = metadata ?? new Dictionary<string, object>()
         };
 
@@ -138,15 +138,22 @@ public class BlueprintApiClient : ApiClientBase
 /// </summary>
 public class BlueprintInstanceResponse
 {
-    public string InstanceId { get; set; } = string.Empty;
+    public string Id { get; set; } = string.Empty;  // Blueprint Service returns "id", not "instanceId"
     public string BlueprintId { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty; // "Active", "Completed", "Failed"
-    public int CurrentActionIndex { get; set; }
-    public string? NextParticipant { get; set; }
-    public Dictionary<string, object> WorkflowState { get; set; } = new();
-    public List<ActionExecutionRecord> ExecutionHistory { get; set; } = new();
+    public int BlueprintVersion { get; set; }
+    public string RegisterId { get; set; } = string.Empty;
+    public int State { get; set; }  // 0 = Active, 1 = Completed, 2 = Failed
+    public List<int> CurrentActionIds { get; set; } = new();
+    public Dictionary<string, string> ParticipantWallets { get; set; } = new();
+    public List<object> ActiveBranches { get; set; } = new();
+    public string? FirstTransactionId { get; set; }
+    public string? LastTransactionId { get; set; }
+    public int CompletedActionCount { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public string TenantId { get; set; } = string.Empty;
+    public Dictionary<string, string> Metadata { get; set; } = new();
 }
 
 /// <summary>

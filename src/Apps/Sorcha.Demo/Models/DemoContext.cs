@@ -16,6 +16,11 @@ public class DemoContext
     public DemoSettings Settings { get; } = new();
 
     /// <summary>
+    /// Register ID where blueprint transactions will be stored
+    /// </summary>
+    public string RegisterId { get; set; } = "demo-register";
+
+    /// <summary>
     /// Maps participant names to their wallet information
     /// </summary>
     public Dictionary<string, ParticipantContext> Participants { get; } = new();
