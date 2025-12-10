@@ -35,6 +35,18 @@ public static class TestDataSeeder
     public const string TestAuditorName = "Test Auditor";
     public const string TestAuditorExternalId = "external-auditor-001";
 
+    // Local authentication test users (with password hashes)
+    public static readonly Guid TestLocalAdminUserId = new("00000000-0000-0000-0002-000000000001");
+    public static readonly Guid TestLocalMemberUserId = new("00000000-0000-0000-0002-000000000002");
+    public static readonly Guid TestInactiveUserId = new("00000000-0000-0000-0002-000000000003");
+
+    public const string TestLocalAdminEmail = "local-admin@test-org.sorcha.io";
+    public const string TestLocalAdminPassword = "TestPassword123!";
+    public const string TestLocalMemberEmail = "local-member@test-org.sorcha.io";
+    public const string TestLocalMemberPassword = "MemberPass456!";
+    public const string TestInactiveEmail = "inactive@test-org.sorcha.io";
+    public const string TestInactivePassword = "InactivePass789!";
+
     /// <summary>
     /// Seeds the database with test data using a scope from the service provider.
     /// Call this method after building the WebApplicationFactory.
@@ -125,6 +137,64 @@ public static class TestDataSeeder
             };
 
             await db.UserIdentities.AddAsync(auditorUser);
+        }
+
+        // Seed local authentication users (with password hashes)
+        if (!await db.UserIdentities.AnyAsync(u => u.Id == TestLocalAdminUserId))
+        {
+            var localAdminUser = new UserIdentity
+            {
+                Id = TestLocalAdminUserId,
+                OrganizationId = TestOrganizationId,
+                ExternalIdpUserId = null, // Local auth - no external IDP
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(TestLocalAdminPassword),
+                Email = TestLocalAdminEmail,
+                DisplayName = "Local Admin",
+                Roles = [UserRole.Administrator],
+                Status = IdentityStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow,
+                LastLoginAt = null
+            };
+
+            await db.UserIdentities.AddAsync(localAdminUser);
+        }
+
+        if (!await db.UserIdentities.AnyAsync(u => u.Id == TestLocalMemberUserId))
+        {
+            var localMemberUser = new UserIdentity
+            {
+                Id = TestLocalMemberUserId,
+                OrganizationId = TestOrganizationId,
+                ExternalIdpUserId = null, // Local auth - no external IDP
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(TestLocalMemberPassword),
+                Email = TestLocalMemberEmail,
+                DisplayName = "Local Member",
+                Roles = [UserRole.Member],
+                Status = IdentityStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow,
+                LastLoginAt = null
+            };
+
+            await db.UserIdentities.AddAsync(localMemberUser);
+        }
+
+        if (!await db.UserIdentities.AnyAsync(u => u.Id == TestInactiveUserId))
+        {
+            var inactiveUser = new UserIdentity
+            {
+                Id = TestInactiveUserId,
+                OrganizationId = TestOrganizationId,
+                ExternalIdpUserId = null, // Local auth - no external IDP
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(TestInactivePassword),
+                Email = TestInactiveEmail,
+                DisplayName = "Inactive User",
+                Roles = [UserRole.Member],
+                Status = IdentityStatus.Suspended, // Suspended status
+                CreatedAt = DateTimeOffset.UtcNow,
+                LastLoginAt = null
+            };
+
+            await db.UserIdentities.AddAsync(inactiveUser);
         }
 
         await db.SaveChangesAsync();

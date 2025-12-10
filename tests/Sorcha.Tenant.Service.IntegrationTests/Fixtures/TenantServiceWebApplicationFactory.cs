@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -12,24 +13,88 @@ using Moq;
 using Polly;
 using Serilog;
 using Sorcha.Tenant.Service.Data;
+using Sorcha.Tenant.Service.IntegrationTests.Configuration;
 using StackExchange.Redis;
+using Testcontainers.PostgreSql;
 
 namespace Sorcha.Tenant.Service.IntegrationTests.Fixtures;
 
 /// <summary>
 /// Custom WebApplicationFactory for Tenant Service integration tests.
-/// Uses in-memory database, mock Redis, and test authentication for testing.
-/// Automatically seeds test data including a test organization and users.
+/// Supports both InMemory database (fast, default) and PostgreSQL via Testcontainers (realistic).
+/// Set environment variable TEST_DATABASE_MODE=PostgreSQL to use Testcontainers.
 /// </summary>
-public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
+public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly string _databaseName;
+    private PostgreSqlContainer? _postgresContainer;
+    private string? _connectionString;
     private bool _seeded;
+    private bool _containerInitialized;
+    private readonly object _containerLock = new();
 
     public TenantServiceWebApplicationFactory()
     {
         // Use a unique database name per factory instance for isolation
         _databaseName = $"TenantServiceIntegrationTests_{Guid.NewGuid()}";
+    }
+
+    /// <summary>
+    /// Ensures the PostgreSQL container is started before configuration.
+    /// Called synchronously from ConfigureWebHost.
+    /// </summary>
+    private void EnsureContainerStarted()
+    {
+        if (!TestConfiguration.UsePostgreSQL || _containerInitialized)
+            return;
+
+        lock (_containerLock)
+        {
+            if (_containerInitialized)
+                return;
+
+            // Start PostgreSQL Testcontainer synchronously
+            _postgresContainer = new PostgreSqlBuilder()
+                .WithDatabase(_databaseName)
+                .WithUsername("sorcha_test")
+                .WithPassword("sorcha_test_pass")
+                .WithCleanUp(true)
+                .Build();
+
+            _postgresContainer.StartAsync().GetAwaiter().GetResult();
+            _connectionString = _postgresContainer.GetConnectionString();
+
+            Console.WriteLine($"[TEST] PostgreSQL container started");
+            Console.WriteLine($"[TEST] Connection string: {_connectionString}");
+            Console.WriteLine($"[TEST] Host: {_postgresContainer.Hostname}");
+            Console.WriteLine($"[TEST] Port: {_postgresContainer.GetMappedPublicPort(5432)}");
+
+            _containerInitialized = true;
+        }
+    }
+
+    /// <summary>
+    /// Initializes the test infrastructure (starts PostgreSQL container if needed).
+    /// Called automatically by xUnit before any tests run.
+    /// </summary>
+    public Task InitializeAsync()
+    {
+        // Container is already started in ConfigureWebHost, nothing more to do
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Cleans up test infrastructure (stops PostgreSQL container if needed).
+    /// Called automatically by xUnit after all tests complete.
+    /// </summary>
+    public new async Task DisposeAsync()
+    {
+        if (_postgresContainer != null)
+        {
+            await _postgresContainer.DisposeAsync();
+        }
+
+        await base.DisposeAsync();
     }
 
     protected override IHost CreateHost(IHostBuilder builder)
@@ -43,34 +108,91 @@ public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
 
+        // Ensure PostgreSQL container is started before configuration (if needed)
+        EnsureContainerStarted();
+
+        // Configure connection string and JWT settings for tests
+        builder.ConfigureAppConfiguration((context, config) =>
+        {
+            var testConfig = new Dictionary<string, string?>
+            {
+                // JWT Settings for TokenService
+                ["JwtSettings:Issuer"] = "https://test.sorcha.io",
+                ["JwtSettings:Audiences:0"] = "https://test-api.sorcha.io",
+                ["JwtSettings:SigningKey"] = "test-signing-key-for-integration-tests-minimum-32-characters-required",
+                ["JwtSettings:AccessTokenLifetimeMinutes"] = "60",
+                ["JwtSettings:RefreshTokenLifetimeHours"] = "24",
+                ["JwtSettings:ServiceTokenLifetimeHours"] = "8",
+                ["JwtSettings:ClockSkewMinutes"] = "5",
+                ["JwtSettings:ValidateIssuer"] = "false",
+                ["JwtSettings:ValidateAudience"] = "false",
+                ["JwtSettings:ValidateIssuerSigningKey"] = "false",
+                ["JwtSettings:ValidateLifetime"] = "false"
+            };
+
+            if (TestConfiguration.UsePostgreSQL)
+            {
+                // Use PostgreSQL Testcontainer connection string
+                testConfig["ConnectionStrings:TenantDatabase"] = _connectionString;
+            }
+            else
+            {
+                // Clear connection string to force InMemory database usage
+                testConfig["ConnectionStrings:TenantDatabase"] = null!;
+            }
+
+            config.AddInMemoryCollection(testConfig);
+        });
+
         builder.ConfigureServices(services =>
         {
-            // Remove all EF Core related services to avoid provider conflicts
-            // This must be done thoroughly since EF Core registers many internal services
+            // Remove existing DbContext registrations for both InMemory and PostgreSQL modes
             var dbContextDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<TenantDbContext>));
             if (dbContextDescriptor != null)
                 services.Remove(dbContextDescriptor);
 
-            // Also remove the generic DbContextOptions
             var genericDbContextOptionsDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions));
             if (genericDbContextOptionsDescriptor != null)
                 services.Remove(genericDbContextOptionsDescriptor);
 
-            // Remove TenantDbContext registrations
             services.RemoveAll<TenantDbContext>();
 
-            // Remove all EF Core internal services (this handles provider conflicts)
             var efServiceTypes = services.Where(d =>
                 d.ServiceType.FullName?.StartsWith("Microsoft.EntityFrameworkCore") == true ||
                 d.ImplementationType?.FullName?.StartsWith("Npgsql") == true).ToList();
             foreach (var efService in efServiceTypes)
                 services.Remove(efService);
 
-            // Add in-memory database with consistent name for this factory instance
-            services.AddDbContext<TenantDbContext>(options =>
+            if (TestConfiguration.UseInMemory)
             {
-                options.UseInMemoryDatabase(_databaseName);
-            });
+                // Configure InMemory database using AddDbContext for proper EF Core service registration
+                services.AddDbContext<TenantDbContext>((serviceProvider, options) =>
+                {
+                    options.UseInMemoryDatabase(_databaseName);
+                    options.EnableSensitiveDataLogging();
+                    options.EnableDetailedErrors();
+                });
+
+                Console.WriteLine($"[TEST] Configured InMemory DbContext with database name: {_databaseName}");
+            }
+            else if (TestConfiguration.UsePostgreSQL)
+            {
+                // Configure PostgreSQL with Testcontainers connection string
+                services.AddDbContext<TenantDbContext>((serviceProvider, options) =>
+                {
+                    options.UseNpgsql(_connectionString, npgsqlOptions =>
+                    {
+                        npgsqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 3,
+                            maxRetryDelay: TimeSpan.FromSeconds(5),
+                            errorCodesToAdd: null);
+                    });
+                    options.EnableSensitiveDataLogging();
+                    options.EnableDetailedErrors();
+                });
+
+                Console.WriteLine($"[TEST] Configured DbContext with connection string: {_connectionString}");
+            }
 
             // Remove Redis connection and use a mock for testing
             services.RemoveAll<IConnectionMultiplexer>();
@@ -124,6 +246,15 @@ public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
     {
         if (_seeded) return;
 
+        // Run migrations if using PostgreSQL
+        if (TestConfiguration.UsePostgreSQL)
+        {
+            await using var scope = Services.CreateAsyncScope();
+            var context = scope.ServiceProvider.GetRequiredService<TenantDbContext>();
+            await context.Database.MigrateAsync();
+        }
+
+        // Seed test data
         await TestDataSeeder.SeedAsync(Services);
         _seeded = true;
     }

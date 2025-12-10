@@ -4,8 +4,12 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Sorcha.Tenant.Service.Data;
+using Sorcha.Tenant.Service.Data.Repositories;
 using Sorcha.Tenant.Service.IntegrationTests.Fixtures;
+using Sorcha.Tenant.Service.Models;
 using Sorcha.Tenant.Service.Models.Dtos;
 
 namespace Sorcha.Tenant.Service.IntegrationTests;
@@ -13,7 +17,7 @@ namespace Sorcha.Tenant.Service.IntegrationTests;
 /// <summary>
 /// Integration tests for Authentication API endpoints.
 /// </summary>
-public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>
+public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>, IAsyncLifetime
 {
     private readonly HttpClient _client;
     private readonly HttpClient _adminClient;
@@ -26,6 +30,23 @@ public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>
         _unauthClient = _factory.CreateUnauthenticatedClient();
         _client = _factory.CreateAuthenticatedClient();
         _adminClient = _factory.CreateAdminClient();
+    }
+
+    /// <summary>
+    /// Initializes test data before any tests run.
+    /// </summary>
+    public async Task InitializeAsync()
+    {
+        // Ensure test data is seeded before running tests
+        await _factory.EnsureSeededAsync();
+    }
+
+    /// <summary>
+    /// Cleanup after all tests complete.
+    /// </summary>
+    public Task DisposeAsync()
+    {
+        return Task.CompletedTask;
     }
 
     #region Health Check Tests
@@ -41,6 +62,262 @@ public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>
 
         var result = await response.Content.ReadAsStringAsync();
         result.Should().Contain("Healthy");
+    }
+
+    #endregion
+
+    #region Login Tests
+
+    [Fact]
+    public async Task TestData_ShouldBeSeeded()
+    {
+        // Verify that test users exist in the database
+        var user = await TestDataSeeder.GetTestUserAsync(_factory.Services, TestDataSeeder.TestLocalAdminUserId);
+
+        user.Should().NotBeNull();
+        user!.Email.Should().Be(TestDataSeeder.TestLocalAdminEmail);
+        user.PasswordHash.Should().NotBeNullOrWhiteSpace();
+        user.Status.Should().Be(IdentityStatus.Active);
+    }
+
+    [Fact]
+    public async Task TestData_PasswordHashShouldBeValid()
+    {
+        // Verify that the password hash can be verified with BCrypt
+        var user = await TestDataSeeder.GetTestUserAsync(_factory.Services, TestDataSeeder.TestLocalAdminUserId);
+
+        user.Should().NotBeNull();
+        user!.PasswordHash.Should().NotBeNullOrWhiteSpace();
+
+        // Verify password using BCrypt
+        var isValid = BCrypt.Net.BCrypt.Verify(TestDataSeeder.TestLocalAdminPassword, user.PasswordHash);
+        isValid.Should().BeTrue("because the password hash should match the test password");
+    }
+
+    [Fact]
+    public async Task TestData_OrganizationShouldBeSeeded()
+    {
+        // Verify that the test organization exists
+        var org = await TestDataSeeder.GetTestOrganizationAsync(_factory.Services);
+
+        org.Should().NotBeNull();
+        org!.Id.Should().Be(TestDataSeeder.TestOrganizationId);
+        org.Name.Should().Be(TestDataSeeder.TestOrganizationName);
+        org.Subdomain.Should().Be(TestDataSeeder.TestOrganizationSubdomain);
+        org.Status.Should().Be(OrganizationStatus.Active);
+    }
+
+    [Fact]
+    public async Task TestData_RepositoryCanFindUserByEmail()
+    {
+        // Verify that the repository can find users by email
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<TenantDbContext>();
+        var repository = new IdentityRepository(context);
+
+        var user = await repository.GetUserByEmailAsync(TestDataSeeder.TestLocalAdminEmail);
+
+        user.Should().NotBeNull();
+        user!.Email.Should().Be(TestDataSeeder.TestLocalAdminEmail);
+        user.PasswordHash.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task Login_ShouldReturnTokens_WithValidCredentials()
+    {
+        // First verify the user exists in the database
+        var user = await TestDataSeeder.GetTestUserAsync(_factory.Services, TestDataSeeder.TestLocalAdminUserId);
+        user.Should().NotBeNull("test user should be seeded in database");
+
+        // Arrange
+        var request = new LoginRequest
+        {
+            Email = TestDataSeeder.TestLocalAdminEmail,
+            Password = TestDataSeeder.TestLocalAdminPassword
+        };
+
+        // Act
+        var response = await _unauthClient.PostAsJsonAsync("/api/auth/login", request);
+
+        // Debug: Print response body if failed
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Login failed with status {response.StatusCode}. Response body: {body}");
+        }
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<TokenResponse>();
+        result.Should().NotBeNull();
+        result!.AccessToken.Should().NotBeNullOrWhiteSpace();
+        result.RefreshToken.Should().NotBeNullOrWhiteSpace();
+        result.TokenType.Should().Be("Bearer");
+        result.ExpiresIn.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task Login_ShouldReturnUnauthorized_WithInvalidPassword()
+    {
+        // Arrange
+        var request = new LoginRequest
+        {
+            Email = TestDataSeeder.TestLocalAdminEmail,
+            Password = "WrongPassword123!"
+        };
+
+        // Act
+        var response = await _unauthClient.PostAsJsonAsync("/api/auth/login", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Login_ShouldReturnUnauthorized_WithNonExistentEmail()
+    {
+        // Arrange
+        var request = new LoginRequest
+        {
+            Email = "nonexistent@test-org.sorcha.io",
+            Password = "SomePassword123!"
+        };
+
+        // Act
+        var response = await _unauthClient.PostAsJsonAsync("/api/auth/login", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Login_ShouldReturnUnauthorized_WithInactiveUser()
+    {
+        // Arrange
+        var request = new LoginRequest
+        {
+            Email = TestDataSeeder.TestInactiveEmail,
+            Password = TestDataSeeder.TestInactivePassword
+        };
+
+        // Act
+        var response = await _unauthClient.PostAsJsonAsync("/api/auth/login", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Login_ShouldReturnBadRequest_WithEmptyEmail()
+    {
+        // Arrange
+        var request = new LoginRequest
+        {
+            Email = "",
+            Password = "SomePassword123!"
+        };
+
+        // Act
+        var response = await _unauthClient.PostAsJsonAsync("/api/auth/login", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Login_ShouldReturnBadRequest_WithEmptyPassword()
+    {
+        // Arrange
+        var request = new LoginRequest
+        {
+            Email = TestDataSeeder.TestLocalAdminEmail,
+            Password = ""
+        };
+
+        // Act
+        var response = await _unauthClient.PostAsJsonAsync("/api/auth/login", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Login_ShouldUpdateLastLoginTimestamp()
+    {
+        // Arrange
+        var request = new LoginRequest
+        {
+            Email = TestDataSeeder.TestLocalMemberEmail,
+            Password = TestDataSeeder.TestLocalMemberPassword
+        };
+
+        // Act - Get user before login
+        var userBefore = await TestDataSeeder.GetTestUserAsync(_factory.Services, TestDataSeeder.TestLocalMemberUserId);
+        var lastLoginBefore = userBefore?.LastLoginAt;
+
+        await Task.Delay(100); // Small delay to ensure timestamp difference
+
+        // Login
+        var response = await _unauthClient.PostAsJsonAsync("/api/auth/login", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Get user after login
+        var userAfter = await TestDataSeeder.GetTestUserAsync(_factory.Services, TestDataSeeder.TestLocalMemberUserId);
+        userAfter.Should().NotBeNull();
+        userAfter!.LastLoginAt.Should().NotBeNull();
+        userAfter.LastLoginAt.Should().BeAfter(lastLoginBefore ?? DateTimeOffset.MinValue);
+    }
+
+    [Fact]
+    public async Task Login_ShouldReturnUnauthorized_ForExternalIdpUser()
+    {
+        // Arrange - Try to login with external IDP user email (no password hash)
+        var request = new LoginRequest
+        {
+            Email = TestDataSeeder.TestAdminEmail, // This user has ExternalIdpUserId but no PasswordHash
+            Password = "AnyPassword123!"
+        };
+
+        // Act
+        var response = await _unauthClient.PostAsJsonAsync("/api/auth/login", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Login_TokensCanBeUsedForAuthentication()
+    {
+        // Arrange
+        var loginRequest = new LoginRequest
+        {
+            Email = TestDataSeeder.TestLocalAdminEmail,
+            Password = TestDataSeeder.TestLocalAdminPassword
+        };
+
+        // Act - Login and get tokens
+        var loginResponse = await _unauthClient.PostAsJsonAsync("/api/auth/login", loginRequest);
+        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var tokenResponse = await loginResponse.Content.ReadFromJsonAsync<TokenResponse>();
+        tokenResponse.Should().NotBeNull();
+
+        // Use the access token to call authenticated endpoint
+        var authenticatedClient = _factory.CreateClient();
+        authenticatedClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenResponse!.AccessToken);
+
+        var meResponse = await authenticatedClient.GetAsync("/api/auth/me");
+
+        // Assert
+        meResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var currentUser = await meResponse.Content.ReadFromJsonAsync<CurrentUserResponse>();
+        currentUser.Should().NotBeNull();
+        currentUser!.Email.Should().Be(TestDataSeeder.TestLocalAdminEmail);
     }
 
     #endregion

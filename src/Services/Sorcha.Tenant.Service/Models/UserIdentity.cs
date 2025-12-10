@@ -22,8 +22,15 @@ public class UserIdentity
     /// <summary>
     /// User ID from external IDP (sub claim from OIDC token).
     /// Must be unique within organization.
+    /// Null for local authentication users.
     /// </summary>
-    public string ExternalIdpUserId { get; set; } = string.Empty;
+    public string? ExternalIdpUserId { get; set; }
+
+    /// <summary>
+    /// Password hash for local authentication (BCrypt).
+    /// Null for external IDP users (Azure AD/B2C).
+    /// </summary>
+    public string? PasswordHash { get; set; }
 
     /// <summary>
     /// User email address.

@@ -230,9 +230,15 @@ public class TenantDbContext : DbContext
             entity.ToTable("UserIdentities");
             entity.HasKey(e => e.Id);
 
+            // ExternalIdpUserId is nullable (null for local auth users)
             entity.Property(e => e.ExternalIdpUserId)
-                .IsRequired()
+                .IsRequired(false)
                 .HasMaxLength(200);
+
+            // PasswordHash is nullable (null for external IDP users)
+            entity.Property(e => e.PasswordHash)
+                .IsRequired(false)
+                .HasMaxLength(500);
 
             entity.Property(e => e.Email)
                 .IsRequired()
@@ -254,10 +260,14 @@ public class TenantDbContext : DbContext
                 .HasConversion<string>()
                 .IsRequired();
 
+            // Unique index on ExternalIdpUserId only for non-null values
             entity.HasIndex(e => e.ExternalIdpUserId)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("\"ExternalIdpUserId\" IS NOT NULL");
 
-            entity.HasIndex(e => e.Email);
+            entity.HasIndex(e => e.Email)
+                .IsUnique();  // Email must be unique within organization
+
             entity.HasIndex(e => e.OrganizationId);
             entity.HasIndex(e => e.Status);
         });

@@ -3,6 +3,8 @@
 
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Sorcha.Tenant.Service.Data.Repositories;
+using Sorcha.Tenant.Service.Models;
 using Sorcha.Tenant.Service.Models.Dtos;
 using Sorcha.Tenant.Service.Services;
 
@@ -20,6 +22,16 @@ public static class AuthEndpoints
     {
         var group = app.MapGroup("/api/auth")
             .WithTags("Authentication");
+
+        // Login with email/password (public endpoint)
+        group.MapPost("/login", Login)
+            .WithName("Login")
+            .WithSummary("Login with email and password")
+            .WithDescription("Authenticates a user with email and password and returns access and refresh tokens.")
+            .AllowAnonymous()
+            .Produces<TokenResponse>()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized);
 
         // Token refresh (public endpoint - requires valid refresh token)
         group.MapPost("/token/refresh", RefreshToken)
@@ -93,6 +105,86 @@ public static class AuthEndpoints
             .Produces(StatusCodes.Status401Unauthorized);
 
         return app;
+    }
+
+    private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem>> Login(
+        LoginRequest request,
+        IIdentityRepository identityRepository,
+        IOrganizationRepository organizationRepository,
+        ITokenService tokenService,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken)
+    {
+        // Validate input
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["email"] = ["Email is required"]
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["password"] = ["Password is required"]
+            });
+        }
+
+        try
+        {
+            // Look up user by email
+            var user = await identityRepository.GetUserByEmailAsync(request.Email, cancellationToken);
+
+            if (user == null || user.Status != IdentityStatus.Active)
+            {
+                logger.LogWarning("Login failed: User not found or inactive - {Email}", request.Email);
+                return TypedResults.Unauthorized();
+            }
+
+            // Verify password hash exists (local auth user)
+            if (string.IsNullOrEmpty(user.PasswordHash))
+            {
+                logger.LogWarning("Login failed: User has no password (external IDP user?) - {Email}", request.Email);
+                return TypedResults.Unauthorized();
+            }
+
+            // Verify password using BCrypt
+            bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
+
+            if (!isPasswordValid)
+            {
+                logger.LogWarning("Login failed: Invalid password - {Email}", request.Email);
+                return TypedResults.Unauthorized();
+            }
+
+            // Get user's organization
+            var organization = await organizationRepository.GetByIdAsync(user.OrganizationId, cancellationToken);
+
+            if (organization == null)
+            {
+                logger.LogError("Login failed: Organization not found - {OrgId}", user.OrganizationId);
+                return TypedResults.Unauthorized();
+            }
+
+            // Update last login timestamp
+            user.LastLoginAt = DateTimeOffset.UtcNow;
+            await identityRepository.UpdateUserAsync(user, cancellationToken);
+
+            // Generate tokens
+            var tokenResponse = await tokenService.GenerateUserTokenAsync(user, organization, cancellationToken);
+
+            logger.LogInformation("User logged in successfully - {Email} (UserId: {UserId}, OrgId: {OrgId})",
+                user.Email, user.Id, organization.Id);
+
+            return TypedResults.Ok(tokenResponse);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Login failed with exception - {Email}", request.Email);
+            return TypedResults.Unauthorized();
+        }
     }
 
     private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem>> RefreshToken(

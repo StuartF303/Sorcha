@@ -121,6 +121,23 @@ All specifications are designed to provide context for AI-assisted development. 
   - ✅ DID URI support: `did:sorcha:register:{id}/tx:{txId}`
   - 🚧 MongoDB repository (InMemory implementation complete)
 
+- **✅ Tenant Service** (Specification 100% COMPLETE): Multi-tenant authentication and authorization ([View Specification](.specify/specs/sorcha-tenant-service.md))
+  - ✅ User authentication with JWT tokens (60 min lifetime)
+  - ✅ Service-to-service authentication (OAuth2 client credentials, 8 hour tokens)
+  - ✅ Delegation tokens for services acting on behalf of users
+  - ✅ Token refresh flow (24 hour refresh token lifetime)
+  - ✅ Hybrid token validation (local JWT + optional introspection)
+  - ✅ Token revocation with Redis-backed store
+  - ✅ Multi-tenant organization management with subdomain routing
+  - ✅ Role-based access control (9 authorization policies)
+  - ✅ 30+ REST API endpoints fully documented
+  - ✅ Stateless horizontal scaling (2-3 instances MVD, 3-10 production)
+  - ✅ 99.5% SLA target with degraded operation mode
+  - ✅ Bootstrap seed scripts for development/MVD deployment
+  - 🚧 Implementation (80% complete - core features implemented)
+  - 🚧 PostgreSQL repository (pending)
+  - 🚧 Production deployment with Azure AD/B2C (pending)
+
 - **Blueprint Designer**: Visual designer for creating and managing workflows
   - Blazor WASM client with offline capabilities
   - Client-side validation using portable execution engine

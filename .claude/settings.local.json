@@ -150,7 +150,12 @@
       "Bash(timeout 30 dotnet run:*)",
       "Bash(timeout 120 dotnet run:*)",
       "Bash(tee:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(powershell:*)",
+      "Bash(chmod:*)",
+      "Bash($env:TEST_DATABASE_MODE=\"PostgreSQL\")",
+      "Bash(export TEST_DATABASE_MODE=PostgreSQL)",
+      "Bash(Select-String -Pattern \"(Passed|Failed|Total tests:|Test run|error CS|at Sorcha)\" -Context 0,2)"
     ],
     "deny": [],
     "ask": []

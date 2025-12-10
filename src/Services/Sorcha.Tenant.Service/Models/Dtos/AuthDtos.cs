@@ -4,6 +4,28 @@
 namespace Sorcha.Tenant.Service.Models.Dtos;
 
 /// <summary>
+/// Request to login with email and password.
+/// </summary>
+public record LoginRequest
+{
+    /// <summary>
+    /// User email address.
+    /// </summary>
+    public required string Email { get; init; }
+
+    /// <summary>
+    /// User password.
+    /// </summary>
+    public required string Password { get; init; }
+
+    /// <summary>
+    /// Optional organization subdomain.
+    /// If not provided, will look up by email domain or use default organization.
+    /// </summary>
+    public string? OrganizationSubdomain { get; init; }
+}
+
+/// <summary>
 /// Request to refresh an access token.
 /// </summary>
 public record TokenRefreshRequest
@@ -163,6 +185,47 @@ public record RevokeOrganizationTokensRequest
     /// Organization ID whose tokens should be revoked.
     /// </summary>
     public required Guid OrganizationId { get; init; }
+}
+
+/// <summary>
+/// Current authenticated user information.
+/// </summary>
+public record CurrentUserResponse
+{
+    /// <summary>
+    /// User ID.
+    /// </summary>
+    public required Guid UserId { get; init; }
+
+    /// <summary>
+    /// User email.
+    /// </summary>
+    public required string Email { get; init; }
+
+    /// <summary>
+    /// User display name.
+    /// </summary>
+    public required string DisplayName { get; init; }
+
+    /// <summary>
+    /// Organization ID.
+    /// </summary>
+    public Guid? OrganizationId { get; init; }
+
+    /// <summary>
+    /// Organization name.
+    /// </summary>
+    public string? OrganizationName { get; init; }
+
+    /// <summary>
+    /// User roles.
+    /// </summary>
+    public string[] Roles { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Token type (user, service, etc.).
+    /// </summary>
+    public string? TokenType { get; init; }
 }
 
 /// <summary>

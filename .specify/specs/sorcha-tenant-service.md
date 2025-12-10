@@ -31,6 +31,17 @@ The Sorcha Tenant Service is the **central authentication and authorization hub*
 
 ---
 
+## Clarifications
+
+### Session 2025-12-10
+
+- Q: What is the target availability SLA for the Tenant Service in the MVD/production environment? → A: 99.5% uptime (4.38 hours downtime/month)
+- Q: When Redis (token revocation store) becomes unavailable, how should the Tenant Service behave? → A: Degraded operation with caching (continue token operations with local JWT validation, log revocation attempts, warn about limited enforcement). Future enhancement: administrative control to change failure mode.
+- Q: For local development and MVD deployment, how should the first administrator user and service principals be created (bootstrap problem)? → A: Seed script with documented credentials (automated script creates admin + service principals with test credentials from environment variables)
+- Q: What is the horizontal scaling strategy for the Tenant Service (load balancing, state management, instance limits)? → A: Stateless horizontal scaling with Redis (multiple service instances behind load balancer, Redis shared state, no sticky sessions required)
+
+---
+
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
@@ -107,6 +118,51 @@ The Sorcha Tenant Service is the **central authentication and authorization hub*
 - **.NET Aspire** - Service orchestration and observability
 - **Minimal APIs** - Modern endpoint routing
 - **OpenAPI/Scalar** - API documentation
+
+### Operational Requirements
+
+**Availability:**
+- **Target SLA:** 99.5% uptime (4.38 hours downtime/month)
+- Allows planned maintenance windows while maintaining reliability for MVD/production
+- Single-region deployment acceptable for MVD phase
+- Planned maintenance should be scheduled during low-traffic periods
+- Critical dependency: Service downtime blocks all authentication across platform
+
+**Scalability:**
+- **Architecture:** Stateless horizontal scaling
+- **Load Balancing:** Round-robin or least-connections behind Azure Load Balancer / Application Gateway
+- **State Management:** Redis provides shared state for token revocation across all instances
+- **No Sticky Sessions Required:** JWT validation is stateless; any instance can validate any token
+- **Instance Scaling:**
+  - **MVD Phase:** 2-3 instances (high availability + rolling updates)
+  - **Production:** Auto-scale based on CPU/memory (min 3, max 10 instances)
+  - **Performance Target:** Each instance handles ~1000 token operations/second
+- **Database Connection Pooling:** Each instance maintains connection pool to PostgreSQL (max 20 connections per instance)
+- **Redis Connection:** Single connection per instance with automatic reconnection
+
+**Dependencies:**
+- PostgreSQL (organizations, users, service principals)
+- Redis (token revocation, caching, shared state across instances)
+- Network connectivity to Azure AD/B2C (future)
+- Load balancer (Azure Application Gateway or equivalent)
+
+**Failure Mode Behavior:**
+
+*Redis Unavailable:*
+- **Immediate behavior:** Degraded operation mode
+  - Continue token issuance and validation using local JWT signature verification
+  - Log token revocation attempts but do not block operations
+  - Emit warning metrics indicating limited revocation enforcement
+  - Tokens rely on expiry rather than real-time revocation checks
+- **Monitoring:** Alert operators when Redis connection lost
+- **Recovery:** Automatic reconnection when Redis becomes available
+- **Future enhancement:** Administrative configuration to change failure mode (fail closed, manual intervention, etc.)
+
+*PostgreSQL Unavailable:*
+- Service cannot issue new tokens for new authentications (user/service principal data unavailable)
+- Existing valid tokens continue to work for authorization (JWT validation is stateless)
+- Token refresh operations fail (cannot validate user still exists/active)
+- Return 503 Service Unavailable for operations requiring database access
 
 ---
 
@@ -1446,6 +1502,63 @@ REDIS_CONNECTION_STRING=<azure-redis-connection>
 ASPNETCORE_ENVIRONMENT=Production
 ```
 
+### Bootstrap & Seeding (Development/MVD)
+
+**Problem:** Initial deployment requires administrator user and service principals, but creating them requires authentication (chicken-and-egg).
+
+**Solution:** Automated seed script with documented test credentials
+
+**Seed Script Location:**
+- `scripts/seed-tenant-service.ps1` (PowerShell)
+- `scripts/seed-tenant-service.sh` (Bash)
+
+**Seed Script Actions:**
+1. Check if default admin user exists (email: `admin@sorcha.local`)
+2. If not exists, create:
+   - Default organization: "Sorcha Platform" (subdomain: `sorcha`)
+   - Default administrator user with documented test credentials
+   - Service principals for each platform service (Blueprint, Wallet, Register, Peer)
+3. Output service principal credentials to console (client_id + client_secret)
+4. Optionally write credentials to `.env.local` file (gitignored)
+
+**Test Credentials (.env.example):**
+```bash
+# Default administrator (local development only - CHANGE IN PRODUCTION)
+TENANT_ADMIN_EMAIL=admin@sorcha.local
+TENANT_ADMIN_PASSWORD=Dev_Pass_2025!
+
+# Service principal credentials (generated by seed script)
+BLUEPRINT_SERVICE_CLIENT_ID=<generated-by-seed-script>
+BLUEPRINT_SERVICE_CLIENT_SECRET=<generated-by-seed-script>
+WALLET_SERVICE_CLIENT_ID=<generated-by-seed-script>
+WALLET_SERVICE_CLIENT_SECRET=<generated-by-seed-script>
+REGISTER_SERVICE_CLIENT_ID=<generated-by-seed-script>
+REGISTER_SERVICE_CLIENT_SECRET=<generated-by-seed-script>
+```
+
+**Usage:**
+```bash
+# Local development
+cd scripts
+./seed-tenant-service.ps1 -Environment Development
+
+# MVD deployment (Azure)
+./seed-tenant-service.ps1 -Environment Staging -AdminEmail mvd-admin@company.com
+```
+
+**Security Notes:**
+- Seed script only runs when database is empty OR explicit `--force` flag provided
+- Default credentials must be changed on first login in non-development environments
+- Service principal secrets displayed only once (store in Azure Key Vault for production)
+- Script logs all actions to audit log
+- Production deployment should use Azure AD admin instead of default credentials
+
+**Implementation Status:**
+- [ ] Create PowerShell seed script
+- [ ] Create Bash seed script
+- [ ] Add to deployment documentation
+- [ ] Integrate with .NET Aspire startup
+
 ---
 
 ## Testing Strategy
@@ -1572,6 +1685,19 @@ public async Task ListOrganizations_ShouldReturnForbidden_WhenNotAdmin()
 
 ---
 
+### Phase 5 (Q3 2026): Operational Resilience Enhancements
+
+**Configurable Failure Modes:**
+- Administrative configuration for Redis failure behavior (degraded/fail-closed/manual)
+- Dashboard for monitoring service health and failure states
+- Automated failover for Redis and PostgreSQL
+- Circuit breaker patterns for external dependencies
+- Graceful degradation controls per-endpoint
+
+**Implementation Effort:** 30 hours
+
+---
+
 ## Implementation Checklist
 
 ### ✅ Completed (100%)
@@ -1595,6 +1721,9 @@ public async Task ListOrganizations_ShouldReturnForbidden_WhenNotAdmin()
 
 ### ⚠️ In Progress (Service Integration)
 
+- [ ] Bootstrap seed script (PowerShell + Bash)
+- [ ] Default admin user creation workflow
+- [ ] Service principal auto-provisioning in seed script
 - [ ] Blueprint Service integration (AUTH-001)
 - [ ] Wallet Service integration (AUTH-001)
 - [ ] Register Service integration (AUTH-001)

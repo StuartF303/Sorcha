@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 3.6 - UPDATED
-**Last Updated:** 2025-12-04
-**Status:** Active - Sprint 10 Complete (16/16 tasks complete)
+**Version:** 3.7 - UPDATED
+**Last Updated:** 2025-12-10
+**Status:** Active - Sprint 10 Complete (16/16 tasks), Tenant Service Specification Complete
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -15,6 +15,18 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 **Completed:** 129 (68%)
 **In Progress:** 0 (0%)
 **Not Started:** 60 (32%)
+
+**Note:** Counts updated 2025-12-10:
+- ✅ **AUTH-001 SPECIFICATION COMPLETE**: Tenant Service specification finalized (1,730+ lines)
+  - Comprehensive authentication and authorization specification
+  - 4 authentication flows: User, Service-to-Service, Delegated Authority, Token Refresh
+  - Token lifecycle management with Redis-backed revocation
+  - 30+ REST API endpoints fully documented
+  - 9 authorization policies (RBAC)
+  - Operational requirements: 99.5% SLA, stateless horizontal scaling, degraded operation modes
+  - Bootstrap seed scripts documented for development/MVD deployment
+  - Implementation 80% complete, PostgreSQL repository and production deployment pending
+  - See [sorcha-tenant-service.md](.specify/specs/sorcha-tenant-service.md)
 
 **Note:** Counts updated 2025-12-09:
 - ✅ **SEC-004 COMPLETE**: Security headers added to all services (4h)
@@ -601,11 +613,38 @@ Enhancement tasks that can be deferred until after MVD is complete.
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| AUTH-001 | Implement JWT authentication across all services | P0 | 16h | 📋 Not Started | - |
-| AUTH-002 | Implement role-based authorization (RBAC) | P0 | 12h | 📋 Not Started | - |
-| AUTH-003 | User identity management integration | P1 | 10h | 📋 Not Started | - |
+| AUTH-001 | Implement Tenant Service (JWT + RBAC + Delegation) | P0 | 80h | 🚧 80% Complete | - |
+| AUTH-002 | Integrate services with Tenant Service authentication | P0 | 24h | 📋 Not Started | - |
+| AUTH-003 | Deploy PostgreSQL + Redis for Tenant Service | P0 | 8h | 📋 Not Started | - |
+| AUTH-004 | Bootstrap seed scripts (admin + service principals) | P0 | 12h | 📋 Not Started | - |
+| AUTH-005 | Production deployment with Azure AD/B2C | P1 | 16h | 📋 Not Started | - |
 
 **Rationale:** Services currently have NO authentication/authorization. All APIs are completely open!
+
+**AUTH-001 Status:** ✅ **Specification 100% complete** ([View Spec](.specify/specs/sorcha-tenant-service.md))
+- ✅ User authentication with JWT tokens (60 min lifetime)
+- ✅ Service-to-service authentication (OAuth2 client credentials, 8 hour tokens)
+- ✅ Delegation tokens for Blueprint→Wallet→Register flows
+- ✅ Token refresh flow (24 hour refresh token lifetime)
+- ✅ Hybrid token validation (local JWT + optional introspection)
+- ✅ Token revocation with Redis-backed store
+- ✅ Multi-tenant organization management
+- ✅ 9 authorization policies (RBAC)
+- ✅ 30+ REST API endpoints documented
+- ✅ Stateless horizontal scaling architecture
+- ✅ 99.5% SLA target with degraded operation modes
+- 🚧 Implementation 80% complete (core features implemented)
+- 📋 PostgreSQL repository pending
+- 📋 Production deployment pending
+
+**AUTH-002 Tasks:**
+- Update Blueprint Service to validate delegation tokens
+- Update Wallet Service to require service + delegation tokens
+- Update Register Service to require authentication
+- Update Peer Service to require authentication
+- Update API Gateway with JWT validation
+
+**AUTH-004 Reference:** Bootstrap seed script documented in specification Section 5.2 (lines 1491-1548)
 
 ### Security Hardening (P0-P1)
 
