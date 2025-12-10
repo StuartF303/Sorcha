@@ -108,7 +108,10 @@ public class ParticipantManager
         };
 
         _logger.LogInformation("Created wallet for {ParticipantId}: {Address}",
-            participantId, walletResponse.Address[..16] + "...");
+            participantId,
+            walletResponse.Address.Length > 16
+                ? walletResponse.Address[..16] + "..."
+                : walletResponse.Address);
 
         return participant;
     }

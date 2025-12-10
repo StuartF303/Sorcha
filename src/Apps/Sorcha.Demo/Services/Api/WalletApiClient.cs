@@ -33,7 +33,24 @@ public class WalletApiClient : ApiClientBase
             algorithm
         };
 
-        return await PostAsync<object, WalletResponse>($"{_baseUrl}/wallets", request, ct);
+        // New API returns nested structure with wallet + mnemonic
+        var response = await PostAsync<object, CreateWalletResponse>($"{_baseUrl}/wallets", request, ct);
+
+        if (response == null)
+        {
+            return null;
+        }
+
+        // Convert to flat WalletResponse for backward compatibility
+        return new WalletResponse
+        {
+            Address = response.Wallet.Address,
+            Name = response.Wallet.Name,
+            Algorithm = response.Wallet.Algorithm,
+            PublicKey = response.Wallet.PublicKey,
+            Mnemonic = response.MnemonicWords != null ? string.Join(" ", response.MnemonicWords) : null,
+            CreatedAt = response.Wallet.CreatedAt
+        };
     }
 
     /// <summary>
@@ -102,7 +119,34 @@ public class WalletApiClient : ApiClientBase
 }
 
 /// <summary>
-/// Response from wallet creation/retrieval
+/// Response from wallet creation (new format with nested wallet object)
+/// </summary>
+public class CreateWalletResponse
+{
+    public WalletDetails Wallet { get; set; } = new();
+    public string[]? MnemonicWords { get; set; }
+    public string? Warning { get; set; }
+}
+
+/// <summary>
+/// Wallet details (used in nested responses)
+/// </summary>
+public class WalletDetails
+{
+    public string Address { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Algorithm { get; set; } = string.Empty;
+    public string? PublicKey { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string Owner { get; set; } = string.Empty;
+    public string Tenant { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public Dictionary<string, string>? Metadata { get; set; }
+}
+
+/// <summary>
+/// Response from wallet creation/retrieval (legacy flat format for GET requests)
 /// </summary>
 public class WalletResponse
 {

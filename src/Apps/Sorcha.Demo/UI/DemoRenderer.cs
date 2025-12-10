@@ -107,7 +107,7 @@ public class DemoRenderer
         {
             table.AddRow(
                 $"[cyan]{id}[/]",
-                $"[dim]{participant.WalletAddress[..16]}...[/]",
+                $"[dim]{(participant.WalletAddress.Length > 16 ? participant.WalletAddress[..16] + "..." : participant.WalletAddress)}[/]",
                 participant.Algorithm);
         }
 
@@ -137,7 +137,10 @@ public class DemoRenderer
             AnsiConsole.MarkupLine($"[green]✓ Action completed successfully[/]");
             if (result.TransactionHash != null)
             {
-                AnsiConsole.MarkupLine($"  [dim]Transaction:[/] {result.TransactionHash[..16]}...");
+                var txHash = result.TransactionHash.Length > 16
+                    ? result.TransactionHash[..16] + "..."
+                    : result.TransactionHash;
+                AnsiConsole.MarkupLine($"  [dim]Transaction:[/] {txHash}");
             }
             if (result.NextParticipant != null)
             {
@@ -191,7 +194,9 @@ public class DemoRenderer
                 result.ActionTitle,
                 $"[cyan]{result.ParticipantId}[/]",
                 result.Success ? "[green]✓[/]" : "[red]✗[/]",
-                result.TransactionHash?[..12] + "..." ?? "-");
+                result.TransactionHash != null && result.TransactionHash.Length > 12
+                    ? result.TransactionHash[..12] + "..."
+                    : result.TransactionHash ?? "-");
         }
 
         AnsiConsole.Write(table);

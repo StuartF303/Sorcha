@@ -231,7 +231,9 @@ public class BlueprintFlowExecutor
 
             _logger.LogInformation("Action {Index} executed successfully. TxHash: {TxHash}, Next: {Next}",
                 actionIndex,
-                response.TransactionHash?[..16] + "...",
+                response.TransactionHash != null && response.TransactionHash.Length > 16
+                    ? response.TransactionHash[..16] + "..."
+                    : response.TransactionHash ?? "N/A",
                 response.NextParticipant ?? "Complete");
 
             return result;

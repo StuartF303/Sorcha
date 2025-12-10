@@ -74,7 +74,12 @@ class Program
         // If blueprint specified on command line, run it directly
         if (!string.IsNullOrEmpty(blueprint))
         {
-            await RunBlueprintAsync(blueprint, context, serviceProvider);
+            // Add .json extension if not already present
+            var blueprintFile = blueprint.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                ? blueprint
+                : $"{blueprint}.json";
+
+            await RunBlueprintAsync(blueprintFile, context, serviceProvider);
             return;
         }
 
@@ -221,9 +226,18 @@ class Program
             bool reuseWallets = false;
             if (walletStorage.WalletsExist())
             {
-                reuseWallets = AnsiConsole.Confirm(
-                    "Existing wallets found. Reuse them?",
-                    defaultValue: true);
+                // In automated mode, always reuse existing wallets
+                if (context.Settings.StepByStepMode)
+                {
+                    reuseWallets = AnsiConsole.Confirm(
+                        "Existing wallets found. Reuse them?",
+                        defaultValue: true);
+                }
+                else
+                {
+                    reuseWallets = true;
+                    AnsiConsole.MarkupLine("[dim]Existing wallets found. Reusing automatically.[/]");
+                }
             }
 
             // Ensure participants have wallets
@@ -258,9 +272,17 @@ class Program
             // Show wallet assignments
             renderer.ShowWalletAssignments(context.Participants);
 
-            if (!AnsiConsole.Confirm("Ready to execute blueprint?"))
+            // In automated mode, skip confirmation
+            if (context.Settings.StepByStepMode)
             {
-                return;
+                if (!AnsiConsole.Confirm("Ready to execute blueprint?"))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[dim]Starting blueprint execution...[/]");
             }
 
             // Execute workflow
@@ -315,15 +337,24 @@ class Program
                 AnsiConsole.MarkupLine("[yellow]Workflow completed with issues. Check the summary above.[/]");
             }
 
-            AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine("[dim]Press any key to continue...[/]");
-            Console.ReadKey(true);
+            // In interactive mode, wait for user
+            if (context.Settings.StepByStepMode)
+            {
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("[dim]Press any key to continue...[/]");
+                Console.ReadKey(true);
+            }
         }
         catch (Exception ex)
         {
             AnsiConsole.WriteException(ex);
-            AnsiConsole.MarkupLine("\n[dim]Press any key to continue...[/]");
-            Console.ReadKey(true);
+
+            // In interactive mode, wait for user
+            if (context.Settings.StepByStepMode)
+            {
+                AnsiConsole.MarkupLine("\n[dim]Press any key to continue...[/]");
+                Console.ReadKey(true);
+            }
         }
     }
 

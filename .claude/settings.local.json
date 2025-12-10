@@ -147,7 +147,10 @@
       "Bash(Select-String -Pattern \"(Started|Listening|Error|Exception)\")",
       "Bash(docker-compose restart:*)",
       "Bash(timeout 10 curl:*)",
-      "Bash(timeout 30 dotnet run:*)"
+      "Bash(timeout 30 dotnet run:*)",
+      "Bash(timeout 120 dotnet run:*)",
+      "Bash(tee:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []
