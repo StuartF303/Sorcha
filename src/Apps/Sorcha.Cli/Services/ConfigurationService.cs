@@ -176,7 +176,7 @@ public class ConfigurationService : IConfigurationService
     }
 
     /// <summary>
-    /// Creates a default configuration with dev, staging, and production profiles.
+    /// Creates a default configuration with dev, local (Docker), staging, and production profiles.
     /// </summary>
     private static CliConfiguration CreateDefaultConfiguration()
     {
@@ -195,8 +195,20 @@ public class ConfigurationService : IConfigurationService
                     RegisterServiceUrl = "https://localhost:7081",
                     PeerServiceUrl = "https://localhost:7082",
                     WalletServiceUrl = "https://localhost:7083",
-                    AuthTokenUrl = "https://localhost:7080/auth/token",
-                    DefaultClientId = "sorcha-cli-dev",
+                    AuthTokenUrl = "https://localhost:7080/api/service-auth/token",
+                    DefaultClientId = "sorcha-cli",
+                    VerifySsl = false,
+                    TimeoutSeconds = 30
+                },
+                ["local"] = new Profile
+                {
+                    Name = "local",
+                    TenantServiceUrl = "http://localhost:5080",
+                    RegisterServiceUrl = "http://localhost:5081",
+                    PeerServiceUrl = "http://localhost:5082",
+                    WalletServiceUrl = "http://localhost:5083",
+                    AuthTokenUrl = "http://localhost:5080/api/service-auth/token",
+                    DefaultClientId = "sorcha-cli",
                     VerifySsl = false,
                     TimeoutSeconds = 30
                 },
@@ -207,7 +219,7 @@ public class ConfigurationService : IConfigurationService
                     RegisterServiceUrl = "https://staging-register.sorcha.io",
                     PeerServiceUrl = "https://staging-peer.sorcha.io",
                     WalletServiceUrl = "https://staging-wallet.sorcha.io",
-                    AuthTokenUrl = "https://staging-tenant.sorcha.io/auth/token",
+                    AuthTokenUrl = "https://staging-tenant.sorcha.io/api/service-auth/token",
                     DefaultClientId = "sorcha-cli",
                     VerifySsl = true,
                     TimeoutSeconds = 30
@@ -219,7 +231,7 @@ public class ConfigurationService : IConfigurationService
                     RegisterServiceUrl = "https://register.sorcha.io",
                     PeerServiceUrl = "https://peer.sorcha.io",
                     WalletServiceUrl = "https://wallet.sorcha.io",
-                    AuthTokenUrl = "https://tenant.sorcha.io/auth/token",
+                    AuthTokenUrl = "https://tenant.sorcha.io/api/service-auth/token",
                     DefaultClientId = "sorcha-cli",
                     VerifySsl = true,
                     TimeoutSeconds = 30

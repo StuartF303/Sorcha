@@ -1,0 +1,52 @@
+{
+  "activeProfile": "dev",
+  "defaultOutputFormat": "table",
+  "verboseLogging": false,
+  "quietMode": false,
+  "profiles": {
+    "dev": {
+      "name": "dev",
+      "tenantServiceUrl": "https://localhost:7080",
+      "registerServiceUrl": "https://localhost:7081",
+      "peerServiceUrl": "https://localhost:7082",
+      "walletServiceUrl": "https://localhost:7083",
+      "authTokenUrl": "https://localhost:7080/api/service-auth/token",
+      "defaultClientId": "sorcha-cli",
+      "verifySsl": false,
+      "timeoutSeconds": 30
+    },
+    "local": {
+      "name": "local",
+      "tenantServiceUrl": "http://localhost:5080",
+      "registerServiceUrl": "http://localhost:5081",
+      "peerServiceUrl": "http://localhost:5082",
+      "walletServiceUrl": "http://localhost:5083",
+      "authTokenUrl": "http://localhost:5080/api/service-auth/token",
+      "defaultClientId": "sorcha-cli",
+      "verifySsl": false,
+      "timeoutSeconds": 30
+    },
+    "staging": {
+      "name": "staging",
+      "tenantServiceUrl": "https://staging-tenant.sorcha.io",
+      "registerServiceUrl": "https://staging-register.sorcha.io",
+      "peerServiceUrl": "https://staging-peer.sorcha.io",
+      "walletServiceUrl": "https://staging-wallet.sorcha.io",
+      "authTokenUrl": "https://staging-tenant.sorcha.io/api/service-auth/token",
+      "defaultClientId": "sorcha-cli",
+      "verifySsl": true,
+      "timeoutSeconds": 30
+    },
+    "production": {
+      "name": "production",
+      "tenantServiceUrl": "https://tenant.sorcha.io",
+      "registerServiceUrl": "https://register.sorcha.io",
+      "peerServiceUrl": "https://peer.sorcha.io",
+      "walletServiceUrl": "https://wallet.sorcha.io",
+      "authTokenUrl": "https://tenant.sorcha.io/api/service-auth/token",
+      "defaultClientId": "sorcha-cli",
+      "verifySsl": true,
+      "timeoutSeconds": 30
+    }
+  }
+}

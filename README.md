@@ -343,6 +343,49 @@ sorcha user list --org-id acme-corp
 sorcha user get --username admin@acme.com
 ```
 
+#### Authentication & Session Management
+```bash
+# Login as a user (interactive - recommended)
+sorcha auth login
+
+# Login with explicit credentials (less secure - use interactive mode)
+sorcha auth login --username admin@acme.com --password mypassword
+
+# Login as a service principal (interactive)
+sorcha auth login --client-id my-app-id
+
+# Login as a service principal (non-interactive)
+sorcha auth login --client-id my-app-id --client-secret my-secret
+
+# Check authentication status for current profile
+sorcha auth status
+
+# Check authentication status for specific profile
+sorcha auth status --profile staging
+
+# Logout from current profile
+sorcha auth logout
+
+# Logout from all profiles
+sorcha auth logout --all
+```
+
+**Authentication Features:**
+- **Secure Token Storage**: Tokens are encrypted using platform-specific mechanisms:
+  - **Windows**: DPAPI (Data Protection API)
+  - **macOS**: Keychain
+  - **Linux**: Encrypted storage with user-specific keys
+- **Automatic Token Refresh**: Access tokens are automatically refreshed when they expire
+- **Multi-Profile Support**: Authenticate separately for dev, staging, and production environments
+- **Interactive Mode**: Passwords and secrets are masked during input (recommended for security)
+- **OAuth2 Support**: Both password grant (users) and client credentials grant (service principals)
+
+**Security Best Practices:**
+- Always use interactive mode (`--interactive`) to avoid exposing credentials in process lists
+- Never commit credentials to source control
+- Use service principals for automated/CI scenarios
+- Regularly rotate service principal secrets
+
 #### Wallet Operations
 ```bash
 # List wallets

@@ -1,6 +1,8 @@
 using System.CommandLine;
 using FluentAssertions;
 using Sorcha.Cli.Commands;
+using Sorcha.Cli.Infrastructure;
+using Sorcha.Cli.Services;
 using Xunit;
 
 namespace Sorcha.Cli.Tests.Commands;
@@ -10,11 +12,16 @@ namespace Sorcha.Cli.Tests.Commands;
 /// </summary>
 public class ServicePrincipalCommandsTests
 {
+    // Note: Structure tests use null dependencies since we're only testing command structure, not execution
+    private readonly HttpClientFactory _clientFactory = null!;
+    private readonly IAuthenticationService _authService = null!;
+    private readonly IConfigurationService _configService = null!;
+
     [Fact]
     public void ServicePrincipalCommand_ShouldHaveCorrectNameAndDescription()
     {
         // Arrange & Act
-        var command = new ServicePrincipalCommand();
+        var command = new ServicePrincipalCommand(_clientFactory, _authService, _configService);
 
         // Assert
         command.Name.Should().Be("principal");
@@ -25,7 +32,7 @@ public class ServicePrincipalCommandsTests
     public void ServicePrincipalCommand_ShouldHaveAllSubcommands()
     {
         // Arrange & Act
-        var command = new ServicePrincipalCommand();
+        var command = new ServicePrincipalCommand(_clientFactory, _authService, _configService);
 
         // Assert
         command.Subcommands.Should().HaveCount(5);
@@ -40,7 +47,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalListCommand_ShouldHaveRequiredOrgIdOption()
     {
         // Arrange & Act
-        var command = new PrincipalListCommand();
+        var command = new PrincipalListCommand(_clientFactory, _authService, _configService);
 
         // Assert
         command.Name.Should().Be("list");
@@ -55,7 +62,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalGetCommand_ShouldHaveRequiredOrgIdAndClientIdOptions()
     {
         // Arrange & Act
-        var command = new PrincipalGetCommand();
+        var command = new PrincipalGetCommand(_clientFactory, _authService, _configService);
 
         // Assert
         command.Name.Should().Be("get");
@@ -74,7 +81,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalCreateCommand_ShouldHaveRequiredOptions()
     {
         // Arrange & Act
-        var command = new PrincipalCreateCommand();
+        var command = new PrincipalCreateCommand(_clientFactory, _authService, _configService);
 
         // Assert
         command.Name.Should().Be("create");
@@ -90,30 +97,26 @@ public class ServicePrincipalCommandsTests
     }
 
     [Fact]
-    public void PrincipalCreateCommand_ShouldHaveOptionalDescriptionRolesAndExpirationOptions()
+    public void PrincipalCreateCommand_ShouldHaveOptionalDescriptionAndScopesOptions()
     {
         // Arrange & Act
-        var command = new PrincipalCreateCommand();
+        var command = new PrincipalCreateCommand(_clientFactory, _authService, _configService);
 
         // Assert
         var descriptionOption = command.Options.FirstOrDefault(o => o.Name == "description");
         descriptionOption.Should().NotBeNull();
         descriptionOption!.IsRequired.Should().BeFalse();
 
-        var rolesOption = command.Options.FirstOrDefault(o => o.Name == "roles");
-        rolesOption.Should().NotBeNull();
-        rolesOption!.IsRequired.Should().BeFalse();
-
-        var expiresInDaysOption = command.Options.FirstOrDefault(o => o.Name == "expires-in-days");
-        expiresInDaysOption.Should().NotBeNull();
-        expiresInDaysOption!.IsRequired.Should().BeFalse();
+        var scopesOption = command.Options.FirstOrDefault(o => o.Name == "scopes");
+        scopesOption.Should().NotBeNull();
+        scopesOption!.IsRequired.Should().BeFalse();
     }
 
     [Fact]
     public void PrincipalDeleteCommand_ShouldHaveRequiredOrgIdAndClientIdOptions()
     {
         // Arrange & Act
-        var command = new PrincipalDeleteCommand();
+        var command = new PrincipalDeleteCommand(_clientFactory, _authService, _configService);
 
         // Assert
         command.Name.Should().Be("delete");
@@ -132,7 +135,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalDeleteCommand_ShouldHaveOptionalYesOption()
     {
         // Arrange & Act
-        var command = new PrincipalDeleteCommand();
+        var command = new PrincipalDeleteCommand(_clientFactory, _authService, _configService);
 
         // Assert
         var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
@@ -144,7 +147,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalRotateSecretCommand_ShouldHaveRequiredOrgIdAndClientIdOptions()
     {
         // Arrange & Act
-        var command = new PrincipalRotateSecretCommand();
+        var command = new PrincipalRotateSecretCommand(_clientFactory, _authService, _configService);
 
         // Assert
         command.Name.Should().Be("rotate-secret");
@@ -160,23 +163,11 @@ public class ServicePrincipalCommandsTests
     }
 
     [Fact]
-    public void PrincipalRotateSecretCommand_ShouldHaveOptionalExpiresInDaysOption()
-    {
-        // Arrange & Act
-        var command = new PrincipalRotateSecretCommand();
-
-        // Assert
-        var expiresInDaysOption = command.Options.FirstOrDefault(o => o.Name == "expires-in-days");
-        expiresInDaysOption.Should().NotBeNull();
-        expiresInDaysOption!.IsRequired.Should().BeFalse();
-    }
-
-    [Fact]
     public async Task PrincipalListCommand_ShouldExecuteSuccessfully_WithRequiredOrgId()
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalListCommand());
+        rootCommand.AddCommand(new PrincipalListCommand(_clientFactory, _authService, _configService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("list --org-id test-org-123");
@@ -190,7 +181,7 @@ public class ServicePrincipalCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalGetCommand());
+        rootCommand.AddCommand(new PrincipalGetCommand(_clientFactory, _authService, _configService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("get --org-id test-org-123 --client-id client-456");
@@ -204,7 +195,7 @@ public class ServicePrincipalCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalCreateCommand());
+        rootCommand.AddCommand(new PrincipalCreateCommand(_clientFactory, _authService, _configService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("create --org-id test-org-123 --name \"API Service\"");
@@ -218,10 +209,10 @@ public class ServicePrincipalCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalCreateCommand());
+        rootCommand.AddCommand(new PrincipalCreateCommand(_clientFactory, _authService, _configService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("create --org-id test-org-123 --name \"API Service\" --description \"Backend API\" --roles Service --expires-in-days 90");
+        var exitCode = await rootCommand.InvokeAsync("create --org-id test-org-123 --name \"API Service\" --description \"Backend API\" --scopes read,write");
 
         // Assert
         exitCode.Should().Be(0);
@@ -232,24 +223,10 @@ public class ServicePrincipalCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalRotateSecretCommand());
+        rootCommand.AddCommand(new PrincipalRotateSecretCommand(_clientFactory, _authService, _configService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("rotate-secret --org-id test-org-123 --client-id client-456");
-
-        // Assert
-        exitCode.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task PrincipalRotateSecretCommand_ShouldExecuteSuccessfully_WithExpirationOption()
-    {
-        // Arrange
-        var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalRotateSecretCommand());
-
-        // Act
-        var exitCode = await rootCommand.InvokeAsync("rotate-secret --org-id test-org-123 --client-id client-456 --expires-in-days 365");
 
         // Assert
         exitCode.Should().Be(0);
