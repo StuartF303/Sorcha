@@ -159,6 +159,7 @@ Sorcha/
 ├── src/
 │   ├── Apps/                        # Application layer
 │   │   ├── Sorcha.AppHost/         # .NET Aspire orchestration host
+│   │   ├── Sorcha.Cli/             # Administrative CLI tool
 │   │   ├── Sorcha.Demo/            # Blueprint workflow demo CLI
 │   │   └── UI/
 │   │       └── Sorcha.Blueprint.Designer.Client/  # Blazor WASM UI
@@ -301,6 +302,151 @@ dotnet run --project src/Apps/UI/Sorcha.Blueprint.Designer.Client
    # Check for outdated packages
    dotnet list package --outdated
    ```
+
+## Administrative CLI Tool
+
+The Sorcha CLI (`sorcha`) is a cross-platform administrative tool for managing the distributed ledger platform. It provides commands for organization management, wallet operations, transaction handling, register administration, and peer network monitoring.
+
+### Installation
+
+The CLI is packaged as a .NET global tool:
+
+```bash
+# Install from local build
+dotnet pack src/Apps/Sorcha.Cli
+dotnet tool install --global --add-source ./src/Apps/Sorcha.Cli/bin/Release Sorcha.Cli
+
+# Or run directly without installing
+dotnet run --project src/Apps/Sorcha.Cli -- [command] [options]
+```
+
+### Available Commands
+
+#### Organization Management
+```bash
+# List organizations
+sorcha org list --profile dev
+
+# Get organization details
+sorcha org get --org-id acme-corp
+
+# Create new organization
+sorcha org create --name "Acme Corporation" --subdomain acme
+```
+
+#### User Management
+```bash
+# List users in organization
+sorcha user list --org-id acme-corp
+
+# Get user details
+sorcha user get --username admin@acme.com
+```
+
+#### Wallet Operations
+```bash
+# List wallets
+sorcha wallet list
+
+# Create new wallet
+sorcha wallet create --name "My Wallet" --algorithm ED25519
+
+# Get wallet details
+sorcha wallet get --address wallet-addr-123
+
+# Sign data
+sorcha wallet sign --address wallet-addr-123 --data dGVzdCBkYXRh
+```
+
+#### Register & Transaction Management
+```bash
+# List registers
+sorcha register list
+
+# Get register details
+sorcha register get --register-id reg-123
+
+# Submit transaction
+sorcha tx submit --register-id reg-123 --payload '{"type":"invoice","amount":1500.00}'
+
+# Query transactions
+sorcha tx list --register-id reg-123
+```
+
+#### Peer Network Monitoring _(Sprint 4 - Stub Implementation)_
+```bash
+# List all peers in the network
+sorcha peer list --status connected
+
+# Get peer details
+sorcha peer get --peer-id peer-node-01 --show-metrics
+
+# View network topology
+sorcha peer topology --format tree
+
+# Network statistics
+sorcha peer stats --window 24h
+
+# Health checks
+sorcha peer health --check-connectivity --check-consensus
+```
+
+**Note:** Peer commands currently provide stub output. Full gRPC client integration with the Peer Service is planned for a future sprint.
+
+### Global Options
+
+All commands support these global options:
+
+```bash
+--profile, -p     # Configuration profile (dev, staging, production) [default: dev]
+--output, -o      # Output format (table, json, csv) [default: table]
+--quiet, -q       # Suppress non-essential output
+--verbose, -v     # Enable verbose logging
+```
+
+### Examples
+
+**List organizations in table format (default):**
+```bash
+sorcha org list --profile dev
+```
+
+**Get wallet details in JSON format:**
+```bash
+sorcha wallet get --address wallet-123 --output json
+```
+
+**Submit transaction with complex payload:**
+```bash
+sorcha tx submit --register-id reg-123 --payload '{
+  "type": "invoice",
+  "amount": 1500.00,
+  "metadata": {
+    "invoice_id": "INV-2025-001"
+  }
+}'
+```
+
+### Future: Interactive Mode (REPL)
+
+An interactive console mode is planned for Sprint 5, which will enable:
+- Persistent session with authentication
+- Context awareness (set current org/register)
+- Command history and tab completion
+- Multi-line input for complex JSON payloads
+
+See [CLI-SPRINT-4-SUMMARY.md](docs/CLI-SPRINT-4-SUMMARY.md) for full planning details.
+
+### CLI Architecture
+
+The CLI is built with:
+- **System.CommandLine** - Modern CLI framework
+- **Spectre.Console** - Rich terminal UI and formatting
+- **ReadLine** - Command history and interactive features (REPL)
+- **Refit** - HTTP client for service communication
+- **Polly** - Resilience policies for API calls
+
+All commands follow a consistent pattern with proper validation, error handling, and output formatting.
 
 ## Testing
 

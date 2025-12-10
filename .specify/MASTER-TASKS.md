@@ -11,12 +11,19 @@
 
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
-**Total Tasks:** 189 (across all phases, including production readiness, blueprint validation, validator service, and orchestration)
-**Completed:** 129 (68%)
+**Total Tasks:** 226 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
+**Completed:** 129 (57%)
 **In Progress:** 0 (0%)
-**Not Started:** 60 (32%)
+**Not Started:** 97 (43%)
 
 **Note:** Counts updated 2025-12-10:
+- ✅ **CLI SPECIFICATION COMPLETE**: Sorcha CLI Admin Tool specification finalized (2,300+ lines)
+  - Interactive console mode (REPL) with history and tab completion
+  - Flag-based mode for scripts and AI agents
+  - Authentication caching with OS-specific encryption
+  - Tenant, Register, and Peer service integration
+  - Multi-environment profile support
+  - See [sorcha-cli-admin-tool.md](.specify/specs/sorcha-cli-admin-tool.md)
 - ✅ **AUTH-001 SPECIFICATION COMPLETE**: Tenant Service specification finalized (1,730+ lines)
   - Comprehensive authentication and authorization specification
   - 4 authentication flows: User, Service-to-Service, Delegated Authority, Token Refresh
@@ -72,9 +79,10 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 | **Phase 2: Wallet Service** | 32 | 32 | 0 | 0 | **100%** ✅ |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% |
-| **Production Readiness** (NEW) | 10 | 0 | 0 | 10 | 0% ⚠️ |
+| **Production Readiness** | 10 | 0 | 0 | 10 | 0% ⚠️ |
+| **CLI Admin Tool** (NEW) | 52 | 0 | 0 | 52 | 0% |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% |
-| **TOTAL** | **174** | **123** | **0** | **51** | **71%** |
+| **TOTAL** | **226** | **123** | **0** | **103** | **54%** |
 
 **Note:** Phase 1 now includes Sprint 10 (16 orchestration tasks). Sprint 8 validation and Sprint 10 orchestration complete.
 
@@ -675,6 +683,187 @@ Enhancement tasks that can be deferred until after MVD is complete.
 | DATA-002 | Database migration scripts and versioning | P1 | 8h | 📋 Not Started | - |
 
 **Related:** ENH-WS-1, REG-003, ENH-BP-1 (database persistence implementations)
+
+---
+
+## CLI Admin Tool Implementation
+
+**Goal:** Build cross-platform administrative CLI with interactive console and automation support
+**Duration:** 8 weeks (4 sprints of 2 weeks each)
+**Total Tasks:** 52 (12 + 13 + 12 + 15 across 4 sprints)
+**Completion:** 0% (specification complete, implementation pending)
+**Related Specification:** [sorcha-cli-admin-tool.md](.specify/specs/sorcha-cli-admin-tool.md)
+
+**Key Features:**
+- Interactive console mode (REPL) with history and tab completion
+- Flag-based mode for scripts and AI agents
+- Authentication caching with OS-specific encryption
+- Tenant, Register, and Peer service integration
+- Multi-environment profile support
+- Cross-platform (Windows, macOS, Linux)
+
+### Sprint 1: Foundation & Infrastructure (Weeks 1-2)
+
+**Goal:** Project structure, configuration management, authentication, and token caching
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| CLI-1.1 | Create Sorcha.Cli project structure | P0 | 2h | 📋 Not Started | - |
+| CLI-1.2 | Configure System.CommandLine framework | P0 | 4h | 📋 Not Started | - |
+| CLI-1.3 | Implement configuration management (profiles) | P0 | 8h | 📋 Not Started | - |
+| CLI-1.4 | Implement TokenCache with OS-specific encryption | P0 | 12h | 📋 Not Started | - |
+| CLI-1.5 | Implement WindowsDpapiEncryption provider | P0 | 4h | 📋 Not Started | - |
+| CLI-1.6 | Implement MacOsKeychainEncryption provider | P0 | 4h | 📋 Not Started | - |
+| CLI-1.7 | Implement LinuxSecretServiceEncryption provider | P0 | 4h | 📋 Not Started | - |
+| CLI-1.8 | Implement AuthenticationService with caching | P0 | 8h | 📋 Not Started | - |
+| CLI-1.9 | Create base Command classes and routing | P0 | 6h | 📋 Not Started | - |
+| CLI-1.10 | Implement global options (--profile, --output, --quiet) | P1 | 4h | 📋 Not Started | - |
+| CLI-1.11 | Implement exit code standards (0-8) | P1 | 2h | 📋 Not Started | - |
+| CLI-1.12 | Unit tests for configuration and auth services | P1 | 6h | 📋 Not Started | - |
+
+**Sprint 1 Total:** 12 tasks, 64 hours
+
+**Deliverables:**
+- CLI project compiles and installs as global tool (`dotnet tool install -g`)
+- Configuration profiles work (create, switch, list)
+- Authentication service with token caching functional
+- OS-specific encryption providers implemented
+- Base command framework ready
+
+---
+
+### Sprint 2: Tenant Service Commands (Weeks 3-4)
+
+**Goal:** Organization, user, and service principal management commands
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| CLI-2.1 | Create Refit ITenantServiceClient interface | P0 | 4h | 📋 Not Started | - |
+| CLI-2.2 | Configure HTTP client with Polly resilience policies | P0 | 4h | 📋 Not Started | - |
+| CLI-2.3 | Implement `sorcha org` commands (list, get, create, update, delete) | P0 | 8h | 📋 Not Started | - |
+| CLI-2.4 | Implement `sorcha user` commands (list, get, create, update, delete) | P0 | 8h | 📋 Not Started | - |
+| CLI-2.5 | Implement `sorcha principal` commands (list, get, create, delete) | P0 | 6h | 📋 Not Started | - |
+| CLI-2.6 | Implement `sorcha principal rotate-secret` command | P1 | 4h | 📋 Not Started | - |
+| CLI-2.7 | Implement `sorcha auth login` (user + service) | P0 | 6h | 📋 Not Started | - |
+| CLI-2.8 | Implement `sorcha auth logout` and token management | P0 | 4h | 📋 Not Started | - |
+| CLI-2.9 | Implement table output formatter (Spectre.Console) | P0 | 6h | 📋 Not Started | - |
+| CLI-2.10 | Implement JSON output formatter | P0 | 3h | 📋 Not Started | - |
+| CLI-2.11 | Implement CSV output formatter | P1 | 3h | 📋 Not Started | - |
+| CLI-2.12 | Unit tests for Tenant Service commands | P1 | 8h | 📋 Not Started | - |
+| CLI-2.13 | Integration tests with mock Tenant Service | P1 | 6h | 📋 Not Started | - |
+
+**Sprint 2 Total:** 13 tasks, 70 hours
+
+**Deliverables:**
+- All Tenant Service commands functional
+- Organization, user, and service principal CRUD
+- Authentication (login/logout) working
+- Multiple output formats (table, JSON, CSV)
+- Unit and integration tests passing
+
+---
+
+### Sprint 3: Register & Transaction Commands (Weeks 5-6)
+
+**Goal:** Register management and transaction viewing/search
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| CLI-3.1 | Create Refit IRegisterServiceClient interface | P0 | 4h | 📋 Not Started | - |
+| CLI-3.2 | Implement `sorcha register` commands (list, get, create, update, delete) | P0 | 6h | 📋 Not Started | - |
+| CLI-3.3 | Implement `sorcha register stats` command | P1 | 4h | 📋 Not Started | - |
+| CLI-3.4 | Implement `sorcha tx list` command with pagination | P0 | 6h | 📋 Not Started | - |
+| CLI-3.5 | Implement `sorcha tx get` command with payload display | P0 | 4h | 📋 Not Started | - |
+| CLI-3.6 | Implement `sorcha tx search` command (query by blueprint, action, etc.) | P1 | 6h | 📋 Not Started | - |
+| CLI-3.7 | Implement `sorcha tx verify` command (signatures + chain) | P2 | 6h | 📋 Not Started | - |
+| CLI-3.8 | Implement `sorcha tx export` command (JSON/CSV/Excel) | P2 | 6h | 📋 Not Started | - |
+| CLI-3.9 | Implement `sorcha tx timeline` command | P2 | 4h | 📋 Not Started | - |
+| CLI-3.10 | Add pagination support for list commands | P1 | 4h | 📋 Not Started | - |
+| CLI-3.11 | Unit tests for Register and Transaction commands | P1 | 6h | 📋 Not Started | - |
+| CLI-3.12 | Integration tests with mock Register Service | P1 | 6h | 📋 Not Started | - |
+
+**Sprint 3 Total:** 12 tasks, 62 hours
+
+**Deliverables:**
+- Register CRUD commands functional
+- Transaction viewer (list, get, search)
+- Transaction verification and export (P2 features)
+- Pagination support
+- Integration tests passing
+
+---
+
+### Sprint 4: Peer Service, Interactive Mode & Polish (Weeks 7-8)
+
+**Goal:** Peer monitoring, interactive console (REPL), and final polish
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| CLI-4.1 | Create Refit IPeerServiceClient interface | P0 | 3h | 📋 Not Started | - |
+| CLI-4.2 | Implement `sorcha peer list` command | P0 | 4h | 📋 Not Started | - |
+| CLI-4.3 | Implement `sorcha peer get` command with metrics | P0 | 4h | 📋 Not Started | - |
+| CLI-4.4 | Implement `sorcha peer topology` command (tree/graph) | P1 | 6h | 📋 Not Started | - |
+| CLI-4.5 | Implement `sorcha peer health` command | P1 | 4h | 📋 Not Started | - |
+| CLI-4.6 | Implement interactive console mode (ConsoleHost) | P1 | 12h | 📋 Not Started | - |
+| CLI-4.7 | Implement command history (CommandHistory class) | P1 | 4h | 📋 Not Started | - |
+| CLI-4.8 | Implement tab completion (TabCompleter class) | P1 | 8h | 📋 Not Started | - |
+| CLI-4.9 | Implement context awareness (ConsoleContext) | P1 | 4h | 📋 Not Started | - |
+| CLI-4.10 | Implement special console commands (help, clear, status, use, exit) | P1 | 4h | 📋 Not Started | - |
+| CLI-4.11 | Implement audit logging to ~/.sorcha/audit.log | P1 | 4h | 📋 Not Started | - |
+| CLI-4.12 | Add comprehensive error handling and user-friendly messages | P1 | 6h | 📋 Not Started | - |
+| CLI-4.13 | Write user documentation (README, command reference) | P1 | 8h | 📋 Not Started | - |
+| CLI-4.14 | Package as .NET global tool and publish to NuGet | P0 | 4h | 📋 Not Started | - |
+| CLI-4.15 | E2E testing on Windows, macOS, and Linux | P1 | 8h | 📋 Not Started | - |
+
+**Sprint 4 Total:** 15 tasks, 83 hours
+
+**Deliverables:**
+- Peer monitoring commands functional
+- Interactive console mode (REPL) fully working
+- Command history and tab completion
+- Context-aware prompts
+- Audit logging
+- Published to NuGet as global tool
+- Cross-platform testing complete
+- User documentation complete
+
+---
+
+### CLI Implementation Summary
+
+**Total Effort:** 279 hours (~7 weeks of full-time work)
+
+**Sprint Breakdown:**
+- Sprint 1 (Foundation): 12 tasks, 64 hours
+- Sprint 2 (Tenant): 13 tasks, 70 hours
+- Sprint 3 (Register): 12 tasks, 62 hours
+- Sprint 4 (Peer + REPL): 15 tasks, 83 hours
+
+**Priority Distribution:**
+- P0 (Critical): 23 tasks (CLI must work for administration)
+- P1 (High): 18 tasks (REPL, advanced features)
+- P2 (Medium): 3 tasks (Nice-to-have features)
+
+**Testing Coverage:**
+- Unit tests: CLI-1.12, CLI-2.12, CLI-3.11 (20 hours)
+- Integration tests: CLI-2.13, CLI-3.12 (12 hours)
+- E2E tests: CLI-4.15 (8 hours)
+- **Total testing effort:** 40 hours (14% of total)
+
+**Dependencies:**
+- Sprint 1 must complete before Sprint 2 (auth and config required)
+- Sprint 2 must complete before Sprint 3 (HTTP client framework)
+- Sprint 4 can partially overlap with Sprint 3 (Peer + REPL independent)
+
+**Success Criteria:**
+- ✅ Install as global tool: `dotnet tool install -g sorcha.cli`
+- ✅ Authenticate and cache tokens across commands
+- ✅ Manage organizations, users, service principals
+- ✅ View registers and transactions
+- ✅ Monitor peer network
+- ✅ Interactive console mode with history and completion
+- ✅ Script-friendly with JSON output and exit codes
+- ✅ Works on Windows, macOS, and Linux
 
 ---
 

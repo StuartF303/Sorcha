@@ -1,0 +1,60 @@
+using Sorcha.Cli.Models;
+
+namespace Sorcha.Cli.Services;
+
+/// <summary>
+/// Service for handling authentication and token management.
+/// </summary>
+public interface IAuthenticationService
+{
+    /// <summary>
+    /// Authenticates a user with username and password.
+    /// Caches the token for subsequent requests.
+    /// </summary>
+    /// <param name="request">Login request</param>
+    /// <param name="profileName">Profile to use for authentication</param>
+    /// <returns>Token response</returns>
+    Task<TokenResponse> LoginAsync(LoginRequest request, string profileName);
+
+    /// <summary>
+    /// Authenticates a service principal with client credentials.
+    /// Caches the token for subsequent requests.
+    /// </summary>
+    /// <param name="request">Service principal login request</param>
+    /// <param name="profileName">Profile to use for authentication</param>
+    /// <returns>Token response</returns>
+    Task<TokenResponse> LoginServicePrincipalAsync(ServicePrincipalLoginRequest request, string profileName);
+
+    /// <summary>
+    /// Gets a valid access token for the specified profile.
+    /// Returns cached token if valid, refreshes if expiring soon, or returns null if not authenticated.
+    /// </summary>
+    /// <param name="profileName">Profile name</param>
+    /// <returns>Access token, or null if not authenticated</returns>
+    Task<string?> GetAccessTokenAsync(string profileName);
+
+    /// <summary>
+    /// Refreshes an expired or expiring token using the refresh token.
+    /// </summary>
+    /// <param name="profileName">Profile name</param>
+    /// <returns>New token response, or null if refresh failed</returns>
+    Task<TokenResponse?> RefreshTokenAsync(string profileName);
+
+    /// <summary>
+    /// Checks if the user is authenticated for the specified profile.
+    /// </summary>
+    /// <param name="profileName">Profile name</param>
+    /// <returns>True if authenticated with a valid token, false otherwise</returns>
+    Task<bool> IsAuthenticatedAsync(string profileName);
+
+    /// <summary>
+    /// Logs out by clearing the cached token for the specified profile.
+    /// </summary>
+    /// <param name="profileName">Profile name</param>
+    Task LogoutAsync(string profileName);
+
+    /// <summary>
+    /// Logs out from all profiles by clearing all cached tokens.
+    /// </summary>
+    Task LogoutAllAsync();
+}
