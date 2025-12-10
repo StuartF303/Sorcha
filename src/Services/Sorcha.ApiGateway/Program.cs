@@ -18,6 +18,9 @@ builder.Services.AddReverseProxy()
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<HealthAggregationService>();
 
+// Add dashboard statistics service
+builder.Services.AddSingleton<DashboardStatisticsService>();
+
 // Add client download service
 builder.Services.AddSingleton<ClientDownloadService>();
 
@@ -85,6 +88,20 @@ app.MapGet("/api/stats", async (HealthAggregationService healthService) =>
 .WithOpenApi();
 
 // ===========================
+// Dashboard Statistics Endpoint
+// ===========================
+
+app.MapGet("/api/dashboard", async (DashboardStatisticsService dashboardService) =>
+{
+    var stats = await dashboardService.GetDashboardStatisticsAsync();
+    return Results.Ok(stats);
+})
+.WithName("DashboardStatistics")
+.WithSummary("Get dashboard statistics from all backend services (blueprints, wallets, registers, etc.)")
+.WithTags("Dashboard")
+.WithOpenApi();
+
+// ===========================
 // Client Download Endpoints
 // ===========================
 
@@ -140,10 +157,11 @@ app.MapGet("/api/client/instructions", (ClientDownloadService clientService) =>
 // Landing Page
 // ===========================
 
-app.MapGet("/", async (HealthAggregationService healthService, HttpContext context) =>
+app.MapGet("/", async (HealthAggregationService healthService, DashboardStatisticsService dashboardService, HttpContext context) =>
 {
     var stats = await healthService.GetSystemStatisticsAsync();
     var health = await healthService.GetAggregatedHealthAsync();
+    var dashboard = await dashboardService.GetDashboardStatisticsAsync();
 
     var html = $$"""
 <!DOCTYPE html>
@@ -315,6 +333,7 @@ app.MapGet("/", async (HealthAggregationService healthService, HttpContext conte
         </div>
 
         <div class="content">
+            <h2 style="color: #2d3748; margin-bottom: 20px; font-size: 1.5rem;">System Health</h2>
             <div class="stats-grid">
                 <div class="stat-card">
                     <h3>Total Services</h3>
@@ -326,7 +345,33 @@ app.MapGet("/", async (HealthAggregationService healthService, HttpContext conte
                 </div>
                 <div class="stat-card">
                     <h3>System Status</h3>
-                    <div class="value">{{health.Status}}</div>
+                    <div class="value" style="text-transform: capitalize;">{{health.Status}}</div>
+                </div>
+            </div>
+
+            <h2 style="color: #2d3748; margin: 30px 0 20px 0; font-size: 1.5rem;">Platform Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>📋 Blueprints</h3>
+                    <div class="value">{{dashboard.TotalBlueprints}}</div>
+                    <div style="font-size: 0.875rem; color: #718096; margin-top: 8px;">
+                        {{dashboard.TotalBlueprintInstances}} instances ({{dashboard.ActiveBlueprintInstances}} active)
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h3>💰 Wallets</h3>
+                    <div class="value">{{dashboard.TotalWallets}}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>📚 Registers</h3>
+                    <div class="value">{{dashboard.TotalRegisters}}</div>
+                    <div style="font-size: 0.875rem; color: #718096; margin-top: 8px;">
+                        {{dashboard.TotalTransactions}} transactions
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h3>🏢 Tenants</h3>
+                    <div class="value">{{dashboard.TotalTenants}}</div>
                 </div>
             </div>
 
@@ -343,8 +388,9 @@ app.MapGet("/", async (HealthAggregationService healthService, HttpContext conte
             <div class="actions">
                 <a href="/api/client/download" class="btn btn-primary">💾 Download Client</a>
                 <a href="/scalar/v1" class="btn btn-primary">📚 API Documentation</a>
+                <a href="/api/dashboard" class="btn btn-secondary">📊 Dashboard JSON</a>
                 <a href="/api/health" class="btn btn-secondary">🏥 Health Check</a>
-                <a href="/api/stats" class="btn btn-secondary">📊 System Stats</a>
+                <a href="/api/stats" class="btn btn-secondary">📈 System Stats</a>
                 <a href="/api/client/instructions" class="btn btn-secondary">📖 Installation Guide</a>
             </div>
 

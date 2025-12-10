@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Npgsql;
 using Sorcha.Cryptography;
 using Sorcha.Cryptography.Core;
 using Sorcha.Cryptography.Interfaces;
@@ -76,10 +77,22 @@ public static class WalletServiceExtensions
 
         if (!string.IsNullOrEmpty(connectionString))
         {
-            // Configure PostgreSQL with EF Core
-            services.AddDbContext<WalletDbContext>(options =>
+            // Configure NpgsqlDataSource with dynamic JSON support (required for Dictionary<string, string> serialization)
+            services.AddNpgsqlDataSource(connectionString, dataSourceBuilder =>
             {
-                options.UseNpgsql(connectionString, npgsqlOptions =>
+                // Enable dynamic JSON serialization for Dictionary types
+                // This is required in Npgsql 8.0+ for JSONB columns with Dictionary<string, string>
+                dataSourceBuilder.EnableDynamicJson();
+            });
+
+            // Configure PostgreSQL with EF Core using the registered data source
+            // IMPORTANT: Do NOT pass connection string again - it will use the registered NpgsqlDataSource
+            services.AddDbContext<WalletDbContext>((serviceProvider, options) =>
+            {
+                // Use the registered NpgsqlDataSource with EnableDynamicJson configured
+                var dataSource = serviceProvider.GetRequiredService<NpgsqlDataSource>();
+
+                options.UseNpgsql(dataSource, npgsqlOptions =>
                 {
                     npgsqlOptions.EnableRetryOnFailure(
                         maxRetryCount: 3,

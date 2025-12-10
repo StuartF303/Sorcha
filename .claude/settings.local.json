@@ -143,7 +143,11 @@
       "Bash(cmd /c \"rmdir /s /q C:\\Projects\\Sorcha\\src\\Apps\\Sorcha.Cli.Demo\")",
       "Bash(cmd /c \"dir /s /b C:\\Projects\\Sorcha\\docker-compose*.yml C:\\Projects\\Sorcha\\docker-compose*.yaml 2>nul\")",
       "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error CS)\")",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(Select-String -Pattern \"(Started|Listening|Error|Exception)\")",
+      "Bash(docker-compose restart:*)",
+      "Bash(timeout 10 curl:*)",
+      "Bash(timeout 30 dotnet run:*)"
     ],
     "deny": [],
     "ask": []

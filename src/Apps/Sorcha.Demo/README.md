@@ -22,8 +22,9 @@ Sorcha.Demo is a unified demonstration application that combines the capabilitie
 ## Prerequisites
 
 - .NET 10.0 SDK
-- Sorcha services running (Wallet, Blueprint, Register)
-- Access to API Gateway (default: https://localhost:7082)
+- Sorcha services running (choose one deployment option):
+  - **.NET Aspire** - AppHost orchestration (API Gateway: https://localhost:7082)
+  - **Docker Compose** - Container-based deployment (API Gateway: http://localhost:8080)
 
 ## Installation
 
@@ -44,17 +45,63 @@ dotnet Sorcha.Demo.dll
 
 ## Configuration
 
-### appsettings.json
+### Deployment Scenarios
 
+The demo supports different deployment scenarios with different configuration files:
+
+#### 1. Running with .NET Aspire (AppHost)
+
+Uses `appsettings.Development.json`:
 ```json
 {
   "SorchaApi": {
-    "BaseUrl": "https://localhost:7082",
-    "TimeoutSeconds": 30
-  },
-  "Demo": {
-    "WalletStoragePath": "~/.sorcha/demo-wallets.json",
-    "DefaultAlgorithm": "ED25519"
+    "BaseUrl": "https://localhost:7082"
+  }
+}
+```
+
+Start services with:
+```bash
+dotnet run --project src/Apps/Sorcha.AppHost
+```
+
+#### 2. Running with Docker Compose
+
+Uses `appsettings.Docker.json`:
+```json
+{
+  "SorchaApi": {
+    "BaseUrl": "http://localhost:8080"
+  }
+}
+```
+
+Start services with:
+```bash
+# Start all services in Docker
+docker-compose up -d
+
+# Run demo locally against Docker services
+cd src/Apps/Sorcha.Demo
+dotnet run --environment Docker
+```
+
+**Important:** When running services in Docker and the demo locally:
+- ✅ Use `http://localhost:8080` (not https, not port 7082)
+- ✅ Set `ASPNETCORE_ENVIRONMENT=Docker` or use `--environment Docker`
+- ✅ Ensure Docker containers are running: `docker-compose ps`
+
+#### 3. Running with Direct Service URLs
+
+Override individual service URLs in configuration:
+```json
+{
+  "SorchaApi": {
+    "BaseUrl": null,
+    "WalletServiceUrl": "http://localhost:5001",
+    "BlueprintServiceUrl": "http://localhost:5000",
+    "RegisterServiceUrl": "http://localhost:5290",
+    "TenantServiceUrl": "http://localhost:5110"
   }
 }
 ```
@@ -290,12 +337,47 @@ From the settings menu, you can clear all stored wallets. This will:
 
 ### Connection Errors
 
+**Problem:** `No connection could be made because the target machine actively refused it (localhost:7082)`
+
+**Solution:**
+1. **Check which deployment you're using:**
+   - Docker Compose → Use `http://localhost:8080`
+   - .NET Aspire → Use `https://localhost:7082`
+2. **Set the correct environment:**
+   ```bash
+   # For Docker
+   dotnet run --environment Docker
+
+   # For Aspire (default)
+   dotnet run --environment Development
+   ```
+3. **Verify services are running:**
+   ```bash
+   # For Docker
+   docker-compose ps
+
+   # For Aspire
+   # Check Aspire Dashboard at http://localhost:15888
+   ```
+
 **Problem:** `Unable to connect to Wallet Service`
 
 **Solution:**
 1. Ensure all Sorcha services are running
-2. Check API Gateway is accessible at the configured URL
+2. Check API Gateway is accessible at the configured URL:
+   ```bash
+   # For Docker
+   curl http://localhost:8080/health
+
+   # For Aspire
+   curl https://localhost:7082/health
+   ```
 3. Verify environment variables if using custom endpoints
+4. Check Docker logs if using containers:
+   ```bash
+   docker-compose logs api-gateway
+   docker-compose logs wallet-service
+   ```
 
 ### Blueprint Loading Errors
 
