@@ -163,6 +163,543 @@ var blueprint = BlueprintBuilder.Create()
 
 ---
 
+## Blueprint Execution Engine Implementation
+
+### The 6-Step Execution Pipeline
+
+When a participant submits action data, the blueprint engine processes it through a comprehensive pipeline:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ 1. SUBMISSION: Participant submits action data              │
+└─────────────────────┬────────────────────────────────────────┘
+                      ↓
+┌──────────────────────────────────────────────────────────────┐
+│ 2. VALIDATION: Data validated against JSON Schema           │
+│    Location: SchemaValidator.cs:712-745                     │
+│    • Check required fields                                   │
+│    • Validate data types                                     │
+│    • Enforce constraints (min/max, patterns, etc.)          │
+└─────────────────────┬────────────────────────────────────────┘
+                      ↓
+┌──────────────────────────────────────────────────────────────┐
+│ 3. CALCULATIONS: JSON Logic derives new fields              │
+│    Location: JsonLogicEvaluator.cs:89-132                   │
+│    • totalAmount = qty × price                               │
+│    • approvalLevel = if amount >= 5000...                    │
+│    • tax = amount × 0.10                                     │
+└─────────────────────┬────────────────────────────────────────┘
+                      ↓
+┌──────────────────────────────────────────────────────────────┐
+│ 4. ROUTING: Conditions determine next participant           │
+│    Location: RoutingEngine.cs:234-289                       │
+│    • Evaluate routing conditions                             │
+│    • Select next action                                      │
+│    • Identify participant                                    │
+└─────────────────────┬────────────────────────────────────────┘
+                      ↓
+┌──────────────────────────────────────────────────────────────┐
+│ 5. DISCLOSURE: Data filtered for each participant          │
+│    Location: DisclosureProcessor.cs:145-198                 │
+│    • Filter fields per participant                           │
+│    • Apply JSON Pointer rules                                │
+│    • Create privacy-preserving views                         │
+└─────────────────────┬────────────────────────────────────────┘
+                      ↓
+┌──────────────────────────────────────────────────────────────┐
+│ 6. TRANSACTION: Signed and stored on distributed ledger    │
+│    • Create cryptographic signature                          │
+│    • Chain to previous transaction                           │
+│    • Store on distributed ledger                             │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Execution Context
+
+The `ExecutionContext` is the data container that flows through the pipeline:
+
+**File:** `src/Core/Sorcha.Blueprint.Engine/Models/ExecutionContext.cs`
+
+```csharp
+public class ExecutionContext
+{
+    public required Blueprint Blueprint { get; init; }        // Workflow definition
+    public required Action Action { get; init; }              // Current step
+    public required Dictionary<string, object> ActionData { get; init; }  // Submitted data
+
+    public Dictionary<string, object>? PreviousData { get; init; }      // Prior action data
+    public string? PreviousTransactionHash { get; init; }     // Transaction chain
+    public string? InstanceId { get; init; }                  // Workflow instance ID
+
+    public required string ParticipantId { get; init; }       // Actor ID
+    public required string WalletAddress { get; init; }       // Signing address
+
+    public ExecutionMode Mode { get; init; } = ExecutionMode.Full;
+}
+```
+
+### Action Execution Orchestration
+
+**ActionProcessor** coordinates the entire execution pipeline:
+
+**File:** `src/Core/Sorcha.Blueprint.Engine/Implementation/ActionProcessor.cs` (Lines 89-178)
+
+```csharp
+public class ActionProcessor : IActionProcessor
+{
+    public async Task<ActionExecutionResult> ProcessAsync(
+        ExecutionContext context,
+        CancellationToken ct = default)
+    {
+        var result = new ActionExecutionResult();
+
+        try
+        {
+            // Step 1: Validate
+            if (context.Action.Form?.Schema != null)
+            {
+                result.Validation = await _schemaValidator.ValidateAsync(
+                    context.ActionData,
+                    context.Action.Form.Schema,
+                    ct);
+
+                if (!result.Validation.IsValid)
+                {
+                    result.Success = false;
+                    result.Errors.Add("Validation failed");
+                    return result;
+                }
+            }
+
+            // Step 2: Calculate
+            var processedData = new Dictionary<string, object>(context.ActionData);
+
+            if (context.Action.Calculations?.Any() == true)
+            {
+                var calculations = context.Action.Calculations
+                    .Select(kvp => Calculation.Create(kvp.Key, kvp.Value))
+                    .ToList();
+
+                processedData = await _jsonLogicEvaluator.ApplyCalculationsAsync(
+                    processedData,
+                    calculations,
+                    ct);
+
+                // Track calculated values
+                foreach (var kvp in processedData)
+                {
+                    if (!context.ActionData.ContainsKey(kvp.Key))
+                    {
+                        result.CalculatedValues[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+
+            result.ProcessedData = processedData;
+
+            // Step 3: Route
+            result.Routing = await _routingEngine.DetermineNextAsync(
+                context.Blueprint,
+                context.Action,
+                processedData,
+                ct);
+
+            // Step 4: Disclose
+            if (context.Action.Disclosures?.Any() == true)
+            {
+                result.Disclosures = _disclosureProcessor.CreateDisclosures(
+                    processedData,
+                    context.Action.Disclosures);
+            }
+
+            result.Success = true;
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.Errors.Add($"Error: {ex.Message}");
+        }
+
+        return result;
+    }
+}
+```
+
+### ActionExecutionResult
+
+**File:** `src/Core/Sorcha.Blueprint.Engine/Models/ActionExecutionResult.cs`
+
+```csharp
+public class ActionExecutionResult
+{
+    public bool Success { get; set; }                          // Execution successful?
+    public ValidationResult Validation { get; set; }           // Validation results
+    public Dictionary<string, object> ProcessedData { get; set; }  // Original + calculated
+    public Dictionary<string, object> CalculatedValues { get; set; }  // New fields only
+    public RoutingResult Routing { get; set; }                 // Next step
+    public List<DisclosureResult> Disclosures { get; set; }    // Filtered data per participant
+    public List<string> Errors { get; set; }                   // Problems
+    public List<string> Warnings { get; set; }                 // Warnings
+}
+```
+
+### Schema Validation Implementation
+
+**File:** `src/Core/Sorcha.Blueprint.Engine/Implementation/SchemaValidator.cs` (Lines 712-745)
+
+```csharp
+public class SchemaValidator : ISchemaValidator
+{
+    public async Task<ValidationResult> ValidateAsync(
+        Dictionary<string, object> data,
+        JsonNode schema,
+        CancellationToken ct = default)
+    {
+        // Convert data to JsonNode
+        var dataJson = ConvertToJsonNode(data);
+
+        // Parse JSON Schema
+        var jsonSchema = JsonSchema.FromText(schema.ToJsonString());
+
+        // Convert to JsonElement for evaluation
+        var jsonString = dataJson.ToJsonString();
+        using var jsonDocument = JsonDocument.Parse(jsonString);
+        var dataElement = jsonDocument.RootElement;
+
+        // Validate with JSON Schema Draft 2020-12
+        var validationResults = jsonSchema.Evaluate(dataElement, new EvaluationOptions
+        {
+            OutputFormat = OutputFormat.List,
+            RequireFormatValidation = true
+        });
+
+        return validationResults.IsValid
+            ? ValidationResult.Valid()
+            : ValidationResult.Invalid(ConvertErrors(validationResults));
+    }
+}
+```
+
+### JSON Logic Evaluator Implementation
+
+**File:** `src/Core/Sorcha.Blueprint.Engine/Implementation/JsonLogicEvaluator.cs` (Lines 89-132)
+
+```csharp
+public class JsonLogicEvaluator : IJsonLogicEvaluator
+{
+    public async Task<Dictionary<string, object>> ApplyCalculationsAsync(
+        Dictionary<string, object> data,
+        IEnumerable<Calculation> calculations,
+        CancellationToken ct = default)
+    {
+        var result = new Dictionary<string, object>(data);
+
+        foreach (var calculation in calculations)
+        {
+            // Evaluate calculation expression against current data
+            var value = Evaluate(calculation.Expression, result);
+
+            // Add or update the output field
+            result[calculation.OutputField] = value;
+        }
+
+        return await Task.FromResult(result);
+    }
+}
+```
+
+### Routing Engine Implementation
+
+**File:** `src/Core/Sorcha.Blueprint.Engine/Implementation/RoutingEngine.cs` (Lines 234-289)
+
+```csharp
+public class RoutingEngine : IRoutingEngine
+{
+    public async Task<RoutingResult> DetermineNextAsync(
+        Blueprint blueprint,
+        Action currentAction,
+        Dictionary<string, object> data,
+        CancellationToken ct = default)
+    {
+        // Get routing conditions from action's Participants
+        var conditions = currentAction.Participants?.ToList() ?? new List<Condition>();
+
+        if (!conditions.Any())
+        {
+            return RoutingResult.Complete();  // No more participants
+        }
+
+        // Evaluate conditions to find next participant
+        var nextParticipantId = await _evaluator.EvaluateConditionsAsync(data, conditions, ct);
+
+        if (nextParticipantId == null)
+        {
+            return RoutingResult.Complete();  // Workflow complete
+        }
+
+        // Find next action for this participant
+        var nextAction = FindNextActionForParticipant(blueprint, currentAction, nextParticipantId);
+
+        return nextAction == null
+            ? RoutingResult.Complete()
+            : RoutingResult.Next(nextAction.Id.ToString(), nextParticipantId);
+    }
+}
+```
+
+### Disclosure Processing (Privacy-Preserving Data Filtering)
+
+**File:** `src/Core/Sorcha.Blueprint.Engine/Implementation/DisclosureProcessor.cs` (Lines 145-198)
+
+```csharp
+public class DisclosureProcessor : IDisclosureProcessor
+{
+    public Dictionary<string, object> ApplyDisclosure(
+        Dictionary<string, object> data,
+        Disclosure disclosure)
+    {
+        var result = new Dictionary<string, object>();
+
+        foreach (var pointer in disclosure.DataPointers)
+        {
+            if (pointer == "/*")  // All fields
+            {
+                foreach (var kvp in data)
+                {
+                    result[kvp.Key] = kvp.Value;
+                }
+                continue;
+            }
+
+            // Process JSON Pointer (e.g., "/fieldName")
+            var fields = ExtractFieldsFromPointer(pointer, data);
+            foreach (var field in fields)
+            {
+                result[field.Key] = field.Value;
+            }
+        }
+
+        return result;
+    }
+
+    public List<DisclosureResult> CreateDisclosures(
+        Dictionary<string, object> data,
+        IEnumerable<Disclosure> disclosures)
+    {
+        var results = new List<DisclosureResult>();
+
+        foreach (var disclosure in disclosures)
+        {
+            var disclosedData = ApplyDisclosure(data, disclosure);
+            results.Add(DisclosureResult.Create(
+                disclosure.ParticipantAddress,
+                disclosedData
+            ));
+        }
+
+        return results;
+    }
+}
+```
+
+### Concrete Example: Invoice Approval with Disclosure
+
+**Blueprint Action 0: Submit Invoice**
+
+```json
+{
+  "id": 0,
+  "title": "Submit Invoice",
+  "sender": "vendor",
+  "disclosures": [
+    {
+      "participantAddress": "accounts-payable",
+      "dataPointers": ["/*"]  // AP sees all fields
+    }
+  ]
+}
+```
+
+**Vendor Submits:**
+```json
+{
+  "invoiceNumber": "INV-001",
+  "amount": 1500,
+  "currency": "USD",
+  "taxAmount": 150,
+  "totalAmount": 1650
+}
+```
+
+**Accounts Payable Sees (all fields via `/*`):**
+```json
+{
+  "invoiceNumber": "INV-001",
+  "amount": 1500,
+  "currency": "USD",
+  "taxAmount": 150,
+  "totalAmount": 1650
+}
+```
+
+**Blueprint Action 1: Approve Payment**
+
+```json
+{
+  "id": 1,
+  "title": "Approve Payment",
+  "sender": "accounts-payable",
+  "disclosures": [
+    {
+      "participantAddress": "vendor",
+      "dataPointers": ["/approved", "/paymentDate", "/paymentMethod", "/notes"]
+    }
+  ]
+}
+```
+
+**AP Approves and Submits:**
+```json
+{
+  "approved": true,
+  "paymentDate": "2025-02-15",
+  "paymentMethod": "ACH",
+  "notes": "Approved for payment",
+  "internalNotes": "Vendor has good payment history",
+  "budgetCode": "OP-2025-Q1"
+}
+```
+
+**Vendor Sees (filtered to allowed fields only):**
+```json
+{
+  "approved": true,
+  "paymentDate": "2025-02-15",
+  "paymentMethod": "ACH",
+  "notes": "Approved for payment"
+}
+```
+
+**Vendor Does NOT See:**
+- `internalNotes` (internal AP comments)
+- `budgetCode` (internal accounting)
+
+This demonstrates **selective disclosure** - each participant sees only the data they're authorized to view, enabling privacy-preserving multi-party workflows.
+
+### Data Accumulation: RequiredPriorActions
+
+When a later action needs to reference data from earlier steps, use `requiredPriorActions`:
+
+```json
+{
+  "id": 2,
+  "title": "Review Complete Package",
+  "requiredPriorActions": [0, 1],
+  "description": "Review accumulated state from actions 0 and 1"
+}
+```
+
+**Execution Context with Accumulated Data:**
+
+```csharp
+var context = new ExecutionContext
+{
+    Blueprint = blueprint,
+    Action = action2,
+    ActionData = currentActionSubmission,  // New data for action 2
+    PreviousData = new Dictionary<string, object>
+    {
+        // Accumulated from action 0
+        ["requisitionNumber"] = "REQ-2025-001",
+        ["totalAmount"] = 6000,
+        // Accumulated from action 1
+        ["approved"] = true,
+        ["approverComments"] = "Budget confirmed"
+    },
+    InstanceId = "workflow-instance-123",
+    ParticipantId = "reviewer",
+    WalletAddress = "0x..."
+};
+```
+
+The `PreviousData` dictionary contains the accumulated state from all prior actions (0 and 1), allowing action 2 to access historical workflow data.
+
+### Complete Workflow Execution Summary
+
+```
+Participant submits action data
+    ↓
+ExecutionContext created with:
+  - Blueprint definition
+  - Current action
+  - Submitted data
+  - Previous accumulated data
+  - Participant identity
+  - Wallet address
+    ↓
+ActionProcessor.ProcessAsync() called
+    ↓
+Step 1: SchemaValidator.ValidateAsync()
+  - Validates data against JSON Schema
+  - Returns ValidationResult
+  - If fails: Short circuit, return error
+    ↓
+Step 2: JsonLogicEvaluator.ApplyCalculationsAsync()
+  - Evaluates JSON Logic expressions
+  - Derives new fields (totalAmount, approvalLevel, etc.)
+  - Returns ProcessedData (original + calculated)
+    ↓
+Step 3: RoutingEngine.DetermineNextAsync()
+  - Evaluates routing conditions
+  - Determines next participant
+  - Returns RoutingResult
+    ↓
+Step 4: DisclosureProcessor.CreateDisclosures()
+  - Creates filtered data view for each participant
+  - Uses JSON Pointers to extract allowed fields
+  - Returns DisclosureResult list
+    ↓
+ActionExecutionResult returned with:
+  - Success status
+  - Validation results
+  - ProcessedData (for storage)
+  - CalculatedValues (for audit)
+  - Routing decision
+  - Disclosures (for each participant)
+  - Errors/Warnings
+    ↓
+Blueprint Service creates transaction
+  - Packages processed data + disclosures
+  - Signs with participant wallet
+  - Stores on distributed ledger
+  - References previous transaction
+    ↓
+Workflow continues to next participant
+OR
+Workflow completes (if IsWorkflowComplete)
+```
+
+### Key Implementation Files
+
+| Component | File Location | Lines | Purpose |
+|-----------|---------------|-------|---------|
+| **Blueprint Model** | `src/Common/Sorcha.Blueprint.Models/Blueprint.cs` | Full | Root workflow definition |
+| **Action Model** | `src/Common/Sorcha.Blueprint.Models/Action.cs` | Full | Workflow step |
+| **Execution Context** | `src/Core/Sorcha.Blueprint.Engine/Models/ExecutionContext.cs` | 23-47 | Data container for execution |
+| **Execution Engine** | `src/Core/Sorcha.Blueprint.Engine/Implementation/ExecutionEngine.cs` | Full | Main entry point |
+| **Action Processor** | `src/Core/Sorcha.Blueprint.Engine/Implementation/ActionProcessor.cs` | 89-178 | Orchestrates execution |
+| **Schema Validator** | `src/Core/Sorcha.Blueprint.Engine/Implementation/SchemaValidator.cs` | 712-745 | JSON Schema validation |
+| **JSON Logic Evaluator** | `src/Core/Sorcha.Blueprint.Engine/Implementation/JsonLogicEvaluator.cs` | 89-132 | Calculations & conditions |
+| **JSON-e Evaluator** | `src/Core/Sorcha.Blueprint.Engine/Implementation/JsonEEvaluator.cs` | 67-89 | Template variable replacement |
+| **Routing Engine** | `src/Core/Sorcha.Blueprint.Engine/Implementation/RoutingEngine.cs` | 234-289 | Next participant determination |
+| **Disclosure Processor** | `src/Core/Sorcha.Blueprint.Engine/Implementation/DisclosureProcessor.cs` | 145-198 | Privacy-preserving data filtering |
+| **Calculation Model** | `src/Core/Sorcha.Blueprint.Engine/Models/Calculation.cs` | Full | Field derivation definition |
+| **RoutingResult** | `src/Core/Sorcha.Blueprint.Engine/Models/RoutingResult.cs` | Full | Next action/participant |
+| **Disclosure Model** | `src/Common/Sorcha.Blueprint.Models/Disclosure.cs` | Full | Privacy rules |
+| **Control Model** | `src/Common/Sorcha.Blueprint.Models/Control.cs` | Full | UI form definition |
+
+---
+
 ## JSON-LD: Semantic Web Integration
 
 ### What is JSON-LD?
