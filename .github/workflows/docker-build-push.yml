@@ -163,7 +163,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ matrix.service.image }}:buildcache
           cache-to: type=registry,ref=${{ matrix.service.image }}:buildcache,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
 
   # Summary job
   build-summary:
