@@ -10,6 +10,12 @@ var postgres = builder.AddPostgres("postgres")
 var tenantDb = postgres.AddDatabase("tenant-db", "sorcha_tenant");
 var walletDb = postgres.AddDatabase("wallet-db", "sorcha_wallet");
 
+// Add MongoDB for Register Service transaction storage
+var mongodb = builder.AddMongoDB("mongodb")
+    .WithMongoExpress(); // Adds Mongo Express UI for development
+
+var registerDb = mongodb.AddDatabase("register-db", "sorcha_register");
+
 // Add Redis for distributed caching and output caching
 var redis = builder.AddRedis("redis")
     .WithRedisCommander(); // Adds Redis Commander UI for development
@@ -28,8 +34,9 @@ var walletService = builder.AddProject<Projects.Sorcha_Wallet_Service>("wallet-s
     .WithReference(walletDb)
     .WithReference(redis);
 
-// Add Register Service with Redis reference (internal only)
+// Add Register Service with MongoDB and Redis reference (internal only)
 var registerService = builder.AddProject<Projects.Sorcha_Register_Service>("register-service")
+    .WithReference(registerDb)
     .WithReference(redis);
 
 // Add Peer Service with Redis reference (internal only)
