@@ -26,6 +26,17 @@
       "verifySsl": false,
       "timeoutSeconds": 30
     },
+    "aspire": {
+      "name": "aspire",
+      "tenantServiceUrl": "https://localhost:7051/api/tenant",
+      "registerServiceUrl": "https://localhost:7051/api/register",
+      "peerServiceUrl": "https://localhost:7051/api/peer",
+      "walletServiceUrl": "https://localhost:7051/api/wallet",
+      "authTokenUrl": "https://localhost:7051/api/tenant/api/service-auth/token",
+      "defaultClientId": "sorcha-cli",
+      "verifySsl": false,
+      "timeoutSeconds": 30
+    },
     "staging": {
       "name": "staging",
       "tenantServiceUrl": "https://staging-tenant.sorcha.io",

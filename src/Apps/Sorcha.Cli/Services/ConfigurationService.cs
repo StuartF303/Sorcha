@@ -224,6 +224,18 @@ public class ConfigurationService : IConfigurationService
                     VerifySsl = false,
                     TimeoutSeconds = 30
                 },
+                ["aspire"] = new Profile
+                {
+                    Name = "aspire",
+                    TenantServiceUrl = "https://localhost:7051/api/tenant",
+                    RegisterServiceUrl = "https://localhost:7051/api/register",
+                    PeerServiceUrl = "https://localhost:7051/api/peer",
+                    WalletServiceUrl = "https://localhost:7051/api/wallet",
+                    AuthTokenUrl = "https://localhost:7051/api/tenant/api/service-auth/token",
+                    DefaultClientId = "sorcha-cli",
+                    VerifySsl = false,
+                    TimeoutSeconds = 30
+                },
                 ["staging"] = new Profile
                 {
                     Name = "staging",

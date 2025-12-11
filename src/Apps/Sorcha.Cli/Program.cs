@@ -159,6 +159,9 @@ internal class Program
         // Sprint 4: Peer Service commands
         rootCommand.AddCommand(new PeerCommand(clientFactory, authService, configService));
 
+        // Configuration management commands
+        rootCommand.AddCommand(new ConfigCommand());
+
         // Version command
         var versionCommand = new Command("version", "Display CLI version information");
         versionCommand.SetHandler(() =>
