@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Sorcha Contributors
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# GitHub
+.github/
+
+# Documentation
+*.md
+docs/
+.specify/
+CONTRIBUTING.md
+LICENSE
+README.md
+
+# Build output
+**/bin/
+**/obj/
+**/out/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test results
+TestResults/
+**/*.trx
+coverage/
+*.coverage
+*.coveragexml
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# CI/CD
+.github/
+azure-pipelines.yml
+
+# Local environment
+.env
+.env.local
+appsettings.Development.json
+launchSettings.json
+
+# Sensitive data
+**/appsettings.*.json
+!**/appsettings.json
+secrets.json
+*.pfx
+*.p12
+
+# Node modules (for Blazor client)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Aspire
+.aspire/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Tool output
+tools/
+.tools/

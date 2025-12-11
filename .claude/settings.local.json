@@ -165,7 +165,10 @@
       "Bash(./Sorcha.Cli.exe:*)",
       "Bash(Select-Object -First 5)",
       "WebFetch(domain:github.com)",
-      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error|Successfully built|Successfully tagged)\")"
+      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error|Successfully built|Successfully tagged)\")",
+      "Bash(cmd /c \"if not exist .github\\workflows mkdir .github\\workflows\")",
+      "Bash(test:*)",
+      "Bash(cmd /c \"dir /b .github\\workflows\")"
     ],
     "deny": [],
     "ask": []
