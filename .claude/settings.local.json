@@ -162,7 +162,8 @@
       "Bash(cmd /c \"dir /b src\\Apps\\Sorcha.Cli\\Models\")",
       "Bash(Sorcha.Cli.exe --help:*)",
       "Bash(Select-String -Pattern \"(Total tests:|Passed:|Failed:|Skipped:)\")",
-      "Bash(./Sorcha.Cli.exe:*)"
+      "Bash(./Sorcha.Cli.exe:*)",
+      "Bash(Select-Object -First 5)"
     ],
     "deny": [],
     "ask": []
