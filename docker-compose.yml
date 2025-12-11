@@ -181,8 +181,13 @@ services:
       OTEL_SERVICE_NAME: tenant-service
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Redis: redis:6379
-      ConnectionStrings__PostgreSQL: Host=postgres;Database=sorcha;Username=sorcha;Password=sorcha_dev_password
+      ConnectionStrings__TenantDatabase: Host=postgres;Database=sorcha_tenant;Username=sorcha;Password=sorcha_dev_password
+      Redis__ConnectionString: redis:6379
+      # JWT signing key for token generation (base64-encoded 256-bit key)
+      JwtSettings__SigningKey: c29yY2hhLWRldi1qd3Qtc2lnbmluZy1rZXktMjAyNS1taW4tMjU2LWJpdHM=
+      JwtSettings__Issuer: http://tenant-service:8080
+      JwtSettings__Audience__0: http://api-gateway:8080
+      JwtSettings__SigningKeySource: Configuration
     depends_on:
       redis:
         condition: service_healthy

@@ -92,6 +92,10 @@ try
     // Add health checks (PostgreSQL and Redis when configured)
     builder.Services.AddTenantHealthChecks(builder.Configuration);
 
+    // Add database initializer for automatic migration and seeding
+    // Creates default organization (sorcha.local) and admin user on startup
+    builder.Services.AddDatabaseInitializer();
+
     var app = builder.Build();
 
     // Map default endpoints (OpenAPI, health checks)
@@ -142,20 +146,8 @@ try
     app.MapAuthEndpoints();
     app.MapServiceAuthEndpoints();
 
-    // Temporary health check endpoint
-    app.MapGet("/health", () => Results.Ok(new
-    {
-        status = "Healthy",
-        service = "Sorcha.Tenant.Service",
-        version = "1.0.0",
-        timestamp = DateTime.UtcNow
-    }))
-    .WithName("HealthCheck")
-    .WithOpenApi(operation => new(operation)
-    {
-        Summary = "Service health check",
-        Description = "Returns the health status of the Tenant Service"
-    });
+    // Health check is provided by MapDefaultEndpoints() which maps /health and /alive
+    // The standard Aspire health endpoint returns plain text "Healthy" or "Unhealthy"
 
     Log.Information("Sorcha Tenant Service started successfully");
     Log.Information("Scalar API documentation available at: https://localhost:7080/scalar");

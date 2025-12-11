@@ -12,6 +12,23 @@ using StackExchange.Redis;
 namespace Sorcha.Tenant.Service.Extensions;
 
 /// <summary>
+/// Extension methods for WebApplication to add database initialization.
+/// </summary>
+public static class WebApplicationExtensions
+{
+    /// <summary>
+    /// Adds automatic database migration and seeding on startup.
+    /// Creates default organization (sorcha.local) and admin user if not exists.
+    /// </summary>
+    public static IServiceCollection AddDatabaseInitializer(this IServiceCollection services)
+    {
+        services.AddSingleton<DatabaseInitializer>();
+        services.AddHostedService<DatabaseInitializerHostedService>();
+        return services;
+    }
+}
+
+/// <summary>
 /// Extension methods for registering Tenant Service dependencies.
 /// </summary>
 public static class ServiceCollectionExtensions
