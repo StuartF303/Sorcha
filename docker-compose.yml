@@ -1,6 +1,13 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Sorcha Contributors
 
+# OpenTelemetry configuration for sending traces/metrics to Aspire Dashboard
+# The OTLP endpoint points to the aspire-dashboard container's gRPC port
+x-otel-env: &otel-env
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://aspire-dashboard:18889
+  OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-sorcha-service}
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker
+
 services:
   # ===========================
   # Infrastructure Services
@@ -62,6 +69,24 @@ services:
       retries: 5
 
   # ===========================
+  # Observability Services
+  # ===========================
+
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
+    container_name: sorcha-aspire-dashboard
+    restart: unless-stopped
+    ports:
+      - "18888:18888"  # Dashboard UI
+      - "4317:18889"   # OTLP gRPC endpoint (mapped to external 4317)
+      - "4318:18890"   # OTLP HTTP endpoint
+    environment:
+      - DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true
+      - DASHBOARD__OTLP__AUTHMODE=Unsecured
+    networks:
+      - sorcha-network
+
+  # ===========================
   # Application Services
   # ===========================
 
@@ -75,12 +100,16 @@ services:
     ports:
       - "5000:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__Redis=redis:6379
+      <<: *otel-env
+      OTEL_SERVICE_NAME: blueprint-service
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Redis: redis:6379
     depends_on:
       redis:
         condition: service_healthy
+      aspire-dashboard:
+        condition: service_started
     networks:
       - sorcha-network
     # Note: Chiseled images don't include shell tools, so we disable container-level health checks
@@ -96,15 +125,19 @@ services:
     ports:
       - "5001:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__Redis=redis:6379
-      - ConnectionStrings__wallet-db=Host=postgres;Database=sorcha;Username=sorcha;Password=sorcha_dev_password
+      <<: *otel-env
+      OTEL_SERVICE_NAME: wallet-service
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Redis: redis:6379
+      ConnectionStrings__wallet-db: Host=postgres;Database=sorcha;Username=sorcha;Password=sorcha_dev_password
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      aspire-dashboard:
+        condition: service_started
     networks:
       - sorcha-network
 
@@ -118,15 +151,19 @@ services:
     ports:
       - "5290:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__Redis=redis:6379
-      - ConnectionStrings__MongoDB=mongodb://sorcha:sorcha_dev_password@mongodb:27017
+      <<: *otel-env
+      OTEL_SERVICE_NAME: register-service
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Redis: redis:6379
+      ConnectionStrings__MongoDB: mongodb://sorcha:sorcha_dev_password@mongodb:27017
     depends_on:
       redis:
         condition: service_healthy
       mongodb:
         condition: service_healthy
+      aspire-dashboard:
+        condition: service_started
     networks:
       - sorcha-network
 
@@ -140,15 +177,19 @@ services:
     ports:
       - "5110:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__Redis=redis:6379
-      - ConnectionStrings__PostgreSQL=Host=postgres;Database=sorcha;Username=sorcha;Password=sorcha_dev_password
+      <<: *otel-env
+      OTEL_SERVICE_NAME: tenant-service
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Redis: redis:6379
+      ConnectionStrings__PostgreSQL: Host=postgres;Database=sorcha;Username=sorcha;Password=sorcha_dev_password
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      aspire-dashboard:
+        condition: service_started
     networks:
       - sorcha-network
 
@@ -162,13 +203,17 @@ services:
     ports:
       - "5002:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
-      - ASPNETCORE_HTTP_PORTS=8080
-      - ConnectionStrings__Redis=redis:6379
+      <<: *otel-env
+      OTEL_SERVICE_NAME: peer-service
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__Redis: redis:6379
     depends_on:
       redis:
         condition: service_healthy
+      aspire-dashboard:
+        condition: service_started
     networks:
       - sorcha-network
 
@@ -182,20 +227,24 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
-      - Services__Blueprint__Url=http://blueprint-service:8080
-      - Services__Wallet__Url=http://wallet-service:8080
-      - Services__Register__Url=http://register-service:8080
-      - Services__Tenant__Url=http://tenant-service:8080
-      - Services__Peer__Url=http://peer-service:8080
-      - ConnectionStrings__Redis=redis:6379
+      <<: *otel-env
+      OTEL_SERVICE_NAME: api-gateway
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Services__Blueprint__Url: http://blueprint-service:8080
+      Services__Wallet__Url: http://wallet-service:8080
+      Services__Register__Url: http://register-service:8080
+      Services__Tenant__Url: http://tenant-service:8080
+      Services__Peer__Url: http://peer-service:8080
+      ConnectionStrings__Redis: redis:6379
+      Dashboard__AspireDashboardUrl: http://localhost:18888
     depends_on:
       - blueprint-service
       - wallet-service
       - register-service
       - tenant-service
       - peer-service
+      - aspire-dashboard
     networks:
       - sorcha-network
 

@@ -102,6 +102,46 @@ app.MapGet("/api/dashboard", async (DashboardStatisticsService dashboardService)
 .WithOpenApi();
 
 // ===========================
+// API Documentation Index
+// ===========================
+
+app.MapGet("/api/docs", (IConfiguration configuration) =>
+{
+    var services = new object[]
+    {
+        new { Name = "API Gateway", Description = "Gateway endpoints for health, stats, and client management",
+              ScalarUrl = "/scalar/", OpenApiUrl = "/openapi/v1.json" },
+        new { Name = "All Services (Aggregated)", Description = "Combined documentation from all backend services",
+              ScalarUrl = "/scalar/", OpenApiUrl = "/openapi/aggregated.json" },
+        new { Name = "Blueprint Service", Description = "Blueprint and workflow management APIs",
+              OpenApiUrl = "/api/blueprint/openapi/v1.json" },
+        new { Name = "Wallet Service", Description = "Cryptographic wallet and signing APIs",
+              OpenApiUrl = "/api/wallet/openapi/v1.json" },
+        new { Name = "Register Service", Description = "Distributed ledger and transaction APIs",
+              OpenApiUrl = "/api/register/openapi/v1.json" },
+        new { Name = "Tenant Service", Description = "Authentication and multi-tenant management APIs",
+              OpenApiUrl = "/api/tenant/openapi/v1.json" },
+        new { Name = "Peer Service", Description = "P2P networking and peer discovery APIs",
+              OpenApiUrl = "/api/peer/openapi/v1.json" }
+    };
+
+    var aspireDashboardUrl = configuration["Dashboard:AspireDashboardUrl"] ?? "http://localhost:15888";
+    var showAspireLink = configuration.GetValue<bool>("Dashboard:ShowAspireLink", true);
+
+    return Results.Ok(new
+    {
+        Title = "Sorcha API Documentation Index",
+        Description = "Links to OpenAPI documentation for all Sorcha platform services",
+        AspireDashboard = showAspireLink ? new { Url = aspireDashboardUrl, Description = ".NET Aspire orchestration dashboard" } : null,
+        Services = services
+    });
+})
+.WithName("ApiDocsIndex")
+.WithSummary("Get an index of all API documentation endpoints")
+.WithTags("Documentation")
+.WithOpenApi();
+
+// ===========================
 // Client Download Endpoints
 // ===========================
 
@@ -157,11 +197,13 @@ app.MapGet("/api/client/instructions", (ClientDownloadService clientService) =>
 // Landing Page
 // ===========================
 
-app.MapGet("/", async (HealthAggregationService healthService, DashboardStatisticsService dashboardService, HttpContext context) =>
+app.MapGet("/", async (HealthAggregationService healthService, DashboardStatisticsService dashboardService, IConfiguration configuration, HttpContext context) =>
 {
     var stats = await healthService.GetSystemStatisticsAsync();
     var health = await healthService.GetAggregatedHealthAsync();
     var dashboard = await dashboardService.GetDashboardStatisticsAsync();
+    var aspireDashboardUrl = configuration["Dashboard:AspireDashboardUrl"] ?? "http://localhost:15888";
+    var showAspireLink = configuration.GetValue<bool>("Dashboard:ShowAspireLink", true);
 
     var html = $$"""
 <!DOCTYPE html>
@@ -386,8 +428,10 @@ app.MapGet("/", async (HealthAggregationService healthService, DashboardStatisti
             </div>
 
             <div class="actions">
-                <a href="/api/client/download" class="btn btn-primary">💾 Download Client</a>
-                <a href="/scalar/v1" class="btn btn-primary">📚 API Documentation</a>
+                {{(showAspireLink ? $@"<a href=""{aspireDashboardUrl}"" class=""btn btn-primary"" target=""_blank"">🎛️ Aspire Dashboard</a>" : "")}}
+                <a href="/scalar/" class="btn btn-primary">📚 API Documentation</a>
+                <a href="/api/docs" class="btn btn-primary">📑 API Docs Index</a>
+                <a href="/api/client/download" class="btn btn-secondary">💾 Download Client</a>
                 <a href="/api/dashboard" class="btn btn-secondary">📊 Dashboard JSON</a>
                 <a href="/api/health" class="btn btn-secondary">🏥 Health Check</a>
                 <a href="/api/stats" class="btn btn-secondary">📈 System Stats</a>

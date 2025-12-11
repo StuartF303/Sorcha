@@ -193,9 +193,28 @@ public static class Extensions
             // Referrer policy
             context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
 
-            // API-optimized CSP (no script/style restrictions)
-            context.Response.Headers["Content-Security-Policy"] =
-                "default-src 'none'; frame-ancestors 'none'";
+            // Check if this is a Scalar documentation path or landing page that needs relaxed CSP
+            var path = context.Request.Path.Value ?? "";
+            if (path.StartsWith("/scalar", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/", StringComparison.OrdinalIgnoreCase))
+            {
+                // Scalar UI requires scripts and styles to function
+                context.Response.Headers["Content-Security-Policy"] =
+                    "default-src 'self'; " +
+                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; " +
+                    "style-src 'self' 'unsafe-inline'; " +
+                    "img-src 'self' data: https:; " +
+                    "font-src 'self' data:; " +
+                    "connect-src 'self'; " +
+                    "worker-src 'self' blob:; " +
+                    "frame-ancestors 'none'";
+            }
+            else
+            {
+                // API-optimized CSP (no script/style restrictions)
+                context.Response.Headers["Content-Security-Policy"] =
+                    "default-src 'none'; frame-ancestors 'none'";
+            }
 
             // Permissions Policy - restrict all browser features for APIs
             context.Response.Headers["Permissions-Policy"] =

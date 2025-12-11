@@ -163,7 +163,8 @@
       "Bash(Sorcha.Cli.exe --help:*)",
       "Bash(Select-String -Pattern \"(Total tests:|Passed:|Failed:|Skipped:)\")",
       "Bash(./Sorcha.Cli.exe:*)",
-      "Bash(Select-Object -First 5)"
+      "Bash(Select-Object -First 5)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []
