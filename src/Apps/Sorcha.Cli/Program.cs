@@ -113,7 +113,7 @@ internal class Program
         var profileOption = new Option<string>(
             aliases: new[] { "--profile", "-p" },
             getDefaultValue: () => "dev",
-            description: "Configuration profile to use (dev, staging, production)");
+            description: "Configuration profile to use (dev, local, docker, staging, production)");
 
         var outputOption = new Option<string>(
             aliases: new[] { "--output", "-o" },
@@ -153,11 +153,11 @@ internal class Program
 
         // Sprint 3: Register, Transaction & Wallet commands
         rootCommand.AddCommand(new RegisterCommand(clientFactory, authService, configService));
-        rootCommand.AddCommand(new TransactionCommand());
+        rootCommand.AddCommand(new TransactionCommand(clientFactory, authService, configService));
         rootCommand.AddCommand(new WalletCommand(clientFactory, authService, configService));
 
         // Sprint 4: Peer Service commands
-        rootCommand.AddCommand(new PeerCommand());
+        rootCommand.AddCommand(new PeerCommand(clientFactory, authService, configService));
 
         // Version command
         var versionCommand = new Command("version", "Display CLI version information");

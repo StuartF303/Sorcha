@@ -65,6 +65,21 @@ public class HttpClientFactory
     }
 
     /// <summary>
+    /// Creates a Peer Service client for the specified profile.
+    /// </summary>
+    public async Task<IPeerServiceClient> CreatePeerServiceClientAsync(string profileName)
+    {
+        var profile = await _configService.GetProfileAsync(profileName);
+        if (profile == null)
+        {
+            throw new InvalidOperationException($"Profile '{profileName}' does not exist.");
+        }
+
+        var httpClient = CreateHttpClient(profile, profile.PeerServiceUrl);
+        return RestService.For<IPeerServiceClient>(httpClient);
+    }
+
+    /// <summary>
     /// Creates an HTTP client with resilience policies.
     /// </summary>
     private HttpClient CreateHttpClient(Profile profile, string baseUrl)

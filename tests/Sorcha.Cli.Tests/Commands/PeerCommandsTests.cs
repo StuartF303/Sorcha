@@ -1,6 +1,9 @@
 using System.CommandLine;
 using FluentAssertions;
 using Sorcha.Cli.Commands;
+using Sorcha.Cli.Infrastructure;
+using Sorcha.Cli.Services;
+using Xunit;
 
 namespace Sorcha.Cli.Tests.Commands;
 
@@ -9,20 +12,25 @@ namespace Sorcha.Cli.Tests.Commands;
 /// </summary>
 public class PeerCommandsTests
 {
+    // Note: Structure tests use null dependencies since we're only testing command structure, not execution
+    private readonly HttpClientFactory _clientFactory = null!;
+    private readonly IAuthenticationService _authService = null!;
+    private readonly IConfigurationService _configService = null!;
+
     [Fact]
     public void PeerCommand_ShouldHaveCorrectNameAndDescription()
     {
-        var command = new PeerCommand();
+        var command = new PeerCommand(_clientFactory, _authService, _configService);
         command.Name.Should().Be("peer");
         command.Description.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public void PeerCommand_ShouldHaveFiveSubcommands()
+    public void PeerCommand_ShouldHaveFourSubcommands()
     {
-        var command = new PeerCommand();
-        command.Subcommands.Should().HaveCount(5);
-        command.Subcommands.Select(c => c.Name).Should().Contain(new[] { "list", "get", "topology", "stats", "health" });
+        var command = new PeerCommand(_clientFactory, _authService, _configService);
+        command.Subcommands.Should().HaveCount(4);
+        command.Subcommands.Select(c => c.Name).Should().Contain(new[] { "list", "get", "stats", "health" });
     }
 
     #region PeerListCommand Tests
@@ -30,44 +38,17 @@ public class PeerCommandsTests
     [Fact]
     public void PeerListCommand_ShouldHaveCorrectNameAndDescription()
     {
-        var command = new PeerListCommand();
+        var command = new PeerListCommand(_clientFactory, _authService, _configService);
         command.Name.Should().Be("list");
         command.Description.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public void PeerListCommand_ShouldHaveOptionalStatusOption()
-    {
-        var command = new PeerListCommand();
-        var statusOption = command.Options.FirstOrDefault(o => o.Name == "status");
-        statusOption.Should().NotBeNull();
-        statusOption!.IsRequired.Should().BeFalse();
-    }
-
-    [Fact]
-    public void PeerListCommand_ShouldHaveOptionalSortOption()
-    {
-        var command = new PeerListCommand();
-        var sortOption = command.Options.FirstOrDefault(o => o.Name == "sort");
-        sortOption.Should().NotBeNull();
-        sortOption!.IsRequired.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task PeerListCommand_ShouldExecuteSuccessfully_WithNoOptions()
+    public async Task PeerListCommand_ShouldExecuteSuccessfully()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerListCommand());
+        rootCommand.AddCommand(new PeerListCommand(_clientFactory, _authService, _configService));
         var exitCode = await rootCommand.InvokeAsync("list");
-        exitCode.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task PeerListCommand_ShouldExecuteSuccessfully_WithStatusFilter()
-    {
-        var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerListCommand());
-        var exitCode = await rootCommand.InvokeAsync("list --status connected");
         exitCode.Should().Be(0);
     }
 
@@ -78,92 +59,26 @@ public class PeerCommandsTests
     [Fact]
     public void PeerGetCommand_ShouldHaveCorrectNameAndDescription()
     {
-        var command = new PeerGetCommand();
+        var command = new PeerGetCommand(_clientFactory, _authService, _configService);
         command.Name.Should().Be("get");
         command.Description.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public void PeerGetCommand_ShouldHaveRequiredPeerIdOption()
+    public void PeerGetCommand_ShouldHaveRequiredIdOption()
     {
-        var command = new PeerGetCommand();
-        var peerIdOption = command.Options.FirstOrDefault(o => o.Name == "peer-id");
-        peerIdOption.Should().NotBeNull();
-        peerIdOption!.IsRequired.Should().BeTrue();
+        var command = new PeerGetCommand(_clientFactory, _authService, _configService);
+        var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
+        idOption.Should().NotBeNull();
+        idOption!.IsRequired.Should().BeTrue();
     }
 
     [Fact]
-    public void PeerGetCommand_ShouldHaveOptionalShowHistoryOption()
-    {
-        var command = new PeerGetCommand();
-        var showHistoryOption = command.Options.FirstOrDefault(o => o.Name == "show-history");
-        showHistoryOption.Should().NotBeNull();
-        showHistoryOption!.IsRequired.Should().BeFalse();
-    }
-
-    [Fact]
-    public void PeerGetCommand_ShouldHaveOptionalShowMetricsOption()
-    {
-        var command = new PeerGetCommand();
-        var showMetricsOption = command.Options.FirstOrDefault(o => o.Name == "show-metrics");
-        showMetricsOption.Should().NotBeNull();
-        showMetricsOption!.IsRequired.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task PeerGetCommand_ShouldExecuteSuccessfully_WithRequiredPeerId()
+    public async Task PeerGetCommand_ShouldExecuteSuccessfully_WithRequiredId()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerGetCommand());
-        var exitCode = await rootCommand.InvokeAsync("get --peer-id peer-123");
-        exitCode.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task PeerGetCommand_ShouldExecuteSuccessfully_WithAllOptions()
-    {
-        var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerGetCommand());
-        var exitCode = await rootCommand.InvokeAsync("get --peer-id peer-123 --show-history --show-metrics");
-        exitCode.Should().Be(0);
-    }
-
-    #endregion
-
-    #region PeerTopologyCommand Tests
-
-    [Fact]
-    public void PeerTopologyCommand_ShouldHaveCorrectNameAndDescription()
-    {
-        var command = new PeerTopologyCommand();
-        command.Name.Should().Be("topology");
-        command.Description.Should().NotBeNullOrWhiteSpace();
-    }
-
-    [Fact]
-    public void PeerTopologyCommand_ShouldHaveOptionalFormatOption()
-    {
-        var command = new PeerTopologyCommand();
-        var formatOption = command.Options.FirstOrDefault(o => o.Name == "format");
-        formatOption.Should().NotBeNull();
-        formatOption!.IsRequired.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task PeerTopologyCommand_ShouldExecuteSuccessfully_WithDefaultFormat()
-    {
-        var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerTopologyCommand());
-        var exitCode = await rootCommand.InvokeAsync("topology");
-        exitCode.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task PeerTopologyCommand_ShouldExecuteSuccessfully_WithTreeFormat()
-    {
-        var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerTopologyCommand());
-        var exitCode = await rootCommand.InvokeAsync("topology --format tree");
+        rootCommand.AddCommand(new PeerGetCommand(_clientFactory, _authService, _configService));
+        var exitCode = await rootCommand.InvokeAsync("get --id peer-123");
         exitCode.Should().Be(0);
     }
 
@@ -174,35 +89,17 @@ public class PeerCommandsTests
     [Fact]
     public void PeerStatsCommand_ShouldHaveCorrectNameAndDescription()
     {
-        var command = new PeerStatsCommand();
+        var command = new PeerStatsCommand(_clientFactory, _authService, _configService);
         command.Name.Should().Be("stats");
         command.Description.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public void PeerStatsCommand_ShouldHaveOptionalWindowOption()
-    {
-        var command = new PeerStatsCommand();
-        var windowOption = command.Options.FirstOrDefault(o => o.Name == "window");
-        windowOption.Should().NotBeNull();
-        windowOption!.IsRequired.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task PeerStatsCommand_ShouldExecuteSuccessfully_WithDefaultWindow()
+    public async Task PeerStatsCommand_ShouldExecuteSuccessfully()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerStatsCommand());
+        rootCommand.AddCommand(new PeerStatsCommand(_clientFactory, _authService, _configService));
         var exitCode = await rootCommand.InvokeAsync("stats");
-        exitCode.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task PeerStatsCommand_ShouldExecuteSuccessfully_WithCustomWindow()
-    {
-        var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerStatsCommand());
-        var exitCode = await rootCommand.InvokeAsync("stats --window 24h");
         exitCode.Should().Be(0);
     }
 
@@ -213,44 +110,17 @@ public class PeerCommandsTests
     [Fact]
     public void PeerHealthCommand_ShouldHaveCorrectNameAndDescription()
     {
-        var command = new PeerHealthCommand();
+        var command = new PeerHealthCommand(_clientFactory, _authService, _configService);
         command.Name.Should().Be("health");
         command.Description.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public void PeerHealthCommand_ShouldHaveOptionalCheckConnectivityOption()
-    {
-        var command = new PeerHealthCommand();
-        var checkConnectivityOption = command.Options.FirstOrDefault(o => o.Name == "check-connectivity");
-        checkConnectivityOption.Should().NotBeNull();
-        checkConnectivityOption!.IsRequired.Should().BeFalse();
-    }
-
-    [Fact]
-    public void PeerHealthCommand_ShouldHaveOptionalCheckConsensusOption()
-    {
-        var command = new PeerHealthCommand();
-        var checkConsensusOption = command.Options.FirstOrDefault(o => o.Name == "check-consensus");
-        checkConsensusOption.Should().NotBeNull();
-        checkConsensusOption!.IsRequired.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task PeerHealthCommand_ShouldExecuteSuccessfully_WithNoOptions()
+    public async Task PeerHealthCommand_ShouldExecuteSuccessfully()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerHealthCommand());
+        rootCommand.AddCommand(new PeerHealthCommand(_clientFactory, _authService, _configService));
         var exitCode = await rootCommand.InvokeAsync("health");
-        exitCode.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task PeerHealthCommand_ShouldExecuteSuccessfully_WithAllOptions()
-    {
-        var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerHealthCommand());
-        var exitCode = await rootCommand.InvokeAsync("health --check-connectivity --check-consensus");
         exitCode.Should().Be(0);
     }
 
