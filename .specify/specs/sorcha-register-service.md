@@ -1816,7 +1816,7 @@ public class RegisterHeightUpdatedEvent
 - REG-088: DID resolution guide
 - REG-089: Query optimization guide
 - REG-090: Deployment guide (Aspire, Kubernetes)
-- REG-091: Migration guide from Siccar
+- REG-091: Migration guide from alpha
 - REG-092: Operations runbook
 - REG-093: Security audit
 - REG-094: Final review and approval
@@ -1850,7 +1850,7 @@ public class RegisterHeightUpdatedEvent
 - ✅ API documentation complete with examples
 - ✅ Architecture diagrams created
 - ✅ Deployment guide available
-- ✅ Migration guide from Siccar
+- ✅ Migration guide from alpha
 - ✅ Operations runbook complete
 
 ### Compatibility
@@ -1892,7 +1892,7 @@ public class RegisterHeightUpdatedEvent
   - Include sequence numbers in events
   - Document eventual consistency expectations
 
-**Risk:** Storage migration complexity (Siccar to Sorcha)
+**Risk:** Storage migration complexity (alpha to Sorcha)
 - **Likelihood:** High
 - **Impact:** High
 - **Mitigation:**
@@ -1964,8 +1964,8 @@ The following items are explicitly out of scope for this specification:
 - [gRPC for .NET](https://grpc.io/docs/languages/csharp/)
 
 ### Import Source
-- **Original Specification:** [Siccar Register Service](../archive/import-siccar-register-20251113/siccar-register-service.md)
-- **Source Repository:** https://github.com/StuartF303/SICCARV3.git
+- **Original Specification:** [alpha Register Service](../archive/import-alpha-register-20251113/alpha-register-service.md)
+- **Source Repository:** https://github.com/StuartF303/alphaV3.git
 - **Import Date:** 2025-11-13
 
 ## Version History
@@ -1997,7 +1997,7 @@ The following items are explicitly out of scope for this specification:
   - Zero-trust architecture alignment
 
 - **2.0** (2025-11-13) - Sorcha platform upgrade
-  - Migrated from Siccar V3 specification
+  - Migrated from alpha V3 specification
   - Updated for .NET Aspire orchestration
   - Aligned with Sorcha 4-layer architecture
   - Modernized for .NET 10 and C# 13
@@ -2005,7 +2005,7 @@ The following items are explicitly out of scope for this specification:
   - Enhanced event system design
   - Expanded testing strategy
 
-- **1.0** (2025-11-13) - Original Siccar specification
+- **1.0** (2025-11-13) - Original alpha specification
   - Initial analysis and requirements
   - Dapr-based architecture
   - MongoDB storage focus

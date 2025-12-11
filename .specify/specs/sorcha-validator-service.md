@@ -61,11 +61,11 @@ Sorcha requires a blockchain consensus mechanism to:
 3. **Coordinate Peers** - Achieve distributed consensus across network
 4. **Protect Integrity** - Prevent double-spending, replay attacks, and data tampering
 
-### 2.2 Functional Basis (SiccaV3 Analysis)
+### 2.2 Functional Basis (alpha Analysis)
 
-The design is based on analysis of the SiccaV3 Validator Service with improvements:
+The design is based on analysis of the alpha Validator Service with improvements:
 
-**Adopted from SiccaV3:**
+**Adopted from alpha:**
 - ✅ 4-layer architecture (API → Service → Core → Tests)
 - ✅ Event-driven design (adapted for Sorcha patterns)
 - ✅ Thread-safe MemPool with per-Register isolation
@@ -73,11 +73,11 @@ The design is based on analysis of the SiccaV3 Validator Service with improvemen
 - ✅ SHA256 blockchain hashing
 - ✅ JWT authentication with RBAC
 
-**Improvements over SiccaV3:**
-- ✅ **Proper consensus mechanism** (SiccaV3 had non-functional stub)
+**Improvements over alpha:**
+- ✅ **Proper consensus mechanism** (alpha had non-functional stub)
 - ✅ **Full transaction validation** (signature verification, state validation)
-- ✅ **Chain integrity enforcement** (SiccaV3 used placeholder hashes)
-- ✅ **MemPool limits** (SiccaV3 was unbounded with no expiration)
+- ✅ **Chain integrity enforcement** (alpha used placeholder hashes)
+- ✅ **MemPool limits** (alpha was unbounded with no expiration)
 - ✅ **Recovery mechanisms** (fork detection, rollback, chain recovery)
 - ✅ **Rate limiting and security hardening**
 - ✅ **Enclave-compatible core library** (pure .NET, no I/O)
@@ -1319,7 +1319,7 @@ _logger.LogInformation(
 ## Appendix B: References
 
 - `/docs/validator-service-design.md` - Design specification
-- `/docs/siccarv3-validator-service-analysis.md` - SiccaV3 analysis
+- `/docs/siccarv3-validator-service-analysis.md` - alpha analysis
 - `/docs/architecture.md` - Sorcha architecture
 - `/docs/blueprint-schema.md` - Blueprint data format
 - `/.specify/UNIFIED-DESIGN-SUMMARY.md` - Unified design

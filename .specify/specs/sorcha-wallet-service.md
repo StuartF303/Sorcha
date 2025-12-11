@@ -16,7 +16,7 @@ This specification defines the requirements for the Sorcha Wallet Service. This 
 
 ### Current State Analysis
 
-The Sorcha platform currently lacks a dedicated wallet service. This specification draws from the legacy Siccar implementation to create a modern, cloud-native wallet service suitable for the Sorcha architecture.
+The Sorcha platform currently lacks a dedicated wallet service. This specification draws from the legacy alpha implementation to create a modern, cloud-native wallet service suitable for the Sorcha architecture.
 
 #### Architecture
 
@@ -117,7 +117,7 @@ The Sorcha platform currently lacks a dedicated wallet service. This specificati
    - Distributed cache provider (Redis)
 
 3. **Migration Support**
-   - Import from legacy Siccar wallet database (if needed)
+   - Import from legacy alpha wallet database (if needed)
    - Export to portable formats
    - Schema versioning and migrations
    - Backward compatibility considerations
@@ -155,7 +155,7 @@ The Sorcha platform currently lacks a dedicated wallet service. This specificati
 
 ### Out of Scope
 
-1. **Legacy Siccar Migration** - Not migrating from Siccar (greenfield implementation)
+1. **Legacy alpha Migration** - Not migrating from alpha (greenfield implementation)
 2. **Multi-signature Coordination** - Future enhancement
 3. **Hardware Wallet Integration** - Future enhancement (Ledger, Trezor)
 4. **Decentralized Identity (DID)** - Future integration
