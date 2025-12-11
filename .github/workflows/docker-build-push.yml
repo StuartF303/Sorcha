@@ -88,9 +88,6 @@ jobs:
     name: Build & Push ${{ matrix.service.name }}
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: |
-      needs.detect-changes.outputs.rebuild-all == 'true' ||
-      needs.detect-changes.outputs[matrix.service.filter] == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -156,6 +153,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
+        if: needs.detect-changes.outputs.rebuild-all == 'true' || needs.detect-changes.outputs[matrix.service.filter] == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
