@@ -38,7 +38,277 @@ builder.Services.AddControllers()
         .AddRouteComponents("odata", modelBuilder.GetEdmModel()));
 
 // Add OpenAPI services
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        document.Info.Title = "Sorcha Register Service API";
+        document.Info.Version = "1.0.0";
+        document.Info.Description = """
+            # Register Service API
+
+            ## Overview
+
+            The Register Service provides a **distributed ledger** for storing immutable transaction records in the Sorcha platform. It implements a cryptographically-secured, append-only data structure where transactions are chained together, ensuring data integrity and non-repudiation.
+
+            ## Primary Use Cases
+
+            - **Transaction Storage**: Submit and store signed transactions on the distributed ledger
+            - **Transaction Queries**: Retrieve transactions by ID, register, wallet, or docket
+            - **Register Management**: Create and manage isolated transaction ledgers
+            - **Data Verification**: Verify transaction chains and cryptographic signatures
+            - **Real-time Notifications**: Subscribe to transaction confirmations via SignalR
+
+            ## Key Concepts
+
+            ### Registers
+            A **Register** is an isolated, append-only ledger that stores related transactions:
+            - **Register ID**: Unique identifier for the ledger
+            - **Organization Ownership**: Each register belongs to a tenant organization
+            - **Isolation**: Transactions in one register cannot reference transactions in another
+            - **Purpose-Specific**: Registers can be created for different use cases (documents, workflows, audit logs)
+
+            ### Transactions
+            **Transactions** are the fundamental unit of data in a register:
+            - **Immutable**: Once committed, transactions cannot be altered
+            - **Chained**: Each transaction references the previous transaction hash
+            - **Signed**: All transactions must be cryptographically signed by a wallet
+            - **Timestamped**: UTC timestamps for ordering and auditability
+            - **Payloads**: Encrypted data payloads with wallet-based access control
+
+            ### Transaction Structure
+            ```json
+            {
+              "txId": "unique-transaction-hash",
+              "registerId": "register-id",
+              "senderWallet": "wallet-address",
+              "timeStamp": "2025-12-11T10:30:00Z",
+              "prevTxId": "previous-transaction-hash",
+              "payloads": [
+                {
+                  "data": "base64-encrypted-payload",
+                  "walletAccess": ["wallet1", "wallet2"]
+                }
+              ],
+              "metadata": {
+                "blueprintId": "workflow-id",
+                "actionId": "action-id",
+                "txType": "data"
+              },
+              "signature": "base64-signature"
+            }
+            ```
+
+            ### Dockets
+            **Dockets** are logical groupings of related transactions:
+            - Workflow instances reference dockets
+            - All transactions for a blueprint instance share a docket
+            - Enables efficient querying of related transactions
+
+            ### Transaction Chain Integrity
+            Each transaction links to the previous transaction via `prevTxId`:
+            ```
+            Genesis → Tx1 → Tx2 → Tx3 → ...
+            (prevTxId: "") (prevTxId: Genesis) (prevTxId: Tx1)
+            ```
+
+            This creates a **Merkle chain** that ensures:
+            - ✅ **Immutability**: Altering any transaction breaks the chain
+            - ✅ **Auditability**: Full history is traceable
+            - ✅ **Verification**: Chain integrity can be cryptographically verified
+
+            ## Getting Started
+
+            ### 1. Create a Register
+            ```http
+            POST /api/registers
+            Authorization: Bearer {token}
+            Content-Type: application/json
+
+            {
+              "registerId": "my-register-001",
+              "organizationId": "org-123",
+              "metadata": {
+                "purpose": "Document Management",
+                "department": "Finance"
+              }
+            }
+            ```
+
+            ### 2. Submit a Transaction
+            ```http
+            POST /api/registers/{registerId}/transactions
+            Authorization: Bearer {token}
+            Content-Type: application/json
+
+            {
+              "registerId": "my-register-001",
+              "senderWallet": "wallet-abc123",
+              "payloads": [
+                {
+                  "data": "base64-encrypted-data",
+                  "walletAccess": ["wallet-abc123"]
+                }
+              ],
+              "metadata": {
+                "txType": "data",
+                "blueprintId": "workflow-001"
+              },
+              "signature": "base64-signature",
+              "prevTxId": "previous-tx-hash"
+            }
+            ```
+
+            ### 3. Query Transactions
+            ```http
+            # Get all transactions in a register (OData)
+            GET /odata/Transactions?$filter=RegisterId eq 'my-register-001'&$orderby=TimeStamp desc
+
+            # Get specific transaction
+            GET /api/transactions/{txId}
+
+            # Get transactions by wallet
+            GET /api/wallets/{walletId}/transactions
+
+            # Get transactions by docket
+            GET /api/dockets/{docketId}/transactions
+            ```
+
+            ### 4. Subscribe to Real-Time Updates
+            ```javascript
+            // SignalR connection (JavaScript example)
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/registerhub")
+                .build();
+
+            connection.on("TransactionConfirmed", (tx) => {
+                console.log("Transaction confirmed:", tx.txId);
+            });
+
+            await connection.start();
+            ```
+
+            ## Transaction Lifecycle
+
+            1. **Creation** → Transaction prepared by Blueprint Service
+            2. **Signing** → Transaction signed by Wallet Service
+            3. **Submission** → Transaction submitted to Register Service
+            4. **Validation** → Signature and chain integrity verified
+            5. **Storage** → Transaction written to ledger (immutable)
+            6. **Notification** → Confirmation broadcast via SignalR
+            7. **Querying** → Transaction available for retrieval
+
+            ## Data Access Control
+
+            ### Payload Encryption
+            - Each payload is encrypted for specific wallets
+            - Only wallets in `walletAccess` can decrypt the payload
+            - Supports selective disclosure (different data for different participants)
+
+            ### Query Authorization
+            - Users can only query transactions they have access to
+            - Wallet-based access control enforced at query time
+            - Organization isolation ensures multi-tenant security
+
+            ## OData Query Capabilities
+
+            The Register Service supports **OData v4** for powerful querying:
+
+            ```http
+            # Filter by wallet
+            GET /odata/Transactions?$filter=SenderWallet eq 'wallet-123'
+
+            # Order by timestamp
+            GET /odata/Transactions?$orderby=TimeStamp desc
+
+            # Pagination
+            GET /odata/Transactions?$top=50&$skip=100
+
+            # Complex filters
+            GET /odata/Transactions?$filter=contains(Metadata/blueprintId, 'workflow') and TimeStamp gt 2025-01-01
+            ```
+
+            ## Performance Considerations
+
+            - **Indexing**: Transactions indexed by ID, register, wallet, docket, and timestamp
+            - **Caching**: Frequently accessed transactions cached in memory
+            - **Pagination**: Use `$top` and `$skip` for large result sets
+            - **SignalR Backplane**: Redis used for scalable real-time notifications
+
+            ## Security Features
+
+            - ✅ Cryptographic signature verification
+            - ✅ Transaction chain integrity checks
+            - ✅ Wallet-based payload encryption
+            - ✅ Organization isolation (multi-tenant)
+            - ✅ Immutable audit trail
+            - ✅ OWASP security headers
+            - ✅ Rate limiting and DDoS protection
+
+            ## Integration with Sorcha Platform
+
+            ### Transaction Flow
+            1. **Blueprint Service** creates transaction payloads
+            2. **Wallet Service** signs the transaction
+            3. **Register Service** validates and stores the transaction
+            4. **Peer Service** (future) replicates to peer nodes
+
+            ### Data Integrity
+            - All transactions must have valid signatures from Wallet Service
+            - Chain integrity enforced on every submission
+            - Tamper detection via hash verification
+
+            ## Target Audience
+
+            - **Application Developers**: Building blockchain-based applications
+            - **Auditors**: Verifying transaction histories
+            - **System Integrators**: Integrating with external systems
+            - **Compliance Officers**: Ensuring data immutability
+
+            ## Related Services
+
+            - **Wallet Service**: Signs transactions with cryptographic keys
+            - **Blueprint Service**: Creates workflow-based transactions
+            - **Tenant Service**: Provides organization isolation and access control
+            - **Peer Service**: Distributes transactions across peer network (future)
+
+            ## Common Workflows
+
+            ### Document Timestamping
+            1. Create register for document management
+            2. Submit document hash as transaction
+            3. Transaction provides cryptographic proof of existence at timestamp
+
+            ### Workflow Execution
+            1. Blueprint defines multi-step workflow
+            2. Each action creates a transaction
+            3. Transactions chained to show workflow progression
+            4. Full audit trail of workflow execution
+
+            ### Multi-Party Collaboration
+            1. Multiple wallets participate in workflow
+            2. Each party signs their transactions
+            3. Selective disclosure controls data visibility
+            4. Immutable record of all interactions
+            """;
+
+        if (document.Info.Contact == null)
+        {
+            document.Info.Contact = new() { };
+        }
+        document.Info.Contact.Name = "Sorcha Platform Team";
+        document.Info.Contact.Url = new Uri("https://github.com/siccar-platform/sorcha");
+
+        if (document.Info.License == null)
+        {
+            document.Info.License = new() { };
+        }
+        document.Info.License.Name = "MIT License";
+        document.Info.License.Url = new Uri("https://opensource.org/licenses/MIT");
+
+        return Task.CompletedTask;
+    });
+});
 
 // Register storage and event infrastructure
 builder.Services.AddSingleton<IRegisterRepository, InMemoryRegisterRepository>();

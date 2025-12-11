@@ -42,7 +42,134 @@ try
         .Enrich.WithProperty("Application", "Sorcha.Tenant.Service"));
 
     // Add OpenAPI and Scalar API documentation
-    builder.Services.AddOpenApi();
+    builder.Services.AddOpenApi(options =>
+    {
+        options.AddDocumentTransformer((document, context, cancellationToken) =>
+        {
+            document.Info.Title = "Sorcha Tenant Service API";
+            document.Info.Version = "1.0.0";
+            document.Info.Description = """
+                # Tenant Service API
+
+                ## Overview
+
+                The Tenant Service provides **multi-tenant organization management** and **authentication/authorization** capabilities for the Sorcha distributed ledger platform. It serves as the central identity and access management (IAM) system, enabling secure, isolated workspaces for different organizations.
+
+                ## Primary Use Cases
+
+                - **Organization Management**: Create and manage tenant organizations with isolated data boundaries
+                - **User Management**: Manage users, roles, and permissions within organizations
+                - **Service Principal Authentication**: Issue JWT tokens for service-to-service authentication
+                - **Access Control**: Role-based access control (RBAC) for all platform services
+
+                ## Key Concepts
+
+                ### Organizations (Tenants)
+                Organizations are the top-level isolation boundary in Sorcha. Each organization has:
+                - Unique organization ID
+                - Isolated users and resources
+                - Independent billing and quotas
+                - Custom branding and configuration
+
+                ### Users
+                Users belong to one or more organizations and have:
+                - Email-based authentication
+                - Role assignments per organization
+                - JWT tokens for API access
+                - Activity audit trails
+
+                ### Service Principals
+                Service principals enable machine-to-machine authentication:
+                - Client ID and client secret credentials
+                - Scoped permissions per service
+                - Token-based authentication (JWT)
+                - Used by CLI tools, backend services, and integrations
+
+                ### Authentication Model
+                - **User Authentication**: Email/password with JWT tokens
+                - **Service Authentication**: Client credentials flow (OAuth2-style)
+                - **Token Management**: Refresh tokens, revocation, expiry
+                - **Security**: BCrypt password hashing, secure token storage
+
+                ## Getting Started
+
+                ### 1. Authenticate as a Service Principal
+                ```http
+                POST /api/service-auth/token
+                Content-Type: application/json
+
+                {
+                  "clientId": "your-client-id",
+                  "clientSecret": "your-client-secret"
+                }
+                ```
+
+                ### 2. Create an Organization
+                ```http
+                POST /api/organizations
+                Authorization: Bearer {token}
+                Content-Type: application/json
+
+                {
+                  "name": "Acme Corporation",
+                  "displayName": "Acme Corp"
+                }
+                ```
+
+                ### 3. Create Users
+                ```http
+                POST /api/organizations/{orgId}/users
+                Authorization: Bearer {token}
+                Content-Type: application/json
+
+                {
+                  "email": "admin@acme.com",
+                  "firstName": "Admin",
+                  "lastName": "User"
+                }
+                ```
+
+                ## Security Features
+
+                - ✅ JWT-based authentication with configurable expiry
+                - ✅ BCrypt password hashing (work factor: 12)
+                - ✅ Token revocation and refresh
+                - ✅ Rate limiting per IP address
+                - ✅ OWASP security headers
+                - ✅ Audit logging for all operations
+                - ✅ CORS configuration for web clients
+
+                ## Target Audience
+
+                - **System Administrators**: Managing organizations and users
+                - **DevOps Engineers**: Configuring service principals for automation
+                - **Integration Developers**: Building applications that authenticate with Sorcha
+                - **CLI Users**: Authenticating command-line tools
+
+                ## Related Services
+
+                - **Blueprint Service**: Uses Tenant Service for user authentication
+                - **Wallet Service**: Associates wallets with tenant organizations
+                - **Register Service**: Isolates transaction registers by tenant
+                - **Peer Service**: Network access control via tenant validation
+                """;
+            if (document.Info.Contact == null)
+            {
+                document.Info.Contact = new() { };
+            }
+            document.Info.Contact.Name = "Sorcha Platform Team";
+            document.Info.Contact.Url = new Uri("https://github.com/siccar-platform/sorcha");
+
+            if (document.Info.License == null)
+            {
+                document.Info.License = new() { };
+            }
+            document.Info.License.Name = "MIT License";
+            document.Info.License.Url = new Uri("https://opensource.org/licenses/MIT");
+
+            return Task.CompletedTask;
+        });
+    });
 
     // Add controllers and minimal API support
     builder.Services.AddEndpointsApiExplorer();

@@ -37,6 +37,36 @@ public class OpenApiAggregationService
                 }
             },
             {
+                "tenant",
+                new ServiceOpenApiConfig
+                {
+                    Name = "Tenant Service",
+                    BaseUrl = configuration["Services:Tenant:Url"] ?? "http://tenant-service",
+                    OpenApiPath = "/openapi/v1.json",
+                    PathPrefix = "/api/tenant"
+                }
+            },
+            {
+                "wallet",
+                new ServiceOpenApiConfig
+                {
+                    Name = "Wallet Service",
+                    BaseUrl = configuration["Services:Wallet:Url"] ?? "http://wallet-service",
+                    OpenApiPath = "/openapi/v1.json",
+                    PathPrefix = "/api/wallet"
+                }
+            },
+            {
+                "register",
+                new ServiceOpenApiConfig
+                {
+                    Name = "Register Service",
+                    BaseUrl = configuration["Services:Register:Url"] ?? "http://register-service",
+                    OpenApiPath = "/openapi/v1.json",
+                    PathPrefix = "/api/register"
+                }
+            },
+            {
                 "peer",
                 new ServiceOpenApiConfig
                 {
@@ -60,12 +90,264 @@ public class OpenApiAggregationService
             ["openapi"] = "3.0.1",
             ["info"] = new JsonObject
             {
-                ["title"] = "Sorcha API Gateway",
+                ["title"] = "Sorcha Platform API",
                 ["version"] = "1.0.0",
-                ["description"] = "Unified API documentation for all Sorcha blockchain services",
+                ["description"] = """
+                    # Sorcha Distributed Ledger Platform
+
+                    ## Overview
+
+                    Sorcha is a **distributed ledger platform** for building secure, auditable, multi-party workflows with cryptographic guarantees. It combines blockchain-inspired immutability with practical enterprise features like multi-tenancy, selective disclosure, and workflow orchestration.
+
+                    ## Platform Architecture
+
+                    The Sorcha platform consists of five core microservices:
+
+                    ### 🏢 Tenant Service
+                    **Multi-tenant organization management and authentication**
+                    - Manages organizations, users, and service principals
+                    - JWT-based authentication for all platform services
+                    - Role-based access control (RBAC)
+                    - Organization isolation and data boundaries
+
+                    **Endpoints:** `/api/tenant/*`
+
+                    ### 💰 Wallet Service
+                    **Cryptographic wallet management and transaction signing**
+                    - HD wallet generation (BIP39/BIP44)
+                    - Multi-algorithm support (ED25519, NIST P-256, RSA-4096)
+                    - Secure key storage with HSM integration
+                    - Transaction signing for ledger submissions
+
+                    **Endpoints:** `/api/wallet/*`
+
+                    ### 📚 Register Service
+                    **Distributed ledger for immutable transaction storage**
+                    - Append-only transaction ledger with chain integrity
+                    - Cryptographic signature verification
+                    - Wallet-based payload encryption
+                    - Real-time notifications via SignalR
+                    - OData v4 querying capabilities
+
+                    **Endpoints:** `/api/register/*`
+
+                    ### 🔄 Blueprint Service
+                    **Workflow orchestration and execution**
+                    - JSON-based workflow definitions
+                    - Action routing and state management
+                    - Selective disclosure rules
+                    - Template-based workflow creation
+                    - Integration with Wallet and Register services
+
+                    **Endpoints:** `/api/blueprint/*`
+
+                    ### 🌐 Peer Service
+                    **P2P network monitoring and coordination**
+                    - Peer discovery and health monitoring
+                    - Network statistics and quality metrics
+                    - Circuit breaker pattern for resilience
+                    - gRPC-based peer communication
+
+                    **Endpoints:** `/api/peer/*`
+
+                    ## Getting Started
+
+                    ### 1. Authentication
+                    All API calls require authentication via the Tenant Service:
+
+                    ```http
+                    POST /api/tenant/api/service-auth/token
+                    Content-Type: application/json
+
+                    {
+                      "clientId": "your-client-id",
+                      "clientSecret": "your-client-secret"
+                    }
+                    ```
+
+                    **Response:**
+                    ```json
+                    {
+                      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                      "expiresAt": "2025-12-11T11:30:00Z"
+                    }
+                    ```
+
+                    ### 2. Create Organization
+                    ```http
+                    POST /api/tenant/api/organizations
+                    Authorization: Bearer {token}
+                    Content-Type: application/json
+
+                    {
+                      "name": "Acme Corporation",
+                      "displayName": "Acme Corp"
+                    }
+                    ```
+
+                    ### 3. Create Wallet
+                    ```http
+                    POST /api/wallet/api/wallets
+                    Authorization: Bearer {token}
+                    Content-Type: application/json
+
+                    {
+                      "name": "Primary Wallet",
+                      "algorithm": "ED25519",
+                      "wordCount": 12
+                    }
+                    ```
+
+                    ⚠️ **CRITICAL**: Save the returned mnemonic phrase securely!
+
+                    ### 4. Create Register
+                    ```http
+                    POST /api/register/api/registers
+                    Authorization: Bearer {token}
+                    Content-Type: application/json
+
+                    {
+                      "registerId": "my-ledger-001",
+                      "organizationId": "org-123"
+                    }
+                    ```
+
+                    ### 5. Submit Transaction
+                    ```http
+                    POST /api/register/api/registers/{registerId}/transactions
+                    Authorization: Bearer {token}
+                    Content-Type: application/json
+
+                    {
+                      "registerId": "my-ledger-001",
+                      "senderWallet": "wallet-id",
+                      "payloads": [...],
+                      "signature": "...",
+                      "metadata": {...}
+                    }
+                    ```
+
+                    ## Common Workflows
+
+                    ### Document Timestamping
+                    1. Create organization and wallet
+                    2. Create register for document management
+                    3. Hash document and submit as transaction
+                    4. Transaction provides cryptographic proof of existence
+
+                    ### Multi-Party Workflow
+                    1. Create blueprint defining workflow steps
+                    2. Each participant creates a wallet
+                    3. Actions execute in sequence, creating transactions
+                    4. Selective disclosure controls data visibility
+                    5. Immutable audit trail in register
+
+                    ### Audit Trail Creation
+                    1. System events logged as transactions
+                    2. Each event signed by system wallet
+                    3. Transactions chained for integrity
+                    4. OData queries for compliance reporting
+
+                    ## Key Features
+
+                    ### 🔒 Security
+                    - JWT-based authentication
+                    - Cryptographic signature verification
+                    - AES-256-GCM encryption at rest
+                    - HSM integration (Azure Key Vault, AWS KMS)
+                    - OWASP security headers
+                    - Rate limiting and DDoS protection
+
+                    ### 🔐 Privacy
+                    - Selective disclosure per participant
+                    - Wallet-based payload encryption
+                    - Organization data isolation
+                    - No PII in transaction metadata
+
+                    ### ✅ Integrity
+                    - Immutable transaction chains
+                    - Merkle chain verification
+                    - Cryptographic signatures required
+                    - Tamper-evident design
+
+                    ### 📊 Auditability
+                    - Complete transaction history
+                    - Timestamped events
+                    - OData v4 querying
+                    - Real-time notifications
+
+                    ## API Standards
+
+                    ### Authentication
+                    All endpoints (except `/api/tenant/api/service-auth/token`) require:
+                    ```
+                    Authorization: Bearer {jwt-token}
+                    ```
+
+                    ### Error Responses
+                    Standard HTTP status codes with JSON error details:
+                    ```json
+                    {
+                      "error": "Error description",
+                      "details": "Additional context"
+                    }
+                    ```
+
+                    ### Pagination
+                    OData endpoints support pagination:
+                    ```
+                    GET /odata/Transactions?$top=50&$skip=100
+                    ```
+
+                    ### Filtering
+                    OData v4 query syntax:
+                    ```
+                    GET /odata/Transactions?$filter=SenderWallet eq 'wallet-123' and TimeStamp gt 2025-01-01
+                    ```
+
+                    ## Client Libraries
+
+                    ### .NET CLI
+                    ```bash
+                    sorcha auth login --profile docker
+                    sorcha org create --name "Acme Corp"
+                    sorcha wallet create --name "My Wallet" --algorithm ED25519
+                    ```
+
+                    ### SDK Generation
+                    OpenAPI specs can be used to generate client SDKs:
+                    - C# (recommended)
+                    - TypeScript/JavaScript
+                    - Python
+                    - Go
+
+                    ## Support & Resources
+
+                    - **API Gateway**: `http://localhost:8080` (Docker)
+                    - **Scalar Documentation**: `http://localhost:8080/scalar`
+                    - **Health Check**: `http://localhost:8080/api/health`
+                    - **Dashboard**: `http://localhost:8080/api/dashboard`
+                    - **GitHub**: https://github.com/siccar-platform/sorcha
+
+                    ## Version Information
+
+                    - **Platform Version**: 1.0.0
+                    - **OpenAPI Version**: 3.0.1
+                    - **.NET Version**: 10.0
+                    - **License**: MIT
+
+                    ---
+
+                    **⚠️ Note**: This is aggregated documentation from all Sorcha platform services. Each service also has its own detailed documentation available at its individual OpenAPI endpoint.
+                    """,
+                ["contact"] = new JsonObject
+                {
+                    ["name"] = "Sorcha Platform Team",
+                    ["url"] = "https://github.com/siccar-platform/sorcha"
+                },
                 ["license"] = new JsonObject
                 {
-                    ["name"] = "MIT",
+                    ["name"] = "MIT License",
                     ["url"] = "https://opensource.org/licenses/MIT"
                 }
             },
@@ -73,8 +355,13 @@ public class OpenApiAggregationService
             {
                 new JsonObject
                 {
+                    ["url"] = "http://localhost:8080",
+                    ["description"] = "API Gateway (Docker)"
+                },
+                new JsonObject
+                {
                     ["url"] = "/",
-                    ["description"] = "API Gateway"
+                    ["description"] = "Relative URL"
                 }
             },
             ["paths"] = new JsonObject(),
