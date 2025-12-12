@@ -210,7 +210,9 @@
       "Bash(az containerapp hostname bind:*)",
       "Bash(az redis list-keys:*)",
       "Bash(timeout 30 curl:*)",
-      "Bash(timeout 20 curl:*)"
+      "Bash(timeout 20 curl:*)",
+      "Bash(\"ReverseProxy__Clusters__tenant-cluster__Destinations__destination1__Address=http://tenant-service\" )",
+      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error CS|warning CS)\")"
     ],
     "deny": [],
     "ask": []

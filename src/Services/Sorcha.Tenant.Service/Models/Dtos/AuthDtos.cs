@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Text.Json.Serialization;
+
 namespace Sorcha.Tenant.Service.Models.Dtos;
 
 /// <summary>
@@ -38,32 +40,38 @@ public record TokenRefreshRequest
 
 /// <summary>
 /// Response containing access and refresh tokens.
+/// OAuth2 RFC 6749 compliant - uses snake_case property names.
 /// </summary>
 public record TokenResponse
 {
     /// <summary>
     /// JWT access token.
     /// </summary>
+    [JsonPropertyName("access_token")]
     public required string AccessToken { get; init; }
 
     /// <summary>
     /// Refresh token for obtaining new access tokens.
     /// </summary>
+    [JsonPropertyName("refresh_token")]
     public required string RefreshToken { get; init; }
 
     /// <summary>
     /// Token type (always "Bearer").
     /// </summary>
+    [JsonPropertyName("token_type")]
     public string TokenType { get; init; } = "Bearer";
 
     /// <summary>
     /// Access token expiration time in seconds.
     /// </summary>
+    [JsonPropertyName("expires_in")]
     public int ExpiresIn { get; init; }
 
     /// <summary>
     /// Token scope.
     /// </summary>
+    [JsonPropertyName("scope")]
     public string? Scope { get; init; }
 }
 

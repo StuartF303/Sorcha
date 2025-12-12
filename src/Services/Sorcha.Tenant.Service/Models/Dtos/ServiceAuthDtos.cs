@@ -30,6 +30,47 @@ public record ClientCredentialsRequest
 }
 
 /// <summary>
+/// OAuth2 unified token request supporting multiple grant types.
+/// </summary>
+public record OAuth2TokenRequest
+{
+    /// <summary>
+    /// Grant type: "password", "client_credentials", or "refresh_token".
+    /// </summary>
+    public string GrantType { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Username (for password grant).
+    /// </summary>
+    public string? Username { get; init; }
+
+    /// <summary>
+    /// Password (for password grant).
+    /// </summary>
+    public string? Password { get; init; }
+
+    /// <summary>
+    /// Client ID.
+    /// </summary>
+    public string? ClientId { get; init; }
+
+    /// <summary>
+    /// Client secret (for client_credentials grant).
+    /// </summary>
+    public string? ClientSecret { get; init; }
+
+    /// <summary>
+    /// Refresh token (for refresh_token grant).
+    /// </summary>
+    public string? RefreshToken { get; init; }
+
+    /// <summary>
+    /// Requested scope (space-separated).
+    /// </summary>
+    public string? Scope { get; init; }
+}
+
+/// <summary>
 /// Request for delegated authority token.
 /// Service acting on behalf of a user.
 /// </summary>

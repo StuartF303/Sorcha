@@ -2,6 +2,8 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Microsoft.AspNetCore.Http.HttpResults;
+using Sorcha.Tenant.Service.Data.Repositories;
+using Sorcha.Tenant.Service.Models;
 using Sorcha.Tenant.Service.Models.Dtos;
 using Sorcha.Tenant.Service.Services;
 
@@ -20,12 +22,13 @@ public static class ServiceAuthEndpoints
         var group = app.MapGroup("/api/service-auth")
             .WithTags("Service Authentication");
 
-        // OAuth2 client credentials token endpoint
-        group.MapPost("/token", GetServiceToken)
-            .WithName("GetServiceToken")
-            .WithSummary("Get service token (client credentials)")
-            .WithDescription("Authenticates a service using OAuth2 client credentials flow.")
+        // Unified OAuth2 token endpoint supporting multiple grant types
+        group.MapPost("/token", GetOAuth2Token)
+            .WithName("GetOAuth2Token")
+            .WithSummary("OAuth2 token endpoint")
+            .WithDescription("OAuth2 compliant token endpoint. Supports grant types: password, client_credentials, refresh_token.")
             .AllowAnonymous()
+            .Accepts<OAuth2TokenRequest>("application/x-www-form-urlencoded")
             .Produces<TokenResponse>()
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized);
@@ -131,37 +134,173 @@ public static class ServiceAuthEndpoints
         return app;
     }
 
-    private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem>> GetServiceToken(
-        ClientCredentialsRequest request,
+    private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem>> GetOAuth2Token(
+        HttpContext context,
+        IServiceAuthService serviceAuthService,
+        IIdentityRepository identityRepository,
+        IOrganizationRepository organizationRepository,
+        ITokenService tokenService,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken)
+    {
+        // Parse form-urlencoded data
+        var form = await context.Request.ReadFormAsync(cancellationToken);
+        var grantType = form["grant_type"].ToString();
+        var username = form["username"].ToString();
+        var password = form["password"].ToString();
+        var clientId = form["client_id"].ToString();
+        var clientSecret = form["client_secret"].ToString();
+        var refreshToken = form["refresh_token"].ToString();
+        var scope = form["scope"].ToString();
+
+        if (string.IsNullOrWhiteSpace(grantType))
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["grant_type"] = ["Grant type is required"]
+            });
+        }
+
+        return grantType switch
+        {
+            "password" => await HandlePasswordGrant(username, password, clientId, identityRepository, organizationRepository, tokenService, logger, cancellationToken),
+            "client_credentials" => await HandleClientCredentialsGrant(clientId, clientSecret, scope, serviceAuthService, cancellationToken),
+            "refresh_token" => await HandleRefreshTokenGrant(refreshToken, tokenService, cancellationToken),
+            _ => TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["grant_type"] = [$"Unsupported grant type: {grantType}. Supported: password, client_credentials, refresh_token"]
+            })
+        };
+    }
+
+    private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem>> HandlePasswordGrant(
+        string username,
+        string password,
+        string clientId,
+        IIdentityRepository identityRepository,
+        IOrganizationRepository organizationRepository,
+        ITokenService tokenService,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["username"] = ["Username is required for password grant"]
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["password"] = ["Password is required for password grant"]
+            });
+        }
+
+        try
+        {
+            // Look up user by email
+            var user = await identityRepository.GetUserByEmailAsync(username, cancellationToken);
+
+            if (user == null || user.Status != IdentityStatus.Active)
+            {
+                logger.LogWarning("OAuth2 password grant failed: User not found or inactive - {Email}", username);
+                return TypedResults.Unauthorized();
+            }
+
+            // Verify password hash exists (local auth user)
+            if (string.IsNullOrEmpty(user.PasswordHash))
+            {
+                logger.LogWarning("OAuth2 password grant failed: User has no password - {Email}", username);
+                return TypedResults.Unauthorized();
+            }
+
+            // Verify password using BCrypt
+            bool isPasswordValid = BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+
+            if (!isPasswordValid)
+            {
+                logger.LogWarning("OAuth2 password grant failed: Invalid password - {Email}", username);
+                return TypedResults.Unauthorized();
+            }
+
+            // Get user's organization
+            var organization = await organizationRepository.GetByIdAsync(user.OrganizationId, cancellationToken);
+
+            if (organization == null)
+            {
+                logger.LogError("OAuth2 password grant failed: Organization not found - {OrgId}", user.OrganizationId);
+                return TypedResults.Unauthorized();
+            }
+
+            // Update last login timestamp
+            user.LastLoginAt = DateTimeOffset.UtcNow;
+            await identityRepository.UpdateUserAsync(user, cancellationToken);
+
+            // Generate tokens
+            var tokenResponse = await tokenService.GenerateUserTokenAsync(user, organization, cancellationToken);
+
+            logger.LogInformation("OAuth2 password grant successful - {Email} (UserId: {UserId})", username, user.Id);
+
+            return TypedResults.Ok(tokenResponse);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "OAuth2 password grant failed with exception - {Email}", username);
+            return TypedResults.Unauthorized();
+        }
+    }
+
+    private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem>> HandleClientCredentialsGrant(
+        string clientId,
+        string clientSecret,
+        string scope,
         IServiceAuthService serviceAuthService,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.ClientId))
+        if (string.IsNullOrWhiteSpace(clientId))
         {
             return TypedResults.ValidationProblem(new Dictionary<string, string[]>
             {
-                ["clientId"] = ["Client ID is required"]
+                ["client_id"] = ["Client ID is required for client_credentials grant"]
             });
         }
 
-        if (string.IsNullOrWhiteSpace(request.ClientSecret))
+        if (string.IsNullOrWhiteSpace(clientSecret))
         {
             return TypedResults.ValidationProblem(new Dictionary<string, string[]>
             {
-                ["clientSecret"] = ["Client secret is required"]
-            });
-        }
-
-        if (request.GrantType != "client_credentials")
-        {
-            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["grantType"] = ["Grant type must be 'client_credentials'"]
+                ["client_secret"] = ["Client secret is required for client_credentials grant"]
             });
         }
 
         var response = await serviceAuthService.AuthenticateServiceAsync(
-            request.ClientId, request.ClientSecret, request.Scope, cancellationToken);
+            clientId, clientSecret, string.IsNullOrWhiteSpace(scope) ? null : scope, cancellationToken);
+
+        if (response == null)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return TypedResults.Ok(response);
+    }
+
+    private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem>> HandleRefreshTokenGrant(
+        string refreshToken,
+        ITokenService tokenService,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["refresh_token"] = ["Refresh token is required for refresh_token grant"]
+            });
+        }
+
+        var response = await tokenService.RefreshTokenAsync(refreshToken, cancellationToken);
 
         if (response == null)
         {
