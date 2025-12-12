@@ -169,7 +169,10 @@
       "Bash(cmd /c \"if not exist .github\\workflows mkdir .github\\workflows\")",
       "Bash(test:*)",
       "Bash(cmd /c \"dir /b .github\\workflows\")",
-      "Bash(gh secret list:*)"
+      "Bash(gh secret list:*)",
+      "Bash(gh secret set:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(az account show:*)"
     ],
     "deny": [],
     "ask": []
