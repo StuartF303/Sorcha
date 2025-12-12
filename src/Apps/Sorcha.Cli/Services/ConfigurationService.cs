@@ -239,11 +239,11 @@ public class ConfigurationService : IConfigurationService
                 ["staging"] = new Profile
                 {
                     Name = "staging",
-                    TenantServiceUrl = "https://staging-tenant.sorcha.io",
-                    RegisterServiceUrl = "https://staging-register.sorcha.io",
-                    PeerServiceUrl = "https://staging-peer.sorcha.io",
-                    WalletServiceUrl = "https://staging-wallet.sorcha.io",
-                    AuthTokenUrl = "https://staging-tenant.sorcha.io/api/service-auth/token",
+                    TenantServiceUrl = "https://n0.sorcha.dev",
+                    RegisterServiceUrl = "https://n0.sorcha.dev",
+                    PeerServiceUrl = "https://n0.sorcha.dev",
+                    WalletServiceUrl = "https://n0.sorcha.dev",
+                    AuthTokenUrl = "https://n0.sorcha.dev/api/service-auth/token",
                     DefaultClientId = "sorcha-cli",
                     VerifySsl = true,
                     TimeoutSeconds = 30
