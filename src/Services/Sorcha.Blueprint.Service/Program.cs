@@ -86,7 +86,8 @@ builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.INotific
     Sorcha.Blueprint.Service.Services.Implementation.NotificationService>();
 
 // Add JWT authentication and authorization (AUTH-002)
-builder.Services.AddBlueprintAuthentication(builder.Configuration);
+// JWT authentication is now configured via shared ServiceDefaults with auto-key generation
+builder.AddJwtAuthentication();
 builder.Services.AddBlueprintAuthorization();
 
 var app = builder.Build();

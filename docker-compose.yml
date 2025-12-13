@@ -8,6 +8,14 @@ x-otel-env: &otel-env
   OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-sorcha-service}
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker
 
+# Shared JWT configuration for all services
+# The signing key is loaded from .env file or generated automatically
+# For production: Replace with Azure Key Vault or other secure key management
+x-jwt-env: &jwt-env
+  JwtSettings__SigningKey: ${JWT_SIGNING_KEY:-c29yY2hhLWRvY2tlci1kZXYta2V5LTIwMjUtbWluLTI1Ni1iaXRzLXNlY3VyZQ==}
+  JwtSettings__Issuer: http://tenant-service:8080
+  JwtSettings__Audience: http://api-gateway:8080
+
 services:
   # ===========================
   # Infrastructure Services
@@ -100,7 +108,7 @@ services:
     ports:
       - "5000:8080"
     environment:
-      <<: *otel-env
+      <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: blueprint-service
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -125,7 +133,7 @@ services:
     ports:
       - "5001:8080"
     environment:
-      <<: *otel-env
+      <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: wallet-service
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -151,7 +159,7 @@ services:
     ports:
       - "5290:8080"
     environment:
-      <<: *otel-env
+      <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: register-service
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -177,15 +185,13 @@ services:
     ports:
       - "5110:8080"
     environment:
-      <<: *otel-env
+      <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: tenant-service
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__TenantDatabase: Host=postgres;Database=sorcha_tenant;Username=sorcha;Password=sorcha_dev_password
       Redis__ConnectionString: redis:6379
-      # JWT signing key for token generation (base64-encoded 256-bit key)
-      JwtSettings__SigningKey: c29yY2hhLWRldi1qd3Qtc2lnbmluZy1rZXktMjAyNS1taW4tMjU2LWJpdHM=
-      JwtSettings__Issuer: http://tenant-service:8080
+      # Override JWT settings for tenant service (it issues tokens)
       JwtSettings__Audience__0: http://api-gateway:8080
       JwtSettings__SigningKeySource: Configuration
     depends_on:

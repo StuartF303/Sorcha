@@ -212,7 +212,8 @@ builder.Services.AddCors(options =>
 });
 
 // Add JWT authentication and authorization (AUTH-002)
-builder.Services.AddWalletAuthentication(builder.Configuration);
+// JWT authentication is now configured via shared ServiceDefaults with auto-key generation
+builder.AddJwtAuthentication();
 builder.Services.AddWalletAuthorization();
 
 var app = builder.Build();

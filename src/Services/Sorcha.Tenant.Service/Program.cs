@@ -188,8 +188,11 @@ try
     // Add Tenant Service dependencies (database, repositories, Redis, token revocation)
     builder.Services.AddTenantServices(builder.Configuration);
 
-    // Add JWT authentication
-    builder.Services.AddTenantAuthentication(builder.Configuration);
+    // Add JWT authentication (shared across all services with auto-key generation)
+    builder.AddJwtAuthentication();
+
+    // Configure JwtConfiguration for token issuance (used by TokenService)
+    builder.Services.ConfigureJwtForTokenIssuance(builder.Configuration);
 
     // Add authorization policies
     builder.Services.AddTenantAuthorization();

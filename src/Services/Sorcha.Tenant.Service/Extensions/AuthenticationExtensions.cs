@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
-using System.Security.Claims;
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-
 namespace Sorcha.Tenant.Service.Extensions;
 
 /// <summary>
 /// Configuration for JWT authentication.
+/// This configuration is used by Tenant Service for token issuance.
+/// The shared JwtSettings from ServiceDefaults is used for token validation.
 /// </summary>
 public class JwtConfiguration
 {
@@ -21,7 +18,7 @@ public class JwtConfiguration
     /// <summary>
     /// Valid audiences for tokens (aud claim).
     /// </summary>
-    public string[] Audiences { get; set; } = { "https://api.sorcha.io" };
+    public string[] Audiences { get; set; } = ["https://api.sorcha.io"];
 
     /// <summary>
     /// Signing key for development (production uses Azure Key Vault).
@@ -70,79 +67,55 @@ public class JwtConfiguration
 }
 
 /// <summary>
-/// Extension methods for configuring JWT authentication.
+/// Extension methods for configuring JWT authorization in Tenant Service.
+/// JWT authentication is configured via the shared ServiceDefaults.AddJwtAuthentication().
 /// </summary>
 public static class AuthenticationExtensions
 {
     /// <summary>
-    /// Adds JWT Bearer authentication to the service collection.
+    /// Configures JwtConfiguration from the environment for token issuance.
+    /// This ensures the TokenService uses the same key as the shared JWT authentication.
     /// </summary>
-    public static IServiceCollection AddTenantAuthentication(
+    public static IServiceCollection ConfigureJwtForTokenIssuance(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var jwtConfig = configuration.GetSection("JwtSettings").Get<JwtConfiguration>()
-            ?? new JwtConfiguration();
-
-        services.Configure<JwtConfiguration>(configuration.GetSection("JwtSettings"));
-
-        services.AddAuthentication(options =>
+        services.Configure<JwtConfiguration>(options =>
         {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddJwtBearer(options =>
-        {
-            options.TokenValidationParameters = new TokenValidationParameters
+            var section = configuration.GetSection("JwtSettings");
+
+            options.Issuer = configuration["JwtSettings:Issuer"] ?? "https://tenant.sorcha.io";
+            options.SigningKey = configuration["JwtSettings:SigningKey"];
+            options.AccessTokenLifetimeMinutes = section.GetValue("AccessTokenLifetimeMinutes", 60);
+            options.RefreshTokenLifetimeHours = section.GetValue("RefreshTokenLifetimeHours", 24);
+            options.ServiceTokenLifetimeHours = section.GetValue("ServiceTokenLifetimeHours", 8);
+            options.ClockSkewMinutes = section.GetValue("ClockSkewMinutes", 5);
+            options.ValidateIssuer = section.GetValue("ValidateIssuer", true);
+            options.ValidateAudience = section.GetValue("ValidateAudience", true);
+            options.ValidateIssuerSigningKey = section.GetValue("ValidateIssuerSigningKey", true);
+            options.ValidateLifetime = section.GetValue("ValidateLifetime", true);
+
+            // Handle audiences - can be:
+            // - Array: JwtSettings:Audience:0, JwtSettings:Audience:1
+            // - Single value: JwtSettings:Audience
+            // - Environment variable array: JwtSettings__Audience__0
+            var audienceSection = configuration.GetSection("JwtSettings:Audience");
+            var audienceChildren = audienceSection.GetChildren().ToList();
+
+            if (audienceChildren.Count > 0)
             {
-                ValidateIssuer = jwtConfig.ValidateIssuer,
-                ValidIssuer = jwtConfig.Issuer,
-
-                ValidateAudience = jwtConfig.ValidateAudience,
-                ValidAudiences = jwtConfig.Audiences,
-
-                ValidateIssuerSigningKey = jwtConfig.ValidateIssuerSigningKey,
-                IssuerSigningKey = GetSigningKey(jwtConfig),
-
-                ValidateLifetime = jwtConfig.ValidateLifetime,
-                ClockSkew = TimeSpan.FromMinutes(jwtConfig.ClockSkewMinutes),
-
-                // Map standard claims
-                NameClaimType = ClaimTypes.Name,
-                RoleClaimType = ClaimTypes.Role
-            };
-
-            options.Events = new JwtBearerEvents
+                // Array of audiences
+                options.Audiences = audienceChildren.Select(c => c.Value!).Where(v => !string.IsNullOrEmpty(v)).ToArray();
+            }
+            else
             {
-                OnAuthenticationFailed = context =>
+                // Single audience value
+                var singleAudience = configuration["JwtSettings:Audience"];
+                if (!string.IsNullOrEmpty(singleAudience))
                 {
-                    var logger = context.HttpContext.RequestServices
-                        .GetRequiredService<ILogger<JwtBearerHandler>>();
-
-                    logger.LogWarning(
-                        context.Exception,
-                        "JWT authentication failed: {Message}",
-                        context.Exception.Message);
-
-                    return Task.CompletedTask;
-                },
-
-                OnTokenValidated = context =>
-                {
-                    var logger = context.HttpContext.RequestServices
-                        .GetRequiredService<ILogger<JwtBearerHandler>>();
-
-                    var userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                    var orgId = context.Principal?.FindFirst("org_id")?.Value;
-
-                    logger.LogDebug(
-                        "Token validated for user {UserId}, org {OrgId}",
-                        userId, orgId);
-
-                    return Task.CompletedTask;
+                    options.Audiences = [singleAudience];
                 }
-            };
+            }
         });
 
         return services;
@@ -150,6 +123,7 @@ public static class AuthenticationExtensions
 
     /// <summary>
     /// Adds authorization policies for Tenant Service.
+    /// Note: Call builder.AddJwtAuthentication() from ServiceDefaults first.
     /// </summary>
     public static IServiceCollection AddTenantAuthorization(this IServiceCollection services)
     {
@@ -196,29 +170,5 @@ public static class AuthenticationExtensions
         });
 
         return services;
-    }
-
-    /// <summary>
-    /// Gets the signing key from configuration.
-    /// </summary>
-    private static SecurityKey? GetSigningKey(JwtConfiguration config)
-    {
-        if (string.IsNullOrEmpty(config.SigningKey))
-        {
-            return null;
-        }
-
-        // For development, use symmetric key
-        // Production should use RSA keys from Key Vault
-        var keyBytes = Encoding.UTF8.GetBytes(config.SigningKey);
-
-        // Ensure key is at least 256 bits for HS256
-        if (keyBytes.Length < 32)
-        {
-            // Pad with zeros (not recommended for production)
-            Array.Resize(ref keyBytes, 32);
-        }
-
-        return new SymmetricSecurityKey(keyBytes);
     }
 }
