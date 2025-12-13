@@ -1,7 +1,7 @@
 # Sorcha.Register.Service Specification
 
-**Version:** 2.2
-**Date:** 2025-11-16
+**Version:** 2.3
+**Date:** 2025-12-13
 **Status:** Proposed - Enhanced
 **Last Updated:** 2025-11-16 - Added blockchain gateway integration, universal DID resolver, and high-performance query infrastructure requirements
 **Related Constitution:** [constitution.md](../constitution.md)
@@ -1081,9 +1081,50 @@ public class RegisterHeightUpdatedEvent
 
 ## Integration Points
 
+### Service Communication Protocol
+
+**Internal Service-to-Service Communication:**
+- **Protocol:** gRPC with Protocol Buffers (per [Constitution v1.3](../constitution.md))
+- **Authentication:** Mutual TLS (mTLS) with service certificates
+- **User Context:** Delegation tokens via gRPC metadata (`x-delegation-token`)
+- **Transport:** HTTP/2 with multiplexing and server streaming support
+- **Service Discovery:** .NET Aspire service discovery
+- **Error Handling:** gRPC status codes with detailed error messages
+- **Related:** [ADR-001: gRPC Service Communication](../adrs/adr-001-grpc-service-communication.md)
+
+**External Client-Facing APIs:**
+- **Protocol:** REST/HTTP (via API Gateway) with OData V4 support
+- **Authentication:** JWT Bearer tokens
+- **Documentation:** OpenAPI 3.0 with Scalar UI
+
+**Register Service gRPC Contract:**
+- **Protocol Buffer:** `src/Services/Sorcha.Register.Service/Protos/register.proto`
+- **Service:** `sorcha.register.v1.RegisterService`
+- **RPCs:**
+  - `SubmitTransaction` - Submit transaction to register
+  - `QueryTransactions` - Query transactions with pagination
+  - `GetTransactionsByInstanceId` - Stream transactions by instance (server streaming)
+  - `GetTransactionsByWallet` - Stream transactions by wallet address
+
 ### Service Dependencies
 
-#### 1. Validator Service
+#### 1. Tenant Service (Authentication Hub)
+**Purpose:** Authentication and authorization
+
+**Integration:**
+- **gRPC Service:** `sorcha.tenant.v1.TenantService`
+- **RPCs:**
+  - `IntrospectToken` - Validate JWT tokens
+  - `GetDelegationToken` - Issue delegation tokens
+- **Interaction:** gRPC with mTLS authentication
+- Query tenant service for register access control
+- Validate user permissions for register operations
+- Filter registers by tenant membership
+- Support tenant-scoped queries
+- **Failure Mode:** Requests fail if Tenant Service unavailable (critical dependency)
+- **Protocol Buffer:** `src/Services/Sorcha.Tenant.Service/Protos/tenant.proto`
+
+#### 2. Validator Service
 **Purpose:** Transaction validation and consensus
 
 **Integration:**
@@ -1094,17 +1135,20 @@ public class RegisterHeightUpdatedEvent
 - Receives validated transaction payloads
 - Accepts consensus-approved dockets
 
-#### 2. Wallet Service
+#### 3. Wallet Service
 **Purpose:** Transaction signing and address management
 
 **Integration:**
+- **gRPC Service:** `sorcha.wallet.v1.WalletService` (for signature verification, future)
 - Publishes `TransactionConfirmed` events for wallet updates
 - Subscribes to `WalletAddressCreated` events
 - Queries wallet service for signature verification
 - Supports wallet-based payload decryption
 - Tracks sender and recipient addresses
+- **Interaction:** gRPC with mTLS and delegation tokens (for verification)
+- **Protocol Buffer:** `src/Services/Sorcha.Wallet.Service/Protos/wallet.proto`
 
-#### 3. Peer Service
+#### 4. Peer Service
 **Purpose:** Network synchronization and distributed consensus
 
 **Integration (Future):**
@@ -1114,15 +1158,6 @@ public class RegisterHeightUpdatedEvent
 - Handle network topology changes
 - Support register discovery and advertising
 
-#### 4. Tenant Service
-**Purpose:** Multi-tenant isolation and authorization
-
-**Integration:**
-- Query tenant service for register access control
-- Validate user permissions for register operations
-- Filter registers by tenant membership
-- Support tenant-scoped queries
-- Integration via .NET Aspire service discovery
 
 ### Aspire Messaging Topics
 

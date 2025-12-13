@@ -1,7 +1,7 @@
 # Sorcha Tenant Service Specification
 
-**Version:** 1.0
-**Date:** 2025-12-10
+**Version:** 1.1
+**Date:** 2025-12-13
 **Status:** Implementation Complete (Integration Pending)
 **Related Constitution:** [constitution.md](../constitution.md)
 **Related Tasks:** AUTH-001, AUTH-002, AUTH-003 in [MASTER-TASKS.md](../MASTER-TASKS.md)
@@ -118,6 +118,35 @@ The Sorcha Tenant Service is the **central authentication and authorization hub*
 - **.NET Aspire** - Service orchestration and observability
 - **Minimal APIs** - Modern endpoint routing
 - **OpenAPI/Scalar** - API documentation
+- **gRPC** - Internal service-to-service communication protocol
+
+### Service Communication Protocol
+
+**Tenant Service gRPC Contract:**
+- **Protocol Buffer:** `src/Services/Sorcha.Tenant.Service/Protos/tenant.proto`
+- **Service:** `sorcha.tenant.v1.TenantService`
+- **RPCs:**
+  - `IntrospectToken` - Validate JWT tokens and return claims
+  - `GetDelegationToken` - Issue delegation tokens for service-to-service calls
+  - `GetServiceToken` - Issue service tokens via OAuth2 client credentials
+  - `RevokeToken` - Revoke specific tokens
+- **Authentication:** Mutual TLS (mTLS) with service certificates
+- **Transport:** HTTP/2 with multiplexing
+- **Related:** [ADR-001: gRPC Service Communication](../adrs/adr-001-grpc-service-communication.md)
+- **Related:** [Constitution v1.3](../constitution.md) - Service Communication Standards
+
+**Internal Service-to-Service Communication:**
+- All services communicate with Tenant Service via gRPC for authentication operations
+- Service tokens issued via OAuth2 client credentials flow (gRPC)
+- Delegation tokens included in gRPC metadata (`x-delegation-token`)
+- mTLS ensures mutual authentication between services
+- Service discovery via .NET Aspire
+
+**External Client-Facing APIs:**
+- **Protocol:** REST/HTTP (for user authentication endpoints)
+- **Authentication:** JWT Bearer tokens
+- **Documentation:** OpenAPI 3.0 with Scalar UI
+- **Note:** Client applications use REST, internal services use gRPC
 
 ### Operational Requirements
 

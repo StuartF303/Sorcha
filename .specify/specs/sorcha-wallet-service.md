@@ -1,7 +1,7 @@
 # Sorcha Wallet Service Specification
 
-**Version:** 1.1
-**Date:** 2025-11-17
+**Version:** 1.2
+**Date:** 2025-12-13
 **Status:** Active
 **Related Constitution:** [constitution.md](../constitution.md)
 **Related Specifications:**
@@ -345,6 +345,22 @@ public enum WalletStatus
 
 ## Service Interactions
 
+### Service Communication Protocol
+
+**Internal Service-to-Service Communication:**
+- **Protocol:** gRPC with Protocol Buffers (per [Constitution v1.3](../constitution.md))
+- **Authentication:** Mutual TLS (mTLS) with service certificates
+- **User Context:** Delegation tokens via gRPC metadata (`x-delegation-token`)
+- **Transport:** HTTP/2 with multiplexing
+- **Service Discovery:** .NET Aspire service discovery
+- **Error Handling:** gRPC status codes with detailed error messages
+- **Related:** [ADR-001: gRPC Service Communication](../adrs/adr-001-grpc-service-communication.md)
+
+**External Client-Facing APIs:**
+- **Protocol:** REST/HTTP (via API Gateway)
+- **Authentication:** JWT Bearer tokens
+- **Documentation:** OpenAPI 3.0 with Scalar UI
+
 ### External Service Dependencies
 
 **1. Sorcha.Cryptography (Library)**
@@ -360,13 +376,27 @@ public enum WalletStatus
 - Transaction validation
 - **Interaction:** Direct library calls (synchronous)
 
-**3. Register Service (Future - To Be Specified)**
-- **Used For:** Retrieving transaction history when recovering wallets
-- **Endpoints:** To be defined
-- **Interaction:** HTTP via .NET Aspire service discovery
-- **Failure Mode:** Wallet can be created without transaction history (graceful degradation)
+**3. Tenant Service (Authentication Hub)**
+- **Used For:** Token validation, delegation token verification
+- **gRPC Service:** `sorcha.tenant.v1.TenantService`
+- **RPCs:**
+  - `IntrospectToken` - Validate JWT tokens
+  - `GetDelegationToken` - Issue delegation tokens for service-to-service calls
+- **Interaction:** gRPC with mTLS authentication
+- **Failure Mode:** Requests fail if Tenant Service unavailable (critical dependency)
+- **Protocol Buffer:** `src/Services/Sorcha.Tenant.Service/Protos/tenant.proto`
 
-**4. Event Bus (.NET Aspire Messaging)**
+**4. Register Service (Transaction Ledger)**
+- **Used For:** Retrieving transaction history when recovering wallets
+- **gRPC Service:** `sorcha.register.v1.RegisterService`
+- **RPCs:**
+  - `QueryTransactions` - Retrieve wallet transaction history
+  - `GetTransactionsByWallet` - Stream wallet transactions
+- **Interaction:** gRPC with mTLS and delegation tokens
+- **Failure Mode:** Wallet can be created without transaction history (graceful degradation)
+- **Protocol Buffer:** `src/Services/Sorcha.Register.Service/Protos/register.proto`
+
+**5. Event Bus (.NET Aspire Messaging)**
 - **Published Events:**
   - `WalletCreated` - When new wallet created
   - `AddressGenerated` - When new address derived
@@ -374,7 +404,7 @@ public enum WalletStatus
 - **Interaction:** Async pub/sub via Aspire messaging
 - **Failure Mode:** Events buffered and retried
 
-**5. Encryption Provider (Infrastructure)**
+**6. Encryption Provider (Infrastructure)**
 - **Azure Key Vault**: MEK storage and cryptographic operations
 - **AWS KMS**: Alternative MEK storage
 - **Local DPAPI**: Fallback encryption provider

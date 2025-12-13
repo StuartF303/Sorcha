@@ -1,7 +1,7 @@
 # SORCHA Project Constitution
 
-**Version:** 1.2
-**Last Updated:** 2025-11-17
+**Version:** 1.3
+**Last Updated:** 2025-12-13
 **Status:** Active
 
 ## Purpose
@@ -21,6 +21,15 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 - Services communicate via well-defined APIs and message buses
 - Use .Net Aspire for microservices orchestration and service-to-service communication
 - Maintain clear service boundaries with minimal coupling
+
+**Service Communication Standards**
+- Internal service-to-service communication MUST use gRPC (not REST/HTTP)
+- External client-facing APIs MAY use REST/HTTP (via API Gateway)
+- All gRPC services MUST use mutual TLS (mTLS) for authentication
+- Service contracts MUST be defined using Protocol Buffers (.proto files)
+- gRPC services MUST support delegation tokens via metadata for user context propagation
+- Service health checks MUST use gRPC health protocol
+- API Gateway MUST translate external REST requests to internal gRPC calls where appropriate
 
 **Cloud-Native Design**
 - Design for containerization (Docker) from the start
@@ -72,6 +81,8 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 - Follow RESTful API design principles
 
 **API Documentation Standards**
+
+*For External REST APIs:*
 - All REST endpoints MUST have OpenAPI documentation
 - Use .NET 10's built-in OpenAPI support (Microsoft.AspNetCore.OpenApi)
 - Use Scalar.AspNetCore for interactive API documentation UI
@@ -82,6 +93,16 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 - Document authentication and authorization requirements
 - Version APIs appropriately and document breaking changes
 - DO NOT use Swagger/Swashbuckle - use built-in .NET 10 OpenAPI
+
+*For Internal gRPC Services:*
+- All gRPC services MUST have documented .proto files with comments
+- Use gRPC reflection for service discovery and tooling
+- Document all message types, fields, and enums with inline comments
+- Include usage examples in service documentation
+- Document error handling and status codes (gRPC status codes)
+- Document authentication requirements (mTLS + delegation tokens)
+- Version .proto files with package versioning (e.g., sorcha.wallet.v1)
+- Maintain backwards compatibility or provide migration guides for breaking changes
 
 **Blueprint Creation Standards**
 - Blueprints MUST be created as JSON or YAML documents (primary format)
@@ -240,7 +261,10 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 - [Project Specification](spec.md)
 - [Master Plan](MASTER-PLAN.md)
 - [Master Tasks](MASTER-TASKS.md)
-- [AI Code Documentation Policy](AI-CODE-DOCUMENTATION-POLICY.md) ⭐ NEW
+- [AI Code Documentation Policy](AI-CODE-DOCUMENTATION-POLICY.md)
+- [Architecture Decision Records](adrs/README.md) ⭐ NEW
+  - [ADR-001: gRPC Service Communication](adrs/adr-001-grpc-service-communication.md) ⭐ NEW
+- [gRPC Migration Plan](GRPC-MIGRATION-PLAN.md) ⭐ NEW
 - [Project README](../README.md)
 - [Contributing Guidelines](../CONTRIBUTING.md)
 - [License](../LICENCE.txt)
