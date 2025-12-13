@@ -211,6 +211,10 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Add JWT authentication and authorization (AUTH-002)
+builder.Services.AddWalletAuthentication(builder.Configuration);
+builder.Services.AddWalletAuthorization();
+
 var app = builder.Build();
 
 // Apply database migrations automatically (only if PostgreSQL is configured)
@@ -241,9 +245,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// TODO: Add authentication middleware when ready
-// app.UseAuthentication();
-// app.UseAuthorization();
+// Add authentication and authorization middleware (AUTH-002)
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Map Wallet API endpoints
 app.MapWalletEndpoints();

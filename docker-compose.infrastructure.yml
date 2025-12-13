@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Sorcha Contributors
+
+# Infrastructure-only Docker Compose
+# Use this for local development to run databases without building all services
+# Usage: docker-compose -f docker-compose.infrastructure.yml up -d
+
+services:
+  redis:
+    image: redis:8-alpine
+    container_name: sorcha-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: sorcha-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: sorcha
+      POSTGRES_PASSWORD: sorcha_dev_password
+      POSTGRES_DB: sorcha
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sorcha"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  mongodb:
+    image: mongo:8
+    container_name: sorcha-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: sorcha
+      MONGO_INITDB_ROOT_PASSWORD: sorcha_dev_password
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis-data:
+  postgres-data:
+  mongodb-data:

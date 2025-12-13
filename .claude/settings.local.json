@@ -212,7 +212,14 @@
       "Bash(timeout 30 curl:*)",
       "Bash(timeout 20 curl:*)",
       "Bash(\"ReverseProxy__Clusters__tenant-cluster__Destinations__destination1__Address=http://tenant-service\" )",
-      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error CS|warning CS)\")"
+      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error CS|warning CS)\")",
+      "Bash(Select-String -Pattern \"(Passed|Failed|Total tests:|Test run|Error Message|Stack Trace)\" -Context 0,2)",
+      "Bash(timeout 30 dotnet test:*)",
+      "Bash(docker-compose:*)",
+      "Bash(timeout 15 dotnet run:*)",
+      "Bash(psql:*)",
+      "Bash(timeout 10 powershell:*)",
+      "Bash(timeout 20 dotnet run:*)"
     ],
     "deny": [],
     "ask": []

@@ -4,7 +4,7 @@ A modern .NET 10 blueprint execution engine and designer for data flow orchestra
 
 ## Development Status
 
-**Current Stage:** Active Development - MVD Phase (97% Complete) | [View Detailed Status Report](docs/development-status.md)
+**Current Stage:** Active Development - MVD Phase (98% Complete) | [View Detailed Status Report](docs/development-status.md)
 
 | Component | Status | Completion |
 |-----------|--------|------------|
@@ -16,9 +16,14 @@ A modern .NET 10 blueprint execution engine and designer for data flow orchestra
 | Services & APIs | Enhanced | 97% |
 | Testing & CI/CD | Production Ready | 95% |
 
-> **⚠️ Production Readiness: 10%** - Core functionality complete, but authentication, database persistence, and security hardening are pending. See [MASTER-PLAN.md](.specify/MASTER-PLAN.md) for details.
+> **⚠️ Production Readiness: 30%** - Core functionality and authentication complete. Database persistence and security hardening are pending. See [MASTER-PLAN.md](.specify/MASTER-PLAN.md) for details.
 
-**Recent Updates (2025-12-07):**
+**Recent Updates (2025-12-12):**
+- ✅ **Service Authentication Integration (AUTH-002) complete** - JWT Bearer auth across Blueprint, Wallet, and Register services
+- ✅ **Authorization policies implemented** - Role-based access control for all protected endpoints
+- ✅ **Authentication documentation complete** - Comprehensive setup guide and troubleshooting
+
+**Previous Updates (2025-12-07):**
 - ✅ **Blueprint Service Orchestration (Sprint 10) complete** - Delegation tokens, state reconstruction, instance management
 - ✅ **Project cleanup and rationalization** - Archived superseded documents, removed orphaned files
 
@@ -95,6 +100,7 @@ All specifications are designed to provide context for AI-assisted development. 
   - ✅ File upload/download support
   - ✅ Integration with Wallet Service (encryption/decryption) (Sprint 3)
   - ✅ Integration with Register Service (blockchain transactions) (Sprint 3)
+  - ✅ JWT Bearer authentication with authorization policies (AUTH-002 COMPLETE)
 
 - **✅ Wallet Service** (Core 90% COMPLETE): Secure cryptographic wallet management ([View Detailed Status](docs/wallet-service-status.md))
   - ✅ HD wallet support with BIP32/BIP39/BIP44 standards (NBitcoin)
@@ -105,9 +111,9 @@ All specifications are designed to provide context for AI-assisted development. 
   - ✅ 14 REST API endpoints with comprehensive OpenAPI docs
   - ✅ 111 unit tests (~75-80% coverage)
   - ✅ In-memory repository implementation
+  - ✅ JWT Bearer authentication with authorization policies (AUTH-002 COMPLETE)
   - 🚧 EF Core repository (pending - P1)
   - 🚧 Azure Key Vault integration (pending - P1)
-  - 🚧 Authentication & authorization (pending - P1)
   - 🚧 HD address generation (not implemented - design needed)
 
 - **✅ Register Service** (100% COMPLETE): Distributed ledger for transaction storage
@@ -119,6 +125,7 @@ All specifications are designed to provide context for AI-assisted development. 
   - ✅ Comprehensive testing (112 tests, ~2,459 LOC)
   - ✅ Chain validation and block sealing
   - ✅ DID URI support: `did:sorcha:register:{id}/tx:{txId}`
+  - ✅ JWT Bearer authentication with authorization policies (AUTH-002 COMPLETE)
   - 🚧 MongoDB repository (InMemory implementation complete)
 
 - **✅ Tenant Service** (Specification 100% COMPLETE): Multi-tenant authentication and authorization ([View Specification](.specify/specs/sorcha-tenant-service.md))

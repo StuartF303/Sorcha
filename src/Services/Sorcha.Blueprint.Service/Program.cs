@@ -4,6 +4,7 @@
 using Microsoft.AspNetCore.OutputCaching;
 using Scalar.AspNetCore;
 using System.Collections.Concurrent;
+using Sorcha.Blueprint.Service.Extensions;
 using Sorcha.Blueprint.Service.JsonLd;
 using Sorcha.Cryptography.Core;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
@@ -84,6 +85,10 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.INotificationService,
     Sorcha.Blueprint.Service.Services.Implementation.NotificationService>();
 
+// Add JWT authentication and authorization (AUTH-002)
+builder.Services.AddBlueprintAuthentication(builder.Configuration);
+builder.Services.AddBlueprintAuthorization();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
@@ -112,6 +117,10 @@ app.UseOutputCache();
 // Enable JSON-LD content negotiation
 app.UseJsonLdContentNegotiation();
 
+// Add authentication and authorization middleware (AUTH-002)
+app.UseAuthentication();
+app.UseAuthorization();
+
 // Add Delegation Token Middleware (Sprint 6 - Orchestration)
 app.UseMiddleware<Sorcha.Blueprint.Service.Middleware.DelegationTokenMiddleware>();
 
@@ -124,7 +133,8 @@ app.MapHub<Sorcha.Blueprint.Service.Hubs.ActionsHub>("/actionshub");
 
 var blueprintGroup = app.MapGroup("/api/blueprints")
     .WithTags("Blueprints")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization("CanManageBlueprints");
 
 /// <summary>
 /// Get all blueprints with pagination
@@ -246,7 +256,8 @@ blueprintGroup.MapPost("/{id}/publish", async (string id, IPublishService servic
 })
 .WithName("PublishBlueprint")
 .WithSummary("Publish blueprint")
-.WithDescription("Validate and publish a blueprint to make it available for use");
+.WithDescription("Validate and publish a blueprint to make it available for use")
+.RequireAuthorization("CanPublishBlueprints");
 
 /// <summary>
 /// Get all published versions of a blueprint
@@ -280,7 +291,8 @@ blueprintGroup.MapGet("/{id}/versions/{version}", async (string id, int version,
 
 var schemaGroup = app.MapGroup("/api/schemas")
     .WithTags("Schemas")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization();
 
 /// <summary>
 /// Get all available schemas
@@ -301,7 +313,8 @@ schemaGroup.MapGet("/", async (string? category = null, string? source = null, s
 
 var templateGroup = app.MapGroup("/api/templates")
     .WithTags("Templates")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization();
 
 /// <summary>
 /// Get all published templates
@@ -435,7 +448,8 @@ templateGroup.MapGet("/{id}/examples/{exampleName}", async (
 
 var actionsGroup = app.MapGroup("/api/actions")
     .WithTags("Actions")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization("CanExecuteBlueprints");
 
 /// <summary>
 /// Get available blueprints for a wallet/register combination
@@ -868,7 +882,8 @@ app.MapGet("/api/files/{wallet}/{register}/{tx}/{fileId}", async (
 
 var executionGroup = app.MapGroup("/api/execution")
     .WithTags("Execution")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization("CanExecuteBlueprints");
 
 /// <summary>
 /// Validate action data against schema (helper endpoint)
@@ -1078,7 +1093,8 @@ executionGroup.MapPost("/disclose", async (
 
 var notificationGroup = app.MapGroup("/api/notifications")
     .WithTags("Notifications")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization("RequireService");
 
 /// <summary>
 /// Internal endpoint for Register Service to notify of transaction confirmations
@@ -1121,7 +1137,8 @@ notificationGroup.MapPost("/transaction-confirmed", async (
 
 var instancesGroup = app.MapGroup("/api/instances")
     .WithTags("Instances")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization("CanExecuteBlueprints");
 
 /// <summary>
 /// Create a new workflow instance

@@ -22,7 +22,8 @@ public static class WalletEndpoints
     {
         var walletGroup = app.MapGroup("/api/v1/wallets")
             .WithTags("Wallets")
-            .WithOpenApi();
+            .WithOpenApi()
+            .RequireAuthorization("CanManageWallets");
 
         // POST /api/v1/wallets - Create new wallet
         walletGroup.MapPost("/", CreateWallet)

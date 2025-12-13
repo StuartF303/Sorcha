@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Sorcha.Tenant.Service.Models;
 
@@ -19,6 +20,12 @@ public class DatabaseInitializer
     // Well-known IDs for default organization and admin
     public static readonly Guid DefaultOrganizationId = new("00000000-0000-0000-0000-000000000001");
     public static readonly Guid DefaultAdminUserId = new("00000000-0000-0000-0001-000000000001");
+
+    // Well-known IDs for service principals
+    public static readonly Guid BlueprintServicePrincipalId = new("00000000-0000-0000-0002-000000000001");
+    public static readonly Guid WalletServicePrincipalId = new("00000000-0000-0000-0002-000000000002");
+    public static readonly Guid RegisterServicePrincipalId = new("00000000-0000-0000-0002-000000000003");
+    public static readonly Guid PeerServicePrincipalId = new("00000000-0000-0000-0002-000000000004");
 
     // Default credentials (can be overridden via configuration)
     public const string DefaultAdminEmail = "admin@sorcha.local";
@@ -65,6 +72,9 @@ public class DatabaseInitializer
 
             // Seed default data
             await SeedDefaultDataAsync(dbContext, cancellationToken);
+
+            // Seed service principals
+            await SeedServicePrincipalsAsync(dbContext, cancellationToken);
 
             _logger.LogInformation("Database initialization completed successfully");
         }
@@ -172,6 +182,99 @@ public class DatabaseInitializer
         {
             _logger.LogInformation("Default administrator already exists: {Email}", existingAdmin.Email);
         }
+    }
+
+    private async Task SeedServicePrincipalsAsync(TenantDbContext dbContext, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Checking for service principals...");
+
+        // Define service principals to seed
+        var servicePrincipals = new (Guid Id, string ServiceName, string ClientId, string[] Scopes)[]
+        {
+            (
+                BlueprintServicePrincipalId,
+                "Blueprint Service",
+                "service-blueprint",
+                new[] { "blueprints:read", "blueprints:write", "wallets:sign", "register:write" }
+            ),
+            (
+                WalletServicePrincipalId,
+                "Wallet Service",
+                "service-wallet",
+                new[] { "wallets:read", "wallets:write", "wallets:sign", "wallets:encrypt", "wallets:decrypt" }
+            ),
+            (
+                RegisterServicePrincipalId,
+                "Register Service",
+                "service-register",
+                new[] { "registers:read", "registers:write", "registers:query" }
+            ),
+            (
+                PeerServicePrincipalId,
+                "Peer Service",
+                "service-peer",
+                new[] { "peers:read", "peers:write", "registers:read" }
+            )
+        };
+
+        foreach (var sp in servicePrincipals)
+        {
+            var existing = await dbContext.ServicePrincipals
+                .FirstOrDefaultAsync(s => s.Id == sp.Id, cancellationToken);
+
+            if (existing == null)
+            {
+                // Generate and hash client secret
+                var clientSecret = GenerateClientSecret();
+                var encryptedSecret = EncryptClientSecret(clientSecret);
+
+                _logger.LogInformation("Creating service principal: {ServiceName}", sp.ServiceName);
+
+                var servicePrincipal = new ServicePrincipal
+                {
+                    Id = sp.Id,
+                    ServiceName = sp.ServiceName,
+                    ClientId = sp.ClientId,
+                    ClientSecretEncrypted = encryptedSecret,
+                    Scopes = sp.Scopes,
+                    Status = ServicePrincipalStatus.Active,
+                    CreatedAt = DateTimeOffset.UtcNow
+                };
+
+                dbContext.ServicePrincipals.Add(servicePrincipal);
+                await dbContext.SaveChangesAsync(cancellationToken);
+
+                _logger.LogWarning(
+                    "Service Principal Created - {ServiceName}\n" +
+                    "  Client ID:     {ClientId}\n" +
+                    "  Client Secret: {ClientSecret}\n" +
+                    "  Scopes:        {Scopes}\n" +
+                    "  ⚠️  SAVE THIS SECRET - It will not be shown again!",
+                    sp.ServiceName, sp.ClientId, clientSecret, string.Join(", ", sp.Scopes));
+            }
+            else
+            {
+                _logger.LogInformation("Service principal already exists: {ServiceName}", existing.ServiceName);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Generates a cryptographically secure client secret.
+    /// </summary>
+    private static string GenerateClientSecret()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").TrimEnd('=');
+    }
+
+    /// <summary>
+    /// Encrypts the client secret for storage using SHA256 hash.
+    /// </summary>
+    private static byte[] EncryptClientSecret(string secret)
+    {
+        using var sha256 = SHA256.Create();
+        return sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(secret));
     }
 }
 

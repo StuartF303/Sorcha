@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 3.7 - UPDATED
-**Last Updated:** 2025-12-10
-**Status:** Active - Sprint 10 Complete (16/16 tasks), Tenant Service Specification Complete
+**Version:** 3.8 - UPDATED
+**Last Updated:** 2025-12-12
+**Status:** Active - Sprint 10 Complete, AUTH-002 Complete (Service Authentication Integration)
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -12,9 +12,36 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 226 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 129 (57%)
+**Completed:** 134 (59%)
 **In Progress:** 0 (0%)
-**Not Started:** 97 (43%)
+**Not Started:** 92 (41%)
+
+**Note:** Counts updated 2025-12-13:
+- ✅ **WS-008/009 COMPLETE**: Wallet Service EF Core repository and PostgreSQL migrations (28h)
+  - EfCoreWalletRepository with complete CRUD operations
+  - WalletDbContext with 4 entities and comprehensive indexing
+  - Migration 20251207234439_InitialWalletSchema applied successfully
+  - Smart DI configuration: EF Core if PostgreSQL configured, InMemory fallback
+  - Wallet schema verified in PostgreSQL database
+  - See Phase 2: Wallet Service - Optional Storage & Encryption section
+
+**Note:** Counts updated 2025-12-12:
+- ✅ **AUTH-003 COMPLETE**: PostgreSQL + Redis deployment complete (8h)
+  - Docker Compose infrastructure configured for PostgreSQL 17, Redis 8, MongoDB 8
+  - Connection strings aligned across all services
+  - Database initialization scripts and health checks configured
+  - Comprehensive infrastructure setup guide created
+  - See [docs/INFRASTRUCTURE-SETUP.md](../docs/INFRASTRUCTURE-SETUP.md)
+- ✅ **AUTH-004 COMPLETE**: Bootstrap seed scripts complete (12h)
+  - Automatic database seeding on Tenant Service first startup
+  - Default organization, admin user, and service principals created automatically
+  - Service principal credentials logged for configuration
+  - See [scripts/README.md](../scripts/README.md#bootstrap-database-automatic)
+- ✅ **AUTH-002 COMPLETE**: Service authentication integration complete (24h)
+  - JWT Bearer authentication added to Blueprint, Wallet, and Register services
+  - Authorization policies implemented for all protected endpoints
+  - Shared configuration template and comprehensive documentation created
+  - See [AUTHENTICATION-SETUP.md](../docs/AUTHENTICATION-SETUP.md)
 
 **Note:** Counts updated 2025-12-10:
 - ✅ **CLI SPECIFICATION COMPLETE**: Sorcha CLI Admin Tool specification finalized (2,300+ lines)
@@ -76,7 +103,7 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete |
 |-------|-------------|----------|-------------|-------------|------------|
 | **Phase 1: Blueprint-Action** | 82 | 77 | 0 | 5 | **94%** ✅ |
-| **Phase 2: Wallet Service** | 32 | 32 | 0 | 0 | **100%** ✅ |
+| **Phase 2: Wallet Service** | 34 | 34 | 0 | 0 | **100%** ✅ |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% |
 | **Production Readiness** | 10 | 0 | 0 | 10 | 0% ⚠️ |
@@ -90,7 +117,7 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Priority | Total | Complete | In Progress | Not Started |
 |----------|-------|----------|-------------|-------------|
-| **P0 - Critical (MVD Blocker)** | 6 | 0 | 0 | 6 ⚠️ |
+| **P0 - Critical (MVD Blocker)** | 6 | 3 | 0 | 3 ⚠️ |
 | **P1 - High (Production Ready)** | 21 | 0 | 0 | 21 ⚠️ |
 | **P2 - Medium (Enhancements)** | 65 | 58 | 0 | 7 |
 | **P3 - Low (Post-MVD)** | 66 | 42 | 0 | 24 |
@@ -410,8 +437,8 @@ Enhancement tasks that can be deferred until after MVD is complete.
 
 **Goal:** Create REST API for Wallet Service and integrate with Blueprint Service
 **Duration:** Weeks 7-9
-**Total Tasks:** 32
-**Completion:** 100% (32 complete - core library, API layer, tests, and integration)
+**Total Tasks:** 34
+**Completion:** 100% (34 complete - core library, API layer, tests, integration, and EF Core persistence)
 
 ### Completed: Core Library Implementation ✅
 
@@ -472,11 +499,23 @@ Enhancement tasks that can be deferred until after MVD is complete.
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| WS-008 | EF Core repository implementation | P2 | 20h | 📋 Not Started | - |
-| WS-009 | Database migrations (PostgreSQL) | P2 | 8h | 📋 Not Started | - |
+| WS-008 | EF Core repository implementation | P2 | 20h | ✅ Complete | 2025-12-13 |
+| WS-009 | Database migrations (PostgreSQL) | P2 | 8h | ✅ Complete | 2025-12-13 |
 | WS-013 | Azure Key Vault provider | P2 | 16h | 📋 Not Started | - |
 
-**Enhancement Status:** 📋 **DEFERRED** (0/3 tasks, 44 hours)
+**Enhancement Status:** ✅ **2/3 COMPLETE** (2 complete, 0 in progress, 1 not started, 28/44 hours)
+
+**WS-008/009 Completion Notes (2025-12-13):**
+- ✅ EfCoreWalletRepository.cs with complete CRUD operations, soft delete, optimistic concurrency
+- ✅ WalletDbContext.cs with 4 entities (Wallets, WalletAddresses, WalletAccess, WalletTransactions)
+- ✅ PostgreSQL-specific features: JSONB columns, gen_random_uuid(), comprehensive indexing
+- ✅ Migration 20251207234439_InitialWalletSchema created and applied
+- ✅ Smart DI configuration: EF Core if PostgreSQL configured, InMemory otherwise
+- ✅ NpgsqlDataSource with EnableDynamicJson for Dictionary<string, string> serialization
+- ✅ Automatic migration application on service startup
+- ✅ Connection string workaround for Windows/Docker Desktop: host.docker.internal
+- ✅ Wallet schema verified in PostgreSQL: all 4 tables + indexes created
+- 📋 Azure Key Vault provider (WS-013) remains for production key storage
 
 ---
 
@@ -622,9 +661,9 @@ Enhancement tasks that can be deferred until after MVD is complete.
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
 | AUTH-001 | Implement Tenant Service (JWT + RBAC + Delegation) | P0 | 80h | 🚧 80% Complete | - |
-| AUTH-002 | Integrate services with Tenant Service authentication | P0 | 24h | 📋 Not Started | - |
-| AUTH-003 | Deploy PostgreSQL + Redis for Tenant Service | P0 | 8h | 📋 Not Started | - |
-| AUTH-004 | Bootstrap seed scripts (admin + service principals) | P0 | 12h | 📋 Not Started | - |
+| AUTH-002 | Integrate services with Tenant Service authentication | P0 | 24h | ✅ Complete | 2025-12-12 |
+| AUTH-003 | Deploy PostgreSQL + Redis for Tenant Service | P0 | 8h | ✅ Complete | 2025-12-12 |
+| AUTH-004 | Bootstrap seed scripts (admin + service principals) | P0 | 12h | ✅ Complete | 2025-12-12 |
 | AUTH-005 | Production deployment with Azure AD/B2C | P1 | 16h | 📋 Not Started | - |
 
 **Rationale:** Services currently have NO authentication/authorization. All APIs are completely open!
@@ -645,14 +684,37 @@ Enhancement tasks that can be deferred until after MVD is complete.
 - 📋 PostgreSQL repository pending
 - 📋 Production deployment pending
 
-**AUTH-002 Tasks:**
-- Update Blueprint Service to validate delegation tokens
-- Update Wallet Service to require service + delegation tokens
-- Update Register Service to require authentication
-- Update Peer Service to require authentication
-- Update API Gateway with JWT validation
+**AUTH-002 Status:** ✅ **Complete (2025-12-12)**
+- ✅ Blueprint Service: JWT Bearer authentication with authorization policies (CanManageBlueprints, CanExecuteBlueprints, CanPublishBlueprints, RequireService)
+- ✅ Wallet Service: JWT Bearer authentication with authorization policies (CanManageWallets, CanUseWallet, RequireService)
+- ✅ Register Service: JWT Bearer authentication with authorization policies (CanManageRegisters, CanSubmitTransactions, CanReadTransactions, RequireService)
+- ✅ Configuration: Shared JWT settings template (appsettings.jwt.json)
+- ✅ Documentation: Complete authentication setup guide (docs/AUTHENTICATION-SETUP.md)
+- 📋 Peer Service authentication pending (service not yet implemented)
+- 📋 API Gateway JWT validation pending
 
-**AUTH-004 Reference:** Bootstrap seed script documented in specification Section 5.2 (lines 1491-1548)
+**AUTH-003 Status:** ✅ **Complete (2025-12-12)** - Infrastructure deployment complete
+- ✅ PostgreSQL 17 container configured and tested
+- ✅ Redis 8 container configured and tested
+- ✅ MongoDB 8 container configured and tested
+- ✅ Docker Compose infrastructure-only file created (`docker-compose.infrastructure.yml`)
+- ✅ Database initialization script (`scripts/init-databases.sql`)
+- ✅ Connection strings aligned between Docker Compose and appsettings
+- ✅ Health checks configured for all infrastructure services
+- ✅ Comprehensive infrastructure setup guide created (`docs/INFRASTRUCTURE-SETUP.md`)
+- ✅ Data persistence with Docker volumes
+- ⚠️  **Note:** Windows/Docker Desktop may require `host.docker.internal` for host connectivity
+
+**AUTH-004 Status:** ✅ **Complete (2025-12-12)** - Automatic database seeding implemented
+- ✅ DatabaseInitializer enhanced with service principal seeding
+- ✅ Default organization created: "Sorcha Local" (subdomain: `sorcha-local`)
+- ✅ Default admin user: `admin@sorcha.local` / `Dev_Pass_2025!`
+- ✅ Service principals created: Blueprint, Wallet, Register, Peer services
+- ✅ Well-known GUIDs for consistent testing
+- ✅ Client secrets generated and logged on first startup
+- ✅ Configurable via appsettings ("Seed:*" configuration keys)
+- ✅ Documentation added to scripts/README.md
+- ⚠️  **Action Required:** Copy service principal secrets from Tenant Service logs on first startup
 
 ### Security Hardening (P0-P1)
 

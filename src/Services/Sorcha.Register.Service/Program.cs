@@ -10,6 +10,7 @@ using Sorcha.Register.Core.Managers;
 using Sorcha.Register.Core.Storage;
 using Sorcha.Register.Models;
 using Sorcha.Register.Models.Enums;
+using Sorcha.Register.Service.Extensions;
 using Sorcha.Register.Service.Hubs;
 using Sorcha.Register.Storage.InMemory;
 
@@ -319,6 +320,10 @@ builder.Services.AddScoped<RegisterManager>();
 builder.Services.AddScoped<TransactionManager>();
 builder.Services.AddScoped<QueryManager>();
 
+// Add JWT authentication and authorization (AUTH-002)
+builder.Services.AddRegisterAuthentication(builder.Configuration);
+builder.Services.AddRegisterAuthorization();
+
 var app = builder.Build();
 
 // Map default endpoints (health checks)
@@ -345,13 +350,18 @@ if (app.Environment.IsDevelopment())
 // Map SignalR hub
 app.MapHub<RegisterHub>("/hubs/register");
 
+// Add authentication and authorization middleware (AUTH-002)
+app.UseAuthentication();
+app.UseAuthorization();
+
 // ===========================
 // Register Management API
 // ===========================
 
 var registersGroup = app.MapGroup("/api/registers")
     .WithTags("Registers")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization("CanManageRegisters");
 
 /// <summary>
 /// Create a new register
@@ -493,7 +503,8 @@ registersGroup.MapGet("/stats/count", async (RegisterManager manager) =>
 
 var transactionsGroup = app.MapGroup("/api/registers/{registerId}/transactions")
     .WithTags("Transactions")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization("CanSubmitTransactions");
 
 /// <summary>
 /// Submit a transaction
@@ -574,7 +585,8 @@ transactionsGroup.MapGet("/", async (
 
 var queryGroup = app.MapGroup("/api/query")
     .WithTags("Query")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization("CanReadTransactions");
 
 /// <summary>
 /// Query transactions by wallet address
@@ -666,7 +678,8 @@ queryGroup.MapGet("/stats", async (
 
 var docketsGroup = app.MapGroup("/api/registers/{registerId}/dockets")
     .WithTags("Dockets")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization("CanReadTransactions");
 
 /// <summary>
 /// Get all dockets for a register
