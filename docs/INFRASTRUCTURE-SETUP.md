@@ -351,16 +351,26 @@ After starting infrastructure:
    dotnet run --project src/Services/Sorcha.Tenant.Service
    ```
 
-2. **Check bootstrap seeding logs** for service principal credentials
+2. **Bootstrap seeding runs automatically** creating:
+   - Default organization: `Sorcha Local` (ID: `00000000-0000-0000-0000-000000000001`)
+   - Admin user: `admin@sorcha.local` / `Dev_Pass_2025!`
+   - 4 service principals: Blueprint, Wallet, Register, Peer services
+
+3. **Service credentials are shown in logs** (WARNING level):
    ```
    Service Principal Created - Blueprint Service
      Client ID:     service-blueprint
-     Client Secret: <generated-secret>
+     Client Secret: s5CeyuJs9tRtBnPIElPesrRsBhqvyYRtaxmAineg01w
+     Scopes:        blueprints:read, blueprints:write, wallets:sign, register:write
+     ⚠️  SAVE THIS SECRET - It will not be shown again!
    ```
 
-3. **Save service credentials** to `.env.local` (gitignored)
+4. **Credentials are saved automatically** to `.env.local` (gitignored)
+   - See [BOOTSTRAP-CREDENTIALS.md](BOOTSTRAP-CREDENTIALS.md) for complete credential reference
 
-4. **Test authentication** using the setup guide: [docs/AUTHENTICATION-SETUP.md](AUTHENTICATION-SETUP.md)
+5. **Test authentication**:
+   - User login: [AUTHENTICATION-SETUP.md](AUTHENTICATION-SETUP.md)
+   - Service tokens: [BOOTSTRAP-CREDENTIALS.md](BOOTSTRAP-CREDENTIALS.md#service-principal-credentials)
 
 ---
 
@@ -374,7 +384,7 @@ After starting infrastructure:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-12-12
+**Document Version:** 1.1
+**Last Updated:** 2025-12-13
 **Owner:** Sorcha Architecture Team
-**Status:** ✅ Infrastructure deployed and tested
+**Status:** ✅ Infrastructure deployed, tested, and bootstrap seeding verified
