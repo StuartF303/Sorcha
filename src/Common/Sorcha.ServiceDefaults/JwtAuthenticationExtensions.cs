@@ -1,0 +1,320 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
+
+namespace Microsoft.Extensions.Hosting;
+
+/// <summary>
+/// Configuration for JWT authentication across all Sorcha services.
+/// </summary>
+public class JwtSettings
+{
+    /// <summary>
+    /// JWT token issuer (iss claim).
+    /// </summary>
+    public string Issuer { get; set; } = "https://tenant.sorcha.io";
+
+    /// <summary>
+    /// Valid audiences for tokens (aud claim).
+    /// </summary>
+    public string[] Audience { get; set; } = ["https://api.sorcha.io"];
+
+    /// <summary>
+    /// Signing key for JWT tokens.
+    /// If not provided in development, a key will be auto-generated.
+    /// Production deployments MUST provide this via environment variable or Azure Key Vault.
+    /// </summary>
+    public string? SigningKey { get; set; }
+
+    /// <summary>
+    /// Access token lifetime in minutes.
+    /// </summary>
+    public int AccessTokenLifetimeMinutes { get; set; } = 60;
+
+    /// <summary>
+    /// Refresh token lifetime in hours.
+    /// </summary>
+    public int RefreshTokenLifetimeHours { get; set; } = 24;
+
+    /// <summary>
+    /// Service token lifetime in hours.
+    /// </summary>
+    public int ServiceTokenLifetimeHours { get; set; } = 8;
+
+    /// <summary>
+    /// Clock skew tolerance for token validation in minutes.
+    /// </summary>
+    public int ClockSkewMinutes { get; set; } = 5;
+
+    /// <summary>
+    /// Whether to validate the issuer.
+    /// </summary>
+    public bool ValidateIssuer { get; set; } = true;
+
+    /// <summary>
+    /// Whether to validate the audience.
+    /// </summary>
+    public bool ValidateAudience { get; set; } = true;
+
+    /// <summary>
+    /// Whether to validate the signing key.
+    /// </summary>
+    public bool ValidateIssuerSigningKey { get; set; } = true;
+
+    /// <summary>
+    /// Whether to validate token lifetime.
+    /// </summary>
+    public bool ValidateLifetime { get; set; } = true;
+}
+
+/// <summary>
+/// Extension methods for configuring JWT authentication in Sorcha services.
+/// Provides automatic key generation for development environments.
+/// </summary>
+public static class JwtAuthenticationExtensions
+{
+    // Development key file location - stored in user's local app data
+    private static readonly string DevKeyFilePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Sorcha",
+        "dev-jwt-signing-key.txt");
+
+    /// <summary>
+    /// Adds JWT Bearer authentication with automatic key management.
+    /// In Development: Auto-generates a signing key that's shared across services.
+    /// In Production: Requires explicit configuration via environment variables or Azure Key Vault.
+    /// </summary>
+    /// <typeparam name="TBuilder">The host application builder type.</typeparam>
+    /// <param name="builder">The host application builder.</param>
+    /// <returns>The builder for chaining.</returns>
+    public static TBuilder AddJwtAuthentication<TBuilder>(this TBuilder builder)
+        where TBuilder : IHostApplicationBuilder
+    {
+        var configuration = builder.Configuration;
+        var environment = builder.Environment;
+
+        var jwtSettings = configuration.GetSection("JwtSettings").Get<JwtSettings>() ?? new JwtSettings();
+
+        // Get or generate signing key
+        var signingKey = GetOrGenerateSigningKey(configuration, environment.IsDevelopment());
+
+        if (string.IsNullOrEmpty(signingKey))
+        {
+            throw new InvalidOperationException(
+                "JWT SigningKey is required. In Development, a key is auto-generated. " +
+                "In Production, set JwtSettings:SigningKey via environment variable or Azure Key Vault.");
+        }
+
+        // Register JwtSettings as a singleton for services that need to issue tokens
+        builder.Services.AddSingleton(new JwtSettings
+        {
+            Issuer = jwtSettings.Issuer,
+            Audience = jwtSettings.Audience,
+            SigningKey = signingKey,
+            AccessTokenLifetimeMinutes = jwtSettings.AccessTokenLifetimeMinutes,
+            RefreshTokenLifetimeHours = jwtSettings.RefreshTokenLifetimeHours,
+            ServiceTokenLifetimeHours = jwtSettings.ServiceTokenLifetimeHours,
+            ClockSkewMinutes = jwtSettings.ClockSkewMinutes,
+            ValidateIssuer = jwtSettings.ValidateIssuer,
+            ValidateAudience = jwtSettings.ValidateAudience,
+            ValidateIssuerSigningKey = jwtSettings.ValidateIssuerSigningKey,
+            ValidateLifetime = jwtSettings.ValidateLifetime
+        });
+
+        var keyBytes = Encoding.UTF8.GetBytes(signingKey);
+        if (keyBytes.Length < 32)
+        {
+            Array.Resize(ref keyBytes, 32);
+        }
+
+        builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = jwtSettings.ValidateIssuer,
+                    ValidIssuer = jwtSettings.Issuer,
+
+                    ValidateAudience = jwtSettings.ValidateAudience,
+                    ValidAudiences = jwtSettings.Audience,
+
+                    ValidateIssuerSigningKey = jwtSettings.ValidateIssuerSigningKey,
+                    IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+
+                    ValidateLifetime = jwtSettings.ValidateLifetime,
+                    ClockSkew = TimeSpan.FromMinutes(jwtSettings.ClockSkewMinutes),
+
+                    NameClaimType = ClaimTypes.Name,
+                    RoleClaimType = ClaimTypes.Role
+                };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnAuthenticationFailed = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("JwtAuthentication");
+
+                        logger.LogWarning(
+                            context.Exception,
+                            "JWT authentication failed: {Message}",
+                            context.Exception.Message);
+
+                        return Task.CompletedTask;
+                    },
+
+                    OnTokenValidated = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("JwtAuthentication");
+
+                        var userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                        var orgId = context.Principal?.FindFirst("org_id")?.Value;
+
+                        logger.LogDebug(
+                            "Token validated for user {UserId}, org {OrgId}",
+                            userId, orgId);
+
+                        return Task.CompletedTask;
+                    }
+                };
+            });
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Gets the signing key from configuration, environment, or generates one for development/testing.
+    /// </summary>
+    private static string? GetOrGenerateSigningKey(IConfiguration configuration, bool isDevelopment)
+    {
+        // Priority 1: Environment variable (highest priority for all environments)
+        var envKey = Environment.GetEnvironmentVariable("JWTSETTINGS__SIGNINGKEY")
+                  ?? Environment.GetEnvironmentVariable("JwtSettings__SigningKey");
+        if (!string.IsNullOrEmpty(envKey))
+        {
+            return envKey;
+        }
+
+        // Priority 2: Configuration (appsettings, user secrets, etc.)
+        var configKey = configuration["JwtSettings:SigningKey"];
+        if (!string.IsNullOrEmpty(configKey))
+        {
+            return configKey;
+        }
+
+        // Priority 3: Auto-generate for development, testing, or when explicitly allowed
+        // Detect test environment: check if WebApplicationFactory or test host is being used
+        var isTestEnvironment = AppDomain.CurrentDomain.GetAssemblies()
+            .Any(a => a.GetName().Name?.Contains("Microsoft.AspNetCore.Mvc.Testing") == true
+                   || a.GetName().Name?.Contains("xunit") == true
+                   || a.GetName().Name?.Contains("testhost") == true);
+
+        // Also allow auto-generation via configuration (useful for CI/CD)
+        var allowAutoGenerate = configuration.GetValue<bool>("JwtSettings:AllowAutoGenerateKey");
+
+        if (isDevelopment || isTestEnvironment || allowAutoGenerate)
+        {
+            return GetOrCreateDevelopmentKey();
+        }
+
+        // Production without a key - will throw in calling code
+        return null;
+    }
+
+    /// <summary>
+    /// Gets or creates a development signing key that persists across service restarts.
+    /// The key is stored in the user's local application data folder.
+    /// </summary>
+    private static string GetOrCreateDevelopmentKey()
+    {
+        try
+        {
+            // Check if we already have a key
+            if (File.Exists(DevKeyFilePath))
+            {
+                var existingKey = File.ReadAllText(DevKeyFilePath).Trim();
+                if (!string.IsNullOrEmpty(existingKey) && existingKey.Length >= 32)
+                {
+                    return existingKey;
+                }
+            }
+
+            // Generate a new secure key
+            var keyBytes = new byte[32]; // 256 bits
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(keyBytes);
+            }
+            var newKey = Convert.ToBase64String(keyBytes);
+
+            // Ensure directory exists
+            var directory = Path.GetDirectoryName(DevKeyFilePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            // Save the key
+            File.WriteAllText(DevKeyFilePath, newKey);
+
+            Console.WriteLine($"[JWT] Generated new development signing key at: {DevKeyFilePath}");
+
+            return newKey;
+        }
+        catch (Exception ex)
+        {
+            // If we can't persist the key, generate one in memory
+            // This means services might have different keys if started at different times
+            Console.WriteLine($"[JWT] Warning: Could not persist development key: {ex.Message}");
+            Console.WriteLine("[JWT] Generating in-memory key - services may not share tokens");
+
+            var keyBytes = new byte[32];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(keyBytes);
+            }
+            return Convert.ToBase64String(keyBytes);
+        }
+    }
+
+    /// <summary>
+    /// Gets the symmetric security key for signing tokens.
+    /// Use this in services that need to issue JWT tokens (e.g., Tenant Service).
+    /// </summary>
+    public static SymmetricSecurityKey GetSigningKey(this JwtSettings settings)
+    {
+        if (string.IsNullOrEmpty(settings.SigningKey))
+        {
+            throw new InvalidOperationException("JWT SigningKey is not configured.");
+        }
+
+        var keyBytes = Encoding.UTF8.GetBytes(settings.SigningKey);
+        if (keyBytes.Length < 32)
+        {
+            Array.Resize(ref keyBytes, 32);
+        }
+
+        return new SymmetricSecurityKey(keyBytes);
+    }
+
+    /// <summary>
+    /// Gets the signing credentials for creating JWT tokens.
+    /// Use this in services that need to issue JWT tokens (e.g., Tenant Service).
+    /// </summary>
+    public static SigningCredentials GetSigningCredentials(this JwtSettings settings)
+    {
+        return new SigningCredentials(settings.GetSigningKey(), SecurityAlgorithms.HmacSha256);
+    }
+}

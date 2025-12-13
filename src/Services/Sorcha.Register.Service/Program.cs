@@ -321,7 +321,8 @@ builder.Services.AddScoped<TransactionManager>();
 builder.Services.AddScoped<QueryManager>();
 
 // Add JWT authentication and authorization (AUTH-002)
-builder.Services.AddRegisterAuthentication(builder.Configuration);
+// JWT authentication is now configured via shared ServiceDefaults with auto-key generation
+builder.AddJwtAuthentication();
 builder.Services.AddRegisterAuthorization();
 
 var app = builder.Build();
