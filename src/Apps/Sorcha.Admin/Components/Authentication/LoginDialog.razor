@@ -1,0 +1,159 @@
+@using Sorcha.Admin.Models.Authentication
+@using Sorcha.Admin.Models.Configuration
+@using Sorcha.Admin.Services.Authentication
+@using Sorcha.Admin.Services.Configuration
+@using MudBlazor
+@inject IAuthenticationService AuthService
+@inject IConfigurationService ConfigService
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6" Class="mb-4">Login to Sorcha Admin</MudText>
+
+        <MudSelect @bind-Value="_selectedProfile" Label="Environment" Variant="Variant.Outlined"
+                   Class="mb-3" Required="true" Disabled="_isLoading">
+            @foreach (var profile in _profiles)
+            {
+                <MudSelectItem Value="@profile.Key">
+                    <MudText>@profile.Value.Name</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @GetProfileDescription(profile.Value)
+                    </MudText>
+                </MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudTextField @bind-Value="_username" Label="Username or Email" Variant="Variant.Outlined"
+                      Class="mb-3" Required="true" Disabled="_isLoading"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person" />
+
+        <MudTextField @bind-Value="_password" Label="Password" Variant="Variant.Outlined"
+                      InputType="InputType.Password" Class="mb-3" Required="true" Disabled="_isLoading"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock"
+                      OnKeyDown="@HandleKeyDown" />
+
+        @if (_showError)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-3" CloseIcon="@Icons.Material.Filled.Close"
+                      CloseIconClicked="@(() => _showError = false)">
+                @_errorMessage
+            </MudAlert>
+        }
+
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+            Default credentials: admin@sorcha.local
+        </MudText>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_isLoading">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="Login" Disabled="_isLoading || string.IsNullOrEmpty(_username) || string.IsNullOrEmpty(_password)">
+            @if (_isLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Logging in...</span>
+            }
+            else
+            {
+                <span>Login</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudBlazor.IDialogReference? MudDialog { get; set; }
+
+    private Dictionary<string, Profile> _profiles = new();
+    private string _selectedProfile = "dev";
+    private string _username = "admin@sorcha.local";
+    private string _password = "";
+    private bool _isLoading = false;
+    private bool _showError = false;
+    private string _errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var config = await ConfigService.GetConfigurationAsync();
+        _profiles = config.Profiles;
+        _selectedProfile = config.ActiveProfile ?? ProfileDefaults.DefaultActiveProfile;
+    }
+
+    private async Task Login()
+    {
+        _isLoading = true;
+        _showError = false;
+        StateHasChanged();
+
+        try
+        {
+            var request = new LoginRequest
+            {
+                Username = _username,
+                Password = _password,
+                ClientId = "sorcha-admin"
+            };
+
+            // Authenticate with Tenant Service
+            await AuthService.LoginAsync(request, _selectedProfile);
+
+            // Set active profile
+            await ConfigService.SetActiveProfileAsync(_selectedProfile);
+
+            // Notify Blazor that authentication state changed
+            AuthStateProvider.NotifyAuthenticationStateChanged();
+
+            Snackbar.Add($"Login successful! Connected to {_selectedProfile}", Severity.Success);
+
+            // Close dialog and return success
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _showError = true;
+            _errorMessage = "Invalid username or password.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            _showError = true;
+            _errorMessage = $"Login failed: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            _showError = true;
+            _errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancel() => MudDialog?.Close();
+
+    private string GetProfileDescription(Profile profile)
+    {
+        try
+        {
+            var uri = new Uri(profile.TenantServiceUrl);
+            return $"{uri.Host}{(uri.Port != 80 && uri.Port != 443 ? $":{uri.Port}" : "")}";
+        }
+        catch
+        {
+            return profile.TenantServiceUrl;
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !_isLoading && !string.IsNullOrEmpty(_username) && !string.IsNullOrEmpty(_password))
+        {
+            await Login();
+        }
+    }
+}

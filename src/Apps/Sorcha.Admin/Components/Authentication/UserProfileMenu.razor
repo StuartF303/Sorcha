@@ -1,0 +1,76 @@
+@using Sorcha.Admin.Services.Authentication
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IAuthenticationService AuthService
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<AuthorizeView>
+    <Authorized>
+        <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit"
+                 AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
+                 Variant="Variant.Text">
+            <ChildContent>
+                <div class="px-4 py-2">
+                    <MudText Typo="Typo.body2">
+                        <strong>@GetUsername(context)</strong>
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @GetEmail(context)
+                    </MudText>
+                </div>
+
+                <MudDivider Class="my-2" />
+
+                <MudMenuItem Icon="@Icons.Material.Filled.Settings" Href="/settings">
+                    Settings
+                </MudMenuItem>
+
+                <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="Logout">
+                    Logout
+                </MudMenuItem>
+            </ChildContent>
+        </MudMenu>
+    </Authorized>
+    <NotAuthorized>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Login"
+                   Href="/login">
+            Login
+        </MudButton>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private async Task Logout()
+    {
+        try
+        {
+            // Logout from all profiles
+            await AuthService.LogoutAllAsync();
+
+            // Notify authentication state changed
+            AuthStateProvider.NotifyAuthenticationStateChanged();
+
+            Snackbar.Add("Logged out successfully", Severity.Info);
+
+            // Navigate to login page with force reload
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Logout error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string GetUsername(AuthenticationState state)
+    {
+        return state.User.Identity?.Name ?? "Unknown User";
+    }
+
+    private string GetEmail(AuthenticationState state)
+    {
+        var email = state.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email)?.Value;
+        return email ?? state.User.Identity?.Name ?? "";
+    }
+}

@@ -1,9 +1,13 @@
 @page "/settings"
 @using Sorcha.Admin.Models
+@using Sorcha.Admin.Models.Configuration
 @using Sorcha.Admin.Components
+@using Sorcha.Admin.Components.Configuration
+@using Sorcha.Admin.Services.Configuration
 @using Blazored.LocalStorage
 @using System.Text.Json
 @inject ILocalStorageService LocalStorage
+@inject IConfigurationService ConfigService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
@@ -128,6 +132,82 @@
                 </MudButton>
             </MudTabPanel>
 
+            <!-- Configuration Tab -->
+            <MudTabPanel Text="Configuration" Icon="@Icons.Material.Filled.Dns">
+                <MudText Typo="Typo.body1" Class="mb-4">
+                    Manage connection profiles for different Sorcha environments (dev, staging, production).
+                </MudText>
+
+                <!-- Active Profile Display -->
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
+                        <div>
+                            <strong>Active Profile:</strong> @(_activeProfile?.Name ?? "None")
+                            @if (_activeProfile != null)
+                            {
+                                <br />
+                                <MudText Typo="Typo.caption">
+                                    Tenant Service: @_activeProfile.TenantServiceUrl
+                                </MudText>
+                            }
+                        </div>
+                    </div>
+                </MudAlert>
+
+                <!-- Profile List -->
+                @if (_profiles.Any())
+                {
+                    <MudTable Items="@_profiles.Values.OrderBy(p => p.Name)" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true">
+                        <HeaderContent>
+                            <MudTh>Profile</MudTh>
+                            <MudTh>Tenant Service URL</MudTh>
+                            <MudTh>Verify SSL</MudTh>
+                            <MudTh>Actions</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Profile">
+                                <div class="d-flex align-center">
+                                    @context.Name
+                                    @if (context.Name == _config?.ActiveProfile)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Class="ml-2">
+                                            Active
+                                        </MudChip>
+                                    }
+                                </div>
+                            </MudTd>
+                            <MudTd DataLabel="Tenant Service URL">
+                                <MudText Typo="Typo.body2">@context.TenantServiceUrl</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Verify SSL">
+                                <MudIcon Icon="@(context.VerifySsl ? Icons.Material.Filled.Check : Icons.Material.Filled.Close)"
+                                         Color="@(context.VerifySsl ? Color.Success : Color.Warning)" />
+                            </MudTd>
+                            <MudTd DataLabel="Actions">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                               OnClick="@(() => EditProfile(context))"
+                                               Title="Edit profile" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                               Color="Color.Error"
+                                               OnClick="@(() => DeleteProfile(context.Name))"
+                                               Disabled="@(context.Name == _config?.ActiveProfile)"
+                                               Title="@(context.Name == _config?.ActiveProfile ? "Cannot delete active profile" : "Delete profile")" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info">No profiles configured.</MudAlert>
+                }
+
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary"
+                           Variant="Variant.Filled" OnClick="CreateNewProfile" Class="mt-4">
+                    New Profile
+                </MudButton>
+            </MudTabPanel>
+
             <!-- Version/Build Tab -->
             <MudTabPanel Text="About" Icon="@Icons.Material.Filled.Info">
                 <MudText Typo="Typo.h5" Class="mb-2">Sorcha Blueprint Designer</MudText>
@@ -201,6 +281,11 @@
     private bool snapToGrid = true;
     private string buildNumber = $"{DateTime.Now:yyyyMMdd}.{DateTime.Now:HHmm}";
 
+    // Configuration state
+    private AdminConfiguration? _config;
+    private Dictionary<string, Profile> _profiles = new();
+    private Profile? _activeProfile;
+
     private const string SCHEMA_PROVIDERS_KEY = "sorcha:schemaProviders";
     private const string APPEARANCE_SETTINGS_KEY = "sorcha:appearanceSettings";
 
@@ -208,6 +293,7 @@
     {
         await LoadSchemaProviders();
         await LoadAppearanceSettings();
+        await LoadConfiguration();
     }
 
     private async Task LoadSchemaProviders()
@@ -335,6 +421,94 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Error saving appearance settings: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // Configuration methods
+    private async Task LoadConfiguration()
+    {
+        try
+        {
+            _config = await ConfigService.GetConfigurationAsync();
+            _profiles = _config.Profiles;
+            _activeProfile = _config.GetActiveProfile();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading configuration: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task EditProfile(Profile profile)
+    {
+        var parameters = new DialogParameters<ProfileEditorDialog>
+        {
+            { x => x.Profile, profile },
+            { x => x.IsNew, false }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ProfileEditorDialog>("Edit Profile", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadConfiguration();
+            Snackbar.Add($"Profile '{profile.Name}' updated successfully", Severity.Success);
+        }
+    }
+
+    private async Task CreateNewProfile()
+    {
+        var newProfile = new Profile
+        {
+            Name = "",
+            VerifySsl = true,
+            TimeoutSeconds = 30,
+            DefaultClientId = "sorcha-admin"
+        };
+
+        var parameters = new DialogParameters<ProfileEditorDialog>
+        {
+            { x => x.Profile, newProfile },
+            { x => x.IsNew, true }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ProfileEditorDialog>("New Profile", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadConfiguration();
+            Snackbar.Add($"Profile '{newProfile.Name}' created successfully", Severity.Success);
+        }
+    }
+
+    private async Task DeleteProfile(string profileName)
+    {
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "Confirm Delete",
+            $"Are you sure you want to delete the profile '{profileName}'?",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            try
+            {
+                await ConfigService.DeleteProfileAsync(profileName);
+                await LoadConfiguration();
+                Snackbar.Add($"Profile '{profileName}' deleted", Severity.Info);
+            }
+            catch (InvalidOperationException ex)
+            {
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting profile: {ex.Message}", Severity.Error);
+            }
         }
     }
 

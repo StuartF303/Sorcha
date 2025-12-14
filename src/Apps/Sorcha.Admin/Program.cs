@@ -1,16 +1,46 @@
 using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using Sorcha.Admin;
 using Sorcha.Admin.Services;
+using Sorcha.Admin.Services.Authentication;
+using Sorcha.Admin.Services.Configuration;
+using Sorcha.Admin.Services.Encryption;
+using Sorcha.Admin.Services.Http;
 using Sorcha.Blueprint.Schemas;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+// Authentication & Authorization
+builder.Services.AddAuthorizationCore();
+builder.Services.AddScoped<CustomAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(s =>
+    s.GetRequiredService<CustomAuthenticationStateProvider>());
+
+// Configuration Services
+builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
+
+// Authentication Services
+builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<BrowserTokenCache>();
+
+// Encryption Services
+builder.Services.AddScoped<IEncryptionProvider, BrowserEncryptionProvider>();
+
+// HTTP Services
+builder.Services.AddScoped<AuthenticatedHttpMessageHandler>();
+
+// Configure HttpClient with authentication
+builder.Services.AddHttpClient("SorchaAPI")
+    .AddHttpMessageHandler<AuthenticatedHttpMessageHandler>();
+
+// Default HttpClient (for Blazor components) uses authenticated client
+builder.Services.AddScoped(sp =>
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient("SorchaAPI"));
 
 // Add MudBlazor services
 builder.Services.AddMudServices(config =>

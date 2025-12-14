@@ -1,0 +1,151 @@
+@using Sorcha.Admin.Models.Configuration
+@using Sorcha.Admin.Services.Configuration
+@using MudBlazor
+@inject IConfigurationService ConfigService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6" Class="mb-4">@(IsNew ? "New Profile" : $"Edit Profile: {Profile.Name}")</MudText>
+
+        <MudTextField @bind-Value="Profile.Name" Label="Profile Name" Variant="Variant.Outlined"
+                      Class="mb-3" Required="true" Disabled="@(!IsNew)"
+                      HelperText="Alphanumeric, dashes, and underscores only"
+                      @ref="_nameField" />
+
+        <MudTextField @bind-Value="Profile.TenantServiceUrl" Label="Tenant Service URL" Variant="Variant.Outlined"
+                      Class="mb-3" Required="true"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link"
+                      HelperText="Example: https://localhost:7080 or https://tenant.sorcha.io" />
+
+        <MudTextField @bind-Value="Profile.RegisterServiceUrl" Label="Register Service URL" Variant="Variant.Outlined"
+                      Class="mb-3" Required="true"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link" />
+
+        <MudTextField @bind-Value="Profile.PeerServiceUrl" Label="Peer Service URL" Variant="Variant.Outlined"
+                      Class="mb-3" Required="true"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link" />
+
+        <MudTextField @bind-Value="Profile.WalletServiceUrl" Label="Wallet Service URL" Variant="Variant.Outlined"
+                      Class="mb-3" Required="true"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link" />
+
+        <MudTextField @bind-Value="Profile.BlueprintServiceUrl" Label="Blueprint Service URL" Variant="Variant.Outlined"
+                      Class="mb-3" Required="true"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link" />
+
+        <MudTextField @bind-Value="Profile.AuthTokenUrl" Label="Auth Token Endpoint URL" Variant="Variant.Outlined"
+                      Class="mb-3" Required="true"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Security"
+                      HelperText="OAuth2 token endpoint (e.g., /api/service-auth/token)" />
+
+        <MudTextField @bind-Value="Profile.DefaultClientId" Label="Default Client ID" Variant="Variant.Outlined"
+                      Class="mb-3"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AppRegistration"
+                      HelperText="OAuth2 client identifier (default: sorcha-admin)" />
+
+        <MudNumericField @bind-Value="Profile.TimeoutSeconds" Label="Request Timeout (seconds)" Variant="Variant.Outlined"
+                         Class="mb-3" Min="1" Max="300"
+                         Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Timer" />
+
+        <MudSwitch T="bool" @bind-Checked="Profile.VerifySsl" Label="Verify SSL Certificates" Color="Color.Primary" Class="mb-3">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Disable only for local development with self-signed certificates
+            </MudText>
+        </MudSwitch>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3">@_errorMessage</MudAlert>
+        }
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">
+            @(IsNew ? "Create" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudBlazor.IDialogReference? MudDialog { get; set; }
+
+    [Parameter] public Profile Profile { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; } = false;
+
+    private MudTextField<string> _nameField = null!;
+    private string? _errorMessage;
+
+    protected override void OnInitialized()
+    {
+        // Ensure defaults
+        if (IsNew && string.IsNullOrEmpty(Profile.DefaultClientId))
+        {
+            Profile.DefaultClientId = "sorcha-admin";
+        }
+
+        if (Profile.TimeoutSeconds <= 0)
+        {
+            Profile.TimeoutSeconds = 30;
+        }
+    }
+
+    private async Task Save()
+    {
+        _errorMessage = null;
+
+        // Validation
+        if (string.IsNullOrWhiteSpace(Profile.Name))
+        {
+            _errorMessage = "Profile name is required.";
+            return;
+        }
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(Profile.Name, @"^[a-zA-Z0-9_-]+$"))
+        {
+            _errorMessage = "Profile name can only contain letters, numbers, dashes, and underscores.";
+            return;
+        }
+
+        if (!IsValidUrl(Profile.TenantServiceUrl) ||
+            !IsValidUrl(Profile.RegisterServiceUrl) ||
+            !IsValidUrl(Profile.PeerServiceUrl) ||
+            !IsValidUrl(Profile.WalletServiceUrl) ||
+            !IsValidUrl(Profile.BlueprintServiceUrl) ||
+            !IsValidUrl(Profile.AuthTokenUrl))
+        {
+            _errorMessage = "All service URLs must be valid HTTP or HTTPS URLs.";
+            return;
+        }
+
+        if (Profile.TimeoutSeconds < 1 || Profile.TimeoutSeconds > 300)
+        {
+            _errorMessage = "Timeout must be between 1 and 300 seconds.";
+            return;
+        }
+
+        try
+        {
+            // Save profile
+            await ConfigService.UpsertProfileAsync(Profile);
+
+            Snackbar.Add($"Profile '{Profile.Name}' {(IsNew ? "created" : "updated")} successfully", Severity.Success);
+
+            // Close dialog with success
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to save profile: {ex.Message}";
+        }
+    }
+
+    private void Cancel() => MudDialog?.Close();
+
+    private bool IsValidUrl(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+               (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+}

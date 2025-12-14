@@ -223,7 +223,12 @@
       "Bash(cmd /c \"dir /s /b src\\Apps 2>nul | findstr /i blueprint.designer\")",
       "Bash(cmd /c \"move src\\Apps\\UI\\Sorcha.Blueprint.Designer.Client src\\Apps\\UI\\Sorcha.Admin\")",
       "Bash(ls:*)",
-      "Bash(timeout 10 dotnet run:*)"
+      "Bash(timeout 10 dotnet run:*)",
+      "Bash(Select-String -Pattern \"(Build succeeded|Build FAILED|error CS|error RZ)\")",
+      "Bash(cmd /c \"dir /s /b C:\\Projects\\Sorcha\\src\\Apps\\Sorcha.Admin\\bin | findstr /i publish\")",
+      "Bash(cmd /c \"dir /b C:\\Projects\\Sorcha\\src\\Apps\\Sorcha.Admin\\bin\\Debug\\net10.0\")",
+      "Bash(cmd /c \"dir /s /b C:\\Projects\\Sorcha\\src\\Apps\\Sorcha.Admin\\bin\\*.json 2>nul | findstr boot\")",
+      "Bash(cmd /c \"dir /b C:\\Projects\\Sorcha\\src\\Apps\\Sorcha.Admin\\bin\\Debug\\net10.0\\wwwroot\\_framework | findstr /i blazor\")"
     ],
     "deny": [],
     "ask": []

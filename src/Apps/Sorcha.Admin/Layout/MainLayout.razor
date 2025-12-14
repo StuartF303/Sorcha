@@ -1,3 +1,4 @@
+@using Sorcha.Admin.Components.Authentication
 @inherits LayoutComponentBase
 
 <MudThemeProvider />
@@ -5,11 +6,35 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudDrawer Open="true" Elevation="1" Variant="@DrawerVariant.Mini" OpenMiniOnHover="true">
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                       OnClick="@ToggleDrawer" />
+        <MudText Typo="Typo.h6" Class="ml-3">Sorcha Blueprint Designer</MudText>
+        <MudSpacer />
+
+        <!-- Profile Selector (Environment Switcher) -->
+        <ProfileSelector />
+
+        <!-- User Profile Menu (Login/Logout) -->
+        <UserProfileMenu />
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="1" Variant="@DrawerVariant.Mini" OpenMiniOnHover="true">
         <NavMenu />
     </MudDrawer>
 
     <MudMainContent>
-        @Body
+        <MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
+            @Body
+        </MudContainer>
     </MudMainContent>
 </MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}
