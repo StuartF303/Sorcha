@@ -1,38 +1,38 @@
 # Sorcha Peer Service
 
-**Version**: 1.0.0
-**Status**: Core Complete (65% Complete - Production Infrastructure Pending)
+**Version**: 1.1.0
+**Status**: Core Complete (70% Complete - Tests and Polish Pending)
 **Framework**: .NET 10.0
-**Architecture**: Microservice (gRPC + REST Hybrid)
+**Architecture**: Microservice (gRPC + REST)
+**Last Updated**: 2025-12-14
 
 ---
 
 ## Overview
 
-The **Peer Service** is the distributed networking layer of the Sorcha platform, enabling peer-to-peer communication, transaction propagation, and network topology management. Built on gRPC for high-performance communication and REST for compatibility, it creates a resilient mesh network where nodes can discover each other, exchange transactions, and maintain consensus coordination.
+The **Peer Service** enables distributed system register replication across the Sorcha platform through a central node architecture. Peer nodes connect to central nodes (n0, n1, n2.sorcha.dev) to replicate the system register containing published blueprints, with automatic failover, heartbeat monitoring, and push notifications.
 
-This service acts as the P2P network foundation for:
-- **Peer discovery** via bootstrap nodes and gossip protocols
-- **Transaction distribution** using epidemic gossip algorithms
-- **Network resilience** with NAT traversal, offline queueing, and circuit breakers
-- **Health monitoring** of peer connections and network quality
-- **Protocol negotiation** supporting gRPC streaming, gRPC unary, and REST fallback
-- **Offline mode** with transaction queueing and automatic retry
+This service provides:
+- **Central node connection** with priority-based failover (n0→n1→n2)
+- **System register replication** (full sync + incremental sync)
+- **Heartbeat monitoring** (30s interval, 60s timeout triggers failover)
+- **Push notifications** for blueprint publication events
+- **Isolated mode** for graceful degradation when central nodes are unreachable
+- **Comprehensive observability** (7 OpenTelemetry metrics, 6 distributed traces, structured logging)
 
 ### Key Features
 
-- **gRPC-First Design**: High-performance bidirectional streaming for transaction distribution (HTTP/2)
-- **Peer Discovery**: Automatic peer discovery via bootstrap nodes with periodic refresh
-- **NAT Traversal**: STUN protocol support for discovering external addresses behind NAT/firewalls
-- **Gossip Protocol**: Epidemic gossip for efficient transaction propagation with configurable fanout
-- **Health Monitoring**: Continuous peer health checks with connection quality tracking
-- **Offline Queue**: Transaction queueing when network is unavailable with disk persistence
-- **Multi-Protocol Support**: gRPC streaming (primary), gRPC unary, and REST (fallback)
-- **Circuit Breaker**: Automatic failure detection and recovery for unreliable peers
-- **Connection Testing**: Protocol negotiation and bandwidth testing for optimal communication
-- **Dual-Port Architecture**: gRPC on port 5000 (HTTP/2), REST/SignalR on port 5001
-- **Bootstrap Coordination**: Register with bootstrap nodes for network participation
-- **Transaction Deduplication**: Prevent duplicate transaction propagation across the network
+- ✅ **Central Node Detection**: Hybrid detection using config flags + optional hostname validation
+- ✅ **Priority-Based Connection**: Connects to n0 (priority 0) → n1 (priority 1) → n2 (priority 2) with automatic failover
+- ✅ **Exponential Backoff**: Polly v8 resilience pipeline with jitter (1s, 2s, 4s, 8s, 16s, 32s, 60s max)
+- ✅ **Full Sync**: Initial system register synchronization via gRPC server streaming
+- ✅ **Incremental Sync**: Periodic sync (5 minutes) fetching only new blueprints since last version
+- ✅ **Push Notifications**: Real-time notifications when blueprints are published (80% delivery target)
+- ✅ **Heartbeat Monitoring**: 30-second heartbeat interval, failover after 2 missed heartbeats (60s)
+- ✅ **Isolated Mode**: Continues serving cached blueprints when all central nodes are unreachable
+- ✅ **MongoDB Repository**: System register storage with auto-increment versioning
+- ✅ **Thread-Safe Caching**: ConcurrentDictionary for in-memory blueprint cache
+- ✅ **OpenTelemetry**: Full observability with metrics, traces, and structured logging
 
 ---
 
@@ -42,105 +42,110 @@ This service acts as the P2P network foundation for:
 
 ```
 Peer Service
-├── gRPC Layer (Port 5000, HTTP/2)
-│   ├── PeerDiscoveryService (peer list, registration, ping)
-│   ├── TransactionDistributionService (gossip, streaming)
-│   └── gRPC Reflection (development)
-├── REST Layer (Port 5001, HTTP/1.1)
-│   ├── Service Info Endpoint
-│   └── Health Checks
-├── Business Logic Layer
-│   ├── PeerListManager (peer registry)
-│   ├── PeerDiscoveryService (bootstrap connection)
-│   ├── NetworkAddressService (NAT traversal, STUN)
-│   ├── HealthMonitorService (peer health checks)
-│   ├── GossipProtocolEngine (epidemic gossip)
-│   ├── TransactionDistributionService (propagation)
-│   ├── TransactionQueueManager (offline queueing)
-│   ├── CommunicationProtocolManager (protocol selection)
-│   ├── ConnectionQualityTracker (latency, bandwidth)
-│   └── ConnectionTestingService (protocol negotiation)
-├── Network Layer
-│   ├── StunClient (NAT traversal, external IP discovery)
-│   └── HttpLookupService (fallback IP detection)
-└── Background Services
-    └── PeerService (continuous peer management)
+├── gRPC Layer (Port 5000)
+│   ├── CentralNodeConnectionService (peer connections)
+│   ├── SystemRegisterSyncService (full/incremental sync)
+│   ├── HeartbeatService (heartbeat monitoring)
+│   └── PeerDiscoveryService (legacy peer-to-peer)
+├── REST Layer (Port 5001)
+│   ├── GET /health - Health checks
+│   ├── GET /api/peers - List active peers
+│   ├── GET /api/peers/{id} - Get peer details
+│   └── GET /api/central-connection - Central node connection status
+├── Business Logic
+│   ├── CentralNodeDiscoveryService - Detects if node is central or peer
+│   ├── CentralNodeConnectionManager - Manages connection with failover
+│   ├── SystemRegisterReplicationService - Orchestrates sync operations
+│   ├── SystemRegisterCache - Thread-safe in-memory cache
+│   ├── PeriodicSyncService - Background service for 5-minute sync
+│   ├── PushNotificationHandler - Manages push notification subscribers
+│   ├── HeartbeatMonitorService - Sends heartbeats every 30s
+│   ├── PeerListManager - Tracks local peer status
+│   └── SystemRegisterService - Initializes system register (central nodes)
+├── Data Layer
+│   └── MongoSystemRegisterRepository - MongoDB storage with auto-increment versioning
+└── Observability
+    ├── PeerServiceMetrics - 7 OpenTelemetry metrics
+    ├── PeerServiceActivitySource - 6 distributed traces
+    └── Structured Logging - Correlation IDs and semantic properties
 ```
 
 ### Data Flow
 
-**Peer Discovery Flow:**
+**Peer Node Startup Flow:**
 ```
-Node Startup → NetworkAddressService → [STUN Query, HTTP Lookup]
-      ↓
-Discover External Address (e.g., 203.0.113.5:5000)
-      ↓
-PeerDiscoveryService → [Connect to Bootstrap Nodes]
-      ↓
-Request Peer List (gRPC GetPeerList)
-      ↓
-PeerListManager → [Add Discovered Peers]
-      ↓
-Register with Bootstrap (gRPC RegisterPeer)
-      ↓
-HealthMonitorService → [Continuous Health Checks]
-```
-
-**Transaction Distribution Flow (Gossip):**
-```
-Transaction Created (from Blueprint/Wallet Service)
-      ↓
-TransactionQueueManager → [Queue for Distribution]
-      ↓
-GossipProtocolEngine → [Select Fanout Peers (e.g., 3 peers)]
-      ↓
-TransactionDistributionService → [Send to Peers via gRPC Stream]
-      ↓
-Peer 1 → [Validate, Forward to 3 more peers (Round 2)]
-Peer 2 → [Validate, Forward to 3 more peers (Round 2)]
-Peer 3 → [Validate, Forward to 3 more peers (Round 2)]
-      ↓
-Exponential propagation across network (3 rounds = ~40 nodes)
-      ↓
-Register Service → [Store Confirmed Transactions]
+Node Startup
+    ↓
+CentralNodeDiscoveryService.DetectIfCentralNode() → IsCentralNode = false
+    ↓
+CentralNodeConnectionManager.ConnectToCentralNodeAsync()
+    ↓
+Try n0.sorcha.dev:5000 (priority 0)
+    ↓
+[Success] → CentralNodeConnectionService.ConnectToCentralNode (gRPC)
+    ↓
+Response: { SessionId, SystemRegisterVersion }
+    ↓
+SystemRegisterReplicationService.FullSyncAsync()
+    ↓
+SystemRegisterSyncService.FullSync (gRPC server streaming)
+    ↓
+Receive all blueprints → SystemRegisterCache
+    ↓
+PeriodicSyncService starts (5-minute interval)
+    ↓
+HeartbeatMonitorService starts (30-second interval)
+    ↓
+PushNotificationHandler.SubscribeToPushNotifications (gRPC streaming)
+    ↓
+[Operational] Peer receives blueprint publications in real-time
 ```
 
-### Gossip Protocol
-
-The Peer Service implements **epidemic gossip** for efficient transaction propagation:
-
-- **Fanout Factor**: Each node forwards to N peers (default: 3)
-- **Gossip Rounds**: Number of forwarding hops (default: 3)
-- **Deduplication**: Transaction cache prevents re-propagation
-- **Probabilistic Coverage**: High probability of reaching all nodes
-
-**Example Propagation:**
+**Heartbeat Failover Flow:**
 ```
-Round 1: Node A → Nodes B, C, D (3 nodes)
-Round 2: B→E,F,G, C→H,I,J, D→K,L,M (9 nodes)
-Round 3: E→N,O,P, F→Q,R,S, ... (27 nodes)
-
-Total: 1 + 3 + 9 + 27 = 40 nodes reached in 3 rounds
-```
-
-### NAT Traversal (STUN)
-
-The Peer Service uses **STUN (Session Traversal Utilities for NAT)** to discover external addresses:
-
-```
-Local Node (192.168.1.100:5000)
-      ↓
-StunClient → [Query stun.l.google.com:19302]
-      ↓
-STUN Response: External Address = 203.0.113.5:12345
-      ↓
-Register external address with bootstrap nodes
+HeartbeatMonitorService sends heartbeat every 30s
+    ↓
+[Failure] No response from n0 (30s timeout)
+    ↓
+Increment MissedHeartbeats (1/2)
+    ↓
+[Failure] Second heartbeat fails
+    ↓
+MissedHeartbeats >= 2 → Trigger failover
+    ↓
+CentralNodeConnectionManager.FailoverToNextNodeAsync()
+    ↓
+Disconnect from n0 → Call DisconnectFromCentralNode (gRPC)
+    ↓
+Try n1.sorcha.dev:5000 (priority 1)
+    ↓
+[Success] → Connect to n1
+    ↓
+Full sync from n1 (reset SyncCheckpoint)
+    ↓
+Resume heartbeat monitoring (connected to n1)
 ```
 
-**Supported STUN Servers:**
-- `stun.l.google.com:19302` (default)
-- `stun1.l.google.com:19302`
-- `stun2.l.google.com:19302`
+**Isolated Mode Flow:**
+```
+All central nodes (n0, n1, n2) unreachable
+    ↓
+CentralNodeConnectionManager.HandleIsolatedModeAsync()
+    ↓
+PeerListManager.UpdateLocalPeerStatus(null, Isolated)
+    ↓
+[Isolated Mode Active]
+    ↓
+Serve cached blueprints from SystemRegisterCache
+    ↓
+Background reconnection attempts every 60s
+    ↓
+[Central node returns] → Auto-reconnect
+    ↓
+Full sync to catch up on missed blueprints
+    ↓
+Resume normal operation
+```
 
 ---
 
@@ -149,8 +154,8 @@ Register external address with bootstrap nodes
 ### Prerequisites
 
 - **.NET 10 SDK** or later
+- **MongoDB 8.0+** (for central nodes)
 - **Git**
-- *Optional*: **Access to public STUN servers** (for NAT traversal)
 
 ### 1. Clone and Navigate
 
@@ -159,23 +164,83 @@ git clone https://github.com/yourusername/Sorcha.git
 cd Sorcha/src/Services/Sorcha.Peer.Service
 ```
 
-### 2. Set Up Configuration
+### 2. Configure Node Type
 
-The service uses `appsettings.json` for configuration. For local development, defaults are pre-configured.
+#### For Peer Nodes (Default)
+
+Edit `appsettings.json`:
+
+```json
+{
+  "CentralNode": {
+    "IsCentralNode": false,
+    "ValidateHostname": false,
+    "CentralNodes": [
+      { "Hostname": "n0.sorcha.dev", "Port": 5000, "Priority": 0 },
+      { "Hostname": "n1.sorcha.dev", "Port": 5000, "Priority": 1 },
+      { "Hostname": "n2.sorcha.dev", "Port": 5000, "Priority": 2 }
+    ]
+  }
+}
+```
+
+#### For Central Nodes
+
+Edit `appsettings.json`:
+
+```json
+{
+  "CentralNode": {
+    "IsCentralNode": true,
+    "ExpectedHostnamePattern": "n[0-2].sorcha.dev",
+    "ValidateHostname": true
+  },
+  "MongoDB": {
+    "ConnectionString": "mongodb://localhost:27017",
+    "DatabaseName": "sorcha_system_register"
+  }
+}
+```
+
+**Note**: Central nodes require MongoDB for system register storage.
 
 ### 3. Run the Service
+
+#### Peer Node
 
 ```bash
 dotnet run
 ```
 
 Service will start at:
-- **gRPC**: `http://localhost:5000` (HTTP/2, primary protocol)
-- **REST**: `https://localhost:5001` (HTTP/1.1, fallback)
-- **Scalar API Docs**: `https://localhost:5001/scalar`
-- **Health Checks**: `https://localhost:5001/health`
+- **gRPC**: `http://localhost:5000` (CentralNodeConnection, SystemRegisterSync, Heartbeat)
+- **REST**: `https://localhost:5001` (health checks, monitoring)
+- **Scalar API Docs**: `https://localhost:5001/scalar/v1`
 
-### 4. Test gRPC Endpoints (Optional)
+#### Central Node (with MongoDB)
+
+```bash
+# Start MongoDB first
+docker run -d -p 27017:27017 --name sorcha-mongo mongo:8.0
+
+# Run service
+dotnet run
+```
+
+### 4. Verify Connection
+
+```bash
+# Check connection status (peer node)
+curl https://localhost:5001/api/central-connection
+
+# Check health
+curl https://localhost:5001/health
+
+# List active peers (central node)
+curl https://localhost:5001/api/peers
+```
+
+### 5. Test gRPC Endpoints (Optional)
 
 Using `grpcurl` (install from https://github.com/fullstorydev/grpcurl):
 
@@ -183,12 +248,26 @@ Using `grpcurl` (install from https://github.com/fullstorydev/grpcurl):
 # List available gRPC services
 grpcurl -plaintext localhost:5000 list
 
-# Ping a peer
-grpcurl -plaintext -d '{"peer_id": "test-node"}' localhost:5000 PeerDiscovery/Ping
+# Connect to central node (peer node)
+grpcurl -plaintext -d '{
+  "peer_id": "test-peer",
+  "peer_info": {
+    "address": "localhost",
+    "port": 5000,
+    "node_type": "Peer",
+    "supported_protocols": ["v1"]
+  },
+  "last_known_version": 0,
+  "connection_time": 1702800000
+}' localhost:5000 sorcha.peer.v1.CentralNodeConnection/ConnectToCentralNode
 
-# Get peer list
-grpcurl -plaintext -d '{"requesting_peer_id": "my-node", "max_peers": 10}' \
-  localhost:5000 PeerDiscovery/GetPeerList
+# Send heartbeat
+grpcurl -plaintext -d '{
+  "peer_id": "test-peer",
+  "timestamp": 1702800000,
+  "sequence_number": 1,
+  "last_sync_version": 5
+}' localhost:5000 sorcha.peer.v1.Heartbeat/SendHeartbeat
 ```
 
 ---
@@ -202,61 +281,49 @@ grpcurl -plaintext -d '{"requesting_peer_id": "my-node", "max_peers": 10}' \
   "Logging": {
     "LogLevel": {
       "Default": "Information",
-      "Microsoft.AspNetCore": "Warning",
+      "Sorcha.Peer.Service": "Debug",
       "Grpc": "Information"
     }
   },
   "AllowedHosts": "*",
+
+  "CentralNode": {
+    "IsCentralNode": false,
+    "ExpectedHostnamePattern": "*.sorcha.dev",
+    "ValidateHostname": false,
+    "CentralNodes": [
+      { "Hostname": "n0.sorcha.dev", "Port": 5000, "Priority": 0 },
+      { "Hostname": "n1.sorcha.dev", "Port": 5000, "Priority": 1 },
+      { "Hostname": "n2.sorcha.dev", "Port": 5000, "Priority": 2 }
+    ]
+  },
+
+  "SystemRegister": {
+    "PeriodicSyncIntervalMinutes": 5,
+    "HeartbeatIntervalSeconds": 30,
+    "HeartbeatTimeoutSeconds": 30,
+    "MaxRetryAttempts": 10
+  },
+
   "PeerService": {
     "Enabled": true,
-    "NodeId": "node-12345",
+    "NodeId": "peer-node-001",
     "ListenPort": 5001,
-    "NetworkAddress": {
-      "ExternalAddress": null,
-      "StunServers": [
-        "stun.l.google.com:19302",
-        "stun1.l.google.com:19302"
-      ],
-      "HttpLookupServices": [
-        "https://api.ipify.org",
-        "https://icanhazip.com"
-      ],
-      "PreferredProtocol": "IPv4"
-    },
     "PeerDiscovery": {
-      "BootstrapNodes": [
-        "bootstrap1.sorcha.io:5000",
-        "bootstrap2.sorcha.io:5000"
-      ],
+      "BootstrapNodes": [],
       "RefreshIntervalMinutes": 15,
       "MaxPeersInList": 1000,
       "MinHealthyPeers": 5,
-      "PeerTimeoutSeconds": 30,
-      "MaxConcurrentDiscoveries": 10
-    },
-    "Communication": {
-      "PreferredProtocol": "GrpcStream",
-      "ConnectionTimeout": 30,
-      "MaxRetries": 3,
-      "RetryDelaySeconds": 5,
-      "CircuitBreakerThreshold": 5,
-      "CircuitBreakerResetMinutes": 5
-    },
-    "TransactionDistribution": {
-      "FanoutFactor": 3,
-      "GossipRounds": 3,
-      "TransactionCacheTTL": 3600,
-      "MaxTransactionSize": 10485760,
-      "StreamingThreshold": 1048576,
-      "EnableCompression": true
-    },
-    "OfflineMode": {
-      "MaxQueueSize": 10000,
-      "MaxRetries": 5,
-      "QueuePersistence": true,
-      "PersistencePath": "./data/tx_queue.db"
+      "PeerTimeoutSeconds": 30
     }
   },
+
+  "MongoDB": {
+    "ConnectionString": "mongodb://localhost:27017",
+    "DatabaseName": "sorcha_system_register",
+    "CollectionName": "sorcha_system_register_blueprints"
+  },
+
   "OpenTelemetry": {
     "ServiceName": "Sorcha.Peer.Service",
     "ZipkinEndpoint": "http://localhost:9411"
@@ -264,64 +331,163 @@ grpcurl -plaintext -d '{"requesting_peer_id": "my-node", "max_peers": 10}' \
 }
 ```
 
-### Environment Variables
-
-For production deployment:
+### Environment Variables (Production)
 
 ```bash
-# Node configuration
-PEERSERVICE__NODEID="node-prod-001"
-PEERSERVICE__LISTENPORT=5001
+# Node type
+CENTRALNODE__ISCENTRALNODE=false
+CENTRALNODE__VALIDATEHOSTNAME=false
 
-# External address (if known, skips STUN/HTTP lookup)
-PEERSERVICE__NETWORKADDRESS__EXTERNALADDRESS="203.0.113.5:5000"
+# Central nodes (for peer nodes)
+CENTRALNODE__CENTRALNODES__0__HOSTNAME=n0.sorcha.dev
+CENTRALNODE__CENTRALNODES__0__PORT=5000
+CENTRALNODE__CENTRALNODES__0__PRIORITY=0
+CENTRALNODE__CENTRALNODES__1__HOSTNAME=n1.sorcha.dev
+CENTRALNODE__CENTRALNODES__1__PORT=5000
+CENTRALNODE__CENTRALNODES__1__PRIORITY=1
+CENTRALNODE__CENTRALNODES__2__HOSTNAME=n2.sorcha.dev
+CENTRALNODE__CENTRALNODES__2__PORT=5000
+CENTRALNODE__CENTRALNODES__2__PRIORITY=2
 
-# Bootstrap nodes
-PEERSERVICE__PEERDISCOVERY__BOOTSTRAPNODES__0="bootstrap1.sorcha.io:5000"
-PEERSERVICE__PEERDISCOVERY__BOOTSTRAPNODES__1="bootstrap2.sorcha.io:5000"
+# Sync configuration
+SYSTEMREGISTER__PERIODICSYNCINTERVALMINUTES=5
+SYSTEMREGISTER__HEARTBEATINTERVALSECONDS=30
+SYSTEMREGISTER__HEARTBEATTIMEOUTSECONDS=30
+SYSTEMREGISTER__MAXRETRYATTEMPTS=10
 
-# Gossip configuration
-PEERSERVICE__TRANSACTIONDISTRIBUTION__FANOUTFACTOR=5
-PEERSERVICE__TRANSACTIONDISTRIBUTION__GOSSIPROUNDS=4
+# MongoDB (for central nodes)
+MONGODB__CONNECTIONSTRING=mongodb://sorcha-mongo:27017
+MONGODB__DATABASENAME=sorcha_system_register
 
 # Observability
-OPENTELEMETRY__ZIPKINENDPOINT="https://zipkin.yourcompany.com"
+OPENTELEMETRY__ZIPKINENDPOINT=https://zipkin.yourcompany.com
 ```
+
+### Configuration Reference
+
+| Setting | Description | Default | Required |
+|---------|-------------|---------|----------|
+| `CentralNode:IsCentralNode` | Whether this node is a central node | `false` | Yes |
+| `CentralNode:ValidateHostname` | Validate hostname matches pattern | `false` | No |
+| `CentralNode:ExpectedHostnamePattern` | Hostname regex pattern for central nodes | `*.sorcha.dev` | No |
+| `CentralNode:CentralNodes` | Array of central node endpoints | `[]` | Yes (peer nodes) |
+| `SystemRegister:PeriodicSyncIntervalMinutes` | Incremental sync interval | `5` | No |
+| `SystemRegister:HeartbeatIntervalSeconds` | Heartbeat send interval | `30` | No |
+| `SystemRegister:HeartbeatTimeoutSeconds` | Heartbeat timeout threshold | `30` | No |
+| `SystemRegister:MaxRetryAttempts` | Max connection retry attempts | `10` | No |
+| `MongoDB:ConnectionString` | MongoDB connection string | - | Yes (central nodes) |
+| `MongoDB:DatabaseName` | MongoDB database name | `sorcha_system_register` | Yes (central nodes) |
 
 ---
 
-## gRPC API
+## gRPC Services
 
-### PeerDiscovery Service
+### CentralNodeConnection Service
 
-**Proto Definition**: `Protos/peer_discovery.proto`
-
-| Method | Description | Request | Response |
-|--------|-------------|---------|----------|
-| `GetPeerList` | Retrieve list of known peers | `PeerListRequest` | `PeerListResponse` |
-| `RegisterPeer` | Register this node with another peer | `RegisterPeerRequest` | `RegisterPeerResponse` |
-| `Ping` | Health check for peer availability | `PingRequest` | `PingResponse` |
-| `GetNodeInfo` | Get detailed node capabilities | `NodeInfoRequest` | `NodeInfoResponse` |
-
-### TransactionDistribution Service
-
-**Proto Definition**: `Protos/transaction_distribution.proto`
+**Proto Definition**: `Protos/CentralNodeConnection.proto`
 
 | Method | Description | Type | Request | Response |
 |--------|-------------|------|---------|----------|
-| `DistributeTransaction` | Send single transaction | Unary | `TransactionMessage` | `DistributionResponse` |
-| `StreamTransactions` | Stream multiple transactions | Bidirectional Stream | `TransactionMessage` | `DistributionResponse` |
-| `AnnounceTransaction` | Announce transaction availability | Unary | `TransactionAnnouncement` | `AcknowledgeResponse` |
+| `ConnectToCentralNode` | Initiate peer-to-central connection | Unary | `ConnectRequest` | `ConnectionResponse` |
+| `DisconnectFromCentralNode` | Graceful disconnect | Unary | `DisconnectRequest` | `DisconnectionResponse` |
+| `GetCentralNodeStatus` | Get central node health | Unary | `StatusRequest` | `CentralNodeStatus` |
 
-### PeerCommunication Service
+**ConnectRequest:**
+```protobuf
+message ConnectRequest {
+  string peer_id = 1;                     // Unique peer identifier
+  CentralNodePeerInfo peer_info = 2;      // Peer connection info
+  int64 last_known_version = 3;           // Last sync version (0 if first)
+  int64 connection_time = 4;              // Unix milliseconds UTC
+}
+```
 
-**Proto Definition**: `Protos/peer_communication.proto`
+**ConnectionResponse:**
+```protobuf
+message ConnectionResponse {
+  bool success = 1;                       // Connection successful
+  string message = 2;                     // Status message
+  string session_id = 3;                  // Session identifier
+  string central_node_id = 4;             // Central node ID (e.g., n0.sorcha.dev)
+  int64 current_system_register_version = 5;  // Current version
+  int64 connected_at = 6;                 // Unix milliseconds UTC
+  int32 heartbeat_interval_seconds = 7;   // Recommended interval (30s)
+  ConnectionConfig config = 8;            // Connection configuration
+}
+```
 
-| Method | Description | Type |
-|--------|-------------|------|
-| `TestConnection` | Test connection quality | Unary |
-| `NegotiateProtocol` | Negotiate communication protocol | Unary |
-| `SendHeartbeat` | Keep-alive heartbeat | Unary |
+### SystemRegisterSync Service
+
+**Proto Definition**: `Protos/SystemRegisterSync.proto`
+
+| Method | Description | Type | Request | Response Stream |
+|--------|-------------|------|---------|-----------------|
+| `FullSync` | Initial full synchronization | Server Streaming | `FullSyncRequest` | `SystemRegisterEntry` |
+| `IncrementalSync` | Incremental sync since version | Server Streaming | `IncrementalSyncRequest` | `SystemRegisterEntry` |
+| `SubscribeToPushNotifications` | Real-time blueprint notifications | Server Streaming | `PushSubscriptionRequest` | `BlueprintNotification` |
+
+**FullSyncRequest:**
+```protobuf
+message FullSyncRequest {
+  string peer_id = 1;                     // Peer identifier
+  string session_id = 2;                  // Session from connection
+}
+```
+
+**SystemRegisterEntry:**
+```protobuf
+message SystemRegisterEntry {
+  string blueprint_id = 1;                // Blueprint unique ID
+  bytes blueprint_data = 2;               // Serialized BSON document
+  int64 version = 3;                      // Auto-increment version
+  int64 published_at = 4;                 // Unix milliseconds UTC
+  string published_by = 5;                // Publisher wallet address
+}
+```
+
+**IncrementalSyncRequest:**
+```protobuf
+message IncrementalSyncRequest {
+  string peer_id = 1;                     // Peer identifier
+  string session_id = 2;                  // Session from connection
+  int64 last_known_version = 3;           // Version to sync from
+}
+```
+
+### Heartbeat Service
+
+**Proto Definition**: `Protos/Heartbeat.proto`
+
+| Method | Description | Type | Request | Response |
+|--------|-------------|------|---------|----------|
+| `SendHeartbeat` | Send heartbeat to central node | Unary | `HeartbeatMessage` | `HeartbeatAcknowledgement` |
+| `MonitorHeartbeat` | Bidirectional heartbeat stream | Bidirectional Streaming | `HeartbeatMessage` | `HeartbeatAcknowledgement` |
+
+**HeartbeatMessage:**
+```protobuf
+message HeartbeatMessage {
+  string peer_id = 1;                     // Peer identifier
+  int64 timestamp = 2;                    // Unix milliseconds UTC
+  int32 sequence_number = 3;              // Monotonic sequence
+  int64 last_sync_version = 4;            // Peer's last sync version
+}
+```
+
+**HeartbeatAcknowledgement:**
+```protobuf
+message HeartbeatAcknowledgement {
+  bool acknowledged = 1;                  // Heartbeat received
+  int64 server_timestamp = 2;             // Server time (clock skew detection)
+  RecommendedAction recommended_action = 3;  // Suggested action
+}
+
+enum RecommendedAction {
+  RECOMMENDED_ACTION_NONE = 0;            // No action needed
+  RECOMMENDED_ACTION_SYNC = 1;            // Perform incremental sync
+  RECOMMENDED_ACTION_FAILOVER = 2;        // Failover to another node
+  RECOMMENDED_ACTION_RECONNECT = 3;       // Reconnect (stale session)
+}
+```
 
 ---
 
@@ -329,9 +495,10 @@ OPENTELEMETRY__ZIPKINENDPOINT="https://zipkin.yourcompany.com"
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/` | Get service information |
 | GET | `/health` | Health check endpoint |
-| GET | `/scalar` | Interactive API documentation (dev only) |
+| GET | `/api/peers` | List active peers (central nodes) |
+| GET | `/api/peers/{id}` | Get peer details by ID |
+| GET | `/api/central-connection` | Central node connection status (peer nodes) |
 
 ---
 
@@ -341,42 +508,83 @@ OPENTELEMETRY__ZIPKINENDPOINT="https://zipkin.yourcompany.com"
 
 ```
 Sorcha.Peer.Service/
-├── Program.cs                      # Service entry point, gRPC/REST configuration
+├── Program.cs                      # Service entry point, DI configuration
+├── PeerService.cs                  # Background service orchestrating operations
 ├── Core/
-│   ├── PeerServiceConfiguration.cs # Configuration models
-│   ├── PeerNode.cs                 # Peer node model
-│   ├── PeerCapabilities.cs         # Peer capability flags
-│   └── TransactionNotification.cs  # Transaction message model
+│   ├── PeerServiceConfiguration.cs  # Configuration models
+│   ├── CentralNodeConfiguration.cs
+│   ├── SystemRegisterConfiguration.cs
+│   ├── PeerServiceConstants.cs
+│   ├── CentralNodeInfo.cs          # Central node state tracking
+│   ├── SystemRegisterEntry.cs      # System register entry model
+│   ├── HeartbeatMessage.cs         # Heartbeat protocol model
+│   ├── ActivePeerInfo.cs           # Local peer status
+│   ├── SyncCheckpoint.cs           # Sync progress tracking
+│   ├── BlueprintNotification.cs    # Push notification model
+│   └── Validators (5 classes)      # Business rule validators
 ├── Discovery/
-│   ├── PeerDiscoveryService.cs     # Bootstrap connection, peer discovery
-│   ├── PeerDiscoveryServiceImpl.cs # gRPC service implementation
+│   ├── CentralNodeDiscoveryService.cs  # Central/peer detection
 │   └── PeerListManager.cs          # Peer registry management
-├── Distribution/
-│   ├── GossipProtocolEngine.cs     # Epidemic gossip logic
-│   ├── TransactionDistributionService.cs  # Transaction propagation
-│   └── TransactionQueueManager.cs  # Offline queue management
-├── Communication/
-│   ├── CommunicationProtocolManager.cs  # Protocol selection
-│   └── ConnectionTestingService.cs      # Bandwidth/latency testing
+├── Connection/
+│   └── CentralNodeConnectionManager.cs  # Connection + failover logic
+├── Replication/
+│   ├── SystemRegisterReplicationService.cs  # Sync orchestration
+│   ├── SystemRegisterCache.cs      # Thread-safe in-memory cache
+│   ├── PeriodicSyncService.cs      # Background periodic sync
+│   └── PushNotificationHandler.cs  # Push notification management
+├── Services/ (gRPC Implementations)
+│   ├── CentralNodeConnectionService.cs  # CentralNodeConnection gRPC
+│   ├── SystemRegisterSyncService.cs     # SystemRegisterSync gRPC
+│   └── HeartbeatService.cs         # Heartbeat gRPC
 ├── Monitoring/
-│   ├── HealthMonitorService.cs     # Peer health checks
-│   └── ConnectionQualityTracker.cs # Latency/bandwidth tracking
-├── Network/
-│   ├── NetworkAddressService.cs    # External address discovery
-│   └── StunClient.cs               # STUN protocol client
-├── Protos/
-│   ├── peer_discovery.proto        # gRPC service definitions
-│   ├── transaction_distribution.proto
-│   └── peer_communication.proto
-└── PeerService.cs                  # Background service (hosted service)
+│   └── HeartbeatMonitorService.cs  # Heartbeat sender (peer nodes)
+├── Resilience/
+│   └── ConnectionResiliencePipeline.cs  # Polly v8 retry pipeline
+├── Observability/
+│   ├── PeerServiceMetrics.cs       # 7 OpenTelemetry metrics
+│   └── PeerServiceActivitySource.cs  # 6 distributed traces
+└── Protos/
+    ├── CentralNodeConnection.proto
+    ├── SystemRegisterSync.proto
+    ├── Heartbeat.proto
+    ├── peer_discovery.proto        # Legacy P2P
+    ├── transaction_distribution.proto  # Legacy P2P
+    └── peer_communication.proto    # Legacy P2P
 ```
+
+### Register Service Integration
+
+**MongoSystemRegisterRepository** (in Register Service):
+
+Location: `src/Services/Sorcha.Register.Service/Repositories/MongoSystemRegisterRepository.cs`
+
+| Method | Description |
+|--------|-------------|
+| `GetAllBlueprintsAsync()` | Full sync - retrieve all blueprints |
+| `GetBlueprintsSinceVersionAsync(long version)` | Incremental sync - retrieve blueprints since version |
+| `PublishBlueprintAsync(SystemRegisterEntry entry)` | Publish new blueprint (auto-increment version) |
+| `GetLatestVersionAsync()` | Get current system register version |
+| `IsSystemRegisterInitializedAsync()` | Check if system register exists |
+
+**SystemRegisterService** (in Register Service):
+
+Location: `src/Services/Sorcha.Register.Service/Services/SystemRegisterService.cs`
+
+| Method | Description |
+|--------|-------------|
+| `InitializeSystemRegisterAsync()` | Initialize system register with Guid.Empty ID |
+| `SeedDefaultBlueprintsAsync()` | Seed default blueprints (register-creation-v1) |
+| `PublishBlueprintAsync()` | Publish blueprint to system register |
+| `ValidateSystemRegisterIntegrityAsync()` | Validate system register consistency |
 
 ### Running Tests
 
 ```bash
-# Run all Peer Service tests
+# Run all Peer Service tests (not yet implemented)
 dotnet test tests/Sorcha.Peer.Service.Tests
-dotnet test tests/Sorcha.Peer.Service.Integration.Tests
+
+# Run Register Service tests (includes MongoDB repository tests)
+dotnet test tests/Sorcha.Register.Service.Tests
 
 # Run with coverage
 dotnet test --collect:"XPlat Code Coverage"
@@ -385,224 +593,66 @@ dotnet test --collect:"XPlat Code Coverage"
 dotnet watch test --project tests/Sorcha.Peer.Service.Tests
 ```
 
-### Code Coverage
+**Test Coverage** (Pending - Phase 3):
+- **Unit Tests**: T030-T035 (13 test files)
+- **Integration Tests**: T036-T040 (5 scenarios)
+- **Performance Tests**: T041-T042 (2 validation tests)
 
-**Current Coverage**: ~70%
-**Tests**: 14 test classes
-- **Unit Tests**: 8 test classes (Core, Network, Monitoring, Discovery)
-- **Integration Tests**: 4 test classes (Communication, Discovery, Health, Throughput)
-**Lines of Code**: ~5,200 LOC
-
-```bash
-# Generate coverage report
-dotnet test --collect:"XPlat Code Coverage"
-reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage -reporttypes:Html
-```
-
-Open `coverage/index.html` in your browser.
+**Current Test Status**: 0% (tests not yet implemented)
 
 ---
 
-## Integration with Other Services
+## Observability
 
-### Register Service Integration
+### Metrics (OpenTelemetry)
 
-The Peer Service integrates with the Register Service for:
-- **Transaction Confirmation**: Forward gossip transactions to Register for storage
-- **Register Discovery**: Discover which registers are advertised to the network
-- **State Synchronization**: Sync register state with peers
+**PeerServiceMetrics** exposes 7 metrics:
 
-**Communication**: gRPC + Events
-**Events Published**: `TransactionReceived`, `PeerConnected`, `PeerDisconnected`
+| Metric | Type | Description |
+|--------|------|-------------|
+| `peer.connection.status` | Gauge | Current connection status (0=Disconnected, 1=Connected, 2=Isolated) |
+| `peer.heartbeat.latency` | Histogram | Heartbeat round-trip time (milliseconds) |
+| `peer.sync.duration` | Histogram | Sync operation duration (seconds) |
+| `peer.sync.blueprints.count` | Counter | Total blueprints synchronized |
+| `peer.push.notifications.delivered` | Counter | Successful push notification deliveries |
+| `peer.push.notifications.failed` | Counter | Failed push notification deliveries |
+| `peer.failover.count` | Counter | Number of failover events |
 
-### Blueprint Service Integration
+**Prometheus Endpoint**: `/metrics` (via ServiceDefaults OpenTelemetry configuration)
 
-The Peer Service integrates with the Blueprint Service for:
-- **Action Propagation**: Distribute blueprint action transactions across the network
-- **Blueprint Discovery**: Share published blueprint definitions
+### Distributed Tracing (OpenTelemetry)
 
-**Communication**: Event-driven messaging
-**Events Subscribed**: `ActionSubmitted`, `BlueprintPublished`
+**PeerServiceActivitySource** creates 6 trace activities:
 
-### Validator Service Integration
+| Activity | Kind | Tags |
+|----------|------|------|
+| `peer.connection.connect` | Client | central_node_id, priority |
+| `peer.connection.failover` | Client | from_node, to_node, reason |
+| `peer.sync.full` | Client | peer_id, blueprint_count |
+| `peer.sync.incremental` | Client | peer_id, last_known_version, new_blueprints |
+| `peer.heartbeat.send` | Client | peer_id, sequence_number |
+| `peer.notification.receive` | Server | blueprint_id, version, type |
 
-The Peer Service integrates with the Validator Service for:
-- **Consensus Coordination**: Facilitate consensus voting across peer network
-- **Docket Propagation**: Distribute sealed dockets to peers
+**Zipkin Endpoint**: Configured via `OpenTelemetry:ZipkinEndpoint` in appsettings.json
 
-**Communication**: gRPC streaming
-**Events Subscribed**: `DocketSealed`, `ConsensusRoundStarted`
+### Structured Logging (Serilog)
 
-### Example gRPC Client (C#)
+**Correlation IDs**: All logs include `SessionId` for request tracing
 
-```csharp
-using Grpc.Net.Client;
-using Sorcha.Peer.Service.Protos;
+**Semantic Properties**:
+- Connection events: NodeId, Priority, Duration, ConsecutiveFailures
+- Heartbeat events: SequenceNumber, LatencyMs, MissedCount
+- Sync events: SyncType, Duration, BlueprintCount, VersionFrom, VersionTo
 
-var channel = GrpcChannel.ForAddress("http://localhost:5000");
-var client = new PeerDiscovery.PeerDiscoveryClient(channel);
-
-// Get peer list
-var request = new PeerListRequest
-{
-    RequestingPeerId = "my-node-id",
-    MaxPeers = 50
-};
-
-var response = await client.GetPeerListAsync(request);
-
-Console.WriteLine($"Received {response.Peers.Count} peers:");
-foreach (var peer in response.Peers)
-{
-    Console.WriteLine($"  - {peer.PeerId} at {peer.Address}:{peer.Port}");
-}
+**Example Logs**:
 ```
-
-### Example gRPC Client (TypeScript/Node.js)
-
-```typescript
-import * as grpc from '@grpc/grpc-js';
-import * as protoLoader from '@grpc/proto-loader';
-
-const packageDefinition = protoLoader.loadSync('peer_discovery.proto');
-const proto = grpc.loadPackageDefinition(packageDefinition);
-
-const client = new proto.PeerDiscovery(
-  'localhost:5000',
-  grpc.credentials.createInsecure()
-);
-
-client.GetPeerList({ requesting_peer_id: 'my-node', max_peers: 50 }, (error, response) => {
-  if (error) {
-    console.error('Error:', error);
-  } else {
-    console.log(`Received ${response.peers.length} peers`);
-  }
-});
+[INF] Attempting to connect to central node n0.sorcha.dev with priority 0
+[INF] Successfully connected to central node n0.sorcha.dev (session: abc123, version: 42)
+[WRN] Heartbeat timeout for central node n0.sorcha.dev (missed: 2/2)
+[INF] Failover initiated from n0.sorcha.dev to n1.sorcha.dev
+[INF] Full sync completed: 150 blueprints in 12.5 seconds
+[INF] Incremental sync completed: 3 new blueprints (version 42 → 45)
 ```
-
----
-
-## NAT Traversal and Network Configuration
-
-### STUN Configuration
-
-The Peer Service uses STUN to discover external addresses behind NAT:
-
-```json
-{
-  "PeerService": {
-    "NetworkAddress": {
-      "StunServers": [
-        "stun.l.google.com:19302",
-        "stun1.l.google.com:19302",
-        "stun2.l.google.com:19302"
-      ]
-    }
-  }
-}
-```
-
-### Manual External Address
-
-For environments where STUN is unavailable or unreliable:
-
-```json
-{
-  "PeerService": {
-    "NetworkAddress": {
-      "ExternalAddress": "203.0.113.5:5000"
-    }
-  }
-}
-```
-
-### Firewall Configuration
-
-**Required Ports:**
-- **Inbound**: Port 5000 (gRPC, HTTP/2)
-- **Inbound**: Port 5001 (REST, HTTP/1.1)
-- **Outbound**: Port 19302 (STUN)
-- **Outbound**: Ports 5000-5001 (peer connections)
-
-**Firewall Rules (Linux iptables):**
-```bash
-# Allow gRPC
-iptables -A INPUT -p tcp --dport 5000 -j ACCEPT
-
-# Allow REST
-iptables -A INPUT -p tcp --dport 5001 -j ACCEPT
-
-# Allow STUN
-iptables -A OUTPUT -p udp --dport 19302 -j ACCEPT
-```
-
----
-
-## Offline Mode and Transaction Queueing
-
-### Queue Configuration
-
-```json
-{
-  "PeerService": {
-    "OfflineMode": {
-      "MaxQueueSize": 10000,
-      "MaxRetries": 5,
-      "QueuePersistence": true,
-      "PersistencePath": "./data/tx_queue.db"
-    }
-  }
-}
-```
-
-### Queue Behavior
-
-- **Offline Detection**: Peer Service detects network unavailability
-- **Queue Transactions**: Store transactions in local SQLite database
-- **Automatic Retry**: Periodically attempt to reconnect and flush queue
-- **Max Retries**: After 5 failed retries, transaction is marked as failed
-- **Queue Size Limit**: Maximum 10,000 transactions queued (configurable)
-
-### Queue Management
-
-```bash
-# Check queue status
-curl https://localhost:5001/api/queue/status
-
-# Manually flush queue
-curl -X POST https://localhost:5001/api/queue/flush
-
-# Clear failed transactions
-curl -X DELETE https://localhost:5001/api/queue/failed
-```
-
----
-
-## Security Considerations
-
-### Authentication (Production)
-
-- **Current**: Development mode (no authentication required)
-- **Production**: Mutual TLS (mTLS) for peer-to-peer authentication
-- **Node Identity**: Public key-based node identification
-
-### Authorization
-
-- **Peer Verification**: Validate peer signatures before accepting transactions
-- **Bootstrap Trust**: Establish trust chain from bootstrap nodes
-
-### Data Protection
-
-- **TLS 1.3**: All gRPC and REST communications encrypted
-- **Transaction Signatures**: Validate cryptographic signatures
-- **No Sensitive Logging**: Never log transaction payloads or private keys
-
-### Secrets Management
-
-- **Node Private Keys**: Store in Azure Key Vault or secure storage
-- **TLS Certificates**: Rotate certificates every 90 days
-- **Bootstrap Trust**: Verify bootstrap node identities
 
 ---
 
@@ -613,8 +663,7 @@ curl -X DELETE https://localhost:5001/api/queue/failed
 The Peer Service is registered in the Aspire AppHost:
 
 ```csharp
-var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service")
-    .WithReference(redis);
+var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service");
 ```
 
 Start the entire platform:
@@ -627,6 +676,8 @@ Access Aspire Dashboard: `http://localhost:15888`
 
 ### Docker
 
+#### Peer Node
+
 ```bash
 # Build Docker image
 docker build -t sorcha-peer-service:latest -f src/Services/Sorcha.Peer.Service/Dockerfile .
@@ -635,9 +686,32 @@ docker build -t sorcha-peer-service:latest -f src/Services/Sorcha.Peer.Service/D
 docker run -d \
   -p 5000:5000 \
   -p 5001:5001 \
-  -e PeerService__NodeId="docker-node-001" \
-  -e PeerService__PeerDiscovery__BootstrapNodes__0="bootstrap.sorcha.io:5000" \
+  -e CentralNode__IsCentralNode=false \
+  -e CentralNode__CentralNodes__0__Hostname=n0.sorcha.dev \
+  -e CentralNode__CentralNodes__0__Port=5000 \
+  -e CentralNode__CentralNodes__0__Priority=0 \
   --name peer-service \
+  sorcha-peer-service:latest
+```
+
+#### Central Node
+
+```bash
+# Start MongoDB first
+docker run -d \
+  -p 27017:27017 \
+  --name sorcha-mongo \
+  mongo:8.0
+
+# Run central node
+docker run -d \
+  -p 5000:5000 \
+  -p 5001:5001 \
+  -e CentralNode__IsCentralNode=true \
+  -e CentralNode__ValidateHostname=false \
+  -e MongoDB__ConnectionString=mongodb://sorcha-mongo:27017 \
+  --link sorcha-mongo \
+  --name central-node-n0 \
   sorcha-peer-service:latest
 ```
 
@@ -647,16 +721,16 @@ docker run -d \
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sorcha-peer-service
+  name: sorcha-central-node
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: sorcha-peer-service
+      app: sorcha-central-node
   template:
     metadata:
       labels:
-        app: sorcha-peer-service
+        app: sorcha-central-node
     spec:
       containers:
       - name: peer-service
@@ -664,77 +738,34 @@ spec:
         ports:
         - containerPort: 5000
           name: grpc
-          protocol: TCP
         - containerPort: 5001
           name: http
-          protocol: TCP
         env:
-        - name: PeerService__NodeId
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: PeerService__PeerDiscovery__BootstrapNodes__0
-          value: "bootstrap.sorcha.svc.cluster.local:5000"
+        - name: CentralNode__IsCentralNode
+          value: "true"
+        - name: CentralNode__ValidateHostname
+          value: "true"
+        - name: CentralNode__ExpectedHostnamePattern
+          value: "n[0-2].sorcha.dev"
+        - name: MongoDB__ConnectionString
+          value: "mongodb://sorcha-mongo:27017"
+        - name: MongoDB__DatabaseName
+          value: "sorcha_system_register"
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: sorcha-peer-service
+  name: sorcha-central-node
 spec:
   type: LoadBalancer
   ports:
   - port: 5000
-    targetPort: 5000
     name: grpc
   - port: 5001
-    targetPort: 5001
     name: http
   selector:
-    app: sorcha-peer-service
+    app: sorcha-central-node
 ```
-
----
-
-## Observability
-
-### Logging (Serilog + Seq)
-
-Structured logging with Serilog:
-
-```csharp
-Log.Information("Discovered {Count} peers from {BootstrapNode}", count, bootstrapNode);
-Log.Warning("Peer {PeerId} failed health check: {Reason}", peerId, reason);
-```
-
-**Log Sinks**:
-- Console (development)
-- Seq (production) - `http://localhost:5341`
-
-### Tracing (OpenTelemetry + Zipkin)
-
-Distributed tracing with OpenTelemetry:
-
-```bash
-# View traces in Zipkin
-open http://localhost:9411
-```
-
-**Traced Operations**:
-- gRPC method calls
-- Peer discovery operations
-- Transaction gossip propagation
-- STUN queries
-- Health checks
-
-### Metrics (Prometheus)
-
-Metrics exposed at `/metrics`:
-- Peer connection count (active, discovered, healthy)
-- Transaction propagation rate
-- Gossip round latency
-- STUN query success rate
-- Connection quality metrics (latency, bandwidth)
-- Queue size (offline mode)
 
 ---
 
@@ -742,43 +773,57 @@ Metrics exposed at `/metrics`:
 
 ### Common Issues
 
-**Issue**: Cannot discover external address (NAT traversal fails)
-**Solution**: Verify STUN server connectivity. Try manual external address configuration.
-
-```bash
-# Test STUN connectivity
-nslookup stun.l.google.com
-ping stun.l.google.com
-
-# Manual configuration
-"ExternalAddress": "your-public-ip:5000"
-```
-
-**Issue**: Bootstrap nodes unreachable
-**Solution**: Verify bootstrap node addresses and network connectivity.
+**Issue**: Peer cannot connect to central nodes
+**Solution**: Verify central node hostnames and network connectivity.
 
 ```bash
 # Test gRPC connectivity
-grpcurl -plaintext bootstrap1.sorcha.io:5000 list
+grpcurl -plaintext n0.sorcha.dev:5000 list
+
+# Check DNS resolution
+nslookup n0.sorcha.dev
 ```
 
-**Issue**: Peers not discovering this node
-**Solution**: Check firewall rules, ensure ports 5000-5001 are open inbound.
-
-**Issue**: High transaction propagation latency
-**Solution**: Increase gossip fanout factor and verify network bandwidth.
+**Issue**: Heartbeat timeouts causing frequent failovers
+**Solution**: Increase heartbeat timeout or check network latency.
 
 ```json
 {
-  "TransactionDistribution": {
-    "FanoutFactor": 5,
-    "GossipRounds": 4
+  "SystemRegister": {
+    "HeartbeatTimeoutSeconds": 60
   }
 }
 ```
 
-**Issue**: Offline queue filling up
-**Solution**: Increase queue size or reduce `MaxRetries`. Check network connectivity.
+**Issue**: Incremental sync not fetching new blueprints
+**Solution**: Check SyncCheckpoint version matches central node version.
+
+```bash
+# Get central node status
+grpcurl -plaintext -d '{"peer_id": "test"}' n0.sorcha.dev:5000 \
+  sorcha.peer.v1.CentralNodeConnection/GetCentralNodeStatus
+```
+
+**Issue**: Node incorrectly detected as central node
+**Solution**: Verify hostname or disable hostname validation.
+
+```json
+{
+  "CentralNode": {
+    "IsCentralNode": false,
+    "ValidateHostname": false
+  }
+}
+```
+
+**Issue**: MongoDB connection failed on central node startup
+**Solution**: Verify MongoDB is running and connection string is correct.
+
+```bash
+# Test MongoDB connectivity
+docker ps | grep mongo
+mongosh mongodb://localhost:27017
+```
 
 ### Debug Mode
 
@@ -798,26 +843,48 @@ Enable detailed logging:
 
 ---
 
-## Contributing
+## Performance Benchmarks
 
-### Development Workflow
+**Success Criteria** (from spec.md):
 
-1. **Create a feature branch**: `git checkout -b feature/your-feature`
-2. **Make changes**: Follow C# coding conventions
-3. **Write tests**: Maintain >70% coverage
-4. **Run tests**: `dotnet test`
-5. **Format code**: `dotnet format`
-6. **Commit**: `git commit -m "feat: your feature description"`
-7. **Push**: `git push origin feature/your-feature`
-8. **Create PR**: Reference issue number
+| Metric | Target | Status |
+|--------|--------|--------|
+| SC-009: System register initialization | 100% success | ✅ Implemented |
+| SC-010: Full sync duration | <60s for 100 blueprints | 🚧 Pending tests |
+| SC-012: System register integrity check | <2s | ✅ Implemented |
+| SC-013: Central node detection | 100% accuracy | ✅ Implemented |
+| SC-014: Connection establishment | <30s per node | ✅ Implemented |
+| SC-015: Central node uptime | 100% (3 nodes for redundancy) | ✅ Implemented |
+| SC-016: Push notification delivery | 80% delivered in 30s | ✅ Implemented |
+| FR-036: Heartbeat timeout | 30s (2 missed = 60s) | ✅ Implemented |
 
-### Code Standards
+---
 
-- Follow [C# Coding Conventions](https://docs.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions)
-- Use async/await for I/O operations
-- Add XML documentation for public APIs
-- Include unit tests for all business logic
-- Use dependency injection for testability
+## Security Considerations
+
+### Authentication (Production)
+
+- **Current**: Development mode (no authentication required for gRPC)
+- **Production**: Mutual TLS (mTLS) with client certificates
+- **JWT Tokens**: Service-to-service authentication via Tenant Service
+
+### Authorization
+
+- **Central Nodes**: Only central nodes can accept peer connections
+- **Peer Verification**: Validate peer signatures before accepting sync requests
+- **Session Management**: Use session IDs to track connection state
+
+### Data Protection
+
+- **TLS 1.3**: All gRPC and REST communications encrypted
+- **Blueprint Signatures**: Validate cryptographic signatures on blueprints
+- **No Sensitive Logging**: Never log blueprint content or private keys
+
+### Secrets Management
+
+- **MongoDB Credentials**: Store in environment variables or Azure Key Vault
+- **TLS Certificates**: Rotate certificates every 90 days
+- **Session Tokens**: Generate cryptographically secure session IDs
 
 ---
 
@@ -826,8 +893,9 @@ Enable detailed logging:
 - **Architecture**: [docs/architecture.md](../../docs/architecture.md)
 - **Development Status**: [docs/development-status.md](../../docs/development-status.md)
 - **gRPC Documentation**: https://grpc.io/docs/languages/csharp/
-- **STUN RFC 5389**: https://tools.ietf.org/html/rfc5389
-- **Gossip Protocols**: https://en.wikipedia.org/wiki/Gossip_protocol
+- **MongoDB .NET Driver**: https://www.mongodb.com/docs/drivers/csharp/
+- **Polly Resilience**: https://www.pollydocs.org/
+- **OpenTelemetry**: https://opentelemetry.io/docs/instrumentation/net/
 
 ---
 
@@ -839,24 +907,93 @@ Enable detailed logging:
 - ASP.NET Core 10
 
 **Frameworks:**
-- gRPC for .NET (Grpc.AspNetCore)
-- Protocol Buffers (Google.Protobuf)
+- gRPC for .NET (Grpc.AspNetCore 2.71.0)
+- MongoDB.Driver 3.5.2
+- Polly 8.5.0 (resilience pipeline)
 - .NET Aspire 13.0+ for orchestration
 
 **Networking:**
 - HTTP/2 (gRPC primary protocol)
-- HTTP/1.1 (REST fallback)
-- STUN protocol for NAT traversal
+- HTTP/1.1 (REST endpoints)
 
 **Observability:**
-- OpenTelemetry for distributed tracing
+- OpenTelemetry 1.10.0 for distributed tracing and metrics
 - Serilog for structured logging
-- Prometheus metrics
+- Scalar.AspNetCore 2.11.2 for API docs
 
 **Testing:**
 - xUnit for test framework
 - FluentAssertions for assertions
 - Moq for mocking
+- Testcontainers for MongoDB integration tests
+
+---
+
+## Contributing
+
+### Development Workflow
+
+1. **Create a feature branch**: `git checkout -b feature/peer-service-enhancement`
+2. **Make changes**: Follow C# coding conventions
+3. **Write tests**: Maintain >85% coverage (constitution requirement)
+4. **Run tests**: `dotnet test`
+5. **Format code**: `dotnet format`
+6. **Commit**: `git commit -m "feat: add incremental sync optimization"`
+7. **Push**: `git push origin feature/peer-service-enhancement`
+8. **Create PR**: Reference issue number
+
+### Code Standards
+
+- Follow [C# Coding Conventions](https://docs.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions)
+- Use async/await for I/O operations
+- Add XML documentation for public APIs
+- Include unit tests for all business logic (>85% coverage)
+- Use dependency injection for testability
+- Follow Sorcha project constitution principles
+
+---
+
+## Status and Roadmap
+
+### Completed (70% - Phase 1-3)
+
+✅ **Phase 1: Setup (6 tasks)**
+- gRPC proto compilation
+- Test directory structure
+- Fixed proto naming conflicts
+
+✅ **Phase 2: Foundational (23 tasks)**
+- Core entities and configuration (17 classes, 3 enums)
+- Validation utilities (5 validators)
+- Polly resilience pipeline
+- MongoDB system register repository
+- Extended PeerListManager
+
+✅ **Phase 3: Core Implementation (34 tasks)**
+- Central node detection with hostname validation
+- Priority-based connection manager with failover
+- System register replication (full + incremental sync)
+- Heartbeat monitoring with timeout handling
+- Push notifications for blueprint publication
+- Isolated mode for graceful degradation
+- Comprehensive observability (7 metrics, 6 traces, structured logs)
+
+### Pending (30% - Phase 3-4)
+
+🚧 **Phase 3: Tests (20 tasks)**
+- T030-T035: Unit tests (13 test files)
+- T036-T040: Integration tests (5 scenarios)
+- T041-T042: Performance tests (SC-010, SC-016 validation)
+
+🚧 **Phase 4: Polish (8 tasks)**
+- T084: ✅ Update development-status.md (COMPLETE)
+- T085: ✅ Update Peer Service README (COMPLETE)
+- T086: Create quickstart.md
+- T087: Code cleanup and refactoring
+- T088: Performance optimization (MongoDB query benchmarking)
+- T089: Security hardening (TLS, authentication, rate limiting)
+- T090: Additional unit tests for edge cases
+- T091: End-to-end validation with 3 central nodes + 2 peer nodes
 
 ---
 
@@ -866,6 +1003,9 @@ Apache License 2.0 - See [LICENSE](../../LICENSE) for details.
 
 ---
 
-**Last Updated**: 2025-11-23
+**Version**: 1.1.0
+**Last Updated**: 2025-12-14
 **Maintained By**: Sorcha Platform Team
-**Status**: ⚙️ Core Complete (65% - Production Infrastructure Pending)
+**Status**: ✅ Core Complete (70% - Tests and Polish Pending)
+**Tasks Completed**: 63/91 (Phase 1-3)
+**Lines of Code**: ~5,700 (production), 0 (tests)

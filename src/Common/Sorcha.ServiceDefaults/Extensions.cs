@@ -58,6 +58,9 @@ public static class Extensions
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation();
+
+                // Add custom meters for Peer Service
+                metrics.AddMeter("Sorcha.Peer.Service");
             })
             .WithTracing(tracing =>
             {
@@ -71,6 +74,9 @@ public static class Extensions
                     // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                     //.AddGrpcClientInstrumentation()
                     .AddHttpClientInstrumentation();
+
+                // Add custom activity sources for Peer Service
+                tracing.AddSource("Sorcha.Peer.Service");
             });
 
         builder.AddOpenTelemetryExporters();

@@ -11,6 +11,9 @@ using Sorcha.Peer.Service.Discovery;
 using Sorcha.Peer.Service.Distribution;
 using Sorcha.Peer.Service.Monitoring;
 using Sorcha.Peer.Service.Network;
+using Sorcha.Peer.Service.Observability;
+using Sorcha.Peer.Service.Replication;
+using Sorcha.Peer.Service.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,12 +70,25 @@ builder.Services.AddSingleton<StatisticsAggregator>();
 builder.Services.AddSingleton<CentralNodeDiscoveryService>();
 builder.Services.AddSingleton<CentralNodeConnectionManager>();
 
+// Register observability services (OpenTelemetry)
+builder.Services.AddSingleton<PeerServiceMetrics>();
+builder.Services.AddSingleton<PeerServiceActivitySource>();
+
+// Register replication services
+builder.Services.AddSingleton<SystemRegisterCache>();
+builder.Services.AddSingleton<SystemRegisterReplicationService>();
+builder.Services.AddSingleton<PushNotificationHandler>();
+
 // Register gRPC service implementations
 builder.Services.AddSingleton<PeerDiscoveryServiceImpl>();
+builder.Services.AddSingleton<CentralNodeConnectionService>();
+builder.Services.AddSingleton<SystemRegisterSyncService>();
+builder.Services.AddSingleton<Sorcha.Peer.Service.Services.HeartbeatService>();
 
 // Register background services
 builder.Services.AddHostedService<PeerService>();
 builder.Services.AddHostedService<HeartbeatMonitorService>();
+builder.Services.AddHostedService<PeriodicSyncService>();
 
 // Add HttpClient
 builder.Services.AddHttpClient();
@@ -102,6 +118,9 @@ if (app.Environment.IsDevelopment())
 
 // Map gRPC services
 app.MapGrpcService<PeerDiscoveryServiceImpl>();
+app.MapGrpcService<CentralNodeConnectionService>();
+app.MapGrpcService<SystemRegisterSyncService>();
+app.MapGrpcService<Sorcha.Peer.Service.Services.HeartbeatService>();
 
 // Enable gRPC reflection for development
 if (app.Environment.IsDevelopment())
@@ -137,8 +156,8 @@ app.MapGet("/api/peers", (PeerListManager peerListManager) =>
     }));
 })
     .WithName("GetAllPeers")
-    .WithSummary("List all known peers")
-    .WithDescription("Returns a list of all peers currently known to this node")
+    .WithSummary("List all known peers in the network")
+    .WithDescription(@"Returns a comprehensive list of all peer nodes currently known to this node, including connection metadata, latency metrics, and bootstrap node status. This endpoint provides visibility into the peer-to-peer network topology.")
     .WithTags("Peers")
     .WithOpenApi();
 
@@ -164,8 +183,8 @@ app.MapGet("/api/peers/{peerId}", (string peerId, PeerListManager peerListManage
     });
 })
     .WithName("GetPeerById")
-    .WithSummary("Get peer details by ID")
-    .WithDescription("Returns detailed information about a specific peer")
+    .WithSummary("Get detailed information about a specific peer")
+    .WithDescription(@"Retrieves comprehensive details for a single peer node identified by its peer ID, including connection history, latency statistics, supported protocols, and operational status.")
     .WithTags("Peers")
     .WithOpenApi();
 
@@ -175,8 +194,8 @@ app.MapGet("/api/peers/stats", (StatisticsAggregator statisticsAggregator) =>
     return Results.Ok(stats);
 })
     .WithName("GetPeerStatistics")
-    .WithSummary("Get peer network statistics")
-    .WithDescription("Returns aggregated statistics about the peer network")
+    .WithSummary("Get aggregated peer network statistics")
+    .WithDescription(@"Returns comprehensive statistics about the peer-to-peer network including total peer count, connection quality metrics, throughput statistics, and network health indicators. Useful for monitoring and diagnostics.")
     .WithTags("Monitoring")
     .WithOpenApi();
 
@@ -202,8 +221,8 @@ app.MapGet("/api/peers/health", (PeerListManager peerListManager) =>
     });
 })
     .WithName("GetPeerHealth")
-    .WithSummary("Get peer health status")
-    .WithDescription("Returns health status of all peers and identifies healthy vs unhealthy peers")
+    .WithSummary("Get peer network health status")
+    .WithDescription(@"Returns health status analysis of all peer nodes in the network, categorizing peers as healthy or unhealthy based on connectivity and responsiveness metrics. Includes overall health percentage and detailed metrics for healthy peers.")
     .WithTags("Monitoring")
     .WithOpenApi();
 
