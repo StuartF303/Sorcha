@@ -11,15 +11,17 @@
 1. [Overview](#overview)
 2. [Getting Started](#getting-started)
 3. [Authentication](#authentication)
-4. [Blueprint Service API](#blueprint-service-api)
-5. [Wallet Service API](#wallet-service-api)
-6. [Register Service API](#register-service-api)
-7. [Action Workflow API](#action-workflow-api)
-8. [Execution Helper API](#execution-helper-api)
-9. [Real-time Notifications (SignalR)](#real-time-notifications-signalr)
-10. [Error Handling](#error-handling)
-11. [Rate Limiting](#rate-limiting)
-12. [Code Examples](#code-examples)
+4. [Tenant Service API](#tenant-service-api) ⭐ **New**
+5. [Peer Service API](#peer-service-api) ⭐ **New**
+6. [Blueprint Service API](#blueprint-service-api)
+7. [Wallet Service API](#wallet-service-api)
+8. [Register Service API](#register-service-api)
+9. [Action Workflow API](#action-workflow-api)
+10. [Execution Helper API](#execution-helper-api)
+11. [Real-time Notifications (SignalR)](#real-time-notifications-signalr)
+12. [Error Handling](#error-handling)
+13. [Rate Limiting](#rate-limiting)
+14. [Code Examples](#code-examples)
 
 ---
 
@@ -28,15 +30,17 @@
 The Sorcha Platform provides a comprehensive REST API for building distributed ledger applications with blueprint-based workflows, secure wallet management, and transaction processing.
 
 **Base URLs:**
-- Development: `http://localhost:5000`
-- Production: `https://api.sorcha.io` (when deployed)
+- **Development (Local):** `http://localhost:5000`
+- **Staging (Azure):** `https://api-gateway.livelydune-b02bab51.uksouth.azurecontainerapps.io`
+- **Production:** `https://api.sorcha.dev` (DNS not yet configured)
 
 **API Gateway:**
 All services are accessed through the API Gateway which provides:
-- Unified routing
-- Health aggregation
-- Load balancing
-- Request logging
+- Unified routing to all microservices
+- Health aggregation across services
+- Load balancing and failover
+- Request logging and observability
+- Security headers (OWASP best practices)
 
 ---
 
@@ -73,20 +77,259 @@ Visit the Scalar API documentation UI at `/scalar/v1` to explore all endpoints i
 
 ## Authentication
 
-### Current Status
-⚠️ **MVP Phase:** Authentication is not yet enforced. All endpoints are publicly accessible for development.
+### OAuth 2.0 Token Endpoint
 
-### Future Implementation
-Production will use:
-- **JWT Bearer Tokens** for service-to-service communication
-- **Azure AD / OAuth 2.0** for user authentication
-- **API Keys** for external integrations
+The Sorcha Platform uses OAuth 2.0 for authentication. All protected endpoints require a valid JWT Bearer token.
 
-### Example (Future)
+**Token Endpoint:** `POST /api/service-auth/token`
+
+**Supported Grant Types:**
+- `password` - User credentials (email + password)
+- `client_credentials` - Service principal authentication
+
+### User Authentication (Password Grant)
+
 ```http
-GET /api/blueprints
+POST /api/service-auth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&username=admin@sorcha.local&password=Dev_Pass_2025!
+```
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "refresh_token_here"
+}
+```
+
+### Service Principal Authentication (Client Credentials Grant)
+
+```http
+POST /api/service-auth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=service-blueprint&client_secret=<secret>
+```
+
+### Using the Access Token
+
+Include the access token in the `Authorization` header:
+
+```http
+GET /api/organizations
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
+
+### Default Credentials (Staging Environment)
+
+**Default Organization:**
+- **Name:** Sorcha Local
+- **Subdomain:** sorcha-local
+- **ID:** `00000000-0000-0000-0000-000000000001`
+
+**Default Administrator:**
+- **Email:** `admin@sorcha.local`
+- **Password:** `Dev_Pass_2025!`
+- **User ID:** `00000000-0000-0000-0001-000000000001`
+- **Roles:** Administrator
+
+**⚠️ Security Warning:** Change default credentials immediately in production!
+
+---
+
+## Tenant Service API
+
+The Tenant Service manages multi-tenant organizations, user identities, and service principals.
+
+### Base Path: `/api/organizations`
+
+### Endpoints
+
+#### 1. List Organizations
+
+```http
+GET /api/organizations
+Authorization: Bearer {token}
+```
+
+**Requires:** Administrator role
+
+**Response:** `200 OK`
+```json
+{
+  "organizations": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "Sorcha Local",
+      "subdomain": "sorcha-local",
+      "status": "Active",
+      "createdAt": "2025-12-13T00:00:00Z",
+      "branding": {
+        "primaryColor": "#6366f1",
+        "secondaryColor": "#8b5cf6",
+        "companyTagline": "Distributed Ledger Platform"
+      }
+    }
+  ]
+}
+```
+
+#### 2. Get Organization by ID
+
+```http
+GET /api/organizations/{id}
+Authorization: Bearer {token}
+```
+
+**Response:** `200 OK` (same structure as above)
+
+#### 3. Get Organization by Subdomain
+
+```http
+GET /api/organizations/by-subdomain/{subdomain}
+```
+
+**Note:** This endpoint allows anonymous access for subdomain validation.
+
+**Response:** `200 OK`
+
+#### 4. Create Organization
+
+```http
+POST /api/organizations
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "Acme Corporation",
+  "subdomain": "acme",
+  "branding": {
+    "primaryColor": "#ff6600",
+    "secondaryColor": "#333333",
+    "companyTagline": "Innovation in Motion"
+  }
+}
+```
+
+**Response:** `201 Created`
+
+#### 5. Add User to Organization
+
+```http
+POST /api/organizations/{organizationId}/users
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "email": "john.doe@acme.com",
+  "displayName": "John Doe",
+  "password": "SecurePassword123!",
+  "roles": ["User"]
+}
+```
+
+**Response:** `201 Created`
+
+#### 6. List Organization Users
+
+```http
+GET /api/organizations/{organizationId}/users
+Authorization: Bearer {token}
+```
+
+**Response:** `200 OK`
+
+---
+
+## Peer Service API
+
+The Peer Service manages P2P networking, system register replication, and peer discovery.
+
+### Base Path: `/api/peers`
+
+### Endpoints
+
+#### 1. Get All Peers
+
+```http
+GET /api/peers
+```
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "peerId": "peer-123",
+    "address": "192.168.1.100",
+    "port": 8080,
+    "supportedProtocols": ["gRPC", "HTTP"],
+    "firstSeen": "2025-12-14T10:00:00Z",
+    "lastSeen": "2025-12-14T17:00:00Z",
+    "failureCount": 0,
+    "isBootstrapNode": true,
+    "averageLatencyMs": 15.5
+  }
+]
+```
+
+#### 2. Get Peer by ID
+
+```http
+GET /api/peers/{peerId}
+```
+
+**Response:** `200 OK` (same structure as single peer above)
+
+#### 3. Get Peer Statistics
+
+```http
+GET /api/peers/stats
+```
+
+**Response:** `200 OK`
+```json
+{
+  "totalPeers": 10,
+  "healthyPeers": 8,
+  "averageLatency": 25.3,
+  "throughput": 1500,
+  "networkHealth": "Good"
+}
+```
+
+#### 4. Get Peer Health
+
+```http
+GET /api/peers/health
+```
+
+**Response:** `200 OK`
+```json
+{
+  "totalPeers": 10,
+  "healthyPeers": 8,
+  "unhealthyPeers": 2,
+  "healthPercentage": 80.0,
+  "peers": [
+    {
+      "peerId": "peer-123",
+      "address": "192.168.1.100",
+      "port": 8080,
+      "lastSeen": "2025-12-14T17:00:00Z",
+      "averageLatencyMs": 15.5
+    }
+  ]
+}
+```
+
+**Central Node URLs:**
+- **n0.sorcha.dev** - Primary central node (Priority 0)
+- **n1.sorcha.dev** - Secondary central node (Priority 1) - *Coming soon*
+- **n2.sorcha.dev** - Tertiary central node (Priority 2) - *Coming soon*
 
 ---
 

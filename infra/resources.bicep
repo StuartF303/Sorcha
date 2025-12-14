@@ -19,6 +19,9 @@ param environment string
 @description('Resource tags')
 param tags object
 
+@description('MongoDB connection string for Peer Service')
+param mongoDbConnectionString string = ''
+
 // Container Registry (Basic SKU - low cost)
 resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
   name: containerRegistryName
@@ -170,9 +173,9 @@ resource peerService 'Microsoft.App/containerApps@2024-03-01' = {
     workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
-        external: false // Internal only
+        external: true // External for DNS mapping (n0.sorcha.dev)
         targetPort: 8080
-        transport: 'http'
+        transport: 'http2'
         allowInsecure: true
       }
       registries: [
@@ -191,6 +194,10 @@ resource peerService 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'redis-connection'
           value: '${redisCache.properties.hostName}:6380,password=${redisCache.listKeys().primaryKey},ssl=True,abortConnect=False'
         }
+        {
+          name: 'mongodb-connection'
+          value: !empty(mongoDbConnectionString) ? mongoDbConnectionString : 'mongodb://localhost:27017'
+        }
       ]
     }
     template: {
@@ -199,8 +206,8 @@ resource peerService 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'peer-service'
           image: '${acr.properties.loginServer}/peer-service:latest'
           resources: {
-            cpu: json('0.25')
-            memory: '0.5Gi'
+            cpu: json('0.5') // Increased for central node workload
+            memory: '1Gi' // Increased for caching
           }
           env: [
             {
@@ -208,14 +215,44 @@ resource peerService 'Microsoft.App/containerApps@2024-03-01' = {
               value: environment
             }
             {
+              name: 'ASPNETCORE_HTTP_PORTS'
+              value: '8080'
+            }
+            {
               name: 'ConnectionStrings__Redis'
               secretRef: 'redis-connection'
+            }
+            {
+              name: 'MongoDB__ConnectionString'
+              secretRef: 'mongodb-connection'
+            }
+            {
+              name: 'MongoDB__DatabaseName'
+              value: 'sorcha_system_register'
+            }
+            {
+              name: 'PeerService__CentralNode__IsCentralNode'
+              value: 'true'
+            }
+            {
+              name: 'PeerService__CentralNode__ValidateHostname'
+              value: 'false'
+            }
+            {
+              name: 'PeerService__CentralNode__Priority'
+              value: '0'
+            }
+          ]
+          volumeMounts: [
+            {
+              volumeName: 'peer-data'
+              mountPath: '/app/data'
             }
           ]
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1 // Keep central node always running
         maxReplicas: 3
         rules: [
           {
@@ -228,6 +265,12 @@ resource peerService 'Microsoft.App/containerApps@2024-03-01' = {
           }
         ]
       }
+      volumes: [
+        {
+          name: 'peer-data'
+          storageType: 'EmptyDir'
+        }
+      ]
     }
   }
 }
@@ -289,6 +332,27 @@ resource apiGateway 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'Services__PeerService'
+              value: 'https://${peerService.properties.configuration.ingress.fqdn}'
+            }
+            // YARP reverse proxy cluster destinations (MUST use HTTPS for Azure Container Apps)
+            {
+              name: 'ReverseProxy__Clusters__tenant-cluster__Destinations__destination1__Address'
+              value: 'https://tenant-service.internal.${containerAppEnv.properties.defaultDomain}'
+            }
+            {
+              name: 'ReverseProxy__Clusters__register-cluster__Destinations__destination1__Address'
+              value: 'https://register-service.internal.${containerAppEnv.properties.defaultDomain}'
+            }
+            {
+              name: 'ReverseProxy__Clusters__blueprint-cluster__Destinations__destination1__Address'
+              value: 'https://${blueprintApi.properties.configuration.ingress.fqdn}'
+            }
+            {
+              name: 'ReverseProxy__Clusters__wallet-cluster__Destinations__destination1__Address'
+              value: 'https://wallet-service.internal.${containerAppEnv.properties.defaultDomain}'
+            }
+            {
+              name: 'ReverseProxy__Clusters__peer-cluster__Destinations__destination1__Address'
               value: 'https://${peerService.properties.configuration.ingress.fqdn}'
             }
           ]

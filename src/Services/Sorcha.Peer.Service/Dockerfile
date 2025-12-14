@@ -7,8 +7,12 @@ WORKDIR /src
 
 # Copy project files
 COPY ["src/Services/Sorcha.Peer.Service/Sorcha.Peer.Service.csproj", "src/Services/Sorcha.Peer.Service/"]
+COPY ["src/Services/Sorcha.Register.Service/Sorcha.Register.Service.csproj", "src/Services/Sorcha.Register.Service/"]
 COPY ["src/Common/Sorcha.ServiceDefaults/Sorcha.ServiceDefaults.csproj", "src/Common/Sorcha.ServiceDefaults/"]
 COPY ["src/Common/Sorcha.Blueprint.Models/Sorcha.Blueprint.Models.csproj", "src/Common/Sorcha.Blueprint.Models/"]
+COPY ["src/Core/Sorcha.Register.Storage/Sorcha.Register.Storage.csproj", "src/Core/Sorcha.Register.Storage/"]
+COPY ["src/Common/Sorcha.TransactionHandler/Sorcha.TransactionHandler.csproj", "src/Common/Sorcha.TransactionHandler/"]
+COPY ["src/Common/Sorcha.Cryptography/Sorcha.Cryptography.csproj", "src/Common/Sorcha.Cryptography/"]
 
 # Restore dependencies
 RUN dotnet restore "src/Services/Sorcha.Peer.Service/Sorcha.Peer.Service.csproj"
@@ -22,7 +26,7 @@ RUN dotnet build "Sorcha.Peer.Service.csproj" -c Release -o /app/build
 
 # Publish stage
 FROM build AS publish
-RUN dotnet publish "Sorcha.Peer.Service.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "Sorcha.Peer.Service.csproj" -c Release -o /app/publish /p:UseAppHost=false /p:ErrorOnDuplicatePublishOutputFiles=false
 
 # Final stage - Ubuntu Chiseled (distroless)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final
