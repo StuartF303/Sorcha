@@ -334,6 +334,27 @@ resource apiGateway 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'Services__PeerService'
               value: 'https://${peerService.properties.configuration.ingress.fqdn}'
             }
+            // YARP reverse proxy cluster destinations (MUST use HTTPS for Azure Container Apps)
+            {
+              name: 'ReverseProxy__Clusters__tenant-cluster__Destinations__destination1__Address'
+              value: 'https://tenant-service.internal.${containerAppEnv.properties.defaultDomain}'
+            }
+            {
+              name: 'ReverseProxy__Clusters__register-cluster__Destinations__destination1__Address'
+              value: 'https://register-service.internal.${containerAppEnv.properties.defaultDomain}'
+            }
+            {
+              name: 'ReverseProxy__Clusters__blueprint-cluster__Destinations__destination1__Address'
+              value: 'https://${blueprintApi.properties.configuration.ingress.fqdn}'
+            }
+            {
+              name: 'ReverseProxy__Clusters__wallet-cluster__Destinations__destination1__Address'
+              value: 'https://wallet-service.internal.${containerAppEnv.properties.defaultDomain}'
+            }
+            {
+              name: 'ReverseProxy__Clusters__peer-cluster__Destinations__destination1__Address'
+              value: 'https://${peerService.properties.configuration.ingress.fqdn}'
+            }
           ]
         }
       ]
