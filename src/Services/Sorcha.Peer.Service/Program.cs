@@ -14,6 +14,9 @@ using Sorcha.Peer.Service.Network;
 using Sorcha.Peer.Service.Observability;
 using Sorcha.Peer.Service.Replication;
 using Sorcha.Peer.Service.Services;
+using Sorcha.Register.Service.Repositories;
+using Sorcha.Register.Service.Services;
+using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +54,28 @@ builder.Services.Configure<CentralNodeConfiguration>(
 // Configure system register
 builder.Services.Configure<SystemRegisterConfiguration>(
     builder.Configuration.GetSection("PeerService:SystemRegister"));
+
+// Configure MongoDB for system register
+builder.Services.AddSingleton<IMongoClient>(sp =>
+{
+    var connectionString = builder.Configuration.GetValue<string>("MongoDB:ConnectionString")
+        ?? "mongodb://localhost:27017";
+    return new MongoClient(connectionString);
+});
+
+builder.Services.AddSingleton<IMongoDatabase>(sp =>
+{
+    var client = sp.GetRequiredService<IMongoClient>();
+    var databaseName = builder.Configuration.GetValue<string>("MongoDB:DatabaseName")
+        ?? "sorcha_system_register";
+    return client.GetDatabase(databaseName);
+});
+
+// Register MongoDB system register repository
+builder.Services.AddSingleton<ISystemRegisterRepository, MongoSystemRegisterRepository>();
+
+// Register system register service (for central nodes)
+builder.Services.AddSingleton<SystemRegisterService>();
 
 // Register core services
 builder.Services.AddSingleton<StunClient>();
