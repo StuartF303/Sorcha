@@ -1,0 +1,290 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+syntax = "proto3";
+
+package sorcha.peer.v1;
+
+option csharp_namespace = "Sorcha.Peer.Service.Protos";
+
+import "google/protobuf/timestamp.proto";
+
+// Central Node Connection Service
+// Enables peer nodes to connect to central nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev)
+// for system register synchronization and blueprint discovery.
+//
+// Connection Flow:
+// 1. Peer calls ConnectToCentralNode with PeerInfo
+// 2. Central node responds with ConnectionResponse
+// 3. Peer maintains connection through heartbeats
+// 4. Peer calls DisconnectFromCentralNode on shutdown
+//
+// Failover:
+// - Peer connects to n0 (priority 0) first
+// - On failure, tries n1 (priority 1), then n2 (priority 2)
+// - Retries with exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 60s (max)
+service CentralNodeConnection {
+  // Connect to a central node
+  //
+  // Initiates a connection from peer to central node. Central node validates
+  // the peer identity and returns connection metadata.
+  //
+  // Timeout: 30 seconds per connection attempt
+  // Retry: Exponential backoff with 10 max attempts before trying next central node
+  rpc ConnectToCentralNode(ConnectRequest) returns (ConnectionResponse);
+
+  // Disconnect from central node
+  //
+  // Gracefully disconnects peer from central node. Central node cleans up
+  // peer tracking state and terminates any active subscriptions.
+  rpc DisconnectFromCentralNode(DisconnectRequest) returns (DisconnectionResponse);
+
+  // Get status of central node
+  //
+  // Returns current central node health, connected peer count, and system
+  // register version. Used for monitoring and failover decisions.
+  rpc GetCentralNodeStatus(StatusRequest) returns (CentralNodeStatus);
+}
+
+// Request to connect to a central node
+message ConnectRequest {
+  // Unique identifier for this peer
+  // Validation: MaxLength 64, pattern ^[a-zA-Z0-9\-_]+$
+  string peer_id = 1;
+
+  // Peer connection information
+  PeerInfo peer_info = 2;
+
+  // Last known system register version (0 if first connection)
+  // Used to determine if full sync or incremental sync is needed
+  int64 last_known_version = 3;
+
+  // Timestamp when connection was initiated (Unix milliseconds UTC)
+  int64 connection_time = 4;
+}
+
+// Information about the connecting peer
+message PeerInfo {
+  // Peer's gRPC endpoint address (for callbacks if supported)
+  // Example: "peer-node-1.local:5000"
+  // Validation: Optional, MaxLength 255
+  string address = 1;
+
+  // Peer's gRPC port
+  // Validation: Range 1-65535
+  int32 port = 2;
+
+  // Peer node type (always "Peer" for non-central nodes)
+  string node_type = 3;
+
+  // Supported protocol versions
+  // Example: ["v1", "v2"]
+  repeated string supported_protocols = 4;
+
+  // Peer capabilities
+  PeerCapabilities capabilities = 5;
+}
+
+// Capabilities of the peer node
+message PeerCapabilities {
+  // Whether peer supports push notifications (server streaming)
+  bool supports_push_notifications = 1;
+
+  // Whether peer supports incremental sync
+  bool supports_incremental_sync = 2;
+
+  // Maximum blueprint size peer can handle (bytes)
+  // Default: 16MB (MongoDB document limit)
+  int32 max_blueprint_size = 3;
+
+  // Whether peer is behind NAT/firewall (cannot accept inbound connections)
+  bool is_nat_restricted = 4;
+}
+
+// Response to connection request
+message ConnectionResponse {
+  // Whether connection was successful
+  bool success = 1;
+
+  // Human-readable message (error details if success=false)
+  string message = 2;
+
+  // Assigned session identifier for this connection
+  // Used to track connection state across RPCs
+  string session_id = 3;
+
+  // Central node identifier (e.g., "n0.sorcha.dev")
+  string central_node_id = 4;
+
+  // Current system register version on central node
+  // Peer uses this to determine sync strategy
+  int64 current_system_register_version = 5;
+
+  // Timestamp when connection was established (Unix milliseconds UTC)
+  int64 connected_at = 6;
+
+  // Recommended heartbeat interval (seconds)
+  // Default: 30 seconds
+  int32 heartbeat_interval_seconds = 7;
+
+  // Connection configuration
+  ConnectionConfig config = 8;
+}
+
+// Configuration parameters for the connection
+message ConnectionConfig {
+  // Heartbeat timeout (seconds)
+  // Default: 30 seconds
+  int32 heartbeat_timeout_seconds = 1;
+
+  // Periodic sync interval (minutes)
+  // Default: 5 minutes
+  int32 periodic_sync_interval_minutes = 2;
+
+  // Whether central node supports push notifications
+  bool push_notifications_enabled = 3;
+
+  // Maximum concurrent sync requests allowed
+  int32 max_concurrent_syncs = 4;
+}
+
+// Request to disconnect from central node
+message DisconnectRequest {
+  // Peer identifier
+  string peer_id = 1;
+
+  // Session identifier (from ConnectionResponse)
+  string session_id = 2;
+
+  // Reason for disconnection
+  DisconnectReason reason = 3;
+
+  // Timestamp when disconnect was initiated (Unix milliseconds UTC)
+  int64 disconnect_time = 4;
+}
+
+// Reason for disconnection
+enum DisconnectReason {
+  // Unknown/unspecified reason
+  DISCONNECT_REASON_UNKNOWN = 0;
+
+  // Peer is shutting down gracefully
+  DISCONNECT_REASON_SHUTDOWN = 1;
+
+  // Peer detected heartbeat timeout
+  DISCONNECT_REASON_HEARTBEAT_TIMEOUT = 2;
+
+  // Peer is failing over to another central node
+  DISCONNECT_REASON_FAILOVER = 3;
+
+  // Connection error occurred
+  DISCONNECT_REASON_ERROR = 4;
+
+  // Client requested disconnect
+  DISCONNECT_REASON_CLIENT_REQUEST = 5;
+}
+
+// Response to disconnection request
+message DisconnectionResponse {
+  // Whether disconnection was acknowledged
+  bool success = 1;
+
+  // Message from central node
+  string message = 2;
+
+  // Timestamp when disconnection was processed (Unix milliseconds UTC)
+  int64 disconnected_at = 3;
+}
+
+// Request for central node status
+message StatusRequest {
+  // Peer identifier (optional, for filtered status)
+  string peer_id = 1;
+
+  // Whether to include detailed peer list
+  bool include_peer_list = 2;
+}
+
+// Status of central node
+message CentralNodeStatus {
+  // Central node identifier (e.g., "n0.sorcha.dev")
+  string node_id = 1;
+
+  // Node health status
+  NodeHealth health = 2;
+
+  // Current system register version
+  int64 current_system_register_version = 3;
+
+  // Total number of blueprints in system register
+  int32 total_blueprints = 4;
+
+  // Number of active peer connections
+  int32 active_peer_count = 5;
+
+  // Timestamp of last blueprint publication (Unix milliseconds UTC)
+  int64 last_blueprint_published_at = 6;
+
+  // Node uptime (seconds)
+  int64 uptime_seconds = 7;
+
+  // List of connected peers (if include_peer_list=true)
+  repeated ConnectedPeerInfo connected_peers = 8;
+}
+
+// Health status of central node
+enum NodeHealth {
+  // Unknown health status
+  NODE_HEALTH_UNKNOWN = 0;
+
+  // Node is healthy and accepting connections
+  NODE_HEALTH_HEALTHY = 1;
+
+  // Node is degraded but operational
+  NODE_HEALTH_DEGRADED = 2;
+
+  // Node is unhealthy and should not accept new connections
+  NODE_HEALTH_UNHEALTHY = 3;
+
+  // Node is in maintenance mode
+  NODE_HEALTH_MAINTENANCE = 4;
+}
+
+// Information about a connected peer
+message ConnectedPeerInfo {
+  // Peer identifier
+  string peer_id = 1;
+
+  // Session identifier
+  string session_id = 2;
+
+  // When peer connected (Unix milliseconds UTC)
+  int64 connected_at = 3;
+
+  // Last heartbeat received (Unix milliseconds UTC)
+  int64 last_heartbeat_at = 4;
+
+  // Peer's last known system register version
+  int64 last_sync_version = 5;
+
+  // Connection status
+  PeerConnectionStatus status = 6;
+}
+
+// Status of peer connection
+enum PeerConnectionStatus {
+  // Unknown status
+  PEER_CONNECTION_STATUS_UNKNOWN = 0;
+
+  // Peer is connected and healthy
+  PEER_CONNECTION_STATUS_CONNECTED = 1;
+
+  // Peer heartbeat is timing out
+  PEER_CONNECTION_STATUS_HEARTBEAT_TIMEOUT = 2;
+
+  // Peer is disconnecting
+  PEER_CONNECTION_STATUS_DISCONNECTING = 3;
+
+  // Peer is syncing
+  PEER_CONNECTION_STATUS_SYNCING = 4;
+}

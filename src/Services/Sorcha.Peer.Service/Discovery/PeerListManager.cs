@@ -20,6 +20,7 @@ public class PeerListManager : IDisposable
     private readonly SqliteConnection _dbConnection;
     private readonly SemaphoreSlim _dbLock = new(1, 1);
     private bool _disposed;
+    private ActivePeerInfo? _localPeerInfo;
 
     public PeerListManager(
         ILogger<PeerListManager> logger,
@@ -324,6 +325,41 @@ public class PeerListManager : IDisposable
         {
             _dbLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Updates the local peer connection status
+    /// </summary>
+    /// <param name="connectedCentralNodeId">ID of connected central node (null if disconnected)</param>
+    /// <param name="status">Current connection status</param>
+    public void UpdateLocalPeerStatus(string? connectedCentralNodeId, PeerConnectionStatus status)
+    {
+        if (_localPeerInfo == null)
+        {
+            _localPeerInfo = new ActivePeerInfo
+            {
+                PeerId = Environment.MachineName ?? "unknown",
+                ConnectionEstablished = DateTime.UtcNow
+            };
+        }
+
+        _localPeerInfo.ConnectedCentralNodeId = connectedCentralNodeId;
+        _localPeerInfo.Status = status;
+        _localPeerInfo.LastHeartbeat = DateTime.UtcNow;
+
+        _logger.LogDebug(
+            "Updated local peer status: Connected to {CentralNode}, Status={Status}",
+            connectedCentralNodeId ?? "none",
+            status);
+    }
+
+    /// <summary>
+    /// Gets the current local peer connection status
+    /// </summary>
+    /// <returns>Local peer info if available, null otherwise</returns>
+    public ActivePeerInfo? GetLocalPeerStatus()
+    {
+        return _localPeerInfo;
     }
 
     public void Dispose()

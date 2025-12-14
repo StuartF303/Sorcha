@@ -169,7 +169,7 @@ Sorcha/
 │   │   ├── Sorcha.Cli/             # Administrative CLI tool
 │   │   ├── Sorcha.Demo/            # Blueprint workflow demo CLI
 │   │   └── UI/
-│   │       └── Sorcha.Blueprint.Designer.Client/  # Blazor WASM UI
+│   │       └── Sorcha.Admin/       # Blazor WASM admin UI
 │   ├── Common/                      # Cross-cutting concerns
 │   │   ├── Sorcha.Blueprint.Models/ # Domain models
 │   │   ├── Sorcha.Cryptography/    # Cryptographic operations
@@ -276,9 +276,9 @@ dotnet run --project src/Services/Sorcha.Peer.Service
 # Available at https://localhost:7081
 ```
 
-**Blueprint Designer (Blazor WebAssembly):**
+**Admin UI (Blazor WebAssembly):**
 ```bash
-dotnet run --project src/Apps/UI/Sorcha.Blueprint.Designer.Client
+dotnet run --project src/Apps/UI/Sorcha.Admin
 # Available at https://localhost:7083
 ```
 
@@ -760,7 +760,7 @@ See [docs/testing.md](docs/testing.md) for comprehensive testing guidelines incl
 - **Sorcha.AppHost**: The .NET Aspire orchestration project that manages all services
 - **Sorcha.ServiceDefaults**: Shared configurations including OpenTelemetry, health checks, and service discovery
 - **Sorcha.Blueprint.Api**: The core API for blueprint management via minimal APIs
-- **Sorcha.Blueprint.Designer.Client**: Blazor WebAssembly application for designing and managing blueprints
+- **Sorcha.Admin**: Blazor WebAssembly application for administration and blueprint design
 - **Sorcha.Cryptography**: Standalone cryptography library for key management and digital signatures
 
 ### Architecture

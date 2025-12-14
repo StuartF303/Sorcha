@@ -1,0 +1,378 @@
+@using Blazor.Diagrams.Core.Models
+@using Sorcha.Admin.Models
+@using System.Text.Json
+
+<div class="action-node @(Node.Selected ? "selected" : "")">
+    <!-- Header Bar with Icon, Title, and Toolbar -->
+    <div class="action-node-header">
+        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" Class="mr-1" />
+        <span class="action-node-title">@Node.Action.Title</span>
+        <MudChip T="string" Size="Size.Small" Class="action-id-chip">@Node.Action.Id</MudChip>
+
+        <!-- Node Toolbar -->
+        <div class="node-toolbar">
+            <MudIconButton Icon="@Icons.Material.Filled.PersonAdd"
+                           Size="Size.Small"
+                           Color="Color.Default"
+                           OnClick="@(() => ActionNodeModel.RaiseAddParticipant(Node.Action))"
+                           Class="node-toolbar-btn"
+                           Title="Add Participant" />
+            <MudIconButton Icon="@Icons.Material.Filled.Rule"
+                           Size="Size.Small"
+                           Color="Color.Default"
+                           OnClick="@(() => ActionNodeModel.RaiseAddCondition(Node.Action))"
+                           Class="node-toolbar-btn"
+                           Title="Add Condition" />
+            <MudIconButton Icon="@Icons.Material.Filled.Settings"
+                           Size="Size.Small"
+                           Color="Color.Default"
+                           OnClick="@(() => ActionNodeModel.RaiseShowProperties(Node.Action))"
+                           Class="node-toolbar-btn"
+                           Title="Properties" />
+        </div>
+    </div>
+
+    <!-- Description Section -->
+    @if (!string.IsNullOrWhiteSpace(Node.Action.Description))
+    {
+        <div class="action-node-section action-description">
+            <MudText Typo="Typo.caption" Class="action-node-section-text">
+                @Node.Action.Description
+            </MudText>
+        </div>
+    }
+
+    <!-- Sender Section -->
+    @if (!string.IsNullOrWhiteSpace(Node.Action.Sender))
+    {
+        <div class="action-node-section">
+            <div class="section-label">
+                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                <span>Sender</span>
+            </div>
+            <div class="section-content">
+                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text">
+                    @GetShortAddress(Node.Action.Sender)
+                </MudChip>
+            </div>
+        </div>
+    }
+
+    <!-- Participants Section -->
+    @if (Node.Action.Participants != null && Node.Action.Participants.Any())
+    {
+        <div class="action-node-section">
+            <div class="section-label">
+                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" />
+                <span>Participants (@Node.Action.Participants.Count())</span>
+            </div>
+            <div class="section-content">
+                @foreach (var participant in Node.Action.Participants.Take(3))
+                {
+                    @if (!string.IsNullOrWhiteSpace(participant.Principal))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">
+                            @GetShortAddress(participant.Principal)
+                        </MudChip>
+                    }
+                }
+                @if (Node.Action.Participants.Count() > 3)
+                {
+                    <span class="more-indicator">+@(Node.Action.Participants.Count() - 3) more</span>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Data Schemas Section -->
+    @if (Node.Action.DataSchemas != null && Node.Action.DataSchemas.Any())
+    {
+        <div class="action-node-section">
+            <div class="section-label">
+                <MudIcon Icon="@Icons.Material.Filled.Schema" Size="Size.Small" />
+                <span>Data Schemas (@Node.Action.DataSchemas.Count())</span>
+            </div>
+            <div class="section-content">
+                @foreach (var schema in Node.Action.DataSchemas.Take(3))
+                {
+                    var schemaTitle = GetSchemaTitle(schema);
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Text" Icon="@Icons.Material.Filled.Description">
+                        @schemaTitle
+                    </MudChip>
+                }
+                @if (Node.Action.DataSchemas.Count() > 3)
+                {
+                    <span class="more-indicator">+@(Node.Action.DataSchemas.Count() - 3) more</span>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Disclosures Section -->
+    @if (Node.Action.Disclosures != null && Node.Action.Disclosures.Any())
+    {
+        <div class="action-node-section">
+            <div class="section-label">
+                <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" />
+                <span>Disclosures (@Node.Action.Disclosures.Count())</span>
+            </div>
+            <div class="section-content">
+                @foreach (var disclosure in Node.Action.Disclosures.Take(2))
+                {
+                    <div class="disclosure-item">
+                        <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="disclosure-arrow" />
+                        <span class="disclosure-to">@GetShortAddress(disclosure.ParticipantAddress)</span>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">
+                            @disclosure.DataPointers.Count fields
+                        </MudChip>
+                    </div>
+                }
+                @if (Node.Action.Disclosures.Count() > 2)
+                {
+                    <span class="more-indicator">+@(Node.Action.Disclosures.Count() - 2) more</span>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Calculations Section -->
+    @if (Node.Action.Calculations != null && Node.Action.Calculations.Any())
+    {
+        <div class="action-node-section">
+            <div class="section-label">
+                <MudIcon Icon="@Icons.Material.Filled.Calculate" Size="Size.Small" />
+                <span>Calculations (@Node.Action.Calculations.Count)</span>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .action-node {
+        background: white;
+        border: 2px solid #1976d2;
+        border-radius: 10px;
+        min-width: 280px;
+        max-width: 320px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        cursor: move;
+        transition: all 0.2s ease;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .action-node:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+        border-color: #1565c0;
+        transform: translateY(-2px);
+    }
+
+    .action-node.selected {
+        border-color: #0d47a1;
+        border-width: 3px;
+        box-shadow: 0 6px 16px rgba(13, 71, 161, 0.3);
+    }
+
+    .action-node-header {
+        background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+        color: white;
+        padding: 10px 12px;
+        border-radius: 8px 8px 0 0;
+        display: flex;
+        align-items: center;
+        font-weight: 600;
+        font-size: 14px;
+        gap: 6px;
+    }
+
+    .action-node-title {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .action-id-chip {
+        background: rgba(255,255,255,0.2) !important;
+        color: white !important;
+        font-size: 10px !important;
+        height: 20px !important;
+        padding: 0 6px !important;
+    }
+
+    .node-toolbar {
+        display: flex;
+        gap: 2px;
+        margin-left: 4px;
+        padding-left: 4px;
+        border-left: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .node-toolbar-btn {
+        color: white !important;
+        background: rgba(255,255,255,0.15) !important;
+        border-radius: 4px !important;
+        width: 28px !important;
+        height: 28px !important;
+        padding: 0 !important;
+    }
+
+    .node-toolbar-btn:hover {
+        background: rgba(255,255,255,0.25) !important;
+    }
+
+    .action-node-section {
+        padding: 10px 12px;
+        border-top: 1px solid #f0f0f0;
+    }
+
+    .action-node-section:first-of-type {
+        border-top: none;
+    }
+
+    .action-description {
+        background: #f8f9fa;
+        font-style: italic;
+    }
+
+    .action-node-section-text {
+        font-size: 11px;
+        color: #555;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .section-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #424242;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .section-label .mud-icon-root {
+        color: #757575;
+    }
+
+    .section-content {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        align-items: center;
+    }
+
+    .more-indicator {
+        font-size: 10px;
+        color: #9e9e9e;
+        font-style: italic;
+        margin-left: 4px;
+    }
+
+    .disclosure-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        width: 100%;
+        margin-bottom: 4px;
+        padding: 4px;
+        background: #fff3e0;
+        border-radius: 4px;
+    }
+
+    .disclosure-arrow {
+        color: #ff9800;
+    }
+
+    .disclosure-to {
+        font-size: 10px;
+        color: #e65100;
+        font-weight: 500;
+        flex: 1;
+    }
+
+    .text-muted {
+        color: #999;
+        font-style: italic;
+    }
+</style>
+
+@code {
+    [Parameter, EditorRequired]
+    public ActionNodeModel Node { get; set; } = null!;
+
+    private string GetShortAddress(string address)
+    {
+        if (string.IsNullOrWhiteSpace(address))
+            return "Unknown";
+
+        // If it looks like a wallet address, show shortened version
+        if (address.StartsWith("0x") && address.Length > 12)
+        {
+            return $"{address.Substring(0, 6)}...{address.Substring(address.Length - 4)}";
+        }
+
+        // Otherwise just limit length
+        return address.Length > 20 ? address.Substring(0, 17) + "..." : address;
+    }
+
+    private string GetSchemaTitle(JsonDocument schema)
+    {
+        try
+        {
+            var root = schema.RootElement;
+
+            // Check if it's a $ref
+            if (root.TryGetProperty("$ref", out var refElement))
+            {
+                var refUri = refElement.GetString();
+                if (!string.IsNullOrEmpty(refUri))
+                {
+                    // Extract schema name from URI
+                    var parts = refUri.Split('/');
+                    var lastPart = parts[^1]; // Get last part after /
+
+                    // Convert kebab-case or extract version
+                    if (lastPart.Contains('-'))
+                    {
+                        // e.g., "loan-request" -> "Loan Request"
+                        var name = lastPart.Split('-')[0..^1].Aggregate("", (current, part) =>
+                            current + (current.Length > 0 ? " " : "") + char.ToUpper(part[0]) + part.Substring(1));
+                        return name;
+                    }
+
+                    return char.ToUpper(lastPart[0]) + lastPart.Substring(1);
+                }
+            }
+
+            // Try to get title from schema
+            if (root.TryGetProperty("title", out var titleElement))
+            {
+                return titleElement.GetString() ?? "Schema";
+            }
+
+            // Try to get $id
+            if (root.TryGetProperty("$id", out var idElement))
+            {
+                var id = idElement.GetString();
+                if (!string.IsNullOrEmpty(id))
+                {
+                    var parts = id.Split('/');
+                    return parts.Length > 0 ? parts[^1] : "Schema";
+                }
+            }
+
+            return "Schema";
+        }
+        catch
+        {
+            return "Schema";
+        }
+    }
+}

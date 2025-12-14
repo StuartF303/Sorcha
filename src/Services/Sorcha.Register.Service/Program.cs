@@ -4,6 +4,7 @@
 using Microsoft.AspNetCore.OData;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.OData.ModelBuilder;
+using MongoDB.Driver;
 using Scalar.AspNetCore;
 using Sorcha.Register.Core.Events;
 using Sorcha.Register.Core.Managers;
@@ -12,6 +13,8 @@ using Sorcha.Register.Models;
 using Sorcha.Register.Models.Enums;
 using Sorcha.Register.Service.Extensions;
 using Sorcha.Register.Service.Hubs;
+using Sorcha.Register.Service.Repositories;
+using Sorcha.Register.Service.Services;
 using Sorcha.Register.Storage.InMemory;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -319,6 +322,24 @@ builder.Services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 builder.Services.AddScoped<RegisterManager>();
 builder.Services.AddScoped<TransactionManager>();
 builder.Services.AddScoped<QueryManager>();
+
+// Register MongoDB for system register
+builder.Services.AddSingleton<IMongoClient>(sp =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("MongoDB") ?? "mongodb://localhost:27017";
+    return new MongoClient(connectionString);
+});
+
+builder.Services.AddSingleton<IMongoDatabase>(sp =>
+{
+    var client = sp.GetRequiredService<IMongoClient>();
+    var databaseName = builder.Configuration["MongoDB:DatabaseName"] ?? "sorcha_system_register";
+    return client.GetDatabase(databaseName);
+});
+
+// Register system register services
+builder.Services.AddSingleton<ISystemRegisterRepository, MongoSystemRegisterRepository>();
+builder.Services.AddSingleton<SystemRegisterService>();
 
 // Add JWT authentication and authorization (AUTH-002)
 // JWT authentication is now configured via shared ServiceDefaults with auto-key generation

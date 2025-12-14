@@ -1,0 +1,97 @@
+@using Sorcha.Admin.Services
+@inject EventLogService EventLog
+@implements IDisposable
+
+<MudPaper Class="pa-4" Elevation="2">
+    <div class="d-flex align-center justify-space-between mb-3">
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />
+            Recent Activity
+        </MudText>
+        @if (events.Any())
+        {
+            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                           Size="Size.Small"
+                           OnClick="ClearLog"
+                           Title="Clear log" />
+        }
+    </div>
+
+    @if (events.Any())
+    {
+        <MudTimeline TimelineOrientation="TimelineOrientation.Vertical"
+                     TimelinePosition="TimelinePosition.Start">
+            @foreach (var evt in events)
+            {
+                <MudTimelineItem Color="@GetEventColor(evt.Type)"
+                                 Size="Size.Small"
+                                 TimelineAlign="TimelineAlign.Start">
+                    <ItemOpposite>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @evt.Timestamp.ToLocalTime().ToString("HH:mm:ss")
+                        </MudText>
+                    </ItemOpposite>
+                    <ItemContent>
+                        <MudText Typo="Typo.body2">
+                            <MudIcon Icon="@evt.Icon" Size="Size.Small" Class="mr-1" />
+                            @evt.Message
+                        </MudText>
+                        @if (!string.IsNullOrWhiteSpace(evt.Details))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @evt.Details
+                            </MudText>
+                        }
+                    </ItemContent>
+                </MudTimelineItem>
+            }
+        </MudTimeline>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info" Class="mt-2">
+            No recent activity. Start by creating or loading a blueprint.
+        </MudAlert>
+    }
+</MudPaper>
+
+@code {
+    [Parameter]
+    public int MaxEvents { get; set; } = 10;
+
+    private List<EventLogEntry> events = new();
+
+    protected override void OnInitialized()
+    {
+        events = EventLog.GetRecentEvents(MaxEvents).ToList();
+        EventLog.OnEventAdded += OnEventAdded;
+    }
+
+    private void OnEventAdded()
+    {
+        events = EventLog.GetRecentEvents(MaxEvents).ToList();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private Color GetEventColor(EventType type)
+    {
+        return type switch
+        {
+            EventType.Success => Color.Success,
+            EventType.Error => Color.Error,
+            EventType.Warning => Color.Warning,
+            _ => Color.Info
+        };
+    }
+
+    private void ClearLog()
+    {
+        EventLog.Clear();
+        events.Clear();
+    }
+
+    public void Dispose()
+    {
+        EventLog.OnEventAdded -= OnEventAdded;
+    }
+}

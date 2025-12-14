@@ -1,0 +1,245 @@
+@using System.Net.Http.Json
+@using Sorcha.Admin.Models.Admin
+@using Sorcha.Admin.Services
+@inject HttpClient Http
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudPaper Elevation="2" Class="pa-4 mb-4">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Api" Size="Size.Large" />
+                    <MudText Typo="Typo.h5">Blueprint Service</MudText>
+                </MudStack>
+                <MudStack Row="true" Spacing="2">
+                    <MudChip T="string" Color="@(serviceStatus?.IsRunning == true ? Color.Success : Color.Error)"
+                             Icon="@(serviceStatus?.IsRunning == true ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Error)">
+                        @(serviceStatus?.IsRunning == true ? "Running" : "Offline")
+                    </MudChip>
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                   OnClick="LoadServiceMetrics"
+                                   Size="Size.Small"
+                                   Color="Color.Primary" />
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    @if (serviceStatus?.IsRunning == true)
+    {
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Service Information</MudText>
+                <MudSimpleTable Dense="true">
+                    <tbody>
+                        <tr>
+                            <td><strong>Endpoint:</strong></td>
+                            <td>@serviceStatus.Endpoint</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Uptime:</strong></td>
+                            <td>@FormatUptime(metrics?.UptimeSeconds ?? 0)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total Blueprints:</strong></td>
+                            <td>@(metrics?.TotalBlueprints ?? 0)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Published:</strong></td>
+                            <td>@(metrics?.PublishedBlueprints ?? 0)</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Performance Metrics</MudText>
+                <MudStack Spacing="3">
+                    <MudStack Spacing="1">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.body2">CPU Usage</MudText>
+                            <MudText Typo="Typo.body2"><strong>@($"{metrics?.CpuUsagePercent ?? 0:F1}%")</strong></MudText>
+                        </MudStack>
+                        <MudProgressLinear Color="@GetCpuColor(metrics?.CpuUsagePercent ?? 0)"
+                                           Value="@(metrics?.CpuUsagePercent ?? 0)"
+                                           Size="Size.Small" />
+                    </MudStack>
+
+                    <MudStack Spacing="1">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.body2">Memory Usage</MudText>
+                            <MudText Typo="Typo.body2"><strong>@FormatBytes(metrics?.MemoryUsageBytes ?? 0)</strong></MudText>
+                        </MudStack>
+                        <MudProgressLinear Color="Color.Info"
+                                           Value="@GetMemoryPercentage(metrics?.MemoryUsageBytes ?? 0)"
+                                           Size="Size.Small" />
+                    </MudStack>
+
+                    <MudDivider />
+
+                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                        <MudText Typo="Typo.body2">Requests/sec</MudText>
+                        <MudText Typo="Typo.body2"><strong>@($"{metrics?.ThroughputPerSecond ?? 0:F2}")</strong></MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Recent Activity</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Last updated: @lastUpdateTime.ToString("HH:mm:ss")
+                </MudText>
+            </MudPaper>
+        </MudItem>
+    }
+    else
+    {
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Warning">
+                Blueprint Service is currently offline or unreachable.
+            </MudAlert>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    private ServiceStatus? serviceStatus;
+    private BlueprintMetrics? metrics;
+    private DateTime lastUpdateTime = DateTime.Now;
+    private Timer? refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadServiceMetrics();
+
+        // Auto-refresh every 5 seconds
+        refreshTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadServiceMetrics();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private async Task LoadServiceMetrics()
+    {
+        try
+        {
+            // Call the real health endpoint via API Gateway
+            var healthResponse = await Http.GetFromJsonAsync<BlueprintHealthResponse>(ApiConfiguration.BlueprintStatusUrl);
+
+            if (healthResponse != null && healthResponse.Status == "healthy")
+            {
+                serviceStatus = new ServiceStatus
+                {
+                    IsRunning = true,
+                    Endpoint = ApiConfiguration.BlueprintApiUrl
+                };
+
+                // Parse uptime string to seconds for display
+                var uptimeParts = healthResponse.Uptime.Split('.');
+                long uptimeSeconds = 0;
+                if (uptimeParts.Length > 0)
+                {
+                    var timeParts = uptimeParts[uptimeParts.Length - 1].Split(':');
+                    if (timeParts.Length == 3)
+                    {
+                        var days = uptimeParts.Length > 1 ? int.Parse(uptimeParts[0]) : 0;
+                        var hours = int.Parse(timeParts[0]);
+                        var minutes = int.Parse(timeParts[1]);
+                        var seconds = int.Parse(timeParts[2]);
+                        uptimeSeconds = days * 86400 + hours * 3600 + minutes * 60 + seconds;
+                    }
+                }
+
+                metrics = new BlueprintMetrics
+                {
+                    UptimeSeconds = uptimeSeconds,
+                    TotalBlueprints = healthResponse.Metrics?.TotalBlueprints ?? 0,
+                    PublishedBlueprints = healthResponse.Metrics?.PublishedVersions ?? 0,
+                    CpuUsagePercent = Random.Shared.NextDouble() * 30, // Simulated - not in health endpoint yet
+                    MemoryUsageBytes = Random.Shared.NextInt64(100_000_000, 300_000_000), // Simulated
+                    ThroughputPerSecond = Random.Shared.NextDouble() * 5 // Simulated
+                };
+            }
+            else
+            {
+                serviceStatus = new ServiceStatus { IsRunning = false };
+            }
+
+            lastUpdateTime = DateTime.Now;
+        }
+        catch (HttpRequestException)
+        {
+            // Service is not reachable
+            serviceStatus = new ServiceStatus { IsRunning = false };
+        }
+        catch (Exception)
+        {
+            serviceStatus = new ServiceStatus { IsRunning = false };
+        }
+    }
+
+    private string FormatUptime(long seconds)
+    {
+        var timespan = TimeSpan.FromSeconds(seconds);
+        if (timespan.TotalDays >= 1)
+            return $"{(int)timespan.TotalDays}d {timespan.Hours}h {timespan.Minutes}m";
+        if (timespan.TotalHours >= 1)
+            return $"{(int)timespan.TotalHours}h {timespan.Minutes}m";
+        return $"{timespan.Minutes}m {timespan.Seconds}s";
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:F2} {sizes[order]}";
+    }
+
+    private double GetMemoryPercentage(long bytes)
+    {
+        // Assume 1GB max for progress bar visualization
+        return Math.Min(100, (bytes / 1_000_000_000.0) * 100);
+    }
+
+    private Color GetCpuColor(double percentage)
+    {
+        if (percentage < 50) return Color.Success;
+        if (percentage < 80) return Color.Warning;
+        return Color.Error;
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+
+    private class ServiceStatus
+    {
+        public bool IsRunning { get; set; }
+        public string Endpoint { get; set; } = string.Empty;
+    }
+
+    private class BlueprintMetrics
+    {
+        public long UptimeSeconds { get; set; }
+        public int TotalBlueprints { get; set; }
+        public int PublishedBlueprints { get; set; }
+        public double CpuUsagePercent { get; set; }
+        public long MemoryUsageBytes { get; set; }
+        public double ThroughputPerSecond { get; set; }
+    }
+}
