@@ -9,6 +9,8 @@ using Polly.Retry;
 using Polly.Timeout;
 using Sorcha.Peer.Service.Core;
 using Sorcha.Peer.Service.Discovery;
+using Sorcha.Peer.Service.Observability;
+using System.Diagnostics;
 
 namespace Sorcha.Peer.Service.Connection;
 
@@ -28,6 +30,8 @@ public class CentralNodeConnectionManager
     private readonly PeerListManager _peerListManager;
     private readonly List<CentralNodeInfo> _centralNodes;
     private readonly ResiliencePipeline _connectionPipeline;
+    private readonly PeerServiceMetrics _metrics;
+    private readonly PeerServiceActivitySource _activitySource;
     private CentralNodeInfo? _activeNode;
     private GrpcChannel? _activeChannel;
 
@@ -40,10 +44,14 @@ public class CentralNodeConnectionManager
     public CentralNodeConnectionManager(
         ILogger<CentralNodeConnectionManager> logger,
         PeerListManager peerListManager,
-        IOptions<CentralNodeConfiguration> configuration)
+        IOptions<CentralNodeConfiguration> configuration,
+        PeerServiceMetrics metrics,
+        PeerServiceActivitySource activitySource)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _peerListManager = peerListManager ?? throw new ArgumentNullException(nameof(peerListManager));
+        _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
+        _activitySource = activitySource ?? throw new ArgumentNullException(nameof(activitySource));
 
         var config = configuration?.Value ?? throw new ArgumentNullException(nameof(configuration));
 
@@ -100,8 +108,12 @@ public class CentralNodeConnectionManager
 
         foreach (var node in sortedNodes)
         {
-            _logger.LogInformation("Attempting to connect to central node {NodeId} (priority {Priority})",
-                node.NodeId, node.Priority);
+            using var activity = _activitySource.StartConnectionActivity(node.NodeId, node.Priority);
+            var startTime = DateTime.UtcNow;
+
+            _logger.LogInformation(
+                "Attempting connection to central node {NodeId} with priority {Priority} at {Address}",
+                node.NodeId, node.Priority, node.GrpcChannelAddress);
 
             node.ConnectionStatus = CentralNodeConnectionStatus.Connecting;
             node.LastConnectionAttempt = DateTime.UtcNow;
@@ -129,23 +141,37 @@ public class CentralNodeConnectionManager
 
                     // Update peer list manager with connected central node
                     _peerListManager.UpdateLocalPeerStatus(node.NodeId, PeerConnectionStatus.Connected);
+                    _metrics.RecordConnectionStatus(PeerConnectionStatus.Connected);
 
-                    _logger.LogInformation("Successfully connected to central node {NodeId} at {Address}",
-                        node.NodeId, node.GrpcChannelAddress);
+                    var duration = DateTime.UtcNow - startTime;
+                    _activitySource.RecordSuccess(activity, duration);
+
+                    _logger.LogInformation(
+                        "Successfully connected to central node {NodeId} at {Address} (duration: {Duration}ms, attempts: 1)",
+                        node.NodeId, node.GrpcChannelAddress, duration.TotalMilliseconds);
 
                     return true;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to connect to central node {NodeId} after all retries", node.NodeId);
+                var duration = DateTime.UtcNow - startTime;
+                _activitySource.RecordFailure(activity, ex, duration);
+
+                _logger.LogError(ex,
+                    "Failed to connect to central node {NodeId} after all retries (duration: {Duration}ms, consecutive failures: {Failures})",
+                    node.NodeId, duration.TotalMilliseconds, node.ConsecutiveFailures + 1);
+
                 node.RecordFailure();
             }
         }
 
         // All nodes failed - enter isolated mode
-        _logger.LogWarning("Failed to connect to any central node - entering isolated mode");
+        _logger.LogWarning(
+            "Failed to connect to any central node after trying all {NodeCount} nodes - entering isolated mode",
+            sortedNodes.Count);
         _peerListManager.UpdateLocalPeerStatus(null, PeerConnectionStatus.Isolated);
+        _metrics.RecordConnectionStatus(PeerConnectionStatus.Isolated);
 
         return false;
     }
@@ -198,7 +224,10 @@ public class CentralNodeConnectionManager
             return await ConnectToCentralNodeAsync(cancellationToken);
         }
 
-        _logger.LogWarning("Failover triggered from central node {NodeId}", _activeNode.NodeId);
+        var fromNode = _activeNode.NodeId;
+        _logger.LogWarning(
+            "Failover triggered from central node {NodeId} (consecutive failures: {Failures})",
+            _activeNode.NodeId, _activeNode.ConsecutiveFailures);
 
         // Mark current node as failed
         _activeNode.ConnectionStatus = CentralNodeConnectionStatus.Failed;
@@ -219,8 +248,12 @@ public class CentralNodeConnectionManager
         // Try each next node
         foreach (var node in nextNodes)
         {
-            _logger.LogInformation("Attempting failover to central node {NodeId} (priority {Priority})",
-                node.NodeId, node.Priority);
+            using var activity = _activitySource.StartFailoverActivity(fromNode, node.NodeId, "heartbeat_timeout");
+            var startTime = DateTime.UtcNow;
+
+            _logger.LogInformation(
+                "Attempting failover from {FromNode} to central node {ToNode} (priority {Priority})",
+                fromNode, node.NodeId, node.Priority);
 
             node.ConnectionStatus = CentralNodeConnectionStatus.Connecting;
             node.LastConnectionAttempt = DateTime.UtcNow;
@@ -239,21 +272,38 @@ public class CentralNodeConnectionManager
                     node.ResetConnectionState();
 
                     _peerListManager.UpdateLocalPeerStatus(node.NodeId, PeerConnectionStatus.Connected);
+                    _metrics.RecordConnectionStatus(PeerConnectionStatus.Connected);
+                    _metrics.RecordFailover(fromNode, node.NodeId, "heartbeat_timeout");
 
-                    _logger.LogInformation("Failover successful to central node {NodeId}", node.NodeId);
+                    var duration = DateTime.UtcNow - startTime;
+                    _activitySource.RecordSuccess(activity, duration);
+
+                    _logger.LogInformation(
+                        "Failover successful from {FromNode} to central node {ToNode} (duration: {Duration}ms)",
+                        fromNode, node.NodeId, duration.TotalMilliseconds);
+
                     return true;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failover to central node {NodeId} failed", node.NodeId);
+                var duration = DateTime.UtcNow - startTime;
+                _activitySource.RecordFailure(activity, ex, duration);
+
+                _logger.LogError(ex,
+                    "Failover to central node {NodeId} failed (duration: {Duration}ms)",
+                    node.NodeId, duration.TotalMilliseconds);
+
                 node.RecordFailure();
             }
         }
 
         // All failover attempts failed - isolated mode
-        _logger.LogWarning("All failover attempts failed - entering isolated mode");
+        _logger.LogWarning(
+            "All failover attempts failed after trying {NodeCount} nodes - entering isolated mode",
+            nextNodes.Count);
         _peerListManager.UpdateLocalPeerStatus(null, PeerConnectionStatus.Isolated);
+        _metrics.RecordConnectionStatus(PeerConnectionStatus.Isolated);
 
         return false;
     }
@@ -306,5 +356,40 @@ public class CentralNodeConnectionManager
     public List<CentralNodeInfo> GetAllCentralNodes()
     {
         return _centralNodes;
+    }
+
+    /// <summary>
+    /// Handles isolated mode when all central nodes are unreachable
+    /// </summary>
+    /// <remarks>
+    /// When all central nodes fail to respond:
+    /// - Updates peer status to Isolated
+    /// - Logs warning about isolated mode
+    /// - Continues operation with last known system register replica
+    /// - Background reconnection attempts continue
+    /// </remarks>
+    /// <returns>Task representing the async operation</returns>
+    public Task HandleIsolatedModeAsync()
+    {
+        _logger.LogWarning(
+            "All central nodes unreachable - operating in isolated mode with last known system register replica");
+
+        // Update peer status to isolated
+        _peerListManager.UpdateLocalPeerStatus(null, PeerConnectionStatus.Isolated);
+
+        // Mark all central nodes as failed
+        foreach (var node in _centralNodes)
+        {
+            node.ConnectionStatus = CentralNodeConnectionStatus.Failed;
+            node.IsActive = false;
+        }
+
+        // Clear active connection
+        _activeNode = null;
+
+        _logger.LogInformation(
+            "Isolated mode active - peer will continue serving cached blueprints and retry connections in background");
+
+        return Task.CompletedTask;
     }
 }

@@ -4,6 +4,8 @@
 using Sorcha.Peer.Service.Connection;
 using Sorcha.Peer.Service.Core;
 using Sorcha.Peer.Service.Discovery;
+using Sorcha.Peer.Service.Observability;
+using System.Diagnostics;
 
 namespace Sorcha.Peer.Service.Monitoring;
 
@@ -24,6 +26,8 @@ public class HeartbeatMonitorService : BackgroundService
     private readonly CentralNodeConnectionManager _connectionManager;
     private readonly PeerListManager _peerListManager;
     private readonly CentralNodeDiscoveryService _discoveryService;
+    private readonly PeerServiceMetrics _metrics;
+    private readonly PeerServiceActivitySource _activitySource;
     private long _sequenceNumber = 0;
     private int _missedHeartbeats = 0;
 
@@ -38,12 +42,16 @@ public class HeartbeatMonitorService : BackgroundService
         ILogger<HeartbeatMonitorService> logger,
         CentralNodeConnectionManager connectionManager,
         PeerListManager peerListManager,
-        CentralNodeDiscoveryService discoveryService)
+        CentralNodeDiscoveryService discoveryService,
+        PeerServiceMetrics metrics,
+        PeerServiceActivitySource activitySource)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
         _peerListManager = peerListManager ?? throw new ArgumentNullException(nameof(peerListManager));
         _discoveryService = discoveryService ?? throw new ArgumentNullException(nameof(discoveryService));
+        _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
+        _activitySource = activitySource ?? throw new ArgumentNullException(nameof(activitySource));
     }
 
     /// <summary>
@@ -98,7 +106,7 @@ public class HeartbeatMonitorService : BackgroundService
     }
 
     /// <summary>
-    /// Sends a heartbeat message to the connected central node
+    /// Sends a heartbeat message to the connected central node using gRPC
     /// </summary>
     /// <param name="centralNode">Central node information</param>
     /// <param name="cancellationToken">Cancellation token</param>
@@ -106,14 +114,23 @@ public class HeartbeatMonitorService : BackgroundService
     {
         var localPeerInfo = _peerListManager.GetLocalPeerStatus();
         var sequenceNumber = Interlocked.Increment(ref _sequenceNumber);
+        var startTime = DateTime.UtcNow;
 
-        var heartbeat = HeartbeatMessage.Create(
-            peerId: localPeerInfo?.PeerId ?? "unknown",
-            sequenceNumber: sequenceNumber,
-            lastSyncVersion: localPeerInfo?.LastSyncVersion ?? 0);
+        using var activity = _activitySource.StartHeartbeatActivity(centralNode.NodeId, sequenceNumber);
 
-        _logger.LogDebug("Sending heartbeat {SequenceNumber} to central node {NodeId}",
-            sequenceNumber, centralNode.NodeId);
+        var heartbeatRequest = new Protos.HeartbeatMessage
+        {
+            PeerId = localPeerInfo?.PeerId ?? "unknown",
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            SequenceNumber = sequenceNumber,
+            LastSyncVersion = localPeerInfo?.LastSyncVersion ?? 0,
+            SessionId = string.Empty, // TODO: Get from connection manager
+            NodeType = "Peer"
+        };
+
+        _logger.LogDebug(
+            "Sending heartbeat {SequenceNumber} to central node {NodeId} (last sync version: {LastSyncVersion})",
+            sequenceNumber, centralNode.NodeId, localPeerInfo?.LastSyncVersion ?? 0);
 
         try
         {
@@ -122,13 +139,23 @@ public class HeartbeatMonitorService : BackgroundService
                 TimeSpan.FromSeconds(PeerServiceConstants.HeartbeatTimeoutSeconds));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
 
-            // TODO: Actual gRPC call to send heartbeat would go here
-            // var channel = _connectionManager.GetActiveChannel();
-            // var client = new Heartbeat.HeartbeatClient(channel);
-            // var response = await client.SendHeartbeatAsync(heartbeat, cancellationToken: linkedCts.Token);
+            // Get active gRPC channel
+            var channel = _connectionManager.GetActiveChannel();
+            if (channel == null)
+            {
+                _logger.LogWarning(
+                    "No active gRPC channel for heartbeat {SequenceNumber} - skipping",
+                    sequenceNumber);
+                await HandleHeartbeatTimeoutAsync(centralNode);
+                return;
+            }
 
-            // Simulate heartbeat for now
-            await Task.Delay(10, linkedCts.Token);
+            // Create gRPC client and send heartbeat
+            var client = new Protos.Heartbeat.HeartbeatClient(channel);
+            var response = await client.SendHeartbeatAsync(heartbeatRequest, cancellationToken: linkedCts.Token);
+
+            // Calculate latency
+            var latency = (DateTime.UtcNow - startTime).TotalMilliseconds;
 
             // Heartbeat successful - reset missed count
             _missedHeartbeats = 0;
@@ -143,29 +170,79 @@ public class HeartbeatMonitorService : BackgroundService
             centralNode.LastHeartbeatSent = DateTime.UtcNow;
             centralNode.LastHeartbeatAcknowledged = DateTime.UtcNow;
 
-            _logger.LogDebug("Heartbeat {SequenceNumber} acknowledged by central node {NodeId}",
-                sequenceNumber, centralNode.NodeId);
+            // Record metrics
+            _metrics.RecordHeartbeatLatency(latency, centralNode.NodeId);
+            _activitySource.RecordSuccess(activity, TimeSpan.FromMilliseconds(latency));
 
-            // TODO: Check if peer is behind on sync based on response version
-            // if (response.CurrentSystemRegisterVersion > localPeerInfo.LastSyncVersion)
-            // {
-            //     _logger.LogInformation("Peer is behind system register - version {Current} vs {Expected}",
-            //         localPeerInfo.LastSyncVersion, response.CurrentSystemRegisterVersion);
-            //     // Trigger incremental sync
-            // }
+            _logger.LogDebug(
+                "Heartbeat {SequenceNumber} acknowledged by central node {NodeId} (latency: {Latency}ms, action: {Action})",
+                sequenceNumber, centralNode.NodeId, latency, response.RecommendedAction);
+
+            // Handle recommended actions from central node
+            await HandleRecommendedActionAsync(response.RecommendedAction, response.CurrentSystemRegisterVersion, localPeerInfo);
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Heartbeat {SequenceNumber} timed out to central node {NodeId}",
-                sequenceNumber, centralNode.NodeId);
+            var duration = DateTime.UtcNow - startTime;
+            _logger.LogWarning(
+                "Heartbeat {SequenceNumber} timed out to central node {NodeId} after {Duration}ms (missed count: {MissedCount})",
+                sequenceNumber, centralNode.NodeId, duration.TotalMilliseconds, _missedHeartbeats + 1);
             await HandleHeartbeatTimeoutAsync(centralNode);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Heartbeat {SequenceNumber} failed to central node {NodeId}",
-                sequenceNumber, centralNode.NodeId);
+            var duration = DateTime.UtcNow - startTime;
+            _activitySource.RecordFailure(activity, ex, duration);
+
+            _logger.LogWarning(ex,
+                "Heartbeat {SequenceNumber} failed to central node {NodeId} after {Duration}ms (missed count: {MissedCount})",
+                sequenceNumber, centralNode.NodeId, duration.TotalMilliseconds, _missedHeartbeats + 1);
 
             await HandleHeartbeatTimeoutAsync(centralNode);
+        }
+    }
+
+    /// <summary>
+    /// Handles recommended actions from heartbeat acknowledgement
+    /// </summary>
+    /// <param name="action">Recommended action</param>
+    /// <param name="currentVersion">Current system register version from central node</param>
+    /// <param name="localPeerInfo">Local peer information</param>
+    private async Task HandleRecommendedActionAsync(
+        Protos.RecommendedAction action,
+        long currentVersion,
+        ActivePeerInfo? localPeerInfo)
+    {
+        switch (action)
+        {
+            case Protos.RecommendedAction.Sync:
+                if (localPeerInfo != null && currentVersion > localPeerInfo.LastSyncVersion)
+                {
+                    _logger.LogInformation("Peer is behind system register - version {Current} vs {Expected}. Incremental sync recommended.",
+                        localPeerInfo.LastSyncVersion, currentVersion);
+                    // TODO: Trigger incremental sync via SystemRegisterReplicationService
+                }
+                break;
+
+            case Protos.RecommendedAction.Failover:
+                _logger.LogWarning("Central node recommends failover - triggering failover to next node");
+                await _connectionManager.FailoverToNextNodeAsync();
+                break;
+
+            case Protos.RecommendedAction.Reconnect:
+                _logger.LogWarning("Central node recommends reconnection - disconnecting and reconnecting");
+                await _connectionManager.DisconnectAsync();
+                await _connectionManager.ConnectToCentralNodeAsync();
+                break;
+
+            case Protos.RecommendedAction.ReduceFrequency:
+                _logger.LogInformation("Central node requests reduced heartbeat frequency (currently not implemented)");
+                break;
+
+            case Protos.RecommendedAction.None:
+            default:
+                // No action needed
+                break;
         }
     }
 

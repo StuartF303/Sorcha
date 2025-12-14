@@ -4,6 +4,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sorcha.Peer.Service.Connection;
 using Sorcha.Peer.Service.Core;
 using Sorcha.Peer.Service.Discovery;
 using Sorcha.Peer.Service.Monitoring;
@@ -22,6 +23,8 @@ public class PeerService : BackgroundService
     private readonly NetworkAddressService _networkAddressService;
     private readonly PeerDiscoveryService _peerDiscoveryService;
     private readonly HealthMonitorService _healthMonitorService;
+    private readonly CentralNodeDiscoveryService _centralNodeDiscoveryService;
+    private readonly CentralNodeConnectionManager _centralNodeConnectionManager;
     private PeerServiceStatus _status = PeerServiceStatus.Offline;
     private string _nodeId = string.Empty;
     private readonly object _statusLock = new();
@@ -67,7 +70,9 @@ public class PeerService : BackgroundService
         PeerListManager peerListManager,
         NetworkAddressService networkAddressService,
         PeerDiscoveryService peerDiscoveryService,
-        HealthMonitorService healthMonitorService)
+        HealthMonitorService healthMonitorService,
+        CentralNodeDiscoveryService centralNodeDiscoveryService,
+        CentralNodeConnectionManager centralNodeConnectionManager)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration?.Value ?? throw new ArgumentNullException(nameof(configuration));
@@ -75,6 +80,8 @@ public class PeerService : BackgroundService
         _networkAddressService = networkAddressService ?? throw new ArgumentNullException(nameof(networkAddressService));
         _peerDiscoveryService = peerDiscoveryService ?? throw new ArgumentNullException(nameof(peerDiscoveryService));
         _healthMonitorService = healthMonitorService ?? throw new ArgumentNullException(nameof(healthMonitorService));
+        _centralNodeDiscoveryService = centralNodeDiscoveryService ?? throw new ArgumentNullException(nameof(centralNodeDiscoveryService));
+        _centralNodeConnectionManager = centralNodeConnectionManager ?? throw new ArgumentNullException(nameof(centralNodeConnectionManager));
     }
 
     /// <summary>
@@ -119,20 +126,52 @@ public class PeerService : BackgroundService
         _nodeId = _configuration.NodeId ?? GenerateNodeId();
         _logger.LogInformation("Node ID: {NodeId}", _nodeId);
 
-        // Detect external address
-        var externalAddress = await _networkAddressService.GetExternalAddressAsync(cancellationToken);
-        _logger.LogInformation("External address: {Address}", externalAddress ?? "unknown");
+        // Detect if this is a central node or peer node
+        var isCentralNode = _centralNodeDiscoveryService.IsCentralNode();
+        _logger.LogInformation("Node type detected: {NodeType}", isCentralNode ? "Central Node" : "Peer Node");
 
-        // Load peers from database
-        await _peerListManager.LoadPeersFromDatabaseAsync(cancellationToken);
-        _logger.LogInformation("Loaded {Count} peers from database", _peerListManager.GetAllPeers().Count);
-
-        // Perform initial peer discovery
-        if (_configuration.PeerDiscovery.BootstrapNodes.Count > 0)
+        if (isCentralNode)
         {
-            _logger.LogInformation("Performing initial peer discovery");
-            var discoveredCount = await _peerDiscoveryService.DiscoverPeersAsync(cancellationToken);
-            _logger.LogInformation("Discovered {Count} peers", discoveredCount);
+            // Central node initialization
+            _logger.LogInformation("Running as central node - ready to accept peer connections");
+            _logger.LogInformation("Hostname: {Hostname}", _centralNodeDiscoveryService.GetHostname());
+            // HeartbeatMonitorService will NOT start for central nodes (it's a peer-side service)
+        }
+        else
+        {
+            // Peer node initialization
+            _logger.LogInformation("Running as peer node - will connect to central nodes");
+
+            // Detect external address
+            var externalAddress = await _networkAddressService.GetExternalAddressAsync(cancellationToken);
+            _logger.LogInformation("External address: {Address}", externalAddress ?? "unknown");
+
+            // Load peers from database
+            await _peerListManager.LoadPeersFromDatabaseAsync(cancellationToken);
+            _logger.LogInformation("Loaded {Count} peers from database", _peerListManager.GetAllPeers().Count);
+
+            // Perform initial peer discovery
+            if (_configuration.PeerDiscovery.BootstrapNodes.Count > 0)
+            {
+                _logger.LogInformation("Performing initial peer discovery");
+                var discoveredCount = await _peerDiscoveryService.DiscoverPeersAsync(cancellationToken);
+                _logger.LogInformation("Discovered {Count} peers", discoveredCount);
+            }
+
+            // Connect to central node (priority order: n0 -> n1 -> n2)
+            _logger.LogInformation("Attempting to connect to central node infrastructure");
+            var connected = await _centralNodeConnectionManager.ConnectToCentralNodeAsync(cancellationToken);
+
+            if (connected)
+            {
+                var activeNode = _centralNodeConnectionManager.GetActiveCentralNode();
+                _logger.LogInformation("Successfully connected to central node {NodeId}", activeNode?.NodeId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to connect to any central node - operating in isolated mode");
+                _logger.LogWarning("Will continue attempting to connect in background");
+            }
         }
 
         // Determine initial status

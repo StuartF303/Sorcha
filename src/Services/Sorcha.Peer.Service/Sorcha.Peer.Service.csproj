@@ -32,6 +32,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Common\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
     <ProjectReference Include="..\..\Common\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Sorcha.Register.Service\Sorcha.Register.Service.csproj" />
   </ItemGroup>
 
 </Project>
