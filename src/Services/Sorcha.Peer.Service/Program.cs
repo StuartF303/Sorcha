@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Scalar.AspNetCore;
 using Sorcha.Peer.Service;
 using Sorcha.Peer.Service.Communication;
+using Sorcha.Peer.Service.Connection;
 using Sorcha.Peer.Service.Core;
 using Sorcha.Peer.Service.Discovery;
 using Sorcha.Peer.Service.Distribution;
@@ -40,6 +41,14 @@ builder.Services.AddOpenApi();
 builder.Services.Configure<PeerServiceConfiguration>(
     builder.Configuration.GetSection("PeerService"));
 
+// Configure central node
+builder.Services.Configure<CentralNodeConfiguration>(
+    builder.Configuration.GetSection("PeerService:CentralNode"));
+
+// Configure system register
+builder.Services.Configure<SystemRegisterConfiguration>(
+    builder.Configuration.GetSection("PeerService:SystemRegister"));
+
 // Register core services
 builder.Services.AddSingleton<StunClient>();
 builder.Services.AddSingleton<PeerListManager>();
@@ -54,11 +63,16 @@ builder.Services.AddSingleton<TransactionQueueManager>();
 builder.Services.AddSingleton<TransactionDistributionService>();
 builder.Services.AddSingleton<StatisticsAggregator>();
 
+// Register central node connection services
+builder.Services.AddSingleton<CentralNodeDiscoveryService>();
+builder.Services.AddSingleton<CentralNodeConnectionManager>();
+
 // Register gRPC service implementations
 builder.Services.AddSingleton<PeerDiscoveryServiceImpl>();
 
-// Register background service
+// Register background services
 builder.Services.AddHostedService<PeerService>();
+builder.Services.AddHostedService<HeartbeatMonitorService>();
 
 // Add HttpClient
 builder.Services.AddHttpClient();

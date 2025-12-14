@@ -1,0 +1,683 @@
+@page "/designer"
+@using Blazor.Diagrams.Core.Geometry
+@using Blazor.Diagrams.Core.Models
+@using Blazor.Diagrams.Options
+@using Sorcha.Admin.Models
+@using Sorcha.Admin.Components
+@using Sorcha.Blueprint.Models
+@using Blazored.LocalStorage
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using BlueprintAction = Sorcha.Blueprint.Models.Action
+@inject ILocalStorageService LocalStorage
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject Services.EventLogService EventLog
+
+<PageTitle>Blueprint Designer</PageTitle>
+
+<div style="width: 100%; height: 100vh; display: flex; flex-direction: column; position: relative;">
+    <!-- Toolbar and Canvas Container with Right Panel -->
+    <div style="flex: 1; display: flex; flex-direction: row; overflow: hidden;">
+        <!-- Main Content Area (Toolbar + Canvas) -->
+        <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0;">
+            <!-- Toolbar inside diagram area -->
+            <MudPaper Elevation="1" Class="pa-2" Style="border-radius: 0;">
+                <div class="d-flex align-center gap-2">
+                    <MudText Typo="Typo.h6" Class="mr-4">@CurrentBlueprint.Title</MudText>
+
+                <MudButton Color="Color.Primary"
+                           Size="MudBlazor.Size.Small"
+                           Variant="Variant.Filled"
+                           OnClick="@(() => AddAction())">
+                    <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="MudBlazor.Size.Small" />
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Size="MudBlazor.Size.Small" Style="margin-left: -8px; margin-right: 4px;" />
+                    Add Action
+                </MudButton>
+
+                <MudButton StartIcon="@Icons.Material.Filled.Description"
+                           Color="Color.Default"
+                           Size="MudBlazor.Size.Small"
+                           Variant="Variant.Text"
+                           OnClick="@(() => ShowBlueprintProperties())">
+                    Properties
+                </MudButton>
+
+                <MudDivider Vertical="true" FlexItem="true" Class="mx-2" />
+
+                <MudToggleIconButton @bind-Toggled="@showJsonView"
+                                     Icon="@Icons.Material.Filled.AccountTree"
+                                     ToggledIcon="@Icons.Material.Filled.Code"
+                                     Color="@Color.Default"
+                                     ToggledColor="@Color.Primary"
+                                     Size="MudBlazor.Size.Small"
+                                     Title="@(showJsonView ? "Show Diagram View" : "Show JSON View")" />
+
+                <MudSpacer />
+
+                <MudButton StartIcon="@Icons.Material.Filled.Save"
+                           Color="Color.Success"
+                           Size="MudBlazor.Size.Small"
+                           Variant="Variant.Filled"
+                           OnClick="@(() => SaveBlueprint())">
+                    Save
+                </MudButton>
+
+                <MudButton StartIcon="@Icons.Material.Filled.FolderOpen"
+                           Color="Color.Info"
+                           Size="MudBlazor.Size.Small"
+                           Variant="Variant.Filled"
+                           OnClick="@ShowLoadBlueprintDialog">
+                    Load
+                </MudButton>
+            </div>
+        </MudPaper>
+
+        <!-- Canvas / JSON View -->
+        <div style="flex: 1; background: #fafafa; position: relative; overflow: hidden;">
+            @if (showJsonView)
+            {
+                <BlueprintJsonView Blueprint="CurrentBlueprint" />
+            }
+            else
+            {
+                <div class="diagram-container" style="width: 100%; height: 100%; position: relative; overflow: visible; touch-action: none;">
+                    @if (Diagram != null)
+                    {
+                        <CascadingValue Value="Diagram" IsFixed="true">
+                            <DiagramCanvas></DiagramCanvas>
+                        </CascadingValue>
+                    }
+                    else
+                    {
+                        <MudText>Loading diagram...</MudText>
+                    }
+                </div>
+            }
+        </div>
+        </div>
+
+        <!-- Permanent Right Properties Panel -->
+        <PropertiesPanel Blueprint="CurrentBlueprint"
+                        SelectedNode="SelectedNode"
+                        OnBlueprintSaved="OnBlueprintPropertiesSaved"
+                        OnActionSaved="OnActionPropertiesSaved"
+                        OnDiscardChanges="OnDiscardPropertyChanges" />
+    </div>
+</div>
+
+@code {
+    private BlazorDiagram? Diagram;
+    private BlueprintNodeModel? SelectedNode;
+    private Blueprint CurrentBlueprint = new();
+    private List<Blueprint> savedBlueprints = new();
+    private bool showJsonView = false;
+    private int participantCounter = 0;
+    private int actionCounter = 0;
+
+    private const string BLUEPRINTS_KEY = "sorcha:blueprints";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Initialize diagram
+            var options = new BlazorDiagramOptions
+            {
+                AllowMultiSelection = false
+            };
+            options.Zoom.Enabled = true;
+            options.Links.DefaultColor = "#666666";
+
+            Diagram = new BlazorDiagram(options);
+
+            // Register custom widget for action nodes
+            Diagram.RegisterComponent<ActionNodeModel, Components.ActionNodeWidget>();
+
+            Diagram.SelectionChanged += OnDiagramSelectionChanged;
+
+            // Subscribe to action node toolbar events
+            ActionNodeModel.AddParticipantRequested += OnAddParticipantToAction;
+            ActionNodeModel.AddConditionRequested += OnAddConditionToAction;
+            ActionNodeModel.ShowPropertiesRequested += OnShowActionProperties;
+
+            // Initialize blueprint
+            CurrentBlueprint = new Blueprint
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = "New Blueprint",
+                Description = "A new workflow blueprint",
+                Version = 1,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+
+            // Load saved blueprints list
+            await RefreshBlueprintList();
+
+            // Create example blueprints if none exist
+            if (!savedBlueprints.Any())
+            {
+                await CreateExampleBlueprints();
+                await RefreshBlueprintList();
+            }
+
+            // Add welcome nodes
+            AddWelcomeNodes();
+
+            EventLog.LogInfo("Blueprint Designer initialized", $"Loaded {savedBlueprints.Count} saved blueprints");
+        }
+        catch (Exception ex)
+        {
+            EventLog.LogError("Failed to initialize Blueprint Designer", ex.Message);
+            Console.WriteLine($"Error initializing diagram: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+    }
+
+    private void OnDiagramSelectionChanged(Blazor.Diagrams.Core.Models.Base.Model model)
+    {
+        // Note: We deliberately don't update SelectedNode here to avoid conflicts with dragging
+        // Instead, use the Properties button in the action node toolbar to show properties
+
+        // Only clear selection if the previously selected node is deselected
+        if (model == SelectedNode && model is NodeModel nodeModel && !nodeModel.Selected)
+        {
+            SelectedNode = null;
+            StateHasChanged();
+        }
+    }
+
+    private void AddWelcomeNodes()
+    {
+        if (Diagram == null) return;
+
+        actionCounter++;
+        var newAction = new BlueprintAction
+        {
+            Id = actionCounter,
+            Title = "New Starting Action",
+            Description = "This is the starting action of the workflow",
+            BlueprintId = CurrentBlueprint.Id,
+            Participants = [],
+            Calculations = new Dictionary<string, JsonNode>(),
+            Condition = JsonNode.Parse("{\"==\":[0,0]}")
+        };
+
+        var action = new ActionNodeModel(new Point(300, 200))
+        {
+            Action = newAction
+        };
+        action.Title = GetActionNodeTitle(newAction);
+        action.Locked = false;  // Ensure node is draggable
+        action.AddPort(PortAlignment.Top);
+        action.AddPort(PortAlignment.Bottom);
+        Diagram.Nodes.Add(action);
+        CurrentBlueprint.Actions.Add(action.Action);
+    }
+
+    private void AddAction()
+    {
+        if (Diagram == null) return;
+
+        actionCounter++;
+
+        // Find the previously selected or last created action node
+        ActionNodeModel? previousActionNode = null;
+
+        // First check if there's a currently selected action node
+        if (SelectedNode is ActionNodeModel selectedAction)
+        {
+            previousActionNode = selectedAction;
+        }
+        else
+        {
+            // Otherwise, get the last action node in the diagram
+            previousActionNode = Diagram.Nodes.OfType<ActionNodeModel>().LastOrDefault();
+        }
+
+        // Calculate position: offset from previous node or default position
+        Point newPosition;
+        if (previousActionNode != null)
+        {
+            newPosition = new Point(
+                previousActionNode.Position.X,
+                previousActionNode.Position.Y + 200  // Increased gap for better vertical spacing
+            );
+        }
+        else
+        {
+            newPosition = new Point(300, 200);
+        }
+
+        var newAction = new BlueprintAction
+        {
+            Id = actionCounter,
+            Title = $"Action {actionCounter}",
+            Description = $"Description for action {actionCounter}",
+            BlueprintId = CurrentBlueprint.Id,
+            Participants = [],
+            Calculations = new Dictionary<string, JsonNode>(),
+            Condition = JsonNode.Parse("{\"==\":[0,0]}")
+        };
+
+        var action = new ActionNodeModel(newPosition)
+        {
+            Action = newAction
+        };
+        action.Title = GetActionNodeTitle(newAction);
+        action.Locked = false;  // Ensure node is draggable
+        action.AddPort(PortAlignment.Top);
+        action.AddPort(PortAlignment.Bottom);
+
+        Diagram.Nodes.Add(action);
+        CurrentBlueprint.Actions.Add(action.Action);
+
+        // Create link from previous action to new action
+        if (previousActionNode != null)
+        {
+            var sourcePort = previousActionNode.Ports.FirstOrDefault(p => p.Alignment == PortAlignment.Bottom);
+            var targetPort = action.Ports.FirstOrDefault(p => p.Alignment == PortAlignment.Top);
+
+            if (sourcePort != null && targetPort != null)
+            {
+                var link = Diagram.Links.Add(new Blazor.Diagrams.Core.Models.LinkModel(sourcePort, targetPort));
+            }
+        }
+    }
+
+    private async Task ShowLoadBlueprintDialog()
+    {
+        await RefreshBlueprintList();
+
+        var parameters = new DialogParameters<LoadBlueprintDialog>
+        {
+            { x => x.Blueprints, savedBlueprints }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<LoadBlueprintDialog>("Load Blueprint", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is string blueprintId)
+        {
+            await LoadBlueprint(blueprintId);
+        }
+    }
+
+    private async Task ShowBlueprintProperties()
+    {
+        var parameters = new DialogParameters<BlueprintPropertiesDialog>
+        {
+            { x => x.Blueprint, CurrentBlueprint }
+        };
+
+        var dialog = await DialogService.ShowAsync<BlueprintPropertiesDialog>("Blueprint Properties", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is Blueprint updatedBlueprint)
+        {
+            CurrentBlueprint = updatedBlueprint;
+            Snackbar.Add("Blueprint properties updated", Severity.Success);
+        }
+    }
+
+    // Action node toolbar event handlers
+    private void OnAddParticipantToAction(BlueprintAction action)
+    {
+        // TODO: Implement add participant dialog
+        Snackbar.Add($"Add Participant to Action {action.Id} - Coming soon!", Severity.Info);
+    }
+
+    private void OnAddConditionToAction(BlueprintAction action)
+    {
+        // TODO: Implement add condition dialog
+        Snackbar.Add($"Add Condition to Action {action.Id} - Coming soon!", Severity.Info);
+    }
+
+    private void OnShowActionProperties(BlueprintAction action)
+    {
+        // Show the action properties in the right panel
+        var node = Diagram?.Nodes.OfType<ActionNodeModel>().FirstOrDefault(n => n.Action.Id == action.Id);
+        if (node != null)
+        {
+            SelectedNode = node;
+            StateHasChanged();
+        }
+    }
+
+    // Properties panel callbacks
+    private void OnBlueprintPropertiesSaved(Blueprint updatedBlueprint)
+    {
+        CurrentBlueprint = updatedBlueprint;
+        Snackbar.Add("Blueprint properties saved", Severity.Success);
+        EventLog.LogSuccess("Blueprint properties updated", $"Title: {updatedBlueprint.Title}");
+        StateHasChanged();
+    }
+
+    private void OnActionPropertiesSaved(BlueprintAction updatedAction)
+    {
+        // Find and update the action in the blueprint
+        var existingAction = CurrentBlueprint.Actions.FirstOrDefault(a => a.Id == updatedAction.Id);
+        if (existingAction != null)
+        {
+            var index = CurrentBlueprint.Actions.IndexOf(existingAction);
+            CurrentBlueprint.Actions[index] = updatedAction;
+
+            // Update the node in the diagram
+            var node = Diagram?.Nodes.OfType<ActionNodeModel>().FirstOrDefault(n => n.Action.Id == updatedAction.Id);
+            if (node != null)
+            {
+                node.Action = updatedAction;
+                node.Title = updatedAction.Title;
+            }
+
+            Snackbar.Add($"Action {updatedAction.Id} properties saved", Severity.Success);
+            EventLog.LogSuccess("Action properties updated", $"Action: {updatedAction.Title}");
+            StateHasChanged();
+        }
+    }
+
+    private void OnDiscardPropertyChanges()
+    {
+        // Deselect the node to go back to blueprint properties
+        if (SelectedNode != null)
+        {
+            Diagram?.UnselectAll();
+            SelectedNode = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveBlueprint()
+    {
+        try
+        {
+            // Update timestamp
+            CurrentBlueprint.UpdatedAt = DateTimeOffset.UtcNow;
+
+            // Get existing blueprints
+            var blueprintsJson = await LocalStorage.GetItemAsStringAsync(BLUEPRINTS_KEY);
+            var blueprints = string.IsNullOrEmpty(blueprintsJson)
+                ? new List<Blueprint>()
+                : JsonSerializer.Deserialize<List<Blueprint>>(blueprintsJson) ?? new List<Blueprint>();
+
+            // Update or add current blueprint
+            var existing = blueprints.FirstOrDefault(b => b.Id == CurrentBlueprint.Id);
+            if (existing != null)
+            {
+                blueprints.Remove(existing);
+            }
+            blueprints.Add(CurrentBlueprint);
+
+            // Save to LocalStorage
+            var json = JsonSerializer.Serialize(blueprints);
+            await LocalStorage.SetItemAsStringAsync(BLUEPRINTS_KEY, json);
+
+            await RefreshBlueprintList();
+            Snackbar.Add($"Blueprint '{CurrentBlueprint.Title}' saved successfully", Severity.Success);
+            EventLog.LogSuccess($"Saved blueprint '{CurrentBlueprint.Title}'", $"Version {CurrentBlueprint.Version} - {CurrentBlueprint.Actions.Count} actions");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving blueprint: {ex.Message}", Severity.Error);
+            EventLog.LogError($"Failed to save blueprint", ex.Message);
+            Console.WriteLine($"Error saving blueprint: {ex.Message}");
+        }
+    }
+
+    private async Task LoadBlueprint(string blueprintId)
+    {
+        try
+        {
+            var blueprintsJson = await LocalStorage.GetItemAsStringAsync(BLUEPRINTS_KEY);
+            if (string.IsNullOrEmpty(blueprintsJson)) return;
+
+            var blueprints = JsonSerializer.Deserialize<List<Blueprint>>(blueprintsJson);
+            var blueprint = blueprints?.FirstOrDefault(b => b.Id == blueprintId);
+
+            if (blueprint == null)
+            {
+                Snackbar.Add("Blueprint not found", Severity.Warning);
+                return;
+            }
+
+            // Clear current diagram
+            Diagram?.Nodes.Clear();
+            Diagram?.Links.Clear();
+
+            // Load blueprint
+            CurrentBlueprint = blueprint;
+
+            // Recreate nodes from blueprint data
+            int yOffset = 100;
+            foreach (var participant in blueprint.Participants)
+            {
+                var node = new ParticipantNodeModel(participant, new Point(100, yOffset))
+                {
+                    Title = participant.Name
+                };
+                node.AddPort(PortAlignment.Bottom);
+                Diagram?.Nodes.Add(node);
+                yOffset += 150;
+            }
+
+            yOffset = 100;
+            foreach (var action in blueprint.Actions)
+            {
+                var node = new ActionNodeModel(action, new Point(400, yOffset))
+                {
+                    Title = GetActionNodeTitle(action)
+                };
+                node.Locked = false;  // Ensure node is draggable
+                node.AddPort(PortAlignment.Top);
+                node.AddPort(PortAlignment.Bottom);
+                Diagram?.Nodes.Add(node);
+                yOffset += 150;
+            }
+
+            participantCounter = blueprint.Participants.Count;
+            actionCounter = blueprint.Actions.Count;
+
+            Snackbar.Add($"Blueprint '{blueprint.Title}' loaded successfully", Severity.Success);
+            EventLog.LogSuccess($"Loaded blueprint '{blueprint.Title}'", $"Version {blueprint.Version} - {blueprint.Actions.Count} actions");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading blueprint: {ex.Message}", Severity.Error);
+            EventLog.LogError($"Failed to load blueprint", ex.Message);
+            Console.WriteLine($"Error loading blueprint: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshBlueprintList()
+    {
+        try
+        {
+            var blueprintsJson = await LocalStorage.GetItemAsStringAsync(BLUEPRINTS_KEY);
+            savedBlueprints = string.IsNullOrEmpty(blueprintsJson)
+                ? new List<Blueprint>()
+                : JsonSerializer.Deserialize<List<Blueprint>>(blueprintsJson) ?? new List<Blueprint>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing blueprint list: {ex.Message}");
+            savedBlueprints = new List<Blueprint>();
+        }
+    }
+
+    private async Task CreateExampleBlueprints()
+    {
+        var applicantId = "0xApplicant123";
+        var bankId = "0xBank456";
+
+        // Reference built-in schemas by their IDs
+        // These schemas are loaded from Sorcha.Blueprint.Schemas.BuiltInSchemas
+        var personSchemaRef = JsonDocument.Parse(@"{
+            ""$ref"": ""https://sorcha.dev/schemas/person/v1""
+        }");
+
+        var loanRequestSchemaRef = JsonDocument.Parse(@"{
+            ""$ref"": ""https://sorcha.dev/schemas/loan-request/v1""
+        }");
+
+        var loanEvaluationSchemaRef = JsonDocument.Parse(@"{
+            ""$ref"": ""https://sorcha.dev/schemas/loan-evaluation/v1""
+        }");
+
+        var examples = new List<Blueprint>
+        {
+            new Blueprint
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = "Loan Application Workflow",
+                Description = "A detailed loan application process with applicant submitting personal and financial data, bank evaluating, and final decision disclosure",
+                Version = 1,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                Participants = new List<Participant>
+                {
+                    new Participant { Id = Guid.NewGuid().ToString(), Name = "Applicant", Organisation = "Individual", WalletAddress = applicantId },
+                    new Participant { Id = Guid.NewGuid().ToString(), Name = "Bank", Organisation = "First National Bank", WalletAddress = bankId }
+                },
+                Actions = new List<BlueprintAction>
+                {
+                    // Action 0: Applicant submits application with personal and loan data
+                    new BlueprintAction
+                    {
+                        Id = 0,
+                        Title = "Apply",
+                        Description = "Applicant submits personal information and loan request",
+                        Sender = applicantId,
+                        Participants = new List<Condition>
+                        {
+                            new Condition(applicantId, true)
+                        },
+                        DataSchemas = new List<JsonDocument> { personSchemaRef, loanRequestSchemaRef },
+                        Disclosures = new List<Disclosure>
+                        {
+                            // Disclose all person fields to bank
+                            new Disclosure(bankId, new List<string> { "/person/*" }),
+                            // Disclose all loan request fields to bank
+                            new Disclosure(bankId, new List<string> { "/loanRequest/*" })
+                        },
+                        Condition = JsonNode.Parse("{\"==\":[1,1]}"),
+                        Calculations = new Dictionary<string, JsonNode>()
+                    },
+                    // Action 1: Bank evaluates and makes decision
+                    new BlueprintAction
+                    {
+                        Id = 1,
+                        Title = "Evaluate",
+                        Description = "Bank evaluates application and determines approval with limits and terms",
+                        Sender = bankId,
+                        Participants = new List<Condition>
+                        {
+                            new Condition(bankId, true)
+                        },
+                        RequiredActionData = new List<string> { "0" },
+                        DataSchemas = new List<JsonDocument> { loanEvaluationSchemaRef },
+                        Disclosures = new List<Disclosure>
+                        {
+                            // Disclose all evaluation fields to applicant initially (will be restricted in Action 2)
+                            new Disclosure(applicantId, new List<string> { "/evaluation/*" })
+                        },
+                        Condition = JsonNode.Parse("{\"==\":[2,2]}"),
+                        Calculations = new Dictionary<string, JsonNode>()
+                    },
+                    // Action 2: Notify applicant with limited disclosure
+                    new BlueprintAction
+                    {
+                        Id = 2,
+                        Title = "Respond",
+                        Description = "Applicant receives decision (only granted/denied field disclosed)",
+                        Sender = bankId,
+                        Participants = new List<Condition>
+                        {
+                            new Condition(applicantId, true)
+                        },
+                        RequiredActionData = new List<string> { "1" },
+                        DataSchemas = new List<JsonDocument>(),
+                        Disclosures = new List<Disclosure>
+                        {
+                            // Only disclose the granted field to applicant
+                            new Disclosure(applicantId, new List<string> { "/evaluation/granted" })
+                        },
+                        Condition = JsonNode.Parse("{\"==\":[3,3]}"),
+                        Calculations = new Dictionary<string, JsonNode>()
+                    }
+                }
+            },
+            new Blueprint
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = "Supply Chain Verification",
+                Description = "Track product through supply chain with verification at each step",
+                Version = 1,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                Participants = new List<Participant>
+                {
+                    new Participant { Id = Guid.NewGuid().ToString(), Name = "Manufacturer", Organisation = "ACME Corp", WalletAddress = "0xABCD..." },
+                    new Participant { Id = Guid.NewGuid().ToString(), Name = "Shipper", Organisation = "FastShip Inc", WalletAddress = "0xEF12..." },
+                    new Participant { Id = Guid.NewGuid().ToString(), Name = "Retailer", Organisation = "Mega Store", WalletAddress = "0x3456..." }
+                },
+                Actions = new List<BlueprintAction>
+                {
+                    new BlueprintAction { Id = 0, Title = "Produce Item", Description = "Manufacturer creates product" },
+                    new BlueprintAction { Id = 1, Title = "Ship Item", Description = "Shipper transports product" },
+                    new BlueprintAction { Id = 2, Title = "Receive Item", Description = "Retailer receives and verifies product" }
+                }
+            },
+            new Blueprint
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = "Document Approval Flow",
+                Description = "Multi-party document review and approval process",
+                Version = 1,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                Participants = new List<Participant>
+                {
+                    new Participant { Id = Guid.NewGuid().ToString(), Name = "Author", Organisation = "Legal Dept", WalletAddress = "0x7890..." },
+                    new Participant { Id = Guid.NewGuid().ToString(), Name = "Reviewer", Organisation = "Compliance", WalletAddress = "0xBCDE..." }
+                },
+                Actions = new List<BlueprintAction>
+                {
+                    new BlueprintAction { Id = 0, Title = "Draft Document", Description = "Author creates document" },
+                    new BlueprintAction { Id = 1, Title = "Review Document", Description = "Reviewer checks document" },
+                    new BlueprintAction { Id = 2, Title = "Approve Document", Description = "Final approval" }
+                }
+            }
+        };
+
+        var json = JsonSerializer.Serialize(examples);
+        await LocalStorage.SetItemAsStringAsync(BLUEPRINTS_KEY, json);
+    }
+
+    private string GetActionNodeTitle(BlueprintAction action)
+    {
+        var participantCount = action.Participants?.Count() ?? 0;
+        var disclosureCount = action.Disclosures?.Count() ?? 0;
+        var calculationCount = action.Calculations?.Count ?? 0;
+        var dataSchemaCount = action.DataSchemas?.Count() ?? 0;
+
+        var summary = $"P:{participantCount} D:{disclosureCount} C:{calculationCount} DS:{dataSchemaCount}";
+
+        return $"▶ {action.Title}\n{summary}";
+    }
+
+    public void Dispose()
+    {
+        if (Diagram != null)
+        {
+            Diagram.SelectionChanged -= OnDiagramSelectionChanged;
+        }
+    }
+}

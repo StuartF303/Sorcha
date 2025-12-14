@@ -73,7 +73,7 @@ var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
 
 // Add Blazor WebAssembly client
 // Note: Blazor WASM is a static client app
-var blazorClient = builder.AddProject<Projects.Sorcha_Blueprint_Designer_Client>("blazor-client")
+var blazorClient = builder.AddProject<Projects.Sorcha_Admin>("admin-ui")
     .WithExternalHttpEndpoints(); // Expose client for browser access
 
 builder.Build().Run();

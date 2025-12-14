@@ -1,0 +1,306 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+syntax = "proto3";
+
+package sorcha.peer.v1;
+
+option csharp_namespace = "Sorcha.Peer.Service.Protos";
+
+import "google/protobuf/timestamp.proto";
+
+// System Register Synchronization Service
+// Enables peer nodes to synchronize the system register (published blueprints)
+// from central nodes using a hybrid pull + push model.
+//
+// Synchronization Strategies:
+// 1. Full Sync: Initial sync when peer first connects (streams all blueprints)
+// 2. Incremental Sync: Periodic sync every 5 minutes (streams only new blueprints since last version)
+// 3. Push Notifications: Real-time notifications when blueprints are published (server streaming)
+//
+// Performance Goals:
+// - Full sync: Complete within 60 seconds for up to 1000 blueprints
+// - Incremental sync: Complete within 30 seconds
+// - Push notifications: Deliver to 80% of peers within 30 seconds
+//
+// System Register:
+// - Register ID: 00000000-0000-0000-0000-000000000000 (well-known constant)
+// - Collection: sorcha_system_register_blueprints (MongoDB)
+// - Versioning: Monotonically increasing version number per blueprint
+service SystemRegisterSync {
+  // Full synchronization (server streaming)
+  //
+  // Streams all active blueprints from the system register to the peer.
+  // Used for initial sync when peer first connects or when full resync is needed.
+  //
+  // Flow:
+  // 1. Peer sends SyncRequest with last_known_version=0 and full_sync=true
+  // 2. Central node streams all active blueprints ordered by version
+  // 3. Peer processes each blueprint and stores locally
+  // 4. Stream completes when all blueprints sent
+  //
+  // Error Handling:
+  // - Stream disconnection: Peer retries with exponential backoff
+  // - Partial sync: Peer uses checkpoint to resume from last received version
+  rpc FullSync(SyncRequest) returns (stream SystemRegisterEntry);
+
+  // Incremental synchronization (server streaming)
+  //
+  // Streams only blueprints published since peer's last known version.
+  // Used for periodic sync (every 5 minutes) to catch up with new blueprints.
+  //
+  // Flow:
+  // 1. Peer sends SyncRequest with last_known_version from checkpoint
+  // 2. Central node streams blueprints where version > last_known_version
+  // 3. Peer processes new blueprints and updates checkpoint
+  // 4. Stream completes when caught up
+  //
+  // Optimization: If no new blueprints, stream completes immediately
+  rpc IncrementalSync(SyncRequest) returns (stream SystemRegisterEntry);
+
+  // Subscribe to push notifications (server streaming)
+  //
+  // Maintains long-lived server streaming connection for real-time blueprint
+  // publication notifications. Central node pushes notifications when blueprints
+  // are published.
+  //
+  // Flow:
+  // 1. Peer sends SubscriptionRequest to subscribe
+  // 2. Central node registers peer in subscriber list
+  // 3. Central node streams BlueprintNotification on each publication
+  // 4. Peer receives notification and triggers incremental sync if needed
+  //
+  // Reconnection: If stream fails, peer reconnects automatically
+  // Fallback: If push fails, peer relies on 5-minute periodic sync
+  rpc SubscribeToPushNotifications(SubscriptionRequest) returns (stream BlueprintNotification);
+
+  // Get current sync checkpoint
+  //
+  // Returns peer's current sync checkpoint from central node's perspective.
+  // Used for monitoring and diagnostics.
+  rpc GetSyncCheckpoint(CheckpointRequest) returns (SyncCheckpoint);
+}
+
+// Request to synchronize system register
+message SyncRequest {
+  // Peer identifier
+  // Validation: Required, MaxLength 64
+  string peer_id = 1;
+
+  // Last known system register version
+  // 0 = first sync (triggers full sync)
+  // >0 = incremental sync from this version
+  int64 last_known_version = 2;
+
+  // Force full synchronization (ignores last_known_version)
+  // Used for recovery or when peer suspects data corruption
+  bool full_sync = 3;
+
+  // Session identifier (from ConnectionResponse)
+  string session_id = 4;
+
+  // Maximum number of blueprints to stream in single sync
+  // Default: 0 (unlimited)
+  // Used for rate limiting or testing
+  int32 max_blueprints = 5;
+
+  // Timestamp when sync was requested (Unix milliseconds UTC)
+  int64 request_time = 6;
+}
+
+// Sync checkpoint for tracking progress
+message SyncCheckpoint {
+  // Peer identifier
+  string peer_id = 1;
+
+  // Current synchronized version
+  // Highest version number successfully processed by peer
+  int64 current_version = 2;
+
+  // Timestamp of last successful sync (Unix milliseconds UTC)
+  int64 last_sync_time = 3;
+
+  // Total number of blueprints in peer's local replica
+  int32 total_blueprints = 4;
+
+  // Central node this checkpoint is for
+  string central_node_id = 5;
+
+  // When next periodic sync is due (Unix milliseconds UTC)
+  // Calculated as: last_sync_time + (5 minutes * 1000)
+  int64 next_sync_due = 6;
+
+  // Checkpoint status
+  CheckpointStatus status = 7;
+}
+
+// Status of sync checkpoint
+enum CheckpointStatus {
+  // Unknown status
+  CHECKPOINT_STATUS_UNKNOWN = 0;
+
+  // Checkpoint is up to date
+  CHECKPOINT_STATUS_UP_TO_DATE = 1;
+
+  // Checkpoint is behind (sync needed)
+  CHECKPOINT_STATUS_BEHIND = 2;
+
+  // Checkpoint is syncing
+  CHECKPOINT_STATUS_SYNCING = 3;
+
+  // Checkpoint sync failed
+  CHECKPOINT_STATUS_SYNC_FAILED = 4;
+}
+
+// Request to retrieve sync checkpoint
+message CheckpointRequest {
+  // Peer identifier
+  string peer_id = 1;
+
+  // Session identifier (optional)
+  string session_id = 2;
+}
+
+// Entry in the system register (streamed during sync)
+message SystemRegisterEntry {
+  // Blueprint unique identifier (MongoDB _id)
+  // Validation: Required, MaxLength 255, pattern ^[a-zA-Z0-9\-_]+$
+  string blueprint_id = 1;
+
+  // System register identifier (well-known constant)
+  // Must always be: 00000000-0000-0000-0000-000000000000
+  string register_id = 2;
+
+  // Blueprint document (JSON serialized)
+  // Contains full blueprint definition with JSON-LD context
+  // Validation: Required, MaxSize 16MB (MongoDB limit)
+  bytes blueprint_document = 3;
+
+  // Timestamp when blueprint was published (Unix milliseconds UTC)
+  int64 published_at = 4;
+
+  // Identity of publisher (user ID or "system")
+  // Validation: Required, MaxLength 255
+  string published_by = 5;
+
+  // Incrementing version number for sync
+  // Monotonically increasing across all blueprints
+  // Used for incremental sync queries
+  int64 version = 6;
+
+  // Whether blueprint is active/available
+  // false = deprecated or withdrawn
+  bool is_active = 7;
+
+  // Link to register transaction that published this blueprint (optional)
+  // Provides audit trail back to source transaction
+  string publication_transaction_id = 8;
+
+  // SHA-256 checksum of blueprint_document for integrity verification (optional)
+  // Format: "sha256:abcdef123456..."
+  string checksum = 9;
+
+  // Optional metadata key-value pairs
+  // Examples: category, tags, author, license
+  // Validation: Total size <4KB
+  map<string, string> metadata = 10;
+}
+
+// Request to subscribe to push notifications
+message SubscriptionRequest {
+  // Peer identifier
+  // Validation: Required, MaxLength 64
+  string peer_id = 1;
+
+  // Session identifier (from ConnectionResponse)
+  string session_id = 2;
+
+  // Timestamp when subscription was requested (Unix milliseconds UTC)
+  int64 subscribe_time = 3;
+
+  // Subscription filters (optional)
+  // If empty, peer receives all blueprint notifications
+  SubscriptionFilters filters = 4;
+}
+
+// Filters for subscription
+message SubscriptionFilters {
+  // Only notify for specific blueprint IDs
+  // Empty = all blueprints
+  repeated string blueprint_ids = 1;
+
+  // Only notify for specific publishers
+  // Empty = all publishers
+  repeated string publisher_ids = 2;
+
+  // Only notify for specific notification types
+  // Empty = all types
+  repeated NotificationType notification_types = 3;
+
+  // Only notify if blueprint metadata matches
+  // Empty = no metadata filtering
+  map<string, string> metadata_filters = 4;
+}
+
+// Push notification for blueprint publication
+message BlueprintNotification {
+  // Blueprint identifier
+  string blueprint_id = 1;
+
+  // Version number of this blueprint in system register
+  int64 version = 2;
+
+  // Timestamp when blueprint was published (Unix milliseconds UTC)
+  int64 published_at = 3;
+
+  // Identity of publisher
+  string published_by = 4;
+
+  // Optional small metadata preview (not full document)
+  // Peer fetches full document via incremental sync if needed
+  // Validation: MaxSize 4KB
+  bytes blueprint_summary = 5;
+
+  // Type of notification
+  NotificationType type = 6;
+
+  // Checksum of full blueprint document
+  // Peer can verify integrity after fetching via sync
+  string checksum = 7;
+
+  // Notification sequence number (for detecting missed notifications)
+  int64 sequence_number = 8;
+}
+
+// Type of blueprint notification
+enum NotificationType {
+  // Unknown type
+  NOTIFICATION_TYPE_UNKNOWN = 0;
+
+  // New blueprint published to system register
+  NOTIFICATION_TYPE_BLUEPRINT_PUBLISHED = 1;
+
+  // Existing blueprint updated (new version)
+  NOTIFICATION_TYPE_BLUEPRINT_UPDATED = 2;
+
+  // Blueprint deprecated or withdrawn (isActive=false)
+  NOTIFICATION_TYPE_BLUEPRINT_DEPRECATED = 3;
+}
+
+// Acknowledgement response
+message SyncAcknowledgement {
+  // Whether sync was successful
+  bool success = 1;
+
+  // Human-readable message
+  string message = 2;
+
+  // Updated checkpoint after sync
+  SyncCheckpoint checkpoint = 3;
+
+  // Number of blueprints synchronized
+  int32 blueprints_synced = 4;
+
+  // Timestamp when sync completed (Unix milliseconds UTC)
+  int64 sync_completed_at = 5;
+}
