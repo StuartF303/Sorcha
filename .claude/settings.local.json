@@ -223,7 +223,18 @@
       "Bash(cmd /c \"dir /s /b src\\Apps 2>nul | findstr /i blueprint.designer\")",
       "Bash(cmd /c \"move src\\Apps\\UI\\Sorcha.Blueprint.Designer.Client src\\Apps\\UI\\Sorcha.Admin\")",
       "Bash(ls:*)",
-      "Bash(timeout 10 dotnet run:*)"
+      "Bash(timeout 10 dotnet run:*)",
+      "Bash(az network dns zone list:*)",
+      "Bash(az resource show:*)",
+      "Bash(\"ASPNETCORE_ENVIRONMENT=Production\" )",
+      "Bash(\"ASPNETCORE_HTTP_PORTS=8080\" )",
+      "Bash(\"MongoDB__ConnectionString=mongodb://mongodb.internal.livelydune-b02bab51.uksouth.azurecontainerapps.io:27017\" )",
+      "Bash(\"MongoDB__DatabaseName=sorcha_system_register\" )",
+      "Bash(\"PeerService__CentralNode__IsCentralNode=true\" )",
+      "Bash(\"PeerService__CentralNode__ValidateHostname=false\" )",
+      "Bash(\"PeerService__CentralNode__Priority=0\" )",
+      "Bash(az containerapp revision list:*)",
+      "Bash(az containerapp replica list:*)"
     ],
     "deny": [],
     "ask": []

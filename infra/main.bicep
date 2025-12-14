@@ -18,6 +18,9 @@ param containerRegistryName string
 @description('Environment name (dev, staging, prod)')
 param environment string = 'prod'
 
+@description('MongoDB connection string for Peer Service')
+param mongoDbConnectionString string = ''
+
 @description('Tags to apply to all resources')
 param tags object = {
   Environment: environment
@@ -40,6 +43,7 @@ module resources 'resources.bicep' = {
     location: location
     containerRegistryName: containerRegistryName
     environment: environment
+    mongoDbConnectionString: mongoDbConnectionString
     tags: tags
   }
 }
