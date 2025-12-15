@@ -35,16 +35,46 @@ public class BrowserEncryptionProvider : IEncryptionProvider
     {
         if (!_isInitialized)
         {
-            try
+            // Retry logic to handle race conditions during initial load
+            const int maxRetries = 3;
+            const int delayMs = 100;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                // Initialize the encryption module in JavaScript
-                await _jsRuntime.InvokeVoidAsync("SorchaEncryption.initialize");
-                _isInitialized = true;
-            }
-            catch (JSException ex)
-            {
-                throw new InvalidOperationException(
-                    "Failed to initialize browser encryption. Ensure encryption.js is loaded.", ex);
+                try
+                {
+                    // Check if the JavaScript module exists
+                    var moduleExists = await _jsRuntime.InvokeAsync<bool>(
+                        "eval", "typeof window.SorchaEncryption !== 'undefined'");
+
+                    if (!moduleExists)
+                    {
+                        if (attempt < maxRetries)
+                        {
+                            // Wait a bit for the script to load
+                            await Task.Delay(delayMs * attempt);
+                            continue;
+                        }
+
+                        throw new InvalidOperationException(
+                            "SorchaEncryption JavaScript module is not loaded. Ensure encryption.js is included in index.html.");
+                    }
+
+                    // Initialize the encryption module in JavaScript
+                    await _jsRuntime.InvokeVoidAsync("SorchaEncryption.initialize");
+                    _isInitialized = true;
+                    return;
+                }
+                catch (JSException ex) when (attempt < maxRetries)
+                {
+                    // Retry on JS exceptions (module might not be ready yet)
+                    await Task.Delay(delayMs * attempt);
+                }
+                catch (JSException ex) when (attempt == maxRetries)
+                {
+                    throw new InvalidOperationException(
+                        "Failed to initialize browser encryption after multiple attempts. Ensure encryption.js is loaded and Web Crypto API is available.", ex);
+                }
             }
         }
     }

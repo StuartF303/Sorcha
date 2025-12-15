@@ -7,17 +7,29 @@
 
 <AuthorizeView>
     <Authorized>
-        <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit"
-                 AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
-                 Variant="Variant.Text">
+        <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+            <ActivatorContent>
+                <MudBadge Color="Color.Success" Dot="true" Overlap="true" Class="mx-2">
+                    <MudAvatar Color="Color.Primary" Size="Size.Small">
+                        @GetUserInitials(context)
+                    </MudAvatar>
+                </MudBadge>
+            </ActivatorContent>
             <ChildContent>
-                <div class="px-4 py-2">
-                    <MudText Typo="Typo.body2">
-                        <strong>@GetUsername(context)</strong>
-                    </MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        @GetEmail(context)
-                    </MudText>
+                <div class="px-4 py-3">
+                    <div class="d-flex align-center mb-2">
+                        <MudAvatar Color="Color.Primary" Size="Size.Medium" Class="mr-3">
+                            @GetUserInitials(context)
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.body1">
+                                <strong>@GetUsername(context)</strong>
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @GetEmail(context)
+                            </MudText>
+                        </div>
+                    </div>
                 </div>
 
                 <MudDivider Class="my-2" />
@@ -33,11 +45,10 @@
         </MudMenu>
     </Authorized>
     <NotAuthorized>
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Login"
-                   Href="/login">
-            Login
-        </MudButton>
+        <MudIconButton Icon="@Icons.Material.Filled.Login"
+                       Color="Color.Inherit"
+                       Href="/login"
+                       Title="Login" />
     </NotAuthorized>
 </AuthorizeView>
 
@@ -72,5 +83,33 @@
     {
         var email = state.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email)?.Value;
         return email ?? state.User.Identity?.Name ?? "";
+    }
+
+    private string GetUserInitials(AuthenticationState state)
+    {
+        var username = GetUsername(state);
+
+        if (string.IsNullOrWhiteSpace(username) || username == "Unknown User")
+            return "?";
+
+        var parts = username.Split(new[] { ' ', '@', '.' }, StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length >= 2)
+        {
+            // First and last name/part
+            return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+        }
+        else if (parts.Length == 1 && parts[0].Length >= 2)
+        {
+            // Single name, use first two characters
+            return parts[0].Substring(0, 2).ToUpper();
+        }
+        else if (parts.Length == 1 && parts[0].Length == 1)
+        {
+            // Single character
+            return parts[0].ToUpper();
+        }
+
+        return "?";
     }
 }

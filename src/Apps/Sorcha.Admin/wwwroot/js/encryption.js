@@ -184,3 +184,15 @@ window.SorchaEncryption = {
 
 // Automatically initialize on script load
 console.log("[SorchaEncryption] Module loaded");
+
+// Pre-initialize the encryption system when the script loads
+// This ensures it's ready before Blazor WASM tries to use it
+(async function() {
+    try {
+        await window.SorchaEncryption.initialize();
+        console.log("[SorchaEncryption] Pre-initialized successfully");
+    } catch (error) {
+        console.error("[SorchaEncryption] Pre-initialization failed:", error);
+        // Don't throw - initialization will retry on first use
+    }
+})();

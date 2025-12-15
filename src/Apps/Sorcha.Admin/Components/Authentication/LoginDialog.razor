@@ -9,15 +9,15 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
-<MudDialog>
+<MudDialog DisableSidePadding="false">
     <DialogContent>
         <MudText Typo="Typo.h6" Class="mb-4">Login to Sorcha Admin</MudText>
 
-        <MudSelect @bind-Value="_selectedProfile" Label="Environment" Variant="Variant.Outlined"
+        <MudSelect T="string" @bind-Value="_selectedProfile" Label="Environment" Variant="Variant.Outlined"
                    Class="mb-3" Required="true" Disabled="_isLoading">
             @foreach (var profile in _profiles)
             {
-                <MudSelectItem Value="@profile.Key">
+                <MudSelectItem T="string" Value="@profile.Key">
                     <MudText>@profile.Value.Name</MudText>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
                         @GetProfileDescription(profile.Value)
@@ -26,14 +26,16 @@
             }
         </MudSelect>
 
-        <MudTextField @bind-Value="_username" Label="Username or Email" Variant="Variant.Outlined"
+        <MudTextField T="string" @bind-Value="_username" Label="Username or Email" Variant="Variant.Outlined"
                       Class="mb-3" Required="true" Disabled="_isLoading"
-                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person" />
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person"
+                      AutoFocus="false" />
 
-        <MudTextField @bind-Value="_password" Label="Password" Variant="Variant.Outlined"
+        <MudTextField T="string" @bind-Value="_password" Label="Password" Variant="Variant.Outlined"
                       InputType="InputType.Password" Class="mb-3" Required="true" Disabled="_isLoading"
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock"
-                      OnKeyDown="@HandleKeyDown" />
+                      OnKeyDown="@HandleKeyDown"
+                      AutoFocus="false" />
 
         @if (_showError)
         {

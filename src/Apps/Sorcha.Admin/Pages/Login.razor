@@ -53,7 +53,8 @@
         {
             MaxWidth = MaxWidth.Small,
             FullWidth = true,
-            CloseButton = true
+            CloseButton = true,
+            CloseOnEscapeKey = true
         };
 
         var dialog = await DialogService.ShowAsync<LoginDialog>("Login", options);
