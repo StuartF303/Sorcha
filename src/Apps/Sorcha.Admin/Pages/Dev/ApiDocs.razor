@@ -1,0 +1,100 @@
+@page "/dev/api-docs"
+@attribute [Authorize(Roles = "Developer,Administrator")]
+
+<PageTitle>API Documentation - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" />
+        API Documentation
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        OpenAPI specifications and SDK documentation
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="6" lg="4">
+            <MudPaper Class="pa-4" Elevation="2" Style="height: 100%;">
+                <MudText Typo="Typo.h6" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Api" Class="mr-2" />
+                    Blueprint Service API
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                    Endpoints for blueprint management and execution
+                </MudText>
+                <MudButton Href="https://localhost:7082/swagger" Target="_blank" Color="Color.Primary" Variant="Variant.Outlined" FullWidth="true">
+                    View OpenAPI Spec
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6" lg="4">
+            <MudPaper Class="pa-4" Elevation="2" Style="height: 100%;">
+                <MudText Typo="Typo.h6" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Api" Class="mr-2" />
+                    Wallet Service API
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                    Cryptographic wallet operations and key management
+                </MudText>
+                <MudButton Href="https://localhost:7082/swagger" Target="_blank" Color="Color.Primary" Variant="Variant.Outlined" FullWidth="true">
+                    View OpenAPI Spec
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6" lg="4">
+            <MudPaper Class="pa-4" Elevation="2" Style="height: 100%;">
+                <MudText Typo="Typo.h6" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Api" Class="mr-2" />
+                    Register Service API
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                    Distributed ledger transaction management
+                </MudText>
+                <MudButton Href="https://localhost:7082/swagger" Target="_blank" Color="Color.Primary" Variant="Variant.Outlined" FullWidth="true">
+                    View OpenAPI Spec
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Quick Links</MudText>
+                <MudList T="string">
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Code">
+                        <MudText Typo="Typo.subtitle2">SDK Documentation</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Client libraries for .NET, Python, JavaScript
+                        </MudText>
+                    </MudListItem>
+                    <MudDivider />
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Lightbulb">
+                        <MudText Typo="Typo.subtitle2">Code Examples</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Sample implementations and integration patterns
+                        </MudText>
+                    </MudListItem>
+                    <MudDivider />
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Book">
+                        <MudText Typo="Typo.subtitle2">Developer Guide</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Comprehensive integration and development guide
+                        </MudText>
+                    </MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Info">
+                <MudText Typo="Typo.body2">
+                    This is a placeholder page. Full API documentation with interactive Scalar UI will be implemented in future versions.
+                </MudText>
+            </MudAlert>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+}

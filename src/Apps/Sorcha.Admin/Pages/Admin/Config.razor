@@ -1,0 +1,80 @@
+@page "/admin/config"
+@attribute [Authorize(Roles = "Administrator,SystemAdmin")]
+
+<PageTitle>System Configuration - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.Tune" Class="mr-2" />
+        System Configuration
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        Manage system-wide settings and configurations
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12">
+            <MudPaper Class="pa-4 mb-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">General Settings</MudText>
+                <MudTextField T="string" @bind-Value="systemName" Label="System Name" Variant="Variant.Outlined" Class="mb-3" />
+                <MudTextField T="string" @bind-Value="supportEmail" Label="Support Email" Variant="Variant.Outlined" Class="mb-3" />
+                <MudSwitch T="bool" @bind-Value="enableRegistration" Color="Color.Primary" Label="Enable user registration" />
+                <MudSwitch T="bool" @bind-Value="maintenanceMode" Color="Color.Primary" Label="Maintenance mode" />
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudPaper Class="pa-4 mb-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Security Settings</MudText>
+                <MudTextField T="string" @bind-Value="sessionTimeout" Label="Session Timeout (minutes)" Variant="Variant.Outlined" InputType="InputType.Number" Class="mb-3" />
+                <MudTextField T="string" @bind-Value="maxLoginAttempts" Label="Max Login Attempts" Variant="Variant.Outlined" InputType="InputType.Number" Class="mb-3" />
+                <MudSwitch T="bool" @bind-Value="strongPasswords" Color="Color.Primary" Label="Require strong passwords" />
+                <MudSwitch T="bool" @bind-Value="twoFactor" Color="Color.Primary" Label="Enable two-factor authentication" />
+                <MudSwitch T="bool" @bind-Value="auditActions" Color="Color.Primary" Label="Audit all admin actions" />
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudPaper Class="pa-4 mb-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Service Endpoints</MudText>
+                <MudTextField T="string" @bind-Value="blueprintServiceUrl" Label="Blueprint Service URL" Variant="Variant.Outlined" Class="mb-3" />
+                <MudTextField T="string" @bind-Value="walletServiceUrl" Label="Wallet Service URL" Variant="Variant.Outlined" Class="mb-3" />
+                <MudTextField T="string" @bind-Value="registerServiceUrl" Label="Register Service URL" Variant="Variant.Outlined" Class="mb-3" />
+                <MudTextField T="string" @bind-Value="peerServiceUrl" Label="Peer Service URL" Variant="Variant.Outlined" Class="mb-3" />
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <div class="d-flex justify-end gap-2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Default">Cancel</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary">Save Changes</MudButton>
+            </div>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Info">
+                <MudText Typo="Typo.body2">
+                    This is a placeholder page. Full system configuration management will be implemented in future versions.
+                </MudText>
+            </MudAlert>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private string systemName = "Sorcha Platform";
+    private string supportEmail = "support@sorcha.io";
+    private bool enableRegistration = true;
+    private bool maintenanceMode = false;
+
+    private string sessionTimeout = "30";
+    private string maxLoginAttempts = "5";
+    private bool strongPasswords = true;
+    private bool twoFactor = true;
+    private bool auditActions = true;
+
+    private string blueprintServiceUrl = "https://blueprint-service:5001";
+    private string walletServiceUrl = "https://wallet-service:5002";
+    private string registerServiceUrl = "https://register-service:5003";
+    private string peerServiceUrl = "https://peer-service:5004";
+}

@@ -1,0 +1,72 @@
+@page "/my-actions"
+@attribute [Authorize(Roles = "Consumer,User,Designer,Administrator")]
+
+<PageTitle>My Pending Actions - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.Task" Class="mr-2" />
+        My Pending Actions
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        Actions requiring your attention
+    </MudText>
+
+    <MudGrid>
+        @foreach (var action in actions)
+        {
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">@action.Title</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@action.Workflow</MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudChip T="string" Size="Size.Small" Color="@action.PriorityColor">@action.Priority</MudChip>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Class="mb-2">@action.Description</MudText>
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" /> Due: @action.DueDate.ToString("MMM dd, yyyy")
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true">
+                            Take Action
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Info" Class="mt-4">
+                <MudText Typo="Typo.body2">
+                    This is a placeholder page. Full action execution functionality will be implemented in future versions.
+                </MudText>
+            </MudAlert>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<ActionItem> actions = new()
+    {
+        new ActionItem { Title = "Review Loan Application", Workflow = "Loan Application #1234", Description = "Review applicant's credit history and financial documents", Priority = "High", PriorityColor = Color.Error, DueDate = DateTime.Now.AddDays(1) },
+        new ActionItem { Title = "Approve Document", Workflow = "Document Approval #9012", Description = "Approve contract for final signature", Priority = "Medium", PriorityColor = Color.Warning, DueDate = DateTime.Now.AddDays(2) },
+        new ActionItem { Title = "Verify Shipment", Workflow = "Supply Chain #5678", Description = "Verify shipment received and quality check passed", Priority = "Low", PriorityColor = Color.Info, DueDate = DateTime.Now.AddDays(5) },
+    };
+
+    public class ActionItem
+    {
+        public string Title { get; set; } = "";
+        public string Workflow { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Priority { get; set; } = "";
+        public Color PriorityColor { get; set; }
+        public DateTime DueDate { get; set; }
+    }
+}

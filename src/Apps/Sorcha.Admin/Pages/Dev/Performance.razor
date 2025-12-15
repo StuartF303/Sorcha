@@ -1,0 +1,125 @@
+@page "/dev/performance"
+@attribute [Authorize(Roles = "Developer,Administrator")]
+
+<PageTitle>Performance Tools - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.Speed" Class="mr-2" />
+        Performance Tools
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        Monitor and analyze system performance
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">API Performance</MudText>
+                <MudSimpleTable Dense="true">
+                    <tbody>
+                        <tr>
+                            <td>Total Requests (24h)</td>
+                            <td><strong>45,678</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Avg Response Time</td>
+                            <td><strong>124ms</strong></td>
+                        </tr>
+                        <tr>
+                            <td>P95 Response Time</td>
+                            <td><strong>342ms</strong></td>
+                        </tr>
+                        <tr>
+                            <td>P99 Response Time</td>
+                            <td><strong>678ms</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Error Rate</td>
+                            <td><MudChip T="string" Size="Size.Small" Color="Color.Success">0.12%</MudChip></td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Resource Usage</MudText>
+                <MudSimpleTable Dense="true">
+                    <tbody>
+                        <tr>
+                            <td>CPU Usage</td>
+                            <td><strong>34%</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Memory Usage</td>
+                            <td><strong>2.4GB / 8GB</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Database Connections</td>
+                            <td><strong>15 / 100</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Active WebSocket Connections</td>
+                            <td><strong>42</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Cache Hit Rate</td>
+                            <td><MudChip T="string" Size="Size.Small" Color="Color.Success">94.2%</MudChip></td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Slowest Endpoints (Last Hour)</MudText>
+                <MudTable Items="@endpoints" Hover="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Endpoint</MudTh>
+                        <MudTh>Method</MudTh>
+                        <MudTh>Avg Time</MudTh>
+                        <MudTh>P95 Time</MudTh>
+                        <MudTh>Requests</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd Style="font-family: monospace;">@context.Path</MudTd>
+                        <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Primary">@context.Method</MudChip></MudTd>
+                        <MudTd>@context.AvgTime</MudTd>
+                        <MudTd>@context.P95Time</MudTd>
+                        <MudTd>@context.RequestCount</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Info">
+                <MudText Typo="Typo.body2">
+                    This is a placeholder page. Full performance monitoring with charts and real-time metrics will be implemented in future versions.
+                </MudText>
+            </MudAlert>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<EndpointMetric> endpoints = new()
+    {
+        new EndpointMetric { Path = "/api/blueprints/execute", Method = "POST", AvgTime = "845ms", P95Time = "1.2s", RequestCount = 234 },
+        new EndpointMetric { Path = "/api/wallets", Method = "POST", AvgTime = "567ms", P95Time = "892ms", RequestCount = 89 },
+        new EndpointMetric { Path = "/api/register/transactions", Method = "GET", AvgTime = "423ms", P95Time = "734ms", RequestCount = 1456 },
+        new EndpointMetric { Path = "/api/blueprints", Method = "GET", AvgTime = "234ms", P95Time = "456ms", RequestCount = 3421 },
+    };
+
+    public class EndpointMetric
+    {
+        public string Path { get; set; } = "";
+        public string Method { get; set; } = "";
+        public string AvgTime { get; set; } = "";
+        public string P95Time { get; set; } = "";
+        public int RequestCount { get; set; }
+    }
+}

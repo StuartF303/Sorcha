@@ -39,7 +39,7 @@
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd DataLabel="Enabled">
-                                <MudSwitch Value="context.IsEnabled"
+                                <MudSwitch T="bool" Value="context.IsEnabled"
                                            Color="Color.Success"
                                            Size="Size.Small"
                                            T="bool"
@@ -115,11 +115,11 @@
                 <MudDivider Class="my-4" />
 
                 <MudText Typo="Typo.h6" Class="mb-3">Canvas Settings</MudText>
-                <MudSwitch @bind-Value="showGrid"
+                <MudSwitch T="bool" @bind-Value="showGrid"
                            Label="Show Grid"
                            Color="Color.Primary"
                            Class="mb-2" />
-                <MudSwitch @bind-Value="snapToGrid"
+                <MudSwitch T="bool" @bind-Value="snapToGrid"
                            Label="Snap to Grid"
                            Color="Color.Primary" />
 

@@ -1,0 +1,72 @@
+@page "/my-workflows"
+@attribute [Authorize(Roles = "Consumer,User,Designer,Administrator")]
+
+<PageTitle>My Workflows - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />
+        My Workflows
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        View and manage your active workflows
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Active Workflows</MudText>
+
+                <MudTable Items="@workflows" Hover="true" Striped="true">
+                    <HeaderContent>
+                        <MudTh>Workflow</MudTh>
+                        <MudTh>Blueprint</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Started</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd>@context.Blueprint</MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small" Color="@context.StatusColor">@context.Status</MudChip>
+                        </MudTd>
+                        <MudTd>@context.StartedAt.ToString("MMM dd, yyyy")</MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary" Title="View" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Timeline" Size="Size.Small" Color="Color.Info" Title="Timeline" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Info" Class="mt-4">
+                <MudText Typo="Typo.body2">
+                    This is a placeholder page. Full workflow execution functionality will be implemented in future versions.
+                </MudText>
+            </MudAlert>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<WorkflowItem> workflows = new()
+    {
+        new WorkflowItem { Name = "Loan Application #1234", Blueprint = "Loan Application Workflow", Status = "In Progress", StatusColor = Color.Info, StartedAt = DateTime.Now.AddDays(-2) },
+        new WorkflowItem { Name = "Supply Chain Verification #5678", Blueprint = "Supply Chain Verification", Status = "In Progress", StatusColor = Color.Info, StartedAt = DateTime.Now.AddDays(-5) },
+        new WorkflowItem { Name = "Document Approval #9012", Blueprint = "Document Approval Flow", Status = "Pending", StatusColor = Color.Warning, StartedAt = DateTime.Now.AddDays(-1) },
+        new WorkflowItem { Name = "Loan Application #1133", Blueprint = "Loan Application Workflow", Status = "Completed", StatusColor = Color.Success, StartedAt = DateTime.Now.AddDays(-10) },
+        new WorkflowItem { Name = "Supply Chain Verification #4455", Blueprint = "Supply Chain Verification", Status = "Completed", StatusColor = Color.Success, StartedAt = DateTime.Now.AddDays(-15) },
+    };
+
+    public class WorkflowItem
+    {
+        public string Name { get; set; } = "";
+        public string Blueprint { get; set; } = "";
+        public string Status { get; set; } = "";
+        public Color StatusColor { get; set; }
+        public DateTime StartedAt { get; set; }
+    }
+}

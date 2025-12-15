@@ -11,7 +11,14 @@
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <NotAuthorized>
-                    <RedirectToLogin />
+                    @if (routeData.PageType.GetCustomAttributes(typeof(AuthorizeAttribute), true).Any())
+                    {
+                        <RedirectToLogin />
+                    }
+                    else
+                    {
+                        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+                    }
                 </NotAuthorized>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="@routeData" Selector="h1" />

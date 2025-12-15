@@ -1,0 +1,46 @@
+@using Sorcha.Admin.Components
+@page "/dev/events"
+@attribute [Authorize(Roles = "Developer,Administrator")]
+@inject Services.EventLogService EventLog
+
+<PageTitle>Event Inspector - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.BugReport" Class="mr-2" />
+        Event Inspector
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        Real-time event monitoring and debugging
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <div class="d-flex justify-space-between align-center mb-3">
+                    <MudText Typo="Typo.h6">Live Event Stream</MudText>
+                    <MudButtonGroup>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Clear">Clear</MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Pause">Pause</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download">Export</MudButton>
+                    </MudButtonGroup>
+                </div>
+
+                <MudPaper Class="pa-3" Elevation="0" Style="background-color: #1e1e1e; color: #d4d4d4; font-family: 'Courier New', monospace; max-height: 600px; overflow-y: auto;">
+                    <ActivityLog MaxEvents="50" />
+                </MudPaper>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Info">
+                <MudText Typo="Typo.body2">
+                    This page shows events from the EventLogService. Full event inspection with filtering and export will be implemented in future versions.
+                </MudText>
+            </MudAlert>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+}

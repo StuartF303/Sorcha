@@ -4,155 +4,445 @@
 @inject NavigationManager Navigation
 @inject EventLogService EventLog
 
-<PageTitle>Home - Sorcha Blueprint</PageTitle>
+<PageTitle>Home - Sorcha Platform</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudGrid>
-        <!-- Left Column - Main Content -->
-        <MudItem xs="12" md="8">
-            <!-- Hero Section -->
-            <MudPaper Class="pa-6 mb-4" Elevation="2">
-                <MudText Typo="Typo.h3" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Large" Class="mr-2" Style="vertical-align: middle;" />
-                    Welcome to Sorcha Blueprint
-                </MudText>
-                <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
-                    Design, manage, and deploy blockchain workflow blueprints with our visual designer.
-                    Create multi-party workflows with conditional logic, participant management, and data schema validation.
-                </MudText>
-
-                <!-- Call-to-Action Buttons -->
-                <div class="d-flex gap-3 flex-wrap">
-                    <MudButton StartIcon="@Icons.Material.Filled.Add"
-                               Color="Color.Primary"
-                               Variant="Variant.Filled"
-                               Size="Size.Large"
-                               OnClick="@(() => Navigation.NavigateTo("/designer"))">
-                        Create New Blueprint
-                    </MudButton>
-                    <MudButton StartIcon="@Icons.Material.Filled.FolderOpen"
-                               Color="Color.Info"
-                               Variant="Variant.Outlined"
-                               Size="Size.Large"
-                               OnClick="@(() => Navigation.NavigateTo("/designer"))">
-                        Load Existing Blueprint
-                    </MudButton>
-                    <MudButton StartIcon="@Icons.Material.Filled.Search"
-                               Color="Color.Default"
-                               Variant="Variant.Outlined"
-                               Size="Size.Large"
-                               OnClick="@(() => Navigation.NavigateTo("/schemas"))">
-                        Search Data Schemas
-                    </MudButton>
-                </div>
-            </MudPaper>
-
-            <!-- Quick Start Guide -->
-            <MudPaper Class="pa-4 mb-4" Elevation="2">
-                <MudText Typo="Typo.h5" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Rocket" Class="mr-2" />
-                    Quick Start
-                </MudText>
-
-                <MudTimeline TimelineOrientation="TimelineOrientation.Vertical" TimelinePosition="TimelinePosition.Start">
-                    <MudTimelineItem Color="Color.Primary" Size="Size.Small">
-                        <ItemContent>
-                            <MudText Typo="Typo.body1" Class="mb-1"><strong>1. Create a Blueprint</strong></MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                Click "Create New Blueprint" to start designing your workflow
-                            </MudText>
-                        </ItemContent>
-                    </MudTimelineItem>
-                    <MudTimelineItem Color="Color.Primary" Size="Size.Small">
-                        <ItemContent>
-                            <MudText Typo="Typo.body1" Class="mb-1"><strong>2. Add Participants</strong></MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                Define the parties involved in your workflow
-                            </MudText>
-                        </ItemContent>
-                    </MudTimelineItem>
-                    <MudTimelineItem Color="Color.Primary" Size="Size.Small">
-                        <ItemContent>
-                            <MudText Typo="Typo.body1" Class="mb-1"><strong>3. Design Actions</strong></MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                Add actions with conditions, calculations, and data schemas
-                            </MudText>
-                        </ItemContent>
-                    </MudTimelineItem>
-                    <MudTimelineItem Color="Color.Success" Size="Size.Small">
-                        <ItemContent>
-                            <MudText Typo="Typo.body1" Class="mb-1"><strong>4. Save & Deploy</strong></MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                Save your blueprint and deploy to the blockchain
-                            </MudText>
-                        </ItemContent>
-                    </MudTimelineItem>
-                </MudTimeline>
-            </MudPaper>
-
-            <!-- Features Overview -->
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.h5" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Star" Class="mr-2" />
-                    Key Features
-                </MudText>
-
+    <!-- Welcome Header -->
+    <AuthorizeView>
+        <Authorized>
+            <MudText Typo="Typo.h4" Class="mb-2">
+                Welcome back, @context.User.Identity?.Name
+            </MudText>
+            <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+                Here's what's happening across your workspace
+            </MudText>
+        </Authorized>
+        <NotAuthorized>
+            <MudPaper Class="pa-6 mb-4" Elevation="3">
                 <MudGrid>
-                    <MudItem xs="12" sm="6">
-                        <div class="d-flex mb-3">
-                            <MudIcon Icon="@Icons.Material.Filled.AccountTree" Color="Color.Primary" Class="mr-2" />
-                            <div>
-                                <MudText Typo="Typo.subtitle2">Visual Designer</MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                    Drag-and-drop interface for workflow design
-                                </MudText>
-                            </div>
-                        </div>
+                    <MudItem xs="12" md="8">
+                        <MudText Typo="Typo.h3" Class="mb-2">
+                            Welcome to Sorcha Platform
+                        </MudText>
+                        <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+                            A distributed ledger platform for building secure, transparent, and auditable workflows.
+                        </MudText>
+                        <MudText Typo="Typo.body2" Class="mb-2">
+                            Sorcha enables you to:
+                        </MudText>
+                        <MudList T="string" Dense="true">
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                                Design workflows with a visual blueprint editor
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                                Execute actions with cryptographic signatures
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                                Store transactions on a distributed ledger
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                                Verify authenticity and maintain complete audit trails
+                            </MudListItem>
+                        </MudList>
                     </MudItem>
-                    <MudItem xs="12" sm="6">
-                        <div class="d-flex mb-3">
-                            <MudIcon Icon="@Icons.Material.Filled.Schema" Color="Color.Primary" Class="mr-2" />
-                            <div>
-                                <MudText Typo="Typo.subtitle2">JSON Schema Support</MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                    Validate data with JSON Schema standards
-                                </MudText>
-                            </div>
-                        </div>
-                    </MudItem>
-                    <MudItem xs="12" sm="6">
-                        <div class="d-flex mb-3">
-                            <MudIcon Icon="@Icons.Material.Filled.Calculate" Color="Color.Primary" Class="mr-2" />
-                            <div>
-                                <MudText Typo="Typo.subtitle2">JSON Logic</MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                    Conditional logic and calculations
-                                </MudText>
-                            </div>
-                        </div>
-                    </MudItem>
-                    <MudItem xs="12" sm="6">
-                        <div class="d-flex mb-3">
-                            <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" Class="mr-2" />
-                            <div>
-                                <MudText Typo="Typo.subtitle2">Multi-Party Workflows</MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                    Manage complex participant interactions
-                                </MudText>
-                            </div>
-                        </div>
+                    <MudItem xs="12" md="4" Class="d-flex flex-column justify-center align-center">
+                        <MudButton Href="/login"
+                                   Color="Color.Primary"
+                                   Variant="Variant.Filled"
+                                   Size="Size.Large"
+                                   FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Login"
+                                   Class="mb-3">
+                            Sign In
+                        </MudButton>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Sign in to access your workspace
+                        </MudText>
                     </MudItem>
                 </MudGrid>
             </MudPaper>
+        </NotAuthorized>
+    </AuthorizeView>
+
+    <MudGrid Spacing="3">
+        <!-- CONSUMER WIDGETS: For end users -->
+        <AuthorizeView Roles="Consumer,User">
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Style="height: 100%;">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.Task" Class="mr-2" />
+                                My Pending Actions
+                            </MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" />
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.h3" Class="mb-2">3</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Actions awaiting your response
+                        </MudText>
+                        <MudDivider Class="my-3" />
+                        <MudList T="string" Dense="true">
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Circle" IconColor="Color.Warning">
+                                <MudText Typo="Typo.body2">Loan Application - Review Required</MudText>
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Circle" IconColor="Color.Warning">
+                                <MudText Typo="Typo.body2">Document Approval - Pending</MudText>
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Circle" IconColor="Color.Info">
+                                <MudText Typo="Typo.body2">Supply Chain - Verification</MudText>
+                            </MudListItem>
+                        </MudList>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/my-actions" Color="Color.Primary" Variant="Variant.Text" FullWidth="true">
+                            View All Actions
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Style="height: 100%;">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />
+                                My Workflows
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.h3" Class="mb-2">5</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Active workflows
+                        </MudText>
+                        <MudChip T="string" Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small">2 Completed</MudChip>
+                        <MudChip T="string" Icon="@Icons.Material.Filled.Pending" Color="Color.Info" Size="Size.Small">3 In Progress</MudChip>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/my-workflows" Color="Color.Primary" Variant="Variant.Text" FullWidth="true">
+                            View All Workflows
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Style="height: 100%;">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="mr-2" />
+                                My Wallet
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                            Wallet Address
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all;">
+                            0xAbCd...1234
+                        </MudText>
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Recent Transactions: <strong>12</strong>
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/my-wallet" Color="Color.Primary" Variant="Variant.Text" FullWidth="true">
+                            Manage Wallet
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        </AuthorizeView>
+
+        <!-- DESIGNER WIDGETS: For blueprint creators -->
+        <AuthorizeView Roles="Designer,Administrator">
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Style="height: 100%;">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.Draw" Class="mr-2" />
+                                Blueprint Designer
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.h3" Class="mb-2">8</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Blueprints created
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" /> Last edited: <strong>2 hours ago</strong>
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/designer" Color="Color.Primary" Variant="Variant.Filled" FullWidth="true" StartIcon="@Icons.Material.Filled.Add">
+                            Create New Blueprint
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Style="height: 100%;">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.Schema" Class="mr-2" />
+                                Schema Library
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.h3" Class="mb-2">156</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Available schemas
+                        </MudText>
+                        <MudChip T="string" Icon="@Icons.Material.Filled.Storage" Color="Color.Primary" Size="Size.Small">45 Built-in</MudChip>
+                        <MudChip T="string" Icon="@Icons.Material.Filled.CloudDownload" Color="Color.Info" Size="Size.Small">111 SchemaStore</MudChip>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/schemas" Color="Color.Primary" Variant="Variant.Text" FullWidth="true">
+                            Browse Schemas
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Style="height: 100%;">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.ContentCopy" Class="mr-2" />
+                                Templates
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Quick Start Templates
+                        </MudText>
+                        <MudList T="string" Dense="true">
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.AttachMoney">
+                                <MudText Typo="Typo.body2">Loan Application</MudText>
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.LocalShipping">
+                                <MudText Typo="Typo.body2">Supply Chain</MudText>
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Description">
+                                <MudText Typo="Typo.body2">Document Approval</MudText>
+                            </MudListItem>
+                        </MudList>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/templates" Color="Color.Primary" Variant="Variant.Text" FullWidth="true">
+                            View All Templates
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        </AuthorizeView>
+
+        <!-- ADMINISTRATOR WIDGETS: For system administrators -->
+        <AuthorizeView Roles="Administrator,SystemAdmin">
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Style="height: 100%;">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.Cloud" Class="mr-2" />
+                                System Status
+                            </MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">Online</MudChip>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                            All Services Operational
+                        </MudText>
+                        <MudList T="string" Dense="true">
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                                <MudText Typo="Typo.body2">Blueprint Service</MudText>
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                                <MudText Typo="Typo.body2">Wallet Service</MudText>
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                                <MudText Typo="Typo.body2">Register Service</MudText>
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                                <MudText Typo="Typo.body2">Peer Service</MudText>
+                            </MudListItem>
+                        </MudList>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/admin/services" Color="Color.Primary" Variant="Variant.Text" FullWidth="true">
+                            View Service Details
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Style="height: 100%;">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />
+                                Users & Tenants
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.h4" Class="mb-1">42</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Active Users</MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.h4" Class="mb-1">5</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Tenants</MudText>
+                            </MudItem>
+                        </MudGrid>
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.body2">
+                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Color="Color.Success" />
+                            3 new users this week
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/admin/users" Color="Color.Primary" Variant="Variant.Text" FullWidth="true">
+                            Manage Users
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Style="height: 100%;">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />
+                                Recent Activity
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                            System Events (Last 24h)
+                        </MudText>
+                        <MudChip T="string" Icon="@Icons.Material.Filled.Info" Color="Color.Info" Size="Size.Small">234 Info</MudChip>
+                        <MudChip T="string" Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Small">12 Warning</MudChip>
+                        <MudChip T="string" Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small">2 Error</MudChip>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/admin/audit" Color="Color.Primary" Variant="Variant.Text" FullWidth="true">
+                            View Audit Logs
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        </AuthorizeView>
+
+        <!-- DEVELOPER WIDGETS: For integrators -->
+        <AuthorizeView Roles="Developer,Administrator">
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Style="height: 100%;">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.Code" Class="mr-2" />
+                                API Usage
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.h3" Class="mb-2">1,247</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            API calls today
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            Avg response time: <strong>245ms</strong>
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            Success rate: <MudChip T="string" Color="Color.Success" Size="Size.Small">99.2%</MudChip>
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/dev/performance" Color="Color.Primary" Variant="Variant.Text" FullWidth="true">
+                            View Performance
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Style="height: 100%;">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" />
+                                Documentation
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Quick Links
+                        </MudText>
+                        <MudList T="string" Dense="true">
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Api">
+                                <MudText Typo="Typo.body2">OpenAPI Specification</MudText>
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Code">
+                                <MudText Typo="Typo.body2">SDK Documentation</MudText>
+                            </MudListItem>
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Lightbulb">
+                                <MudText Typo="Typo.body2">Code Examples</MudText>
+                            </MudListItem>
+                        </MudList>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="/dev/api-docs" Color="Color.Primary" Variant="Variant.Text" FullWidth="true">
+                            View API Docs
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        </AuthorizeView>
+
+        <!-- UNIVERSAL: System Status and Activity for Everyone -->
+        <MudItem xs="12" lg="6">
+            <SystemStatusCard />
         </MudItem>
 
-        <!-- Right Column - System Status, Activity & News -->
-        <MudItem xs="12" md="4">
-            <div class="d-flex flex-column gap-4">
-                <SystemStatusCard />
-                <ActivityLog MaxEvents="5" />
-                <ReleaseNotes />
-            </div>
+        <MudItem xs="12" lg="6">
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">
+                            <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" />
+                            Recent Activity
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <ActivityLog MaxEvents="8" />
+                </MudCardContent>
+            </MudCard>
         </MudItem>
     </MudGrid>
 </MudContainer>
@@ -160,6 +450,6 @@
 @code {
     protected override void OnInitialized()
     {
-        EventLog.LogInfo("Welcome to Sorcha Blueprint Designer", "Application started");
+        EventLog.LogInfo("Dashboard loaded", "Welcome to Sorcha Platform");
     }
 }

@@ -1,0 +1,71 @@
+@page "/dev/playground"
+@attribute [Authorize(Roles = "Developer,Administrator")]
+
+<PageTitle>API Playground - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Class="mr-2" />
+        API Playground
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        Test API endpoints interactively
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Request Configuration</MudText>
+
+                <MudSelect T="string" Label="Service" Variant="Variant.Outlined" Class="mb-3">
+                    <MudSelectItem Value="@("blueprint")">Blueprint Service</MudSelectItem>
+                    <MudSelectItem Value="@("wallet")">Wallet Service</MudSelectItem>
+                    <MudSelectItem Value="@("register")">Register Service</MudSelectItem>
+                    <MudSelectItem Value="@("peer")">Peer Service</MudSelectItem>
+                </MudSelect>
+
+                <MudSelect T="string" Label="Method" Variant="Variant.Outlined" Class="mb-3">
+                    <MudSelectItem Value="@("GET")">GET</MudSelectItem>
+                    <MudSelectItem Value="@("POST")">POST</MudSelectItem>
+                    <MudSelectItem Value="@("PUT")">PUT</MudSelectItem>
+                    <MudSelectItem Value="@("DELETE")">DELETE</MudSelectItem>
+                </MudSelect>
+
+                <MudTextField T="string" Label="Endpoint" Placeholder="/api/blueprints" Variant="Variant.Outlined" Class="mb-3" />
+
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true" StartIcon="@Icons.Material.Filled.Send">
+                    Send Request
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-4" Elevation="2" Style="min-height: 500px;">
+                <MudTabs>
+                    <MudTabPanel Text="Request Body">
+                        <MudTextField T="string" Label="JSON Body" Variant="Variant.Outlined" Lines="15" FullWidth="true" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Headers">
+                        <MudTextField T="string" Label="Custom Headers" Placeholder="Authorization: Bearer token" Variant="Variant.Outlined" Lines="5" FullWidth="true" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Response">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Response will appear here after sending a request
+                        </MudText>
+                    </MudTabPanel>
+                </MudTabs>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Info">
+                <MudText Typo="Typo.body2">
+                    This is a placeholder page. Interactive API testing playground will be implemented in future versions.
+                </MudText>
+            </MudAlert>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+}
