@@ -166,7 +166,16 @@ public class DatabaseInitializer
                 DisplayName = "System Administrator",
                 PasswordHash = passwordHash,
                 ExternalIdpUserId = null, // Local authentication
-                Roles = new[] { UserRole.Administrator },
+                Roles = new[]
+                {
+                    UserRole.Administrator,
+                    UserRole.SystemAdmin,
+                    UserRole.Designer,
+                    UserRole.Developer,
+                    UserRole.User,
+                    UserRole.Consumer,
+                    UserRole.Auditor
+                },
                 Status = IdentityStatus.Active,
                 CreatedAt = DateTimeOffset.UtcNow
             };

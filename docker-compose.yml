@@ -53,9 +53,10 @@ services:
       - sorcha-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sorcha"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 60
+      start_period: 30s
 
   mongodb:
     image: mongo:8
@@ -138,7 +139,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
-      ConnectionStrings__wallet-db: Host=postgres;Database=sorcha;Username=sorcha;Password=sorcha_dev_password
+      ConnectionStrings__wallet-db: Host=postgres;Database=sorcha_wallet;Username=sorcha;Password=sorcha_dev_password;Timeout=30;Command Timeout=30
     depends_on:
       redis:
         condition: service_healthy
@@ -148,6 +149,9 @@ services:
         condition: service_started
     networks:
       - sorcha-network
+    # Note: Chiseled images don't include shell tools for container-level health checks
+    # Health monitoring handled via /health endpoint externally or orchestrator probes
+    # Startup resilience provided by restart policy + postgres health check dependency
 
   register-service:
     build:

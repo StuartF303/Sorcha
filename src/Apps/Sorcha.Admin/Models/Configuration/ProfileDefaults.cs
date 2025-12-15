@@ -2,8 +2,8 @@ namespace Sorcha.Admin.Models.Configuration;
 
 /// <summary>
 /// Factory class for creating default profile configurations.
-/// Provides 6 pre-configured environments: dev, local, docker, aspire, staging, production.
-/// These defaults match the CLI configuration for consistency across tools.
+/// Provides 3 standardized environments: local (Aspire), docker, and production.
+/// Port configuration is consistent across environments for easier development and deployment.
 /// </summary>
 public static class ProfileDefaults
 {
@@ -15,36 +15,25 @@ public static class ProfileDefaults
     {
         return new Dictionary<string, Profile>
         {
-            ["dev"] = new Profile
-            {
-                Name = "dev",
-                TenantServiceUrl = "https://localhost:7080",
-                RegisterServiceUrl = "https://localhost:7081",
-                PeerServiceUrl = "https://localhost:7082",
-                WalletServiceUrl = "https://localhost:7083",
-                BlueprintServiceUrl = "https://localhost:7084",
-                AuthTokenUrl = "https://localhost:7080/api/service-auth/token",
-                DefaultClientId = "sorcha-admin",
-                VerifySsl = false,
-                TimeoutSeconds = 30,
-                CustomSettings = new Dictionary<string, string>()
-            },
-
+            // Local development with Aspire/AppHost
+            // Uses standardized HTTPS ports (7xxx series)
             ["local"] = new Profile
             {
                 Name = "local",
-                TenantServiceUrl = "http://localhost:5080",
-                RegisterServiceUrl = "http://localhost:5081",
-                PeerServiceUrl = "http://localhost:5082",
-                WalletServiceUrl = "http://localhost:5083",
-                BlueprintServiceUrl = "http://localhost:5084",
-                AuthTokenUrl = "http://localhost:5080/api/service-auth/token",
+                TenantServiceUrl = "https://localhost:7110",
+                RegisterServiceUrl = "https://localhost:7290",
+                PeerServiceUrl = "https://localhost:7002",
+                WalletServiceUrl = "https://localhost:7001",
+                BlueprintServiceUrl = "https://localhost:7000",
+                AuthTokenUrl = "https://localhost:7110/api/service-auth/token",
                 DefaultClientId = "sorcha-admin",
                 VerifySsl = false,
                 TimeoutSeconds = 30,
                 CustomSettings = new Dictionary<string, string>()
             },
 
+            // Docker Compose environment
+            // Uses API Gateway for routing (all services behind gateway on port 8080)
             ["docker"] = new Profile
             {
                 Name = "docker",
@@ -60,36 +49,8 @@ public static class ProfileDefaults
                 CustomSettings = new Dictionary<string, string>()
             },
 
-            ["aspire"] = new Profile
-            {
-                Name = "aspire",
-                TenantServiceUrl = "https://localhost:7051/api/tenant",
-                RegisterServiceUrl = "https://localhost:7051/api/register",
-                PeerServiceUrl = "https://localhost:7051/api/peer",
-                WalletServiceUrl = "https://localhost:7051/api/wallet",
-                BlueprintServiceUrl = "https://localhost:7051/api/blueprint",
-                AuthTokenUrl = "https://localhost:7051/api/tenant/api/service-auth/token",
-                DefaultClientId = "sorcha-admin",
-                VerifySsl = false,
-                TimeoutSeconds = 30,
-                CustomSettings = new Dictionary<string, string>()
-            },
-
-            ["staging"] = new Profile
-            {
-                Name = "staging",
-                TenantServiceUrl = "https://n0.sorcha.dev",
-                RegisterServiceUrl = "https://n0.sorcha.dev",
-                PeerServiceUrl = "https://n0.sorcha.dev",
-                WalletServiceUrl = "https://n0.sorcha.dev",
-                BlueprintServiceUrl = "https://n0.sorcha.dev",
-                AuthTokenUrl = "https://n0.sorcha.dev/api/service-auth/token",
-                DefaultClientId = "sorcha-admin",
-                VerifySsl = true,
-                TimeoutSeconds = 30,
-                CustomSettings = new Dictionary<string, string>()
-            },
-
+            // Production environment
+            // Uses standard HTTPS (port 443) with dedicated service domains
             ["production"] = new Profile
             {
                 Name = "production",
@@ -108,7 +69,7 @@ public static class ProfileDefaults
     }
 
     /// <summary>
-    /// Gets the default active profile name ("dev" for development).
+    /// Gets the default active profile name ("local" for local development with Aspire).
     /// </summary>
-    public static string DefaultActiveProfile => "dev";
+    public static string DefaultActiveProfile => "local";
 }

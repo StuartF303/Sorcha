@@ -245,41 +245,74 @@ dotnet run --project src/Apps/Sorcha.AppHost
 ```
 
 This will:
-- Start all services (Gateway, Blueprint Service, Peer Service, Blazor Client)
-- Launch the Aspire dashboard at `http://localhost:15888`
+- Start all services with standardized ports
+- Launch the Aspire dashboard at `http://localhost:18888`
 - Configure service discovery and health checks automatically
-- Start Redis container via Docker
+- Start PostgreSQL, MongoDB, and Redis containers via Docker
 
-Access points:
-- **Aspire Dashboard**: `http://localhost:15888`
+**Access Points:**
+- **Aspire Dashboard**: `http://localhost:18888`
 - **API Gateway**: `https://localhost:7082`
-- **Blueprint Designer**: `https://localhost:7083`
-- **Health Checks**: `https://localhost:7082/api/health`
+- **Admin UI**: `https://localhost:7083`
+- **Tenant Service (Auth)**: `https://localhost:7110`
+- **Blueprint Service**: `https://localhost:7000`
+- **Wallet Service**: `https://localhost:7001`
+- **Register Service**: `https://localhost:7290`
+- **Peer Service**: `https://localhost:7002`
+
+> 📘 **Port Configuration Reference**: See [docs/PORT-CONFIGURATION.md](docs/PORT-CONFIGURATION.md) for complete port assignments, environment-specific URLs, and troubleshooting.
 
 #### Option 2: Running Individual Services
 
-**API Gateway:**
+> ⚠️ **Note**: Individual services use the standardized port scheme. All ports are fixed and documented.
+
+**Tenant Service (Authentication):**
 ```bash
-dotnet run --project src/Services/Sorcha.ApiGateway
-# Available at https://localhost:7082
+dotnet run --project src/Services/Sorcha.Tenant.Service
+# HTTP: http://localhost:5110
+# HTTPS: https://localhost:7110
 ```
 
 **Blueprint Service:**
 ```bash
 dotnet run --project src/Services/Sorcha.Blueprint.Service
-# Available at https://localhost:7080
+# HTTP: http://localhost:5000
+# HTTPS: https://localhost:7000
+```
+
+**Wallet Service:**
+```bash
+dotnet run --project src/Services/Sorcha.Wallet.Service
+# HTTP: http://localhost:5001
+# HTTPS: https://localhost:7001
+```
+
+**Register Service:**
+```bash
+dotnet run --project src/Services/Sorcha.Register.Service
+# HTTP: http://localhost:5290
+# HTTPS: https://localhost:7290
 ```
 
 **Peer Service:**
 ```bash
 dotnet run --project src/Services/Sorcha.Peer.Service
-# Available at https://localhost:7081
+# HTTP: http://localhost:5002
+# HTTPS: https://localhost:7002
+```
+
+**API Gateway:**
+```bash
+dotnet run --project src/Services/Sorcha.ApiGateway
+# HTTP: http://localhost:8080
+# HTTPS: https://localhost:7082
 ```
 
 **Admin UI (Blazor WebAssembly):**
 ```bash
-dotnet run --project src/Apps/UI/Sorcha.Admin
-# Available at https://localhost:7083
+dotnet run --project src/Apps/Sorcha.Admin
+# HTTP: http://localhost:8081
+# HTTPS: https://localhost:7083
 ```
 
 ### Development Workflow

@@ -75,12 +75,37 @@ public enum UserRole
     Administrator,
 
     /// <summary>
+    /// System administrator with elevated privileges across all organizations.
+    /// </summary>
+    SystemAdmin,
+
+    /// <summary>
+    /// Blueprint designer who can create and manage workflow definitions.
+    /// </summary>
+    Designer,
+
+    /// <summary>
+    /// Developer with access to API documentation and developer tools.
+    /// </summary>
+    Developer,
+
+    /// <summary>
+    /// Standard user who participates in workflows.
+    /// </summary>
+    User,
+
+    /// <summary>
+    /// Consumer of workflows, similar to User but with workflow execution focus.
+    /// </summary>
+    Consumer,
+
+    /// <summary>
     /// Read-only access to audit logs and organization activity.
     /// </summary>
     Auditor,
 
     /// <summary>
-    /// Standard user with permissions defined by organization policy.
+    /// Standard member with permissions defined by organization policy.
     /// </summary>
     Member
 }

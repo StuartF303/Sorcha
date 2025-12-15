@@ -30,36 +30,46 @@ var redis = builder.AddRedis("redis")
 var tenantService = builder.AddProject<Projects.Sorcha_Tenant_Service>("tenant-service")
     .WithReference(tenantDb)
     .WithReference(redis)
+    .WithHttpEndpoint(port: 5110, name: "http")
+    .WithHttpsEndpoint(port: 7110, name: "https")
     .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey)
-    .WithEnvironment("JwtSettings__Issuer", "https://localhost:7080")
+    .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
     .WithEnvironment("JwtSettings__Audience__0", "https://api.sorcha.io");
 
 // Add Blueprint Service with Redis reference (internal only)
 var blueprintService = builder.AddProject<Projects.Sorcha_Blueprint_Service>("blueprint-service")
     .WithReference(redis)
+    .WithHttpEndpoint(port: 5000, name: "http")
+    .WithHttpsEndpoint(port: 7000, name: "https")
     .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey)
-    .WithEnvironment("JwtSettings__Issuer", "https://localhost:7080")
+    .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
     .WithEnvironment("JwtSettings__Audience", "https://api.sorcha.io");
 
 // Add Wallet Service with database and Redis reference (internal only)
 var walletService = builder.AddProject<Projects.Sorcha_Wallet_Service>("wallet-service")
     .WithReference(walletDb)
     .WithReference(redis)
+    .WithHttpEndpoint(port: 5001, name: "http")
+    .WithHttpsEndpoint(port: 7001, name: "https")
     .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey)
-    .WithEnvironment("JwtSettings__Issuer", "https://localhost:7080")
+    .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
     .WithEnvironment("JwtSettings__Audience", "https://api.sorcha.io");
 
 // Add Register Service with MongoDB and Redis reference (internal only)
 var registerService = builder.AddProject<Projects.Sorcha_Register_Service>("register-service")
     .WithReference(registerDb)
     .WithReference(redis)
+    .WithHttpEndpoint(port: 5290, name: "http")
+    .WithHttpsEndpoint(port: 7290, name: "https")
     .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey)
-    .WithEnvironment("JwtSettings__Issuer", "https://localhost:7080")
+    .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
     .WithEnvironment("JwtSettings__Audience", "https://api.sorcha.io");
 
 // Add Peer Service with Redis reference (internal only)
 var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service")
-    .WithReference(redis);
+    .WithReference(redis)
+    .WithHttpEndpoint(port: 5002, name: "http")
+    .WithHttpsEndpoint(port: 7002, name: "https");
 
 // Add API Gateway as the single external entry point
 var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
@@ -69,11 +79,15 @@ var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
     .WithReference(registerService)
     .WithReference(peerService)
     .WithReference(redis)
+    .WithHttpEndpoint(port: 8080, name: "http")
+    .WithHttpsEndpoint(port: 7082, name: "https")
     .WithExternalHttpEndpoints(); // Only the gateway is exposed externally
 
 // Add Blazor WebAssembly client
 // Note: Blazor WASM is a static client app
 var blazorClient = builder.AddProject<Projects.Sorcha_Admin>("admin-ui")
+    .WithHttpEndpoint(port: 8081, name: "http")
+    .WithHttpsEndpoint(port: 7083, name: "https")
     .WithExternalHttpEndpoints(); // Expose client for browser access
 
 builder.Build().Run();

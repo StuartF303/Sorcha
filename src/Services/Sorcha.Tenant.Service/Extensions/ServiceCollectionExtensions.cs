@@ -73,9 +73,11 @@ public static class ServiceCollectionExtensions
             {
                 options.UseNpgsql(connectionString, npgsqlOptions =>
                 {
+                    // Aggressive retry policy for startup resilience
+                    // Max retry time: ~5 minutes (10 retries with exponential backoff up to 30s)
                     npgsqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: 3,
-                        maxRetryDelay: TimeSpan.FromSeconds(5),
+                        maxRetryCount: 10,
+                        maxRetryDelay: TimeSpan.FromSeconds(30),
                         errorCodesToAdd: null);
                 });
             }

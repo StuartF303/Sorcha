@@ -249,7 +249,10 @@
       "Bash(az acr task-run list:*)",
       "Bash(for file in \"C:\\projects\\Sorcha\\src\\Apps\\Sorcha.Admin\\Pages\\MyWorkflows.razor\" \"C:\\projects\\Sorcha\\src\\Apps\\Sorcha.Admin\\Pages\\MyActions.razor\" \"C:\\projects\\Sorcha\\src\\Apps\\Sorcha.Admin\\Pages\\MyTransactions.razor\" \"C:\\projects\\Sorcha\\src\\Apps\\Sorcha.Admin\\Pages\\MyWallet.razor\" \"C:\\projects\\Sorcha\\src\\Apps\\Sorcha.Admin\\Pages\\Blueprints.razor\")",
       "Bash(do sed -i '1i @using Microsoft.AspNetCore.Components.Authorization' \"$file\")",
-      "Bash(for file in C:projectsSorchasrcAppsSorcha.AdminPagesAdmin*.razor C:projectsSorchasrcAppsSorcha.AdminPagesDev*.razor C:projectsSorchasrcAppsSorcha.AdminPagesTemplates.razor C:projectsSorchasrcAppsSorcha.AdminPagesIndex.razor)"
+      "Bash(for file in C:projectsSorchasrcAppsSorcha.AdminPagesAdmin*.razor C:projectsSorchasrcAppsSorcha.AdminPagesDev*.razor C:projectsSorchasrcAppsSorcha.AdminPagesTemplates.razor C:projectsSorchasrcAppsSorcha.AdminPagesIndex.razor)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(Select-String -Pattern \"(Started|Listening|Migration|Error|Exception|BUILD FAILED)\")"
     ],
     "deny": [],
     "ask": []

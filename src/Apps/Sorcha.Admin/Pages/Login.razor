@@ -40,10 +40,16 @@
 </AuthorizeView>
 
 @code {
-    protected override async Task OnInitializedAsync()
+    private bool _dialogShown = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Auto-show login dialog on page load
-        await ShowLoginDialog();
+        if (firstRender && !_dialogShown)
+        {
+            _dialogShown = true;
+            // Auto-show login dialog on page load (after render to avoid focus trap errors)
+            await ShowLoginDialog();
+        }
     }
 
     private async Task ShowLoginDialog()
