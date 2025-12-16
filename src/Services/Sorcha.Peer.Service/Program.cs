@@ -24,21 +24,49 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Configure Kestrel for gRPC with HTTP/1.1 fallback for health checks
-// Get port from environment variable (Docker uses 8080, local uses 5000)
-var httpPort = int.TryParse(Environment.GetEnvironmentVariable("ASPNETCORE_HTTP_PORTS"), out var envPort) ? envPort : 5000;
+// Listen on port 8080/8052 for HTTP/health checks (Aspire/Docker standard)
+// Listen on port 5000/5003 for gRPC peer-to-peer communication
+var healthCheckPort = int.TryParse(Environment.GetEnvironmentVariable("ASPNETCORE_HTTP_PORTS"), out var envPort) ? envPort : 8080;
+var grpcPort = builder.Configuration.GetValue<int>("PeerService:Port", 5000);
+var enableTls = builder.Configuration.GetValue<bool>("PeerService:EnableTls", false);
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    // Support both HTTP/1.1 (for health checks) and HTTP/2 (for gRPC)
-    options.ListenAnyIP(httpPort, listenOptions =>
+    // Disable minimum protocol version to allow HTTP/2 without TLS
+    options.ConfigureEndpointDefaults(listenOptions =>
     {
         listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
     });
+
+    // Port 8080/8052: HTTP/1.1 + HTTP/2 for health checks and REST API
+    options.ListenAnyIP(healthCheckPort, listenOptions =>
+    {
+        listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+    });
+
+    // Port 5000/5003: HTTP/2 for gRPC peer communication (only if different from health port)
+    if (grpcPort != healthCheckPort)
+    {
+        options.ListenAnyIP(grpcPort, listenOptions =>
+        {
+            // Enable HTTP/2 without TLS for development (cleartext HTTP/2)
+            // This allows gRPC to work without certificates
+            listenOptions.Protocols = HttpProtocols.Http2;
+        });
+    }
 });
 
 // Add services
-builder.Services.AddGrpc();
+builder.Services.AddGrpc(options =>
+{
+    // Allow gRPC to work without TLS in development
+    // This is necessary for cleartext HTTP/2
+    options.EnableDetailedErrors = true;
+});
 builder.Services.AddGrpcReflection();
+
+// Configure AppContext to allow HTTP/2 without TLS
+AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
 // Add OpenAPI for REST endpoints
 builder.Services.AddOpenApi();
@@ -154,10 +182,15 @@ if (app.Environment.IsDevelopment())
 }
 
 // Root endpoint
-app.MapGet("/", () => "Sorcha Peer Service - gRPC endpoints available on port 5000")
+app.MapGet("/", (IConfiguration config) =>
+{
+    var httpPort = int.TryParse(Environment.GetEnvironmentVariable("ASPNETCORE_HTTP_PORTS"), out var envHttpPort) ? envHttpPort : 8080;
+    var grpcPort = config.GetValue<int>("PeerService:Port", 5000);
+    return $"Sorcha Peer Service - HTTP API: port {httpPort}, gRPC: port {grpcPort}";
+})
     .WithName("GetServiceInfo")
     .WithSummary("Get service information")
-    .WithDescription("Returns basic information about the Peer Service and its gRPC endpoints")
+    .WithDescription("Returns basic information about the Peer Service and its available ports")
     .WithTags("Info")
     .WithOpenApi();
 

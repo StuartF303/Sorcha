@@ -213,7 +213,7 @@ public class ConfigurationServiceTests : IDisposable
         var profiles = await _service.ListProfilesAsync();
 
         // Assert
-        profiles.Should().HaveCountGreaterOrEqualTo(3);
+        profiles.Should().HaveCountGreaterThanOrEqualTo(3);
         profiles.Should().Contain(p => p.Name == "dev");
         profiles.Should().Contain(p => p.Name == "staging");
         profiles.Should().Contain(p => p.Name == "production");

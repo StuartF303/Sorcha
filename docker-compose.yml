@@ -216,7 +216,9 @@ services:
     container_name: sorcha-peer-service
     restart: unless-stopped
     ports:
-      - "5002:8080"
+      - "5002:8080"        # HTTP health checks and REST API
+      - "5003:5000/udp"    # STUN UDP port (host 5003 -> container 5000)
+      - "5003:5000/tcp"    # gRPC TCP port (host 5003 -> container 5000)
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: peer-service
@@ -224,13 +226,31 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__Redis: redis:6379
+      MongoDB__ConnectionString: mongodb://sorcha:sorcha_dev_password@mongodb:27017
+      MongoDB__DatabaseName: sorcha_system_register
+      # Peer Service configuration
+      PeerService__Port: "5000"
+      PeerService__EnableTls: "false"
+      PeerService__EnablePeerDiscovery: "true"
+      PeerService__CentralNode__IsCentralNode: "false"
+      PeerService__CentralNode__ValidateHostname: "false"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     depends_on:
       redis:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
       aspire-dashboard:
         condition: service_started
     networks:
       - sorcha-network
+    # Enable external network access for STUN servers and central nodes
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.ip_forward=1
 
   api-gateway:
     build:

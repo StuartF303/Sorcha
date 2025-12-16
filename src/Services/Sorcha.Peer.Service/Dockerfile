@@ -34,7 +34,7 @@ WORKDIR /app
 
 # Expose ports
 EXPOSE 8080
-EXPOSE 8081
+EXPOSE 5000
 
 # Copy published application
 COPY --from=publish /app/publish .
@@ -42,6 +42,7 @@ COPY --from=publish /app/publish .
 # Set environment variables
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_HTTP_PORTS=8080
+ENV PeerService__Port=5000
 
 # Run as non-root user (chiseled images are minimal and secure)
 USER $APP_UID

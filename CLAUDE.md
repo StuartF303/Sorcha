@@ -635,3 +635,4 @@ Remember: Quality over speed. Follow the constitution, update documentation, wri
 - do not re introduce this problem: JsonSchema.Net's Evaluate() method expects JsonElement, not JsonNode
   - Fix: Convert JsonNode to JsonElement before validation
 - the main services should communicate internally with each other using gRPC
+- Aspire launches services on the ports described in each projects Properties/launchsettings.json
