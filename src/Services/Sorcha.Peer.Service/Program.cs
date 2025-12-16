@@ -328,3 +328,9 @@ app.MapGet("/api/peers/connected", (PeerListManager peerListManager, HttpContext
     .AllowAnonymous();
 
 app.Run();
+
+// Make the implicit Program class accessible to integration tests
+namespace Sorcha.Peer.Service
+{
+    public partial class Program { }
+}

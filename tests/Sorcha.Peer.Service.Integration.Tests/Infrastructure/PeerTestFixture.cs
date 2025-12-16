@@ -3,6 +3,7 @@
 
 using Grpc.Net.Client;
 using Microsoft.Extensions.DependencyInjection;
+using Sorcha.Peer.Service.Protos;
 
 namespace Sorcha.Peer.Service.Integration.Tests.Infrastructure;
 
@@ -45,7 +46,7 @@ public class PeerTestFixture : IAsyncLifetime
         });
         _grpcChannels.Add(grpcChannel);
 
-        var grpcClient = new PeerService.PeerServiceClient(grpcChannel);
+        var grpcClient = new PeerDiscovery.PeerDiscoveryClient(grpcChannel);
 
         var instance = new PeerInstance
         {
@@ -94,7 +95,7 @@ public class PeerInstance
     public required PeerServiceFactory Factory { get; init; }
     public required HttpClient HttpClient { get; init; }
     public required GrpcChannel GrpcChannel { get; init; }
-    public required PeerService.PeerServiceClient GrpcClient { get; init; }
+    public required PeerDiscovery.PeerDiscoveryClient GrpcClient { get; init; }
     public required string BaseAddress { get; init; }
 
     public T GetService<T>() where T : notnull

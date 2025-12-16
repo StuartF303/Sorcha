@@ -174,6 +174,7 @@ public class BlueprintActionEndToEndTests : IAsyncLifetime
         // This test validates the execution helper endpoints work correctly
         var blueprint = BlueprintBuilder.Create()
             .WithTitle("Execution Test Blueprint")
+            .WithDescription("Blueprint for testing execution helper functionality")
             .AddParticipant("sender", p => p.Named("Sender"))
             .AddParticipant("receiver", p => p.Named("Receiver"))
             .AddAction(0, a => a
@@ -277,6 +278,7 @@ public class BlueprintActionEndToEndTests : IAsyncLifetime
         // Arrange & Act - Create blueprint with complex calculations
         var blueprint = BlueprintBuilder.Create()
             .WithTitle("Invoice Calculation Workflow")
+            .WithDescription("Workflow demonstrating automatic invoice calculations")
             .AddParticipant("vendor", p => p.Named("Vendor"))
             .AddParticipant("customer", p => p.Named("Customer"))
             .AddAction(0, a => a
@@ -306,6 +308,7 @@ public class BlueprintActionEndToEndTests : IAsyncLifetime
         // Arrange & Act
         var blueprint = BlueprintBuilder.Create()
             .WithTitle("Dynamic Routing Workflow")
+            .WithDescription("Workflow with conditional routing based on risk assessment")
             .AddParticipant("applicant", p => p.Named("Applicant"))
             .AddParticipant("juniorReviewer", p => p.Named("Junior Reviewer"))
             .AddParticipant("seniorReviewer", p => p.Named("Senior Reviewer"))
@@ -341,6 +344,7 @@ public class BlueprintActionEndToEndTests : IAsyncLifetime
         // Test data validation scenarios
         var blueprint = BlueprintBuilder.Create()
             .WithTitle("Validation Test")
+            .WithDescription("Blueprint for testing data validation scenarios")
             .AddParticipant("sender", p => p.Named("Sender"))
             .AddAction(0, a => a
                 .WithTitle("Test Action")

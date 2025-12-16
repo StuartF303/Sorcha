@@ -96,6 +96,80 @@ public class CalculationBuilder
         return this;
     }
 
+    // Convenience methods for common operations with automatic expression setting
+
+    /// <summary>
+    /// Multiply two variables: var1 * var2
+    /// </summary>
+    public CalculationBuilder Multiply(string var1, string var2)
+    {
+        _expression = Multiply(Variable(var1), Variable(var2));
+        return this;
+    }
+
+    /// <summary>
+    /// Multiply variable by constant: var * constant
+    /// </summary>
+    public CalculationBuilder Multiply(string variable, double constant)
+    {
+        _expression = Multiply(Variable(variable), Constant(constant));
+        return this;
+    }
+
+    /// <summary>
+    /// Add two variables: var1 + var2
+    /// </summary>
+    public CalculationBuilder Add(string var1, string var2)
+    {
+        _expression = Add(Variable(var1), Variable(var2));
+        return this;
+    }
+
+    /// <summary>
+    /// Add variable and constant: var + constant
+    /// </summary>
+    public CalculationBuilder Add(string variable, double constant)
+    {
+        _expression = Add(Variable(variable), Constant(constant));
+        return this;
+    }
+
+    /// <summary>
+    /// Subtract two variables: var1 - var2
+    /// </summary>
+    public CalculationBuilder Subtract(string var1, string var2)
+    {
+        _expression = Subtract(Variable(var1), Variable(var2));
+        return this;
+    }
+
+    /// <summary>
+    /// Subtract constant from variable: var - constant
+    /// </summary>
+    public CalculationBuilder Subtract(string variable, double constant)
+    {
+        _expression = Subtract(Variable(variable), Constant(constant));
+        return this;
+    }
+
+    /// <summary>
+    /// Divide two variables: var1 / var2
+    /// </summary>
+    public CalculationBuilder Divide(string var1, string var2)
+    {
+        _expression = Divide(Variable(var1), Variable(var2));
+        return this;
+    }
+
+    /// <summary>
+    /// Divide variable by constant: var / constant
+    /// </summary>
+    public CalculationBuilder Divide(string variable, double constant)
+    {
+        _expression = Divide(Variable(variable), Constant(constant));
+        return this;
+    }
+
     internal JsonNode Build()
     {
         if (_expression == null)

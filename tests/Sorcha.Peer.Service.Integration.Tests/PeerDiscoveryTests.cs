@@ -3,7 +3,7 @@
 
 using FluentAssertions;
 using Sorcha.Peer.Service.Integration.Tests.Infrastructure;
-using Sorcha.Peer.Service.Models;
+using Sorcha.Peer.Service.Core;
 using System.Net;
 using System.Net.Http.Json;
 

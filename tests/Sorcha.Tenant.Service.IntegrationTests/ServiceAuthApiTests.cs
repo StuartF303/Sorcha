@@ -30,15 +30,15 @@ public class ServiceAuthApiTests : IClassFixture<TenantServiceWebApplicationFact
     public async Task GetServiceToken_ShouldReturnUnauthorized_WithInvalidCredentials()
     {
         // Arrange
-        var request = new ClientCredentialsRequest
+        var formData = new Dictionary<string, string>
         {
-            ClientId = "invalid-client",
-            ClientSecret = "invalid-secret",
-            GrantType = "client_credentials"
+            ["client_id"] = "invalid-client",
+            ["client_secret"] = "invalid-secret",
+            ["grant_type"] = "client_credentials"
         };
 
         // Act
-        var response = await _unauthClient.PostAsJsonAsync("/api/service-auth/token", request);
+        var response = await _unauthClient.PostAsync("/api/service-auth/token", new FormUrlEncodedContent(formData));
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -48,15 +48,15 @@ public class ServiceAuthApiTests : IClassFixture<TenantServiceWebApplicationFact
     public async Task GetServiceToken_ShouldReturnBadRequest_WithInvalidGrantType()
     {
         // Arrange
-        var request = new ClientCredentialsRequest
+        var formData = new Dictionary<string, string>
         {
-            ClientId = "some-client",
-            ClientSecret = "some-secret",
-            GrantType = "password" // Invalid grant type
+            ["client_id"] = "some-client",
+            ["client_secret"] = "some-secret",
+            ["grant_type"] = "password" // Invalid grant type
         };
 
         // Act
-        var response = await _unauthClient.PostAsJsonAsync("/api/service-auth/token", request);
+        var response = await _unauthClient.PostAsync("/api/service-auth/token", new FormUrlEncodedContent(formData));
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -66,15 +66,15 @@ public class ServiceAuthApiTests : IClassFixture<TenantServiceWebApplicationFact
     public async Task GetServiceToken_ShouldReturnBadRequest_WithMissingClientId()
     {
         // Arrange
-        var request = new ClientCredentialsRequest
+        var formData = new Dictionary<string, string>
         {
-            ClientId = "",
-            ClientSecret = "some-secret",
-            GrantType = "client_credentials"
+            ["client_id"] = "",
+            ["client_secret"] = "some-secret",
+            ["grant_type"] = "client_credentials"
         };
 
         // Act
-        var response = await _unauthClient.PostAsJsonAsync("/api/service-auth/token", request);
+        var response = await _unauthClient.PostAsync("/api/service-auth/token", new FormUrlEncodedContent(formData));
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -84,15 +84,15 @@ public class ServiceAuthApiTests : IClassFixture<TenantServiceWebApplicationFact
     public async Task GetServiceToken_ShouldReturnBadRequest_WithMissingClientSecret()
     {
         // Arrange
-        var request = new ClientCredentialsRequest
+        var formData = new Dictionary<string, string>
         {
-            ClientId = "some-client",
-            ClientSecret = "",
-            GrantType = "client_credentials"
+            ["client_id"] = "some-client",
+            ["client_secret"] = "",
+            ["grant_type"] = "client_credentials"
         };
 
         // Act
-        var response = await _unauthClient.PostAsJsonAsync("/api/service-auth/token", request);
+        var response = await _unauthClient.PostAsync("/api/service-auth/token", new FormUrlEncodedContent(formData));
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);

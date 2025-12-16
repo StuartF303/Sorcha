@@ -82,8 +82,8 @@ public static class OrganizationEndpoints
             .WithSummary("Validate subdomain availability")
             .WithDescription("Checks if a subdomain is valid and available.")
             .AllowAnonymous()
-            .Produces<SubdomainValidationResponse>()
-            .ProducesValidationProblem();
+            .Produces<SubdomainValidationResponse>(StatusCodes.Status200OK)
+            .Produces<SubdomainValidationResponse>(StatusCodes.Status400BadRequest);
 
         // User management within organization
         group.MapPost("/{organizationId:guid}/users", AddUserToOrganization)
@@ -234,18 +234,23 @@ public static class OrganizationEndpoints
             : TypedResults.NotFound();
     }
 
-    private static async Task<Ok<SubdomainValidationResponse>> ValidateSubdomain(
+    private static async Task<Results<Ok<SubdomainValidationResponse>, BadRequest<SubdomainValidationResponse>>> ValidateSubdomain(
         string subdomain,
         IOrganizationService organizationService,
         CancellationToken cancellationToken)
     {
         var (isValid, errorMessage) = await organizationService.ValidateSubdomainAsync(subdomain, cancellationToken);
-        return TypedResults.Ok(new SubdomainValidationResponse
+
+        var response = new SubdomainValidationResponse
         {
             Subdomain = subdomain,
             IsValid = isValid,
             ErrorMessage = errorMessage
-        });
+        };
+
+        return isValid
+            ? TypedResults.Ok(response)
+            : TypedResults.BadRequest(response);
     }
 
     private static async Task<Results<Created<UserResponse>, NotFound, ValidationProblem>> AddUserToOrganization(

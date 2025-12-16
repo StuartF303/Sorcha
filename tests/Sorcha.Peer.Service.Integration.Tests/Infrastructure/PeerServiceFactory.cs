@@ -13,7 +13,7 @@ namespace Sorcha.Peer.Service.Integration.Tests.Infrastructure;
 /// <summary>
 /// Factory for creating test instances of the Peer Service
 /// </summary>
-public class PeerServiceFactory : WebApplicationFactory<Program>
+public class PeerServiceFactory : WebApplicationFactory<Sorcha.Peer.Service.Program>
 {
     public string PeerId { get; set; } = Guid.NewGuid().ToString();
     public int Port { get; set; }
