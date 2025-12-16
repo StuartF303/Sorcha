@@ -223,6 +223,12 @@ jobs:
 
     - name: Restore and Build TransactionHandler
       run: |
+        # Build dependencies first
+        dotnet restore src/Common/Sorcha.Cryptography/Sorcha.Cryptography.csproj
+        dotnet build src/Common/Sorcha.Cryptography/Sorcha.Cryptography.csproj --configuration Release --no-restore
+        dotnet restore src/Common/Sorcha.Blueprint.Models/Sorcha.Blueprint.Models.csproj
+        dotnet build src/Common/Sorcha.Blueprint.Models/Sorcha.Blueprint.Models.csproj --configuration Release --no-restore
+        # Now build TransactionHandler with its dependencies available
         dotnet restore src/Common/Sorcha.TransactionHandler/Sorcha.TransactionHandler.csproj
         dotnet build src/Common/Sorcha.TransactionHandler/Sorcha.TransactionHandler.csproj --configuration Release --no-restore
 
