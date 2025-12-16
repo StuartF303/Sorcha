@@ -70,8 +70,7 @@ app.MapGet("/api/health", async (HealthAggregationService healthService) =>
 })
 .WithName("AggregatedHealth")
 .WithSummary("Get aggregated health status from all services")
-.WithTags("Health")
-.WithOpenApi();
+.WithTags("Health");
 
 // ===========================
 // System Statistics Endpoint
@@ -84,8 +83,7 @@ app.MapGet("/api/stats", async (HealthAggregationService healthService) =>
 })
 .WithName("SystemStatistics")
 .WithSummary("Get system-wide statistics from all services")
-.WithTags("System")
-.WithOpenApi();
+.WithTags("System");
 
 // ===========================
 // Dashboard Statistics Endpoint
@@ -98,8 +96,7 @@ app.MapGet("/api/dashboard", async (DashboardStatisticsService dashboardService)
 })
 .WithName("DashboardStatistics")
 .WithSummary("Get dashboard statistics from all backend services (blueprints, wallets, registers, etc.)")
-.WithTags("Dashboard")
-.WithOpenApi();
+.WithTags("Dashboard");
 
 // ===========================
 // API Documentation Index
@@ -138,8 +135,7 @@ app.MapGet("/api/docs", (IConfiguration configuration) =>
 })
 .WithName("ApiDocsIndex")
 .WithSummary("Get an index of all API documentation endpoints")
-.WithTags("Documentation")
-.WithOpenApi();
+.WithTags("Documentation");
 
 // ===========================
 // Client Download Endpoints
@@ -152,8 +148,7 @@ app.MapGet("/api/client/info", (ClientDownloadService clientService) =>
 })
 .WithName("ClientInfo")
 .WithSummary("Get information about the Blazor client application")
-.WithTags("Client")
-.WithOpenApi();
+.WithTags("Client");
 
 app.MapGet("/api/client/download", async (ClientDownloadService clientService, IWebHostEnvironment env) =>
 {
@@ -180,8 +175,7 @@ app.MapGet("/api/client/download", async (ClientDownloadService clientService, I
 })
 .WithName("DownloadClient")
 .WithSummary("Download the Blazor client application source code as a ZIP package")
-.WithTags("Client")
-.WithOpenApi();
+.WithTags("Client");
 
 app.MapGet("/api/client/instructions", (ClientDownloadService clientService) =>
 {
@@ -190,8 +184,7 @@ app.MapGet("/api/client/instructions", (ClientDownloadService clientService) =>
 })
 .WithName("InstallationInstructions")
 .WithSummary("Get installation instructions for the client application")
-.WithTags("Client")
-.WithOpenApi();
+.WithTags("Client");
 
 // ===========================
 // Landing Page
