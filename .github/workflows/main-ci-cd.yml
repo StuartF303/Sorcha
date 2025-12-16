@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
     inputs:
       force_publish_all:
-        description: 'Force publish all artifacts'
+        description: 'Force publish all artifacts (defaults to true for manual runs)'
         required: false
         type: boolean
-        default: false
+        default: true
 
 env:
   DOTNET_VERSION_10: '10.0.x'
@@ -40,12 +40,22 @@ jobs:
     - name: Detect changed files
       id: filter
       run: |
-        # Check if force publish all is set
-        FORCE_ALL="${{ github.event.inputs.force_publish_all || 'false' }}"
+        # Auto-enable force publish for manual workflow runs, allow override
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          FORCE_ALL="${{ github.event.inputs.force_publish_all }}"
+          # Default to true for manual runs if not explicitly set
+          if [ -z "$FORCE_ALL" ] || [ "$FORCE_ALL" == "" ]; then
+            FORCE_ALL="true"
+            echo "ℹ️  Manual workflow run detected - defaulting to force publish all"
+          fi
+        else
+          FORCE_ALL="${{ github.event.inputs.force_publish_all || 'false' }}"
+        fi
+
         echo "force-all=$FORCE_ALL" >> $GITHUB_OUTPUT
 
         if [ "$FORCE_ALL" == "true" ]; then
-          echo "Force publish all enabled - marking all components as changed"
+          echo "✅ Force publish all enabled - marking all components as changed"
           echo "cryptography=true" >> $GITHUB_OUTPUT
           echo "transaction-handler=true" >> $GITHUB_OUTPUT
           echo "blueprint-models=true" >> $GITHUB_OUTPUT
