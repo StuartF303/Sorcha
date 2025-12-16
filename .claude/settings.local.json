@@ -253,7 +253,11 @@
       "Bash(timeout:*)",
       "Bash(ping:*)",
       "Bash(Select-String -Pattern \"(Started|Listening|Migration|Error|Exception|BUILD FAILED)\")",
-      "Bash(dir /s /b \"C:\\Projects\\Sorcha\\src\\Services\\Sorcha.ApiGateway\")"
+      "Bash(dir /s /b \"C:\\Projects\\Sorcha\\src\\Services\\Sorcha.ApiGateway\")",
+      "Bash(bash infra/update-services.sh:*)",
+      "Bash(az acr list:*)",
+      "Bash(export AZURE_RESOURCE_GROUP=\"sorcha-uksouth-rg\")",
+      "Bash(export CONTAINER_REGISTRY=\"sorchauksouth\")"
     ],
     "deny": [],
     "ask": []
