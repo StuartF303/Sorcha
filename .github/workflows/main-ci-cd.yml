@@ -56,11 +56,20 @@ jobs:
           exit 0
         fi
 
-        # Get changed files since last successful run or from previous commit
+        # Ensure we have full history and prune any stale refs
+        git fetch --prune --unshallow 2>/dev/null || git fetch --prune || true
+
+        # Get changed files - use safer approach with fallback
         if [ "${{ github.event_name }}" == "push" ]; then
-          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          # Check if the before commit exists
+          if git cat-file -e ${{ github.event.before }} 2>/dev/null; then
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          else
+            echo "Warning: Commit ${{ github.event.before }} not found, comparing with HEAD~1"
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only --diff-filter=ACMRT HEAD)
+          fi
         else
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only --diff-filter=ACMRT HEAD)
         fi
 
         echo "Changed files:"
@@ -241,6 +250,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Azure Login
       uses: azure/login@v2
@@ -256,11 +267,20 @@ jobs:
         if [ "${{ needs.detect-changes.outputs.force-all }}" == "true" ]; then
           echo "build-all=true" >> $GITHUB_OUTPUT
         else
-          # Get changed files
+          # Ensure we have full history and prune any stale refs
+          git fetch --prune --unshallow 2>/dev/null || git fetch --prune || true
+
+          # Get changed files - use safer approach with fallback
           if [ "${{ github.event_name }}" == "push" ]; then
-            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+            # Check if the before commit exists
+            if git cat-file -e ${{ github.event.before }} 2>/dev/null; then
+              CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+            else
+              echo "Warning: Commit ${{ github.event.before }} not found, comparing with HEAD~1"
+              CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only --diff-filter=ACMRT HEAD)
+            fi
           else
-            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only --diff-filter=ACMRT HEAD)
           fi
 
           echo "build-blueprint=$(echo "$CHANGED_FILES" | grep -q "src/Services/Sorcha.Blueprint.Service\|src/Common/Sorcha.Blueprint.Models" && echo "true" || echo "false")" >> $GITHUB_OUTPUT
@@ -339,6 +359,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Azure Login
       uses: azure/login@v2
