@@ -81,7 +81,7 @@ jobs:
               - 'src/Common/Sorcha.ServiceDefaults/**'
 
             blazor-client:
-              - 'src/Apps/UI/Sorcha.Blueprint.Designer.Client/**'
+              - 'src/Apps/Sorcha.Admin/**'
 
   # Build and push Docker images
   build-push-images:
@@ -124,8 +124,8 @@ jobs:
 
           - name: blazor-client
             filter: blazor-client
-            dockerfile: src/Apps/UI/Sorcha.Blueprint.Designer.Client/Dockerfile
-            image: sorchadev/blueprint-designer-client
+            dockerfile: src/Apps/Sorcha.Admin/Dockerfile
+            image: sorchadev/sorcha-admin
 
     steps:
       - name: Checkout code
