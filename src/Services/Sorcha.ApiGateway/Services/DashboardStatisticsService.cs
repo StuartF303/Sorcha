@@ -39,7 +39,8 @@ public class DashboardStatisticsService
             GetBlueprintStatisticsAsync(stats, cancellationToken),
             GetWalletStatisticsAsync(stats, cancellationToken),
             GetRegisterStatisticsAsync(stats, cancellationToken),
-            GetTenantStatisticsAsync(stats, cancellationToken)
+            GetTenantStatisticsAsync(stats, cancellationToken),
+            GetPeerStatisticsAsync(stats, cancellationToken)
         );
 
         return stats;
@@ -191,6 +192,33 @@ public class DashboardStatisticsService
             _logger.LogWarning(ex, "Failed to get tenant statistics");
         }
     }
+
+    private async Task GetPeerStatisticsAsync(DashboardStatistics stats, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var baseUrl = _configuration["Services:Peer:Url"] ?? "http://peer-service:8080";
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(5);
+
+            // Query connected peers endpoint
+            var response = await client.GetAsync($"{baseUrl}/api/peers/connected", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var doc = JsonDocument.Parse(content);
+
+                if (doc.RootElement.TryGetProperty("ConnectedPeerCount", out var countElement))
+                {
+                    stats.ConnectedPeers = countElement.GetInt32();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get peer statistics");
+        }
+    }
 }
 
 /// <summary>
@@ -206,4 +234,5 @@ public class DashboardStatistics
     public int TotalRegisters { get; set; }
     public int TotalTransactions { get; set; }
     public int TotalTenants { get; set; }
+    public int ConnectedPeers { get; set; }
 }

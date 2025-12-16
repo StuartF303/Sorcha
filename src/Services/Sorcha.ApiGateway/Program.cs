@@ -415,6 +415,13 @@ app.MapGet("/", async (HealthAggregationService healthService, DashboardStatisti
                     <h3>🏢 Tenants</h3>
                     <div class="value">{{dashboard.TotalTenants}}</div>
                 </div>
+                <div class="stat-card">
+                    <h3>🔗 Connected Peers</h3>
+                    <div class="value">{{dashboard.ConnectedPeers}}</div>
+                    <div style="font-size: 0.875rem; color: #718096; margin-top: 8px;">
+                        Healthy P2P connections
+                    </div>
+                </div>
             </div>
 
             <div class="services-section">

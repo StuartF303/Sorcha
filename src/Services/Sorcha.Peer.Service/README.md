@@ -498,7 +498,39 @@ enum RecommendedAction {
 | GET | `/health` | Health check endpoint |
 | GET | `/api/peers` | List active peers (central nodes) |
 | GET | `/api/peers/{id}` | Get peer details by ID |
+| GET | `/api/peers/connected` | Get count of connected peers (anonymous), full list if authenticated |
+| GET | `/api/peers/health` | Get peer network health status |
+| GET | `/api/peers/stats` | Get aggregated peer network statistics |
 | GET | `/api/central-connection` | Central node connection status (peer nodes) |
+
+### Connected Peers Endpoint
+
+The `/api/peers/connected` endpoint provides different responses based on authentication:
+
+**Anonymous Access:**
+```json
+{
+  "connectedPeerCount": 5
+}
+```
+
+**Authenticated Access:**
+```json
+{
+  "connectedPeerCount": 5,
+  "peers": [
+    {
+      "peerId": "peer-001",
+      "address": "192.168.1.100",
+      "port": 5000,
+      "supportedProtocols": ["v1"],
+      "lastSeen": "2025-12-16T10:30:00Z",
+      "averageLatencyMs": 45,
+      "isBootstrapNode": false
+    }
+  ]
+}
+```
 
 ---
 

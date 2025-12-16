@@ -299,6 +299,7 @@ _serviceEndpoints = new Dictionary<string, string>
 | GET | `/` | Landing page with system dashboard |
 | GET | `/api/health` | Aggregated health status from all services |
 | GET | `/api/stats` | System-wide statistics |
+| GET | `/api/dashboard` | Dashboard statistics (blueprints, wallets, registers, tenants, peers) |
 | GET | `/api/client/info` | Blazor client information |
 | GET | `/api/client/download` | Download Blazor client source code (ZIP) |
 | GET | `/api/client/instructions` | Installation instructions (Markdown) |
@@ -381,6 +382,32 @@ For detailed service endpoint documentation, visit `/scalar/v1`.
   }
 }
 ```
+
+### Dashboard Statistics
+
+**Endpoint**: `GET /api/dashboard`
+
+**Response Example:**
+```json
+{
+  "timestamp": "2025-12-16T10:30:00Z",
+  "totalBlueprints": 42,
+  "totalBlueprintInstances": 156,
+  "activeBlueprintInstances": 23,
+  "totalWallets": 89,
+  "totalRegisters": 12,
+  "totalTransactions": 3421,
+  "totalTenants": 5,
+  "connectedPeers": 8
+}
+```
+
+This endpoint aggregates platform-wide statistics from all backend services, including:
+- **Blueprints**: Total blueprints and instances (active and total)
+- **Wallets**: Total wallet count
+- **Registers**: Total registers and transactions
+- **Tenants**: Total tenant count
+- **Peers**: Connected peer count from the Peer Service
 
 ---
 
@@ -511,6 +538,13 @@ The API Gateway includes a beautiful, responsive landing page at `/`.
 │      Unified API endpoint for Sorcha services    │
 ├──────────────────────────────────────────────────┤
 │  Total Services: 4    Healthy: 3    Status: ✓   │
+├──────────────────────────────────────────────────┤
+│  Platform Statistics:                            │
+│    📋 Blueprints: 42  (156 instances, 23 active)│
+│    💰 Wallets: 89                                │
+│    📚 Registers: 12  (3,421 transactions)       │
+│    🏢 Tenants: 5                                │
+│    🔗 Connected Peers: 8                        │
 ├──────────────────────────────────────────────────┤
 │  Service Status:                                 │
 │    ✓ blueprint   [healthy]                       │

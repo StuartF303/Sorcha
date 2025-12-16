@@ -284,4 +284,47 @@ app.MapGet("/api/peers/health", (PeerListManager peerListManager) =>
     .WithTags("Monitoring")
     .WithOpenApi();
 
+// Get count of connected peers (anonymous) and optional list (authenticated)
+app.MapGet("/api/peers/connected", (PeerListManager peerListManager, HttpContext context) =>
+{
+    var healthyPeers = peerListManager.GetHealthyPeers();
+    var count = healthyPeers.Count;
+
+    // Check if user is authenticated
+    var isAuthenticated = context.User?.Identity?.IsAuthenticated ?? false;
+
+    if (isAuthenticated)
+    {
+        // Return count and full list for authenticated users
+        return Results.Ok(new
+        {
+            ConnectedPeerCount = count,
+            Peers = healthyPeers.Select(p => new
+            {
+                p.PeerId,
+                p.Address,
+                p.Port,
+                p.SupportedProtocols,
+                p.LastSeen,
+                p.AverageLatencyMs,
+                p.IsBootstrapNode
+            })
+        });
+    }
+    else
+    {
+        // Return only count for anonymous users
+        return Results.Ok(new
+        {
+            ConnectedPeerCount = count
+        });
+    }
+})
+    .WithName("GetConnectedPeers")
+    .WithSummary("Get count of connected peers")
+    .WithDescription(@"Returns the count of currently connected (healthy) peers. Anonymous users receive only the count, while authenticated users also receive the full list of connected peers with their details.")
+    .WithTags("Peers")
+    .WithOpenApi()
+    .AllowAnonymous();
+
 app.Run();

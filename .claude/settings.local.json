@@ -252,10 +252,15 @@
       "Bash(for file in C:projectsSorchasrcAppsSorcha.AdminPagesAdmin*.razor C:projectsSorchasrcAppsSorcha.AdminPagesDev*.razor C:projectsSorchasrcAppsSorcha.AdminPagesTemplates.razor C:projectsSorchasrcAppsSorcha.AdminPagesIndex.razor)",
       "Bash(timeout:*)",
       "Bash(ping:*)",
-      "Bash(Select-String -Pattern \"(Started|Listening|Migration|Error|Exception|BUILD FAILED)\")"
+      "Bash(Select-String -Pattern \"(Started|Listening|Migration|Error|Exception|BUILD FAILED)\")",
+      "Bash(dir /s /b \"C:\\Projects\\Sorcha\\src\\Services\\Sorcha.ApiGateway\")"
     ],
     "deny": [],
     "ask": []
   },
-  "outputStyle": "default"
+  "outputStyle": "default",
+  "enabledMcpjsonServers": [
+    "azure"
+  ],
+  "enableAllProjectMcpServers": true
 }
