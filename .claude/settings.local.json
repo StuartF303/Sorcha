@@ -262,7 +262,10 @@
       "Bash(powershell.exe -Command \"Get-Content ''infra/update-services.ps1'' | Select-Object -Index 407,408,409,410 | ForEach-Object { [System.Text.Encoding]::UTF8.GetBytes($_ | ForEach-Object { ''{0:X2}'' -f $_} }\")",
       "Bash(powershell.exe -Command \"try { $response = Invoke-WebRequest -Uri ''https://api-gateway.livelydune-b02bab51.uksouth.azurecontainerapps.io/'' -TimeoutSec 10; Write-Host ''Status Code:'' $response.StatusCode; Write-Host ''Content-Type:'' $response.Headers[''Content-Type'']; Write-Host ''Content Length:'' $response.Content.Length; Write-Host ''''; Write-Host ''Content Preview:''; $response.Content.Substring(0, [Math]::Min(1000, $response.Content.Length)) } catch { Write-Host ''Error:'' $_Exception.Message }\")",
       "Bash(powershell.exe -Command \"try { $response = Invoke-WebRequest -Uri ''https://peer-service.livelydune-b02bab51.uksouth.azurecontainerapps.io/'' -TimeoutSec 10; Write-Host ''Status Code:'' $response.StatusCode; Write-Host ''Content-Type:'' $response.Headers[''Content-Type'']; Write-Host ''Content Length:'' $response.Content.Length; Write-Host ''''; Write-Host ''Content Preview:''; $response.Content.Substring(0, [Math]::Min(1000, $response.Content.Length)) } catch { Write-Host ''Error:'' $_Exception.Message }\")",
-      "Bash(powershell.exe -ExecutionPolicy Bypass -File test-endpoints.ps1)"
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File test-endpoints.ps1)",
+      "Bash(az containerapp env show:*)",
+      "Bash(az containerapp env list:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File test-blazor-admin.ps1)"
     ],
     "deny": [],
     "ask": []
