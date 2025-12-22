@@ -32,12 +32,12 @@ class Program
         var rootCommand = new RootCommand("Sorcha Demo - Blueprint Workflow Execution");
 
         var automatedOption = new Option<bool>(
-            ["--automated", "-a"],
+            new[] { "--automated", "-a" },
             () => false,
             "Run in automated mode without pauses");
 
         var blueprintOption = new Option<string?>(
-            ["--blueprint", "-b"],
+            new[] { "--blueprint", "-b" },
             "Blueprint to run (expense-approval, purchase-order, loan-application)");
 
         rootCommand.AddOption(automatedOption);
