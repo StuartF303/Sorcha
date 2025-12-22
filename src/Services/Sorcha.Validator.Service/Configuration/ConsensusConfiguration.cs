@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+namespace Sorcha.Validator.Service.Configuration;
+
+/// <summary>
+/// Configuration for consensus mechanism
+/// </summary>
+public class ConsensusConfiguration
+{
+    /// <summary>
+    /// Approval threshold for consensus (>50% = 0.51)
+    /// </summary>
+    public double ApprovalThreshold { get; set; } = 0.51;
+
+    /// <summary>
+    /// Timeout duration for vote collection
+    /// </summary>
+    public TimeSpan VoteTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Maximum retry attempts for failed consensus
+    /// </summary>
+    public int MaxRetries { get; set; } = 3;
+
+    /// <summary>
+    /// Whether to require quorum (fail if <50% validators reachable)
+    /// </summary>
+    public bool RequireQuorum { get; set; } = true;
+}

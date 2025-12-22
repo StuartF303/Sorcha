@@ -2,7 +2,8 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Text.Json;
-using Sorcha.Blueprint.Service.Clients;
+using Sorcha.ServiceClients.Wallet;
+using Sorcha.ServiceClients.Register;
 using Sorcha.Blueprint.Service.Services.Interfaces;
 
 namespace Sorcha.Blueprint.Service.Services.Implementation;

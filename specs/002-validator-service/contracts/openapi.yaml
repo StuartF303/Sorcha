@@ -1,0 +1,419 @@
+openapi: 3.1.0
+info:
+  title: Sorcha Validator Service API
+  version: 1.0.0
+  description: |
+    REST API for administrative and monitoring operations on the Validator Service.
+
+    Core validator-to-validator communication uses gRPC (see validator.proto).
+    This REST API provides:
+    - Administrative controls (start/stop validators)
+    - Observability endpoints (metrics, health checks)
+    - Memory pool inspection
+
+  contact:
+    name: Sorcha Development Team
+    url: https://github.com/StuartF303/Sorcha
+
+servers:
+  - url: https://localhost:7001
+    description: Local development (HTTPS)
+  - url: http://localhost:5001
+    description: Local development (HTTP)
+
+tags:
+  - name: Admin
+    description: Administrative operations for validator lifecycle
+  - name: Metrics
+    description: Observability and monitoring endpoints
+  - name: Health
+    description: Health check endpoints
+
+paths:
+  # ============================================================================
+  # Health Endpoints
+  # ============================================================================
+  /health:
+    get:
+      tags: [Health]
+      summary: Get validator health status
+      description: Returns overall health status of the validator instance
+      operationId: getHealth
+      responses:
+        '200':
+          description: Health status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /alive:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      description: Simple liveness check for orchestration systems
+      operationId: getLiveness
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "OK"
+
+  # ============================================================================
+  # Admin Endpoints
+  # ============================================================================
+  /api/v1/validators:
+    post:
+      tags: [Admin]
+      summary: Start validator for a register
+      description: Initializes validation for a specific register with provided configuration
+      operationId: startValidator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartValidatorRequest'
+      responses:
+        '200':
+          description: Validator started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartValidatorResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Validator already running for this register
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/validators/{registerId}:
+    delete:
+      tags: [Admin]
+      summary: Stop validator for a register
+      description: Stops validation for a specific register, optionally persisting memory pool
+      operationId: stopValidator
+      parameters:
+        - name: registerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: persistMempool
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Validator stopped successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StopValidatorResponse'
+        '404':
+          description: Validator not found for this register
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============================================================================
+  # Metrics Endpoints
+  # ============================================================================
+  /api/v1/metrics/mempool/{registerId}:
+    get:
+      tags: [Metrics]
+      summary: Get memory pool statistics
+      description: Retrieves metrics for a register's memory pool
+      operationId: getMemPoolStats
+      parameters:
+        - name: registerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Memory pool statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemPoolStats'
+        '404':
+          description: Register not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/metrics/consensus/{registerId}:
+    get:
+      tags: [Metrics]
+      summary: Get consensus statistics
+      description: Retrieves consensus metrics for a register
+      operationId: getConsensusStats
+      parameters:
+        - name: registerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: since
+          in: query
+          required: false
+          description: Retrieve stats since this timestamp (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Consensus statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsensusStats'
+        '404':
+          description: Register not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /metrics:
+    get:
+      tags: [Metrics]
+      summary: Prometheus metrics endpoint
+      description: Exposes metrics in Prometheus format for scraping
+      operationId: getPrometheusMetrics
+      responses:
+        '200':
+          description: Metrics in Prometheus text format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+# ============================================================================
+# Components
+# ============================================================================
+components:
+  schemas:
+    # Admin Schemas
+    StartValidatorRequest:
+      type: object
+      required:
+        - registerId
+        - blueprintId
+      properties:
+        registerId:
+          type: string
+          format: uuid
+          description: Unique identifier for the register
+        blueprintId:
+          type: string
+          description: Blueprint definition ID for transaction validation
+        consensusConfig:
+          $ref: '#/components/schemas/ConsensusConfig'
+        mempoolConfig:
+          $ref: '#/components/schemas/MemPoolConfig'
+        docketBuildConfig:
+          $ref: '#/components/schemas/DocketBuildConfig'
+
+    StartValidatorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        validatorId:
+          type: string
+          format: uuid
+
+    StopValidatorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        transactionsInMempool:
+          type: integer
+          format: int32
+
+    # Configuration Schemas
+    ConsensusConfig:
+      type: object
+      properties:
+        approvalThreshold:
+          type: number
+          format: double
+          default: 0.51
+          description: Consensus threshold (0.51 = 51%)
+        voteTimeoutSeconds:
+          type: integer
+          format: int32
+          default: 30
+        maxRetries:
+          type: integer
+          format: int32
+          default: 3
+        requireQuorum:
+          type: boolean
+          default: true
+
+    MemPoolConfig:
+      type: object
+      properties:
+        maxSize:
+          type: integer
+          format: int32
+          default: 10000
+        defaultTtlSeconds:
+          type: integer
+          format: int32
+          default: 3600
+        highPriorityQuota:
+          type: number
+          format: double
+          default: 0.10
+        cleanupIntervalSeconds:
+          type: integer
+          format: int32
+          default: 300
+
+    DocketBuildConfig:
+      type: object
+      properties:
+        timeThresholdSeconds:
+          type: integer
+          format: int32
+          default: 10
+        sizeThreshold:
+          type: integer
+          format: int32
+          default: 50
+        maxTransactionsPerDocket:
+          type: integer
+          format: int32
+          default: 100
+        allowEmptyDockets:
+          type: boolean
+          default: false
+
+    # Metrics Schemas
+    MemPoolStats:
+      type: object
+      properties:
+        registerId:
+          type: string
+          format: uuid
+        totalTransactions:
+          type: integer
+          format: int32
+        highPriorityCount:
+          type: integer
+          format: int32
+        normalPriorityCount:
+          type: integer
+          format: int32
+        lowPriorityCount:
+          type: integer
+          format: int32
+        maxSize:
+          type: integer
+          format: int32
+        fillPercentage:
+          type: number
+          format: double
+        totalEvictions:
+          type: integer
+          format: int32
+        totalExpired:
+          type: integer
+          format: int32
+        oldestTransaction:
+          type: string
+          format: date-time
+
+    ConsensusStats:
+      type: object
+      properties:
+        registerId:
+          type: string
+          format: uuid
+        totalDocketsProposed:
+          type: integer
+          format: int64
+        totalDocketsConfirmed:
+          type: integer
+          format: int64
+        totalDocketsRejected:
+          type: integer
+          format: int64
+        consensusSuccessRate:
+          type: number
+          format: double
+        averageConsensusTimeMs:
+          type: number
+          format: double
+        activeValidators:
+          type: integer
+          format: int32
+
+    # Health Schema
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [Healthy, Degraded, Unhealthy]
+        validatorId:
+          type: string
+          format: uuid
+        activeRegisters:
+          type: integer
+          format: int32
+        lastHeartbeat:
+          type: string
+          format: date-time
+        issues:
+          type: array
+          items:
+            type: string
+
+    # Error Schema
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        statusCode:
+          type: integer
+          format: int32
+        timestamp:
+          type: string
+          format: date-time

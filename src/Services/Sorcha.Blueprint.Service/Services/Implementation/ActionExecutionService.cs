@@ -3,7 +3,8 @@
 
 using System.Diagnostics;
 using System.Text.Json;
-using Sorcha.Blueprint.Service.Clients;
+using Sorcha.ServiceClients.Wallet;
+using Sorcha.ServiceClients.Register;
 using Sorcha.Blueprint.Service.Models;
 using Sorcha.Blueprint.Service.Models.Requests;
 using Sorcha.Blueprint.Service.Models.Responses;

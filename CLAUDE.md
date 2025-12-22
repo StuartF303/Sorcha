@@ -148,6 +148,14 @@ The MVD delivers a working end-to-end system:
    - Store blueprint templates as JSON/YAML files, not C# code
    - AI agents must create blueprint demos as JSON/YAML, not Fluent API
 
+7. **Service Client Pattern**
+   - ⚠️ **Always use consolidated service clients from `Sorcha.ServiceClients`**
+   - NEVER create duplicate client implementations in service projects
+   - Use `builder.Services.AddServiceClients(builder.Configuration)` for DI registration
+   - All inter-service communication uses clients from `src/Common/Sorcha.ServiceClients/`
+   - Client interfaces include ALL methods needed by ANY consumer
+   - See: [Sorcha.ServiceClients README](src/Common/Sorcha.ServiceClients/README.md)
+
 **Full details:** [.specify/constitution.md](.specify/constitution.md)
 
 ---
@@ -494,6 +502,15 @@ app.MapPost("/api/wallets", async (CreateWalletRequest request) => { });
 6. Add integration tests with Testcontainers
 7. Update service configuration for connection strings
 8. Document in service README
+
+### Use Service Clients for Inter-Service Communication
+
+1. Add reference to `Sorcha.ServiceClients` project
+2. Register clients in Program.cs: `builder.Services.AddServiceClients(builder.Configuration)`
+3. Inject client interface (e.g., `IWalletServiceClient`) in constructor
+4. Configure endpoints in appsettings.json under `ServiceClients:*`
+5. NEVER create duplicate client implementations in your service
+6. See: [Sorcha.ServiceClients README](src/Common/Sorcha.ServiceClients/README.md)
 
 ---
 
