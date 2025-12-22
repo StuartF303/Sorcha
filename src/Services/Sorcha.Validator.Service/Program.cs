@@ -51,6 +51,10 @@ builder.Services.AddSingleton<Sorcha.Validator.Service.Services.IMemPoolManager,
 builder.Services.AddScoped<Sorcha.Validator.Service.Services.IConsensusEngine,
     Sorcha.Validator.Service.Services.ConsensusEngine>();
 
+// Add validator orchestrator
+builder.Services.AddSingleton<Sorcha.Validator.Service.Services.IValidatorOrchestrator,
+    Sorcha.Validator.Service.Services.ValidatorOrchestrator>();
+
 // Add consolidated service clients
 builder.Services.AddServiceClients(builder.Configuration);
 
@@ -86,9 +90,7 @@ app.MapGroup("/api/v1/transactions")
     .WithTags("Validation")
     .MapValidationEndpoints();
 
-// Admin and metrics endpoints will be implemented in later phases
-// app.MapGroup("/api/v1/validators")
-//     .WithTags("Admin")
-//     .MapAdminEndpoints();
+// Map admin endpoints
+app.MapAdminEndpoints();
 
 app.Run();
