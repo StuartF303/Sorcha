@@ -21,6 +21,18 @@ public class WalletManager : IWalletService
     private readonly IEventPublisher _eventPublisher;
     private readonly ILogger<WalletManager> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WalletManager"/> class.
+    /// The main orchestrator for all wallet operations including creation, recovery, address generation,
+    /// transaction signing, and access control. Coordinates between key management, transaction services,
+    /// delegation, and event publishing.
+    /// </summary>
+    /// <param name="keyManagement">Service for cryptographic key operations and HD wallet management.</param>
+    /// <param name="transactionService">Service for transaction signing and verification.</param>
+    /// <param name="delegationService">Service for access control and permission management.</param>
+    /// <param name="repository">Repository for wallet data persistence.</param>
+    /// <param name="eventPublisher">Publisher for wallet domain events (audit and notification).</param>
+    /// <param name="logger">Logger for wallet operations and error tracking.</param>
     public WalletManager(
         IKeyManagementService keyManagement,
         ITransactionService transactionService,

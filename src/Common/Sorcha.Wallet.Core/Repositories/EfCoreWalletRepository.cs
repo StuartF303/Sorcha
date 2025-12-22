@@ -18,6 +18,12 @@ public class EfCoreWalletRepository : IWalletRepository
     private readonly WalletDbContext _context;
     private readonly ILogger<EfCoreWalletRepository> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EfCoreWalletRepository"/> class.
+    /// Provides data access for wallets, addresses, access control, and transactions using Entity Framework Core and PostgreSQL.
+    /// </summary>
+    /// <param name="context">The database context for wallet persistence.</param>
+    /// <param name="logger">Logger for repository operations and diagnostics.</param>
     public EfCoreWalletRepository(WalletDbContext context, ILogger<EfCoreWalletRepository> logger)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));

@@ -13,6 +13,12 @@ public class DelegationService : IDelegationService
     private readonly IWalletRepository _repository;
     private readonly ILogger<DelegationService> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DelegationService"/> class.
+    /// Manages wallet access control including granting, revoking, and checking permissions for wallet operations.
+    /// </summary>
+    /// <param name="repository">The wallet repository for data access.</param>
+    /// <param name="logger">Logger for delegation operations and audit trails.</param>
     public DelegationService(
         IWalletRepository repository,
         ILogger<DelegationService> logger)

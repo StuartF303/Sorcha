@@ -17,6 +17,12 @@ public class LocalEncryptionProvider : IEncryptionProvider
     private const int NonceSizeBytes = 12; // 96 bits for GCM
     private const int TagSizeBytes = 16; // 128 bits
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LocalEncryptionProvider"/> class.
+    /// Creates a default encryption key for development and testing purposes.
+    /// WARNING: This provider stores keys in memory only and should NOT be used in production.
+    /// </summary>
+    /// <param name="logger">Logger for diagnostic and warning messages.</param>
     public LocalEncryptionProvider(ILogger<LocalEncryptionProvider> logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));

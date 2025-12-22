@@ -100,5 +100,9 @@ public record DerivationPath
         }
     }
 
+    /// <summary>
+    /// Returns the BIP44 derivation path as a string representation.
+    /// </summary>
+    /// <returns>The derivation path string (e.g., "m/44'/0'/0'/0/0").</returns>
     public override string ToString() => Path;
 }

@@ -3,7 +3,13 @@
     "azure": {
       "type": "stdio",
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "@azure/mcp@latest"],
+      "args": ["/c", "\"C:\\Program Files\\nodejs\\npx.cmd\"", "-y", "@azure/mcp@latest"],
+      "env": {}
+    },
+    "docker": {
+      "type": "stdio",
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "mcp/docker"],
       "env": {}
     }
   }

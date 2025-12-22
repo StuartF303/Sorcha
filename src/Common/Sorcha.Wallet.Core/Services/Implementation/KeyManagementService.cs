@@ -18,6 +18,15 @@ public class KeyManagementService : IKeyManagementService
     private readonly IWalletUtilities _walletUtilities;
     private readonly ILogger<KeyManagementService> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="KeyManagementService"/> class.
+    /// Handles cryptographic key operations including HD wallet key derivation (BIP32/BIP39/BIP44),
+    /// key encryption/decryption, and secure key storage using encryption providers.
+    /// </summary>
+    /// <param name="encryptionProvider">The encryption provider for securing private keys (e.g., Azure Key Vault, AWS KMS, local).</param>
+    /// <param name="cryptoModule">The cryptography module for signing and key operations.</param>
+    /// <param name="walletUtilities">Utility service for wallet-specific operations.</param>
+    /// <param name="logger">Logger for key management operations and security events.</param>
     public KeyManagementService(
         IEncryptionProvider encryptionProvider,
         ICryptoModule cryptoModule,

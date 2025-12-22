@@ -280,6 +280,14 @@ public class CachedRegisterRepository : IRegisterRepository
         return _innerRepository.QueryTransactionsAsync(registerId, predicate, cancellationToken);
     }
 
+    /// <summary>
+    /// Gets all transactions associated with a specific docket ID.
+    /// Bypasses cache for query operations - could be optimized with batch caching.
+    /// </summary>
+    /// <param name="registerId">The register identifier.</param>
+    /// <param name="docketId">The docket ID to filter transactions.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A collection of transactions belonging to the docket.</returns>
     public Task<IEnumerable<TransactionModel>> GetTransactionsByDocketAsync(
         string registerId,
         ulong docketId,
@@ -293,6 +301,14 @@ public class CachedRegisterRepository : IRegisterRepository
     // Advanced Queries
     // ===========================
 
+    /// <summary>
+    /// Gets all transactions where the specified address is the recipient.
+    /// Bypasses cache for query operations.
+    /// </summary>
+    /// <param name="registerId">The register identifier.</param>
+    /// <param name="address">The recipient wallet address to filter by.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A collection of transactions received by the address.</returns>
     public Task<IEnumerable<TransactionModel>> GetAllTransactionsByRecipientAddressAsync(
         string registerId,
         string address,
@@ -302,6 +318,14 @@ public class CachedRegisterRepository : IRegisterRepository
         return _innerRepository.GetAllTransactionsByRecipientAddressAsync(registerId, address, cancellationToken);
     }
 
+    /// <summary>
+    /// Gets all transactions where the specified address is the sender.
+    /// Bypasses cache for query operations.
+    /// </summary>
+    /// <param name="registerId">The register identifier.</param>
+    /// <param name="address">The sender wallet address to filter by.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A collection of transactions sent by the address.</returns>
     public Task<IEnumerable<TransactionModel>> GetAllTransactionsBySenderAddressAsync(
         string registerId,
         string address,

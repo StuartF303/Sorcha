@@ -117,8 +117,20 @@ public class BlueprintTemplate : IEquatable<BlueprintTemplate>
     [JsonPropertyName("published")]
     public bool Published { get; set; } = false;
 
+    /// <summary>
+    /// Determines whether the specified object is equal to this blueprint template.
+    /// Compares Id, Title, and Version.
+    /// </summary>
+    /// <param name="obj">The object to compare.</param>
+    /// <returns>True if the objects are equal, otherwise false.</returns>
     public override bool Equals(object? obj) => Equals(obj as BlueprintTemplate);
 
+    /// <summary>
+    /// Determines whether the specified blueprint template is equal to this template.
+    /// Compares Id, Title, and Version for equality.
+    /// </summary>
+    /// <param name="other">The blueprint template to compare.</param>
+    /// <returns>True if the templates are equal, otherwise false.</returns>
     public bool Equals(BlueprintTemplate? other)
     {
         return other != null &&
@@ -127,6 +139,10 @@ public class BlueprintTemplate : IEquatable<BlueprintTemplate>
                Version == other.Version;
     }
 
+    /// <summary>
+    /// Returns a hash code for this blueprint template based on its Id, Title, and Version.
+    /// </summary>
+    /// <returns>A hash code for the template.</returns>
     public override int GetHashCode()
     {
         return HashCode.Combine(Id, Title, Version);

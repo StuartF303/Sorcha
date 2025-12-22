@@ -102,8 +102,20 @@ public class Blueprint : IEquatable<Blueprint>
     [JsonPropertyName("updatedAt")]
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
+    /// <summary>
+    /// Determines whether the specified object is equal to this blueprint.
+    /// Compares Id, Title, Description, Version, Participants, and Actions.
+    /// </summary>
+    /// <param name="obj">The object to compare.</param>
+    /// <returns>True if the objects are equal, otherwise false.</returns>
     public override bool Equals(object? obj) => Equals(obj as Blueprint);
 
+    /// <summary>
+    /// Determines whether the specified blueprint is equal to this blueprint.
+    /// Compares Id, Title, Description, Version, Participants (sequence), and Actions (sequence).
+    /// </summary>
+    /// <param name="other">The blueprint to compare.</param>
+    /// <returns>True if the blueprints are equal, otherwise false.</returns>
     public bool Equals(Blueprint? other)
     {
         return other != null &&
@@ -117,6 +129,10 @@ public class Blueprint : IEquatable<Blueprint>
                 Actions.SequenceEqual(other.Actions));
     }
 
+    /// <summary>
+    /// Returns a hash code for this blueprint based on its Id, Title, Description, Version, Participants, and Actions.
+    /// </summary>
+    /// <returns>A hash code for the blueprint.</returns>
     public override int GetHashCode()
     {
         return HashCode.Combine(Id, Title, Description, Version, Participants, Actions);

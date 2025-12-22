@@ -14,6 +14,13 @@ public class TransactionService : ITransactionService
     private readonly IHashProvider _hashProvider;
     private readonly ILogger<TransactionService> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TransactionService"/> class.
+    /// Provides transaction signing, verification, and cryptographic hashing for secure transaction processing.
+    /// </summary>
+    /// <param name="cryptoModule">The cryptography module for signing operations (supports ED25519, NIST P-256, RSA-4096).</param>
+    /// <param name="hashProvider">The hash provider for computing transaction hashes (SHA-256, SHA-512, Keccak).</param>
+    /// <param name="logger">Logger for transaction operations and security events.</param>
     public TransactionService(
         ICryptoModule cryptoModule,
         IHashProvider hashProvider,

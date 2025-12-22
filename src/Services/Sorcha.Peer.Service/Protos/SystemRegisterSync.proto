@@ -7,8 +7,6 @@ package sorcha.peer.v1;
 
 option csharp_namespace = "Sorcha.Peer.Service.Protos";
 
-import "google/protobuf/timestamp.proto";
-
 // System Register Synchronization Service
 // Enables peer nodes to synchronize the system register (published blueprints)
 // from central nodes using a hybrid pull + push model.

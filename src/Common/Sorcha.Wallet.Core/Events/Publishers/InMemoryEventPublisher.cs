@@ -13,6 +13,11 @@ public class InMemoryEventPublisher : IEventPublisher
     private readonly ILogger<InMemoryEventPublisher> _logger;
     private readonly List<WalletEvent> _publishedEvents = new();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryEventPublisher"/> class.
+    /// Events are stored in memory for testing and development but are not persisted or distributed.
+    /// </summary>
+    /// <param name="logger">Logger for event tracking and diagnostics.</param>
     public InMemoryEventPublisher(ILogger<InMemoryEventPublisher> logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));

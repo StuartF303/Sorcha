@@ -72,10 +72,25 @@ public class Control
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum LayoutTypes
 {
+    /// <summary>
+    /// Arranges elements vertically (stacked top to bottom)
+    /// </summary>
     VerticalLayout,
+
+    /// <summary>
+    /// Arranges elements horizontally (side by side)
+    /// </summary>
     HorizontalLayout,
-    Group,          // many
-    Categorization  // one of
+
+    /// <summary>
+    /// Groups multiple elements together (many items)
+    /// </summary>
+    Group,
+
+    /// <summary>
+    /// Categorization layout (one of many selections)
+    /// </summary>
+    Categorization
 }
 
 /// <summary>
@@ -84,33 +99,63 @@ public enum LayoutTypes
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ControlTypes
 {
+    /// <summary>
+    /// Container control for organizing other controls
+    /// </summary>
     [DataAnnotations.Display(Name = "Layout")]
     Layout,
 
+    /// <summary>
+    /// Read-only text label for displaying information
+    /// </summary>
     [DataAnnotations.Display(Name = "Label")]
     Label,
 
+    /// <summary>
+    /// Single-line text input field
+    /// </summary>
     [DataAnnotations.Display(Name = "Single Line Text")]
     TextLine,
 
+    /// <summary>
+    /// Multi-line text input area for longer content
+    /// </summary>
     [DataAnnotations.Display(Name = "Text Area")]
     TextArea,
 
+    /// <summary>
+    /// Numeric input field for integer or decimal values
+    /// </summary>
     [DataAnnotations.Display(Name = "Number")]
     Numeric,
 
+    /// <summary>
+    /// Date and time picker control
+    /// </summary>
     [DataAnnotations.Display(Name = "Date/Time")]
     DateTime,
 
+    /// <summary>
+    /// File upload control for selecting and uploading files
+    /// </summary>
     [DataAnnotations.Display(Name = "File")]
     File,
 
+    /// <summary>
+    /// Multiple choice selection (radio buttons or checkboxes)
+    /// </summary>
     [DataAnnotations.Display(Name = "Multiple Choice")]
     Choice,
 
+    /// <summary>
+    /// Boolean checkbox for true/false values
+    /// </summary>
     [DataAnnotations.Display(Name = "Checkbox")]
     Checkbox,
 
+    /// <summary>
+    /// Dropdown selection list for choosing from predefined options
+    /// </summary>
     [DataAnnotations.Display(Name = "Selection")]
     Selection
 }

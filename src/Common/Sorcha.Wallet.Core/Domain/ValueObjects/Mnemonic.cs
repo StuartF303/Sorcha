@@ -87,5 +87,10 @@ public record Mnemonic
         }
     }
 
+    /// <summary>
+    /// Returns a string representation of the mnemonic showing the word count for security.
+    /// The actual mnemonic phrase is never exposed in ToString() to prevent accidental logging.
+    /// </summary>
+    /// <returns>A string indicating the number of words (e.g., "Mnemonic(12 words)").</returns>
     public override string ToString() => $"Mnemonic({WordCount} words)";
 }

@@ -62,12 +62,17 @@
       "Bash(npx -y @azure/mcp@latest --help)",
       "Bash(Select-Object -First 50)",
       "Bash(Select-Object -First 100)",
-      "WebFetch(domain:www.nuget.org)"
+      "WebFetch(domain:www.nuget.org)",
+      "Bash(npx --version:*)",
+      "Bash(where.exe npx)",
+      "Bash(Select-String -Pattern \"warning\")",
+      "Bash(Measure-Object -Line)",
+      "Bash(Select-Object -Last 50)"
     ],
     "deny": [],
     "ask": []
   },
-  "enableAllProjectMcpServers": false,
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "azure"
   ],

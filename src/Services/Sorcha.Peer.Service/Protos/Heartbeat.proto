@@ -7,8 +7,6 @@ package sorcha.peer.v1;
 
 option csharp_namespace = "Sorcha.Peer.Service.Protos";
 
-import "google/protobuf/timestamp.proto";
-
 // Heartbeat Service
 // Provides connection health monitoring between peer nodes and central nodes
 // using periodic heartbeat messages.

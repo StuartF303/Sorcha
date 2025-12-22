@@ -27,22 +27,40 @@ public class Condition
     [JsonPropertyName("criteria")]
     public IEnumerable<string> Criteria { get; set; } = [];
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Condition"/> class with empty criteria.
+    /// </summary>
     public Condition()
     {
         Criteria = [];
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Condition"/> class with a default boolean state.
+    /// Creates a JSON Logic expression that evaluates to the specified boolean value.
+    /// </summary>
+    /// <param name="defaultState">The default boolean state (true or false).</param>
     public Condition(bool defaultState)
     {
         // NOT FALSE = TRUE, NOT TRUE = FALSE
         Criteria = [defaultState ? "{\"!\": [false]}" : "{\"!\": [true]}"];
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Condition"/> class with a principal and default state.
+    /// </summary>
+    /// <param name="principal">The principal/subject affected by this condition.</param>
+    /// <param name="defaultState">The default boolean state for the condition.</param>
     public Condition(string principal, bool defaultState) : this(defaultState)
     {
         Principal = principal;
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Condition"/> class with a principal and JSON Logic criteria.
+    /// </summary>
+    /// <param name="principal">The principal/subject affected by this condition.</param>
+    /// <param name="criteria">List of JSON Logic expressions to be evaluated.</param>
     public Condition(string principal, List<string> criteria)
     {
         Principal = principal;

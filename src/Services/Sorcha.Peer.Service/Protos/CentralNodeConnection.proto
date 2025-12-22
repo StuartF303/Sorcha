@@ -7,8 +7,6 @@ package sorcha.peer.v1;
 
 option csharp_namespace = "Sorcha.Peer.Service.Protos";
 
-import "google/protobuf/timestamp.proto";
-
 // Central Node Connection Service
 // Enables peer nodes to connect to central nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev)
 // for system register synchronization and blueprint discovery.

@@ -33,10 +33,19 @@ public class WalletDbContext : DbContext
     /// </summary>
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WalletDbContext"/> class.
+    /// </summary>
+    /// <param name="options">The database context options configured with PostgreSQL connection string.</param>
     public WalletDbContext(DbContextOptions<WalletDbContext> options) : base(options)
     {
     }
 
+    /// <summary>
+    /// Configures the database schema, entity relationships, indexes, and constraints.
+    /// Sets up PostgreSQL-specific features including jsonb columns, soft delete filters, and optimistic concurrency.
+    /// </summary>
+    /// <param name="modelBuilder">The model builder used to configure the database schema.</param>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -12,6 +12,12 @@ namespace Sorcha.Wallet.Core.Data;
 /// </summary>
 public class WalletDbContextFactory : IDesignTimeDbContextFactory<WalletDbContext>
 {
+    /// <summary>
+    /// Creates a new instance of <see cref="WalletDbContext"/> for design-time operations such as migrations.
+    /// Uses a placeholder PostgreSQL connection string that will be replaced at runtime with actual configuration.
+    /// </summary>
+    /// <param name="args">Command-line arguments passed to the EF Core tools.</param>
+    /// <returns>A configured <see cref="WalletDbContext"/> instance.</returns>
     public WalletDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<WalletDbContext>();
