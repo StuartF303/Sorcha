@@ -1,0 +1,258 @@
+// Validator Service gRPC Contract
+// Package: Sorcha.Validator.V1
+// Description: gRPC service definitions for validator-to-validator communication
+// and validator-to-service interactions
+
+syntax = "proto3";
+
+package sorcha.validator.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option csharp_namespace = "Sorcha.Validator.Grpc.V1";
+
+// ============================================================================
+// Services
+// ============================================================================
+
+// ValidatorService: Core validator operations for consensus and validation
+service ValidatorService {
+  // Vote Request: Request a vote on a proposed docket from a peer validator
+  rpc RequestVote(VoteRequest) returns (VoteResponse);
+
+  // Docket Validation: Validate a confirmed docket received from peers
+  rpc ValidateDocket(DocketValidationRequest) returns (DocketValidationResponse);
+
+  // Health Check: Validator instance health and status
+  rpc GetHealthStatus(google.protobuf.Empty) returns (HealthStatusResponse);
+}
+
+// AdminService: Administrative and monitoring operations
+service AdminService {
+  // Start Validator: Begin processing transactions for a register
+  rpc StartValidator(StartValidatorRequest) returns (StartValidatorResponse);
+
+  // Stop Validator: Stop processing for a register
+  rpc StopValidator(StopValidatorRequest) returns (StopValidatorResponse);
+
+  // Get Memory Pool Stats: Retrieve metrics for a register's memory pool
+  rpc GetMemoryPoolStats(MemPoolStatsRequest) returns (MemPoolStatsResponse);
+
+  // Get Consensus Stats: Retrieve consensus metrics
+  rpc GetConsensusStats(ConsensusStatsRequest) returns (ConsensusStatsResponse);
+}
+
+// ============================================================================
+// Messages - Vote Request/Response
+// ============================================================================
+
+message VoteRequest {
+  string docket_id = 1;
+  string register_id = 2;
+  int64 docket_number = 3;
+  string docket_hash = 4;
+  string previous_hash = 5;
+  repeated Transaction transactions = 6;
+  google.protobuf.Timestamp created_at = 7;
+  string proposer_validator_id = 8;
+  Signature proposer_signature = 9;
+  string merkle_root = 10;
+}
+
+message VoteResponse {
+  string vote_id = 1;
+  VoteDecision decision = 2;
+  string rejection_reason = 3;  // Present if decision == REJECT
+  Signature validator_signature = 4;
+  string validator_id = 5;
+  google.protobuf.Timestamp voted_at = 6;
+}
+
+enum VoteDecision {
+  VOTE_DECISION_UNSPECIFIED = 0;
+  VOTE_DECISION_REJECT = 1;
+  VOTE_DECISION_APPROVE = 2;
+}
+
+// ============================================================================
+// Messages - Docket Validation
+// ============================================================================
+
+message DocketValidationRequest {
+  string docket_id = 1;
+  string register_id = 2;
+  int64 docket_number = 3;
+  string docket_hash = 4;
+  string previous_hash = 5;
+  repeated Transaction transactions = 6;
+  google.protobuf.Timestamp created_at = 7;
+  repeated ConsensusVote votes = 8;  // Consensus signatures
+  string proposer_validator_id = 9;
+  Signature proposer_signature = 10;
+  string merkle_root = 11;
+}
+
+message DocketValidationResponse {
+  bool is_valid = 1;
+  repeated string validation_errors = 2;
+  bool should_persist = 3;  // True if docket should be written to Register Service
+  bool is_fork = 4;         // True if docket creates a fork
+  ForkResolution fork_resolution = 5;  // Present if is_fork == true
+}
+
+message ForkResolution {
+  ForkResolutionAction action = 1;
+  string reason = 2;
+  int32 reorg_depth = 3;  // Depth of reorganization required
+}
+
+enum ForkResolutionAction {
+  FORK_RESOLUTION_ACTION_UNSPECIFIED = 0;
+  FORK_RESOLUTION_ACTION_KEEP_LOCAL = 1;       // Keep current chain
+  FORK_RESOLUTION_ACTION_SWITCH_TO_LONGER = 2; // Switch to competing chain
+  FORK_RESOLUTION_ACTION_REJECT_DEEP_FORK = 3; // Reject (reorg too deep)
+}
+
+// ============================================================================
+// Messages - Admin Operations
+// ============================================================================
+
+message StartValidatorRequest {
+  string register_id = 1;
+  string blueprint_id = 2;
+  ConsensusConfig consensus_config = 3;
+  MemPoolConfig mempool_config = 4;
+  DocketBuildConfig docket_build_config = 5;
+}
+
+message StartValidatorResponse {
+  bool success = 1;
+  string message = 2;
+  string validator_id = 3;
+}
+
+message StopValidatorRequest {
+  string register_id = 1;
+  bool persist_mempool = 2;  // Save memory pool state before stopping
+}
+
+message StopValidatorResponse {
+  bool success = 1;
+  string message = 2;
+  int32 transactions_in_mempool = 3;
+}
+
+message MemPoolStatsRequest {
+  string register_id = 1;
+}
+
+message MemPoolStatsResponse {
+  string register_id = 1;
+  int32 total_transactions = 2;
+  int32 high_priority_count = 3;
+  int32 normal_priority_count = 4;
+  int32 low_priority_count = 5;
+  int32 max_size = 6;
+  double fill_percentage = 7;
+  int32 total_evictions = 8;
+  int32 total_expired = 9;
+  google.protobuf.Timestamp oldest_transaction = 10;
+}
+
+message ConsensusStatsRequest {
+  string register_id = 1;
+  google.protobuf.Timestamp since = 2;  // Stats since this time (optional)
+}
+
+message ConsensusStatsResponse {
+  string register_id = 1;
+  int64 total_dockets_proposed = 2;
+  int64 total_dockets_confirmed = 3;
+  int64 total_dockets_rejected = 4;
+  double consensus_success_rate = 5;
+  double average_consensus_time_ms = 6;
+  int32 active_validators = 7;
+}
+
+message HealthStatusResponse {
+  HealthStatus status = 1;
+  string validator_id = 2;
+  int32 active_registers = 3;
+  google.protobuf.Timestamp last_heartbeat = 4;
+  repeated string issues = 5;  // Health check warnings/errors
+}
+
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+}
+
+// ============================================================================
+// Shared Messages - Core Entities
+// ============================================================================
+
+message Transaction {
+  string transaction_id = 1;
+  string register_id = 2;
+  string blueprint_id = 3;
+  string action_id = 4;
+  string payload_json = 5;  // JSON-encoded payload
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp expires_at = 7;
+  repeated Signature signatures = 8;
+  string payload_hash = 9;
+  TransactionPriority priority = 10;
+  map<string, string> metadata = 11;
+}
+
+enum TransactionPriority {
+  TRANSACTION_PRIORITY_UNSPECIFIED = 0;
+  TRANSACTION_PRIORITY_LOW = 1;
+  TRANSACTION_PRIORITY_NORMAL = 2;
+  TRANSACTION_PRIORITY_HIGH = 3;
+}
+
+message Signature {
+  string public_key = 1;
+  string signature_value = 2;  // Base64-encoded
+  string algorithm = 3;         // ED25519, NIST-P256, RSA-4096
+}
+
+message ConsensusVote {
+  string vote_id = 1;
+  string docket_id = 2;
+  string validator_id = 3;
+  VoteDecision decision = 4;
+  string rejection_reason = 5;
+  google.protobuf.Timestamp voted_at = 6;
+  Signature validator_signature = 7;
+  string docket_hash = 8;
+}
+
+// ============================================================================
+// Configuration Messages
+// ============================================================================
+
+message ConsensusConfig {
+  double approval_threshold = 1;  // 0.51 = 51%
+  int32 vote_timeout_seconds = 2;
+  int32 max_retries = 3;
+  bool require_quorum = 4;
+}
+
+message MemPoolConfig {
+  int32 max_size = 1;
+  int32 default_ttl_seconds = 2;
+  double high_priority_quota = 3;  // 0.10 = 10%
+  int32 cleanup_interval_seconds = 4;
+}
+
+message DocketBuildConfig {
+  int32 time_threshold_seconds = 1;
+  int32 size_threshold = 2;
+  int32 max_transactions_per_docket = 3;
+  bool allow_empty_dockets = 4;
+}

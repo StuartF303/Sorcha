@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using Sorcha.Blueprint.Service.Extensions;
 using Sorcha.Blueprint.Service.JsonLd;
 using Sorcha.Cryptography.Core;
+using Sorcha.ServiceClients.Extensions;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -52,18 +53,8 @@ builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IActionR
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IPayloadResolverService, Sorcha.Blueprint.Service.Services.Implementation.PayloadResolverService>();
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService, Sorcha.Blueprint.Service.Services.Implementation.TransactionBuilderService>();
 
-// Add HTTP clients for Wallet and Register services (Sprint 6)
-builder.Services.AddHttpClient<Sorcha.Blueprint.Service.Clients.IWalletServiceClient, Sorcha.Blueprint.Service.Clients.WalletServiceClient>(client =>
-{
-    // The service discovery will resolve "walletservice" to the actual endpoint
-    client.BaseAddress = new Uri("http://walletservice");
-});
-
-builder.Services.AddHttpClient<Sorcha.Blueprint.Service.Clients.IRegisterServiceClient, Sorcha.Blueprint.Service.Clients.RegisterServiceClient>(client =>
-{
-    // The service discovery will resolve "registerservice" to the actual endpoint
-    client.BaseAddress = new Uri("http://registerservice");
-});
+// Add consolidated service clients (Sprint 6)
+builder.Services.AddServiceClients(builder.Configuration);
 
 // Add Action storage (Sprint 4)
 builder.Services.AddSingleton<Sorcha.Blueprint.Service.Storage.IActionStore, Sorcha.Blueprint.Service.Storage.InMemoryActionStore>();
@@ -575,8 +566,8 @@ actionsGroup.MapPost("/", async (
     Sorcha.Blueprint.Service.Services.Interfaces.IActionResolverService actionResolver,
     Sorcha.Blueprint.Service.Services.Interfaces.IPayloadResolverService payloadResolver,
     Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService txBuilder,
-    Sorcha.Blueprint.Service.Clients.IWalletServiceClient walletClient,
-    Sorcha.Blueprint.Service.Clients.IRegisterServiceClient registerClient,
+    Sorcha.ServiceClients.Wallet.IWalletServiceClient walletClient,
+    Sorcha.ServiceClients.Register.IRegisterServiceClient registerClient,
     Sorcha.Blueprint.Service.Storage.IActionStore actionStore,
     Sorcha.Cryptography.Interfaces.IHashProvider hashProvider) =>
 {
@@ -755,7 +746,7 @@ actionsGroup.MapPost("/", async (
 actionsGroup.MapPost("/reject", async (
     Sorcha.Blueprint.Service.Models.Requests.ActionRejectionRequest request,
     Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService txBuilder,
-    Sorcha.Blueprint.Service.Clients.IRegisterServiceClient registerClient,
+    Sorcha.ServiceClients.Register.IRegisterServiceClient registerClient,
     Sorcha.Blueprint.Service.Storage.IActionStore actionStore,
     Sorcha.Cryptography.Interfaces.IHashProvider hashProvider) =>
 {

@@ -1,0 +1,451 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Sorcha.Cryptography.Interfaces;
+using Sorcha.Cryptography.Enums;
+using Sorcha.Validator.Core.Validators;
+using Sorcha.Validator.Service.Endpoints;
+using Sorcha.Validator.Service.Services;
+using Sorcha.Validator.Service.Models;
+using Sorcha.ServiceClients.Wallet;
+using Sorcha.ServiceClients.Register;
+using Sorcha.ServiceClients.Peer;
+
+namespace Sorcha.Validator.Service.Tests.Endpoints;
+
+/// <summary>
+/// Integration tests for ValidationEndpoints
+/// Tests cover API contract, validation logic, and error handling
+/// </summary>
+public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
+{
+    private readonly WebApplicationFactory<Program> _factory;
+    private readonly Mock<ITransactionValidator> _mockTransactionValidator;
+    private readonly Mock<IMemPoolManager> _mockMemPoolManager;
+    private readonly Mock<IHashProvider> _mockHashProvider;
+
+    public ValidationEndpointsTests(WebApplicationFactory<Program> factory)
+    {
+        _mockTransactionValidator = new Mock<ITransactionValidator>();
+        _mockMemPoolManager = new Mock<IMemPoolManager>();
+        _mockHashProvider = new Mock<IHashProvider>();
+
+        _factory = factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                // Remove all validator service dependencies that need mocking
+                RemoveService<ITransactionValidator>(services);
+                RemoveService<IMemPoolManager>(services);
+                RemoveService<IHashProvider>(services);
+                RemoveService<IValidatorOrchestrator>(services);
+                RemoveService<IConsensusEngine>(services);
+                RemoveService<IDocketBuilder>(services);
+                RemoveService<IGenesisManager>(services);
+                RemoveService<IWalletServiceClient>(services);
+                RemoveService<IRegisterServiceClient>(services);
+                RemoveService<IPeerServiceClient>(services);
+
+                // Add mocks for services used by ValidationEndpoints
+                services.AddScoped<ITransactionValidator>(_ => _mockTransactionValidator.Object);
+                services.AddSingleton<IMemPoolManager>(_ => _mockMemPoolManager.Object);
+                services.AddScoped<IHashProvider>(_ => _mockHashProvider.Object);
+
+                // Add mocks for dependencies of other services
+                var mockOrchestrator = new Mock<IValidatorOrchestrator>();
+                var mockConsensusEngine = new Mock<IConsensusEngine>();
+                var mockDocketBuilder = new Mock<IDocketBuilder>();
+                var mockGenesisManager = new Mock<IGenesisManager>();
+                var mockWalletClient = new Mock<IWalletServiceClient>();
+                var mockRegisterClient = new Mock<IRegisterServiceClient>();
+                var mockPeerClient = new Mock<IPeerServiceClient>();
+
+                services.AddSingleton<IValidatorOrchestrator>(_ => mockOrchestrator.Object);
+                services.AddScoped<IConsensusEngine>(_ => mockConsensusEngine.Object);
+                services.AddScoped<IDocketBuilder>(_ => mockDocketBuilder.Object);
+                services.AddScoped<IGenesisManager>(_ => mockGenesisManager.Object);
+                services.AddScoped<IWalletServiceClient>(_ => mockWalletClient.Object);
+                services.AddScoped<IRegisterServiceClient>(_ => mockRegisterClient.Object);
+                services.AddScoped<IPeerServiceClient>(_ => mockPeerClient.Object);
+            });
+        });
+    }
+
+    private static void RemoveService<T>(IServiceCollection services)
+    {
+        var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(T));
+        if (descriptor != null) services.Remove(descriptor);
+    }
+
+    #region ValidateTransaction Tests
+
+    [Fact]
+    public async Task ValidateTransaction_WithValidTransaction_ReturnsOkAndAddsToMemPool()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        var request = CreateValidTransactionRequest();
+
+        // Setup mocks for successful validation
+        _mockTransactionValidator
+            .Setup(v => v.ValidateTransactionStructure(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<JsonElement>(),
+                It.IsAny<string>(),
+                It.IsAny<List<TransactionSignature>>(),
+                It.IsAny<DateTimeOffset>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockTransactionValidator
+            .Setup(v => v.ValidatePayloadHash(It.IsAny<JsonElement>(), It.IsAny<string>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockTransactionValidator
+            .Setup(v => v.ValidateSignatures(It.IsAny<List<TransactionSignature>>(), It.IsAny<string>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockMemPoolManager
+            .Setup(m => m.AddTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/v1/transactions/validate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        result.GetProperty("isValid").GetBoolean().Should().BeTrue();
+        result.GetProperty("added").GetBoolean().Should().BeTrue();
+        result.GetProperty("transactionId").GetString().Should().Be(request.TransactionId);
+    }
+
+    [Fact]
+    public async Task ValidateTransaction_WithInvalidStructure_ReturnsBadRequest()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var request = CreateValidTransactionRequest();
+
+        // Setup mock for failed structure validation
+        _mockTransactionValidator
+            .Setup(v => v.ValidateTransactionStructure(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<JsonElement>(),
+                It.IsAny<string>(),
+                It.IsAny<List<TransactionSignature>>(),
+                It.IsAny<DateTimeOffset>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult
+            {
+                IsValid = false,
+                Errors = new List<Sorcha.Validator.Core.Models.ValidationError>
+                {
+                    new Sorcha.Validator.Core.Models.ValidationError
+                    {
+                        Code = "TX_001",
+                        Message = "Transaction ID is required",
+                        Field = "transactionId"
+                    }
+                }
+            });
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/v1/transactions/validate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        result.GetProperty("isValid").GetBoolean().Should().BeFalse();
+        result.GetProperty("errors").EnumerateArray().Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task ValidateTransaction_WithInvalidPayloadHash_ReturnsBadRequest()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var request = CreateValidTransactionRequest();
+
+        // Structure validation passes
+        _mockTransactionValidator
+            .Setup(v => v.ValidateTransactionStructure(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<JsonElement>(),
+                It.IsAny<string>(),
+                It.IsAny<List<TransactionSignature>>(),
+                It.IsAny<DateTimeOffset>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        // Payload hash validation fails
+        _mockTransactionValidator
+            .Setup(v => v.ValidatePayloadHash(It.IsAny<JsonElement>(), It.IsAny<string>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult
+            {
+                IsValid = false,
+                Errors = new List<Sorcha.Validator.Core.Models.ValidationError>
+                {
+                    new Sorcha.Validator.Core.Models.ValidationError
+                    {
+                        Code = "TX_012",
+                        Message = "Payload hash mismatch",
+                        Field = "payloadHash"
+                    }
+                }
+            });
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/v1/transactions/validate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        result.GetProperty("isValid").GetBoolean().Should().BeFalse();
+        var errors = result.GetProperty("errors").EnumerateArray().ToList();
+        errors.Should().ContainSingle();
+        errors[0].GetProperty("code").GetString().Should().Be("TX_012");
+    }
+
+    [Fact]
+    public async Task ValidateTransaction_WithInvalidSignatures_ReturnsBadRequest()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var request = CreateValidTransactionRequest();
+
+        // Structure and payload validations pass
+        _mockTransactionValidator
+            .Setup(v => v.ValidateTransactionStructure(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<JsonElement>(),
+                It.IsAny<string>(),
+                It.IsAny<List<TransactionSignature>>(),
+                It.IsAny<DateTimeOffset>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockTransactionValidator
+            .Setup(v => v.ValidatePayloadHash(It.IsAny<JsonElement>(), It.IsAny<string>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        // Signature validation fails
+        _mockTransactionValidator
+            .Setup(v => v.ValidateSignatures(It.IsAny<List<TransactionSignature>>(), It.IsAny<string>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult
+            {
+                IsValid = false,
+                Errors = new List<Sorcha.Validator.Core.Models.ValidationError>
+                {
+                    new Sorcha.Validator.Core.Models.ValidationError
+                    {
+                        Code = "TX_015",
+                        Message = "Signature missing public key",
+                        Field = "signatures[0].publicKey"
+                    }
+                }
+            });
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/v1/transactions/validate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        result.GetProperty("isValid").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ValidateTransaction_WhenMemPoolFull_ReturnsConflict()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var request = CreateValidTransactionRequest();
+
+        // All validations pass
+        _mockTransactionValidator
+            .Setup(v => v.ValidateTransactionStructure(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<JsonElement>(),
+                It.IsAny<string>(),
+                It.IsAny<List<TransactionSignature>>(),
+                It.IsAny<DateTimeOffset>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockTransactionValidator
+            .Setup(v => v.ValidatePayloadHash(It.IsAny<JsonElement>(), It.IsAny<string>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockTransactionValidator
+            .Setup(v => v.ValidateSignatures(It.IsAny<List<TransactionSignature>>(), It.IsAny<string>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        // Memory pool is full
+        _mockMemPoolManager
+            .Setup(m => m.AddTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/v1/transactions/validate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        result.GetProperty("isValid").GetBoolean().Should().BeTrue();
+        result.GetProperty("added").GetBoolean().Should().BeFalse();
+        result.GetProperty("message").GetString().Should().Contain("memory pool");
+    }
+
+    [Fact]
+    public async Task ValidateTransaction_WithInternalError_ReturnsInternalServerError()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var request = CreateValidTransactionRequest();
+
+        // Setup mock to throw exception
+        _mockTransactionValidator
+            .Setup(v => v.ValidateTransactionStructure(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<JsonElement>(),
+                It.IsAny<string>(),
+                It.IsAny<List<TransactionSignature>>(),
+                It.IsAny<DateTimeOffset>()))
+            .Throws(new InvalidOperationException("Test error"));
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/v1/transactions/validate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+    }
+
+    #endregion
+
+    #region GetMemPoolStats Tests
+
+    [Fact]
+    public async Task GetMemPoolStats_WithExistingRegister_ReturnsStats()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var registerId = "register-1";
+
+        var expectedStats = new MemPoolStats
+        {
+            RegisterId = registerId,
+            TotalTransactions = 10,
+            HighPriorityCount = 2,
+            NormalPriorityCount = 6,
+            LowPriorityCount = 2,
+            MaxSize = 100,
+            TotalEvictions = 0,
+            TotalExpired = 0,
+            OldestTransactionTime = DateTimeOffset.UtcNow.AddMinutes(-30)
+        };
+
+        _mockMemPoolManager
+            .Setup(m => m.GetStatsAsync(registerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedStats);
+
+        // Act
+        var response = await client.GetAsync($"/api/v1/transactions/mempool/{registerId}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<MemPoolStats>();
+        result.Should().NotBeNull();
+        result!.RegisterId.Should().Be(registerId);
+        result.TotalTransactions.Should().Be(10);
+        result.HighPriorityCount.Should().Be(2);
+        result.NormalPriorityCount.Should().Be(6);
+        result.LowPriorityCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetMemPoolStats_WithNonExistentRegister_ReturnsEmptyStats()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var registerId = "non-existent-register";
+
+        var emptyStats = new MemPoolStats
+        {
+            RegisterId = registerId,
+            TotalTransactions = 0,
+            HighPriorityCount = 0,
+            NormalPriorityCount = 0,
+            LowPriorityCount = 0,
+            MaxSize = 100,
+            TotalEvictions = 0,
+            TotalExpired = 0
+        };
+
+        _mockMemPoolManager
+            .Setup(m => m.GetStatsAsync(registerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(emptyStats);
+
+        // Act
+        var response = await client.GetAsync($"/api/v1/transactions/mempool/{registerId}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<MemPoolStats>();
+        result.Should().NotBeNull();
+        result!.TotalTransactions.Should().Be(0);
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    /// <summary>
+    /// Creates a valid transaction request for testing
+    /// </summary>
+    private static ValidateTransactionRequest CreateValidTransactionRequest()
+    {
+        return new ValidateTransactionRequest
+        {
+            TransactionId = $"tx-{Guid.NewGuid()}",
+            RegisterId = "register-1",
+            BlueprintId = "blueprint-1",
+            ActionId = "action-1",
+            Payload = JsonDocument.Parse("{\"data\":\"test\"}").RootElement,
+            PayloadHash = "abc123def456",
+            Signatures = new List<SignatureRequest>
+            {
+                new SignatureRequest
+                {
+                    PublicKey = "public-key-1",
+                    SignatureValue = "signature-value-1",
+                    Algorithm = "ED25519"
+                }
+            },
+            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+            Priority = TransactionPriority.Normal
+        };
+    }
+
+    #endregion
+}

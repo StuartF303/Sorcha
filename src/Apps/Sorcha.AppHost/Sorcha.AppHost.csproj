@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\Services\Sorcha.Wallet.Service\Sorcha.Wallet.Service.csproj" />
     <ProjectReference Include="..\Sorcha.Admin\Sorcha.Admin.csproj" />
     <ProjectReference Include="..\..\Services\Sorcha.Tenant.Service\Sorcha.Tenant.Service.csproj" />
+    <ProjectReference Include="..\..\Services\Sorcha.Validator.Service\Sorcha.Validator.Service.csproj" />
   </ItemGroup>
 
 </Project>

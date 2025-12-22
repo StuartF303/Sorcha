@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\Common\Sorcha.Cryptography\Sorcha.Cryptography.csproj" />
     <ProjectReference Include="..\..\Common\Sorcha.TransactionHandler\Sorcha.TransactionHandler.csproj" />
     <ProjectReference Include="..\..\Core\Sorcha.Blueprint.Engine\Sorcha.Blueprint.Engine.csproj" />
+    <ProjectReference Include="..\..\Common\Sorcha.ServiceClients\Sorcha.ServiceClients.csproj" />
   </ItemGroup>
 
 </Project>

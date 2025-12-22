@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+namespace Sorcha.ServiceClients.Peer;
+
+/// <summary>
+/// Unified client interface for Peer Service operations
+/// </summary>
+public interface IPeerServiceClient
+{
+    /// <summary>
+    /// Queries for active validators for a register
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of active validators with reputation scores</returns>
+    Task<List<ValidatorInfo>> QueryValidatorsAsync(
+        string registerId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Publishes a proposed docket to the peer network for consensus
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="docketId">Docket ID</param>
+    /// <param name="docketData">Serialized docket data</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task PublishProposedDocketAsync(
+        string registerId,
+        string docketId,
+        byte[] docketData,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Broadcasts a confirmed docket to the peer network
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="docketId">Docket ID</param>
+    /// <param name="docketData">Serialized docket data</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task BroadcastConfirmedDocketAsync(
+        string registerId,
+        string docketId,
+        byte[] docketData,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reports validator behavior to Peer Service for reputation scoring
+    /// </summary>
+    /// <param name="validatorId">Validator ID to report</param>
+    /// <param name="behavior">Behavior type (e.g., "ProposedInvalidDocket", "DoubleVote")</param>
+    /// <param name="details">Details about the behavior</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task ReportValidatorBehaviorAsync(
+        string validatorId,
+        string behavior,
+        string details,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Validator information from Peer Service
+/// </summary>
+public record ValidatorInfo
+{
+    /// <summary>
+    /// Validator ID
+    /// </summary>
+    public required string ValidatorId { get; init; }
+
+    /// <summary>
+    /// gRPC endpoint address
+    /// </summary>
+    public required string GrpcEndpoint { get; init; }
+
+    /// <summary>
+    /// Reputation score (0.0-1.0, where 1.0 is perfect)
+    /// </summary>
+    public double ReputationScore { get; init; } = 1.0;
+
+    /// <summary>
+    /// Whether validator is currently active
+    /// </summary>
+    public bool IsActive { get; init; } = true;
+}
