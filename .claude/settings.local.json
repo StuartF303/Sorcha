@@ -61,7 +61,8 @@
       "Bash(node --version)",
       "Bash(npx -y @azure/mcp@latest --help)",
       "Bash(Select-Object -First 50)",
-      "Bash(Select-Object -First 100)"
+      "Bash(Select-Object -First 100)",
+      "WebFetch(domain:www.nuget.org)"
     ],
     "deny": [],
     "ask": []

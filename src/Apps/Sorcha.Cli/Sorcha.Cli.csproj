@@ -18,11 +18,17 @@
     <PackageProjectUrl>https://github.com/sorcha/sorcha</PackageProjectUrl>
     <RepositoryUrl>https://github.com/sorcha/sorcha</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Package README -->
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Core CLI Framework -->
-    <PackageReference Include="System.CommandLine" Version="2.0.1" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
 
     <!-- Rich Terminal UI -->
     <PackageReference Include="Spectre.Console" Version="0.54.0" />
