@@ -18,7 +18,6 @@ public class Transaction : ITransaction
 {
     private readonly ICryptoModule _cryptoModule;
     private readonly IHashProvider _hashProvider;
-    private bool _isSigned = false;
 
     /// <summary>
     /// Initializes a new instance of the Transaction class.
@@ -117,7 +116,6 @@ public class Transaction : ITransaction
                 Signature,
                 HashType.SHA256));
 
-            _isSigned = true;
             return TransactionStatus.Success;
         }
         catch

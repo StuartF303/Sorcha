@@ -13,6 +13,7 @@
     <PackageTags>siccar;blockchain;transaction;payload;distributed-ledger</PackageTags>
     <RepositoryUrl>https://github.com/StuartF303/SICCARV3</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
 
     <!-- Documentation -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -31,5 +32,10 @@
     <ProjectReference Include="..\Sorcha.Cryptography\Sorcha.Cryptography.csproj" />
     <ProjectReference Include="..\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Package README -->
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>
