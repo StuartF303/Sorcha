@@ -60,12 +60,13 @@
       "WebFetch(domain:nuget.org)",
       "Bash(node --version)",
       "Bash(npx -y @azure/mcp@latest --help)",
-      "Bash(Select-Object -First 50)"
+      "Bash(Select-Object -First 50)",
+      "Bash(Select-Object -First 100)"
     ],
     "deny": [],
     "ask": []
   },
-  "enableAllProjectMcpServers": true,
+  "enableAllProjectMcpServers": false,
   "enabledMcpjsonServers": [
     "azure"
   ],

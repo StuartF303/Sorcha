@@ -61,6 +61,17 @@ var registerService = builder.AddProject<Projects.Sorcha_Register_Service>("regi
 var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service")
     .WithReference(redis);
 
+// Add Validator Service with dependencies (internal only)
+var validatorService = builder.AddProject<Projects.Sorcha_Validator_Service>("validator-service")
+    .WithReference(redis)
+    .WithReference(walletService)
+    .WithReference(registerService)
+    .WithReference(peerService)
+    .WithReference(blueprintService)
+    .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey)
+    .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
+    .WithEnvironment("JwtSettings__Audience", "https://sorcha.local");
+
 // Add API Gateway as the single external entry point
 var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
     .WithReference(tenantService)
@@ -68,6 +79,7 @@ var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
     .WithReference(walletService)
     .WithReference(registerService)
     .WithReference(peerService)
+    .WithReference(validatorService)
     .WithReference(redis)
     .WithExternalHttpEndpoints(); // Only the gateway is exposed externally
 

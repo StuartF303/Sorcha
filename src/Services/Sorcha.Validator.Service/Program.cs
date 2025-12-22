@@ -42,6 +42,10 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 // Add Core validation services
 builder.Services.AddScoped<Sorcha.Validator.Core.Validators.ITransactionValidator,
     Sorcha.Validator.Core.Validators.TransactionValidator>();
+builder.Services.AddScoped<Sorcha.Validator.Core.Validators.IDocketValidator,
+    Sorcha.Validator.Core.Validators.DocketValidator>();
+builder.Services.AddScoped<Sorcha.Validator.Core.Validators.IConsensusValidator,
+    Sorcha.Validator.Core.Validators.ConsensusValidator>();
 
 // Add memory pool manager
 builder.Services.AddSingleton<Sorcha.Validator.Service.Services.IMemPoolManager,
