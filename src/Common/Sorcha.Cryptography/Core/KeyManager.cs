@@ -287,14 +287,13 @@ public class KeyManager : IKeyManager
             byte[] mnemonicBytes = Encoding.UTF8.GetBytes(normalizedMnemonic);
             byte[] saltBytes = Encoding.UTF8.GetBytes(salt);
 
-            // Use PBKDF2 to derive seed
-            using var pbkdf2 = new Rfc2898DeriveBytes(
+            // Use PBKDF2 to derive seed (BIP39 specifies 512-bit seed)
+            byte[] seed = Rfc2898DeriveBytes.Pbkdf2(
                 mnemonicBytes,
                 saltBytes,
                 2048,
-                HashAlgorithmName.SHA512);
-
-            byte[] seed = pbkdf2.GetBytes(64); // 512 bits
+                HashAlgorithmName.SHA512,
+                64); // 512 bits / 64 bytes
 
             return CryptoResult<byte[]>.Success(seed);
         }

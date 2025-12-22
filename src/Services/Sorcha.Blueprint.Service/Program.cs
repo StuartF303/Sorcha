@@ -125,7 +125,6 @@ app.MapHub<Sorcha.Blueprint.Service.Hubs.ActionsHub>("/actionshub");
 
 var blueprintGroup = app.MapGroup("/api/blueprints")
     .WithTags("Blueprints")
-    .WithOpenApi()
     .RequireAuthorization("CanManageBlueprints");
 
 /// <summary>
@@ -283,7 +282,6 @@ blueprintGroup.MapGet("/{id}/versions/{version}", async (string id, int version,
 
 var schemaGroup = app.MapGroup("/api/schemas")
     .WithTags("Schemas")
-    .WithOpenApi()
     .RequireAuthorization();
 
 /// <summary>
@@ -305,7 +303,6 @@ schemaGroup.MapGet("/", async (string? category = null, string? source = null, s
 
 var templateGroup = app.MapGroup("/api/templates")
     .WithTags("Templates")
-    .WithOpenApi()
     .RequireAuthorization();
 
 /// <summary>
@@ -440,7 +437,6 @@ templateGroup.MapGet("/{id}/examples/{exampleName}", async (
 
 var actionsGroup = app.MapGroup("/api/actions")
     .WithTags("Actions")
-    .WithOpenApi()
     .RequireAuthorization("CanExecuteBlueprints");
 
 /// <summary>
@@ -752,6 +748,20 @@ actionsGroup.MapPost("/reject", async (
 {
     try
     {
+        // Validate required fields
+        if (string.IsNullOrEmpty(request.TransactionHash))
+        {
+            return Results.BadRequest(new { error = "TransactionHash is required" });
+        }
+        if (string.IsNullOrEmpty(request.SenderWallet))
+        {
+            return Results.BadRequest(new { error = "SenderWallet is required" });
+        }
+        if (string.IsNullOrEmpty(request.RegisterAddress))
+        {
+            return Results.BadRequest(new { error = "RegisterAddress is required" });
+        }
+
         // 1. Verify original transaction exists
         var originalAction = await actionStore.GetActionAsync(request.TransactionHash);
         if (originalAction == null)
@@ -865,8 +875,7 @@ app.MapGet("/api/files/{wallet}/{register}/{tx}/{fileId}", async (
 .WithName("GetFile")
 .WithSummary("Get file attachment")
 .WithDescription("Retrieve a file attachment from an action transaction")
-.WithTags("Actions")
-.WithOpenApi();
+.WithTags("Actions");
 
 // ===========================
 // Execution Helper Endpoints (Sprint 5)
@@ -874,7 +883,6 @@ app.MapGet("/api/files/{wallet}/{register}/{tx}/{fileId}", async (
 
 var executionGroup = app.MapGroup("/api/execution")
     .WithTags("Execution")
-    .WithOpenApi()
     .RequireAuthorization("CanExecuteBlueprints");
 
 /// <summary>
@@ -1085,7 +1093,6 @@ executionGroup.MapPost("/disclose", async (
 
 var notificationGroup = app.MapGroup("/api/notifications")
     .WithTags("Notifications")
-    .WithOpenApi()
     .RequireAuthorization("RequireService");
 
 /// <summary>
@@ -1129,7 +1136,6 @@ notificationGroup.MapPost("/transaction-confirmed", async (
 
 var instancesGroup = app.MapGroup("/api/instances")
     .WithTags("Instances")
-    .WithOpenApi()
     .RequireAuthorization("CanExecuteBlueprints");
 
 /// <summary>
@@ -1471,8 +1477,7 @@ app.MapGet("/api/health", async (IBlueprintStore blueprintStore, IPublishedBluep
 })
 .WithName("HealthCheck")
 .WithSummary("Service health check with metrics")
-.WithTags("Health")
-.WithOpenApi();
+.WithTags("Health");
 
 app.Run();
 

@@ -402,7 +402,7 @@ public class ActionExecutionService : IActionExecutionService
         };
     }
 
-    private bool EvaluateJsonLogicCondition(string condition, Dictionary<string, object?> data)
+    private bool EvaluateJsonLogicCondition(string condition, Dictionary<string, object> data)
     {
         // Simplified JSON Logic evaluation
         // In production, use JsonLogic.NET library

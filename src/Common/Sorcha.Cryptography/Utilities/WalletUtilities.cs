@@ -92,7 +92,7 @@ public class WalletUtilities : IWalletUtilities
 
             validList.Add(isValid);
 
-            if (isValid)
+            if (result.HasValue)
             {
                 var (network, publicKey) = result.Value;
                 var cryptoKey = new CryptoKey((WalletNetworks)network, publicKey);

@@ -382,7 +382,6 @@ app.UseAuthorization();
 
 var registersGroup = app.MapGroup("/api/registers")
     .WithTags("Registers")
-    .WithOpenApi()
     .RequireAuthorization("CanManageRegisters");
 
 /// <summary>
@@ -525,7 +524,6 @@ registersGroup.MapGet("/stats/count", async (RegisterManager manager) =>
 
 var transactionsGroup = app.MapGroup("/api/registers/{registerId}/transactions")
     .WithTags("Transactions")
-    .WithOpenApi()
     .RequireAuthorization("CanSubmitTransactions");
 
 /// <summary>
@@ -607,7 +605,6 @@ transactionsGroup.MapGet("/", async (
 
 var queryGroup = app.MapGroup("/api/query")
     .WithTags("Query")
-    .WithOpenApi()
     .RequireAuthorization("CanReadTransactions");
 
 /// <summary>
@@ -700,7 +697,6 @@ queryGroup.MapGet("/stats", async (
 
 var docketsGroup = app.MapGroup("/api/registers/{registerId}/dockets")
     .WithTags("Dockets")
-    .WithOpenApi()
     .RequireAuthorization("CanReadTransactions");
 
 /// <summary>

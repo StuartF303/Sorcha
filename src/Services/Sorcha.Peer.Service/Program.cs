@@ -191,8 +191,7 @@ app.MapGet("/", (IConfiguration config) =>
     .WithName("GetServiceInfo")
     .WithSummary("Get service information")
     .WithDescription("Returns basic information about the Peer Service and its available ports")
-    .WithTags("Info")
-    .WithOpenApi();
+    .WithTags("Info");
 
 // REST monitoring endpoints for CLI and admin tools
 // These endpoints provide read-only access to peer network status
@@ -216,8 +215,7 @@ app.MapGet("/api/peers", (PeerListManager peerListManager) =>
     .WithName("GetAllPeers")
     .WithSummary("List all known peers in the network")
     .WithDescription(@"Returns a comprehensive list of all peer nodes currently known to this node, including connection metadata, latency metrics, and bootstrap node status. This endpoint provides visibility into the peer-to-peer network topology.")
-    .WithTags("Peers")
-    .WithOpenApi();
+    .WithTags("Peers");
 
 app.MapGet("/api/peers/{peerId}", (string peerId, PeerListManager peerListManager) =>
 {
@@ -243,8 +241,7 @@ app.MapGet("/api/peers/{peerId}", (string peerId, PeerListManager peerListManage
     .WithName("GetPeerById")
     .WithSummary("Get detailed information about a specific peer")
     .WithDescription(@"Retrieves comprehensive details for a single peer node identified by its peer ID, including connection history, latency statistics, supported protocols, and operational status.")
-    .WithTags("Peers")
-    .WithOpenApi();
+    .WithTags("Peers");
 
 app.MapGet("/api/peers/stats", (StatisticsAggregator statisticsAggregator) =>
 {
@@ -254,8 +251,7 @@ app.MapGet("/api/peers/stats", (StatisticsAggregator statisticsAggregator) =>
     .WithName("GetPeerStatistics")
     .WithSummary("Get aggregated peer network statistics")
     .WithDescription(@"Returns comprehensive statistics about the peer-to-peer network including total peer count, connection quality metrics, throughput statistics, and network health indicators. Useful for monitoring and diagnostics.")
-    .WithTags("Monitoring")
-    .WithOpenApi();
+    .WithTags("Monitoring");
 
 app.MapGet("/api/peers/health", (PeerListManager peerListManager) =>
 {
@@ -281,8 +277,7 @@ app.MapGet("/api/peers/health", (PeerListManager peerListManager) =>
     .WithName("GetPeerHealth")
     .WithSummary("Get peer network health status")
     .WithDescription(@"Returns health status analysis of all peer nodes in the network, categorizing peers as healthy or unhealthy based on connectivity and responsiveness metrics. Includes overall health percentage and detailed metrics for healthy peers.")
-    .WithTags("Monitoring")
-    .WithOpenApi();
+    .WithTags("Monitoring");
 
 // Get count of connected peers (anonymous) and optional list (authenticated)
 app.MapGet("/api/peers/connected", (PeerListManager peerListManager, HttpContext context) =>
@@ -324,7 +319,6 @@ app.MapGet("/api/peers/connected", (PeerListManager peerListManager, HttpContext
     .WithSummary("Get count of connected peers")
     .WithDescription(@"Returns the count of currently connected (healthy) peers. Anonymous users receive only the count, while authenticated users also receive the full list of connected peers with their details.")
     .WithTags("Peers")
-    .WithOpenApi()
     .AllowAnonymous();
 
 app.Run();

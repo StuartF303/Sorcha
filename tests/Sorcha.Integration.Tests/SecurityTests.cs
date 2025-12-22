@@ -52,7 +52,6 @@ public class SecurityTests : IAsyncLifetime
     {
         // Test that users cannot access other users' wallet delegations
         var userAWalletId = "wallet-user-a";
-        var userBWalletId = "wallet-user-b";
 
         // User B attempts to access User A's delegations
         var response = await _client!.GetAsync($"/api/wallets/{userAWalletId}/delegations");

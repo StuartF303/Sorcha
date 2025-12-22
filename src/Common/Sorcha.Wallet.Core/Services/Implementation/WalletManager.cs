@@ -649,6 +649,11 @@ public class WalletManager : IWalletService
                 throw new InvalidOperationException($"Recipient wallet {recipientAddress} not found");
             }
 
+            if (string.IsNullOrEmpty(recipientWallet.PublicKey))
+            {
+                throw new InvalidOperationException($"Recipient wallet {recipientAddress} has no public key");
+            }
+
             // Get recipient's public key (stored as base64)
             var publicKey = Convert.FromBase64String(recipientWallet.PublicKey);
 

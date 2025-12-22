@@ -260,10 +260,10 @@ public class BlueprintTemplateService : IBlueprintTemplateService
                 return ValidationResult.Success();
             }
 
-            var errors = validationResult.Details
+            var errors = validationResult.Details?
                 .Where(d => !d.IsValid)
                 .Select(d => $"{d.InstanceLocation}: {d.Errors?.FirstOrDefault().Value ?? "Validation failed"}")
-                .ToList();
+                .ToList() ?? new List<string> { "Validation failed" };
 
             return new ValidationResult
             {

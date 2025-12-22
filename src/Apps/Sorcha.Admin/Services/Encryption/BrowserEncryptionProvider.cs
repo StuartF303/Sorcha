@@ -65,7 +65,7 @@ public class BrowserEncryptionProvider : IEncryptionProvider
                     _isInitialized = true;
                     return;
                 }
-                catch (JSException ex) when (attempt < maxRetries)
+                catch (JSException) when (attempt < maxRetries)
                 {
                     // Retry on JS exceptions (module might not be ready yet)
                     await Task.Delay(delayMs * attempt);

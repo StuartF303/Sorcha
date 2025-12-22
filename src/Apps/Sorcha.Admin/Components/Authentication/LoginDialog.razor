@@ -114,7 +114,7 @@
             // Close dialog and return success
             MudDialog?.Close(DialogResult.Ok(true));
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
             _showError = true;
             _errorMessage = "Invalid username or password.";

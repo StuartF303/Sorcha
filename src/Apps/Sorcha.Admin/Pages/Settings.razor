@@ -43,7 +43,7 @@
                                            Color="Color.Success"
                                            Size="Size.Small"
                                            T="bool"
-                                           ValueChanged="@((bool newValue) => { context.IsEnabled = newValue; SaveSchemaProviders(); })" />
+                                           ValueChanged="@((bool newValue) => { context.IsEnabled = newValue; _ = SaveSchemaProviders(); })" />
                             </MudTd>
                             <MudTd DataLabel="Name">
                                 <MudText>
