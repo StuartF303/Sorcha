@@ -30,7 +30,8 @@ public class HealthAggregationService
             { "wallet", configuration["Services:Wallet:Url"] ?? "http://wallet-service:8080" },
             { "register", configuration["Services:Register:Url"] ?? "http://register-service:8080" },
             { "tenant", configuration["Services:Tenant:Url"] ?? "http://tenant-service:8080" },
-            { "peer", configuration["Services:Peer:Url"] ?? "http://peer-service:8080" }
+            { "peer", configuration["Services:Peer:Url"] ?? "http://peer-service:8080" },
+            { "validator", configuration["Services:Validator:Url"] ?? "http://validator-service:8080" }
         };
     }
 

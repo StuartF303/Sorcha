@@ -119,7 +119,9 @@ app.MapGet("/api/docs", (IConfiguration configuration) =>
         new { Name = "Tenant Service", Description = "Authentication and multi-tenant management APIs",
               OpenApiUrl = "/api/tenant/openapi/v1.json" },
         new { Name = "Peer Service", Description = "P2P networking and peer discovery APIs",
-              OpenApiUrl = "/api/peer/openapi/v1.json" }
+              OpenApiUrl = "/api/peer/openapi/v1.json" },
+        new { Name = "Validator Service", Description = "Transaction validation and consensus APIs",
+              OpenApiUrl = "/api/validator/openapi/v1.json" }
     };
 
     var aspireDashboardUrl = configuration["Dashboard:AspireDashboardUrl"] ?? "http://localhost:15888";
