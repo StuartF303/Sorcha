@@ -400,10 +400,108 @@ Future integration for:
 
 - **At-Rest Encryption**: All private keys encrypted with AES-256-GCM
 - **Encryption Key Storage**:
-  - **Development**: Local DPAPI (Windows) or Keychain (macOS)
-  - **Production**: Azure Key Vault or AWS KMS
+  - **Development**: Local in-memory encryption (NOT secure - dev/test only)
+  - **Production**: Azure Key Vault, AWS KMS, or Google Cloud KMS
 - **Mnemonic Handling**: Never stored; only shown once during wallet creation
 - **Memory Protection**: Sensitive data cleared from memory after use
+
+### Encryption Provider Configuration
+
+**⚠️ IMPORTANT**: The default `LocalEncryptionProvider` is **NOT suitable for production** as it stores encryption keys in memory only and they are lost on service restart.
+
+#### Development/Testing Configuration
+
+The current Docker Compose setup uses `LocalEncryptionProvider` for development:
+
+```bash
+# Warning message in logs (expected in development):
+warn: Sorcha.Wallet.Core.Encryption.Providers.LocalEncryptionProvider[0]
+      LocalEncryptionProvider initialized. This provider is for development only.
+```
+
+**Limitations**:
+- Keys stored in memory only (lost on restart)
+- No key backup or recovery
+- Not suitable for production use
+- Wallets created in development cannot be migrated to production
+
+#### Production Configuration Options
+
+**Option 1: Azure Key Vault (Recommended for Azure deployments)**
+
+```json
+{
+  "Wallet": {
+    "EncryptionProvider": "AzureKeyVault",
+    "AzureKeyVault": {
+      "VaultUrl": "https://your-vault.vault.azure.net/",
+      "UseManagedIdentity": true
+    }
+  }
+}
+```
+
+Docker Compose configuration:
+```yaml
+wallet-service:
+  environment:
+    Wallet__EncryptionProvider: "AzureKeyVault"
+    Wallet__AzureKeyVault__VaultUrl: "https://your-vault.vault.azure.net/"
+    Wallet__AzureKeyVault__UseManagedIdentity: "true"
+    AZURE_TENANT_ID: "${AZURE_TENANT_ID}"
+    AZURE_CLIENT_ID: "${AZURE_CLIENT_ID}"
+    AZURE_CLIENT_SECRET: "${AZURE_CLIENT_SECRET}"
+```
+
+**Option 2: AWS KMS**
+
+```json
+{
+  "Wallet": {
+    "EncryptionProvider": "AwsKms",
+    "AwsKms": {
+      "Region": "us-east-1",
+      "KeyId": "arn:aws:kms:us-east-1:123456789012:key/your-key-id",
+      "UseIamRole": true
+    }
+  }
+}
+```
+
+**Option 3: Google Cloud KMS**
+
+```json
+{
+  "Wallet": {
+    "EncryptionProvider": "GcpKms",
+    "GcpKms": {
+      "ProjectId": "your-project-id",
+      "LocationId": "global",
+      "KeyRingId": "sorcha-keys",
+      "KeyId": "wallet-encryption-key"
+    }
+  }
+}
+```
+
+#### Migration from Development to Production
+
+**WARNING**: Wallets created with `LocalEncryptionProvider` **CANNOT** be migrated to production HSM backends because:
+1. The encryption keys are stored in memory and lost on restart
+2. There is no key export mechanism for security reasons
+3. Private keys are encrypted with ephemeral keys
+
+**Production Deployment Checklist**:
+- [ ] Configure Azure Key Vault, AWS KMS, or GCP Cloud KMS
+- [ ] Set up Managed Identity or IAM Role for the service
+- [ ] Test encryption/decryption with the HSM provider
+- [ ] Ensure DataProtection keys are stored in a shared volume
+- [ ] Verify audit logging is enabled
+- [ ] Test wallet creation and signing operations
+- [ ] Confirm private keys are never logged
+- [ ] Set up key rotation policies in your HSM provider
+
+For detailed HSM configuration, see: [Hardware Cryptographic Storage Feature Spec](../../specs/001-hardware-crypto-enclaves/spec.md)
 
 ### Access Control
 

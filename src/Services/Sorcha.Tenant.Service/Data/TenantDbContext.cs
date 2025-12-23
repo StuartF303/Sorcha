@@ -100,8 +100,12 @@ public class TenantDbContext : DbContext
                 .IsRequired();
 
             // JSON column for branding configuration
+            // Note: To resolve EF Core warning about optional dependents with table sharing,
+            // we use the ToJson() method to store branding as a JSON column instead of table sharing.
+            // This makes it clear that a null JSON value means no branding configuration.
             entity.OwnsOne(e => e.Branding, branding =>
             {
+                branding.ToJson();
                 branding.Property(b => b.LogoUrl).HasMaxLength(500);
                 branding.Property(b => b.PrimaryColor).HasMaxLength(20);
                 branding.Property(b => b.SecondaryColor).HasMaxLength(20);

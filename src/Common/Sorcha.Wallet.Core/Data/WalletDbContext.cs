@@ -333,6 +333,10 @@ public class WalletDbContext : DbContext
                 .HasForeignKey(e => e.ParentWalletAddress)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Add query filter to match parent Wallet's soft delete filter
+            // This prevents loading transactions for soft-deleted wallets
+            entity.HasQueryFilter(e => e.Wallet!.DeletedAt == null);
+
             // Indexes
             entity.HasIndex(e => e.ParentWalletAddress)
                 .HasDatabaseName("IX_WalletTransactions_ParentWalletAddress");

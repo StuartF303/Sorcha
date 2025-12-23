@@ -114,6 +114,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
+    volumes:
+      - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
       redis:
         condition: service_healthy
@@ -140,6 +142,8 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
       ConnectionStrings__wallet-db: Host=postgres;Database=sorcha_wallet;Username=sorcha;Password=sorcha_dev_password;Timeout=30;Command Timeout=30
+    volumes:
+      - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
       redis:
         condition: service_healthy
@@ -169,6 +173,8 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
       ConnectionStrings__MongoDB: mongodb://sorcha:sorcha_dev_password@mongodb:27017
+    volumes:
+      - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
       redis:
         condition: service_healthy
@@ -198,6 +204,8 @@ services:
       # Override JWT settings for tenant service (it issues tokens)
       JwtSettings__Audience__0: http://api-gateway:8080
       JwtSettings__SigningKeySource: Configuration
+    volumes:
+      - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
       redis:
         condition: service_healthy
@@ -234,6 +242,8 @@ services:
       PeerService__EnablePeerDiscovery: "true"
       PeerService__CentralNode__IsCentralNode: "false"
       PeerService__CentralNode__ValidateHostname: "false"
+    volumes:
+      - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -269,6 +279,8 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__Redis: redis:6379
+    volumes:
+      - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
       redis:
         condition: service_healthy
@@ -299,6 +311,8 @@ services:
       Services__Validator__Url: http://validator-service:8080
       ConnectionStrings__Redis: redis:6379
       Dashboard__AspireDashboardUrl: http://localhost:18888
+    volumes:
+      - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
       - blueprint-service
       - wallet-service
@@ -318,3 +332,4 @@ volumes:
   redis-data:
   postgres-data:
   mongodb-data:
+  dataprotection-keys:

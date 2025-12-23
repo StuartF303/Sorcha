@@ -23,9 +23,24 @@ RUN dotnet build "Sorcha.Tenant.Service.csproj" -c Release -o /app/build
 FROM build AS publish
 RUN dotnet publish "Sorcha.Tenant.Service.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
+# Dependencies stage - Install native libraries
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Final stage - Ubuntu Chiseled (distroless)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final
 WORKDIR /app
+
+# Copy Kerberos libraries from dependencies stage
+COPY --from=dependencies /usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2* /usr/lib/x86_64-linux-gnu/
+COPY --from=dependencies /usr/lib/x86_64-linux-gnu/libkrb5.so.3* /usr/lib/x86_64-linux-gnu/
+COPY --from=dependencies /usr/lib/x86_64-linux-gnu/libk5crypto.so.3* /usr/lib/x86_64-linux-gnu/
+COPY --from=dependencies /usr/lib/x86_64-linux-gnu/libcom_err.so.2* /usr/lib/x86_64-linux-gnu/
+COPY --from=dependencies /usr/lib/x86_64-linux-gnu/libkrb5support.so.0* /usr/lib/x86_64-linux-gnu/
+COPY --from=dependencies /lib/x86_64-linux-gnu/libkeyutils.so.1* /lib/x86_64-linux-gnu/
+COPY --from=dependencies /lib/x86_64-linux-gnu/libresolv.so.2* /lib/x86_64-linux-gnu/
 
 # Expose ports
 EXPOSE 8080

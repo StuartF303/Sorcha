@@ -73,7 +73,8 @@
       "Bash($ip = docker inspect sorcha-api-gateway --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')",
       "Bash(python -m json.tool:*)",
       "mcp__MCP_DOCKER__mcp-find",
-      "mcp__MCP_DOCKER__mcp-add"
+      "mcp__MCP_DOCKER__mcp-add",
+      "Bash(Select-String -Pattern \"warn:\" -Context 1)"
     ],
     "deny": [],
     "ask": []
