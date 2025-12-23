@@ -27,9 +27,17 @@ RUN dotnet build "Sorcha.Register.Service.csproj" -c Release -o /app/build
 FROM build AS publish
 RUN dotnet publish "Sorcha.Register.Service.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
+# Permissions stage - Create directory structure for non-root user
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS permissions
+RUN mkdir -p /home/app/.aspnet/DataProtection-Keys && \
+    chown -R 1654:1654 /home/app/.aspnet
+
 # Final stage - Ubuntu Chiseled (distroless)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final
 WORKDIR /app
+
+# Copy directory structure with permissions from permissions stage
+COPY --from=permissions --chown=$APP_UID:$APP_UID /home/app/.aspnet /home/app/.aspnet
 
 # Expose ports
 EXPOSE 8080

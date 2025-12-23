@@ -393,6 +393,7 @@ jobs:
         template: ./infra/base-infra.bicep
         parameters: >
           resourceGroupName=${{ env.AZURE_RESOURCE_GROUP }}
+          subscriptionId=${{ env.AZURE_SUBSCRIPTION_ID }}
           location=${{ env.AZURE_LOCATION }}
           containerRegistryName=${{ env.CONTAINER_REGISTRY }}
           environment=prod
@@ -410,6 +411,7 @@ jobs:
         parameters: >
           location=${{ env.AZURE_LOCATION }}
           containerRegistryName=${{ env.CONTAINER_REGISTRY }}
+          subscriptionId=${{ env.AZURE_SUBSCRIPTION_ID }}
           environment=prod
           imageTag=${{ github.sha }}
         deploymentName: sorcha-apps-${{ github.run_number }}

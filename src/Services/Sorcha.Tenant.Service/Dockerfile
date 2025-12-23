@@ -23,11 +23,15 @@ RUN dotnet build "Sorcha.Tenant.Service.csproj" -c Release -o /app/build
 FROM build AS publish
 RUN dotnet publish "Sorcha.Tenant.Service.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Dependencies stage - Install native libraries
+# Dependencies stage - Install native libraries and create directory structure
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgssapi-krb5-2 \
     && rm -rf /var/lib/apt/lists/*
+
+# Create DataProtection keys directory with proper permissions for non-root user
+RUN mkdir -p /home/app/.aspnet/DataProtection-Keys && \
+    chown -R 1654:1654 /home/app/.aspnet
 
 # Final stage - Ubuntu Chiseled (distroless)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final
@@ -41,6 +45,9 @@ COPY --from=dependencies /usr/lib/x86_64-linux-gnu/libcom_err.so.2* /usr/lib/x86
 COPY --from=dependencies /usr/lib/x86_64-linux-gnu/libkrb5support.so.0* /usr/lib/x86_64-linux-gnu/
 COPY --from=dependencies /lib/x86_64-linux-gnu/libkeyutils.so.1* /lib/x86_64-linux-gnu/
 COPY --from=dependencies /lib/x86_64-linux-gnu/libresolv.so.2* /lib/x86_64-linux-gnu/
+
+# Copy directory structure with permissions from dependencies stage
+COPY --from=dependencies --chown=$APP_UID:$APP_UID /home/app/.aspnet /home/app/.aspnet
 
 # Expose ports
 EXPOSE 8080
