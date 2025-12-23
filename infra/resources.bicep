@@ -398,6 +398,16 @@ resource peerService 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'MongoDB__DatabaseName'
               value: 'sorcha_system_register'
             }
+            // Peer Service identity configuration
+            {
+              name: 'PeerService__NodeId'
+              value: 'n0.sorcha.dev'
+            }
+            {
+              name: 'PeerService__PublicAddress'
+              value: peerService.properties.configuration.ingress.fqdn
+            }
+            // Central node configuration
             {
               name: 'PeerService__CentralNode__IsCentralNode'
               value: 'true'
