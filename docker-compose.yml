@@ -252,6 +252,31 @@ services:
     sysctls:
       - net.ipv4.ip_forward=1
 
+  validator-service:
+    build:
+      context: .
+      dockerfile: src/Services/Sorcha.Validator.Service/Dockerfile
+    image: sorcha/validator-service:latest
+    container_name: sorcha-validator-service
+    restart: unless-stopped
+    ports:
+      - "5100:8080"        # HTTP REST API and health checks
+      - "5101:8081"        # gRPC endpoint
+    environment:
+      <<: [*otel-env, *jwt-env]
+      OTEL_SERVICE_NAME: validator-service
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__Redis: redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+      aspire-dashboard:
+        condition: service_started
+    networks:
+      - sorcha-network
+
   api-gateway:
     build:
       context: .
@@ -271,6 +296,7 @@ services:
       Services__Register__Url: http://register-service:8080
       Services__Tenant__Url: http://tenant-service:8080
       Services__Peer__Url: http://peer-service:8080
+      Services__Validator__Url: http://validator-service:8080
       ConnectionStrings__Redis: redis:6379
       Dashboard__AspireDashboardUrl: http://localhost:18888
     depends_on:
@@ -279,6 +305,7 @@ services:
       - register-service
       - tenant-service
       - peer-service
+      - validator-service
       - aspire-dashboard
     networks:
       - sorcha-network

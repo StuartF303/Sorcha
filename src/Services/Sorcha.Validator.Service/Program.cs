@@ -55,8 +55,16 @@ builder.Services.AddSingleton<Sorcha.Validator.Service.Services.IMemPoolManager,
 builder.Services.AddScoped<Sorcha.Validator.Service.Services.IConsensusEngine,
     Sorcha.Validator.Service.Services.ConsensusEngine>();
 
-// Add validator orchestrator
-builder.Services.AddSingleton<Sorcha.Validator.Service.Services.IValidatorOrchestrator,
+// Add genesis manager (scoped to match service client lifetimes)
+builder.Services.AddScoped<Sorcha.Validator.Service.Services.IGenesisManager,
+    Sorcha.Validator.Service.Services.GenesisManager>();
+
+// Add docket builder
+builder.Services.AddScoped<Sorcha.Validator.Service.Services.IDocketBuilder,
+    Sorcha.Validator.Service.Services.DocketBuilder>();
+
+// Add validator orchestrator (scoped to match service client lifetimes)
+builder.Services.AddScoped<Sorcha.Validator.Service.Services.IValidatorOrchestrator,
     Sorcha.Validator.Service.Services.ValidatorOrchestrator>();
 
 // Add consolidated service clients

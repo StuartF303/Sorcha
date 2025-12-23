@@ -12,7 +12,7 @@
 The **API Gateway** is the unified entry point for all Sorcha platform services, providing a single external endpoint that routes requests to backend microservices. Built on Microsoft YARP (Yet Another Reverse Proxy), it implements the API Gateway pattern with intelligent routing, health aggregation, OpenAPI documentation consolidation, and client distribution.
 
 This service acts as the platform front door for:
-- **Request routing** to Blueprint, Wallet, Register, Peer, and Validator services
+- **Request routing** to Blueprint, Wallet, Register, Tenant, Peer, and Validator services
 - **Health aggregation** from all backend services
 - **OpenAPI consolidation** for unified API documentation
 - **Client distribution** packaging and serving the Blazor WebAssembly client
@@ -57,10 +57,12 @@ API Gateway (Single External Endpoint)
 ├── Landing Page (/)
 │   └── Interactive HTML Dashboard
 └── External Service References
-    ├── Blueprint Service (http://blueprint-api)
+    ├── Blueprint Service (http://blueprint-service)
     ├── Wallet Service (http://wallet-service)
     ├── Register Service (http://register-service)
-    └── Peer Service (http://peer-service)
+    ├── Tenant Service (http://tenant-service)
+    ├── Peer Service (http://peer-service)
+    └── Validator Service (http://validator-service)
 ```
 
 ### Request Flow
@@ -93,7 +95,10 @@ Response → API Gateway → Client
 |---------------|-----------------|--------------|-------------|
 | `/api/blueprint/**` | Blueprint Service | `/api/**` | Blueprint CRUD, actions, templates |
 | `/api/wallets/**` | Wallet Service | `/api/v1/wallets/**` | Wallet management, HD wallets |
+| `/api/registers/**` | Register Service | `/api/**` | Register and transaction operations |
+| `/api/tenant/**` | Tenant Service | `/api/**` | Tenant and organization management |
 | `/api/peer/**` | Peer Service | `/api/**` | Peer discovery, gossip |
+| `/api/validator/**` | Validator Service | `/api/v1/**` | Transaction validation, consensus |
 | `/api/health` | API Gateway | - | Aggregated health from all services |
 | `/api/stats` | API Gateway | - | System-wide statistics |
 | `/api/client/download` | API Gateway | - | Blazor client package |
@@ -312,8 +317,10 @@ _serviceEndpoints = new Dictionary<string, string>
 |-------------------|-----------------|
 | `/api/blueprint/*` | Blueprint Service |
 | `/api/wallets/*` | Wallet Service |
-| `/api/registers/*` | Register Service (future) |
+| `/api/registers/*` | Register Service |
+| `/api/tenant/*` | Tenant Service |
 | `/api/peer/*` | Peer Service |
+| `/api/validator/*` | Validator Service |
 
 For detailed service endpoint documentation, visit `/scalar/v1`.
 
@@ -603,6 +610,22 @@ The API Gateway includes a beautiful, responsive landing page at `/`.
 - Peer discovery
 - Transaction distribution
 - Network health
+
+### Validator Service Integration
+
+**Routes:**
+- `/api/validator/**` → `http://validator-service:8080/api/v1/**`
+- `/api/v1/validators/**` → `http://validator-service:8080/api/v1/validators/**`
+
+**Use Cases:**
+- Transaction validation
+- Consensus participation
+- Mempool management
+- Validator node registration
+
+**gRPC Support:**
+- gRPC endpoint available on port 8081 for inter-service communication
+- REST API on port 8080 for external access
 
 ---
 
