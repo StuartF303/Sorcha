@@ -1,16 +1,1 @@
-{
-  "mcpServers": {
-    "azure": {
-      "type": "stdio",
-      "command": "cmd",
-      "args": ["/c", "\"C:\\Program Files\\nodejs\\npx.cmd\"", "-y", "@azure/mcp@latest"],
-      "env": {}
-    },
-    "docker": {
-      "type": "stdio",
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "mcp/docker"],
-      "env": {}
-    }
-  }
-}
+{"mcpServers":{"azure":{"type":"stdio","command":"cmd","args":["/c","\"C:\\Program Files\\nodejs\\npx.cmd\"","-y","@azure/mcp@latest"],"env":{}},"docker":{"type":"stdio","command":"docker","args":["run","-i","--rm","mcp/docker"],"env":{}},"MCP_DOCKER":{"command":"docker","args":["mcp","gateway","run"],"env":{"LOCALAPPDATA":"C:\\Users\\stuart\\AppData\\Local","ProgramData":"C:\\ProgramData","ProgramFiles":"C:\\Program Files"},"type":"stdio"}}}

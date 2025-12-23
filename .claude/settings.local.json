@@ -71,7 +71,9 @@
       "Bash(Select-Object -First 20)",
       "Bash(Select-String -Pattern \"error|exception|fail\" -Context 2)",
       "Bash($ip = docker inspect sorcha-api-gateway --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')",
-      "Bash(python -m json.tool:*)"
+      "Bash(python -m json.tool:*)",
+      "mcp__MCP_DOCKER__mcp-find",
+      "mcp__MCP_DOCKER__mcp-add"
     ],
     "deny": [],
     "ask": []
