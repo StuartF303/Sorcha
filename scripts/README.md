@@ -1,85 +1,110 @@
-# Sorcha Utility Scripts
+# Sorcha Docker Scripts
 
-Helper scripts for development and troubleshooting.
+This directory contains utility scripts for building and publishing Sorcha Docker images.
 
-## bootstrap-database (Automatic)
+---
 
-**⚠️ NEW: Bootstrap seeding is now AUTOMATIC! No manual scripts needed.**
+## 📦 Push to DockerHub
 
-The Tenant Service now automatically seeds the database on first startup with:
-- Default organization: "Sorcha Local" (subdomain: `sorcha-local`)
-- Default admin user: `admin@sorcha.local` / `Dev_Pass_2025!`
-- Service principals for: Blueprint, Wallet, Register, and Peer services
-
-**On first startup, watch the Tenant Service logs for service principal credentials:**
-```
-Service Principal Created - Blueprint Service
-  Client ID:     service-blueprint
-  Client Secret: <generated-secret>
-  Scopes:        blueprints:read, blueprints:write, wallets:sign, register:write
-  ⚠️  SAVE THIS SECRET - It will not be shown again!
-```
-
-The client secrets are displayed **only once** during initial seeding. Copy them from the logs and store them securely (e.g., in `.env.local` file, gitignored).
-
-**Configuration Override (Optional):**
-
-You can customize the default credentials via `appsettings.Development.json`:
-```json
-{
-  "Seed": {
-    "OrganizationName": "My Company",
-    "OrganizationSubdomain": "mycompany",
-    "AdminEmail": "admin@mycompany.com",
-    "AdminPassword": "My_Secure_Pass_2025!"
-  }
-}
-```
-
-**Security Notes:**
-- Default credentials are for **local development only**
-- Change password on first login in non-development environments
-- Service principal secrets are displayed only during first startup
-- For production: Use Azure AD/B2C authentication instead of default credentials
-
-## cleanup-ports
-
-Kills processes using Sorcha service ports to resolve "port already in use" errors.
+Scripts to build and push all Sorcha service images to DockerHub.
 
 ### Windows (PowerShell)
+
+**Script:** `push-to-dockerhub.ps1`
+
+#### Basic Usage
+
 ```powershell
-.\scripts\cleanup-ports.ps1
+# Push all services with 'latest' tag
+.\scripts\push-to-dockerhub.ps1 -DockerHubUser "yourusername"
+
+# Push with specific version tag
+.\scripts\push-to-dockerhub.ps1 -DockerHubUser "yourusername" -Tag "v1.0.0"
+
+# Push only specific services
+.\scripts\push-to-dockerhub.ps1 -DockerHubUser "yourusername" -Services blueprint,wallet
+
+# Dry run (see what would happen without pushing)
+.\scripts\push-to-dockerhub.ps1 -DockerHubUser "yourusername" -DryRun
+
+# Skip building and use existing local images
+.\scripts\push-to-dockerhub.ps1 -DockerHubUser "yourusername" -SkipBuild
 ```
 
-### Unix/Mac/Git Bash
+#### Parameters
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `-DockerHubUser` | ✅ Yes | - | Your DockerHub username or organization |
+| `-Tag` | ❌ No | `latest` | Version tag for images (e.g., `v1.0.0`, `1.2.3`) |
+| `-Services` | ❌ No | All | Specific services to push: `blueprint`, `wallet`, `register`, `tenant`, `peer`, `validator`, `gateway` |
+| `-SkipBuild` | ❌ No | `false` | Skip building, only tag and push existing images |
+| `-DryRun` | ❌ No | `false` | Show what would be done without actually pushing |
+
+---
+
+### Linux/macOS (Bash)
+
+**Script:** `push-to-dockerhub.sh`
+
+#### Basic Usage
+
 ```bash
-bash scripts/cleanup-ports.sh
+# Make script executable (first time only)
+chmod +x scripts/push-to-dockerhub.sh
+
+# Push all services
+./scripts/push-to-dockerhub.sh -u yourusername
+
+# Push with version tag
+./scripts/push-to-dockerhub.sh -u yourusername -t v1.0.0
+
+# Push specific services
+./scripts/push-to-dockerhub.sh -u yourusername -s blueprint,wallet
+
+# Dry run
+./scripts/push-to-dockerhub.sh -u yourusername --dry-run
 ```
 
-### Ports Cleaned
-- 8050, 8051 - Blueprint Service
-- 8060, 8061 - API Gateway
-- 8070, 8071 - Peer Service
-- 8080, 8081 - Blazor Client
-- 17256 - Aspire Dashboard
+---
 
-## When to Use
+## 🔐 DockerHub Authentication
 
-Run cleanup script when you see:
-- "port already in use" errors
-- "bind: Only one usage of each socket address" errors
-- Services won't start after Ctrl+C
-- Aspire dashboard won't start
+Before running the scripts:
 
-## Troubleshooting
+```bash
+docker login
+```
 
-If scripts don't work:
+The scripts will check authentication and prompt if needed.
+
+---
+
+## 🎯 Available Services
+
+- `blueprint` - Blueprint workflow management
+- `wallet` - Cryptographic wallet service
+- `register` - Distributed ledger service
+- `tenant` - Multi-tenant management
+- `peer` - P2P networking
+- `validator` - Transaction validation
+- `gateway` - YARP API gateway
+
+---
+
+## 📝 Examples
+
 ```powershell
-# Windows - nuclear option
-taskkill /F /IM dotnet.exe
+# Production release (Windows)
+.\scripts\push-to-dockerhub.ps1 -DockerHubUser "sorchaorg" -Tag "v1.0.0"
 
-# Unix/Mac - nuclear option
-killall -9 dotnet
+# Production release (Linux/Mac)
+./scripts/push-to-dockerhub.sh -u sorchaorg -t v1.0.0
+
+# Update specific services only
+.\scripts\push-to-dockerhub.ps1 -DockerHubUser "myuser" -Services validator,gateway
 ```
 
-Then restart Docker Desktop and try again.
+---
+
+**Last Updated:** 2025-12-23

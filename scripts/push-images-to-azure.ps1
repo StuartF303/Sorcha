@@ -5,7 +5,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ContainerRegistry = "sorchaacr",
+    [string]$ContainerRegistry = "sorchauksouth",
 
     [Parameter(Mandatory=$false)]
     [string]$ImageTag = "latest",
@@ -59,7 +59,7 @@ catch {
 Write-Host "[4/4] Building and pushing container images..." -ForegroundColor Yellow
 
 $services = @(
-    @{Name="blueprint-service"; AcrName="blueprint-api"},
+    @{Name="blueprint-service"; AcrName="blueprint-service"},
     @{Name="wallet-service"; AcrName="wallet-service"},
     @{Name="tenant-service"; AcrName="tenant-service"},
     @{Name="register-service"; AcrName="register-service"},
