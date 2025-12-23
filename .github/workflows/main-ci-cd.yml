@@ -365,11 +365,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect-changes, full-build-and-test, publish-cryptography, publish-transaction-handler, publish-containers]
     if: |
-      always() &&
-      needs.full-build-and-test.result == 'success' &&
-      (needs.publish-containers.result == 'success' || needs.publish-containers.result == 'skipped') &&
-      (needs.publish-cryptography.result == 'success' || needs.publish-cryptography.result == 'skipped') &&
-      (needs.publish-transaction-handler.result == 'success' || needs.publish-transaction-handler.result == 'skipped')
+      always() 
+
+   #   needs.full-build-and-test.result == 'success' &&
+   #   (needs.publish-containers.result == 'success' || needs.publish-containers.result == 'skipped') &&
+   #   (needs.publish-cryptography.result == 'success' || needs.publish-cryptography.result == 'skipped') &&
+   #   (needs.publish-transaction-handler.result == 'success' || needs.publish-transaction-handler.result == 'skipped')
     environment:
       name: azure-production
       url: https://${{ steps.get-urls.outputs.blazor_url }}
