@@ -18,8 +18,12 @@ param containerRegistryName string
 @description('Environment name (dev, staging, prod)')
 param environment string = 'prod'
 
-@description('MongoDB connection string for Peer Service')
+@description('MongoDB connection string for Peer Service (optional - will create Cosmos DB if not provided)')
 param mongoDbConnectionString string = ''
+
+@description('PostgreSQL administrator password (required for database creation)')
+@secure()
+param postgresAdminPassword string
 
 @description('Tags to apply to all resources')
 param tags object = {
@@ -35,6 +39,18 @@ resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   tags: tags
 }
 
+// Deploy databases first (PostgreSQL and Cosmos DB)
+module databases 'databases.bicep' = {
+  scope: rg
+  name: 'sorcha-databases'
+  params: {
+    location: location
+    environment: environment
+    postgresAdminPassword: postgresAdminPassword
+    tags: tags
+  }
+}
+
 // Deploy all resources into the resource group
 module resources 'resources.bicep' = {
   scope: rg
@@ -43,7 +59,10 @@ module resources 'resources.bicep' = {
     location: location
     containerRegistryName: containerRegistryName
     environment: environment
-    mongoDbConnectionString: mongoDbConnectionString
+    // Use provided MongoDB connection string, or fall back to Cosmos DB
+    mongoDbConnectionString: !empty(mongoDbConnectionString) ? mongoDbConnectionString : databases.outputs.mongoDbConnectionString
+    walletDbConnectionString: databases.outputs.walletDbConnectionString
+    tenantDbConnectionString: databases.outputs.tenantDbConnectionString
     tags: tags
   }
 }

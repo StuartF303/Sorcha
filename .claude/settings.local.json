@@ -74,7 +74,10 @@
       "Bash(python -m json.tool:*)",
       "mcp__MCP_DOCKER__mcp-find",
       "mcp__MCP_DOCKER__mcp-add",
-      "Bash(Select-String -Pattern \"warn:\" -Context 1)"
+      "Bash(Select-String -Pattern \"warn:\" -Context 1)",
+      "Bash(Select-String -Pattern \"sorcha_wallet|sorcha_tenant|initialization\" -Context 1)",
+      "Bash(do echo \"=== $service ===\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

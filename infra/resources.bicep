@@ -22,6 +22,14 @@ param tags object
 @description('MongoDB connection string for Peer Service')
 param mongoDbConnectionString string = ''
 
+@description('PostgreSQL connection string for Wallet Service')
+@secure()
+param walletDbConnectionString string
+
+@description('PostgreSQL connection string for Tenant Service')
+@secure()
+param tenantDbConnectionString string
+
 // Container Registry (Basic SKU - low cost)
 resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
   name: containerRegistryName
@@ -154,6 +162,166 @@ resource blueprintApi 'Microsoft.App/containerApps@2024-03-01' = {
             http: {
               metadata: {
                 concurrentRequests: '10'
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+
+// Wallet Service Container App
+resource walletService 'Microsoft.App/containerApps@2024-03-01' = {
+  name: 'wallet-service'
+  location: location
+  tags: tags
+  properties: {
+    environmentId: containerAppEnv.id
+    workloadProfileName: 'Consumption'
+    configuration: {
+      ingress: {
+        external: false // Internal only
+        targetPort: 8080
+        transport: 'http'
+        allowInsecure: true
+      }
+      registries: [
+        {
+          server: acr.properties.loginServer
+          username: acr.listCredentials().username
+          passwordSecretRef: 'acr-password'
+        }
+      ]
+      secrets: [
+        {
+          name: 'acr-password'
+          value: acr.listCredentials().passwords[0].value
+        }
+        {
+          name: 'redis-connection'
+          value: '${redisCache.properties.hostName}:6380,password=${redisCache.listKeys().primaryKey},ssl=True,abortConnect=False'
+        }
+        {
+          name: 'wallet-db-connection'
+          value: walletDbConnectionString
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'wallet-service'
+          image: '${acr.properties.loginServer}/wallet-service:latest'
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
+          env: [
+            {
+              name: 'ASPNETCORE_ENVIRONMENT'
+              value: environment
+            }
+            {
+              name: 'ConnectionStrings__Redis'
+              secretRef: 'redis-connection'
+            }
+            {
+              name: 'ConnectionStrings__wallet-db'
+              secretRef: 'wallet-db-connection'
+            }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: 0
+        maxReplicas: 3
+        rules: [
+          {
+            name: 'http-rule'
+            http: {
+              metadata: {
+                concurrentRequests: '10'
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+
+// Tenant Service Container App
+resource tenantService 'Microsoft.App/containerApps@2024-03-01' = {
+  name: 'tenant-service'
+  location: location
+  tags: tags
+  properties: {
+    environmentId: containerAppEnv.id
+    workloadProfileName: 'Consumption'
+    configuration: {
+      ingress: {
+        external: false // Internal only
+        targetPort: 8080
+        transport: 'http'
+        allowInsecure: true
+      }
+      registries: [
+        {
+          server: acr.properties.loginServer
+          username: acr.listCredentials().username
+          passwordSecretRef: 'acr-password'
+        }
+      ]
+      secrets: [
+        {
+          name: 'acr-password'
+          value: acr.listCredentials().passwords[0].value
+        }
+        {
+          name: 'redis-connection'
+          value: '${redisCache.properties.hostName}:6380,password=${redisCache.listKeys().primaryKey},ssl=True,abortConnect=False'
+        }
+        {
+          name: 'tenant-db-connection'
+          value: tenantDbConnectionString
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'tenant-service'
+          image: '${acr.properties.loginServer}/tenant-service:latest'
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
+          env: [
+            {
+              name: 'ASPNETCORE_ENVIRONMENT'
+              value: environment
+            }
+            {
+              name: 'ConnectionStrings__Redis'
+              secretRef: 'redis-connection'
+            }
+            {
+              name: 'ConnectionStrings__TenantDatabase'
+              secretRef: 'tenant-db-connection'
+            }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: 1 // Keep running for auth/token issuance
+        maxReplicas: 5
+        rules: [
+          {
+            name: 'http-rule'
+            http: {
+              metadata: {
+                concurrentRequests: '20'
               }
             }
           }
