@@ -251,16 +251,12 @@ jobs:
         retention-days: 90
 
   # Build and Push Container Images
+  # Always publish on main/master pushes to keep Azure up-to-date
   publish-containers:
     name: Publish Container Images
     runs-on: ubuntu-latest
     needs: [detect-changes, full-build-and-test]
-    if: | 
-      always() &&
-      needs.full-build-and-test.result == 'success' &&
-      (needs.detect-changes.outputs.services-changed == 'true' ||
-       needs.detect-changes.outputs.apps-changed == 'true' ||
-       needs.detect-changes.outputs.force-all == 'true')
+    if: needs.full-build-and-test.result == 'success'
 
     outputs:
       images-published: ${{ steps.set-output.outputs.images-published }}
@@ -343,6 +339,50 @@ jobs:
           echo "✅ Peer Service image published" >> $GITHUB_STEP_SUMMARY
         fi
 
+    - name: Build and push Wallet Service image
+      run: |
+        if [ -f "src/Services/Sorcha.Wallet.Service/Dockerfile" ]; then
+          docker build -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/wallet-service:${{ github.sha }} \
+            -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/wallet-service:latest \
+            -f src/Services/Sorcha.Wallet.Service/Dockerfile .
+          docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/wallet-service:${{ github.sha }}
+          docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/wallet-service:latest
+          echo "✅ Wallet Service image published" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Build and push Tenant Service image
+      run: |
+        if [ -f "src/Services/Sorcha.Tenant.Service/Dockerfile" ]; then
+          docker build -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/tenant-service:${{ github.sha }} \
+            -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/tenant-service:latest \
+            -f src/Services/Sorcha.Tenant.Service/Dockerfile .
+          docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/tenant-service:${{ github.sha }}
+          docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/tenant-service:latest
+          echo "✅ Tenant Service image published" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Build and push Register Service image
+      run: |
+        if [ -f "src/Services/Sorcha.Register.Service/Dockerfile" ]; then
+          docker build -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/register-service:${{ github.sha }} \
+            -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/register-service:latest \
+            -f src/Services/Sorcha.Register.Service/Dockerfile .
+          docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/register-service:${{ github.sha }}
+          docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/register-service:latest
+          echo "✅ Register Service image published" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Build and push Validator Service image
+      run: |
+        if [ -f "src/Services/Sorcha.Validator.Service/Dockerfile" ]; then
+          docker build -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/validator-service:${{ github.sha }} \
+            -t ${{ env.CONTAINER_REGISTRY }}.azurecr.io/validator-service:latest \
+            -f src/Services/Sorcha.Validator.Service/Dockerfile .
+          docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/validator-service:${{ github.sha }}
+          docker push ${{ env.CONTAINER_REGISTRY }}.azurecr.io/validator-service:latest
+          echo "✅ Validator Service image published" >> $GITHUB_STEP_SUMMARY
+        fi
+
     - name: Build and push Blazor Client image
       if: steps.check-services.outputs.build-all == 'true' || steps.check-services.outputs.build-blazor == 'true'
       run: |
@@ -386,42 +426,25 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Deploy Base Infrastructure
+    - name: Deploy Complete Infrastructure (Databases + Container Apps)
       uses: azure/arm-deploy@v2
-      id: deploy_base
+      id: deploy_infra
       with:
         scope: subscription
         region: ${{ env.AZURE_LOCATION }}
-        template: ./infra/base-infra.bicep
+        template: ./infra/main.bicep
         parameters: >
           resourceGroupName=${{ env.AZURE_RESOURCE_GROUP }}
-          subscriptionId=${{ env.AZURE_SUBSCRIPTION_ID }}
           location=${{ env.AZURE_LOCATION }}
           containerRegistryName=${{ env.CONTAINER_REGISTRY }}
           environment=prod
-        deploymentName: sorcha-base-${{ github.run_number }}
-      continue-on-error: true
-
-    - name: Deploy Container Apps
-      uses: azure/arm-deploy@v2
-      id: deploy_apps
-      if: needs.publish-containers.outputs.images-published == 'true'
-      with:
-        scope: resourcegroup
-        resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
-        template: ./infra/container-apps.bicep
-        parameters: >
-          location=${{ env.AZURE_LOCATION }}
-          containerRegistryName=${{ env.CONTAINER_REGISTRY }}
-          subscriptionId=${{ env.AZURE_SUBSCRIPTION_ID }}
-          environment=prod
-          imageTag=${{ github.sha }}
-        deploymentName: sorcha-apps-${{ github.run_number }}
+          postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        deploymentName: sorcha-main-${{ github.run_number }}
       continue-on-error: true
 
     - name: Get deployment URLs
       id: get-urls
-      if: steps.deploy_apps.outcome == 'success'
+      if: steps.deploy_infra.outcome == 'success'
       run: |
         API_GATEWAY_URL=$(az containerapp show \
           --name api-gateway \
