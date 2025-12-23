@@ -13,6 +13,7 @@ on:
 
 env:
   DOTNET_VERSION_10: '10.0.x'
+  AZURE_SUBSCRIPTION_ID: 50b93b63-f7b0-44fe-9fb7-1e184168b44d
   AZURE_RESOURCE_GROUP: sorcha
   AZURE_LOCATION: uksouth
   CONTAINER_REGISTRY: sorchaacr
@@ -273,7 +274,7 @@ jobs:
       uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
-
+        subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
     - name: Login to Azure Container Registry
       run: az acr login --name ${{ env.CONTAINER_REGISTRY }}
 
