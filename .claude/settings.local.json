@@ -77,7 +77,9 @@
       "Bash(Select-String -Pattern \"warn:\" -Context 1)",
       "Bash(Select-String -Pattern \"sorcha_wallet|sorcha_tenant|initialization\" -Context 1)",
       "Bash(do echo \"=== $service ===\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(Select-String -Pattern \"sorcha\")",
+      "Bash(Select-String -Pattern \"central|Central|hub|Hub|connect|error|warn\" -Context 1)"
     ],
     "deny": [],
     "ask": []

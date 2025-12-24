@@ -202,13 +202,12 @@ public class PeerStatsCommand : Command
         IConfigurationService configService)
         : base("stats", "Display peer network statistics")
     {
-        this.SetHandler(async () =>
+        this.SetHandler(async (string profileName) =>
         {
             try
             {
-                // Get active profile
-                var profile = await configService.GetActiveProfileAsync();
-                var profileName = profile?.Name ?? "dev";
+                // Use provided profile name from --profile option
+                profileName = profileName ?? "dev";
 
                 // Get access token
                 var token = await authService.GetAccessTokenAsync(profileName);
@@ -292,7 +291,7 @@ public class PeerStatsCommand : Command
                 ConsoleHelper.WriteError($"Failed to get peer statistics: {ex.Message}");
                 Environment.ExitCode = ExitCodes.GeneralError;
             }
-        });
+        }, BaseCommand.ProfileOption!);
     }
 }
 
@@ -307,13 +306,12 @@ public class PeerHealthCommand : Command
         IConfigurationService configService)
         : base("health", "Check peer network health status")
     {
-        this.SetHandler(async () =>
+        this.SetHandler(async (string profileName) =>
         {
             try
             {
-                // Get active profile
-                var profile = await configService.GetActiveProfileAsync();
-                var profileName = profile?.Name ?? "dev";
+                // Use provided profile name from --profile option
+                profileName = profileName ?? "dev";
 
                 // Get access token
                 var token = await authService.GetAccessTokenAsync(profileName);
@@ -384,6 +382,6 @@ public class PeerHealthCommand : Command
                 ConsoleHelper.WriteError($"Failed to get peer health: {ex.Message}");
                 Environment.ExitCode = ExitCodes.GeneralError;
             }
-        });
+        }, BaseCommand.ProfileOption!);
     }
 }

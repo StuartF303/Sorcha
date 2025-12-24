@@ -217,6 +217,46 @@ services:
     networks:
       - sorcha-network
 
+  # Local Hub Node (Central Node for local development)
+  peer-hub-local:
+    build:
+      context: .
+      dockerfile: src/Services/Sorcha.Peer.Service/Dockerfile
+    image: sorcha/peer-service:latest
+    container_name: sorcha-peer-hub-local
+    restart: unless-stopped
+    ports:
+      - "5004:8080"        # HTTP health checks and REST API
+      - "5005:5000/tcp"    # gRPC TCP port (hub node primary port)
+    environment:
+      <<: *otel-env
+      OTEL_SERVICE_NAME: peer-hub-local
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__Redis: redis:6379
+      MongoDB__ConnectionString: mongodb://sorcha:sorcha_dev_password@mongodb:27017
+      MongoDB__DatabaseName: sorcha_system_register
+      # Hub Node configuration
+      PeerService__NodeId: "hub-local.sorcha.dev"
+      PeerService__Port: "5000"
+      PeerService__EnableTls: "false"
+      PeerService__CentralNode__IsCentralNode: "true"
+      PeerService__CentralNode__ValidateHostname: "false"
+      PeerService__CentralNode__Priority: "0"
+    volumes:
+      - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      aspire-dashboard:
+        condition: service_started
+    networks:
+      - sorcha-network
+
+  # Regular Peer Node (connects to local hub)
   peer-service:
     build:
       context: .
@@ -231,24 +271,21 @@ services:
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: peer-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Docker  # Use Docker environment for custom config
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__Redis: redis:6379
       MongoDB__ConnectionString: mongodb://sorcha:sorcha_dev_password@mongodb:27017
       MongoDB__DatabaseName: sorcha_system_register
-      # Peer Service configuration
-      PeerService__Port: "5000"
-      PeerService__EnableTls: "false"
-      PeerService__EnablePeerDiscovery: "true"
-      PeerService__CentralNode__IsCentralNode: "false"
-      PeerService__CentralNode__ValidateHostname: "false"
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
+      - ./docker/appsettings.Docker.json:/app/appsettings.Docker.json:ro
     dns:
       - 8.8.8.8
       - 8.8.4.4
     depends_on:
+      peer-hub-local:
+        condition: service_started
       redis:
         condition: service_healthy
       mongodb:
@@ -257,7 +294,7 @@ services:
         condition: service_started
     networks:
       - sorcha-network
-    # Enable external network access for STUN servers and central nodes
+    # Enable external network access for STUN servers
     cap_add:
       - NET_ADMIN
     sysctls:

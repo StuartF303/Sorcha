@@ -245,7 +245,19 @@ public class ConfigurationService : IConfigurationService
                     WalletServiceUrl = "https://n0.sorcha.dev",
                     AuthTokenUrl = "https://n0.sorcha.dev/api/service-auth/token",
                     DefaultClientId = "sorcha-cli",
-                    VerifySsl = true,
+                    VerifySsl = false,  // Disabled due to Azure cert revocation check issue
+                    TimeoutSeconds = 30
+                },
+                ["docker-direct"] = new Profile
+                {
+                    Name = "docker-direct",
+                    TenantServiceUrl = "http://localhost:5110",
+                    RegisterServiceUrl = "http://localhost:5290",
+                    PeerServiceUrl = "http://localhost:5002",
+                    WalletServiceUrl = "http://localhost:5001",
+                    AuthTokenUrl = "http://localhost:5110/api/service-auth/token",
+                    DefaultClientId = "sorcha-cli",
+                    VerifySsl = false,
                     TimeoutSeconds = 30
                 },
                 ["production"] = new Profile
