@@ -79,7 +79,11 @@
       "Bash(do echo \"=== $service ===\")",
       "Bash(done)",
       "Bash(Select-String -Pattern \"sorcha\")",
-      "Bash(Select-String -Pattern \"central|Central|hub|Hub|connect|error|warn\" -Context 1)"
+      "Bash(Select-String -Pattern \"central|Central|hub|Hub|connect|error|warn\" -Context 1)",
+      "Bash(ipconfig:*)",
+      "Bash(Select-String -Pattern \"Ethernet adapter|IPv4 Address|Subnet Mask|Default Gateway\" -Context 0,0)",
+      "Bash(Select-String -Pattern \"central|Central|hub|Hub|connect|192.168.51\" -Context 1)",
+      "Bash(Select-Object -Last 5)"
     ],
     "deny": [],
     "ask": []

@@ -260,6 +260,18 @@ public class ConfigurationService : IConfigurationService
                     VerifySsl = false,
                     TimeoutSeconds = 30
                 },
+                ["docker-lan"] = new Profile
+                {
+                    Name = "docker-lan",
+                    TenantServiceUrl = "http://192.168.51.211:8080",
+                    RegisterServiceUrl = "http://192.168.51.213:8080",
+                    PeerServiceUrl = "http://192.168.51.201:8080",
+                    WalletServiceUrl = "http://192.168.51.212:8080",
+                    AuthTokenUrl = "http://192.168.51.211:8080/api/service-auth/token",
+                    DefaultClientId = "sorcha-cli",
+                    VerifySsl = false,
+                    TimeoutSeconds = 30
+                },
                 ["production"] = new Profile
                 {
                     Name = "production",

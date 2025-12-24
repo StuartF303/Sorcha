@@ -134,8 +134,7 @@ services:
     image: sorcha/wallet-service:latest
     container_name: sorcha-wallet-service
     restart: unless-stopped
-    ports:
-      - "5001:8080"
+    # No ports published - accessible directly on LAN IP 192.168.51.212
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: wallet-service
@@ -153,7 +152,9 @@ services:
       aspire-dashboard:
         condition: service_started
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.212
     # Note: Chiseled images don't include shell tools for container-level health checks
     # Health monitoring handled via /health endpoint externally or orchestrator probes
     # Startup resilience provided by restart policy + postgres health check dependency
@@ -165,8 +166,7 @@ services:
     image: sorcha/register-service:latest
     container_name: sorcha-register-service
     restart: unless-stopped
-    ports:
-      - "5290:8080"
+    # No ports published - accessible directly on LAN IP 192.168.51.213
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: register-service
@@ -184,7 +184,9 @@ services:
       aspire-dashboard:
         condition: service_started
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.213
 
   tenant-service:
     build:
@@ -193,8 +195,7 @@ services:
     image: sorcha/tenant-service:latest
     container_name: sorcha-tenant-service
     restart: unless-stopped
-    ports:
-      - "5110:8080"
+    # No ports published - accessible directly on LAN IP 192.168.51.211
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: tenant-service
@@ -215,7 +216,9 @@ services:
       aspire-dashboard:
         condition: service_started
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.211
 
   # Local Hub Node (Central Node for local development)
   peer-hub-local:
@@ -225,9 +228,7 @@ services:
     image: sorcha/peer-service:latest
     container_name: sorcha-peer-hub-local
     restart: unless-stopped
-    ports:
-      - "5004:8080"        # HTTP health checks and REST API
-      - "5005:5000/tcp"    # gRPC TCP port (hub node primary port)
+    # No ports published - accessible directly on LAN IP 192.168.51.200
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: peer-hub-local
@@ -239,6 +240,7 @@ services:
       MongoDB__DatabaseName: sorcha_system_register
       # Hub Node configuration
       PeerService__NodeId: "hub-local.sorcha.dev"
+      PeerService__PublicAddress: "192.168.51.200"  # LAN IP address
       PeerService__Port: "5000"
       PeerService__EnableTls: "false"
       PeerService__CentralNode__IsCentralNode: "true"
@@ -254,7 +256,9 @@ services:
       aspire-dashboard:
         condition: service_started
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.200
 
   # Regular Peer Node (connects to local hub)
   peer-service:
@@ -264,14 +268,11 @@ services:
     image: sorcha/peer-service:latest
     container_name: sorcha-peer-service
     restart: unless-stopped
-    ports:
-      - "5002:8080"        # HTTP health checks and REST API
-      - "5003:5000/udp"    # STUN UDP port (host 5003 -> container 5000)
-      - "5003:5000/tcp"    # gRPC TCP port (host 5003 -> container 5000)
+    # No ports published - accessible directly on LAN IP 192.168.51.201
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: peer-service
-      ASPNETCORE_ENVIRONMENT: Docker  # Use Docker environment for custom config
+      ASPNETCORE_ENVIRONMENT: MacVlan  # Use MacVlan environment for local hub config
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__Redis: redis:6379
@@ -279,7 +280,7 @@ services:
       MongoDB__DatabaseName: sorcha_system_register
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
-      - ./docker/appsettings.Docker.json:/app/appsettings.Docker.json:ro
+      - ./docker/appsettings.MacVlan.json:/app/appsettings.MacVlan.json:ro
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -293,7 +294,9 @@ services:
       aspire-dashboard:
         condition: service_started
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.201
     # Enable external network access for STUN servers
     cap_add:
       - NET_ADMIN
@@ -334,8 +337,7 @@ services:
     image: sorcha/api-gateway:latest
     container_name: sorcha-api-gateway
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    # No ports published - accessible directly on LAN IP 192.168.51.210
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: api-gateway
@@ -345,7 +347,7 @@ services:
       Services__Wallet__Url: http://wallet-service:8080
       Services__Register__Url: http://register-service:8080
       Services__Tenant__Url: http://tenant-service:8080
-      Services__Peer__Url: http://peer-service:8080
+      Services__Peer__Url: http://192.168.51.201:8080  # Use peer-service LAN IP
       Services__Validator__Url: http://validator-service:8080
       ConnectionStrings__Redis: redis:6379
       Dashboard__AspireDashboardUrl: http://localhost:18888
@@ -360,11 +362,23 @@ services:
       - validator-service
       - aspire-dashboard
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.210
 
 networks:
+  # Bridge network for internal services (redis, postgres, mongodb, aspire-dashboard)
   sorcha-network:
     driver: bridge
+
+  # macvlan network for public-facing services with LAN IP addresses
+  # This allows containers to have their own IPs on the local network (192.168.51.x)
+  # Perfect for P2P networking, NAT traversal, and external accessibility
+  # NOTE: Create this network manually before running docker-compose:
+  #   docker network create --driver macvlan --subnet=192.168.51.0/24 --gateway=192.168.51.1 --ip-range=192.168.51.192/28 -o parent=eth0 sorcha_sorcha-lan
+  sorcha-lan:
+    external: true
+    name: sorcha_sorcha-lan
 
 volumes:
   redis-data:
