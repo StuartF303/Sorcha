@@ -79,9 +79,14 @@ public class HubNodeInfo
     public bool IsActive { get; set; } = false;
 
     /// <summary>
+    /// Whether to use TLS for the connection
+    /// </summary>
+    public bool EnableTls { get; set; } = false;
+
+    /// <summary>
     /// Computed gRPC channel address
     /// </summary>
-    public string GrpcChannelAddress => $"https://{Hostname}:{Port}";
+    public string GrpcChannelAddress => $"{(EnableTls ? "https" : "http")}://{Hostname}:{Port}";
 
     /// <summary>
     /// Validates hub node hostname pattern

@@ -29,12 +29,7 @@ public class HubNodeConfiguration
     /// <summary>
     /// List of known hub node endpoints with priorities
     /// </summary>
-    public List<HubNodeEndpoint> HubNodes { get; set; } = new()
-    {
-        new() { NodeId = "n0.sorcha.dev", Hostname = "n0.sorcha.dev", Port = 5000, Priority = 0 },
-        new() { NodeId = "n1.sorcha.dev", Hostname = "n1.sorcha.dev", Port = 5000, Priority = 1 },
-        new() { NodeId = "n2.sorcha.dev", Hostname = "n2.sorcha.dev", Port = 5000, Priority = 2 }
-    };
+    public List<HubNodeEndpoint> HubNodes { get; set; } = new();
 }
 
 /// <summary>
@@ -67,4 +62,9 @@ public class HubNodeEndpoint
     /// </summary>
     [Range(0, 2)]
     public int Priority { get; set; }
+
+    /// <summary>
+    /// Whether to use TLS for the connection (default: false for local development)
+    /// </summary>
+    public bool EnableTls { get; set; } = false;
 }

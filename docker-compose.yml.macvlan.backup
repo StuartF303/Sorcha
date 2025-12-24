@@ -134,7 +134,7 @@ services:
     image: sorcha/wallet-service:latest
     container_name: sorcha-wallet-service
     restart: unless-stopped
-    # No ports published - internal service only, accessed via API Gateway
+    # No ports published - accessible directly on LAN IP 192.168.51.212
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: wallet-service
@@ -152,7 +152,9 @@ services:
       aspire-dashboard:
         condition: service_started
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.212
     # Note: Chiseled images don't include shell tools for container-level health checks
     # Health monitoring handled via /health endpoint externally or orchestrator probes
     # Startup resilience provided by restart policy + postgres health check dependency
@@ -164,7 +166,7 @@ services:
     image: sorcha/register-service:latest
     container_name: sorcha-register-service
     restart: unless-stopped
-    # No ports published - internal service only, accessed via API Gateway
+    # No ports published - accessible directly on LAN IP 192.168.51.213
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: register-service
@@ -182,7 +184,9 @@ services:
       aspire-dashboard:
         condition: service_started
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.213
 
   tenant-service:
     build:
@@ -191,7 +195,7 @@ services:
     image: sorcha/tenant-service:latest
     container_name: sorcha-tenant-service
     restart: unless-stopped
-    # No ports published - internal service only, accessed via API Gateway
+    # No ports published - accessible directly on LAN IP 192.168.51.211
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: tenant-service
@@ -212,9 +216,11 @@ services:
       aspire-dashboard:
         condition: service_started
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.211
 
-  # Local Hub Node (Hub for local development)
+  # Local Hub Node (Central Node for local development)
   peer-hub-local:
     build:
       context: .
@@ -222,8 +228,7 @@ services:
     image: sorcha/peer-service:latest
     container_name: sorcha-peer-hub-local
     restart: unless-stopped
-    ports:
-      - "50051:5000"  # gRPC for external P2P connections
+    # No ports published - accessible directly on LAN IP 192.168.51.200
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: peer-hub-local
@@ -235,7 +240,7 @@ services:
       MongoDB__DatabaseName: sorcha_system_register
       # Hub Node configuration
       PeerService__NodeId: "hub-local.sorcha.dev"
-      PeerService__PublicAddress: ""  # Auto-detect or set via env var
+      PeerService__PublicAddress: "192.168.51.200"  # LAN IP address
       PeerService__Port: "5000"
       PeerService__EnableTls: "false"
       PeerService__HubNode__IsHubNode: "true"
@@ -251,7 +256,9 @@ services:
       aspire-dashboard:
         condition: service_started
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.200
 
   # Regular Peer Node (connects to local hub)
   peer-service:
@@ -261,26 +268,22 @@ services:
     image: sorcha/peer-service:latest
     container_name: sorcha-peer-service
     restart: unless-stopped
-    ports:
-      - "50052:5000"  # gRPC for external P2P connections
+    # No ports published - accessible directly on LAN IP 192.168.51.201
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: peer-service
-      ASPNETCORE_ENVIRONMENT: Bridge  # Use Bridge environment for Docker DNS config
+      ASPNETCORE_ENVIRONMENT: MacVlan  # Use MacVlan environment for local hub config
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__Redis: redis:6379
       MongoDB__ConnectionString: mongodb://sorcha:sorcha_dev_password@mongodb:27017
       MongoDB__DatabaseName: sorcha_system_register
-      # Override hub configuration to use Docker DNS instead of IP/Azure
-      PeerService__HubNode__HubNodes__0__NodeId: "hub-local.sorcha.dev"
-      PeerService__HubNode__HubNodes__0__Hostname: "peer-hub-local"
-      PeerService__HubNode__HubNodes__0__Port: "5000"
-      PeerService__HubNode__HubNodes__0__Priority: "0"
-      PeerService__HubNode__HubNodes__0__EnableTls: "false"
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
-      - ./docker/appsettings.Bridge.json:/app/appsettings.Bridge.json:ro
+      - ./docker/appsettings.MacVlan.json:/app/appsettings.MacVlan.json:ro
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     depends_on:
       peer-hub-local:
         condition: service_started
@@ -291,7 +294,14 @@ services:
       aspire-dashboard:
         condition: service_started
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.201
+    # Enable external network access for STUN servers
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.ip_forward=1
 
   validator-service:
     build:
@@ -327,27 +337,22 @@ services:
     image: sorcha/api-gateway:latest
     container_name: sorcha-api-gateway
     restart: unless-stopped
-    ports:
-      - "80:8080"      # HTTP ingress
-      - "443:8443"     # HTTPS ingress (requires certificate)
+    # No ports published - accessible directly on LAN IP 192.168.51.210
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: api-gateway
       ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080;https://+:8443
-      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
-      ASPNETCORE_Kestrel__Certificates__Default__Password: SorchaDev2025
+      ASPNETCORE_URLS: http://+:8080
       Services__Blueprint__Url: http://blueprint-service:8080
       Services__Wallet__Url: http://wallet-service:8080
       Services__Register__Url: http://register-service:8080
       Services__Tenant__Url: http://tenant-service:8080
-      Services__Peer__Url: http://peer-service:8080  # Use Docker DNS
+      Services__Peer__Url: http://192.168.51.201:8080  # Use peer-service LAN IP
       Services__Validator__Url: http://validator-service:8080
       ConnectionStrings__Redis: redis:6379
       Dashboard__AspireDashboardUrl: http://localhost:18888
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
-      - ./docker/certs:/https:ro
     depends_on:
       - blueprint-service
       - wallet-service
@@ -357,14 +362,23 @@ services:
       - validator-service
       - aspire-dashboard
     networks:
-      - sorcha-network
+      sorcha-network: {}
+      sorcha-lan:
+        ipv4_address: 192.168.51.210
 
 networks:
-  # Bridge network for all services
-  # All containers communicate via Docker DNS (e.g., http://wallet-service:8080)
-  # External access controlled via published ports on host
+  # Bridge network for internal services (redis, postgres, mongodb, aspire-dashboard)
   sorcha-network:
     driver: bridge
+
+  # macvlan network for public-facing services with LAN IP addresses
+  # This allows containers to have their own IPs on the local network (192.168.51.x)
+  # Perfect for P2P networking, NAT traversal, and external accessibility
+  # NOTE: Create this network manually before running docker-compose:
+  #   docker network create --driver macvlan --subnet=192.168.51.0/24 --gateway=192.168.51.1 --ip-range=192.168.51.192/28 -o parent=eth0 sorcha_sorcha-lan
+  sorcha-lan:
+    external: true
+    name: sorcha_sorcha-lan
 
 volumes:
   redis-data:

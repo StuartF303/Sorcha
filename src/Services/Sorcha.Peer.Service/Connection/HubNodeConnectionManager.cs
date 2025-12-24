@@ -56,12 +56,21 @@ public class HubNodeConnectionManager
         var config = configuration?.Value ?? throw new ArgumentNullException(nameof(configuration));
 
         // Initialize hub node list from configuration
-        _hubNodes = new List<HubNodeInfo>
+        _hubNodes = config.HubNodes?
+            .Select(endpoint => new HubNodeInfo
+            {
+                NodeId = endpoint.NodeId,
+                Hostname = endpoint.Hostname,
+                Port = endpoint.Port,
+                Priority = endpoint.Priority,
+                EnableTls = endpoint.EnableTls
+            })
+            .ToList() ?? new List<HubNodeInfo>();
+
+        if (_hubNodes.Count == 0)
         {
-            new() { NodeId = "n0.sorcha.dev", Hostname = "n0.sorcha.dev", Port = 5000, Priority = 0 },
-            new() { NodeId = "n1.sorcha.dev", Hostname = "n1.sorcha.dev", Port = 5000, Priority = 1 },
-            new() { NodeId = "n2.sorcha.dev", Hostname = "n2.sorcha.dev", Port = 5000, Priority = 2 }
-        };
+            _logger.LogWarning("No hub nodes configured - peer will operate in isolated mode");
+        }
 
         // Build Polly resilience pipeline with exponential backoff and timeout
         _connectionPipeline = new ResiliencePipelineBuilder()
