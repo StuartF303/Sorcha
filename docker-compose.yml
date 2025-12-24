@@ -243,9 +243,9 @@ services:
       PeerService__PublicAddress: "192.168.51.200"  # LAN IP address
       PeerService__Port: "5000"
       PeerService__EnableTls: "false"
-      PeerService__CentralNode__IsCentralNode: "true"
-      PeerService__CentralNode__ValidateHostname: "false"
-      PeerService__CentralNode__Priority: "0"
+      PeerService__HubNode__IsHubNode: "true"
+      PeerService__HubNode__ValidateHostname: "false"
+      PeerService__HubNode__Priority: "0"
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:

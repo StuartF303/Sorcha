@@ -54,8 +54,8 @@ $ curl http://localhost:5002/api/peers
 
 **Log Evidence**:
 ```
-warn: Cannot perform sync - no active central node connection
-warn: All central nodes unreachable - operating in isolated mode
+warn: Cannot perform sync - no active hub node connection
+warn: All hub nodes unreachable - operating in isolated mode
 info: Isolated mode active - peer will continue serving cached blueprints
 ```
 
@@ -77,9 +77,9 @@ CONTAINER                   STATUS       PORTS
 sorcha-peer-hub-local       Up 5 min     0.0.0.0:5004->8080/tcp, 0.0.0.0:5005->5000/tcp
 
 $ docker logs sorcha-peer-hub-local
-info: Node configured as central node (IsCentralNode=true)
-info: Node type detected: Central Node
-info: Running as central node - ready to accept peer connections
+info: Node configured as hub node (IsCentralNode=true)
+info: Node type detected: Hub Node
+info: Running as hub node - ready to accept peer connections
 info: Now listening on: http://[::]:5000
 ```
 
@@ -111,14 +111,14 @@ environment:
 
 **Actual Behavior**:
 ```
-info: Attempting connection to central node n0.sorcha.dev  # ❌ Wrong!
-info: Successfully connected to central node n0.sorcha.dev
+info: Attempting connection to hub node n0.sorcha.dev  # ❌ Wrong!
+info: Successfully connected to hub node n0.sorcha.dev
 ```
 
 **Expected Behavior**:
 ```
-info: Attempting connection to central node hub-local.sorcha.dev  # ✅ Should be local
-info: Successfully connected to central node peer-hub-local
+info: Attempting connection to hub node hub-local.sorcha.dev  # ✅ Should be local
+info: Successfully connected to hub node peer-hub-local
 ```
 
 **Impact**:

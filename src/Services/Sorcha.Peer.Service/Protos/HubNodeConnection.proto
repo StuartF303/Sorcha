@@ -7,51 +7,51 @@ package sorcha.peer.v1;
 
 option csharp_namespace = "Sorcha.Peer.Service.Protos";
 
-// Central Node Connection Service
-// Enables peer nodes to connect to central nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev)
+// Hub Node Connection Service
+// Enables peer nodes to connect to hub nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev)
 // for system register synchronization and blueprint discovery.
 //
 // Connection Flow:
-// 1. Peer calls ConnectToCentralNode with PeerInfo
-// 2. Central node responds with ConnectionResponse
+// 1. Peer calls ConnectToHubNode with PeerInfo
+// 2. Hub node responds with ConnectionResponse
 // 3. Peer maintains connection through heartbeats
-// 4. Peer calls DisconnectFromCentralNode on shutdown
+// 4. Peer calls DisconnectFromHubNode on shutdown
 //
 // Failover:
 // - Peer connects to n0 (priority 0) first
 // - On failure, tries n1 (priority 1), then n2 (priority 2)
 // - Retries with exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 60s (max)
-service CentralNodeConnection {
-  // Connect to a central node
+service HubNodeConnection {
+  // Connect to a hub node
   //
-  // Initiates a connection from peer to central node. Central node validates
+  // Initiates a connection from peer to hub node. Hub node validates
   // the peer identity and returns connection metadata.
   //
   // Timeout: 30 seconds per connection attempt
-  // Retry: Exponential backoff with 10 max attempts before trying next central node
-  rpc ConnectToCentralNode(ConnectRequest) returns (ConnectionResponse);
+  // Retry: Exponential backoff with 10 max attempts before trying next hub node
+  rpc ConnectToHubNode(ConnectRequest) returns (ConnectionResponse);
 
-  // Disconnect from central node
+  // Disconnect from hub node
   //
-  // Gracefully disconnects peer from central node. Central node cleans up
+  // Gracefully disconnects peer from hub node. Hub node cleans up
   // peer tracking state and terminates any active subscriptions.
-  rpc DisconnectFromCentralNode(DisconnectRequest) returns (DisconnectionResponse);
+  rpc DisconnectFromHubNode(DisconnectRequest) returns (DisconnectionResponse);
 
-  // Get status of central node
+  // Get status of hub node
   //
-  // Returns current central node health, connected peer count, and system
+  // Returns current hub node health, connected peer count, and system
   // register version. Used for monitoring and failover decisions.
-  rpc GetCentralNodeStatus(StatusRequest) returns (CentralNodeStatus);
+  rpc GetHubNodeStatus(StatusRequest) returns (HubNodeStatus);
 }
 
-// Request to connect to a central node
+// Request to connect to a hub node
 message ConnectRequest {
   // Unique identifier for this peer
   // Validation: MaxLength 64, pattern ^[a-zA-Z0-9\-_]+$
   string peer_id = 1;
 
   // Peer connection information
-  CentralNodePeerInfo peer_info = 2;
+  HubNodePeerInfo peer_info = 2;
 
   // Last known system register version (0 if first connection)
   // Used to determine if full sync or incremental sync is needed
@@ -62,7 +62,7 @@ message ConnectRequest {
 }
 
 // Information about the connecting peer
-message CentralNodePeerInfo {
+message HubNodePeerInfo {
   // Peer's gRPC endpoint address (for callbacks if supported)
   // Example: "peer-node-1.local:5000"
   // Validation: Optional, MaxLength 255
@@ -72,7 +72,7 @@ message CentralNodePeerInfo {
   // Validation: Range 1-65535
   int32 port = 2;
 
-  // Peer node type (always "Peer" for non-central nodes)
+  // Peer node type (always "Peer" for non-hub nodes)
   string node_type = 3;
 
   // Supported protocol versions
@@ -80,11 +80,11 @@ message CentralNodePeerInfo {
   repeated string supported_protocols = 4;
 
   // Peer capabilities
-  CentralNodePeerCapabilities capabilities = 5;
+  HubNodePeerCapabilities capabilities = 5;
 }
 
 // Capabilities of the peer node
-message CentralNodePeerCapabilities {
+message HubNodePeerCapabilities {
   // Whether peer supports push notifications (server streaming)
   bool supports_push_notifications = 1;
 
@@ -111,10 +111,10 @@ message ConnectionResponse {
   // Used to track connection state across RPCs
   string session_id = 3;
 
-  // Central node identifier (e.g., "n0.sorcha.dev")
-  string central_node_id = 4;
+  // Hub node identifier (e.g., "n0.sorcha.dev")
+  string hub_node_id = 4;
 
-  // Current system register version on central node
+  // Current system register version on hub node
   // Peer uses this to determine sync strategy
   int64 current_system_register_version = 5;
 
@@ -139,14 +139,14 @@ message ConnectionConfig {
   // Default: 5 minutes
   int32 periodic_sync_interval_minutes = 2;
 
-  // Whether central node supports push notifications
+  // Whether hub node supports push notifications
   bool push_notifications_enabled = 3;
 
   // Maximum concurrent sync requests allowed
   int32 max_concurrent_syncs = 4;
 }
 
-// Request to disconnect from central node
+// Request to disconnect from hub node
 message DisconnectRequest {
   // Peer identifier
   string peer_id = 1;
@@ -172,7 +172,7 @@ enum DisconnectReason {
   // Peer detected heartbeat timeout
   DISCONNECT_REASON_HEARTBEAT_TIMEOUT = 2;
 
-  // Peer is failing over to another central node
+  // Peer is failing over to another hub node
   DISCONNECT_REASON_FAILOVER = 3;
 
   // Connection error occurred
@@ -187,14 +187,14 @@ message DisconnectionResponse {
   // Whether disconnection was acknowledged
   bool success = 1;
 
-  // Message from central node
+  // Message from hub node
   string message = 2;
 
   // Timestamp when disconnection was processed (Unix milliseconds UTC)
   int64 disconnected_at = 3;
 }
 
-// Request for central node status
+// Request for hub node status
 message StatusRequest {
   // Peer identifier (optional, for filtered status)
   string peer_id = 1;
@@ -203,9 +203,9 @@ message StatusRequest {
   bool include_peer_list = 2;
 }
 
-// Status of central node
-message CentralNodeStatus {
-  // Central node identifier (e.g., "n0.sorcha.dev")
+// Status of hub node
+message HubNodeStatus {
+  // Hub node identifier (e.g., "n0.sorcha.dev")
   string node_id = 1;
 
   // Node health status
@@ -230,7 +230,7 @@ message CentralNodeStatus {
   repeated ConnectedPeerInfo connected_peers = 8;
 }
 
-// Health status of central node
+// Health status of hub node
 enum NodeHealth {
   // Unknown health status
   NODE_HEALTH_UNKNOWN = 0;

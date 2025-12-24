@@ -8,12 +8,12 @@ package sorcha.peer.v1;
 option csharp_namespace = "Sorcha.Peer.Service.Protos";
 
 // Heartbeat Service
-// Provides connection health monitoring between peer nodes and central nodes
+// Provides connection health monitoring between peer nodes and hub nodes
 // using periodic heartbeat messages.
 //
 // Heartbeat Protocol:
-// 1. Peer sends heartbeat every 30 seconds to connected central node
-// 2. Central node responds with acknowledgement within 30 seconds
+// 1. Peer sends heartbeat every 30 seconds to connected hub node
+// 2. Hub node responds with acknowledgement within 30 seconds
 // 3. If 2 consecutive heartbeats timeout (60 seconds total), peer triggers failover
 //
 // Heartbeat Message Contains:
@@ -23,16 +23,16 @@ option csharp_namespace = "Sorcha.Peer.Service.Protos";
 //
 // Failover Logic:
 // - 1 missed heartbeat (30s): Warning, continue
-// - 2 missed heartbeats (60s): Trigger failover to next central node (n0 → n1 → n2)
-// - All central nodes unreachable: Enter "Isolated" mode (use last known system register replica)
+// - 2 missed heartbeats (60s): Trigger failover to next hub node (n0 → n1 → n2)
+// - All hub nodes unreachable: Enter "Isolated" mode (use last known system register replica)
 //
 // Health Metrics:
 // - Optional CPU, memory, and connection count
-// - Used by central node for load balancing and monitoring
+// - Used by hub node for load balancing and monitoring
 service Heartbeat {
   // Send unary heartbeat (simple request/response)
   //
-  // Peer sends heartbeat to central node. Central node responds with
+  // Peer sends heartbeat to hub node. Hub node responds with
   // acknowledgement and current system register version.
   //
   // Timeout: 30 seconds
@@ -47,9 +47,9 @@ service Heartbeat {
   //
   // Flow:
   // 1. Peer initiates stream and sends first HeartbeatMessage
-  // 2. Central node responds with HeartbeatAcknowledgement
+  // 2. Hub node responds with HeartbeatAcknowledgement
   // 3. Peer sends periodic heartbeats on same stream
-  // 4. Central node responds to each heartbeat
+  // 4. Hub node responds to each heartbeat
   //
   // Advantages:
   // - Single long-lived connection
@@ -70,7 +70,7 @@ service Heartbeat {
   rpc GetHeartbeatStatus(HeartbeatStatusRequest) returns (HeartbeatStatus);
 }
 
-// Heartbeat message sent from peer to central node
+// Heartbeat message sent from peer to hub node
 message HeartbeatMessage {
   // Unique identifier of peer sending heartbeat
   // Validation: Required, MaxLength 64
@@ -87,7 +87,7 @@ message HeartbeatMessage {
   int64 sequence_number = 3;
 
   // Last known system register version
-  // Central node compares with current version to detect peer lag
+  // Hub node compares with current version to detect peer lag
   // If peer is behind, acknowledgement includes version hint
   int64 last_sync_version = 4;
 
@@ -137,18 +137,18 @@ message HealthMetrics {
 // Acknowledgement response to heartbeat
 message HeartbeatAcknowledgement {
   // Whether heartbeat was successfully processed
-  // false indicates central node is unhealthy or overloaded
+  // false indicates hub node is unhealthy or overloaded
   bool success = 1;
 
   // Unix timestamp when acknowledgement was sent (milliseconds UTC)
   // Used to measure round-trip latency
   int64 timestamp = 2;
 
-  // Identifier of responding central node
+  // Identifier of responding hub node
   // Examples: "n0.sorcha.dev", "n1.sorcha.dev", "n2.sorcha.dev"
-  string central_node_id = 3;
+  string hub_node_id = 3;
 
-  // Current system register version on central node
+  // Current system register version on hub node
   // Peer compares with last_sync_version to detect lag
   // If peer is behind, peer triggers incremental sync
   int64 current_system_register_version = 4;
@@ -165,7 +165,7 @@ message HeartbeatAcknowledgement {
   int64 server_latency_ms = 7;
 }
 
-// Recommended action from central node to peer
+// Recommended action from hub node to peer
 enum RecommendedAction {
   // No action needed, continue normal operation
   RECOMMENDED_ACTION_NONE = 0;
@@ -173,10 +173,10 @@ enum RecommendedAction {
   // Peer should trigger incremental sync (version lag detected)
   RECOMMENDED_ACTION_SYNC = 1;
 
-  // Peer should reduce heartbeat frequency (central node overloaded)
+  // Peer should reduce heartbeat frequency (hub node overloaded)
   RECOMMENDED_ACTION_REDUCE_FREQUENCY = 2;
 
-  // Peer should disconnect and failover to another central node
+  // Peer should disconnect and failover to another hub node
   RECOMMENDED_ACTION_FAILOVER = 3;
 
   // Peer should reconnect (session invalid)
@@ -186,7 +186,7 @@ enum RecommendedAction {
 // Request for heartbeat status
 message HeartbeatStatusRequest {
   // Peer identifier to get status for
-  // If empty, returns status for all connected peers (central node only)
+  // If empty, returns status for all connected peers (hub node only)
   string peer_id = 1;
 
   // Session identifier (optional)

@@ -1,7 +1,7 @@
 # Sorcha Platform - Development Status Report
 
 **Date:** 2025-12-14
-**Version:** 2.9 (Updated after Peer Service Central Node Connection and Replication)
+**Version:** 2.9 (Updated after Peer Service Hub Node Connection and Replication)
 **Overall Completion:** 98%
 
 ---
@@ -561,18 +561,18 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 
 ### Phase 3: Core Implementation - 70% COMPLETE ✅
 
-**Scenario 1: Central Node Startup (T043-T046) - COMPLETE ✅**
+**Scenario 1: Hub Node Startup (T043-T046) - COMPLETE ✅**
 - ✅ CentralNodeDiscoveryService - Detects if node is central or peer (hostname validation)
 - ✅ SystemRegisterService - Initializes system register with Guid.Empty, seeds default blueprints
 - ✅ Central node startup logic with IsCentralNode configuration
-- ✅ Updated appsettings.json with central node examples
+- ✅ Updated appsettings.json with hub node examples
 
 **Scenario 2: Peer Connection (T047-T051) - COMPLETE ✅**
 - ✅ CentralNodeConnectionManager - Priority-based connection (n0→n1→n2)
 - ✅ ConnectToCentralNodeAsync with exponential backoff + jitter
 - ✅ CentralNodeConnectionService (gRPC) - Accepts peer connections
 - ✅ Updated PeerService.ExecuteAsync() to call connection manager
-- ✅ Configuration for 3 central nodes (n0/n1/n2.sorcha.dev)
+- ✅ Configuration for 3 hub nodes (n0/n1/n2.sorcha.dev)
 
 **Scenario 3: System Register Replication (T052-T057) - COMPLETE ✅**
 - ✅ SystemRegisterReplicationService - Orchestrates full and incremental sync
@@ -588,12 +588,12 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 - ✅ Thread-safe subscriber management with automatic cleanup
 
 **Scenario 5: Isolated Mode (T063-T066) - COMPLETE ✅**
-- ✅ HandleIsolatedModeAsync - Graceful degradation when all central nodes unreachable
+- ✅ HandleIsolatedModeAsync - Graceful degradation when all hub nodes unreachable
 - ✅ Background reconnection attempts
 - ✅ Serves cached blueprints during isolation
-- ✅ Automatic recovery when central nodes return
+- ✅ Automatic recovery when hub nodes return
 
-**Scenario 6: Central Node Detection (T067-T070) - COMPLETE ✅**
+**Scenario 6: Hub Node Detection (T067-T070) - COMPLETE ✅**
 - ✅ IsCentralNodeWithValidation - Regex-based hostname validation (^n[0-2]\.sorcha\.dev$)
 - ✅ Hybrid detection (config flag + optional hostname validation)
 - ✅ Throws InvalidOperationException if misconfigured
@@ -641,7 +641,7 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 
 **Completed Features:**
 1. ✅ Central node detection with hostname validation
-2. ✅ Priority-based connection to central nodes (n0→n1→n2)
+2. ✅ Priority-based connection to hub nodes (n0→n1→n2)
 3. ✅ Automatic failover with exponential backoff + jitter
 4. ✅ Full sync and incremental sync for system register
 5. ✅ Push notifications for blueprint publications
@@ -660,10 +660,10 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 6. 🚧 Performance optimization (MongoDB query benchmarking) - T088
 7. 🚧 Security hardening (TLS, authentication, rate limiting) - T089
 8. 🚧 Edge case tests (clock skew, concurrent sync, MongoDB failures) - T090
-9. 🚧 End-to-end validation with 3 central nodes + 2 peer nodes - T091
+9. 🚧 End-to-end validation with 3 hub nodes + 2 peer nodes - T091
 
 **Technical Decisions:**
-- Hybrid central node detection (config + hostname validation)
+- Hybrid hub node detection (config + hostname validation)
 - MongoDB collection per blueprint (not single document)
 - Polly v8 ResiliencePipeline with exponential backoff + jitter
 - Local in-memory active peers list (per FR-037)
@@ -672,7 +672,7 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 - Automatic failover after 2 missed heartbeats (60s timeout)
 
 **Git Evidence:**
-- Commit `TBD`: feat: Implement peer service central node connection (Phase 1-3, 63/91 tasks)
+- Commit `TBD`: feat: Implement peer service hub node connection (Phase 1-3, 63/91 tasks)
 - Total: ~5,700 lines of production code, 0 test lines (tests pending)
 
 ---
@@ -1522,7 +1522,7 @@ The Sorcha platform is **98% complete** and production-ready with authentication
 ---
 
 **Document Version:** 2.9
-**Last Updated:** 2025-12-14 (Updated for Peer Service Central Node Connection and Replication)
+**Last Updated:** 2025-12-14 (Updated for Peer Service Hub Node Connection and Replication)
 **Next Review:** 2025-12-21
 **Owner:** Sorcha Architecture Team
 **Recent Changes:**

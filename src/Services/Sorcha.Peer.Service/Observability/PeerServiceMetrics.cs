@@ -93,7 +93,7 @@ public sealed class PeerServiceMetrics : IDisposable
         _failoverCount = _meter.CreateCounter<long>(
             name: "peer.failover.count",
             unit: "events",
-            description: "Number of failover events to different central nodes");
+            description: "Number of failover events to different hub nodes");
     }
 
     /// <summary>
@@ -115,7 +115,7 @@ public sealed class PeerServiceMetrics : IDisposable
     /// Records heartbeat latency measurement
     /// </summary>
     /// <param name="latencyMs">Latency in milliseconds</param>
-    /// <param name="centralNodeId">Central node identifier</param>
+    /// <param name="centralNodeId">Hub node identifier</param>
     public void RecordHeartbeatLatency(double latencyMs, string centralNodeId)
     {
         var tags = new TagList
@@ -164,8 +164,8 @@ public sealed class PeerServiceMetrics : IDisposable
     /// <summary>
     /// Records a failover event
     /// </summary>
-    /// <param name="fromNode">Source central node</param>
-    /// <param name="toNode">Target central node</param>
+    /// <param name="fromNode">Source hub node</param>
+    /// <param name="toNode">Target hub node</param>
     /// <param name="reason">Failover reason</param>
     public void RecordFailover(string fromNode, string toNode, string reason)
     {

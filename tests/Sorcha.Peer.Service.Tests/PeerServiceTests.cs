@@ -21,8 +21,8 @@ public class PeerServiceTests
     private readonly Mock<NetworkAddressService> _networkAddressServiceMock;
     private readonly Mock<PeerDiscoveryService> _peerDiscoveryServiceMock;
     private readonly Mock<HealthMonitorService> _healthMonitorServiceMock;
-    private readonly Mock<CentralNodeDiscoveryService> _centralNodeDiscoveryServiceMock;
-    private readonly Mock<CentralNodeConnectionManager> _centralNodeConnectionManagerMock;
+    private readonly Mock<HubNodeDiscoveryService> _centralNodeDiscoveryServiceMock;
+    private readonly Mock<HubNodeConnectionManager> _centralNodeConnectionManagerMock;
     private readonly PeerServiceConfiguration _configuration;
 
     public PeerServiceTests()
@@ -33,8 +33,8 @@ public class PeerServiceTests
         _networkAddressServiceMock = new Mock<NetworkAddressService>();
         _peerDiscoveryServiceMock = new Mock<PeerDiscoveryService>();
         _healthMonitorServiceMock = new Mock<HealthMonitorService>();
-        _centralNodeDiscoveryServiceMock = new Mock<CentralNodeDiscoveryService>();
-        _centralNodeConnectionManagerMock = new Mock<CentralNodeConnectionManager>();
+        _centralNodeDiscoveryServiceMock = new Mock<HubNodeDiscoveryService>();
+        _centralNodeConnectionManagerMock = new Mock<HubNodeConnectionManager>();
         _configuration = new PeerServiceConfiguration
         {
             Enabled = true,

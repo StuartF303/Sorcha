@@ -9,10 +9,10 @@
 
 ### Session 2025-12-13
 
-- Q: How frequently should peer nodes synchronize the system register with central nodes? → A: 5-minute periodic synchronization with push notification support for immediate propagation when blueprints are published
+- Q: How frequently should peer nodes synchronize the system register with hub nodes? → A: 5-minute periodic synchronization with push notification support for immediate propagation when blueprints are published
 - Q: What should be the exponential backoff parameters for peer connection retries? → A: Initial: 1s, Multiplier: 2x, Max: 1min
-- Q: Should peer nodes maintain connections to multiple central nodes simultaneously, or only connect to one at a time? → A: Connect to first reachable only, switch to another central node on failure
-- Q: How should peer nodes detect that their connection to a central node has failed? → A: 30s heartbeat timeout
+- Q: Should peer nodes maintain connections to multiple hub nodes simultaneously, or only connect to one at a time? → A: Connect to first reachable only, switch to another hub node on failure
+- Q: How should peer nodes detect that their connection to a hub node has failed? → A: 30s heartbeat timeout
 - Q: What is the purpose and scope of the active peers list? → A: Maintained by each peer node locally for tracking its own connection status and network awareness
 
 ## User Scenarios & Testing *(mandatory)*
@@ -73,27 +73,27 @@ The register creation process should be defined as a reusable blueprint workflow
 
 ### User Story 4 - System Register for Blueprint Publication and Replication (Priority: P1)
 
-The system needs a special system register to store published blueprints (including the register creation blueprint itself) that can be replicated across peer nodes. This system register must be seeded into a central node during system initialization and serve as the authoritative source for blueprint distribution.
+The system needs a special system register to store published blueprints (including the register creation blueprint itself) that can be replicated across peer nodes. This system register must be seeded into a hub node during system initialization and serve as the authoritative source for blueprint distribution.
 
 **Why this priority**: This is foundational infrastructure - the register creation blueprint must be published somewhere for nodes to discover and execute it. Without a system register, there's no mechanism to distribute blueprints across the network. This is P1 because it's required for the entire blueprint-based register creation to function in a distributed environment.
 
-**Independent Test**: Can be tested by initializing a central node, verifying the system register is created and seeded with the register creation blueprint, connecting a peer node, triggering replication, and confirming the peer node receives and can execute the blueprint from its local replica of the system register.
+**Independent Test**: Can be tested by initializing a hub node, verifying the system register is created and seeded with the register creation blueprint, connecting a peer node, triggering replication, and confirming the peer node receives and can execute the blueprint from its local replica of the system register.
 
 **Acceptance Scenarios**:
 
-1. **Given** a central node initializing for the first time, **When** the system bootstrap process runs, **Then** the system creates a special system register with a well-known identifier, generates its genesis record with the system as the administrator, seeds the register creation blueprint into the system register, and marks the node as ready to accept peer connections.
+1. **Given** a hub node initializing for the first time, **When** the system bootstrap process runs, **Then** the system creates a special system register with a well-known identifier, generates its genesis record with the system as the administrator, seeds the register creation blueprint into the system register, and marks the node as ready to accept peer connections.
 
-2. **Given** a peer node connecting to a central node with a system register, **When** the peer initiates replication, **Then** the system register and all its published blueprints (including register creation blueprint) are replicated to the peer node, the peer can query its local copy of the system register, and the peer can execute blueprints from the replicated system register.
+2. **Given** a peer node connecting to a hub node with a system register, **When** the peer initiates replication, **Then** the system register and all its published blueprints (including register creation blueprint) are replicated to the peer node, the peer can query its local copy of the system register, and the peer can execute blueprints from the replicated system register.
 
 3. **Given** a new blueprint is published to the system register on any node, **When** replication occurs, **Then** the blueprint propagates to all connected peer nodes, the publication transaction is recorded with timestamp and publisher identity, and all nodes can execute the newly published blueprint.
 
 4. **Given** the system register already exists on a node, **When** the system restarts, **Then** the bootstrap process detects the existing system register, skips creation, validates its integrity, and resumes normal operations without creating duplicate system registers.
 
-5. **Given** a peer service starting up on a non-central node, **When** the service initializes, **Then** it attempts to connect to the configured list of central nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev) in order, establishes connection to the first reachable central node, replicates the system register, and adds itself to the network's active peers list.
+5. **Given** a peer service starting up on a non-hub node, **When** the service initializes, **Then** it attempts to connect to the configured list of hub nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev) in order, establishes connection to the first reachable hub node, replicates the system register, and adds itself to the network's active peers list.
 
-6. **Given** a peer service starting up and detecting it is running on the sorcha.dev domain (e.g., n0.sorcha.dev), **When** the service initializes, **Then** it recognizes itself as a central node, skips attempting outbound connections to other central nodes, adds itself to the active peers list, begins listening for incoming peer connections, and remains online to accept connections from other peers.
+6. **Given** a peer service starting up and detecting it is running on the sorcha.dev domain (e.g., n0.sorcha.dev), **When** the service initializes, **Then** it recognizes itself as a hub node, skips attempting outbound connections to other hub nodes, adds itself to the active peers list, begins listening for incoming peer connections, and remains online to accept connections from other peers.
 
-7. **Given** a peer node attempting to connect to central nodes, **When** all configured central nodes are unreachable, **Then** the peer service logs connection failures, continues retrying connections with exponential backoff, operates in isolated mode using its last known system register replica, and notifies administrators that it cannot reach central infrastructure.
+7. **Given** a peer node attempting to connect to hub nodes, **When** all configured hub nodes are unreachable, **Then** the peer service logs connection failures, continues retrying connections with exponential backoff, operates in isolated mode using its last known system register replica, and notifies administrators that it cannot reach central infrastructure.
 
 ---
 
@@ -126,26 +126,26 @@ The system needs a special system register to store published blueprints (includ
 - **Can a user accidentally delete or modify the system register?**
   No - the system register should be protected with special system-level permissions that prevent user modification or deletion. Only system administrators through privileged operations can modify the system register.
 
-- **What happens if two central nodes are initialized independently and create different system registers?**
+- **What happens if two hub nodes are initialized independently and create different system registers?**
   This represents a split-brain scenario. The system should detect multiple system registers with the same well-known identifier but different genesis records, alert administrators, and require manual intervention to choose the authoritative system register and re-seed the others.
 
 - **How does the system handle replication failures when publishing blueprints to the system register?**
   Blueprint publication should succeed locally even if replication to peers fails. The system should queue failed replications for retry, log replication failures, and notify administrators if peers remain out of sync beyond a configured threshold (e.g., 1 hour).
 
-- **What happens when a peer service starts and cannot reach any central nodes?**
+- **What happens when a peer service starts and cannot reach any hub nodes?**
   The peer service should continue retrying connections with exponential backoff, operate using its last known system register replica, log the isolation state, and notify administrators. It should not crash or become unavailable.
 
-- **How does a central node know it's running on the sorcha.dev domain?**
-  The peer service should check its configured hostname or domain during startup. If it matches the sorcha.dev domain (or is explicitly configured as a central node), it should behave as a central node rather than attempting outbound connections.
+- **How does a hub node know it's running on the sorcha.dev domain?**
+  The peer service should check its configured hostname or domain during startup. If it matches the sorcha.dev domain (or is explicitly configured as a hub node), it should behave as a hub node rather than attempting outbound connections.
 
-- **What happens if a central node tries to connect to other central nodes by mistake?**
-  If a central node is misconfigured and attempts to connect to other central nodes, this could create connection loops or conflicts. The system should detect this scenario (e.g., mutual connection attempts), log a configuration error, and prevent the connection to avoid circular dependencies.
+- **What happens if a hub node tries to connect to other hub nodes by mistake?**
+  If a hub node is misconfigured and attempts to connect to other hub nodes, this could create connection loops or conflicts. The system should detect this scenario (e.g., mutual connection attempts), log a configuration error, and prevent the connection to avoid circular dependencies.
 
-- **Can peer nodes connect directly to each other for system register replication, or only to central nodes?**
-  In the initial implementation, peer nodes replicate system register only from central nodes, not from other peers. Peer-to-peer replication (without central nodes) is out of scope but could be added later for resilience.
+- **Can peer nodes connect directly to each other for system register replication, or only to hub nodes?**
+  In the initial implementation, peer nodes replicate system register only from hub nodes, not from other peers. Peer-to-peer replication (without hub nodes) is out of scope but could be added later for resilience.
 
-- **What happens when a peer's active connection to a central node fails?**
-  The peer should immediately attempt to connect to the next central node in the configured list (n1 if connected to n0, n2 if connected to n1, back to n0 if connected to n2). During the reconnection attempt, the peer operates in isolated mode using its last known system register replica.
+- **What happens when a peer's active connection to a hub node fails?**
+  The peer should immediately attempt to connect to the next hub node in the configured list (n1 if connected to n0, n2 if connected to n1, back to n0 if connected to n2). During the reconnection attempt, the peer operates in isolated mode using its last known system register replica.
 
 ## Requirements *(mandatory)*
 
@@ -181,7 +181,7 @@ The system needs a special system register to store published blueprints (includ
 
 - **FR-015**: System MUST validate register creation requests against user permissions before allocating any resources.
 
-- **FR-016**: System MUST create a special system register with a well-known identifier during central node initialization to store published blueprints.
+- **FR-016**: System MUST create a special system register with a well-known identifier during hub node initialization to store published blueprints.
 
 - **FR-017**: System MUST seed the register creation blueprint into the system register during bootstrap initialization.
 
@@ -201,29 +201,29 @@ The system needs a special system register to store published blueprints (includ
 
 - **FR-025**: System MUST allow peer nodes to query their local replica of the system register to retrieve published blueprints for execution.
 
-- **FR-026**: Peer Service MUST attempt to connect to a configured list of central nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev) in order during non-central node startup.
+- **FR-026**: Peer Service MUST attempt to connect to a configured list of hub nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev) in order during non-hub node startup.
 
-- **FR-027**: Peer Service MUST detect if it is running on the sorcha.dev domain during startup and, if so, skip attempting outbound connections to other central nodes.
+- **FR-027**: Peer Service MUST detect if it is running on the sorcha.dev domain during startup and, if so, skip attempting outbound connections to other hub nodes.
 
 - **FR-028**: Central nodes (nodes on sorcha.dev domain) MUST add themselves to the active peers list and begin listening for incoming peer connections without attempting to connect as clients.
 
 - **FR-029**: Central nodes MUST remain online to accept incoming peer connections and MUST NOT shut down or go offline when other peers are attempting to connect.
 
-- **FR-030**: Peer nodes MUST continue retrying connections to central nodes with exponential backoff when all central nodes are unreachable, operating in isolated mode using their last known system register replica.
+- **FR-030**: Peer nodes MUST continue retrying connections to hub nodes with exponential backoff when all hub nodes are unreachable, operating in isolated mode using their last known system register replica.
 
-- **FR-031**: Peer Service MUST detect and prevent connection loops when a central node mistakenly attempts to connect to another central node, logging a configuration error instead of establishing the connection.
+- **FR-031**: Peer Service MUST detect and prevent connection loops when a hub node mistakenly attempts to connect to another hub node, logging a configuration error instead of establishing the connection.
 
-- **FR-032**: Peer nodes MUST perform periodic synchronization of the system register with central nodes every 5 minutes to ensure eventual consistency.
+- **FR-032**: Peer nodes MUST perform periodic synchronization of the system register with hub nodes every 5 minutes to ensure eventual consistency.
 
 - **FR-033**: Central nodes MUST send push notifications to all connected peer nodes immediately when a new blueprint is published to the system register, enabling faster propagation than periodic sync alone.
 
-- **FR-034**: Peer nodes MUST accept and process push notifications from central nodes for immediate system register updates, falling back to periodic synchronization if push delivery fails.
+- **FR-034**: Peer nodes MUST accept and process push notifications from hub nodes for immediate system register updates, falling back to periodic synchronization if push delivery fails.
 
-- **FR-035**: Peer nodes MUST maintain a connection to only one central node at a time (the first reachable from the configured list), switching to the next central node in the list if the active connection fails.
+- **FR-035**: Peer nodes MUST maintain a connection to only one hub node at a time (the first reachable from the configured list), switching to the next hub node in the list if the active connection fails.
 
-- **FR-036**: Peer nodes MUST send heartbeat messages to their connected central node and detect connection failure if no heartbeat response is received within 30 seconds, triggering failover to the next central node.
+- **FR-036**: Peer nodes MUST send heartbeat messages to their connected hub node and detect connection failure if no heartbeat response is received within 30 seconds, triggering failover to the next hub node.
 
-- **FR-037**: Each peer node MUST maintain its own local active peers list to track its connection status, currently connected central node, and network awareness, without requiring global coordination or shared state with other peers.
+- **FR-037**: Each peer node MUST maintain its own local active peers list to track its connection status, currently connected hub node, and network awareness, without requiring global coordination or shared state with other peers.
 
 ### Key Entities
 
@@ -237,7 +237,7 @@ The system needs a special system register to store published blueprints (includ
 
 - **Register Creation Workflow**: A blueprint workflow that orchestrates the register creation process. Contains actions for: permission validation, database storage allocation, genesis record generation, control record initialization, and completion confirmation. Ensures consistent and auditable register creation.
 
-- **System Register**: A special register with a well-known identifier that stores published blueprints for distribution across the peer network. Created during central node initialization, seeded with the register creation blueprint, and replicated to all peer nodes. Protected with system-level permissions to prevent unauthorized modification. Serves as the authoritative source for blueprint distribution and discovery.
+- **System Register**: A special register with a well-known identifier that stores published blueprints for distribution across the peer network. Created during hub node initialization, seeded with the register creation blueprint, and replicated to all peer nodes. Protected with system-level permissions to prevent unauthorized modification. Serves as the authoritative source for blueprint distribution and discovery.
 
 - **Administrator**: A user identity with permissions to manage a register's control record (add/remove administrators) and operational settings. At least one administrator must exist at all times.
 
@@ -261,17 +261,17 @@ The system needs a special system register to store published blueprints (includ
 
 - **SC-008**: All control record modifications (adding administrators) are recorded as auditable transactions with complete timestamp and initiator information.
 
-- **SC-009**: The system register is successfully created and seeded with the register creation blueprint on 100% of central node initializations.
+- **SC-009**: The system register is successfully created and seeded with the register creation blueprint on 100% of hub node initializations.
 
-- **SC-010**: Peer nodes can replicate the complete system register including all published blueprints within 30 seconds of connecting to a central node under normal network conditions.
+- **SC-010**: Peer nodes can replicate the complete system register including all published blueprints within 30 seconds of connecting to a hub node under normal network conditions.
 
 - **SC-011**: Blueprint publications to the system register propagate to at least 95% of connected peer nodes within 5 minutes.
 
 - **SC-012**: System register integrity validation on startup completes in under 2 seconds and correctly detects 100% of corruption scenarios in testing.
 
-- **SC-013**: Peer services running on central nodes (sorcha.dev domain) correctly identify themselves as central nodes and skip outbound connection attempts on 100% of startups.
+- **SC-013**: Peer services running on hub nodes (sorcha.dev domain) correctly identify themselves as hub nodes and skip outbound connection attempts on 100% of startups.
 
-- **SC-014**: Non-central peer nodes successfully connect to at least one central node from the configured list within 30 seconds during startup under normal network conditions.
+- **SC-014**: Non-central peer nodes successfully connect to at least one hub node from the configured list within 30 seconds during startup under normal network conditions.
 
 - **SC-015**: Central nodes remain online and accept incoming peer connections, with 100% uptime during normal operations (excluding planned maintenance).
 
@@ -291,18 +291,18 @@ The system needs a special system register to store published blueprints (includ
 - The system register will have a well-known identifier (e.g., UUID "00000000-0000-0000-0000-000000000000" or similar reserved value) that all nodes recognize.
 - Central nodes are designated through configuration (not auto-elected) in the initial implementation; leader election can be added later.
 - Central nodes are hosted on the sorcha.dev domain with hostnames: n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev.
-- Peer services detect if they are central nodes by checking their configured hostname against the sorcha.dev domain or through explicit configuration flags.
-- Non-central peer nodes are configured with the list of central node addresses (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev) to attempt connections during startup.
-- Peer nodes connect to central nodes in the order they appear in the configuration list, using the first reachable central node.
-- Peer nodes maintain a single active connection to one central node at a time to minimize resource usage; if the active connection fails, the peer switches to the next central node in the list.
-- Peer nodes use heartbeat messages to monitor connection health, with a 30-second timeout for heartbeat responses; missed heartbeats trigger failover to the next central node.
+- Peer services detect if they are hub nodes by checking their configured hostname against the sorcha.dev domain or through explicit configuration flags.
+- Non-central peer nodes are configured with the list of hub node addresses (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev) to attempt connections during startup.
+- Peer nodes connect to hub nodes in the order they appear in the configuration list, using the first reachable hub node.
+- Peer nodes maintain a single active connection to one hub node at a time to minimize resource usage; if the active connection fails, the peer switches to the next hub node in the list.
+- Peer nodes use heartbeat messages to monitor connection health, with a 30-second timeout for heartbeat responses; missed heartbeats trigger failover to the next hub node.
 - Blueprint replication uses the existing Peer Service's P2P networking capabilities for peer-to-peer data transfer.
 - The system register is replicated in its entirety to peer nodes; selective replication or partial sync is not supported in the initial implementation.
 - Network partition resolution favors availability over consistency (AP in CAP theorem); eventual consistency is acceptable for blueprint distribution.
 - Failed replication retries use exponential backoff with a maximum retry interval of 1 hour.
-- Peer connection retries to central nodes use exponential backoff with initial delay of 1 second, multiplier of 2x, and maximum delay of 1 minute (sequence: 1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s, ...).
-- Peer nodes can operate in isolated mode with their last known system register replica when central nodes are unreachable, continuing to serve existing blueprints but unable to receive new blueprint publications.
-- Peer nodes use a hybrid pull+push synchronization model: periodic 5-minute pulls for baseline consistency, plus immediate push notifications from central nodes for faster propagation.
+- Peer connection retries to hub nodes use exponential backoff with initial delay of 1 second, multiplier of 2x, and maximum delay of 1 minute (sequence: 1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s, ...).
+- Peer nodes can operate in isolated mode with their last known system register replica when hub nodes are unreachable, continuing to serve existing blueprints but unable to receive new blueprint publications.
+- Peer nodes use a hybrid pull+push synchronization model: periodic 5-minute pulls for baseline consistency, plus immediate push notifications from hub nodes for faster propagation.
 - Push notifications are best-effort delivery; if a peer misses a push notification, it will receive the update during the next 5-minute periodic synchronization.
 - Each peer node maintains its own local active peers list for tracking connection status and network state; this list is not shared or synchronized with other peers and does not require global coordination.
 
@@ -325,7 +325,7 @@ The system needs a special system register to store published blueprints (includ
 - Register templates or pre-configured register types beyond the standard creation workflow.
 - Migration of existing registers to the new genesis record format (this is for new registers only).
 - User interface for register creation - this specification covers the backend workflow and API contracts.
-- Automatic leader election or consensus protocols for central node designation - central nodes are configured manually in this version.
+- Automatic leader election or consensus protocols for hub node designation - hub nodes are configured manually in this version.
 - Selective or partial replication of the system register - the entire system register is replicated to all peers.
 - Blueprint versioning or deprecation management in the system register - blueprints are published and replicated as-is.
 - Conflict-free replicated data types (CRDTs) for system register replication - uses timestamp-based conflict resolution.

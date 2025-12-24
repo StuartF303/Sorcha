@@ -1,6 +1,6 @@
-# Quickstart Guide: Peer Service Central Node Connection
+# Quickstart Guide: Peer Service Hub Node Connection
 
-**Feature**: Central Node Connection & System Register Synchronization
+**Feature**: Hub Node Connection & System Register Synchronization
 **Branch**: `001-register-genesis`
 **Created**: 2025-12-13
 **Status**: Developer Guide
@@ -25,17 +25,17 @@
 
 ### What This Feature Does
 
-The Peer Service Central Node Connection feature enables peer nodes to:
+The Peer Service Hub Node Connection feature enables peer nodes to:
 
-1. **Connect to Central Nodes**: Establish connections to central nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev) with automatic failover
+1. **Connect to Hub Nodes**: Establish connections to hub nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev) with automatic failover
 2. **Synchronize System Register**: Replicate published blueprints from the system register using hybrid pull + push synchronization
 3. **Monitor Connection Health**: Maintain connection health through 30-second heartbeat monitoring
-4. **Handle Failover**: Automatically failover to backup central nodes on connection failures
+4. **Handle Failover**: Automatically failover to backup hub nodes on connection failures
 5. **Receive Push Notifications**: Get real-time notifications when new blueprints are published
 
 ### Key Concepts
 
-**Central Nodes**: Three highly-available nodes (n0, n1, n2) that maintain the authoritative system register
+**Hub Nodes**: Three highly-available nodes (n0, n1, n2) that maintain the authoritative system register
 - `n0.sorcha.dev` (priority 0, primary)
 - `n1.sorcha.dev` (priority 1, secondary)
 - `n2.sorcha.dev` (priority 2, tertiary)
@@ -88,7 +88,7 @@ The following NuGet packages are already included:
 
 ## Configuration Examples
 
-### Running as a Central Node
+### Running as a Hub Node
 
 **File**: `appsettings.Production.json` (on n0.sorcha.dev server)
 
@@ -200,7 +200,7 @@ PeerService__CentralNode__IsCentralNode=false
 
     // Central node configuration
     "CentralNode": {
-      "IsCentralNode": false,                     // Is this node a central node?
+      "IsCentralNode": false,                     // Is this node a hub node?
       "ExpectedHostnamePattern": "*.sorcha.dev",  // Hostname validation pattern
       "ValidateHostname": true,                   // Validate hostname on startup
 
@@ -275,7 +275,7 @@ PeerService__CentralNode__IsCentralNode=false
 
 ### Option 1: Docker Compose (Recommended for Testing)
 
-This setup creates 3 central nodes + 2 peer nodes for comprehensive testing.
+This setup creates 3 hub nodes + 2 peer nodes for comprehensive testing.
 
 **File**: `docker-compose.central-nodes.yml`
 
@@ -303,7 +303,7 @@ services:
     volumes:
       - redis-data:/data
 
-  # Central Node 0 (Primary)
+  # Hub Node 0 (Primary)
   central-node-0:
     build:
       context: .
@@ -323,7 +323,7 @@ services:
       - mongo
       - redis
 
-  # Central Node 1 (Secondary)
+  # Hub Node 1 (Secondary)
   central-node-1:
     build:
       context: .
@@ -343,7 +343,7 @@ services:
       - mongo
       - redis
 
-  # Central Node 2 (Tertiary)
+  # Hub Node 2 (Tertiary)
   central-node-2:
     build:
       context: .
@@ -458,9 +458,9 @@ docker-compose -f docker-compose.central-nodes.yml down -v
 ```
 
 **Service Endpoints**:
-- Central Node 0: http://localhost:5000
-- Central Node 1: http://localhost:5001
-- Central Node 2: http://localhost:5002
+- Hub Node 0: http://localhost:5000
+- Hub Node 1: http://localhost:5001
+- Hub Node 2: http://localhost:5002
 - Peer Node 1: http://localhost:5100
 - Peer Node 2: http://localhost:5101
 - MongoDB: localhost:27017
@@ -531,7 +531,7 @@ dotnet run
 # Service starts on: http://localhost:5000 (HTTP/1.1 + HTTP/2)
 ```
 
-**Configure Central Nodes** in `appsettings.Development.json`:
+**Configure Hub Nodes** in `appsettings.Development.json`:
 
 For local testing, you can point to localhost instances:
 
@@ -560,11 +560,11 @@ For local testing, you can point to localhost instances:
 
 ### Scenario 1: Test System Register Replication
 
-**Goal**: Verify peer node can synchronize blueprints from central node
+**Goal**: Verify peer node can synchronize blueprints from hub node
 
 **Steps**:
 
-1. **Publish a blueprint to system register** (on central node):
+1. **Publish a blueprint to system register** (on hub node):
 
 ```bash
 # Using MongoDB directly
@@ -615,7 +615,7 @@ db.sorcha_system_register_blueprints.findOne({ "_id": "test-blueprint-v1" })
 
 ### Scenario 2: Test Heartbeat Monitoring and Failover
 
-**Goal**: Verify peer node fails over to secondary central node when primary becomes unavailable
+**Goal**: Verify peer node fails over to secondary hub node when primary becomes unavailable
 
 **Steps**:
 
@@ -629,14 +629,14 @@ docker-compose -f docker-compose.central-nodes.yml up -d
 
 ```bash
 # Check peer node logs
-docker logs peer-node-1 | grep "Connected to central node"
-# Expected: "Connected to central node: n0.sorcha.dev"
+docker logs peer-node-1 | grep "Connected to hub node"
+# Expected: "Connected to hub node: n0.sorcha.dev"
 
 # Or use REST API
 curl http://localhost:5100/api/connection/status | jq
 ```
 
-3. **Stop primary central node**:
+3. **Stop primary hub node**:
 
 ```bash
 docker stop central-n0.sorcha.dev
@@ -653,7 +653,7 @@ docker logs -f peer-node-1
 # [Heartbeat] Missed heartbeat 2/2 - triggering failover
 # [Connection] Disconnecting from n0.sorcha.dev (reason: HeartbeatTimeout)
 # [Connection] Attempting connection to n1.sorcha.dev (priority 1)
-# [Connection] Connected to central node: n1.sorcha.dev
+# [Connection] Connected to hub node: n1.sorcha.dev
 ```
 
 5. **Verify connection to secondary**:
@@ -693,7 +693,7 @@ Peer automatically subscribes on connection, but verify:
 docker logs peer-node-1 | grep "Subscribed to push notifications"
 ```
 
-2. **Publish a new blueprint** (on central node):
+2. **Publish a new blueprint** (on hub node):
 
 ```bash
 mongosh mongodb://localhost:27017/sorcha_register
@@ -746,7 +746,7 @@ db.sorcha_system_register_blueprints.findOne({ "_id": "push-test-v1" })
 
 **Steps**:
 
-1. **Stop all central nodes**:
+1. **Stop all hub nodes**:
 
 ```bash
 docker stop central-n0.sorcha.dev central-n1.sorcha.dev central-n2.sorcha.dev
@@ -794,7 +794,7 @@ docker start central-n1.sorcha.dev
 
 ```bash
 docker logs peer-node-1 | tail -10
-# Expected: "Connected to central node: n1.sorcha.dev"
+# Expected: "Connected to hub node: n1.sorcha.dev"
 ```
 
 **Expected Result**:
@@ -803,9 +803,9 @@ docker logs peer-node-1 | tail -10
 - After 10 failed attempts to n0, peer tries n1
 - Connection succeeds when n1 becomes available
 
-### Scenario 5: Test All Central Nodes Unreachable (Isolated Mode)
+### Scenario 5: Test All Hub Nodes Unreachable (Isolated Mode)
 
-**Goal**: Verify peer operates in "isolated mode" when all central nodes are unreachable
+**Goal**: Verify peer operates in "isolated mode" when all hub nodes are unreachable
 
 **Steps**:
 
@@ -817,7 +817,7 @@ mongosh mongodb://localhost:27017/sorcha_peer_1
 db.sorcha_system_register_blueprints.countDocuments()
 ```
 
-2. **Stop all central nodes**:
+2. **Stop all hub nodes**:
 
 ```bash
 docker stop central-n0.sorcha.dev central-n1.sorcha.dev central-n2.sorcha.dev
@@ -829,7 +829,7 @@ docker stop central-n0.sorcha.dev central-n1.sorcha.dev central-n2.sorcha.dev
 docker logs -f peer-node-1
 
 # Expected:
-# [Connection] All central nodes unreachable
+# [Connection] All hub nodes unreachable
 # [Status] Entering isolated mode - operating with last known system register replica
 # [Status] Connection status: Isolated
 ```
@@ -859,7 +859,7 @@ docker logs -f peer-node-1
 
 # Expected:
 # [Connection] Central node n2.sorcha.dev reachable - attempting connection
-# [Connection] Connected to central node: n2.sorcha.dev
+# [Connection] Connected to hub node: n2.sorcha.dev
 # [Status] Exiting isolated mode
 # [Sync] Triggering full sync to catch up...
 ```
@@ -867,23 +867,23 @@ docker logs -f peer-node-1
 **Expected Result**:
 - Peer enters isolated mode gracefully
 - Peer continues to operate with last known system register replica
-- Peer periodically checks for central node availability
-- Peer reconnects automatically when central node becomes available
+- Peer periodically checks for hub node availability
+- Peer reconnects automatically when hub node becomes available
 - Peer triggers full sync to catch up after reconnection
 
 ---
 
 ## Verification Steps
 
-### 1. Verify Central Node Detection
+### 1. Verify Hub Node Detection
 
 **Check if node correctly identifies as central or peer**:
 
 ```bash
 # View startup logs
-docker logs central-n0.sorcha.dev | grep "Central Node"
+docker logs central-n0.sorcha.dev | grep "Hub Node"
 
-# Expected (Central Node):
+# Expected (Hub Node):
 # [Startup] Central node detection: IsCentralNode=true
 # [Startup] Hostname validation: n0.sorcha.dev matches pattern *.sorcha.dev
 # [Startup] Running as CENTRAL NODE: n0.sorcha.dev
@@ -1029,7 +1029,7 @@ docker logs -f peer-node-1 | grep Heartbeat
 **Test heartbeat timeout**:
 
 ```bash
-# Block network traffic to central node (Docker)
+# Block network traffic to hub node (Docker)
 docker network disconnect bridge central-n0.sorcha.dev
 
 # Monitor peer logs for timeout
@@ -1069,7 +1069,7 @@ curl http://localhost:5100/api/connection/status | jq
 }
 ```
 
-**gRPC - Get Central Node Status**:
+**gRPC - Get Hub Node Status**:
 
 ```bash
 grpcurl -plaintext -d '{"peer_id": "peer-node-1"}' \
@@ -1087,7 +1087,7 @@ grpcurl -plaintext -d '{"peer_id": "peer-node-1"}' \
 }
 ```
 
-**Check all central node configurations**:
+**Check all hub node configurations**:
 
 ```bash
 curl http://localhost:5100/api/connection/central-nodes | jq
@@ -1128,7 +1128,7 @@ curl http://localhost:5100/api/connection/central-nodes | jq
 
 ## Common Issues and Troubleshooting
 
-### Issue 1: Peer Cannot Connect to Central Node
+### Issue 1: Peer Cannot Connect to Hub Node
 
 **Symptoms**:
 ```
@@ -1145,10 +1145,10 @@ curl http://localhost:5100/api/connection/central-nodes | jq
 **Solutions**:
 
 ```bash
-# Verify central node is running
+# Verify hub node is running
 docker ps | grep central-n0
 
-# Check central node logs
+# Check hub node logs
 docker logs central-n0.sorcha.dev
 
 # Test network connectivity
@@ -1188,7 +1188,7 @@ cat appsettings.Development.json | jq '.PeerService.CentralNode.CentralNodes'
 # Measure network latency
 ping n0.sorcha.dev
 
-# Check central node CPU/memory
+# Check hub node CPU/memory
 docker stats central-n0.sorcha.dev
 
 # Verify clock sync
@@ -1293,7 +1293,7 @@ docker restart peer-node-1
 ```
 
 **Possible Causes**:
-1. Multiple central nodes writing to same MongoDB
+1. Multiple hub nodes writing to same MongoDB
 2. Version auto-increment not configured
 3. Race condition in version assignment
 
@@ -1315,16 +1315,16 @@ mongosh mongodb://localhost:27017/sorcha_register --quiet --eval \
 # Or use atomic findAndModify for version counter
 ```
 
-### Issue 6: "Isolated Mode" When Central Nodes Are Reachable
+### Issue 6: "Isolated Mode" When Hub Nodes Are Reachable
 
 **Symptoms**:
 ```
 [Status] Connection status: Isolated
 ```
-But central nodes are running and reachable.
+But hub nodes are running and reachable.
 
 **Possible Causes**:
-1. Retry logic exhausted all central nodes
+1. Retry logic exhausted all hub nodes
 2. Authentication/authorization failure (future enhancement)
 3. Central nodes rejecting connection
 4. Configuration mismatch
@@ -1332,7 +1332,7 @@ But central nodes are running and reachable.
 **Solutions**:
 
 ```bash
-# Check central node logs for connection attempts
+# Check hub node logs for connection attempts
 docker logs central-n0.sorcha.dev | grep "Connection request from peer"
 
 # Verify peer ID is valid
@@ -1342,7 +1342,7 @@ cat appsettings.Development.json | jq '.PeerService.NodeId'
 grpcurl -plaintext -d '{"peer_id": "peer-node-1", "peer_info": {"node_type": "Peer"}}' \
   localhost:5000 sorcha.peer.v1.CentralNodeConnection/ConnectToCentralNode
 
-# Check if central node health is degraded
+# Check if hub node health is degraded
 curl http://localhost:5000/api/node/health | jq
 
 # Manually trigger reconnection
@@ -1377,10 +1377,10 @@ curl http://localhost:5100/api/connection/status | jq
 }
 ```
 
-### Central Nodes Configuration
+### Hub Nodes Configuration
 
 ```bash
-# List all configured central nodes
+# List all configured hub nodes
 GET /api/connection/central-nodes
 
 curl http://localhost:5100/api/connection/central-nodes | jq
@@ -1567,7 +1567,7 @@ grpcurl -plaintext localhost:5000 describe sorcha.peer.v1.ConnectRequest
 #### Test ConnectToCentralNode
 
 ```bash
-# Connect to central node
+# Connect to hub node
 grpcurl -plaintext -d '{
   "peer_id": "grpcurl-test-peer",
   "peer_info": {
@@ -1667,7 +1667,7 @@ grpcurl -plaintext -d '{
 #### Test GetCentralNodeStatus
 
 ```bash
-# Get central node status
+# Get hub node status
 grpcurl -plaintext -d '{
   "peer_id": "grpcurl-test-peer",
   "include_peer_list": true
@@ -1720,7 +1720,7 @@ grpcurl -plaintext -d '{
 
 After completing this quickstart guide, you should be able to:
 
-1. Run central nodes and peer nodes locally
+1. Run hub nodes and peer nodes locally
 2. Test system register synchronization
 3. Monitor heartbeat and failover behavior
 4. Verify push notifications
@@ -1737,9 +1737,9 @@ After completing this quickstart guide, you should be able to:
 
 For production deployment, refer to:
 - **Security**: Implement TLS for gRPC endpoints
-- **Authentication**: Add OAuth2/JWT authentication for central node connections
+- **Authentication**: Add OAuth2/JWT authentication for hub node connections
 - **Monitoring**: Set up Prometheus metrics and Grafana dashboards
-- **High Availability**: Deploy 3 central nodes with geographic distribution
+- **High Availability**: Deploy 3 hub nodes with geographic distribution
 - **DNS**: Configure proper DNS records for n0/n1/n2.sorcha.dev
 
 ---

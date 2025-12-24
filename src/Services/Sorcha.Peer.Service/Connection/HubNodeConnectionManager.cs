@@ -15,7 +15,7 @@ using System.Diagnostics;
 namespace Sorcha.Peer.Service.Connection;
 
 /// <summary>
-/// Manages connections to central nodes with priority-based failover and exponential backoff retry
+/// Manages connections to hub nodes with priority-based failover and exponential backoff retry
 /// </summary>
 /// <remarks>
 /// Connection strategy:
@@ -24,27 +24,27 @@ namespace Sorcha.Peer.Service.Connection;
 /// - Connection timeout: 30 seconds per attempt
 /// - Failover on all retries exhausted or heartbeat timeout
 /// </remarks>
-public class CentralNodeConnectionManager
+public class HubNodeConnectionManager
 {
-    private readonly ILogger<CentralNodeConnectionManager> _logger;
+    private readonly ILogger<HubNodeConnectionManager> _logger;
     private readonly PeerListManager _peerListManager;
-    private readonly List<CentralNodeInfo> _centralNodes;
+    private readonly List<HubNodeInfo> _hubNodes;
     private readonly ResiliencePipeline _connectionPipeline;
     private readonly PeerServiceMetrics _metrics;
     private readonly PeerServiceActivitySource _activitySource;
-    private CentralNodeInfo? _activeNode;
+    private HubNodeInfo? _activeNode;
     private GrpcChannel? _activeChannel;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CentralNodeConnectionManager"/> class
+    /// Initializes a new instance of the <see cref="HubNodeConnectionManager"/> class
     /// </summary>
     /// <param name="logger">Logger instance</param>
     /// <param name="peerListManager">Peer list manager for tracking connection status</param>
-    /// <param name="configuration">Central node configuration</param>
-    public CentralNodeConnectionManager(
-        ILogger<CentralNodeConnectionManager> logger,
+    /// <param name="configuration">Hub node configuration</param>
+    public HubNodeConnectionManager(
+        ILogger<HubNodeConnectionManager> logger,
         PeerListManager peerListManager,
-        IOptions<CentralNodeConfiguration> configuration,
+        IOptions<HubNodeConfiguration> configuration,
         PeerServiceMetrics metrics,
         PeerServiceActivitySource activitySource)
     {
@@ -55,8 +55,8 @@ public class CentralNodeConnectionManager
 
         var config = configuration?.Value ?? throw new ArgumentNullException(nameof(configuration));
 
-        // Initialize central node list from configuration
-        _centralNodes = new List<CentralNodeInfo>
+        // Initialize hub node list from configuration
+        _hubNodes = new List<HubNodeInfo>
         {
             new() { NodeId = "n0.sorcha.dev", Hostname = "n0.sorcha.dev", Port = 5000, Priority = 0 },
             new() { NodeId = "n1.sorcha.dev", Hostname = "n1.sorcha.dev", Port = 5000, Priority = 1 },
@@ -97,14 +97,14 @@ public class CentralNodeConnectionManager
     }
 
     /// <summary>
-    /// Connects to the next available central node in priority order
+    /// Connects to the next available hub node in priority order
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if connection successful, false otherwise</returns>
-    public async Task<bool> ConnectToCentralNodeAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> ConnectToHubNodeAsync(CancellationToken cancellationToken = default)
     {
-        // Try each central node in priority order
-        var sortedNodes = _centralNodes.OrderBy(n => n.Priority).ToList();
+        // Try each hub node in priority order
+        var sortedNodes = _hubNodes.OrderBy(n => n.Priority).ToList();
 
         foreach (var node in sortedNodes)
         {
@@ -112,10 +112,10 @@ public class CentralNodeConnectionManager
             var startTime = DateTime.UtcNow;
 
             _logger.LogInformation(
-                "Attempting connection to central node {NodeId} with priority {Priority} at {Address}",
+                "Attempting connection to hub node {NodeId} with priority {Priority} at {Address}",
                 node.NodeId, node.Priority, node.GrpcChannelAddress);
 
-            node.ConnectionStatus = CentralNodeConnectionStatus.Connecting;
+            node.ConnectionStatus = HubNodeConnectionStatus.Connecting;
             node.LastConnectionAttempt = DateTime.UtcNow;
 
             try
@@ -134,12 +134,12 @@ public class CentralNodeConnectionManager
                     node.ResetConnectionState();
 
                     // Update all other nodes to inactive
-                    foreach (var otherNode in _centralNodes.Where(n => n.NodeId != node.NodeId))
+                    foreach (var otherNode in _hubNodes.Where(n => n.NodeId != node.NodeId))
                     {
                         otherNode.IsActive = false;
                     }
 
-                    // Update peer list manager with connected central node
+                    // Update peer list manager with connected hub node
                     _peerListManager.UpdateLocalPeerStatus(node.NodeId, PeerConnectionStatus.Connected);
                     _metrics.RecordConnectionStatus(PeerConnectionStatus.Connected);
 
@@ -147,7 +147,7 @@ public class CentralNodeConnectionManager
                     _activitySource.RecordSuccess(activity, duration);
 
                     _logger.LogInformation(
-                        "Successfully connected to central node {NodeId} at {Address} (duration: {Duration}ms, attempts: 1)",
+                        "Successfully connected to hub node {NodeId} at {Address} (duration: {Duration}ms, attempts: 1)",
                         node.NodeId, node.GrpcChannelAddress, duration.TotalMilliseconds);
 
                     return true;
@@ -159,7 +159,7 @@ public class CentralNodeConnectionManager
                 _activitySource.RecordFailure(activity, ex, duration);
 
                 _logger.LogError(ex,
-                    "Failed to connect to central node {NodeId} after all retries (duration: {Duration}ms, consecutive failures: {Failures})",
+                    "Failed to connect to hub node {NodeId} after all retries (duration: {Duration}ms, consecutive failures: {Failures})",
                     node.NodeId, duration.TotalMilliseconds, node.ConsecutiveFailures + 1);
 
                 node.RecordFailure();
@@ -168,7 +168,7 @@ public class CentralNodeConnectionManager
 
         // All nodes failed - enter isolated mode
         _logger.LogWarning(
-            "Failed to connect to any central node after trying all {NodeCount} nodes - entering isolated mode",
+            "Failed to connect to any hub node after trying all {NodeCount} nodes - entering isolated mode",
             sortedNodes.Count);
         _peerListManager.UpdateLocalPeerStatus(null, PeerConnectionStatus.Isolated);
         _metrics.RecordConnectionStatus(PeerConnectionStatus.Isolated);
@@ -177,12 +177,12 @@ public class CentralNodeConnectionManager
     }
 
     /// <summary>
-    /// Establishes gRPC connection to the specified central node
+    /// Establishes gRPC connection to the specified hub node
     /// </summary>
-    /// <param name="node">Central node information</param>
+    /// <param name="node">Hub node information</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if connection established successfully</returns>
-    private async Task<bool> EstablishGrpcConnectionAsync(CentralNodeInfo node, CancellationToken cancellationToken)
+    private async Task<bool> EstablishGrpcConnectionAsync(HubNodeInfo node, CancellationToken cancellationToken)
     {
         // Dispose existing channel if present
         if (_activeChannel != null)
@@ -212,7 +212,7 @@ public class CentralNodeConnectionManager
     }
 
     /// <summary>
-    /// Failover to the next central node in priority order
+    /// Failover to the next hub node in priority order
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if failover successful, false if all nodes exhausted</returns>
@@ -221,21 +221,21 @@ public class CentralNodeConnectionManager
         if (_activeNode == null)
         {
             _logger.LogWarning("No active node to failover from - attempting fresh connection");
-            return await ConnectToCentralNodeAsync(cancellationToken);
+            return await ConnectToHubNodeAsync(cancellationToken);
         }
 
         var fromNode = _activeNode.NodeId;
         _logger.LogWarning(
-            "Failover triggered from central node {NodeId} (consecutive failures: {Failures})",
+            "Failover triggered from hub node {NodeId} (consecutive failures: {Failures})",
             _activeNode.NodeId, _activeNode.ConsecutiveFailures);
 
         // Mark current node as failed
-        _activeNode.ConnectionStatus = CentralNodeConnectionStatus.Failed;
+        _activeNode.ConnectionStatus = HubNodeConnectionStatus.Failed;
         _activeNode.IsActive = false;
 
         // Get next node in priority order (wrap around if necessary)
         var currentPriority = _activeNode.Priority;
-        var sortedNodes = _centralNodes.OrderBy(n => n.Priority).ToList();
+        var sortedNodes = _hubNodes.OrderBy(n => n.Priority).ToList();
         var nextNodes = sortedNodes.Where(n => n.Priority > currentPriority).ToList();
 
         // If no higher priority nodes, wrap around to priority 0
@@ -252,10 +252,10 @@ public class CentralNodeConnectionManager
             var startTime = DateTime.UtcNow;
 
             _logger.LogInformation(
-                "Attempting failover from {FromNode} to central node {ToNode} (priority {Priority})",
+                "Attempting failover from {FromNode} to hub node {ToNode} (priority {Priority})",
                 fromNode, node.NodeId, node.Priority);
 
-            node.ConnectionStatus = CentralNodeConnectionStatus.Connecting;
+            node.ConnectionStatus = HubNodeConnectionStatus.Connecting;
             node.LastConnectionAttempt = DateTime.UtcNow;
 
             try
@@ -279,7 +279,7 @@ public class CentralNodeConnectionManager
                     _activitySource.RecordSuccess(activity, duration);
 
                     _logger.LogInformation(
-                        "Failover successful from {FromNode} to central node {ToNode} (duration: {Duration}ms)",
+                        "Failover successful from {FromNode} to hub node {ToNode} (duration: {Duration}ms)",
                         fromNode, node.NodeId, duration.TotalMilliseconds);
 
                     return true;
@@ -291,7 +291,7 @@ public class CentralNodeConnectionManager
                 _activitySource.RecordFailure(activity, ex, duration);
 
                 _logger.LogError(ex,
-                    "Failover to central node {NodeId} failed (duration: {Duration}ms)",
+                    "Failover to hub node {NodeId} failed (duration: {Duration}ms)",
                     node.NodeId, duration.TotalMilliseconds);
 
                 node.RecordFailure();
@@ -309,10 +309,10 @@ public class CentralNodeConnectionManager
     }
 
     /// <summary>
-    /// Gets the currently active central node
+    /// Gets the currently active hub node
     /// </summary>
-    /// <returns>Active central node info or null if disconnected</returns>
-    public CentralNodeInfo? GetActiveCentralNode()
+    /// <returns>Active hub node info or null if disconnected</returns>
+    public HubNodeInfo? GetActiveHubNode()
     {
         return _activeNode;
     }
@@ -327,14 +327,14 @@ public class CentralNodeConnectionManager
     }
 
     /// <summary>
-    /// Disconnects from the current central node
+    /// Disconnects from the current hub node
     /// </summary>
     public async Task DisconnectAsync()
     {
         if (_activeNode != null)
         {
-            _logger.LogInformation("Disconnecting from central node {NodeId}", _activeNode.NodeId);
-            _activeNode.ConnectionStatus = CentralNodeConnectionStatus.Disconnected;
+            _logger.LogInformation("Disconnecting from hub node {NodeId}", _activeNode.NodeId);
+            _activeNode.ConnectionStatus = HubNodeConnectionStatus.Disconnected;
             _activeNode.IsActive = false;
             _activeNode = null;
         }
@@ -350,19 +350,19 @@ public class CentralNodeConnectionManager
     }
 
     /// <summary>
-    /// Gets all central node connection states
+    /// Gets all hub node connection states
     /// </summary>
-    /// <returns>List of central node information</returns>
-    public List<CentralNodeInfo> GetAllCentralNodes()
+    /// <returns>List of hub node information</returns>
+    public List<HubNodeInfo> GetAllHubNodes()
     {
-        return _centralNodes;
+        return _hubNodes;
     }
 
     /// <summary>
-    /// Handles isolated mode when all central nodes are unreachable
+    /// Handles isolated mode when all hub nodes are unreachable
     /// </summary>
     /// <remarks>
-    /// When all central nodes fail to respond:
+    /// When all hub nodes fail to respond:
     /// - Updates peer status to Isolated
     /// - Logs warning about isolated mode
     /// - Continues operation with last known system register replica
@@ -372,15 +372,15 @@ public class CentralNodeConnectionManager
     public Task HandleIsolatedModeAsync()
     {
         _logger.LogWarning(
-            "All central nodes unreachable - operating in isolated mode with last known system register replica");
+            "All hub nodes unreachable - operating in isolated mode with last known system register replica");
 
         // Update peer status to isolated
         _peerListManager.UpdateLocalPeerStatus(null, PeerConnectionStatus.Isolated);
 
-        // Mark all central nodes as failed
-        foreach (var node in _centralNodes)
+        // Mark all hub nodes as failed
+        foreach (var node in _hubNodes)
         {
-            node.ConnectionStatus = CentralNodeConnectionStatus.Failed;
+            node.ConnectionStatus = HubNodeConnectionStatus.Failed;
             node.IsActive = false;
         }
 

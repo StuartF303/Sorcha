@@ -11,7 +11,7 @@ namespace Sorcha.Register.Service.Services;
 /// </summary>
 /// <remarks>
 /// Responsibilities:
-/// - Initialize system register on central node startup
+/// - Initialize system register on hub node startup
 /// - Seed default blueprints (register-creation-v1)
 /// - Validate system register integrity
 /// - Provide idempotent initialization (skip if already initialized)

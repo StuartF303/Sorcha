@@ -9,44 +9,44 @@ using Sorcha.Peer.Service.Protos;
 namespace Sorcha.Peer.Service.Services;
 
 /// <summary>
-/// gRPC service implementation for central node connection management
+/// gRPC service implementation for hub node connection management
 /// </summary>
 /// <remarks>
-/// Implements the CentralNodeConnection service defined in CentralNodeConnection.proto.
-/// Handles peer node connections to this central node, assigns session IDs, and returns
+/// Implements the HubNodeConnection service defined in HubNodeConnection.proto.
+/// Handles peer node connections to this hub node, assigns session IDs, and returns
 /// connection metadata including current system register version.
 ///
 /// RPCs implemented:
-/// - ConnectToCentralNode: Establishes peer connection and assigns session
-/// - DisconnectFromCentralNode: Gracefully disconnects peer and cleanup resources
-/// - GetCentralNodeStatus: Returns central node health and system register status
+/// - ConnectToHubNode: Establishes peer connection and assigns session
+/// - DisconnectFromHubNode: Gracefully disconnects peer and cleanup resources
+/// - GetHubNodeStatus: Returns hub node health and system register status
 /// </remarks>
-public class CentralNodeConnectionService : CentralNodeConnection.CentralNodeConnectionBase
+public class HubNodeConnectionService : HubNodeConnection.HubNodeConnectionBase
 {
-    private readonly ILogger<CentralNodeConnectionService> _logger;
+    private readonly ILogger<HubNodeConnectionService> _logger;
     private readonly PeerListManager _peerListManager;
-    private readonly CentralNodeDiscoveryService _centralNodeDiscoveryService;
+    private readonly HubNodeDiscoveryService _hubNodeDiscoveryService;
     private readonly Dictionary<string, ConnectedPeerSession> _activeSessions;
     private readonly object _sessionsLock = new();
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CentralNodeConnectionService"/> class
+    /// Initializes a new instance of the <see cref="HubNodeConnectionService"/> class
     /// </summary>
-    public CentralNodeConnectionService(
-        ILogger<CentralNodeConnectionService> logger,
+    public HubNodeConnectionService(
+        ILogger<HubNodeConnectionService> logger,
         PeerListManager peerListManager,
-        CentralNodeDiscoveryService centralNodeDiscoveryService)
+        HubNodeDiscoveryService hubNodeDiscoveryService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _peerListManager = peerListManager ?? throw new ArgumentNullException(nameof(peerListManager));
-        _centralNodeDiscoveryService = centralNodeDiscoveryService ?? throw new ArgumentNullException(nameof(centralNodeDiscoveryService));
+        _hubNodeDiscoveryService = hubNodeDiscoveryService ?? throw new ArgumentNullException(nameof(hubNodeDiscoveryService));
         _activeSessions = new Dictionary<string, ConnectedPeerSession>();
     }
 
     /// <summary>
-    /// Handles peer connection requests to this central node
+    /// Handles peer connection requests to this hub node
     /// </summary>
-    public override async Task<ConnectionResponse> ConnectToCentralNode(ConnectRequest request, ServerCallContext context)
+    public override async Task<ConnectionResponse> ConnectToHubNode(ConnectRequest request, ServerCallContext context)
     {
         try
         {
@@ -61,16 +61,16 @@ public class CentralNodeConnectionService : CentralNodeConnection.CentralNodeCon
                 };
             }
 
-            _logger.LogInformation("Peer {PeerId} requesting connection to central node", request.PeerId);
+            _logger.LogInformation("Peer {PeerId} requesting connection to hub node", request.PeerId);
 
-            // Validate this is actually a central node
-            if (!_centralNodeDiscoveryService.IsCentralNode())
+            // Validate this is actually a hub node
+            if (!_hubNodeDiscoveryService.IsHubNode())
             {
-                _logger.LogError("Connection request rejected: this node is not configured as a central node");
+                _logger.LogError("Connection request rejected: this node is not configured as a hub node");
                 return new ConnectionResponse
                 {
                     Success = false,
-                    Message = "This node is not a central node"
+                    Message = "This node is not a hub node"
                 };
             }
 
@@ -92,7 +92,7 @@ public class CentralNodeConnectionService : CentralNodeConnection.CentralNodeCon
             }
 
             // Add peer to PeerListManager if not already present
-            // (This allows central node to track connected peers)
+            // (This allows hub node to track connected peers)
             var peerNode = new PeerNode
             {
                 PeerId = request.PeerId,
@@ -112,7 +112,7 @@ public class CentralNodeConnectionService : CentralNodeConnection.CentralNodeCon
                 Success = true,
                 Message = "Connection established successfully",
                 SessionId = sessionId,
-                CentralNodeId = _centralNodeDiscoveryService.GetHostname(),
+                HubNodeId = _hubNodeDiscoveryService.GetHostname(),
                 CurrentSystemRegisterVersion = 0, // TODO: Get from SystemRegisterRepository
                 ConnectedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 HeartbeatIntervalSeconds = 30,
@@ -139,7 +139,7 @@ public class CentralNodeConnectionService : CentralNodeConnection.CentralNodeCon
     /// <summary>
     /// Handles peer disconnection requests
     /// </summary>
-    public override async Task<DisconnectionResponse> DisconnectFromCentralNode(DisconnectRequest request, ServerCallContext context)
+    public override async Task<DisconnectionResponse> DisconnectFromHubNode(DisconnectRequest request, ServerCallContext context)
     {
         try
         {
@@ -177,9 +177,9 @@ public class CentralNodeConnectionService : CentralNodeConnection.CentralNodeCon
     }
 
     /// <summary>
-    /// Returns central node status and health information
+    /// Returns hub node status and health information
     /// </summary>
-    public override async Task<CentralNodeStatus> GetCentralNodeStatus(StatusRequest request, ServerCallContext context)
+    public override async Task<HubNodeStatus> GetHubNodeStatus(StatusRequest request, ServerCallContext context)
     {
         try
         {
@@ -207,9 +207,9 @@ public class CentralNodeConnectionService : CentralNodeConnection.CentralNodeCon
                 }
             }
 
-            return new CentralNodeStatus
+            return new HubNodeStatus
             {
-                NodeId = _centralNodeDiscoveryService.GetHostname(),
+                NodeId = _hubNodeDiscoveryService.GetHostname(),
                 Health = NodeHealth.Healthy,
                 CurrentSystemRegisterVersion = 0, // TODO: Get from SystemRegisterRepository
                 TotalBlueprints = 0, // TODO: Get from SystemRegisterRepository
@@ -221,10 +221,10 @@ public class CentralNodeConnectionService : CentralNodeConnection.CentralNodeCon
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting central node status");
-            return new CentralNodeStatus
+            _logger.LogError(ex, "Error getting hub node status");
+            return new HubNodeStatus
             {
-                NodeId = _centralNodeDiscoveryService.GetHostname(),
+                NodeId = _hubNodeDiscoveryService.GetHostname(),
                 Health = NodeHealth.Unhealthy,
                 ActivePeerCount = 0
             };

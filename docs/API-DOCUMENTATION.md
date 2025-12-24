@@ -326,10 +326,10 @@ GET /api/peers/health
 }
 ```
 
-**Central Node URLs:**
-- **n0.sorcha.dev** - Primary central node (Priority 0)
-- **n1.sorcha.dev** - Secondary central node (Priority 1) - *Coming soon*
-- **n2.sorcha.dev** - Tertiary central node (Priority 2) - *Coming soon*
+**Hub Node URLs:**
+- **n0.sorcha.dev** - Primary hub node (Priority 0)
+- **n1.sorcha.dev** - Secondary hub node (Priority 1) - *Coming soon*
+- **n2.sorcha.dev** - Tertiary hub node (Priority 2) - *Coming soon*
 
 ---
 

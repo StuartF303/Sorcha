@@ -9,8 +9,8 @@ namespace Sorcha.Peer.Service.Replication;
 /// In-memory cache for system register blueprints on peer nodes
 /// </summary>
 /// <remarks>
-/// Provides thread-safe caching of blueprints synchronized from central nodes.
-/// Used to serve local queries without requiring constant connection to central node.
+/// Provides thread-safe caching of blueprints synchronized from hub nodes.
+/// Used to serve local queries without requiring constant connection to hub node.
 /// Supports full cache updates (initial sync) and incremental updates (periodic sync).
 /// </remarks>
 public class SystemRegisterCache

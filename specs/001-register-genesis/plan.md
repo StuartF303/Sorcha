@@ -2,11 +2,11 @@
 
 **Branch**: `001-register-genesis` | **Date**: 2025-12-13 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/001-register-genesis/spec.md`
-**Focus**: Peer service updates for central node connection, system register replication, and heartbeat monitoring
+**Focus**: Peer service updates for hub node connection, system register replication, and heartbeat monitoring
 
 ## Summary
 
-This implementation plan focuses on enhancing the Peer Service to support central node discovery, system register replication, and connection management. The peer service will connect to central nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev), detect if running as a central node, replicate the system register containing published blueprints, and maintain connection health through heartbeat monitoring. The system implements a hybrid pull+push synchronization model with 5-minute periodic syncs and immediate push notifications.
+This implementation plan focuses on enhancing the Peer Service to support hub node discovery, system register replication, and connection management. The peer service will connect to hub nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev), detect if running as a hub node, replicate the system register containing published blueprints, and maintain connection health through heartbeat monitoring. The system implements a hybrid pull+push synchronization model with 5-minute periodic syncs and immediate push notifications.
 
 **Key Changes**:
 1. Central node detection and connection logic
@@ -25,8 +25,8 @@ This implementation plan focuses on enhancing the Peer Service to support centra
 **Target Platform**: Linux containers (Docker), Azure Container Apps (production)
 **Project Type**: Microservice - existing Sorcha.Peer.Service project
 **Performance Goals**:
-- 30s connection timeout to central nodes
-- 5-minute periodic sync with central nodes
+- 30s connection timeout to hub nodes
+- 5-minute periodic sync with hub nodes
 - 30s push notification delivery to 80% of connected peers
 - 30s heartbeat timeout for connection failure detection
 - <2s system register integrity validation
@@ -38,7 +38,7 @@ This implementation plan focuses on enhancing the Peer Service to support centra
 - Eventual consistency for system register replication (AP in CAP theorem)
 
 **Scale/Scope**:
-- Support 100+ peer nodes connecting to 3 central nodes
+- Support 100+ peer nodes connecting to 3 hub nodes
 - System register size: initially <1MB, growing with blueprint publications
 - Network partition tolerance with isolated mode operation
 
@@ -55,7 +55,7 @@ This implementation plan focuses on enhancing the Peer Service to support centra
 - **Compliant**: Zero trust model - all peer connections authenticated
 - **Compliant**: System register protected with system-level permissions (FR-020)
 - **Compliant**: No secrets in source control
-- **Action Required**: Implement TLS for central node connections
+- **Action Required**: Implement TLS for hub node connections
 - **Action Required**: Validate system register integrity on startup (FR-022)
 
 ### ✅ API Documentation
@@ -66,7 +66,7 @@ This implementation plan focuses on enhancing the Peer Service to support centra
 
 ### ✅ Testing Requirements
 - **Action Required**: Achieve >85% coverage for new code
-- **Action Required**: Integration tests for central node connection logic
+- **Action Required**: Integration tests for hub node connection logic
 - **Action Required**: Integration tests for system register replication
 - **Action Required**: Performance tests for 5-minute sync and push notifications
 
@@ -77,7 +77,7 @@ This implementation plan focuses on enhancing the Peer Service to support centra
 
 ### ✅ Observability by Default
 - **Compliant**: OpenTelemetry integration via ServiceDefaults
-- **Action Required**: Add structured logging for central node connections
+- **Action Required**: Add structured logging for hub node connections
 - **Action Required**: Add metrics for heartbeat monitoring
 - **Action Required**: Add traces for system register replication
 
@@ -112,7 +112,7 @@ No constitutional violations. All requirements align with project standards.
 
 ### ✅ Testing Requirements
 - **✅ Compliant**: Test strategy documented in quickstart.md
-- **✅ Compliant**: Integration tests planned for Testcontainers (MongoDB, 3 central nodes)
+- **✅ Compliant**: Integration tests planned for Testcontainers (MongoDB, 3 hub nodes)
 - **Decision**: NBomber performance tests for 5-minute sync and push notification delivery
 - **Target**: >85% coverage for new Replication/ directory code
 
@@ -126,13 +126,13 @@ No constitutional violations. All requirements align with project standards.
 - **✅ Compliant**: Structured logging planned for all connection events
 - **Decision**: Metrics: connection_status, heartbeat_latency, sync_duration, push_notification_delivery_rate
 - **Decision**: Traces: full sync, incremental sync, push notification, heartbeat failover
-- **Decision**: Logs: central node detection, connection failures, sync errors, heartbeat timeouts
+- **Decision**: Logs: hub node detection, connection failures, sync errors, heartbeat timeouts
 
 ### ✅ Blueprint Creation Standards
 - **N/A**: This feature does not create blueprints (it replicates them)
 
 ### ✅ Domain-Driven Design
-- **✅ Compliant**: Ubiquitous language maintained (Peer, Central Node, System Register, Blueprint)
+- **✅ Compliant**: Ubiquitous language maintained (Peer, Hub Node, System Register, Blueprint)
 - **Decision**: New aggregates: CentralNodeInfo, SyncCheckpoint (protect connection state invariants)
 
 ### Final Gate Status: ✅ **PASSED**
@@ -151,7 +151,7 @@ specs/001-register-genesis/
 ├── data-model.md            # Phase 1 output - data models
 ├── quickstart.md            # Phase 1 output - developer guide
 ├── contracts/               # Phase 1 output - API contracts
-│   ├── peer-connection.proto # gRPC service for central node connections
+│   ├── peer-connection.proto # gRPC service for hub node connections
 │   ├── register-replication.proto # gRPC service for system register sync
 │   └── heartbeat.proto      # gRPC service for connection health
 ├── checklists/
@@ -186,7 +186,7 @@ src/Services/Sorcha.Peer.Service/
 │   └── [NEW] Heartbeat.proto
 ├── PeerService.cs           # Existing: Background service - WILL BE MODIFIED
 ├── Program.cs               # Existing: Service registration - WILL BE MODIFIED
-└── appsettings.json         # WILL BE MODIFIED with central node config
+└── appsettings.json         # WILL BE MODIFIED with hub node config
 
 tests/Sorcha.Peer.Service.Tests/
 ├── Unit/
@@ -213,7 +213,7 @@ src/Services/Sorcha.Register.Service/
 **Structure Decision**:
 - Enhancing existing Sorcha.Peer.Service microservice with new Replication directory
 - Adding gRPC contracts in Protos directory following existing patterns
-- Register Service gets new SystemRegisterService for central node operations
+- Register Service gets new SystemRegisterService for hub node operations
 - Maintaining separation of concerns: Discovery, Communication, Replication, Monitoring
 
 ## Complexity Tracking
@@ -230,7 +230,7 @@ All design decisions comply with the constitution. The implementation follows es
 
 ### Research Tasks
 
-1. **Central Node Detection Mechanism**
+1. **Hub Node Detection Mechanism**
    - Research: How to detect if peer service is running on sorcha.dev domain
    - Options: DNS lookup, hostname check, explicit configuration flag
    - Decision criteria: Reliability, performance, ease of deployment
@@ -282,8 +282,8 @@ Extract entities from feature spec and research decisions:
 **Entities**:
 - **CentralNodeInfo**: Hostname, IP address, port, last contact timestamp, connection status
 - **SystemRegisterEntry**: Blueprint ID, blueprint document, publication timestamp, publisher identity
-- **HeartbeatMessage**: Timestamp, peer ID, sequence number, central node ID
-- **ActivePeerInfo**: Peer ID, connected central node, connection timestamp, last heartbeat
+- **HeartbeatMessage**: Timestamp, peer ID, sequence number, hub node ID
+- **ActivePeerInfo**: Peer ID, connected hub node, connection timestamp, last heartbeat
 - **SyncCheckpoint**: Last sync timestamp, replica version, conflict resolution state
 
 **Relationships**:
@@ -327,15 +327,15 @@ Disconnected → Connecting → Connected → Heartbeat Monitoring
 - RPC: MonitorHeartbeat(stream HeartbeatMessage) → stream HeartbeatAcknowledgement (bidirectional)
 
 **OpenAPI Endpoints** (REST fallback):
-- `GET /api/central-nodes` - List configured central nodes
+- `GET /api/central-nodes` - List configured hub nodes
 - `GET /api/system-register` - Query local system register replica
 - `GET /api/system-register/blueprints/{id}` - Get specific blueprint
-- `GET /api/connection/status` - Get current central node connection status
+- `GET /api/connection/status` - Get current hub node connection status
 
 #### 3. Developer Quickstart (`quickstart.md`)
 
 **Content**:
-- How to run peer service in central node mode
+- How to run peer service in hub node mode
 - How to run peer service in peer node mode
 - How to test system register replication locally
 - How to verify heartbeat monitoring
@@ -384,25 +384,25 @@ Disconnected → Connecting → Connected → Heartbeat Monitoring
 
 ### Key Design Considerations
 
-1. **Central Node Detection**: Must reliably detect sorcha.dev domain at startup
-2. **Connection Failover**: Implement exponential backoff correctly to avoid overwhelming central nodes
+1. **Hub Node Detection**: Must reliably detect sorcha.dev domain at startup
+2. **Connection Failover**: Implement exponential backoff correctly to avoid overwhelming hub nodes
 3. **System Register Integrity**: Validate on startup to detect corruption (FR-022)
 4. **Push vs. Pull Balance**: 5-minute periodic sync ensures baseline consistency even if push notifications fail
-5. **Isolated Mode**: Peer nodes must continue operating with stale replica when central nodes unreachable
+5. **Isolated Mode**: Peer nodes must continue operating with stale replica when hub nodes unreachable
 
 ### Risk Areas
 
 1. **Network Partitions**: Peers may operate with stale blueprints during prolonged outages
-2. **Split-Brain**: Multiple system registers could be created if central nodes initialized independently
+2. **Split-Brain**: Multiple system registers could be created if hub nodes initialized independently
 3. **Heartbeat False Positives**: Network hiccups could trigger unnecessary failovers
-4. **Connection Storms**: If all peers retry simultaneously after central node restart
+4. **Connection Storms**: If all peers retry simultaneously after hub node restart
 
 ### Mitigation Strategies
 
 1. Manual system register reconciliation procedure for split-brain (out of scope for auto-resolution)
 2. Jitter in connection retry backoff to prevent thundering herd
 3. Grace period before failover (2 missed heartbeats = 60s total before switching)
-4. Rate limiting on central node connection acceptance
+4. Rate limiting on hub node connection acceptance
 
 ---
 

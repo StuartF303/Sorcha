@@ -10,7 +10,7 @@ using System.Diagnostics;
 namespace Sorcha.Peer.Service.Monitoring;
 
 /// <summary>
-/// Background service for sending periodic heartbeats to connected central node and monitoring connection health
+/// Background service for sending periodic heartbeats to connected hub node and monitoring connection health
 /// </summary>
 /// <remarks>
 /// Heartbeat protocol:
@@ -18,14 +18,14 @@ namespace Sorcha.Peer.Service.Monitoring;
 /// - Timeout: 30 seconds per heartbeat RPC
 /// - Missed heartbeat threshold: 2 consecutive (60s total) triggers failover
 /// - Heartbeat sequence number increments monotonically
-/// - Reports last sync version to allow central node to detect peer lag
+/// - Reports last sync version to allow hub node to detect peer lag
 /// </remarks>
 public class HeartbeatMonitorService : BackgroundService
 {
     private readonly ILogger<HeartbeatMonitorService> _logger;
-    private readonly CentralNodeConnectionManager _connectionManager;
+    private readonly HubNodeConnectionManager _connectionManager;
     private readonly PeerListManager _peerListManager;
-    private readonly CentralNodeDiscoveryService _discoveryService;
+    private readonly HubNodeDiscoveryService _discoveryService;
     private readonly PeerServiceMetrics _metrics;
     private readonly PeerServiceActivitySource _activitySource;
     private long _sequenceNumber = 0;
@@ -35,14 +35,14 @@ public class HeartbeatMonitorService : BackgroundService
     /// Initializes a new instance of the <see cref="HeartbeatMonitorService"/> class
     /// </summary>
     /// <param name="logger">Logger instance</param>
-    /// <param name="connectionManager">Central node connection manager</param>
+    /// <param name="connectionManager">Hub node connection manager</param>
     /// <param name="peerListManager">Peer list manager</param>
-    /// <param name="discoveryService">Central node discovery service</param>
+    /// <param name="discoveryService">Hub node discovery service</param>
     public HeartbeatMonitorService(
         ILogger<HeartbeatMonitorService> logger,
-        CentralNodeConnectionManager connectionManager,
+        HubNodeConnectionManager connectionManager,
         PeerListManager peerListManager,
-        CentralNodeDiscoveryService discoveryService,
+        HubNodeDiscoveryService discoveryService,
         PeerServiceMetrics metrics,
         PeerServiceActivitySource activitySource)
     {
@@ -60,10 +60,10 @@ public class HeartbeatMonitorService : BackgroundService
     /// <param name="stoppingToken">Cancellation token</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Skip heartbeat monitoring if this is a central node
-        if (_discoveryService.IsCentralNode())
+        // Skip heartbeat monitoring if this is a hub node
+        if (_discoveryService.IsHubNode())
         {
-            _logger.LogInformation("This is a central node - heartbeat monitoring disabled");
+            _logger.LogInformation("This is a hub node - heartbeat monitoring disabled");
             return;
         }
 
@@ -80,10 +80,10 @@ public class HeartbeatMonitorService : BackgroundService
                 await timer.WaitForNextTickAsync(stoppingToken);
 
                 // Skip if no active connection
-                var activeNode = _connectionManager.GetActiveCentralNode();
+                var activeNode = _connectionManager.GetActiveHubNode();
                 if (activeNode == null)
                 {
-                    _logger.LogDebug("No active central node connection - skipping heartbeat");
+                    _logger.LogDebug("No active hub node connection - skipping heartbeat");
                     continue;
                 }
 
@@ -106,11 +106,11 @@ public class HeartbeatMonitorService : BackgroundService
     }
 
     /// <summary>
-    /// Sends a heartbeat message to the connected central node using gRPC
+    /// Sends a heartbeat message to the connected hub node using gRPC
     /// </summary>
-    /// <param name="centralNode">Central node information</param>
+    /// <param name="centralNode">Hub node information</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    private async Task SendHeartbeatAsync(CentralNodeInfo centralNode, CancellationToken cancellationToken)
+    private async Task SendHeartbeatAsync(HubNodeInfo centralNode, CancellationToken cancellationToken)
     {
         var localPeerInfo = _peerListManager.GetLocalPeerStatus();
         var sequenceNumber = Interlocked.Increment(ref _sequenceNumber);
@@ -129,7 +129,7 @@ public class HeartbeatMonitorService : BackgroundService
         };
 
         _logger.LogDebug(
-            "Sending heartbeat {SequenceNumber} to central node {NodeId} (last sync version: {LastSyncVersion})",
+            "Sending heartbeat {SequenceNumber} to hub node {NodeId} (last sync version: {LastSyncVersion})",
             sequenceNumber, centralNode.NodeId, localPeerInfo?.LastSyncVersion ?? 0);
 
         try
@@ -166,7 +166,7 @@ public class HeartbeatMonitorService : BackgroundService
                 localPeerInfo.RecordHeartbeat();
             }
 
-            // Update central node heartbeat tracking
+            // Update hub node heartbeat tracking
             centralNode.LastHeartbeatSent = DateTime.UtcNow;
             centralNode.LastHeartbeatAcknowledged = DateTime.UtcNow;
 
@@ -175,17 +175,17 @@ public class HeartbeatMonitorService : BackgroundService
             _activitySource.RecordSuccess(activity, TimeSpan.FromMilliseconds(latency));
 
             _logger.LogDebug(
-                "Heartbeat {SequenceNumber} acknowledged by central node {NodeId} (latency: {Latency}ms, action: {Action})",
+                "Heartbeat {SequenceNumber} acknowledged by hub node {NodeId} (latency: {Latency}ms, action: {Action})",
                 sequenceNumber, centralNode.NodeId, latency, response.RecommendedAction);
 
-            // Handle recommended actions from central node
+            // Handle recommended actions from hub node
             await HandleRecommendedActionAsync(response.RecommendedAction, response.CurrentSystemRegisterVersion, localPeerInfo);
         }
         catch (OperationCanceledException)
         {
             var duration = DateTime.UtcNow - startTime;
             _logger.LogWarning(
-                "Heartbeat {SequenceNumber} timed out to central node {NodeId} after {Duration}ms (missed count: {MissedCount})",
+                "Heartbeat {SequenceNumber} timed out to hub node {NodeId} after {Duration}ms (missed count: {MissedCount})",
                 sequenceNumber, centralNode.NodeId, duration.TotalMilliseconds, _missedHeartbeats + 1);
             await HandleHeartbeatTimeoutAsync(centralNode);
         }
@@ -195,7 +195,7 @@ public class HeartbeatMonitorService : BackgroundService
             _activitySource.RecordFailure(activity, ex, duration);
 
             _logger.LogWarning(ex,
-                "Heartbeat {SequenceNumber} failed to central node {NodeId} after {Duration}ms (missed count: {MissedCount})",
+                "Heartbeat {SequenceNumber} failed to hub node {NodeId} after {Duration}ms (missed count: {MissedCount})",
                 sequenceNumber, centralNode.NodeId, duration.TotalMilliseconds, _missedHeartbeats + 1);
 
             await HandleHeartbeatTimeoutAsync(centralNode);
@@ -206,7 +206,7 @@ public class HeartbeatMonitorService : BackgroundService
     /// Handles recommended actions from heartbeat acknowledgement
     /// </summary>
     /// <param name="action">Recommended action</param>
-    /// <param name="currentVersion">Current system register version from central node</param>
+    /// <param name="currentVersion">Current system register version from hub node</param>
     /// <param name="localPeerInfo">Local peer information</param>
     private async Task HandleRecommendedActionAsync(
         Protos.RecommendedAction action,
@@ -225,18 +225,18 @@ public class HeartbeatMonitorService : BackgroundService
                 break;
 
             case Protos.RecommendedAction.Failover:
-                _logger.LogWarning("Central node recommends failover - triggering failover to next node");
+                _logger.LogWarning("Hub node recommends failover - triggering failover to next node");
                 await _connectionManager.FailoverToNextNodeAsync();
                 break;
 
             case Protos.RecommendedAction.Reconnect:
-                _logger.LogWarning("Central node recommends reconnection - disconnecting and reconnecting");
+                _logger.LogWarning("Hub node recommends reconnection - disconnecting and reconnecting");
                 await _connectionManager.DisconnectAsync();
-                await _connectionManager.ConnectToCentralNodeAsync();
+                await _connectionManager.ConnectToHubNodeAsync();
                 break;
 
             case Protos.RecommendedAction.ReduceFrequency:
-                _logger.LogInformation("Central node requests reduced heartbeat frequency (currently not implemented)");
+                _logger.LogInformation("Hub node requests reduced heartbeat frequency (currently not implemented)");
                 break;
 
             case Protos.RecommendedAction.None:
@@ -249,12 +249,12 @@ public class HeartbeatMonitorService : BackgroundService
     /// <summary>
     /// Handles heartbeat timeout by incrementing missed count and triggering failover if threshold reached
     /// </summary>
-    /// <param name="centralNode">Central node that timed out</param>
-    private async Task HandleHeartbeatTimeoutAsync(CentralNodeInfo centralNode)
+    /// <param name="centralNode">Hub node that timed out</param>
+    private async Task HandleHeartbeatTimeoutAsync(HubNodeInfo centralNode)
     {
         _missedHeartbeats++;
 
-        _logger.LogWarning("Heartbeat timeout for central node {NodeId} - missed count: {MissedCount}/{Threshold}",
+        _logger.LogWarning("Heartbeat timeout for hub node {NodeId} - missed count: {MissedCount}/{Threshold}",
             centralNode.NodeId,
             _missedHeartbeats,
             PeerServiceConstants.MaxMissedHeartbeats);
@@ -266,8 +266,8 @@ public class HeartbeatMonitorService : BackgroundService
             localPeerInfo.RecordMissedHeartbeat();
         }
 
-        // Update central node status
-        centralNode.ConnectionStatus = CentralNodeConnectionStatus.HeartbeatTimeout;
+        // Update hub node status
+        centralNode.ConnectionStatus = HubNodeConnectionStatus.HeartbeatTimeout;
 
         // Trigger failover if threshold reached
         if (_missedHeartbeats >= PeerServiceConstants.MaxMissedHeartbeats)
@@ -278,17 +278,17 @@ public class HeartbeatMonitorService : BackgroundService
             // Reset missed count before failover
             _missedHeartbeats = 0;
 
-            // Attempt failover to next central node
+            // Attempt failover to next hub node
             var failoverSuccess = await _connectionManager.FailoverToNextNodeAsync();
 
             if (!failoverSuccess)
             {
-                _logger.LogError("Failover failed - no central nodes reachable (isolated mode)");
+                _logger.LogError("Failover failed - no hub nodes reachable (isolated mode)");
                 _peerListManager.UpdateLocalPeerStatus(null, PeerConnectionStatus.Isolated);
             }
             else
             {
-                _logger.LogInformation("Failover successful - connected to new central node");
+                _logger.LogInformation("Failover successful - connected to new hub node");
             }
         }
     }

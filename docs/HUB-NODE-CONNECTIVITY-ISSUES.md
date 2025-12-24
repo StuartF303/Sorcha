@@ -39,8 +39,8 @@ The Sorcha peer network has connectivity issues in both local Docker and potenti
 
 **Log Evidence:**
 ```
-warn: Cannot perform sync - no active central node connection
-warn: All central nodes unreachable - operating in isolated mode
+warn: Cannot perform sync - no active hub node connection
+warn: All hub nodes unreachable - operating in isolated mode
 info: Isolated mode active - peer will continue serving cached blueprints
 ```
 
@@ -247,7 +247,7 @@ The CLI has profiles configured, but some don't match actual Docker ports:
 
 ## Terminology Update Required
 
-All references to "central node" should be updated to "hub node":
+All references to "hub node" should be updated to "hub node":
 
 **Files Affected**: 97 files including:
 - `src/Services/Sorcha.Peer.Service/**/*.cs`

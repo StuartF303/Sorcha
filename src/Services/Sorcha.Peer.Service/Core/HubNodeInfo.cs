@@ -7,22 +7,22 @@ using System.Text.RegularExpressions;
 namespace Sorcha.Peer.Service.Core;
 
 /// <summary>
-/// Configuration and runtime state for a central node endpoint
+/// Configuration and runtime state for a hub node endpoint
 /// </summary>
-public class CentralNodeInfo
+public class HubNodeInfo
 {
     private static readonly Regex HostnamePattern = new(@"^n[0-2]\.sorcha\.dev$", RegexOptions.Compiled);
 
     /// <summary>
-    /// Unique identifier for the central node (matches hostname)
+    /// Unique identifier for the hub node (matches hostname)
     /// </summary>
     [Required]
     [MaxLength(64)]
-    [RegularExpression(@"^n[0-2]\.sorcha\.dev$", ErrorMessage = "Central node hostname must match pattern: n0.sorcha.dev, n1.sorcha.dev, or n2.sorcha.dev")]
+    [RegularExpression(@"^n[0-2]\.sorcha\.dev$", ErrorMessage = "Hub node hostname must match pattern: n0.sorcha.dev, n1.sorcha.dev, or n2.sorcha.dev")]
     public string NodeId { get; set; } = string.Empty;
 
     /// <summary>
-    /// DNS hostname of central node (must be n0/n1/n2.sorcha.dev)
+    /// DNS hostname of hub node (must be n0/n1/n2.sorcha.dev)
     /// </summary>
     [Required]
     [MaxLength(255)]
@@ -46,7 +46,7 @@ public class CentralNodeInfo
     /// Current connection state
     /// </summary>
     [Required]
-    public CentralNodeConnectionStatus ConnectionStatus { get; set; } = CentralNodeConnectionStatus.Disconnected;
+    public HubNodeConnectionStatus ConnectionStatus { get; set; } = HubNodeConnectionStatus.Disconnected;
 
     /// <summary>
     /// Timestamp of last connection attempt (UTC)
@@ -64,7 +64,7 @@ public class CentralNodeInfo
     public DateTime? LastHeartbeatSent { get; set; }
 
     /// <summary>
-    /// Timestamp of last heartbeat acknowledged by central node (UTC)
+    /// Timestamp of last heartbeat acknowledged by hub node (UTC)
     /// </summary>
     public DateTime? LastHeartbeatAcknowledged { get; set; }
 
@@ -74,7 +74,7 @@ public class CentralNodeInfo
     public int ConsecutiveFailures { get; set; } = 0;
 
     /// <summary>
-    /// Whether this is the actively connected central node (only one can be true)
+    /// Whether this is the actively connected hub node (only one can be true)
     /// </summary>
     public bool IsActive { get; set; } = false;
 
@@ -84,7 +84,7 @@ public class CentralNodeInfo
     public string GrpcChannelAddress => $"https://{Hostname}:{Port}";
 
     /// <summary>
-    /// Validates central node hostname pattern
+    /// Validates hub node hostname pattern
     /// </summary>
     /// <param name="hostname">Hostname to validate</param>
     /// <returns>True if hostname matches pattern</returns>
@@ -102,7 +102,7 @@ public class CentralNodeInfo
     public void ResetConnectionState()
     {
         ConsecutiveFailures = 0;
-        ConnectionStatus = CentralNodeConnectionStatus.Connected;
+        ConnectionStatus = HubNodeConnectionStatus.Connected;
         LastSuccessfulConnection = DateTime.UtcNow;
     }
 
@@ -112,7 +112,7 @@ public class CentralNodeInfo
     public void RecordFailure()
     {
         ConsecutiveFailures++;
-        ConnectionStatus = CentralNodeConnectionStatus.Failed;
+        ConnectionStatus = HubNodeConnectionStatus.Failed;
         LastConnectionAttempt = DateTime.UtcNow;
     }
 }

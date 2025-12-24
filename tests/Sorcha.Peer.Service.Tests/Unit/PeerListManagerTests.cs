@@ -53,7 +53,7 @@ public class PeerListManagerTests : IDisposable
         var status = _manager.GetLocalPeerStatus();
         status.Should().NotBeNull();
         status!.PeerId.Should().NotBeNullOrEmpty();
-        status.ConnectedCentralNodeId.Should().Be("n0.sorcha.dev");
+        status.ConnectedHubNodeId.Should().Be("n0.sorcha.dev");
         status.Status.Should().Be(PeerConnectionStatus.Connected);
     }
 
@@ -70,13 +70,13 @@ public class PeerListManagerTests : IDisposable
         // Assert
         var updatedStatus = _manager.GetLocalPeerStatus();
         updatedStatus.Should().NotBeNull();
-        updatedStatus!.ConnectedCentralNodeId.Should().Be("n1.sorcha.dev");
+        updatedStatus!.ConnectedHubNodeId.Should().Be("n1.sorcha.dev");
         updatedStatus.Status.Should().Be(PeerConnectionStatus.Connected);
         updatedStatus.PeerId.Should().Be(initialStatus!.PeerId); // PeerId should remain same
     }
 
     [Fact]
-    public void UpdateLocalPeerStatus_WithNullCentralNodeId_SetsStatusToDisconnected()
+    public void UpdateLocalPeerStatus_WithNullHubNodeId_SetsStatusToDisconnected()
     {
         // Arrange
         _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.Connected);
@@ -87,7 +87,7 @@ public class PeerListManagerTests : IDisposable
         // Assert
         var status = _manager.GetLocalPeerStatus();
         status.Should().NotBeNull();
-        status!.ConnectedCentralNodeId.Should().BeNull();
+        status!.ConnectedHubNodeId.Should().BeNull();
         status.Status.Should().Be(PeerConnectionStatus.Disconnected);
     }
 
@@ -153,7 +153,7 @@ public class PeerListManagerTests : IDisposable
         _manager.UpdateLocalPeerStatus("n1.sorcha.dev", PeerConnectionStatus.Connected);
         var status = _manager.GetLocalPeerStatus();
         status!.Status.Should().Be(PeerConnectionStatus.Connected);
-        status.ConnectedCentralNodeId.Should().Be("n1.sorcha.dev");
+        status.ConnectedHubNodeId.Should().Be("n1.sorcha.dev");
     }
 
     [Fact]
@@ -170,12 +170,12 @@ public class PeerListManagerTests : IDisposable
         var n1Status = _manager.GetLocalPeerStatus();
 
         // Assert
-        n0Status!.ConnectedCentralNodeId.Should().Be("n0.sorcha.dev");
+        n0Status!.ConnectedHubNodeId.Should().Be("n0.sorcha.dev");
         n0Status.Status.Should().Be(PeerConnectionStatus.Connected);
 
         timeoutStatus!.Status.Should().Be(PeerConnectionStatus.HeartbeatTimeout);
 
-        n1Status!.ConnectedCentralNodeId.Should().Be("n1.sorcha.dev");
+        n1Status!.ConnectedHubNodeId.Should().Be("n1.sorcha.dev");
         n1Status.Status.Should().Be(PeerConnectionStatus.Connected);
     }
 
@@ -185,14 +185,14 @@ public class PeerListManagerTests : IDisposable
         // Arrange
         _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.Connected);
 
-        // Act - All central nodes unreachable
+        // Act - All hub nodes unreachable
         _manager.UpdateLocalPeerStatus(null, PeerConnectionStatus.Isolated);
 
         // Assert
         var status = _manager.GetLocalPeerStatus();
         status.Should().NotBeNull();
         status!.Status.Should().Be(PeerConnectionStatus.Isolated);
-        status.ConnectedCentralNodeId.Should().BeNull();
+        status.ConnectedHubNodeId.Should().BeNull();
     }
 
     public void Dispose()

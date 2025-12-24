@@ -13,7 +13,7 @@ using System.Diagnostics;
 namespace Sorcha.Peer.Service.Replication;
 
 /// <summary>
-/// Service for managing system register replication from central node to peer nodes
+/// Service for managing system register replication from hub node to peer nodes
 /// </summary>
 /// <remarks>
 /// Provides two replication strategies:
@@ -28,7 +28,7 @@ public class SystemRegisterReplicationService
     private readonly ILogger<SystemRegisterReplicationService> _logger;
     private readonly ISystemRegisterRepository _systemRegisterRepository;
     private readonly SystemRegisterCache _cache;
-    private readonly CentralNodeDiscoveryService _centralNodeDiscoveryService;
+    private readonly HubNodeDiscoveryService _centralNodeDiscoveryService;
     private readonly PeerServiceMetrics _metrics;
     private readonly PeerServiceActivitySource _activitySource;
 
@@ -39,7 +39,7 @@ public class SystemRegisterReplicationService
         ILogger<SystemRegisterReplicationService> logger,
         ISystemRegisterRepository systemRegisterRepository,
         SystemRegisterCache cache,
-        CentralNodeDiscoveryService centralNodeDiscoveryService,
+        HubNodeDiscoveryService centralNodeDiscoveryService,
         PeerServiceMetrics metrics,
         PeerServiceActivitySource activitySource)
     {
@@ -66,7 +66,7 @@ public class SystemRegisterReplicationService
         try
         {
             _logger.LogInformation(
-                "Starting full sync for peer {PeerId} from central node {CentralNodeId}",
+                "Starting full sync for peer {PeerId} from hub node {HubNodeId}",
                 peerId, centralNodeId);
 
             // Get all blueprints from repository
@@ -112,7 +112,7 @@ public class SystemRegisterReplicationService
                 CurrentVersion = latestVersion,
                 LastSyncTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 TotalBlueprints = blueprints.Count,
-                CentralNodeId = _centralNodeDiscoveryService.GetHostname(),
+                HubNodeId = _centralNodeDiscoveryService.GetHostname(),
                 NextSyncDue = DateTime.UtcNow.AddMinutes(PeerServiceConstants.PeriodicSyncIntervalMinutes)
             };
         }
@@ -144,7 +144,7 @@ public class SystemRegisterReplicationService
         try
         {
             _logger.LogInformation(
-                "Starting incremental sync for peer {PeerId} from version {LastVersion} (central node: {CentralNodeId})",
+                "Starting incremental sync for peer {PeerId} from version {LastVersion} (hub node: {HubNodeId})",
                 peerId, lastKnownVersion, centralNodeId);
 
             // Get blueprints since last version
@@ -164,7 +164,7 @@ public class SystemRegisterReplicationService
                     CurrentVersion = lastKnownVersion,
                     LastSyncTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     TotalBlueprints = _cache.GetBlueprintCount(),
-                    CentralNodeId = _centralNodeDiscoveryService.GetHostname(),
+                    HubNodeId = _centralNodeDiscoveryService.GetHostname(),
                     NextSyncDue = DateTime.UtcNow.AddMinutes(PeerServiceConstants.PeriodicSyncIntervalMinutes)
                 };
             }
@@ -207,7 +207,7 @@ public class SystemRegisterReplicationService
                 CurrentVersion = latestVersion,
                 LastSyncTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 TotalBlueprints = _cache.GetBlueprintCount(),
-                CentralNodeId = _centralNodeDiscoveryService.GetHostname(),
+                HubNodeId = _centralNodeDiscoveryService.GetHostname(),
                 NextSyncDue = DateTime.UtcNow.AddMinutes(PeerServiceConstants.PeriodicSyncIntervalMinutes)
             };
         }

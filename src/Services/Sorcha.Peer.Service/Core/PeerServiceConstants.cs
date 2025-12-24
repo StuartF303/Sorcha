@@ -4,7 +4,7 @@
 namespace Sorcha.Peer.Service.Core;
 
 /// <summary>
-/// Constants for peer service central node connection and system register
+/// Constants for peer service hub node connection and system register
 /// </summary>
 public static class PeerServiceConstants
 {
@@ -19,9 +19,9 @@ public static class PeerServiceConstants
     public const string SystemRegisterCollectionName = "sorcha_system_register_blueprints";
 
     /// <summary>
-    /// Valid central node hostnames
+    /// Valid hub node hostnames
     /// </summary>
-    public static readonly string[] CentralNodeHostnames = new[]
+    public static readonly string[] HubNodeHostnames = new[]
     {
         "n0.sorcha.dev",
         "n1.sorcha.dev",
@@ -64,7 +64,7 @@ public static class PeerServiceConstants
     public const int RetryMaxDelaySeconds = 60;
 
     /// <summary>
-    /// Maximum retry attempts before giving up and trying next central node
+    /// Maximum retry attempts before giving up and trying next hub node
     /// </summary>
     public const int MaxRetryAttempts = 10;
 

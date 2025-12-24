@@ -35,7 +35,7 @@ public sealed class PeerServiceActivitySource : IDisposable
     /// <summary>
     /// Starts a connection activity for tracing connection lifecycle
     /// </summary>
-    /// <param name="centralNodeId">Central node identifier</param>
+    /// <param name="centralNodeId">Hub node identifier</param>
     /// <param name="priority">Connection priority</param>
     /// <returns>Activity instance or null if not sampled</returns>
     public Activity? StartConnectionActivity(string centralNodeId, int priority)
@@ -54,8 +54,8 @@ public sealed class PeerServiceActivitySource : IDisposable
     /// <summary>
     /// Starts a failover activity for tracing failover operations
     /// </summary>
-    /// <param name="fromNode">Source central node</param>
-    /// <param name="toNode">Target central node</param>
+    /// <param name="fromNode">Source hub node</param>
+    /// <param name="toNode">Target hub node</param>
     /// <param name="reason">Failover reason</param>
     /// <returns>Activity instance or null if not sampled</returns>
     public Activity? StartFailoverActivity(string fromNode, string toNode, string reason)
@@ -76,7 +76,7 @@ public sealed class PeerServiceActivitySource : IDisposable
     /// Starts a full sync activity for tracing full synchronization
     /// </summary>
     /// <param name="peerId">Peer identifier</param>
-    /// <param name="centralNodeId">Central node identifier</param>
+    /// <param name="centralNodeId">Hub node identifier</param>
     /// <returns>Activity instance or null if not sampled</returns>
     public Activity? StartFullSyncActivity(string peerId, string centralNodeId)
     {
@@ -96,7 +96,7 @@ public sealed class PeerServiceActivitySource : IDisposable
     /// Starts an incremental sync activity for tracing incremental synchronization
     /// </summary>
     /// <param name="peerId">Peer identifier</param>
-    /// <param name="centralNodeId">Central node identifier</param>
+    /// <param name="centralNodeId">Hub node identifier</param>
     /// <param name="lastKnownVersion">Last synchronized version</param>
     /// <returns>Activity instance or null if not sampled</returns>
     public Activity? StartIncrementalSyncActivity(string peerId, string centralNodeId, long lastKnownVersion)
@@ -117,7 +117,7 @@ public sealed class PeerServiceActivitySource : IDisposable
     /// <summary>
     /// Starts a heartbeat activity for tracing heartbeat send/acknowledge
     /// </summary>
-    /// <param name="centralNodeId">Central node identifier</param>
+    /// <param name="centralNodeId">Hub node identifier</param>
     /// <param name="sequenceNumber">Heartbeat sequence number</param>
     /// <returns>Activity instance or null if not sampled</returns>
     public Activity? StartHeartbeatActivity(string centralNodeId, long sequenceNumber)

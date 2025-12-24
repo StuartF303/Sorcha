@@ -8,11 +8,11 @@ using Sorcha.Peer.Service.Protos;
 namespace Sorcha.Peer.Service.Services;
 
 /// <summary>
-/// gRPC service implementation for heartbeat monitoring between peers and central nodes
+/// gRPC service implementation for heartbeat monitoring between peers and hub nodes
 /// </summary>
 /// <remarks>
 /// Implements the Heartbeat service defined in Heartbeat.proto.
-/// Runs on central nodes and provides RPCs for peer nodes to send heartbeat messages
+/// Runs on hub nodes and provides RPCs for peer nodes to send heartbeat messages
 /// and monitor connection health.
 ///
 /// Heartbeat protocol:
@@ -28,18 +28,18 @@ namespace Sorcha.Peer.Service.Services;
 public class HeartbeatService : Protos.Heartbeat.HeartbeatBase
 {
     private readonly ILogger<HeartbeatService> _logger;
-    private readonly CentralNodeDiscoveryService _centralNodeDiscoveryService;
+    private readonly HubNodeDiscoveryService _centralNodeDiscoveryService;
     private readonly PeerListManager _peerListManager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HeartbeatService"/> class
     /// </summary>
     /// <param name="logger">Logger instance</param>
-    /// <param name="centralNodeDiscoveryService">Central node discovery service</param>
+    /// <param name="centralNodeDiscoveryService">Hub node discovery service</param>
     /// <param name="peerListManager">Peer list manager for tracking connected peers</param>
     public HeartbeatService(
         ILogger<HeartbeatService> logger,
-        CentralNodeDiscoveryService centralNodeDiscoveryService,
+        HubNodeDiscoveryService centralNodeDiscoveryService,
         PeerListManager peerListManager)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -97,7 +97,7 @@ public class HeartbeatService : Protos.Heartbeat.HeartbeatBase
             {
                 Success = true,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                CentralNodeId = _centralNodeDiscoveryService.GetHostname(),
+                HubNodeId = _centralNodeDiscoveryService.GetHostname(),
                 CurrentSystemRegisterVersion = currentSystemRegisterVersion,
                 Message = message,
                 RecommendedAction = recommendedAction,
@@ -118,7 +118,7 @@ public class HeartbeatService : Protos.Heartbeat.HeartbeatBase
             {
                 Success = false,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                CentralNodeId = _centralNodeDiscoveryService.GetHostname(),
+                HubNodeId = _centralNodeDiscoveryService.GetHostname(),
                 Message = $"Heartbeat processing failed: {ex.Message}",
                 RecommendedAction = RecommendedAction.None
             });
@@ -186,7 +186,7 @@ public class HeartbeatService : Protos.Heartbeat.HeartbeatBase
                 {
                     Success = true,
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    CentralNodeId = _centralNodeDiscoveryService.GetHostname(),
+                    HubNodeId = _centralNodeDiscoveryService.GetHostname(),
                     CurrentSystemRegisterVersion = currentSystemRegisterVersion,
                     Message = message,
                     RecommendedAction = recommendedAction,

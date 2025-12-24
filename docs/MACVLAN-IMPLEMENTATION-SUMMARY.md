@@ -234,7 +234,7 @@ Healthy ✓  (works from within macvlan network)
 **Evidence**:
 ```bash
 $ docker logs sorcha-peer-service | grep "Successfully connected"
-Successfully connected to central node n0.sorcha.dev
+Successfully connected to hub node n0.sorcha.dev
 ```
 
 **Root Cause**: .NET configuration array merging doesn't properly override `CentralNodes` array from appsettings.json. Bind mounts for config files don't work reliably in chiseled Docker images.

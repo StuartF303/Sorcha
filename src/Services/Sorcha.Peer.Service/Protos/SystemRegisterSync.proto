@@ -9,7 +9,7 @@ option csharp_namespace = "Sorcha.Peer.Service.Protos";
 
 // System Register Synchronization Service
 // Enables peer nodes to synchronize the system register (published blueprints)
-// from central nodes using a hybrid pull + push model.
+// from hub nodes using a hybrid pull + push model.
 //
 // Synchronization Strategies:
 // 1. Full Sync: Initial sync when peer first connects (streams all blueprints)
@@ -33,7 +33,7 @@ service SystemRegisterSync {
   //
   // Flow:
   // 1. Peer sends SyncRequest with last_known_version=0 and full_sync=true
-  // 2. Central node streams all active blueprints ordered by version
+  // 2. Hub node streams all active blueprints ordered by version
   // 3. Peer processes each blueprint and stores locally
   // 4. Stream completes when all blueprints sent
   //
@@ -49,7 +49,7 @@ service SystemRegisterSync {
   //
   // Flow:
   // 1. Peer sends SyncRequest with last_known_version from checkpoint
-  // 2. Central node streams blueprints where version > last_known_version
+  // 2. Hub node streams blueprints where version > last_known_version
   // 3. Peer processes new blueprints and updates checkpoint
   // 4. Stream completes when caught up
   //
@@ -59,13 +59,13 @@ service SystemRegisterSync {
   // Subscribe to push notifications (server streaming)
   //
   // Maintains long-lived server streaming connection for real-time blueprint
-  // publication notifications. Central node pushes notifications when blueprints
+  // publication notifications. Hub node pushes notifications when blueprints
   // are published.
   //
   // Flow:
   // 1. Peer sends SubscriptionRequest to subscribe
-  // 2. Central node registers peer in subscriber list
-  // 3. Central node streams BlueprintNotification on each publication
+  // 2. Hub node registers peer in subscriber list
+  // 3. Hub node streams BlueprintNotification on each publication
   // 4. Peer receives notification and triggers incremental sync if needed
   //
   // Reconnection: If stream fails, peer reconnects automatically
@@ -74,7 +74,7 @@ service SystemRegisterSync {
 
   // Get current sync checkpoint
   //
-  // Returns peer's current sync checkpoint from central node's perspective.
+  // Returns peer's current sync checkpoint from hub node's perspective.
   // Used for monitoring and diagnostics.
   rpc GetSyncCheckpoint(CheckpointRequest) returns (SyncCheckpoint);
 }
@@ -121,8 +121,8 @@ message SyncCheckpoint {
   // Total number of blueprints in peer's local replica
   int32 total_blueprints = 4;
 
-  // Central node this checkpoint is for
-  string central_node_id = 5;
+  // Hub node this checkpoint is for
+  string hub_node_id = 5;
 
   // When next periodic sync is due (Unix milliseconds UTC)
   // Calculated as: last_sync_time + (5 minutes * 1000)

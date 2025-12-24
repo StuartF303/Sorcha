@@ -98,8 +98,8 @@ peer-hub-local:
 
 **Logs Confirm**:
 ```
-info: Node configured as central node (IsCentralNode=true)
-info: Running as central node - ready to accept peer connections
+info: Node configured as hub node (IsCentralNode=true)
+info: Running as hub node - ready to accept peer connections
 info: Now listening on: http://[::]:5000
 ```
 
@@ -251,7 +251,7 @@ $ sorcha peer health --profile staging
    ```
 
 ### Future Enhancements
-1. Update all "central node" → "hub node" terminology (97 files)
+1. Update all "hub node" → "hub node" terminology (97 files)
 2. Add CLI command: `sorcha peer list`
 3. Add CLI command: `sorcha peer get --id <peer-id>`
 4. Implement peer-to-peer connection testing

@@ -45,16 +45,16 @@ All checklist items have been validated and passed. The specification is complet
 - 4 additional success criteria (SC-009 through SC-012) for system register and replication performance
 - 6 additional edge cases covering system register corruption, network partitions, split-brain scenarios, and replication failures
 - 1 additional key entity: System Register
-- 8 additional assumptions about central nodes, replication strategy, and network partition handling
+- 8 additional assumptions about hub nodes, replication strategy, and network partition handling
 - 1 additional dependency: Peer Service for P2P replication
 - 6 additional out-of-scope items clarifying what's not included in system register replication
 
-**Added peer service startup and central node connection behavior:**
-- 3 additional acceptance scenarios (5, 6, 7) in User Story 4 for peer service startup, central node detection, and connection failure handling
-- 6 additional functional requirements (FR-026 through FR-031) for peer service connection logic and central node behavior
-- 4 additional edge cases covering peer startup failures, central node detection, connection loops, and peer-to-peer replication limits
+**Added peer service startup and hub node connection behavior:**
+- 3 additional acceptance scenarios (5, 6, 7) in User Story 4 for peer service startup, hub node detection, and connection failure handling
+- 6 additional functional requirements (FR-026 through FR-031) for peer service connection logic and hub node behavior
+- 4 additional edge cases covering peer startup failures, hub node detection, connection loops, and peer-to-peer replication limits
 - 3 additional success criteria (SC-013 through SC-015) for peer service startup and connection reliability
-- 6 additional assumptions about central node DNS names (n0/n1/n2.sorcha.dev), central node detection, connection ordering, and isolated mode operation
+- 6 additional assumptions about hub node DNS names (n0/n1/n2.sorcha.dev), hub node detection, connection ordering, and isolated mode operation
 
 ## Notes
 
@@ -91,11 +91,11 @@ All checklist items have been validated and passed. The specification is complet
 - ✅ Success criteria include specific performance targets for replication (30 seconds full sync, 5 minutes propagation).
 
 ### Peer Service Startup and Connection Assessment
-- ✅ Peer service startup behavior is fully specified for both central and non-central nodes.
+- ✅ Peer service startup behavior is fully specified for both central and non-hub nodes.
 - ✅ Central node detection mechanism is defined: hostname check against sorcha.dev domain or explicit configuration.
 - ✅ Central node list is specified: n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev with ordered connection attempts.
-- ✅ Failure scenarios are covered: unreachable central nodes, connection loops, isolated mode operation.
-- ✅ Success criteria include peer startup reliability (100% central node self-detection, 30-second connection timeout).
+- ✅ Failure scenarios are covered: unreachable hub nodes, connection loops, isolated mode operation.
+- ✅ Success criteria include peer startup reliability (100% hub node self-detection, 30-second connection timeout).
 - ✅ Central nodes are required to remain online and accept connections (100% uptime during normal operations).
 
 The specification is production-ready and can proceed to `/speckit.clarify` (if needed) or `/speckit.plan` for implementation planning.

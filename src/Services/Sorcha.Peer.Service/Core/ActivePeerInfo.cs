@@ -18,10 +18,10 @@ public class ActivePeerInfo
     public string PeerId { get; set; } = string.Empty;
 
     /// <summary>
-    /// ID of connected central node (null if disconnected)
+    /// ID of connected hub node (null if disconnected)
     /// </summary>
     [MaxLength(64)]
-    public string? ConnectedCentralNodeId { get; set; }
+    public string? ConnectedHubNodeId { get; set; }
 
     /// <summary>
     /// When connection was established (UTC)

@@ -15,7 +15,7 @@ namespace Sorcha.Peer.Service.Services;
 /// </summary>
 /// <remarks>
 /// Implements the SystemRegisterSync service defined in SystemRegisterSync.proto.
-/// Runs on central nodes and provides streaming RPCs for peer nodes to synchronize
+/// Runs on hub nodes and provides streaming RPCs for peer nodes to synchronize
 /// the system register (published blueprints).
 ///
 /// Synchronization strategies:
@@ -281,7 +281,7 @@ public class SystemRegisterSyncService : SystemRegisterSync.SystemRegisterSyncBa
                 CurrentVersion = latestVersion,
                 LastSyncTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 TotalBlueprints = blueprintCount,
-                CentralNodeId = Environment.MachineName, // TODO: Get from CentralNodeDiscoveryService
+                HubNodeId = Environment.MachineName, // TODO: Get from HubNodeDiscoveryService
                 NextSyncDue = DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeMilliseconds(),
                 Status = CheckpointStatus.UpToDate
             };

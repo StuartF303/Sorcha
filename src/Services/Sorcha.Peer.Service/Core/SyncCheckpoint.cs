@@ -41,12 +41,12 @@ public class SyncCheckpoint
     public int TotalBlueprints { get; set; } = 0;
 
     /// <summary>
-    /// Central node this checkpoint is for
+    /// Hub node this checkpoint is for
     /// </summary>
     [Required]
     [MaxLength(64)]
     [JsonPropertyName("centralNodeId")]
-    public string CentralNodeId { get; set; } = string.Empty;
+    public string HubNodeId { get; set; } = string.Empty;
 
     /// <summary>
     /// When next periodic sync is due (UTC)

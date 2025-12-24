@@ -4,12 +4,12 @@
 namespace Sorcha.Peer.Service.Core;
 
 /// <summary>
-/// Connection status for a central node
+/// Connection status for a hub node
 /// </summary>
-public enum CentralNodeConnectionStatus
+public enum HubNodeConnectionStatus
 {
     /// <summary>
-    /// Not connected to this central node
+    /// Not connected to this hub node
     /// </summary>
     Disconnected = 0,
 

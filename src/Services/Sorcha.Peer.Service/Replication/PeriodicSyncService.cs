@@ -15,9 +15,9 @@ namespace Sorcha.Peer.Service.Replication;
 /// Background service that performs periodic synchronization of the system register every 5 minutes
 /// </summary>
 /// <remarks>
-/// This service runs only on peer nodes (not central nodes).
+/// This service runs only on peer nodes (not hub nodes).
 /// It maintains a sync checkpoint and triggers incremental sync at regular intervals
-/// to ensure the local system register replica stays up to date with the central nodes.
+/// to ensure the local system register replica stays up to date with the hub nodes.
 ///
 /// Sync strategy:
 /// - Interval: 5 minutes (configurable via PeerServiceConstants.PeriodicSyncIntervalMinutes)
@@ -28,8 +28,8 @@ namespace Sorcha.Peer.Service.Replication;
 public class PeriodicSyncService : BackgroundService
 {
     private readonly ILogger<PeriodicSyncService> _logger;
-    private readonly CentralNodeDiscoveryService _centralNodeDiscoveryService;
-    private readonly CentralNodeConnectionManager _connectionManager;
+    private readonly HubNodeDiscoveryService _centralNodeDiscoveryService;
+    private readonly HubNodeConnectionManager _connectionManager;
     private readonly SystemRegisterCache _cache;
     private Core.SyncCheckpoint _checkpoint;
 
@@ -38,8 +38,8 @@ public class PeriodicSyncService : BackgroundService
     /// </summary>
     public PeriodicSyncService(
         ILogger<PeriodicSyncService> logger,
-        CentralNodeDiscoveryService centralNodeDiscoveryService,
-        CentralNodeConnectionManager connectionManager,
+        HubNodeDiscoveryService centralNodeDiscoveryService,
+        HubNodeConnectionManager connectionManager,
         SystemRegisterCache cache)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -54,7 +54,7 @@ public class PeriodicSyncService : BackgroundService
             CurrentVersion = 0,
             LastSyncTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             TotalBlueprints = 0,
-            CentralNodeId = string.Empty,
+            HubNodeId = string.Empty,
             NextSyncDue = DateTime.UtcNow.AddMinutes(PeerServiceConstants.PeriodicSyncIntervalMinutes)
         };
     }
@@ -64,10 +64,10 @@ public class PeriodicSyncService : BackgroundService
     /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Don't run on central nodes
-        if (_centralNodeDiscoveryService.IsCentralNode())
+        // Don't run on hub nodes
+        if (_centralNodeDiscoveryService.IsHubNode())
         {
-            _logger.LogInformation("Periodic sync service disabled - running as central node");
+            _logger.LogInformation("Periodic sync service disabled - running as hub node");
             return;
         }
 
@@ -112,7 +112,7 @@ public class PeriodicSyncService : BackgroundService
     }
 
     /// <summary>
-    /// Performs incremental synchronization with the active central node
+    /// Performs incremental synchronization with the active hub node
     /// </summary>
     private async Task PerformIncrementalSyncAsync(CancellationToken cancellationToken)
     {
@@ -121,13 +121,13 @@ public class PeriodicSyncService : BackgroundService
             _logger.LogInformation("Starting periodic incremental sync (last version: {Version})",
                 _checkpoint.CurrentVersion);
 
-            // Get active central node connection
-            var activeNode = _connectionManager.GetActiveCentralNode();
+            // Get active hub node connection
+            var activeNode = _connectionManager.GetActiveHubNode();
             var channel = _connectionManager.GetActiveChannel();
 
             if (activeNode == null || channel == null)
             {
-                _logger.LogWarning("Cannot perform sync - no active central node connection");
+                _logger.LogWarning("Cannot perform sync - no active hub node connection");
 
                 // Handle isolated mode
                 await _connectionManager.HandleIsolatedModeAsync();
@@ -151,7 +151,7 @@ public class PeriodicSyncService : BackgroundService
                 RequestTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
 
-            _logger.LogDebug("Requesting incremental sync from central node {NodeId} (session: {SessionId})",
+            _logger.LogDebug("Requesting incremental sync from hub node {NodeId} (session: {SessionId})",
                 activeNode.NodeId, request.SessionId);
 
             // Call IncrementalSync RPC (server streaming)
@@ -192,7 +192,7 @@ public class PeriodicSyncService : BackgroundService
             _checkpoint.CurrentVersion = maxVersion;
             _checkpoint.LastSyncTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             _checkpoint.TotalBlueprints = _cache.GetBlueprintCount();
-            _checkpoint.CentralNodeId = activeNode.NodeId;
+            _checkpoint.HubNodeId = activeNode.NodeId;
             _checkpoint.NextSyncDue = DateTime.UtcNow.AddMinutes(PeerServiceConstants.PeriodicSyncIntervalMinutes);
 
             _logger.LogInformation("Periodic sync completed successfully. Synced: {Count}, Version: {Version}, Total blueprints: {Total}",
@@ -200,9 +200,9 @@ public class PeriodicSyncService : BackgroundService
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable)
         {
-            _logger.LogWarning("Central node unavailable during sync - entering isolated mode");
+            _logger.LogWarning("Hub node unavailable during sync - entering isolated mode");
 
-            // Handle isolated mode when central node unreachable
+            // Handle isolated mode when hub node unreachable
             await _connectionManager.HandleIsolatedModeAsync();
 
             // Update next sync time

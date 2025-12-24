@@ -6,7 +6,7 @@ using System.ComponentModel.DataAnnotations;
 namespace Sorcha.Peer.Service.Core;
 
 /// <summary>
-/// Heartbeat message sent from peer to central node
+/// Heartbeat message sent from peer to hub node
 /// </summary>
 public class HeartbeatMessage
 {

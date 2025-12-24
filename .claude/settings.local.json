@@ -83,7 +83,8 @@
       "Bash(ipconfig:*)",
       "Bash(Select-String -Pattern \"Ethernet adapter|IPv4 Address|Subnet Mask|Default Gateway\" -Context 0,0)",
       "Bash(Select-String -Pattern \"central|Central|hub|Hub|connect|192.168.51\" -Context 1)",
-      "Bash(Select-Object -Last 5)"
+      "Bash(Select-Object -Last 5)",
+      "Bash(choco install:*)"
     ],
     "deny": [],
     "ask": []

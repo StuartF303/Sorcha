@@ -23,8 +23,8 @@ public class PeerService : BackgroundService
     private readonly NetworkAddressService _networkAddressService;
     private readonly PeerDiscoveryService _peerDiscoveryService;
     private readonly HealthMonitorService _healthMonitorService;
-    private readonly CentralNodeDiscoveryService _centralNodeDiscoveryService;
-    private readonly CentralNodeConnectionManager _centralNodeConnectionManager;
+    private readonly HubNodeDiscoveryService _centralNodeDiscoveryService;
+    private readonly HubNodeConnectionManager _centralNodeConnectionManager;
     private PeerServiceStatus _status = PeerServiceStatus.Offline;
     private string _nodeId = string.Empty;
     private readonly object _statusLock = new();
@@ -71,8 +71,8 @@ public class PeerService : BackgroundService
         NetworkAddressService networkAddressService,
         PeerDiscoveryService peerDiscoveryService,
         HealthMonitorService healthMonitorService,
-        CentralNodeDiscoveryService centralNodeDiscoveryService,
-        CentralNodeConnectionManager centralNodeConnectionManager)
+        HubNodeDiscoveryService centralNodeDiscoveryService,
+        HubNodeConnectionManager centralNodeConnectionManager)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration?.Value ?? throw new ArgumentNullException(nameof(configuration));
@@ -126,21 +126,21 @@ public class PeerService : BackgroundService
         _nodeId = _configuration.NodeId ?? GenerateNodeId();
         _logger.LogInformation("Node ID: {NodeId}", _nodeId);
 
-        // Detect if this is a central node or peer node
-        var isCentralNode = _centralNodeDiscoveryService.IsCentralNode();
-        _logger.LogInformation("Node type detected: {NodeType}", isCentralNode ? "Central Node" : "Peer Node");
+        // Detect if this is a hub node or peer node
+        var isHubNode = _centralNodeDiscoveryService.IsHubNode();
+        _logger.LogInformation("Node type detected: {NodeType}", isHubNode ? "Central Node" : "Peer Node");
 
-        if (isCentralNode)
+        if (isHubNode)
         {
-            // Central node initialization
-            _logger.LogInformation("Running as central node - ready to accept peer connections");
+            // Hub node initialization
+            _logger.LogInformation("Running as hub node - ready to accept peer connections");
             _logger.LogInformation("Hostname: {Hostname}", _centralNodeDiscoveryService.GetHostname());
-            // HeartbeatMonitorService will NOT start for central nodes (it's a peer-side service)
+            // HeartbeatMonitorService will NOT start for hub nodes (it's a peer-side service)
         }
         else
         {
             // Peer node initialization
-            _logger.LogInformation("Running as peer node - will connect to central nodes");
+            _logger.LogInformation("Running as peer node - will connect to hub nodes");
 
             // Detect external address
             var externalAddress = await _networkAddressService.GetExternalAddressAsync(cancellationToken);
@@ -158,18 +158,18 @@ public class PeerService : BackgroundService
                 _logger.LogInformation("Discovered {Count} peers", discoveredCount);
             }
 
-            // Connect to central node (priority order: n0 -> n1 -> n2)
-            _logger.LogInformation("Attempting to connect to central node infrastructure");
-            var connected = await _centralNodeConnectionManager.ConnectToCentralNodeAsync(cancellationToken);
+            // Connect to hub node (priority order: n0 -> n1 -> n2)
+            _logger.LogInformation("Attempting to connect to hub node infrastructure");
+            var connected = await _centralNodeConnectionManager.ConnectToHubNodeAsync(cancellationToken);
 
             if (connected)
             {
-                var activeNode = _centralNodeConnectionManager.GetActiveCentralNode();
-                _logger.LogInformation("Successfully connected to central node {NodeId}", activeNode?.NodeId);
+                var activeNode = _centralNodeConnectionManager.GetActiveHubNode();
+                _logger.LogInformation("Successfully connected to hub node {NodeId}", activeNode?.NodeId);
             }
             else
             {
-                _logger.LogWarning("Failed to connect to any central node - operating in isolated mode");
+                _logger.LogWarning("Failed to connect to any hub node - operating in isolated mode");
                 _logger.LogWarning("Will continue attempting to connect in background");
             }
         }

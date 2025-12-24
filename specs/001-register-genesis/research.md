@@ -1,15 +1,15 @@
-# Research Document: Peer Service Central Node Connection
+# Research Document: Peer Service Hub Node Connection
 
 **Feature Branch**: `001-register-genesis`
 **Created**: 2025-12-13
 **Status**: Complete
-**Purpose**: Technical research and decision documentation for peer service central node connection capabilities
+**Purpose**: Technical research and decision documentation for peer service hub node connection capabilities
 
 ---
 
 ## Overview
 
-This document captures the research, analysis, and technical decisions for implementing peer service enhancements to support central node discovery, system register replication, heartbeat monitoring, and connection management. The implementation enables peer nodes to connect to central nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev), synchronize the system register containing published blueprints, and maintain connection health.
+This document captures the research, analysis, and technical decisions for implementing peer service enhancements to support hub node discovery, system register replication, heartbeat monitoring, and connection management. The implementation enables peer nodes to connect to hub nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev), synchronize the system register containing published blueprints, and maintain connection health.
 
 **Technology Stack**:
 - .NET 10 / C# 13
@@ -26,10 +26,10 @@ This document captures the research, analysis, and technical decisions for imple
 
 ---
 
-## Research Task 1: Central Node Detection Mechanism
+## Research Task 1: Hub Node Detection Mechanism
 
 ### Question
-How should the peer service detect if it is running on the sorcha.dev domain to determine whether to act as a central node or a peer node?
+How should the peer service detect if it is running on the sorcha.dev domain to determine whether to act as a hub node or a peer node?
 
 ### Options Considered
 
@@ -90,12 +90,12 @@ How should the peer service detect if it is running on the sorcha.dev domain to 
 public class CentralNodeConfiguration
 {
     /// <summary>
-    /// Explicitly set this node as a central node
+    /// Explicitly set this node as a hub node
     /// </summary>
     public bool IsCentralNode { get; set; } = false;
 
     /// <summary>
-    /// Expected hostname pattern for central nodes (e.g., "*.sorcha.dev")
+    /// Expected hostname pattern for hub nodes (e.g., "*.sorcha.dev")
     /// </summary>
     public string? ExpectedHostnamePattern { get; set; } = "*.sorcha.dev";
 
@@ -512,7 +512,7 @@ package sorcha.peer.heartbeat;
 option csharp_namespace = "Sorcha.Peer.Service.Protos";
 
 service Heartbeat {
-  // Send heartbeat to connected central node
+  // Send heartbeat to connected hub node
   rpc SendHeartbeat(HeartbeatMessage) returns (HeartbeatAcknowledgement);
 
   // Get heartbeat status from connected peer
@@ -590,7 +590,7 @@ public class HeartbeatMonitorService : BackgroundService
             }
             catch (RpcException ex) when (ex.StatusCode == StatusCode.DeadlineExceeded)
             {
-                _logger.LogWarning("Heartbeat timeout - connection to central node may be lost");
+                _logger.LogWarning("Heartbeat timeout - connection to hub node may be lost");
                 await HandleHeartbeatTimeout();
             }
             catch (Exception ex)
@@ -602,7 +602,7 @@ public class HeartbeatMonitorService : BackgroundService
 
     private async Task HandleHeartbeatTimeout()
     {
-        // Trigger failover to next central node
+        // Trigger failover to next hub node
         await _centralNodeManager.FailoverToNextNode();
     }
 }
@@ -610,7 +610,7 @@ public class HeartbeatMonitorService : BackgroundService
 
 **Timeout Handling**:
 - 30-second timeout per heartbeat RPC call
-- If timeout occurs, trigger failover to next central node
+- If timeout occurs, trigger failover to next hub node
 - After 2 consecutive timeouts (60 seconds total), consider connection failed
 
 ---
@@ -755,7 +755,7 @@ public class CentralNodeConnectionManager
                 OnRetry = args =>
                 {
                     logger.LogWarning(
-                        "Connection retry {Attempt}/{MaxAttempts} to central node after {Delay}s: {Exception}",
+                        "Connection retry {Attempt}/{MaxAttempts} to hub node after {Delay}s: {Exception}",
                         args.AttemptNumber + 1,
                         args.RetryCount,
                         args.RetryDelay.TotalSeconds,
@@ -788,7 +788,7 @@ public class CentralNodeConnectionManager
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to connect to central node {Address} after all retries", centralNodeAddress);
+            _logger.LogError(ex, "Failed to connect to hub node {Address} after all retries", centralNodeAddress);
             return false;
         }
     }
@@ -805,14 +805,14 @@ public class CentralNodeConnectionManager
 - Attempt 7: ~32s
 - Attempt 8-10: ~60s (capped at max)
 
-**Total retry time**: ~2 minutes before giving up and trying next central node
+**Total retry time**: ~2 minutes before giving up and trying next hub node
 
 ---
 
 ## Research Task 6: Push Notification Delivery
 
 ### Question
-What gRPC pattern should be used for central nodes to push blueprint publication notifications to connected peer nodes?
+What gRPC pattern should be used for hub nodes to push blueprint publication notifications to connected peer nodes?
 
 ### Options Considered
 
@@ -891,8 +891,8 @@ What gRPC pattern should be used for central nodes to push blueprint publication
 
 **Rationale**:
 - Works reliably through NAT/firewall (peer initiates outbound connection)
-- Enables true "push" delivery from central node perspective
-- Peer maintains subscription stream to central node for notifications
+- Enables true "push" delivery from hub node perspective
+- Peer maintains subscription stream to hub node for notifications
 - Central node can immediately push to all subscribed peers
 - Aligns with specification requirement for 30s push notification delivery
 - Graceful fallback: if stream fails, peer relies on 5-minute periodic sync
@@ -930,7 +930,7 @@ enum NotificationType {
 }
 ```
 
-**Central Node Push Handler**:
+**Hub Node Push Handler**:
 ```csharp
 public class PushNotificationHandler
 {
@@ -1078,7 +1078,7 @@ Should the active peers list be stored locally in-memory, in Redis for distribut
   - Synchronization overhead
   - Eventual consistency issues
 
-#### Option 4: Local In-Memory with Redis for Central Node Coordination
+#### Option 4: Local In-Memory with Redis for Hub Node Coordination
 - **Approach**:
   - Each peer maintains local in-memory list
   - Central nodes optionally publish their connected peers to Redis for monitoring
@@ -1101,7 +1101,7 @@ Should the active peers list be stored locally in-memory, in Redis for distribut
 - Existing `PeerListManager` already provides this functionality
 - No additional dependencies required
 - Failure isolation: peer state is independent
-- Matches the architecture pattern where peers only connect to one central node at a time
+- Matches the architecture pattern where peers only connect to one hub node at a time
 
 **Implementation Notes**:
 
@@ -1120,12 +1120,12 @@ public class PeerListManager
 }
 ```
 
-**Extend for Central Node Tracking**:
+**Extend for Hub Node Tracking**:
 ```csharp
 public class ActivePeerInfo
 {
     public string PeerId { get; set; } = string.Empty;
-    public string? ConnectedCentralNodeId { get; set; } // null if this IS central node
+    public string? ConnectedCentralNodeId { get; set; } // null if this IS hub node
     public DateTime ConnectionEstablished { get; set; }
     public DateTime LastHeartbeat { get; set; }
     public long LastSyncVersion { get; set; }
@@ -1138,7 +1138,7 @@ public enum PeerConnectionStatus
     Connecting,
     Connected,
     HeartbeatTimeout,
-    Isolated // Operating without central node connection
+    Isolated // Operating without hub node connection
 }
 
 // Extension to PeerListManager
@@ -1162,12 +1162,12 @@ public class PeerListManager
 ```
 
 **No Redis Required**: The active peers list is purely local state used for:
-- Tracking which central node this peer is connected to
+- Tracking which hub node this peer is connected to
 - Monitoring local connection health
 - Logging and diagnostics
 
-**Central Node Monitoring** (Optional Future Enhancement):
-- If needed, central nodes could periodically publish connected peer count to Redis for observability
+**Hub Node Monitoring** (Optional Future Enhancement):
+- If needed, hub nodes could periodically publish connected peer count to Redis for observability
 - This would be a metrics/monitoring feature, not core functionality
 - Not required for MVP
 
@@ -1177,7 +1177,7 @@ public class PeerListManager
 
 | Research Area | Decision | Primary Rationale |
 |---------------|----------|-------------------|
-| **1. Central Node Detection** | Hybrid: Explicit config flag with hostname validation | Explicit control with safety validation |
+| **1. Hub Node Detection** | Hybrid: Explicit config flag with hostname validation | Explicit control with safety validation |
 | **2. System Register Storage** | MongoDB collection of blueprint documents | Scalability, incremental sync, aligns with existing patterns |
 | **3. gRPC Streaming** | Separate pull (server streaming) and push (unary) services | Clear separation, matches hybrid sync model |
 | **4. Heartbeat Protocol** | Dedicated gRPC service with unary RPCs | Simple, explicit, independent testing |
@@ -1199,7 +1199,7 @@ Based on research findings, suggested implementation order:
 2. **Phase 2 - Connection Management**:
    - Central node connection manager with Polly resilience
    - gRPC heartbeat service
-   - Failover logic (switch to next central node)
+   - Failover logic (switch to next hub node)
 
 3. **Phase 3 - Synchronization**:
    - System register sync service (server streaming pull)
@@ -1208,7 +1208,7 @@ Based on research findings, suggested implementation order:
 
 4. **Phase 4 - Push Notifications**:
    - Notification subscription service
-   - Push notification handler on central nodes
+   - Push notification handler on hub nodes
    - Integration with blueprint publication
 
 5. **Phase 5 - Testing & Observability**:
@@ -1224,7 +1224,7 @@ Based on research findings, suggested implementation order:
 |------|--------|------------|
 | **NAT/Firewall blocking peer connections** | High - Prevents push notifications | Graceful fallback to periodic sync (5 min) |
 | **MongoDB 16MB document limit** | Medium - Limits system register growth | Use collection pattern, not single document |
-| **Thundering herd on central node restart** | High - Overwhelms central node | Polly jitter in retry backoff |
+| **Thundering herd on hub node restart** | High - Overwhelms hub node | Polly jitter in retry backoff |
 | **Stream connection failures** | Medium - Loss of push notifications | Automatic reconnection + periodic sync fallback |
 | **Split-brain system registers** | High - Data inconsistency | Manual reconciliation procedure (documented) |
 | **Heartbeat false positives** | Low - Unnecessary failovers | Grace period (2 missed heartbeats = 60s) |
@@ -1242,7 +1242,7 @@ Based on research findings, suggested implementation order:
 **Infrastructure**:
 - MongoDB instance for system register storage
 - DNS configuration for n0/n1/n2.sorcha.dev hostnames
-- Network connectivity between peer nodes and central nodes (gRPC port 5000)
+- Network connectivity between peer nodes and hub nodes (gRPC port 5000)
 
 **Existing Services to Integrate**:
 - Register Service: Add `SystemRegisterService` for managing system register

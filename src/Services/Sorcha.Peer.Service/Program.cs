@@ -75,9 +75,9 @@ builder.Services.AddOpenApi();
 builder.Services.Configure<PeerServiceConfiguration>(
     builder.Configuration.GetSection("PeerService"));
 
-// Configure central node
-builder.Services.Configure<CentralNodeConfiguration>(
-    builder.Configuration.GetSection("PeerService:CentralNode"));
+// Configure hub node
+builder.Services.Configure<HubNodeConfiguration>(
+    builder.Configuration.GetSection("PeerService:HubNode"));
 
 // Configure system register
 builder.Services.Configure<SystemRegisterConfiguration>(
@@ -102,7 +102,7 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 // Register MongoDB system register repository
 builder.Services.AddSingleton<ISystemRegisterRepository, MongoSystemRegisterRepository>();
 
-// Register system register service (for central nodes)
+// Register system register service (for hub nodes)
 builder.Services.AddSingleton<SystemRegisterService>();
 
 // Register core services
@@ -119,9 +119,9 @@ builder.Services.AddSingleton<TransactionQueueManager>();
 builder.Services.AddSingleton<TransactionDistributionService>();
 builder.Services.AddSingleton<StatisticsAggregator>();
 
-// Register central node connection services
-builder.Services.AddSingleton<CentralNodeDiscoveryService>();
-builder.Services.AddSingleton<CentralNodeConnectionManager>();
+// Register hub node connection services
+builder.Services.AddSingleton<HubNodeDiscoveryService>();
+builder.Services.AddSingleton<HubNodeConnectionManager>();
 
 // Register observability services (OpenTelemetry)
 builder.Services.AddSingleton<PeerServiceMetrics>();
@@ -134,7 +134,7 @@ builder.Services.AddSingleton<PushNotificationHandler>();
 
 // Register gRPC service implementations
 builder.Services.AddSingleton<PeerDiscoveryServiceImpl>();
-builder.Services.AddSingleton<CentralNodeConnectionService>();
+builder.Services.AddSingleton<HubNodeConnectionService>();
 builder.Services.AddSingleton<SystemRegisterSyncService>();
 builder.Services.AddSingleton<Sorcha.Peer.Service.Services.HeartbeatService>();
 
@@ -171,7 +171,7 @@ if (app.Environment.IsDevelopment())
 
 // Map gRPC services
 app.MapGrpcService<PeerDiscoveryServiceImpl>();
-app.MapGrpcService<CentralNodeConnectionService>();
+app.MapGrpcService<HubNodeConnectionService>();
 app.MapGrpcService<SystemRegisterSyncService>();
 app.MapGrpcService<Sorcha.Peer.Service.Services.HeartbeatService>();
 

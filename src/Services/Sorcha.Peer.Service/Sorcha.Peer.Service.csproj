@@ -28,7 +28,7 @@
     <Protobuf Include="Protos\peer_discovery.proto" GrpcServices="Both" />
     <Protobuf Include="Protos\peer_communication.proto" GrpcServices="Both" />
     <Protobuf Include="Protos\transaction_distribution.proto" GrpcServices="Both" />
-    <Protobuf Include="Protos\CentralNodeConnection.proto" GrpcServices="Both" />
+    <Protobuf Include="Protos\HubNodeConnection.proto" GrpcServices="Both" />
     <Protobuf Include="Protos\SystemRegisterSync.proto" GrpcServices="Both" />
     <Protobuf Include="Protos\Heartbeat.proto" GrpcServices="Both" />
   </ItemGroup>

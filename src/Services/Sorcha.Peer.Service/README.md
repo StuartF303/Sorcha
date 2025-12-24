@@ -10,26 +10,26 @@
 
 ## Overview
 
-The **Peer Service** enables distributed system register replication across the Sorcha platform through a central node architecture. Peer nodes connect to central nodes (n0, n1, n2.sorcha.dev) to replicate the system register containing published blueprints, with automatic failover, heartbeat monitoring, and push notifications.
+The **Peer Service** enables distributed system register replication across the Sorcha platform through a hub node architecture. Peer nodes connect to hub nodes (n0, n1, n2.sorcha.dev) to replicate the system register containing published blueprints, with automatic failover, heartbeat monitoring, and push notifications.
 
 This service provides:
 - **Central node connection** with priority-based failover (n0→n1→n2)
 - **System register replication** (full sync + incremental sync)
 - **Heartbeat monitoring** (30s interval, 60s timeout triggers failover)
 - **Push notifications** for blueprint publication events
-- **Isolated mode** for graceful degradation when central nodes are unreachable
+- **Isolated mode** for graceful degradation when hub nodes are unreachable
 - **Comprehensive observability** (7 OpenTelemetry metrics, 6 distributed traces, structured logging)
 
 ### Key Features
 
-- ✅ **Central Node Detection**: Hybrid detection using config flags + optional hostname validation
+- ✅ **Hub Node Detection**: Hybrid detection using config flags + optional hostname validation
 - ✅ **Priority-Based Connection**: Connects to n0 (priority 0) → n1 (priority 1) → n2 (priority 2) with automatic failover
 - ✅ **Exponential Backoff**: Polly v8 resilience pipeline with jitter (1s, 2s, 4s, 8s, 16s, 32s, 60s max)
 - ✅ **Full Sync**: Initial system register synchronization via gRPC server streaming
 - ✅ **Incremental Sync**: Periodic sync (5 minutes) fetching only new blueprints since last version
 - ✅ **Push Notifications**: Real-time notifications when blueprints are published (80% delivery target)
 - ✅ **Heartbeat Monitoring**: 30-second heartbeat interval, failover after 2 missed heartbeats (60s)
-- ✅ **Isolated Mode**: Continues serving cached blueprints when all central nodes are unreachable
+- ✅ **Isolated Mode**: Continues serving cached blueprints when all hub nodes are unreachable
 - ✅ **MongoDB Repository**: System register storage with auto-increment versioning
 - ✅ **Thread-Safe Caching**: ConcurrentDictionary for in-memory blueprint cache
 - ✅ **OpenTelemetry**: Full observability with metrics, traces, and structured logging
@@ -61,7 +61,7 @@ Peer Service
 │   ├── PushNotificationHandler - Manages push notification subscribers
 │   ├── HeartbeatMonitorService - Sends heartbeats every 30s
 │   ├── PeerListManager - Tracks local peer status
-│   └── SystemRegisterService - Initializes system register (central nodes)
+│   └── SystemRegisterService - Initializes system register (hub nodes)
 ├── Data Layer
 │   └── MongoSystemRegisterRepository - MongoDB storage with auto-increment versioning
 └── Observability
@@ -128,7 +128,7 @@ Resume heartbeat monitoring (connected to n1)
 
 **Isolated Mode Flow:**
 ```
-All central nodes (n0, n1, n2) unreachable
+All hub nodes (n0, n1, n2) unreachable
     ↓
 CentralNodeConnectionManager.HandleIsolatedModeAsync()
     ↓
@@ -154,7 +154,7 @@ Resume normal operation
 ### Prerequisites
 
 - **.NET 10 SDK** or later
-- **MongoDB 8.0+** (for central nodes)
+- **MongoDB 8.0+** (for hub nodes)
 - **Git**
 
 ### 1. Clone and Navigate
@@ -184,7 +184,7 @@ Edit `appsettings.json`:
 }
 ```
 
-#### For Central Nodes
+#### For Hub Nodes
 
 Edit `appsettings.json`:
 
@@ -217,7 +217,7 @@ Service will start at:
 - **REST**: `https://localhost:5001` (health checks, monitoring)
 - **Scalar API Docs**: `https://localhost:5001/scalar/v1`
 
-#### Central Node (with MongoDB)
+#### Hub Node (with MongoDB)
 
 ```bash
 # Start MongoDB first
@@ -236,7 +236,7 @@ curl https://localhost:5001/api/central-connection
 # Check health
 curl https://localhost:5001/health
 
-# List active peers (central node)
+# List active peers (hub node)
 curl https://localhost:5001/api/peers
 ```
 
@@ -248,7 +248,7 @@ Using `grpcurl` (install from https://github.com/fullstorydev/grpcurl):
 # List available gRPC services
 grpcurl -plaintext localhost:5000 list
 
-# Connect to central node (peer node)
+# Connect to hub node (peer node)
 grpcurl -plaintext -d '{
   "peer_id": "test-peer",
   "peer_info": {
@@ -355,7 +355,7 @@ SYSTEMREGISTER__HEARTBEATINTERVALSECONDS=30
 SYSTEMREGISTER__HEARTBEATTIMEOUTSECONDS=30
 SYSTEMREGISTER__MAXRETRYATTEMPTS=10
 
-# MongoDB (for central nodes)
+# MongoDB (for hub nodes)
 MONGODB__CONNECTIONSTRING=mongodb://sorcha-mongo:27017
 MONGODB__DATABASENAME=sorcha_system_register
 
@@ -367,16 +367,16 @@ OPENTELEMETRY__ZIPKINENDPOINT=https://zipkin.yourcompany.com
 
 | Setting | Description | Default | Required |
 |---------|-------------|---------|----------|
-| `CentralNode:IsCentralNode` | Whether this node is a central node | `false` | Yes |
+| `CentralNode:IsCentralNode` | Whether this node is a hub node | `false` | Yes |
 | `CentralNode:ValidateHostname` | Validate hostname matches pattern | `false` | No |
-| `CentralNode:ExpectedHostnamePattern` | Hostname regex pattern for central nodes | `*.sorcha.dev` | No |
-| `CentralNode:CentralNodes` | Array of central node endpoints | `[]` | Yes (peer nodes) |
+| `CentralNode:ExpectedHostnamePattern` | Hostname regex pattern for hub nodes | `*.sorcha.dev` | No |
+| `CentralNode:CentralNodes` | Array of hub node endpoints | `[]` | Yes (peer nodes) |
 | `SystemRegister:PeriodicSyncIntervalMinutes` | Incremental sync interval | `5` | No |
 | `SystemRegister:HeartbeatIntervalSeconds` | Heartbeat send interval | `30` | No |
 | `SystemRegister:HeartbeatTimeoutSeconds` | Heartbeat timeout threshold | `30` | No |
 | `SystemRegister:MaxRetryAttempts` | Max connection retry attempts | `10` | No |
-| `MongoDB:ConnectionString` | MongoDB connection string | - | Yes (central nodes) |
-| `MongoDB:DatabaseName` | MongoDB database name | `sorcha_system_register` | Yes (central nodes) |
+| `MongoDB:ConnectionString` | MongoDB connection string | - | Yes (hub nodes) |
+| `MongoDB:DatabaseName` | MongoDB database name | `sorcha_system_register` | Yes (hub nodes) |
 
 ---
 
@@ -390,7 +390,7 @@ OPENTELEMETRY__ZIPKINENDPOINT=https://zipkin.yourcompany.com
 |--------|-------------|------|---------|----------|
 | `ConnectToCentralNode` | Initiate peer-to-central connection | Unary | `ConnectRequest` | `ConnectionResponse` |
 | `DisconnectFromCentralNode` | Graceful disconnect | Unary | `DisconnectRequest` | `DisconnectionResponse` |
-| `GetCentralNodeStatus` | Get central node health | Unary | `StatusRequest` | `CentralNodeStatus` |
+| `GetCentralNodeStatus` | Get hub node health | Unary | `StatusRequest` | `CentralNodeStatus` |
 
 **ConnectRequest:**
 ```protobuf
@@ -460,7 +460,7 @@ message IncrementalSyncRequest {
 
 | Method | Description | Type | Request | Response |
 |--------|-------------|------|---------|----------|
-| `SendHeartbeat` | Send heartbeat to central node | Unary | `HeartbeatMessage` | `HeartbeatAcknowledgement` |
+| `SendHeartbeat` | Send heartbeat to hub node | Unary | `HeartbeatMessage` | `HeartbeatAcknowledgement` |
 | `MonitorHeartbeat` | Bidirectional heartbeat stream | Bidirectional Streaming | `HeartbeatMessage` | `HeartbeatAcknowledgement` |
 
 **HeartbeatMessage:**
@@ -496,7 +496,7 @@ enum RecommendedAction {
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/health` | Health check endpoint |
-| GET | `/api/peers` | List active peers (central nodes) |
+| GET | `/api/peers` | List active peers (hub nodes) |
 | GET | `/api/peers/{id}` | Get peer details by ID |
 | GET | `/api/peers/connected` | Get count of connected peers (anonymous), full list if authenticated |
 | GET | `/api/peers/health` | Get peer network health status |
@@ -678,9 +678,9 @@ dotnet watch test --project tests/Sorcha.Peer.Service.Tests
 
 **Example Logs**:
 ```
-[INF] Attempting to connect to central node n0.sorcha.dev with priority 0
-[INF] Successfully connected to central node n0.sorcha.dev (session: abc123, version: 42)
-[WRN] Heartbeat timeout for central node n0.sorcha.dev (missed: 2/2)
+[INF] Attempting to connect to hub node n0.sorcha.dev with priority 0
+[INF] Successfully connected to hub node n0.sorcha.dev (session: abc123, version: 42)
+[WRN] Heartbeat timeout for hub node n0.sorcha.dev (missed: 2/2)
 [INF] Failover initiated from n0.sorcha.dev to n1.sorcha.dev
 [INF] Full sync completed: 150 blueprints in 12.5 seconds
 [INF] Incremental sync completed: 3 new blueprints (version 42 → 45)
@@ -726,7 +726,7 @@ docker run -d \
   sorcha-peer-service:latest
 ```
 
-#### Central Node
+#### Hub Node
 
 ```bash
 # Start MongoDB first
@@ -735,7 +735,7 @@ docker run -d \
   --name sorcha-mongo \
   mongo:8.0
 
-# Run central node
+# Run hub node
 docker run -d \
   -p 5000:5000 \
   -p 5001:5001 \
@@ -805,8 +805,8 @@ spec:
 
 ### Common Issues
 
-**Issue**: Peer cannot connect to central nodes
-**Solution**: Verify central node hostnames and network connectivity.
+**Issue**: Peer cannot connect to hub nodes
+**Solution**: Verify hub node hostnames and network connectivity.
 
 ```bash
 # Test gRPC connectivity
@@ -828,15 +828,15 @@ nslookup n0.sorcha.dev
 ```
 
 **Issue**: Incremental sync not fetching new blueprints
-**Solution**: Check SyncCheckpoint version matches central node version.
+**Solution**: Check SyncCheckpoint version matches hub node version.
 
 ```bash
-# Get central node status
+# Get hub node status
 grpcurl -plaintext -d '{"peer_id": "test"}' n0.sorcha.dev:5000 \
   sorcha.peer.v1.CentralNodeConnection/GetCentralNodeStatus
 ```
 
-**Issue**: Node incorrectly detected as central node
+**Issue**: Node incorrectly detected as hub node
 **Solution**: Verify hostname or disable hostname validation.
 
 ```json
@@ -848,7 +848,7 @@ grpcurl -plaintext -d '{"peer_id": "test"}' n0.sorcha.dev:5000 \
 }
 ```
 
-**Issue**: MongoDB connection failed on central node startup
+**Issue**: MongoDB connection failed on hub node startup
 **Solution**: Verify MongoDB is running and connection string is correct.
 
 ```bash
@@ -902,7 +902,7 @@ Enable detailed logging:
 
 ### Authorization
 
-- **Central Nodes**: Only central nodes can accept peer connections
+- **Hub Nodes**: Only hub nodes can accept peer connections
 - **Peer Verification**: Validate peer signatures before accepting sync requests
 - **Session Management**: Use session IDs to track connection state
 
@@ -1025,7 +1025,7 @@ Enable detailed logging:
 - T088: Performance optimization (MongoDB query benchmarking)
 - T089: Security hardening (TLS, authentication, rate limiting)
 - T090: Additional unit tests for edge cases
-- T091: End-to-end validation with 3 central nodes + 2 peer nodes
+- T091: End-to-end validation with 3 hub nodes + 2 peer nodes
 
 ---
 

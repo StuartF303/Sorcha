@@ -1,4 +1,4 @@
-# Tasks: Peer Service Central Node Connection and System Register Replication
+# Tasks: Peer Service Hub Node Connection and System Register Replication
 
 **Input**: Design documents from `/specs/001-register-genesis/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/
@@ -92,9 +92,9 @@ Repository structure:
 
 ## Phase 3: User Story 4 - System Register for Blueprint Publication and Replication (Priority: P1) 🎯 MVP
 
-**Goal**: Enable central nodes to initialize with system register, peer nodes to connect and replicate system register, and maintain connection health through heartbeat monitoring with failover support.
+**Goal**: Enable hub nodes to initialize with system register, peer nodes to connect and replicate system register, and maintain connection health through heartbeat monitoring with failover support.
 
-**Independent Test**: Initialize a central node (verify system register created), start a peer node (verify connection to central node established, system register replicated), publish a blueprint (verify push notification delivered), kill central node connection (verify peer fails over to next central node), kill all central nodes (verify peer enters isolated mode).
+**Independent Test**: Initialize a hub node (verify system register created), start a peer node (verify connection to hub node established, system register replicated), publish a blueprint (verify push notification delivered), kill hub node connection (verify peer fails over to next hub node), kill all hub nodes (verify peer enters isolated mode).
 
 ### Tests for User Story 4 (>85% coverage target per constitution) ⚠️
 
@@ -111,9 +111,9 @@ Repository structure:
 
 #### Integration Tests (System-Level Validation)
 
-- [ ] T036 [US4] Create tests/Sorcha.Peer.Service.Tests/Integration/CentralNodeInitializationTests.cs testing central node startup creates system register with well-known ID 00000000-0000-0000-0000-000000000000, seeds register-creation-v1 blueprint, marks node as ready to accept peer connections, validates system register integrity on restart (skips re-creation)
+- [ ] T036 [US4] Create tests/Sorcha.Peer.Service.Tests/Integration/CentralNodeInitializationTests.cs testing hub node startup creates system register with well-known ID 00000000-0000-0000-0000-000000000000, seeds register-creation-v1 blueprint, marks node as ready to accept peer connections, validates system register integrity on restart (skips re-creation)
 - [ ] T037 [US4] Create tests/Sorcha.Peer.Service.Tests/Integration/PeerNodeConnectionTests.cs testing peer connects to n0 in order, full sync on first connection, session ID assignment, ConnectionResponse includes current system register version
-- [ ] T038 [US4] Create tests/Sorcha.Peer.Service.Tests/Integration/HeartbeatFailoverTests.cs testing heartbeat timeout after 2 missed (60s), failover from n0→n1→n2→n0 (wrap around), isolated mode when all central nodes unreachable, reconnection when central node becomes reachable
+- [ ] T038 [US4] Create tests/Sorcha.Peer.Service.Tests/Integration/HeartbeatFailoverTests.cs testing heartbeat timeout after 2 missed (60s), failover from n0→n1→n2→n0 (wrap around), isolated mode when all hub nodes unreachable, reconnection when hub node becomes reachable
 - [ ] T039 [US4] Create tests/Sorcha.Peer.Service.Tests/Integration/SystemRegisterReplicationTests.cs testing full sync completes within 60s for 1000 blueprints, incremental sync completes within 30s, checkpoint persistence across restarts, version-based incremental query
 - [ ] T040 [US4] Create tests/Sorcha.Peer.Service.Tests/Integration/PushNotificationDeliveryTests.cs testing blueprint publication triggers push notification, 80% of connected peers receive notification within 30s, remaining peers receive via periodic sync, notification subscription reconnection on stream failure
 
@@ -124,14 +124,14 @@ Repository structure:
 
 ### Implementation for User Story 4
 
-#### Scenario 1: Central Node Startup and System Register Initialization
+#### Scenario 1: Hub Node Startup and System Register Initialization
 
 - [X] T043 [US4] Create src/Services/Sorcha.Peer.Service/Discovery/CentralNodeDiscoveryService.cs with DetectIfCentralNode() method checking IsCentralNode flag from appsettings, validating hostname against ExpectedHostnamePattern if ValidateHostname=true
 - [X] T044 [US4] Create src/Services/Sorcha.Register.Service/Services/SystemRegisterService.cs with InitializeSystemRegisterAsync() creating system register with ID 00000000-0000-0000-0000-000000000000, SeedRegisterCreationBlueprintAsync() publishing register-creation-v1 blueprint, ValidateSystemRegisterIntegrityAsync() checking genesis record on startup
-- [ ] T045 [US4] Update src/Services/Sorcha.Peer.Service/PeerService.cs ExecuteAsync() to detect if central node on startup, if true skip outbound connection attempts and call AcceptIncomingPeerConnectionsAsync(), if false call ConnectToCentralNodesAsync()
+- [ ] T045 [US4] Update src/Services/Sorcha.Peer.Service/PeerService.cs ExecuteAsync() to detect if hub node on startup, if true skip outbound connection attempts and call AcceptIncomingPeerConnectionsAsync(), if false call ConnectToCentralNodesAsync()
 - [X] T046 [US4] Update src/Services/Sorcha.Register.Service/Program.cs to call SystemRegisterService.InitializeSystemRegisterAsync() on startup with idempotency (detect existing system register, skip creation, validate integrity)
 
-#### Scenario 2: Peer Node Startup and Connection to Central Nodes
+#### Scenario 2: Peer Node Startup and Connection to Hub Nodes
 
 - [X] T047 [US4] Create src/Services/Sorcha.Peer.Service/Connection/CentralNodeConnectionManager.cs with ConnectToCentralNodeAsync() using Polly ResiliencePipeline for exponential backoff, connection priority order (n0 priority 0, n1 priority 1, n2 priority 2), 30s connection timeout per attempt
 - [ ] T048 [US4] Create src/Services/Sorcha.Peer.Service/Network/CentralNodeConnectionService.cs implementing CentralNodeConnection gRPC service with ConnectToCentralNode() RPC handler validating peer identity, assigning session ID, returning ConnectionResponse with current system register version, connection metadata
@@ -156,26 +156,26 @@ Repository structure:
 - [ ] T061 [US4] Update src/Services/Sorcha.Register.Service/Services/SystemRegisterService.cs PublishBlueprintAsync() to call PushNotificationHandler.NotifyBlueprintPublishedAsync() after successful MongoDB insert, passing BlueprintNotification with blueprint ID, version, published timestamp (NOTE: Requires cross-service integration between Register Service and Peer Service)
 - [X] T062 [US4] Update src/Services/Sorcha.Peer.Service/Program.cs to register PushNotificationHandler (singleton for subscriber tracking)
 
-#### Scenario 5: Isolated Mode When Central Nodes Unreachable
+#### Scenario 5: Isolated Mode When Hub Nodes Unreachable
 
-- [X] T063 [US4] Update src/Services/Sorcha.Peer.Service/Connection/CentralNodeConnectionManager.cs to add HandleIsolatedModeAsync() method that sets PeerConnectionStatus=Isolated when all central nodes return failure after retry exhaustion, log "Operating in isolated mode with last known system register replica", continue retrying connections in background with exponential backoff
-- [ ] T064 [US4] Create src/Services/Sorcha.Peer.Service/Monitoring/IsolatedModeMonitor.cs with CheckIsolatedStatusAsync() detecting when all central nodes unreachable, LogIsolatedWarningAsync() logging "Cannot reach central infrastructure - administrators notified", continue serving existing blueprints from SystemRegisterCache (NOTE: Basic isolated mode handling implemented via CentralNodeConnectionManager.HandleIsolatedModeAsync())
-- [X] T065 [US4] Update src/Services/Sorcha.Peer.Service/Replication/PeriodicSyncService.cs ExecuteAsync() to catch RpcException when central node unreachable, call CentralNodeConnectionManager.HandleIsolatedModeAsync(), skip sync iteration (wait for next 5-minute tick), allow service to continue operating
+- [X] T063 [US4] Update src/Services/Sorcha.Peer.Service/Connection/CentralNodeConnectionManager.cs to add HandleIsolatedModeAsync() method that sets PeerConnectionStatus=Isolated when all hub nodes return failure after retry exhaustion, log "Operating in isolated mode with last known system register replica", continue retrying connections in background with exponential backoff
+- [ ] T064 [US4] Create src/Services/Sorcha.Peer.Service/Monitoring/IsolatedModeMonitor.cs with CheckIsolatedStatusAsync() detecting when all hub nodes unreachable, LogIsolatedWarningAsync() logging "Cannot reach central infrastructure - administrators notified", continue serving existing blueprints from SystemRegisterCache (NOTE: Basic isolated mode handling implemented via CentralNodeConnectionManager.HandleIsolatedModeAsync())
+- [X] T065 [US4] Update src/Services/Sorcha.Peer.Service/Replication/PeriodicSyncService.cs ExecuteAsync() to catch RpcException when hub node unreachable, call CentralNodeConnectionManager.HandleIsolatedModeAsync(), skip sync iteration (wait for next 5-minute tick), allow service to continue operating
 - [X] T066 [US4] Update src/Services/Sorcha.Peer.Service/Replication/PeriodicSyncService.cs to handle isolated mode gracefully - SystemRegisterCache.GetAllBlueprintsAsync() continues serving cached blueprints, background connection retry continues attempting to reconnect (implemented via error handling in PeriodicSyncService)
 
-#### Scenario 6: Central Node Detection
+#### Scenario 6: Hub Node Detection
 
 - [X] T067 [US4] Implement src/Services/Sorcha.Peer.Service/Discovery/CentralNodeDiscoveryService.cs IsCentralNodeWithValidation() checking IsCentralNode flag from config, if true and ValidateHostname=true then call Dns.GetHostName() and validate against ExpectedHostnamePattern using regex, throw InvalidOperationException with clear message if mismatch
 - [X] T068 [US4] Update src/Services/Sorcha.Peer.Service/appsettings.json to add CentralNode section examples: for n0.sorcha.dev set IsCentralNode=true, ExpectedHostnamePattern="n0.sorcha.dev", ValidateHostname=true; for peer nodes set IsCentralNode=false
-- [ ] T069 [US4] Update src/Services/Sorcha.Peer.Service/PeerService.cs ExecuteAsync() to call CentralNodeDiscoveryService.IsCentralNodeWithValidation() on startup, log result "Detected as central node: {IsCentralNode}", branch logic to AcceptIncomingPeerConnectionsAsync() or ConnectToCentralNodesAsync()
-- [ ] T070 [US4] Create src/Services/Sorcha.Peer.Service/Network/PeerConnectionListener.cs with AcceptIncomingPeerConnectionsAsync() method for central nodes, registering gRPC services (CentralNodeConnectionService, SystemRegisterReplicationService, HeartbeatService), logging "Central node ready to accept peer connections"
+- [ ] T069 [US4] Update src/Services/Sorcha.Peer.Service/PeerService.cs ExecuteAsync() to call CentralNodeDiscoveryService.IsCentralNodeWithValidation() on startup, log result "Detected as hub node: {IsCentralNode}", branch logic to AcceptIncomingPeerConnectionsAsync() or ConnectToCentralNodesAsync()
+- [ ] T070 [US4] Create src/Services/Sorcha.Peer.Service/Network/PeerConnectionListener.cs with AcceptIncomingPeerConnectionsAsync() method for hub nodes, registering gRPC services (CentralNodeConnectionService, SystemRegisterReplicationService, HeartbeatService), logging "Central node ready to accept peer connections"
 
 #### Scenario 7: Connection Failure Handling
 
 - [X] T071 [US4] Create src/Services/Sorcha.Peer.Service/Monitoring/HeartbeatMonitorService.cs as BackgroundService with PeriodicTimer (30s interval), ExecuteAsync() sending HeartbeatMessage via Heartbeat.SendHeartbeatAsync RPC with 30s timeout, incrementing sequence number, tracking LastSyncVersion
 - [X] T072 [US4] Implement src/Services/Sorcha.Peer.Service/Monitoring/HeartbeatMonitorService.cs HandleHeartbeatTimeoutAsync() catching RpcException with StatusCode.DeadlineExceeded, calling ActivePeerInfo.RecordMissedHeartbeat(), if MissedHeartbeats >= 2 then trigger CentralNodeConnectionManager.FailoverToNextNodeAsync()
 - [X] T073 [US4] Create src/Services/Sorcha.Peer.Service/Services/HeartbeatService.cs implementing Heartbeat gRPC service with SendHeartbeat() RPC handler recording peer heartbeat timestamp, checking peer sync version lag (LastSyncVersion vs CurrentSystemRegisterVersion), returning HeartbeatAcknowledgement with RecommendedAction=SYNC if peer behind
-- [X] T074 [US4] Implement src/Services/Sorcha.Peer.Service/Connection/CentralNodeConnectionManager.cs FailoverToNextNodeAsync() disconnecting from current central node (calling DisconnectFromCentralNode RPC), incrementing priority (n0→n1→n2→n0 wrap-around), calling ConnectToCentralNodeAsync() with next central node, resetting SyncCheckpoint if connection to different central node
+- [X] T074 [US4] Implement src/Services/Sorcha.Peer.Service/Connection/CentralNodeConnectionManager.cs FailoverToNextNodeAsync() disconnecting from current hub node (calling DisconnectFromCentralNode RPC), incrementing priority (n0→n1→n2→n0 wrap-around), calling ConnectToCentralNodeAsync() with next hub node, resetting SyncCheckpoint if connection to different hub node
 - [X] T075 [US4] Update src/Services/Sorcha.Peer.Service/Monitoring/HeartbeatMonitorService.cs SendHeartbeatAsync() to use gRPC HeartbeatService.SendHeartbeat RPC and add HandleRecommendedActionAsync() method - if SYNC then trigger SystemRegisterReplicationClient.IncrementalSyncAsync(), if FAILOVER then call CentralNodeConnectionManager.FailoverToNextNodeAsync(), if RECONNECT then call CentralNodeConnectionManager.ReconnectAsync()
 - [X] T076 [US4] Update src/Services/Sorcha.Peer.Service/Program.cs to register HeartbeatMonitorService as BackgroundService, HeartbeatService (gRPC server), configure gRPC client for Heartbeat service with 30s timeout
 
@@ -196,15 +196,15 @@ Repository structure:
 **Purpose**: Improvements that affect multiple components across User Story 4
 
 - [X] T082 [P] Update docs/API-DOCUMENTATION.md with new gRPC services (CentralNodeConnection, SystemRegisterSync, Heartbeat) including RPC descriptions, message formats, examples using grpcurl
-- [X] T083 [P] Update docs/architecture.md with system register replication architecture diagram showing central nodes, peer nodes, MongoDB, replication flows (full sync, incremental sync, push notifications)
-- [ ] T084 [P] Update docs/development-status.md with Peer Service completion status updated to reflect central node connection, system register replication, heartbeat monitoring features complete
-- [ ] T085 [P] Update src/Services/Sorcha.Peer.Service/README.md with configuration guide for central nodes vs peer nodes, appsettings.json examples, running locally, testing heartbeat and sync
-- [ ] T086 [P] Create specs/001-register-genesis/quickstart.md with step-by-step guide: start MongoDB, configure central node (n0), configure peer node, verify connection, verify sync, publish blueprint, verify push notification
+- [X] T083 [P] Update docs/architecture.md with system register replication architecture diagram showing hub nodes, peer nodes, MongoDB, replication flows (full sync, incremental sync, push notifications)
+- [ ] T084 [P] Update docs/development-status.md with Peer Service completion status updated to reflect hub node connection, system register replication, heartbeat monitoring features complete
+- [ ] T085 [P] Update src/Services/Sorcha.Peer.Service/README.md with configuration guide for hub nodes vs peer nodes, appsettings.json examples, running locally, testing heartbeat and sync
+- [ ] T086 [P] Create specs/001-register-genesis/quickstart.md with step-by-step guide: start MongoDB, configure hub node (n0), configure peer node, verify connection, verify sync, publish blueprint, verify push notification
 - [ ] T087 Code cleanup and refactoring: extract common gRPC error handling, consolidate retry logic, apply consistent naming conventions across CentralNodeConnectionManager, SystemRegisterReplicationService, HeartbeatMonitorService
 - [ ] T088 Performance optimization: benchmark MongoDB query performance for GetBlueprintsSinceVersionAsync(), add caching for frequently accessed blueprints, optimize gRPC streaming buffer size for large blueprint transfers
 - [ ] T089 [P] Security hardening: implement TLS for all gRPC connections (https:// instead of http://), add peer authentication using metadata bearer tokens, implement rate limiting (1 connection/s, 1 heartbeat/30s, 1 sync/min per peer)
 - [ ] T090 [P] Additional unit tests for edge cases: clock skew handling (timestamp validation ±60s), out-of-order heartbeat sequence numbers, concurrent sync requests, MongoDB connection failure during sync
-- [ ] T091 Run quickstart.md validation: follow step-by-step guide to start 3 central nodes (n0, n1, n2), start 2 peer nodes, verify connections, verify full sync, verify periodic sync (wait 5 min), publish blueprint, verify push notifications, kill n0 (verify peer fails over to n1), kill n1 (verify peer fails over to n2), kill n2 (verify peer enters isolated mode)
+- [ ] T091 Run quickstart.md validation: follow step-by-step guide to start 3 hub nodes (n0, n1, n2), start 2 peer nodes, verify connections, verify full sync, verify periodic sync (wait 5 min), publish blueprint, verify push notifications, kill n0 (verify peer fails over to n1), kill n1 (verify peer fails over to n2), kill n2 (verify peer enters isolated mode)
 
 ---
 
@@ -239,7 +239,7 @@ Repository structure:
 
 ### Within User Story 4 Scenarios
 
-**Scenario 1** (Central Node Startup): T043-T046
+**Scenario 1** (Hub Node Startup): T043-T046
 - T043 (DetectIfCentralNode) before T045 (PeerService branching logic)
 - T044 (SystemRegisterService) before T046 (Program.cs initialization)
 
@@ -259,7 +259,7 @@ Repository structure:
 **Scenario 5** (Isolated Mode): T063-T066
 - T063 (connection manager isolated state) before T064 (isolated mode monitor)
 
-**Scenario 6** (Central Node Detection): T067-T070
+**Scenario 6** (Hub Node Detection): T067-T070
 - T067 (IsCentralNodeWithValidation) before T069 (PeerService calling validation)
 
 **Scenario 7** (Heartbeat Failover): T071-T076
@@ -311,12 +311,12 @@ Task T035: "PushNotificationHandlerTests.cs"
 2. ✅ Complete Phase 2: Foundational (CRITICAL - all core entities, validators, MongoDB repository)
 3. ✅ Complete Phase 3: User Story 4 (all 7 acceptance scenarios)
    - Write tests FIRST (T030-T042) - ensure they FAIL
-   - Implement Scenario 1 (central node startup) - T043-T046
+   - Implement Scenario 1 (hub node startup) - T043-T046
    - Implement Scenario 2 (peer connection) - T047-T051
    - Implement Scenario 3 (replication) - T052-T057
    - Implement Scenario 4 (push notifications) - T058-T062
    - Implement Scenario 5 (isolated mode) - T063-T066
-   - Implement Scenario 6 (central node detection) - T067-T070
+   - Implement Scenario 6 (hub node detection) - T067-T070
    - Implement Scenario 7 (heartbeat failover) - T071-T076
    - Add observability - T077-T081
 4. **STOP and VALIDATE**: Test all 7 scenarios independently using quickstart.md
@@ -331,7 +331,7 @@ After **Phase 2** (Foundational):
 - All validators pass unit tests
 - MongoDB repository CRUD operations work with Testcontainers
 
-After **Scenario 1** (Central Node Startup):
+After **Scenario 1** (Hub Node Startup):
 - Central node starts with IsCentralNode=true
 - System register created with ID 00000000-0000-0000-0000-000000000000
 - register-creation-v1 blueprint seeded
@@ -353,13 +353,13 @@ After **Scenario 4** (Push Notifications):
 - Notification triggers incremental sync to fetch full blueprint
 
 After **Scenario 5** (Isolated Mode):
-- Kill all central nodes
+- Kill all hub nodes
 - Peer enters isolated mode
 - Peer continues serving cached blueprints
 - Peer retries connections in background
 
-After **Scenario 6** (Central Node Detection):
-- n0.sorcha.dev detects as central node
+After **Scenario 6** (Hub Node Detection):
+- n0.sorcha.dev detects as hub node
 - peer-1.local detects as peer node
 - Hostname validation catches misconfiguration
 
@@ -375,12 +375,12 @@ After **Scenario 7** (Heartbeat Failover):
 
 | Scenario | Success Criteria | Validation Tasks |
 |----------|------------------|------------------|
-| 1. Central Node Startup | SC-009 (100% successful initialization) | T036, T046 |
+| 1. Hub Node Startup | SC-009 (100% successful initialization) | T036, T046 |
 | 2. Peer Connection | SC-014 (30s connection time) | T037, T051 |
 | 3. System Register Replication | SC-010 (30s replication), SC-012 (2s integrity check) | T039, T041 |
 | 4. Push Notifications | SC-016 (80% delivery in 30s) | T040, T042 |
-| 5. Isolated Mode | SC-015 (100% uptime central nodes) | T038, T066 |
-| 6. Central Node Detection | SC-013 (100% correct detection) | T036, T069 |
+| 5. Isolated Mode | SC-015 (100% uptime hub nodes) | T038, T066 |
+| 6. Hub Node Detection | SC-013 (100% correct detection) | T036, T069 |
 | 7. Heartbeat Failover | SC-014 (30s connection), FR-036 (30s timeout) | T038, T075 |
 
 ---
@@ -393,7 +393,7 @@ After **Scenario 7** (Heartbeat Failover):
 - **Constitution compliance**: >85% coverage target, tests verify all functional requirements (FR-001 through FR-037)
 - **Performance goals**: Full sync <60s (SC-010), push delivery 80% in 30s (SC-016), heartbeat 30s (FR-036)
 - **Commit strategy**: Commit after each scenario completion (checkpoints in Phase 3)
-- **Integration test dependencies**: Requires Testcontainers for MongoDB, 3 central node instances, 2 peer node instances
+- **Integration test dependencies**: Requires Testcontainers for MongoDB, 3 hub node instances, 2 peer node instances
 - **Avoid**: Vague tasks, same file conflicts, circular dependencies between scenarios
 
 ---
@@ -406,7 +406,7 @@ Phase 1 (Setup)
 Phase 2 (Foundational) ← BLOCKS Phase 3
     ↓
 Phase 3 (User Story 4)
-    ├─ Scenario 1 (Central Node) → T043-T046
+    ├─ Scenario 1 (Hub Node) → T043-T046
     ├─ Scenario 2 (Peer Connection) → T047-T051 (depends on Scenario 1)
     ├─ Scenario 3 (Replication) → T052-T057 (depends on Scenario 2, MongoDB repo T025-T027)
     ├─ Scenario 4 (Push Notifications) → T058-T062 (depends on Scenario 3)

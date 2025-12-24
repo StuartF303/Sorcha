@@ -29,7 +29,7 @@ public class SystemRegisterConfiguration
     public int HeartbeatTimeoutSeconds { get; set; } = 30;
 
     /// <summary>
-    /// Maximum retry attempts before failover to next central node
+    /// Maximum retry attempts before failover to next hub node
     /// </summary>
     [Range(1, 20)]
     public int MaxRetryAttempts { get; set; } = 10;

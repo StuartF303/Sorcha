@@ -9,7 +9,7 @@ using Polly.Timeout;
 namespace Sorcha.Peer.Service.Resilience;
 
 /// <summary>
-/// Polly resilience pipeline for central node connection with exponential backoff
+/// Polly resilience pipeline for hub node connection with exponential backoff
 /// </summary>
 public class ConnectionResiliencePipeline
 {

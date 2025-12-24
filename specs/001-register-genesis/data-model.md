@@ -1,15 +1,15 @@
-# Data Model: Peer Service Central Node Connection
+# Data Model: Peer Service Hub Node Connection
 
 **Feature Branch**: `001-register-genesis`
 **Created**: 2025-12-13
 **Status**: Complete
-**Purpose**: Comprehensive data model documentation for peer service central node connection, system register replication, heartbeat monitoring, and connection management
+**Purpose**: Comprehensive data model documentation for peer service hub node connection, system register replication, heartbeat monitoring, and connection management
 
 ---
 
 ## Overview
 
-This document defines all entities, relationships, validation rules, state machines, storage schemas, and C# class definitions for the peer service central node connection feature. The implementation enables peer nodes to connect to central nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev), synchronize the system register containing published blueprints, and maintain connection health through heartbeat monitoring.
+This document defines all entities, relationships, validation rules, state machines, storage schemas, and C# class definitions for the peer service hub node connection feature. The implementation enables peer nodes to connect to hub nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev), synchronize the system register containing published blueprints, and maintain connection health through heartbeat monitoring.
 
 **Technology Stack**:
 - .NET 10 / C# 13
@@ -23,12 +23,12 @@ This document defines all entities, relationships, validation rules, state machi
 
 ### 1.1 CentralNodeInfo
 
-Represents configuration and runtime state for a central node endpoint.
+Represents configuration and runtime state for a hub node endpoint.
 
 | Field | Type | Required | Description | Validation |
 |-------|------|----------|-------------|------------|
-| `NodeId` | `string` | Yes | Unique identifier for the central node | Pattern: `^n[0-2]\.sorcha\.dev$` |
-| `Hostname` | `string` | Yes | DNS hostname of central node | Must match `n0.sorcha.dev`, `n1.sorcha.dev`, or `n2.sorcha.dev` |
+| `NodeId` | `string` | Yes | Unique identifier for the hub node | Pattern: `^n[0-2]\.sorcha\.dev$` |
+| `Hostname` | `string` | Yes | DNS hostname of hub node | Must match `n0.sorcha.dev`, `n1.sorcha.dev`, or `n2.sorcha.dev` |
 | `Port` | `int` | Yes | gRPC port for peer connections | Range: 1-65535, Default: 5000 |
 | `Priority` | `int` | Yes | Connection priority (0 = highest) | Range: 0-2, 0=n0, 1=n1, 2=n2 |
 | `ConnectionStatus` | `CentralNodeConnectionStatus` | Yes | Current connection state | Enum: Disconnected, Connecting, Connected, Failed, HeartbeatTimeout |
@@ -37,12 +37,12 @@ Represents configuration and runtime state for a central node endpoint.
 | `LastHeartbeatSent` | `DateTime?` | No | Timestamp of last heartbeat sent | UTC timezone |
 | `LastHeartbeatAcknowledged` | `DateTime?` | No | Timestamp of last heartbeat acknowledged | UTC timezone |
 | `ConsecutiveFailures` | `int` | Yes | Number of consecutive connection failures | Default: 0, Reset on success |
-| `IsActive` | `bool` | Yes | Whether this is the actively connected central node | Only one can be true at a time |
+| `IsActive` | `bool` | Yes | Whether this is the actively connected hub node | Only one can be true at a time |
 | `GrpcChannelAddress` | `string` | Yes | Computed gRPC channel address | Format: `https://{Hostname}:{Port}` |
 
 **Business Rules**:
 - Central node hostnames MUST match `n0.sorcha.dev`, `n1.sorcha.dev`, or `n2.sorcha.dev` pattern (FR-026)
-- Only one central node can have `IsActive = true` at any time (FR-035)
+- Only one hub node can have `IsActive = true` at any time (FR-035)
 - Priority determines connection order: 0 (n0) → 1 (n1) → 2 (n2) → 0 (wrap around)
 - `ConsecutiveFailures` resets to 0 on successful connection
 - Connection timeout: 30 seconds (FR-036)
@@ -96,7 +96,7 @@ collection.Indexes.CreateOne(
 
 ### 1.3 HeartbeatMessage
 
-Represents a heartbeat message sent from peer to central node or vice versa.
+Represents a heartbeat message sent from peer to hub node or vice versa.
 
 | Field | Type | Required | Description | Validation |
 |-------|------|----------|-------------|------------|
@@ -126,8 +126,8 @@ Represents acknowledgement response to a heartbeat message.
 |-------|------|----------|-------------|------------|
 | `Success` | `bool` | Yes | Whether heartbeat was successfully processed | - |
 | `Timestamp` | `long` | Yes | Unix timestamp when acknowledgement sent | Milliseconds since epoch (UTC) |
-| `CentralNodeId` | `string` | Yes | Identifier of responding central node | MaxLength: 64 |
-| `CurrentSystemRegisterVersion` | `long` | Yes | Current system register version on central node | Used by peer to detect lag |
+| `CentralNodeId` | `string` | Yes | Identifier of responding hub node | MaxLength: 64 |
+| `CurrentSystemRegisterVersion` | `long` | Yes | Current system register version on hub node | Used by peer to detect lag |
 | `Message` | `string?` | No | Optional status message | MaxLength: 500 |
 
 **Business Rules**:
@@ -144,7 +144,7 @@ Represents local peer connection status information (stored in memory, not Mongo
 | Field | Type | Required | Description | Validation |
 |-------|------|----------|-------------|------------|
 | `PeerId` | `string` | Yes | Unique identifier for this peer | MaxLength: 64 |
-| `ConnectedCentralNodeId` | `string?` | No | ID of connected central node (null if disconnected) | MaxLength: 64 |
+| `ConnectedCentralNodeId` | `string?` | No | ID of connected hub node (null if disconnected) | MaxLength: 64 |
 | `ConnectionEstablished` | `DateTime` | Yes | When connection was established | UTC timezone |
 | `LastHeartbeat` | `DateTime` | Yes | Last heartbeat sent or received | UTC timezone |
 | `LastSyncVersion` | `long` | Yes | Last synchronized system register version | Default: 0 |
@@ -155,7 +155,7 @@ Represents local peer connection status information (stored in memory, not Mongo
 **Business Rules**:
 - Each peer node maintains its own local `ActivePeerInfo` (FR-037)
 - `ConnectedCentralNodeId` is null when `Status = Disconnected` or `Status = Isolated`
-- `MissedHeartbeats >= 2` (60 seconds total) triggers failover to next central node
+- `MissedHeartbeats >= 2` (60 seconds total) triggers failover to next hub node
 - This is local in-memory state, not shared across peers or stored in database
 
 ---
@@ -177,7 +177,7 @@ Represents a synchronization checkpoint for tracking incremental sync progress.
 - Periodic sync interval: 5 minutes (FR-032)
 - `CurrentVersion` used for incremental sync: `SELECT * FROM system_register WHERE version > CurrentVersion`
 - Checkpoint persisted locally (file or in-memory) to survive restarts
-- Checkpoint reset when connecting to different central node
+- Checkpoint reset when connecting to different hub node
 
 ---
 
@@ -208,12 +208,12 @@ Represents a push notification for new blueprint publication.
 
 ```csharp
 /// <summary>
-/// Connection status for a central node
+/// Connection status for a hub node
 /// </summary>
 public enum CentralNodeConnectionStatus
 {
     /// <summary>
-    /// Not connected to this central node
+    /// Not connected to this hub node
     /// </summary>
     Disconnected = 0,
 
@@ -248,12 +248,12 @@ public enum CentralNodeConnectionStatus
 public enum PeerConnectionStatus
 {
     /// <summary>
-    /// Peer is disconnected from all central nodes
+    /// Peer is disconnected from all hub nodes
     /// </summary>
     Disconnected = 0,
 
     /// <summary>
-    /// Peer is attempting to connect to a central node
+    /// Peer is attempting to connect to a hub node
     /// </summary>
     Connecting = 1,
 
@@ -268,7 +268,7 @@ public enum PeerConnectionStatus
     HeartbeatTimeout = 3,
 
     /// <summary>
-    /// Operating without central node connection (using last known replica)
+    /// Operating without hub node connection (using last known replica)
     /// </summary>
     Isolated = 4
 }
@@ -361,7 +361,7 @@ public enum NotificationType
 
 ## 4. Validation Rules
 
-### 4.1 Central Node Hostname Validation
+### 4.1 Hub Node Hostname Validation
 
 **Rule**: Central node hostnames MUST match `n0.sorcha.dev`, `n1.sorcha.dev`, or `n2.sorcha.dev` pattern.
 
@@ -382,7 +382,7 @@ public static class CentralNodeValidator
         if (!IsValidCentralNodeHostname(hostname))
         {
             throw new ArgumentException(
-                $"Invalid central node hostname: '{hostname}'. Must match pattern: n0.sorcha.dev, n1.sorcha.dev, or n2.sorcha.dev",
+                $"Invalid hub node hostname: '{hostname}'. Must match pattern: n0.sorcha.dev, n1.sorcha.dev, or n2.sorcha.dev",
                 nameof(hostname));
         }
     }
@@ -528,7 +528,7 @@ public static class SystemRegisterValidator
 
 ## 5. State Machines
 
-### 5.1 Central Node Connection Lifecycle
+### 5.1 Hub Node Connection Lifecycle
 
 ```
 ┌───────────────┐
@@ -557,7 +557,7 @@ public static class SystemRegisterValidator
         └─► Connection Failed ───►│ HeartbeatTimeout│
                                   └─────────┬───────┘
                                             │
-                                            │ Failover to Next Central Node
+                                            │ Failover to Next Hub Node
                                             │
                                             ▼
                                   ┌───────────────┐
@@ -574,7 +574,7 @@ public static class SystemRegisterValidator
 | `Connecting` | `ConnectionSuccess` | `Connected` | Start heartbeat timer, update `IsActive=true` |
 | `Connecting` | `ConnectionFailed` | `Disconnected` | Increment `ConsecutiveFailures`, retry with backoff |
 | `Connected` | `HeartbeatTimeout` | `HeartbeatTimeout` | Stop heartbeat timer, increment `MissedHeartbeats` |
-| `HeartbeatTimeout` | `MissedHeartbeats >= 2` | `Disconnected` | Trigger failover to next central node |
+| `HeartbeatTimeout` | `MissedHeartbeats >= 2` | `Disconnected` | Trigger failover to next hub node |
 | `HeartbeatTimeout` | `HeartbeatAcknowledged` | `Connected` | Reset `MissedHeartbeats`, resume normal operation |
 
 ---
@@ -586,14 +586,14 @@ public static class SystemRegisterValidator
 │ Disconnected  │ ◄─────────────────────────────────┐
 └───────┬───────┘                                   │
         │                                           │
-        │ Startup / Connect to Central Nodes       │
+        │ Startup / Connect to Hub Nodes       │
         │                                           │
         ▼                                           │
 ┌───────────────┐                                   │
 │  Connecting   │                                   │
 └───────┬───────┘                                   │
         │                                           │
-        ├─► Connection to any central node ────► ┌─┴────────┐
+        ├─► Connection to any hub node ────► ┌─┴────────┐
         │                                         │ Connected│
         │                                         └─────┬────┘
         │                                               │
@@ -604,9 +604,9 @@ public static class SystemRegisterValidator
         │                                 │ (Attempting failover)      │
         │                                 └─────────────┬──────────────┘
         │                                               │
-        │                                               │ All central nodes unreachable
+        │                                               │ All hub nodes unreachable
         │                                               │
-        └─► All central nodes unreachable ────► ┌──────▼─────┐
+        └─► All hub nodes unreachable ────► ┌──────▼─────┐
                                                  │  Isolated  │
                                                  └──────┬─────┘
                                                         │
@@ -622,13 +622,13 @@ public static class SystemRegisterValidator
 
 | From State | Event | To State | Action |
 |------------|-------|----------|--------|
-| `Disconnected` | `ServiceStartup` | `Connecting` | Try to connect to first central node (n0) |
+| `Disconnected` | `ServiceStartup` | `Connecting` | Try to connect to first hub node (n0) |
 | `Connecting` | `ConnectionSuccess` | `Connected` | Update `ConnectedCentralNodeId`, start sync/heartbeat |
 | `Connecting` | `AllNodesUnreachable` | `Isolated` | Operate with last known system register replica |
-| `Connected` | `HeartbeatTimeout` | `HeartbeatTimeout` | Attempt failover to next central node |
-| `HeartbeatTimeout` | `FailoverSuccess` | `Connected` | Connected to next central node |
-| `HeartbeatTimeout` | `FailoverFailed` | `Isolated` | All central nodes unreachable |
-| `Isolated` | `CentralNodeReachable` | `Connecting` | Attempt connection to reachable central node |
+| `Connected` | `HeartbeatTimeout` | `HeartbeatTimeout` | Attempt failover to next hub node |
+| `HeartbeatTimeout` | `FailoverSuccess` | `Connected` | Connected to next hub node |
+| `HeartbeatTimeout` | `FailoverFailed` | `Isolated` | All hub nodes unreachable |
+| `Isolated` | `CentralNodeReachable` | `Connecting` | Attempt connection to reachable hub node |
 
 ---
 
@@ -768,7 +768,7 @@ db.sorcha_system_register_blueprints.find({ isActive: true }).sort({ publishedAt
 **Persistence Strategy**:
 - Write checkpoint after each successful sync
 - Load checkpoint on service startup
-- Reset checkpoint when connecting to different central node
+- Reset checkpoint when connecting to different hub node
 - Default to version 0 if checkpoint file missing
 
 ---
@@ -803,14 +803,14 @@ using System.Text.RegularExpressions;
 namespace Sorcha.Peer.Service.Core;
 
 /// <summary>
-/// Configuration and runtime state for a central node endpoint
+/// Configuration and runtime state for a hub node endpoint
 /// </summary>
 public class CentralNodeInfo
 {
     private static readonly Regex HostnamePattern = new(@"^n[0-2]\.sorcha\.dev$", RegexOptions.Compiled);
 
     /// <summary>
-    /// Unique identifier for the central node (matches hostname)
+    /// Unique identifier for the hub node (matches hostname)
     /// </summary>
     [Required]
     [MaxLength(64)]
@@ -818,7 +818,7 @@ public class CentralNodeInfo
     public string NodeId { get; set; } = string.Empty;
 
     /// <summary>
-    /// DNS hostname of central node (must be n0/n1/n2.sorcha.dev)
+    /// DNS hostname of hub node (must be n0/n1/n2.sorcha.dev)
     /// </summary>
     [Required]
     [MaxLength(255)]
@@ -860,7 +860,7 @@ public class CentralNodeInfo
     public DateTime? LastHeartbeatSent { get; set; }
 
     /// <summary>
-    /// Timestamp of last heartbeat acknowledged by central node
+    /// Timestamp of last heartbeat acknowledged by hub node
     /// </summary>
     public DateTime? LastHeartbeatAcknowledged { get; set; }
 
@@ -870,7 +870,7 @@ public class CentralNodeInfo
     public int ConsecutiveFailures { get; set; } = 0;
 
     /// <summary>
-    /// Whether this is the actively connected central node (only one can be true)
+    /// Whether this is the actively connected hub node (only one can be true)
     /// </summary>
     public bool IsActive { get; set; } = false;
 
@@ -880,7 +880,7 @@ public class CentralNodeInfo
     public string GrpcChannelAddress => $"https://{Hostname}:{Port}";
 
     /// <summary>
-    /// Validates central node hostname pattern
+    /// Validates hub node hostname pattern
     /// </summary>
     public static bool IsValidHostname(string hostname)
     {
@@ -1028,7 +1028,7 @@ using System.ComponentModel.DataAnnotations;
 namespace Sorcha.Peer.Service.Core;
 
 /// <summary>
-/// Heartbeat message sent from peer to central node
+/// Heartbeat message sent from peer to hub node
 /// </summary>
 public class HeartbeatMessage
 {
@@ -1121,7 +1121,7 @@ public class ActivePeerInfo
     public string PeerId { get; set; } = string.Empty;
 
     /// <summary>
-    /// ID of connected central node (null if disconnected)
+    /// ID of connected hub node (null if disconnected)
     /// </summary>
     [MaxLength(64)]
     public string? ConnectedCentralNodeId { get; set; }
@@ -1284,12 +1284,12 @@ public class SyncCheckpoint
 namespace Sorcha.Peer.Service.Core;
 
 /// <summary>
-/// Connection status for a central node
+/// Connection status for a hub node
 /// </summary>
 public enum CentralNodeConnectionStatus
 {
     /// <summary>
-    /// Not connected to this central node
+    /// Not connected to this hub node
     /// </summary>
     Disconnected = 0,
 
@@ -1320,12 +1320,12 @@ public enum CentralNodeConnectionStatus
 public enum PeerConnectionStatus
 {
     /// <summary>
-    /// Peer is disconnected from all central nodes
+    /// Peer is disconnected from all hub nodes
     /// </summary>
     Disconnected = 0,
 
     /// <summary>
-    /// Peer is attempting to connect to a central node
+    /// Peer is attempting to connect to a hub node
     /// </summary>
     Connecting = 1,
 
@@ -1340,7 +1340,7 @@ public enum PeerConnectionStatus
     HeartbeatTimeout = 3,
 
     /// <summary>
-    /// Operating without central node connection (using last known replica)
+    /// Operating without hub node connection (using last known replica)
     /// </summary>
     Isolated = 4
 }
@@ -1378,7 +1378,7 @@ public enum NotificationType
 namespace Sorcha.Peer.Service.Core;
 
 /// <summary>
-/// Validation constants for peer service central node connection
+/// Validation constants for peer service hub node connection
 /// </summary>
 public static class PeerServiceConstants
 {
@@ -1393,7 +1393,7 @@ public static class PeerServiceConstants
     public const string SystemRegisterCollectionName = "sorcha_system_register_blueprints";
 
     /// <summary>
-    /// Valid central node hostnames
+    /// Valid hub node hostnames
     /// </summary>
     public static readonly string[] CentralNodeHostnames =
     {
@@ -1438,7 +1438,7 @@ public static class PeerServiceConstants
     public const int RetryMaxDelaySeconds = 60;
 
     /// <summary>
-    /// Maximum retry attempts before giving up and trying next central node
+    /// Maximum retry attempts before giving up and trying next hub node
     /// </summary>
     public const int MaxRetryAttempts = 10;
 
@@ -1463,7 +1463,7 @@ public static class PeerServiceConstants
 
 ## 9. Summary
 
-This data model provides comprehensive definitions for all entities, relationships, validation rules, state machines, and storage schemas required for the peer service central node connection feature. Key highlights:
+This data model provides comprehensive definitions for all entities, relationships, validation rules, state machines, and storage schemas required for the peer service hub node connection feature. Key highlights:
 
 ### Entities
 - **7 core entities** defined with complete field specifications, types, and validation rules

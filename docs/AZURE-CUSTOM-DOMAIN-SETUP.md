@@ -1,12 +1,12 @@
 # Azure Custom Domain Setup for n0.sorcha.dev
 
-**Guide for configuring the Peer Service (Central Node) with custom domain**
+**Guide for configuring the Peer Service (Hub Node) with custom domain**
 
 ---
 
 ## Overview
 
-The Azure Peer Service is deployed as n0.sorcha.dev (the primary central node). This document explains how to configure the custom domain and DNS records.
+The Azure Peer Service is deployed as n0.sorcha.dev (the primary hub node). This document explains how to configure the custom domain and DNS records.
 
 ---
 
@@ -33,7 +33,7 @@ The Peer Service knows it's n0.sorcha.dev through these environment variables:
 }
 {
   name: 'PeerService__CentralNode__Priority'
-  value: '0'  // Primary central node
+  value: '0'  // Primary hub node
 }
 ```
 
@@ -193,10 +193,10 @@ az containerapp logs show \
 
 **Expected log messages:**
 ```
-[INF] Node type detected: Central Node
+[INF] Node type detected: Hub Node
 [INF] NodeId: n0.sorcha.dev
 [INF] Hostname: n0.sorcha.dev
-[INF] Node validated as central node
+[INF] Node validated as hub node
 ```
 
 ---
@@ -227,13 +227,13 @@ az containerapp restart \
 
 ## Complete DNS Configuration for Sorcha
 
-For a complete production setup with all central nodes:
+For a complete production setup with all hub nodes:
 
 | Hostname | Type | Value | Purpose |
 |----------|------|-------|---------|
-| `n0.sorcha.dev` | CNAME | `peer-service.*.uksouth.azurecontainerapps.io` | Primary central node (Azure UK South) |
-| `n1.sorcha.dev` | CNAME | `peer-service.*.eastus.azurecontainerapps.io` | Secondary central node (Azure East US) |
-| `n2.sorcha.dev` | CNAME | `peer-service.*.westeurope.azurecontainerapps.io` | Tertiary central node (Azure West Europe) |
+| `n0.sorcha.dev` | CNAME | `peer-service.*.uksouth.azurecontainerapps.io` | Primary hub node (Azure UK South) |
+| `n1.sorcha.dev` | CNAME | `peer-service.*.eastus.azurecontainerapps.io` | Secondary hub node (Azure East US) |
+| `n2.sorcha.dev` | CNAME | `peer-service.*.westeurope.azurecontainerapps.io` | Tertiary hub node (Azure West Europe) |
 | `asuid.n0` | TXT | `<verification-code>` | Domain verification (Azure) |
 | `asuid.n1` | TXT | `<verification-code>` | Domain verification (Azure) |
 | `asuid.n2` | TXT | `<verification-code>` | Domain verification (Azure) |

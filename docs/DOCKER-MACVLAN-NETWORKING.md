@@ -53,7 +53,7 @@ For peer-to-peer networking, macvlan provides significant advantages:
 
 | Service | IP Address | Purpose | Ports |
 |---------|-----------|---------|-------|
-| **peer-hub-local** | 192.168.51.200 | Local hub node (central node) | 8080 (HTTP), 5000 (gRPC) |
+| **peer-hub-local** | 192.168.51.200 | Local hub node (hub node) | 8080 (HTTP), 5000 (gRPC) |
 | **peer-service** | 192.168.51.201 | Peer node | 8080 (HTTP), 5000 (gRPC/STUN) |
 | **api-gateway** | 192.168.51.210 | API Gateway | 8080 (HTTP) |
 | **tenant-service** | 192.168.51.211 | Tenant Service | 8080 (HTTP) |

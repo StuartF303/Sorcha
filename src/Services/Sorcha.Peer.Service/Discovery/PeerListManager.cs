@@ -330,9 +330,9 @@ public class PeerListManager : IDisposable
     /// <summary>
     /// Updates the local peer connection status
     /// </summary>
-    /// <param name="connectedCentralNodeId">ID of connected central node (null if disconnected)</param>
+    /// <param name="connectedHubNodeId">ID of connected hub node (null if disconnected)</param>
     /// <param name="status">Current connection status</param>
-    public void UpdateLocalPeerStatus(string? connectedCentralNodeId, PeerConnectionStatus status)
+    public void UpdateLocalPeerStatus(string? connectedHubNodeId, PeerConnectionStatus status)
     {
         if (_localPeerInfo == null)
         {
@@ -343,13 +343,13 @@ public class PeerListManager : IDisposable
             };
         }
 
-        _localPeerInfo.ConnectedCentralNodeId = connectedCentralNodeId;
+        _localPeerInfo.ConnectedHubNodeId = connectedHubNodeId;
         _localPeerInfo.Status = status;
         _localPeerInfo.LastHeartbeat = DateTime.UtcNow;
 
         _logger.LogDebug(
-            "Updated local peer status: Connected to {CentralNode}, Status={Status}",
-            connectedCentralNodeId ?? "none",
+            "Updated local peer status: Connected to {HubNode}, Status={Status}",
+            connectedHubNodeId ?? "none",
             status);
     }
 

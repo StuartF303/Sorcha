@@ -9,12 +9,12 @@ namespace Sorcha.Peer.Service.Core;
 public enum PeerConnectionStatus
 {
     /// <summary>
-    /// Peer is disconnected from all central nodes
+    /// Peer is disconnected from all hub nodes
     /// </summary>
     Disconnected = 0,
 
     /// <summary>
-    /// Peer is attempting to connect to a central node
+    /// Peer is attempting to connect to a hub node
     /// </summary>
     Connecting = 1,
 
@@ -29,7 +29,7 @@ public enum PeerConnectionStatus
     HeartbeatTimeout = 3,
 
     /// <summary>
-    /// Operating without central node connection (using last known replica)
+    /// Operating without hub node connection (using last known replica)
     /// </summary>
     Isolated = 4
 }

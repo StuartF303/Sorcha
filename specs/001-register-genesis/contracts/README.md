@@ -1,13 +1,13 @@
 # gRPC Protocol Buffer Contracts
 
-**Feature**: Peer Service Central Node Connection
+**Feature**: Peer Service Hub Node Connection
 **Branch**: `001-register-genesis`
 **Created**: 2025-12-13
 **Status**: Ready for Implementation
 
 ## Overview
 
-This directory contains gRPC Protocol Buffer (proto3) contract definitions for the peer service central node connection feature. These contracts enable peer nodes to connect to central nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev), synchronize the system register containing published blueprints, and maintain connection health.
+This directory contains gRPC Protocol Buffer (proto3) contract definitions for the peer service hub node connection feature. These contracts enable peer nodes to connect to hub nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev), synchronize the system register containing published blueprints, and maintain connection health.
 
 ## Proto Files
 
@@ -17,12 +17,12 @@ This directory contains gRPC Protocol Buffer (proto3) contract definitions for t
 **Package**: `sorcha.peer.v1`
 **Namespace**: `Sorcha.Peer.Service.Protos`
 
-**Purpose**: Manages connection lifecycle between peer nodes and central nodes.
+**Purpose**: Manages connection lifecycle between peer nodes and hub nodes.
 
 **RPCs**:
-- `ConnectToCentralNode`: Establish connection to central node
-- `DisconnectFromCentralNode`: Gracefully disconnect from central node
-- `GetCentralNodeStatus`: Query central node health and status
+- `ConnectToCentralNode`: Establish connection to hub node
+- `DisconnectFromCentralNode`: Gracefully disconnect from hub node
+- `GetCentralNodeStatus`: Query hub node health and status
 
 **Key Messages**:
 - `ConnectRequest`: Connection parameters with peer info
@@ -44,7 +44,7 @@ This directory contains gRPC Protocol Buffer (proto3) contract definitions for t
 **Package**: `sorcha.peer.v1`
 **Namespace**: `Sorcha.Peer.Service.Protos`
 
-**Purpose**: Synchronizes system register (published blueprints) between central nodes and peers using hybrid pull + push model.
+**Purpose**: Synchronizes system register (published blueprints) between hub nodes and peers using hybrid pull + push model.
 
 **RPCs**:
 - `FullSync`: Stream all blueprints (initial sync)
@@ -76,7 +76,7 @@ This directory contains gRPC Protocol Buffer (proto3) contract definitions for t
 **Package**: `sorcha.peer.v1`
 **Namespace**: `Sorcha.Peer.Service.Protos`
 
-**Purpose**: Monitors connection health between peer and central node using periodic heartbeat messages.
+**Purpose**: Monitors connection health between peer and hub node using periodic heartbeat messages.
 
 **RPCs**:
 - `SendHeartbeat`: Send unary heartbeat (recommended)
@@ -97,7 +97,7 @@ This directory contains gRPC Protocol Buffer (proto3) contract definitions for t
 **Failover Logic**:
 - 0 missed: Healthy
 - 1 missed (30s): Warning, continue
-- 2 missed (60s): Trigger failover to next central node
+- 2 missed (60s): Trigger failover to next hub node
 - All nodes unreachable: Enter "Isolated" mode
 
 ---
@@ -140,7 +140,7 @@ These proto files will be compiled into C# client and server stubs using the gRP
 
 ## Implementation Guidelines
 
-### Server Implementation (Central Nodes)
+### Server Implementation (Hub Nodes)
 
 Central nodes (n0.sorcha.dev, n1.sorcha.dev, n2.sorcha.dev) implement all three services:
 
@@ -423,7 +423,7 @@ Use structured logging with correlation IDs:
 
 ```csharp
 _logger.LogInformation(
-    "Peer {PeerId} connected to central node {CentralNodeId} with session {SessionId}",
+    "Peer {PeerId} connected to hub node {CentralNodeId} with session {SessionId}",
     peerId, centralNodeId, sessionId);
 
 _logger.LogWarning(
@@ -479,7 +479,7 @@ Central nodes should implement rate limiting per peer:
 1. Copy proto files to `src/Services/Sorcha.Peer.Service/Protos/`
 2. Add `<Protobuf>` entries to `Sorcha.Peer.Service.csproj`
 3. Build project to generate C# client/server code
-4. Implement service base classes (central nodes)
+4. Implement service base classes (hub nodes)
 5. Implement client managers (peer nodes)
 6. Write unit and integration tests
 7. Deploy to staging environment
