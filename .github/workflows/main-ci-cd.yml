@@ -271,7 +271,6 @@ jobs:
       uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
-        subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
     - name: Login to Azure Container Registry
       run: az acr login --name ${{ env.CONTAINER_REGISTRY }}
 
