@@ -315,6 +315,37 @@ dotnet run --project src/Apps/Sorcha.Admin
 # HTTPS: https://localhost:7083
 ```
 
+#### Option 3: Using Docker Compose (Production-Like)
+
+For a production-like environment with all services containerized:
+
+```bash
+# Start all services with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
+```
+
+**Access Points:**
+- **API Gateway HTTP**: `http://localhost/api/...`
+- **API Gateway HTTPS**: `https://localhost/api/...`
+- **Developer Docs**: `http://localhost/scalar/`
+- **Health Checks**: `http://localhost/api/health`
+- **Hub Node gRPC**: `localhost:50051`
+- **Peer Service gRPC**: `localhost:50052`
+- **Aspire Dashboard**: `http://localhost:18888`
+- **Infrastructure**: PostgreSQL (5432), Redis (6379), MongoDB (27017)
+
+**Networking:**
+- Single bridge network (`sorcha-network`)
+- Services communicate via Docker DNS (e.g., `http://wallet-service:8080`)
+- External access via published ports only
+- See [docs/DOCKER-BRIDGE-NETWORKING.md](docs/DOCKER-BRIDGE-NETWORKING.md) for details
+
 ### Development Workflow
 
 1. **Make code changes** in your preferred editor

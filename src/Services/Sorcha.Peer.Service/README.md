@@ -706,7 +706,45 @@ dotnet run --project src/Apps/Sorcha.AppHost
 
 Access Aspire Dashboard: `http://localhost:15888`
 
-### Docker
+### Docker Compose (Recommended)
+
+The Peer Service is part of the full Sorcha Docker Compose stack with two nodes:
+
+**Local Hub Node (`peer-hub-local`)**:
+```bash
+# Start all services (includes hub and peer)
+docker-compose up -d peer-hub-local
+
+# Hub gRPC accessible at: localhost:50051
+```
+
+**Peer Node (`peer-service`)**:
+```bash
+# Start peer node (connects to local hub via Docker DNS)
+docker-compose up -d peer-service
+
+# Peer gRPC accessible at: localhost:50052
+```
+
+**Network Architecture:**
+- Bridge network (`sorcha-network`) for all services
+- Hub node: `peer-hub-local` (Docker DNS hostname)
+- Peer connects via Docker DNS: `http://peer-hub-local:5000`
+- Published ports: 50051 (hub), 50052 (peer)
+- TLS disabled for local development (`EnableTls: false`)
+- Configuration: `docker/appsettings.Bridge.json`
+- See [docs/DOCKER-BRIDGE-NETWORKING.md](../../../docs/DOCKER-BRIDGE-NETWORKING.md) for complete details
+
+**Verify Connection:**
+```bash
+# Check peer connected to hub
+docker logs sorcha-peer-service | grep "Successfully connected"
+
+# Expected output:
+# Successfully connected to hub node hub-local.sorcha.dev at http://peer-hub-local:5000
+```
+
+### Docker (Standalone)
 
 #### Peer Node
 
@@ -718,10 +756,11 @@ docker build -t sorcha-peer-service:latest -f src/Services/Sorcha.Peer.Service/D
 docker run -d \
   -p 5000:5000 \
   -p 5001:5001 \
-  -e CentralNode__IsCentralNode=false \
-  -e CentralNode__CentralNodes__0__Hostname=n0.sorcha.dev \
-  -e CentralNode__CentralNodes__0__Port=5000 \
-  -e CentralNode__CentralNodes__0__Priority=0 \
+  -e PeerService__HubNode__HubNodes__0__NodeId=hub-local \
+  -e PeerService__HubNode__HubNodes__0__Hostname=peer-hub-local \
+  -e PeerService__HubNode__HubNodes__0__Port=5000 \
+  -e PeerService__HubNode__HubNodes__0__Priority=0 \
+  -e PeerService__HubNode__HubNodes__0__EnableTls=false \
   --name peer-service \
   sorcha-peer-service:latest
 ```
@@ -739,11 +778,11 @@ docker run -d \
 docker run -d \
   -p 5000:5000 \
   -p 5001:5001 \
-  -e CentralNode__IsCentralNode=true \
-  -e CentralNode__ValidateHostname=false \
+  -e PeerService__HubNode__IsHubNode=true \
+  -e PeerService__HubNode__ValidateHostname=false \
   -e MongoDB__ConnectionString=mongodb://sorcha-mongo:27017 \
   --link sorcha-mongo \
-  --name central-node-n0 \
+  --name peer-hub-local \
   sorcha-peer-service:latest
 ```
 
@@ -1036,7 +1075,7 @@ Apache License 2.0 - See [LICENSE](../../LICENSE) for details.
 ---
 
 **Version**: 1.1.0
-**Last Updated**: 2025-12-14
+**Last Updated**: 2025-12-24
 **Maintained By**: Sorcha Platform Team
 **Status**: ✅ Core Complete (70% - Tests and Polish Pending)
 **Tasks Completed**: 63/91 (Phase 1-3)

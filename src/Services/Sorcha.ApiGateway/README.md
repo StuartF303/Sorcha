@@ -700,7 +700,28 @@ dotnet run --project src/Apps/Sorcha.AppHost
 
 Access Aspire Dashboard: `http://localhost:15888`
 
-### Docker
+### Docker Compose (Recommended)
+
+The API Gateway is part of the full Sorcha Docker Compose stack:
+
+```bash
+# Start all services (including API Gateway)
+docker-compose up -d
+
+# API Gateway will be accessible at:
+# HTTP: http://localhost/api/...
+# HTTPS: https://localhost/api/...
+```
+
+**Network Architecture:**
+- Bridge network (`sorcha-network`) for all services
+- Services communicate via Docker DNS (e.g., `http://wallet-service:8080`)
+- Published ports: 80 (HTTP), 443 (HTTPS)
+- See [docs/DOCKER-BRIDGE-NETWORKING.md](../../../docs/DOCKER-BRIDGE-NETWORKING.md) for complete details
+
+### Docker (Standalone)
+
+For standalone deployment:
 
 ```bash
 # Build Docker image
@@ -708,12 +729,13 @@ docker build -t sorcha-api-gateway:latest -f src/Services/Sorcha.ApiGateway/Dock
 
 # Run container
 docker run -d \
-  -p 443:443 \
-  -p 80:80 \
+  -p 443:8443 \
+  -p 80:8080 \
   -e Services__Blueprint__Url="http://blueprint-service:8080" \
   -e Services__Wallet__Url="http://wallet-service:8080" \
   -e Services__Register__Url="http://register-service:8080" \
   -e Services__Peer__Url="http://peer-service:8080" \
+  -e Services__Validator__Url="http://validator-service:8080" \
   --name api-gateway \
   sorcha-api-gateway:latest
 ```
@@ -889,6 +911,6 @@ Apache License 2.0 - See [LICENSE](../../LICENSE) for details.
 
 ---
 
-**Last Updated**: 2025-11-23
+**Last Updated**: 2025-12-24
 **Maintained By**: Sorcha Platform Team
 **Status**: ✅ Production Ready (95% Complete - Minor Enhancements Pending)
