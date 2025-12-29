@@ -1,7 +1,9 @@
 using System.CommandLine;
 using FluentAssertions;
+using Moq;
 using Sorcha.Cli.Commands;
 using Sorcha.Cli.Infrastructure;
+using Sorcha.Cli.Models;
 using Sorcha.Cli.Services;
 using Xunit;
 
@@ -12,16 +14,32 @@ namespace Sorcha.Cli.Tests.Commands;
 /// </summary>
 public class ServicePrincipalCommandsTests
 {
-    // Note: Structure tests use null dependencies since we're only testing command structure, not execution
-    private readonly HttpClientFactory _clientFactory = null!;
-    private readonly IAuthenticationService _authService = null!;
-    private readonly IConfigurationService _configService = null!;
+    private readonly Mock<IAuthenticationService> _mockAuthService;
+    private readonly Mock<IConfigurationService> _mockConfigService;
+    private readonly HttpClientFactory _clientFactory;
+
+    public ServicePrincipalCommandsTests()
+    {
+        _mockAuthService = new Mock<IAuthenticationService>();
+        _mockConfigService = new Mock<IConfigurationService>();
+
+        // Setup default mock behavior
+        _mockConfigService.Setup(x => x.GetActiveProfileAsync())
+            .ReturnsAsync(new Profile { Name = "test" });
+        _mockAuthService.Setup(x => x.GetAccessTokenAsync(It.IsAny<string>()))
+            .ReturnsAsync("test-token");
+
+        _clientFactory = new HttpClientFactory(_mockConfigService.Object);
+    }
+
+    private IAuthenticationService AuthService => _mockAuthService.Object;
+    private IConfigurationService ConfigService => _mockConfigService.Object;
 
     [Fact]
     public void ServicePrincipalCommand_ShouldHaveCorrectNameAndDescription()
     {
         // Arrange & Act
-        var command = new ServicePrincipalCommand(_clientFactory, _authService, _configService);
+        var command = new ServicePrincipalCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("principal");
@@ -32,7 +50,7 @@ public class ServicePrincipalCommandsTests
     public void ServicePrincipalCommand_ShouldHaveAllSubcommands()
     {
         // Arrange & Act
-        var command = new ServicePrincipalCommand(_clientFactory, _authService, _configService);
+        var command = new ServicePrincipalCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Subcommands.Should().HaveCount(5);
@@ -47,7 +65,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalListCommand_ShouldHaveRequiredOrgIdOption()
     {
         // Arrange & Act
-        var command = new PrincipalListCommand(_clientFactory, _authService, _configService);
+        var command = new PrincipalListCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("list");
@@ -62,7 +80,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalGetCommand_ShouldHaveRequiredOrgIdAndClientIdOptions()
     {
         // Arrange & Act
-        var command = new PrincipalGetCommand(_clientFactory, _authService, _configService);
+        var command = new PrincipalGetCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("get");
@@ -81,7 +99,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalCreateCommand_ShouldHaveRequiredOptions()
     {
         // Arrange & Act
-        var command = new PrincipalCreateCommand(_clientFactory, _authService, _configService);
+        var command = new PrincipalCreateCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("create");
@@ -100,7 +118,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalCreateCommand_ShouldHaveOptionalDescriptionAndScopesOptions()
     {
         // Arrange & Act
-        var command = new PrincipalCreateCommand(_clientFactory, _authService, _configService);
+        var command = new PrincipalCreateCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         var descriptionOption = command.Options.FirstOrDefault(o => o.Name == "description");
@@ -116,7 +134,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalDeleteCommand_ShouldHaveRequiredOrgIdAndClientIdOptions()
     {
         // Arrange & Act
-        var command = new PrincipalDeleteCommand(_clientFactory, _authService, _configService);
+        var command = new PrincipalDeleteCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("delete");
@@ -135,7 +153,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalDeleteCommand_ShouldHaveOptionalYesOption()
     {
         // Arrange & Act
-        var command = new PrincipalDeleteCommand(_clientFactory, _authService, _configService);
+        var command = new PrincipalDeleteCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
@@ -147,7 +165,7 @@ public class ServicePrincipalCommandsTests
     public void PrincipalRotateSecretCommand_ShouldHaveRequiredOrgIdAndClientIdOptions()
     {
         // Arrange & Act
-        var command = new PrincipalRotateSecretCommand(_clientFactory, _authService, _configService);
+        var command = new PrincipalRotateSecretCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("rotate-secret");
@@ -163,11 +181,11 @@ public class ServicePrincipalCommandsTests
     }
 
     [Fact]
-    public async Task PrincipalListCommand_ShouldExecuteSuccessfully_WithRequiredOrgId()
+    public async Task PrincipalListCommand_ShouldParseArguments_WithRequiredOrgId()
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalListCommand(_clientFactory, _authService, _configService));
+        rootCommand.AddCommand(new PrincipalListCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("list --org-id test-org-123");
@@ -177,11 +195,11 @@ public class ServicePrincipalCommandsTests
     }
 
     [Fact]
-    public async Task PrincipalGetCommand_ShouldExecuteSuccessfully_WithRequiredOptions()
+    public async Task PrincipalGetCommand_ShouldParseArguments_WithRequiredOptions()
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalGetCommand(_clientFactory, _authService, _configService));
+        rootCommand.AddCommand(new PrincipalGetCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("get --org-id test-org-123 --client-id client-456");
@@ -191,11 +209,11 @@ public class ServicePrincipalCommandsTests
     }
 
     [Fact]
-    public async Task PrincipalCreateCommand_ShouldExecuteSuccessfully_WithRequiredOptions()
+    public async Task PrincipalCreateCommand_ShouldParseArguments_WithRequiredOptions()
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalCreateCommand(_clientFactory, _authService, _configService));
+        rootCommand.AddCommand(new PrincipalCreateCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("create --org-id test-org-123 --name \"API Service\"");
@@ -205,11 +223,11 @@ public class ServicePrincipalCommandsTests
     }
 
     [Fact]
-    public async Task PrincipalCreateCommand_ShouldExecuteSuccessfully_WithAllOptions()
+    public async Task PrincipalCreateCommand_ShouldParseArguments_WithAllOptions()
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalCreateCommand(_clientFactory, _authService, _configService));
+        rootCommand.AddCommand(new PrincipalCreateCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("create --org-id test-org-123 --name \"API Service\" --description \"Backend API\" --scopes read,write");
@@ -219,11 +237,11 @@ public class ServicePrincipalCommandsTests
     }
 
     [Fact]
-    public async Task PrincipalRotateSecretCommand_ShouldExecuteSuccessfully_WithRequiredOptions()
+    public async Task PrincipalRotateSecretCommand_ShouldParseArguments_WithRequiredOptions()
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalRotateSecretCommand(_clientFactory, _authService, _configService));
+        rootCommand.AddCommand(new PrincipalRotateSecretCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("rotate-secret --org-id test-org-123 --client-id client-456");
