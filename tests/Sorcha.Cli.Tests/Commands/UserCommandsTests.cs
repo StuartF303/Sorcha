@@ -1,7 +1,9 @@
 using System.CommandLine;
 using FluentAssertions;
+using Moq;
 using Sorcha.Cli.Commands;
 using Sorcha.Cli.Infrastructure;
+using Sorcha.Cli.Models;
 using Sorcha.Cli.Services;
 using Xunit;
 
@@ -12,16 +14,32 @@ namespace Sorcha.Cli.Tests.Commands;
 /// </summary>
 public class UserCommandsTests
 {
-    // Note: Structure tests use null dependencies since we're only testing command structure, not execution
-    private readonly HttpClientFactory _clientFactory = null!;
-    private readonly IAuthenticationService _authService = null!;
-    private readonly IConfigurationService _configService = null!;
+    private readonly Mock<IAuthenticationService> _mockAuthService;
+    private readonly Mock<IConfigurationService> _mockConfigService;
+    private readonly HttpClientFactory _clientFactory;
+
+    public UserCommandsTests()
+    {
+        _mockAuthService = new Mock<IAuthenticationService>();
+        _mockConfigService = new Mock<IConfigurationService>();
+
+        // Setup default mock behavior
+        _mockConfigService.Setup(x => x.GetActiveProfileAsync())
+            .ReturnsAsync(new Profile { Name = "test" });
+        _mockAuthService.Setup(x => x.GetAccessTokenAsync(It.IsAny<string>()))
+            .ReturnsAsync("test-token");
+
+        _clientFactory = new HttpClientFactory(_mockConfigService.Object);
+    }
+
+    private IAuthenticationService AuthService => _mockAuthService.Object;
+    private IConfigurationService ConfigService => _mockConfigService.Object;
 
     [Fact]
     public void UserCommand_ShouldHaveCorrectNameAndDescription()
     {
         // Arrange & Act
-        var command = new UserCommand(_clientFactory, _authService, _configService);
+        var command = new UserCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("user");
@@ -32,7 +50,7 @@ public class UserCommandsTests
     public void UserCommand_ShouldHaveAllSubcommands()
     {
         // Arrange & Act
-        var command = new UserCommand(_clientFactory, _authService, _configService);
+        var command = new UserCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Subcommands.Should().HaveCount(5);
@@ -47,7 +65,7 @@ public class UserCommandsTests
     public void UserListCommand_ShouldHaveRequiredOrgIdOption()
     {
         // Arrange & Act
-        var command = new UserListCommand(_clientFactory, _authService, _configService);
+        var command = new UserListCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("list");
@@ -62,7 +80,7 @@ public class UserCommandsTests
     public void UserGetCommand_ShouldHaveRequiredOrgIdAndUserIdOptions()
     {
         // Arrange & Act
-        var command = new UserGetCommand(_clientFactory, _authService, _configService);
+        var command = new UserGetCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("get");
@@ -81,7 +99,7 @@ public class UserCommandsTests
     public void UserCreateCommand_ShouldHaveRequiredOptions()
     {
         // Arrange & Act
-        var command = new UserCreateCommand(_clientFactory, _authService, _configService);
+        var command = new UserCreateCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("create");
@@ -108,7 +126,7 @@ public class UserCommandsTests
     public void UserCreateCommand_ShouldHaveOptionalNameAndRolesOptions()
     {
         // Arrange & Act
-        var command = new UserCreateCommand(_clientFactory, _authService, _configService);
+        var command = new UserCreateCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         var firstNameOption = command.Options.FirstOrDefault(o => o.Name == "first-name");
@@ -128,7 +146,7 @@ public class UserCommandsTests
     public void UserUpdateCommand_ShouldHaveRequiredOrgIdAndUserIdOptions()
     {
         // Arrange & Act
-        var command = new UserUpdateCommand(_clientFactory, _authService, _configService);
+        var command = new UserUpdateCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("update");
@@ -147,7 +165,7 @@ public class UserCommandsTests
     public void UserUpdateCommand_ShouldHaveOptionalUpdateOptions()
     {
         // Arrange & Act
-        var command = new UserUpdateCommand(_clientFactory, _authService, _configService);
+        var command = new UserUpdateCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         var emailOption = command.Options.FirstOrDefault(o => o.Name == "email");
@@ -171,7 +189,7 @@ public class UserCommandsTests
     public void UserDeleteCommand_ShouldHaveRequiredOrgIdAndUserIdOptions()
     {
         // Arrange & Act
-        var command = new UserDeleteCommand(_clientFactory, _authService, _configService);
+        var command = new UserDeleteCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         command.Name.Should().Be("delete");
@@ -190,7 +208,7 @@ public class UserCommandsTests
     public void UserDeleteCommand_ShouldHaveOptionalYesOption()
     {
         // Arrange & Act
-        var command = new UserDeleteCommand(_clientFactory, _authService, _configService);
+        var command = new UserDeleteCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
         var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
@@ -203,7 +221,7 @@ public class UserCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new UserListCommand(_clientFactory, _authService, _configService));
+        rootCommand.AddCommand(new UserListCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("list --org-id test-org-123");
@@ -217,7 +235,7 @@ public class UserCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new UserGetCommand(_clientFactory, _authService, _configService));
+        rootCommand.AddCommand(new UserGetCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("get --org-id test-org-123 --user-id user-456");
@@ -231,7 +249,7 @@ public class UserCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new UserCreateCommand(_clientFactory, _authService, _configService));
+        rootCommand.AddCommand(new UserCreateCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("create --org-id test-org-123 --username john --email john@test.com --password test123");
@@ -245,7 +263,7 @@ public class UserCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new UserCreateCommand(_clientFactory, _authService, _configService));
+        rootCommand.AddCommand(new UserCreateCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
         var exitCode = await rootCommand.InvokeAsync("create --org-id test-org-123 --username john --email john@test.com --password test123 --first-name John --last-name Doe --roles Admin,User");

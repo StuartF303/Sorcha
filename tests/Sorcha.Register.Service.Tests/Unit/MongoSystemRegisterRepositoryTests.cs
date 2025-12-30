@@ -170,36 +170,140 @@ public class MongoSystemRegisterRepositoryTests
 /// Note: These tests require Docker and Testcontainers setup
 /// </summary>
 /// <remarks>
-/// To run these tests:
+/// Prerequisites for running these tests:
 /// 1. Install Docker Desktop
-/// 2. Add NuGet package: Testcontainers.MongoDb
-/// 3. Uncomment and implement the tests below
+/// 2. Add NuGet package: Testcontainers.MongoDb (version 4.x or later)
+/// 3. Ensure Docker daemon is running
 /// </remarks>
+[Trait("Category", "Integration")]
+[Trait("Requires", "Docker")]
 public class MongoSystemRegisterRepositoryIntegrationTests
 {
-    // TODO: Implement integration tests using Testcontainers
-    // Example structure:
-    //
-    // private readonly MongoDbContainer _mongoContainer;
-    //
-    // public async Task InitializeAsync()
-    // {
-    //     _mongoContainer = new MongoDbBuilder().Build();
-    //     await _mongoContainer.StartAsync();
-    // }
-    //
-    // [Fact]
-    // public async Task PublishBlueprintAsync_AutoIncrementsVersion()
-    // {
-    //     // Arrange
-    //     var client = new MongoClient(_mongoContainer.GetConnectionString());
-    //     var repository = new MongoSystemRegisterRepository(client, "test_db", logger);
-    //
-    //     // Act & Assert
-    //     var entry1 = await repository.PublishBlueprintAsync(CreateTestEntry("bp1"));
-    //     entry1.Version.Should().Be(1);
-    //
-    //     var entry2 = await repository.PublishBlueprintAsync(CreateTestEntry("bp2"));
-    //     entry2.Version.Should().Be(2);
-    // }
+    private const string TESTCONTAINERS_NOT_CONFIGURED = "Testcontainers.MongoDb package is not installed. " +
+        "To enable these tests, add the package reference and uncomment the test implementations.";
+
+    /// <summary>
+    /// Tests that publishing blueprints auto-increments version numbers
+    /// </summary>
+    [Fact(Skip = TESTCONTAINERS_NOT_CONFIGURED)]
+    public async Task PublishBlueprintAsync_AutoIncrementsVersion()
+    {
+        // Implementation requires Testcontainers.MongoDb package:
+        //
+        // var container = new MongoDbBuilder().Build();
+        // await container.StartAsync();
+        // var client = new MongoClient(container.GetConnectionString());
+        // var logger = new Mock<ILogger<MongoSystemRegisterRepository>>().Object;
+        // var repository = new MongoSystemRegisterRepository(client, "test_db", logger);
+        //
+        // var entry1 = await repository.PublishBlueprintAsync(CreateTestEntry("blueprint-1"));
+        // entry1.Version.Should().Be(1);
+        //
+        // var entry2 = await repository.PublishBlueprintAsync(CreateTestEntry("blueprint-1")); // Same ID
+        // entry2.Version.Should().Be(2);
+        //
+        // await container.StopAsync();
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Tests that retrieving a blueprint by ID returns the correct document
+    /// </summary>
+    [Fact(Skip = TESTCONTAINERS_NOT_CONFIGURED)]
+    public async Task GetBlueprintByIdAsync_ReturnsPublishedDocument()
+    {
+        // Implementation requires Testcontainers.MongoDb package:
+        //
+        // var container = new MongoDbBuilder().Build();
+        // await container.StartAsync();
+        // var client = new MongoClient(container.GetConnectionString());
+        // var logger = new Mock<ILogger<MongoSystemRegisterRepository>>().Object;
+        // var repository = new MongoSystemRegisterRepository(client, "test_db", logger);
+        //
+        // var entry = CreateTestEntry("blueprint-test");
+        // await repository.PublishBlueprintAsync(entry);
+        //
+        // var retrieved = await repository.GetBlueprintByIdAsync("blueprint-test");
+        // retrieved.Should().NotBeNull();
+        // retrieved!.BlueprintId.Should().Be("blueprint-test");
+        //
+        // await container.StopAsync();
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Tests that deprecating a blueprint updates its status
+    /// </summary>
+    [Fact(Skip = TESTCONTAINERS_NOT_CONFIGURED)]
+    public async Task DeprecateBlueprintAsync_UpdatesStatusToDeprecated()
+    {
+        // Implementation requires Testcontainers.MongoDb package:
+        //
+        // var container = new MongoDbBuilder().Build();
+        // await container.StartAsync();
+        // var client = new MongoClient(container.GetConnectionString());
+        // var logger = new Mock<ILogger<MongoSystemRegisterRepository>>().Object;
+        // var repository = new MongoSystemRegisterRepository(client, "test_db", logger);
+        //
+        // var entry = CreateTestEntry("blueprint-deprecate");
+        // await repository.PublishBlueprintAsync(entry);
+        //
+        // await repository.DeprecateBlueprintAsync("blueprint-deprecate");
+        //
+        // var retrieved = await repository.GetBlueprintByIdAsync("blueprint-deprecate");
+        // retrieved.Should().NotBeNull();
+        // retrieved!.Status.Should().Be(BlueprintStatus.Deprecated);
+        //
+        // await container.StopAsync();
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Tests querying blueprints with pagination
+    /// </summary>
+    [Fact(Skip = TESTCONTAINERS_NOT_CONFIGURED)]
+    public async Task QueryBlueprintsAsync_SupportsPagination()
+    {
+        // Implementation requires Testcontainers.MongoDb package:
+        //
+        // var container = new MongoDbBuilder().Build();
+        // await container.StartAsync();
+        // var client = new MongoClient(container.GetConnectionString());
+        // var logger = new Mock<ILogger<MongoSystemRegisterRepository>>().Object;
+        // var repository = new MongoSystemRegisterRepository(client, "test_db", logger);
+        //
+        // // Publish 10 blueprints
+        // for (int i = 0; i < 10; i++)
+        // {
+        //     await repository.PublishBlueprintAsync(CreateTestEntry($"blueprint-{i}"));
+        // }
+        //
+        // var page1 = await repository.QueryBlueprintsAsync(skip: 0, take: 5);
+        // page1.Should().HaveCount(5);
+        //
+        // var page2 = await repository.QueryBlueprintsAsync(skip: 5, take: 5);
+        // page2.Should().HaveCount(5);
+        //
+        // await container.StopAsync();
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Helper method to create test entries
+    /// </summary>
+    private static SystemRegisterEntry CreateTestEntry(string blueprintId)
+    {
+        return new SystemRegisterEntry
+        {
+            BlueprintId = blueprintId,
+            RegisterId = Guid.Empty, // System register uses empty GUID
+            Document = new BsonDocument
+            {
+                { "name", blueprintId },
+                { "description", $"Test blueprint {blueprintId}" }
+            },
+            PublishedBy = "test-user",
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+    }
 }
