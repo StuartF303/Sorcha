@@ -99,7 +99,16 @@
       "Bash(unix2dos:*)",
       "Bash(git checkout:*)",
       "Bash(dotnet test:*)",
-      "Bash(docker ps:*)"
+      "Bash(docker ps:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File scripts/bootstrap-sorcha.ps1:*)",
+      "Bash(dotnet pack:*)",
+      "Bash(dotnet tool install:*)",
+      "Bash(sorcha --version:*)",
+      "Bash(sorcha --help:*)",
+      "Bash(tasklist:*)",
+      "Bash(dotnet tool uninstall:*)",
+      "Bash(sorcha bootstrap --help:*)",
+      "Bash(sorcha bootstrap:*)"
     ],
     "deny": [],
     "ask": []

@@ -145,6 +145,9 @@ internal class Program
         var clientFactory = serviceProvider.GetRequiredService<HttpClientFactory>();
 
         // Subcommands with dependency injection
+        // Bootstrap command (Sprint 5)
+        rootCommand.AddCommand(new BootstrapCommand(clientFactory, configService));
+
         // Sprint 2: Tenant Service commands
         rootCommand.AddCommand(new OrganizationCommand(clientFactory, authService, configService));
         rootCommand.AddCommand(new UserCommand(clientFactory, authService, configService));

@@ -109,4 +109,14 @@ public interface ITenantServiceClient
     Task<RotateSecretResponse> RotateSecretAsync(string organizationId, string clientId, [Header("Authorization")] string authorization);
 
     #endregion
+
+    #region Bootstrap
+
+    /// <summary>
+    /// Bootstraps a fresh Sorcha installation with initial organization and admin user.
+    /// </summary>
+    [Post("/api/tenants/bootstrap")]
+    Task<BootstrapResponse> BootstrapAsync([Body] BootstrapRequest request);
+
+    #endregion
 }
