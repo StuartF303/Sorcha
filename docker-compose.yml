@@ -191,7 +191,8 @@ services:
     image: sorcha/tenant-service:latest
     container_name: sorcha-tenant-service
     restart: unless-stopped
-    # No ports published - internal service only, accessed via API Gateway
+    ports:
+      - "5110:8080"  # Exposed for direct access during development/bootstrap
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: tenant-service

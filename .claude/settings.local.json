@@ -108,7 +108,15 @@
       "Bash(tasklist:*)",
       "Bash(dotnet tool uninstall:*)",
       "Bash(sorcha bootstrap --help:*)",
-      "Bash(sorcha bootstrap:*)"
+      "Bash(sorcha bootstrap:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker port:*)",
+      "Bash(sorcha auth login:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker-compose build:*)"
     ],
     "deny": [],
     "ask": []
