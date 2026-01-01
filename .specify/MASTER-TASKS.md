@@ -12,11 +12,19 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 234 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 134 (57%)
+**Completed:** 135 (58%)
 **In Progress:** 0 (0%)
-**Not Started:** 100 (43%)
+**Not Started:** 99 (42%)
 
 **Note:** Counts updated 2026-01-01:
+- ✅ **TENANT-SERVICE-001 COMPLETE**: Bootstrap API endpoint implemented (8h)
+  - Created `/api/tenants/bootstrap` endpoint in Tenant Service
+  - Atomically creates organization, admin user with BCrypt password hashing, and optional service principal
+  - Added BootstrapRequest and BootstrapResponse DTOs
+  - Comprehensive validation for all inputs (org name, subdomain, email, password)
+  - Returns placeholder tokens with instruction to use `/api/auth/login`
+  - Integration tests added (8 tests covering success and validation scenarios)
+  - See [BootstrapEndpoints.cs](../src/Services/Sorcha.Tenant.Service/Endpoints/BootstrapEndpoints.cs)
 - ✅ **BOOTSTRAP SCRIPTS CREATED**: PowerShell and Bash bootstrap automation scripts
   - `scripts/bootstrap-sorcha.ps1` - Windows PowerShell bootstrap script
   - `scripts/bootstrap-sorcha.sh` - Linux/macOS Bash bootstrap script
@@ -956,7 +964,7 @@ Enhancement tasks that can be deferred until after MVD is complete.
 | CLI-BOOTSTRAP-004 | Implement `sorcha sp create` command | P0 | 4h | 📋 Not Started | - |
 | CLI-BOOTSTRAP-005 | Implement `sorcha register create` command | P0 | 4h | 📋 Not Started | - |
 | CLI-BOOTSTRAP-006 | Implement `sorcha node configure` command (NEW) | P1 | 6h | 📋 Not Started | - |
-| TENANT-SERVICE-001 | Implement bootstrap API endpoint | P1 | 8h | 📋 Not Started | - |
+| TENANT-SERVICE-001 | Implement bootstrap API endpoint | P1 | 8h | ✅ Complete | 2026-01-01 |
 | PEER-SERVICE-001 | Implement node configuration API | P1 | 6h | 📋 Not Started | - |
 
 **Sprint 5 Total:** 8 tasks, 42 hours

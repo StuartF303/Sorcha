@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Bootstrap script for initial Sorcha platform setup using Sorcha CLI
 .DESCRIPTION
@@ -35,6 +35,13 @@ param(
 # Script configuration
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+
+# Configuration paths
+$configDir = Join-Path $env:USERPROFILE ".sorcha"
+$configFile = Join-Path $configDir "config.json"
+if (-not (Test-Path $configDir)) {
+    New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+}
 
 # Color output helpers
 function Write-Step {
@@ -149,7 +156,7 @@ Write-Host "PHASE 2: Initial Authentication" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Info "For bootstrap, we'll create an initial service principal for automation"
+Write-Info "For bootstrap, we will create an initial service principal for automation"
 
 $bootstrapClientId = Get-UserInput -Prompt "Bootstrap Service Principal Client ID" -Default "sorcha-bootstrap"
 $bootstrapClientSecret = Get-UserInput -Prompt "Bootstrap Service Principal Secret" -Default "bootstrap-secret-$(Get-Random -Minimum 1000 -Maximum 9999)" -Secure
@@ -235,57 +242,13 @@ Write-Host "Starting Installation" -ForegroundColor Green
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
 Write-Host ""
 
-# TODO: Track required CLI enhancements
-$enhancementsTODO = @"
-SORCHA CLI ENHANCEMENTS NEEDED (tracked in MASTER-TASKS.md):
-
-1. CLI-BOOTSTRAP-001: Implement sorcha config init command [COMPLETE]
-   - Initialize CLI configuration profile
-   - Set service URLs
-   - Validate connectivity
-
-2. CLI-BOOTSTRAP-002: Implement sorcha org create command [COMPLETE]
-   - Create organization with subdomain
-   - Set branding/description
-   - Return organization ID
-
-3. CLI-BOOTSTRAP-003: Implement sorcha user create command [COMPLETE]
-   - Create user in organization
-   - Set initial password
-   - Assign role (Administrator)
-
-4. CLI-BOOTSTRAP-004: Implement sorcha principal create command [COMPLETE]
-   - Create service principal
-   - Generate and return secret
-   - Set scopes
-
-5. CLI-BOOTSTRAP-005: Implement sorcha register create command [COMPLETE]
-   - Create register in organization
-   - Set description
-   - Publish register
-
-6. CLI-BOOTSTRAP-006: Implement sorcha node configure command [PENDING]
-   - Set node ID/name
-   - Configure P2P settings
-   - Set node metadata
-
-7. TENANT-SERVICE-001: Implement bootstrap API endpoint
-   - POST /api/tenants/bootstrap
-   - Create initial org + admin user atomically
-   - Return credentials
-
-8. PEER-SERVICE-001: Implement node configuration API
-   - POST /api/peers/configure
-   - Set node identity
-   - Configure P2P parameters
-
-STATUS UPDATE:
-✓ CLI-BOOTSTRAP-001 through 005 are now IMPLEMENTED!
-- All CLI commands are available and functional
-- Steps 4-7 require authentication infrastructure (pending)
-"@
-
-Write-Host $enhancementsTODO -ForegroundColor Cyan
+# Display bootstrap status
+Write-Host ""
+Write-Host "BOOTSTRAP STATUS:" -ForegroundColor Cyan
+Write-Host "  CLI-BOOTSTRAP-001 through 005: COMPLETE" -ForegroundColor Green
+Write-Host "  All CLI commands are implemented and functional" -ForegroundColor Green
+Write-Host "  Steps 4-7 require authentication infrastructure (pending)" -ForegroundColor Yellow
+Write-Host "  See MASTER-TASKS.md for detailed tracking" -ForegroundColor Gray
 Write-Host ""
 
 # Step 1: Check Docker services
@@ -348,7 +311,7 @@ $configArgs = @(
 
 $result = & sorcha $configArgs 2>&1
 if ($LASTEXITCODE -eq 0) {
-    Write-Success "CLI profile '$Profile' configured"
+    Write-Success "CLI profile `"$Profile`" configured"
 } else {
     Write-Error "Failed to initialize CLI profile: $result"
     exit 1
@@ -358,14 +321,14 @@ if ($LASTEXITCODE -eq 0) {
 Write-Step "Step 4/7: Creating bootstrap service principal..."
 Write-Info "NOTE: This step requires Tenant Service to be running and authentication configured"
 Write-Info "Skipping for initial bootstrap - configure authentication manually first"
-Write-Info "After authentication is set up, run: sorcha principal create --org-id <org-id> --name sorcha-bootstrap --scopes admin"
+Write-Info "After authentication is set up, run: sorcha principal create --org-id YOUR_ORG_ID --name sorcha-bootstrap --scopes admin"
 Write-Success "Bootstrap service principal configuration noted"
 
 # Step 5: Create organization
 Write-Step "Step 5/7: Creating organization..."
 Write-Info "NOTE: This step requires authentication to be configured"
 Write-Info "Skipping for initial bootstrap - configure authentication manually first"
-Write-Info "After authentication is set up, run: sorcha org create --name '$orgName' --subdomain '$orgSubdomain'"
+Write-Info "After authentication is set up, run: sorcha org create --name `"$orgName`" --subdomain `"$orgSubdomain`""
 $orgId = "00000000-0000-0000-0000-000000000000" # Placeholder - will be replaced with actual ID from API
 Write-Success "Organization creation noted (manual step required)"
 
@@ -373,14 +336,14 @@ Write-Success "Organization creation noted (manual step required)"
 Write-Step "Step 6/7: Creating administrative user..."
 Write-Info "NOTE: This step requires authentication to be configured"
 Write-Info "Skipping for initial bootstrap - configure authentication manually first"
-Write-Info "After authentication is set up, run: sorcha user create --org-id <org-id> --username '$adminEmail' --email '$adminEmail' --password <password> --roles Admin"
+Write-Info "After authentication is set up, run: sorcha user create --org-id YOUR_ORG_ID --username `"$adminEmail`" --email `"$adminEmail`" --password YOUR_PASSWORD --roles Admin"
 Write-Success "Admin user creation noted (manual step required)"
 
 # Step 7: Create initial register
 Write-Step "Step 7/7: Creating initial register..."
 Write-Info "NOTE: This step requires authentication to be configured"
 Write-Info "Skipping for initial bootstrap - configure authentication manually first"
-Write-Info "After authentication is set up, run: sorcha register create --name '$registerName' --org-id <org-id>"
+Write-Info "After authentication is set up, run: sorcha register create --name `"$registerName`" --org-id YOUR_ORG_ID"
 Write-Success "Register creation noted (manual step required)"
 
 Write-Host ""
@@ -425,12 +388,12 @@ $bootstrapInfo = @{
         peer = $peerUrl
     }
     enhancements = @(
-        "CLI-BOOTSTRAP-001: Implement 'sorcha config init' command - COMPLETE",
-        "CLI-BOOTSTRAP-002: Implement 'sorcha org create' command - COMPLETE",
-        "CLI-BOOTSTRAP-003: Implement 'sorcha user create' command - COMPLETE",
-        "CLI-BOOTSTRAP-004: Implement 'sorcha principal create' command - COMPLETE",
-        "CLI-BOOTSTRAP-005: Implement 'sorcha register create' command - COMPLETE",
-        "CLI-BOOTSTRAP-006: Implement 'sorcha node configure' command - PENDING",
+        "CLI-BOOTSTRAP-001: Implement sorcha config init command - COMPLETE",
+        "CLI-BOOTSTRAP-002: Implement sorcha org create command - COMPLETE",
+        "CLI-BOOTSTRAP-003: Implement sorcha user create command - COMPLETE",
+        "CLI-BOOTSTRAP-004: Implement sorcha principal create command - COMPLETE",
+        "CLI-BOOTSTRAP-005: Implement sorcha register create command - COMPLETE",
+        "CLI-BOOTSTRAP-006: Implement sorcha node configure command - PENDING",
         "TENANT-SERVICE-001: Implement bootstrap API endpoint - PENDING",
         "PEER-SERVICE-001: Implement node configuration API - PENDING"
     )
@@ -440,5 +403,5 @@ $bootstrapFile = Join-Path $configDir "bootstrap-info.json"
 $bootstrapInfo | ConvertTo-Json -Depth 10 | Out-File -FilePath $bootstrapFile -Encoding UTF8
 
 Write-Success "Bootstrap completed successfully!"
-Write-Host "  Bootstrap details saved to: $bootstrapFile" -ForegroundColor Gray
 Write-Host ""
+

@@ -93,7 +93,12 @@
       "Bash(dotnet dev-certs:*)",
       "Bash(dotnet build:*)",
       "Bash(dotnet run:*)",
-      "Bash(powershell -Command \"Get-Content scripts/bootstrap-sorcha.ps1 | Select-String -Pattern \"\"''sorcha\"\" -Context 0,0\")"
+      "Bash(powershell -Command \"Get-Content scripts/bootstrap-sorcha.ps1 | Select-String -Pattern \"\"''sorcha\"\" -Context 0,0\")",
+      "Bash(Select-String -Pattern \"error|Error\")",
+      "Bash(xxd:*)",
+      "Bash(unix2dos:*)",
+      "Bash(git checkout:*)",
+      "Bash(dotnet test:*)"
     ],
     "deny": [],
     "ask": []

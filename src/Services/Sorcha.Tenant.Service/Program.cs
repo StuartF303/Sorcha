@@ -272,6 +272,7 @@ try
     app.UseRateLimiter();
 
     // Map API endpoint groups
+    app.MapBootstrapEndpoints();
     app.MapOrganizationEndpoints();
     app.MapAuthEndpoints();
     app.MapServiceAuthEndpoints();
