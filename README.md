@@ -317,34 +317,56 @@ dotnet run --project src/Apps/Sorcha.Admin
 
 #### Option 3: Using Docker Compose (Production-Like)
 
-For a production-like environment with all services containerized:
+For a production-like environment with all services containerized.
 
-```bash
-# Start all services with Docker Compose
-docker-compose up -d
+> 📘 **Quick Start Guide**: See [docs/DOCKER-QUICK-START.md](docs/DOCKER-QUICK-START.md) for a comprehensive Docker deployment guide.
 
-# View logs
-docker-compose logs -f
+**Prerequisites:**
+1. **Generate HTTPS Certificate** (required for API Gateway):
+   ```bash
+   # Create certificates directory
+   mkdir -p docker/certs
 
-# Stop all services
-docker-compose down
-```
+   # Generate development certificate
+   dotnet dev-certs https -ep docker/certs/aspnetapp.pfx -p SorchaDev2025 --trust
+   ```
+
+2. **Start Services**:
+   ```bash
+   # Start all services with Docker Compose
+   docker-compose up -d
+
+   # View logs
+   docker-compose logs -f
+
+   # Stop all services
+   docker-compose down
+   ```
 
 **Access Points:**
-- **API Gateway HTTP**: `http://localhost/api/...`
-- **API Gateway HTTPS**: `https://localhost/api/...`
-- **Developer Docs**: `http://localhost/scalar/`
-- **Health Checks**: `http://localhost/api/health`
-- **Hub Node gRPC**: `localhost:50051`
-- **Peer Service gRPC**: `localhost:50052`
-- **Aspire Dashboard**: `http://localhost:18888`
-- **Infrastructure**: PostgreSQL (5432), Redis (6379), MongoDB (27017)
+- **API Gateway (HTTP)**: `http://localhost/` - Landing page with system dashboard
+- **API Gateway (HTTPS)**: `https://localhost/` - Secure access (requires certificate)
+- **API Documentation**: `http://localhost/scalar/` - Interactive Scalar API docs
+- **Health Check**: `http://localhost/api/health` - Aggregated service health
+- **Dashboard Stats**: `http://localhost/api/dashboard` - Platform statistics (blueprints, wallets, registers)
+- **Aspire Dashboard**: `http://localhost:18888` - Observability and telemetry
+
+**Infrastructure Services:**
+- **PostgreSQL**: `localhost:5432` - User: `sorcha`, Password: `sorcha_dev_password`
+- **MongoDB**: `localhost:27017` - User: `sorcha`, Password: `sorcha_dev_password`
+- **Redis**: `localhost:6379` - No authentication
+
+**P2P gRPC Endpoints:**
+- **Hub Node**: `localhost:50051` - gRPC P2P hub for external connections
+- **Peer Service**: `localhost:50052` - gRPC peer node connections
 
 **Networking:**
 - Single bridge network (`sorcha-network`)
 - Services communicate via Docker DNS (e.g., `http://wallet-service:8080`)
 - External access via published ports only
-- See [docs/DOCKER-BRIDGE-NETWORKING.md](docs/DOCKER-BRIDGE-NETWORKING.md) for details
+- Backend services (blueprint, wallet, register, tenant, validator) are not directly exposed
+- All HTTP/HTTPS API access goes through the API Gateway
+- See [docs/DOCKER-BRIDGE-NETWORKING.md](docs/DOCKER-BRIDGE-NETWORKING.md) for detailed networking architecture
 
 ### Development Workflow
 

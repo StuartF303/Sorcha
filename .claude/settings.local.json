@@ -89,7 +89,8 @@
       "Bash(Select-Object -Last 20)",
       "Bash(Select-String -Pattern \"successfully connected|hub.*connect|connection.*hub|failed.*connect\" -Context 0,2)",
       "Bash(Select-String -Pattern \"peer.*registered|peer.*connected|incoming.*connection\" -Context 0,1)",
-      "Bash(Select-Object -Last 15)"
+      "Bash(Select-Object -Last 15)",
+      "Bash(dotnet dev-certs:*)"
     ],
     "deny": [],
     "ask": []

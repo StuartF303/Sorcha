@@ -29,6 +29,46 @@ For CI/CD deployment, configure these secrets in GitHub:
 
 ## Docker Deployment
 
+> 📘 **Quick Start**: For a step-by-step Docker deployment guide, see [docs/DOCKER-QUICK-START.md](docs/DOCKER-QUICK-START.md)
+
+### Prerequisites
+
+Before deploying with Docker, ensure you have:
+- **Docker Desktop** 20.10+ with Docker Compose 2.0+
+- **.NET 10 SDK** (for certificate generation)
+
+### HTTPS Certificate Setup (Required)
+
+The API Gateway requires an HTTPS certificate for secure connections:
+
+```bash
+# Create certificates directory
+mkdir -p docker/certs
+
+# Generate development certificate
+dotnet dev-certs https -ep docker/certs/aspnetapp.pfx -p SorchaDev2025 --trust
+
+# Verify certificate was created
+ls docker/certs/
+# Should show: aspnetapp.pfx
+```
+
+**Certificate Details:**
+- **Path**: `docker/certs/aspnetapp.pfx`
+- **Password**: `SorchaDev2025` (configured in docker-compose.yml)
+- **Type**: Development certificate (for production, use proper CA-signed certificates)
+
+**Production Certificates:**
+For production deployments, replace the development certificate:
+```yaml
+# In docker-compose.yml
+environment:
+  ASPNETCORE_Kestrel__Certificates__Default__Path: /https/production.pfx
+  ASPNETCORE_Kestrel__Certificates__Default__Password: ${CERT_PASSWORD}
+volumes:
+  - /path/to/production/certs:/https:ro
+```
+
 ### Quick Start
 
 ```bash
@@ -47,12 +87,42 @@ docker-compose logs -f
 
 ### Access Services
 
+**Primary Access Points:**
+
 | Service | URL | Description |
 |---------|-----|-------------|
-| API Gateway | http://localhost:8080 | Single entry point |
-| Landing Page | http://localhost:8080 | System dashboard |
-| Health Check | http://localhost:8080/api/health | Aggregated health |
-| API Docs | http://localhost:8080/scalar/v1 | Interactive docs |
+| **Landing Page** | `http://localhost/` | System dashboard with statistics |
+| **API Gateway (HTTP)** | `http://localhost/` | Main HTTP entry point |
+| **API Gateway (HTTPS)** | `https://localhost/` | Secure HTTPS entry point |
+| **Health Check** | `http://localhost/api/health` | Aggregated service health |
+| **Dashboard Stats** | `http://localhost/api/dashboard` | Platform statistics |
+| **API Documentation** | `http://localhost/scalar/` | Interactive Scalar API docs |
+| **OpenAPI Schema** | `http://localhost/openapi/v1.json` | API specification |
+
+**Infrastructure Services:**
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| **PostgreSQL** | `localhost:5432` | User: `sorcha`, Password: `sorcha_dev_password` |
+| **MongoDB** | `localhost:27017` | User: `sorcha`, Password: `sorcha_dev_password` |
+| **Redis** | `localhost:6379` | No authentication |
+| **Aspire Dashboard** | `http://localhost:18888` | Observability and telemetry |
+
+**P2P gRPC Services:**
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| **Hub Node** | `localhost:50051` | P2P hub node for external connections |
+| **Peer Service** | `localhost:50052` | Regular peer node connections |
+
+**Backend Services (Internal Only):**
+- Blueprint Service - Accessed via `/api/blueprints/...`
+- Wallet Service - Accessed via `/api/wallets/...`
+- Register Service - Accessed via `/api/register/...`
+- Tenant Service - Accessed via `/api/tenants/...`
+- Validator Service - Accessed via `/api/validator/...`
+
+All backend services are routed through the API Gateway and not directly exposed.
 
 ### Service Architecture
 
@@ -424,6 +494,29 @@ Production metrics (configure):
 
 ## Troubleshooting
 
+### Missing HTTPS Certificate
+
+**Error: Could not find certificate at /https/aspnetapp.pfx**
+
+This is the most common issue when first deploying Sorcha with Docker.
+
+**Solution:**
+```bash
+# Generate the development certificate
+dotnet dev-certs https -ep docker/certs/aspnetapp.pfx -p SorchaDev2025 --trust
+
+# Restart the API Gateway
+docker-compose restart api-gateway
+
+# Verify the certificate exists
+ls -la docker/certs/aspnetapp.pfx
+```
+
+**Verify certificate (optional):**
+```bash
+openssl pkcs12 -info -in docker/certs/aspnetapp.pfx -nodes -passin pass:SorchaDev2025
+```
+
 ### Services Won't Start
 
 **Check logs:**
@@ -432,9 +525,24 @@ docker-compose logs api-gateway
 ```
 
 **Common issues:**
-- Redis not ready: Wait for health check
-- Port conflicts: Change ports in docker-compose.yml
-- Network issues: Restart Docker
+- **Missing HTTPS certificate**: Generate certificate using `dotnet dev-certs` (see above)
+- **Redis not ready**: Wait for health check to complete (can take 30-60 seconds)
+- **Port conflicts**: Change ports in docker-compose.yml (e.g., `80:8080` → `8080:8080`)
+- **Network issues**: Restart Docker Desktop
+- **Permission errors**: Ensure certificate file is readable by Docker
+
+**Check service status:**
+```bash
+# View all service status
+docker-compose ps
+
+# Check for unhealthy services
+docker-compose ps | grep unhealthy
+
+# View specific service logs
+docker-compose logs -f api-gateway
+docker-compose logs -f wallet-service
+```
 
 ### High Memory Usage
 
