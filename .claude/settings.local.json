@@ -90,7 +90,10 @@
       "Bash(Select-String -Pattern \"successfully connected|hub.*connect|connection.*hub|failed.*connect\" -Context 0,2)",
       "Bash(Select-String -Pattern \"peer.*registered|peer.*connected|incoming.*connection\" -Context 0,1)",
       "Bash(Select-Object -Last 15)",
-      "Bash(dotnet dev-certs:*)"
+      "Bash(dotnet dev-certs:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet run:*)",
+      "Bash(powershell -Command \"Get-Content scripts/bootstrap-sorcha.ps1 | Select-String -Pattern \"\"''sorcha\"\" -Context 0,0\")"
     ],
     "deny": [],
     "ask": []

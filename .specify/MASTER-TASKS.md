@@ -11,10 +11,19 @@
 
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
-**Total Tasks:** 226 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 134 (59%)
+**Total Tasks:** 234 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
+**Completed:** 134 (57%)
 **In Progress:** 0 (0%)
-**Not Started:** 92 (41%)
+**Not Started:** 100 (43%)
+
+**Note:** Counts updated 2026-01-01:
+- ✅ **BOOTSTRAP SCRIPTS CREATED**: PowerShell and Bash bootstrap automation scripts
+  - `scripts/bootstrap-sorcha.ps1` - Windows PowerShell bootstrap script
+  - `scripts/bootstrap-sorcha.sh` - Linux/macOS Bash bootstrap script
+  - `scripts/README-BOOTSTRAP.md` - Comprehensive bootstrap documentation
+  - 8 new enhancement tasks added to Sprint 5: Bootstrap Automation
+  - Scripts use placeholder commands pending CLI implementation (CLI-BOOTSTRAP-001 through -006)
+  - See [CLI Sprint 5: Bootstrap Automation](#sprint-5-bootstrap-automation-additional---weeks-9-10)
 
 **Note:** Counts updated 2025-12-13:
 - ✅ **WS-008/009 COMPLETE**: Wallet Service EF Core repository and PostgreSQL migrations (28h)
@@ -107,9 +116,9 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% |
 | **Production Readiness** | 10 | 0 | 0 | 10 | 0% ⚠️ |
-| **CLI Admin Tool** (NEW) | 52 | 0 | 0 | 52 | 0% |
+| **CLI Admin Tool** (NEW) | 60 | 0 | 0 | 60 | 0% |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% |
-| **TOTAL** | **226** | **123** | **0** | **103** | **54%** |
+| **TOTAL** | **234** | **123** | **0** | **111** | **53%** |
 
 **Note:** Phase 1 now includes Sprint 10 (16 orchestration tasks). Sprint 8 validation and Sprint 10 orchestration complete.
 
@@ -925,6 +934,298 @@ Enhancement tasks that can be deferred until after MVD is complete.
 - ✅ Monitor peer network
 - ✅ Interactive console mode with history and completion
 - ✅ Script-friendly with JSON output and exit codes
+
+---
+
+### Sprint 5: Bootstrap Automation (Additional - Weeks 9-10)
+
+**Goal:** Bootstrap commands for automated platform setup
+
+**Background:** Bootstrap scripts have been created (`scripts/bootstrap-sorcha.ps1` and `scripts/bootstrap-sorcha.sh`) that guide users through initial Sorcha installation setup. These scripts currently use placeholder commands and require the following CLI enhancements to be fully functional.
+
+**Related Files:**
+- `scripts/bootstrap-sorcha.ps1` (PowerShell bootstrap script)
+- `scripts/bootstrap-sorcha.sh` (Bash bootstrap script)
+- `scripts/README-BOOTSTRAP.md` (Bootstrap documentation)
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| CLI-BOOTSTRAP-001 | Implement `sorcha config init` command | P0 | 6h | 📋 Not Started | - |
+| CLI-BOOTSTRAP-002 | Implement `sorcha org create` command | P0 | 4h | 📋 Not Started | - |
+| CLI-BOOTSTRAP-003 | Implement `sorcha user create` command | P0 | 4h | 📋 Not Started | - |
+| CLI-BOOTSTRAP-004 | Implement `sorcha sp create` command | P0 | 4h | 📋 Not Started | - |
+| CLI-BOOTSTRAP-005 | Implement `sorcha register create` command | P0 | 4h | 📋 Not Started | - |
+| CLI-BOOTSTRAP-006 | Implement `sorcha node configure` command (NEW) | P1 | 6h | 📋 Not Started | - |
+| TENANT-SERVICE-001 | Implement bootstrap API endpoint | P1 | 8h | 📋 Not Started | - |
+| PEER-SERVICE-001 | Implement node configuration API | P1 | 6h | 📋 Not Started | - |
+
+**Sprint 5 Total:** 8 tasks, 42 hours
+
+**Task Details:**
+
+#### CLI-BOOTSTRAP-001: Implement `sorcha config init`
+**Purpose:** Initialize CLI configuration profile with service URLs
+
+**Command:**
+```bash
+sorcha config init \
+  --profile docker \
+  --tenant-url http://localhost/api/tenants \
+  --register-url http://localhost/api/register \
+  --wallet-url http://localhost/api/wallets \
+  --peer-url http://localhost/api/peers \
+  --auth-url http://localhost/api/service-auth/token
+```
+
+**Implementation:**
+- Create or update profile in `~/.sorcha/config.json`
+- Validate service URLs connectivity (HTTP GET to health endpoints)
+- Set default client ID
+- Return success/failure with exit code
+
+**Output:**
+```json
+{
+  "profile": "docker",
+  "status": "created",
+  "serviceUrls": {
+    "tenant": "http://localhost/api/tenants",
+    "register": "http://localhost/api/register",
+    "wallet": "http://localhost/api/wallets",
+    "peer": "http://localhost/api/peers"
+  },
+  "connectivityCheck": "passed"
+}
+```
+
+#### CLI-BOOTSTRAP-002: Implement `sorcha org create`
+**Purpose:** Create organization with subdomain
+
+**Command:**
+```bash
+sorcha org create \
+  --name "System Organization" \
+  --subdomain "system" \
+  --description "Primary system organization"
+```
+
+**Implementation:**
+- Call Tenant Service API: `POST /api/tenants/organizations`
+- Create organization with provided details
+- Return organization ID in JSON output
+
+**Output:**
+```json
+{
+  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "name": "System Organization",
+  "subdomain": "system",
+  "status": "Active"
+}
+```
+
+#### CLI-BOOTSTRAP-003: Implement `sorcha user create`
+**Purpose:** Create user in organization with role
+
+**Command:**
+```bash
+sorcha user create \
+  --org-id <guid> \
+  --email admin@sorcha.local \
+  --name "System Administrator" \
+  --password <secure> \
+  --role Administrator
+```
+
+**Implementation:**
+- Call Tenant Service API: `POST /api/tenants/users`
+- Create user with specified role
+- Handle password securely (prompt if not provided)
+- Return user ID
+
+**Output:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "admin@sorcha.local",
+  "name": "System Administrator",
+  "role": "Administrator",
+  "organizationId": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+}
+```
+
+#### CLI-BOOTSTRAP-004: Implement `sorcha sp create`
+**Purpose:** Create service principal with scopes
+
+**Command:**
+```bash
+sorcha sp create \
+  --name "sorcha-bootstrap" \
+  --scopes "all" \
+  --description "Bootstrap automation principal"
+```
+
+**Implementation:**
+- Call Tenant Service API: `POST /api/tenants/service-principals`
+- Create service principal
+- Generate and return client secret (display once with warning)
+- Return client ID
+
+**Output:**
+```json
+{
+  "clientId": "sorcha-bootstrap-20260101",
+  "clientSecret": "sk_live_a7b3c2d1_4e5f6a7b8c9d0e1f",
+  "name": "sorcha-bootstrap",
+  "scopes": ["all"],
+  "warning": "This secret is only shown once. Store it securely!"
+}
+```
+
+#### CLI-BOOTSTRAP-005: Implement `sorcha register create`
+**Purpose:** Create register in organization
+
+**Command:**
+```bash
+sorcha register create \
+  --name "System Register" \
+  --org-id <guid> \
+  --description "Primary system register" \
+  --publish
+```
+
+**Implementation:**
+- Call Register Service API: `POST /api/register/registers`
+- Create register
+- Optionally publish register
+- Return register ID
+
+**Output:**
+```json
+{
+  "id": "reg_abc123",
+  "name": "System Register",
+  "organizationId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "status": "Published"
+}
+```
+
+#### CLI-BOOTSTRAP-006: Implement `sorcha node configure` (NEW)
+**Purpose:** Configure P2P node identity and settings
+
+**Command:**
+```bash
+sorcha node configure \
+  --node-id "node-hostname" \
+  --description "Primary Sorcha node" \
+  --enable-p2p true \
+  --public-address <optional>
+```
+
+**Implementation:**
+- Call Peer Service API: `POST /api/peers/configure` (requires PEER-SERVICE-001)
+- Set node identity
+- Configure P2P settings
+- Return node status
+
+**Output:**
+```json
+{
+  "nodeId": "node-hostname",
+  "description": "Primary Sorcha node",
+  "p2pEnabled": true,
+  "status": "configured"
+}
+```
+
+#### TENANT-SERVICE-001: Implement Bootstrap API Endpoint
+**Purpose:** Atomic bootstrap operation (organization + admin user + service principal)
+
+**Endpoint:** `POST /api/tenants/bootstrap`
+
+**Request:**
+```json
+{
+  "organizationName": "System Organization",
+  "organizationSubdomain": "system",
+  "adminEmail": "admin@sorcha.local",
+  "adminName": "System Administrator",
+  "adminPassword": "<secure>",
+  "servicePrincipalName": "sorcha-bootstrap"
+}
+```
+
+**Response:**
+```json
+{
+  "organizationId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "servicePrincipal": {
+    "clientId": "sorcha-bootstrap-20260101",
+    "clientSecret": "sk_live_a7b3c2d1_4e5f6a7b8c9d0e1f"
+  },
+  "warning": "Client secret is only shown once. Store it securely!"
+}
+```
+
+**Benefits:**
+- Single atomic operation (rollback on failure)
+- Consistent state
+- Simplified bootstrap flow
+- Reduced API calls
+
+**Implementation:**
+- Use database transaction to ensure atomicity
+- Create organization
+- Create admin user in organization
+- Create service principal
+- Commit or rollback
+- Return all IDs and credentials
+
+#### PEER-SERVICE-001: Implement Node Configuration API
+**Purpose:** Configure peer node identity and P2P settings
+
+**Endpoint:** `POST /api/peers/configure`
+
+**Request:**
+```json
+{
+  "nodeId": "node-hostname",
+  "description": "Primary Sorcha node",
+  "enableP2P": true,
+  "publicAddress": "optional-external-ip"
+}
+```
+
+**Response:**
+```json
+{
+  "nodeId": "node-hostname",
+  "description": "Primary Sorcha node",
+  "p2pEnabled": true,
+  "publicAddress": null,
+  "status": "configured"
+}
+```
+
+**Implementation:**
+- Store node configuration in database/config
+- Update P2P service settings
+- Enable/disable P2P networking
+- Return current configuration status
+
+**Deliverables:**
+- Bootstrap commands fully functional
+- Bootstrap scripts work end-to-end
+- Atomic bootstrap API endpoint
+- Node configuration API
+- Updated bootstrap script documentation
+
+**Dependencies:**
+- Requires Sprint 2 (Tenant commands framework)
+- Requires Sprint 3 (Register commands framework)
+- TENANT-SERVICE-001 requires Tenant Service database
+- PEER-SERVICE-001 requires Peer Service configuration store
 - ✅ Works on Windows, macOS, and Linux
 
 ---
