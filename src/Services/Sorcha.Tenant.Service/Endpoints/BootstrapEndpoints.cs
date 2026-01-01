@@ -171,9 +171,20 @@ public static class BootstrapEndpoints
 
             return TypedResults.Created($"/api/organizations/{organization.Id}", response);
         }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("subdomain") || ex.Message.Contains("already exists"))
+        catch (ArgumentException ex) when (ex.Message.Contains("subdomain") || ex.Message.Contains("already taken"))
         {
-            // Organization or user already exists
+            // Subdomain already exists
+            logger.LogWarning("Bootstrap conflict: {Message}", ex.Message);
+            return TypedResults.Conflict(new ProblemDetails
+            {
+                Title = "Bootstrap Conflict",
+                Detail = ex.Message,
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already exists"))
+        {
+            // User already exists
             logger.LogWarning("Bootstrap conflict: {Message}", ex.Message);
             return TypedResults.Conflict(new ProblemDetails
             {

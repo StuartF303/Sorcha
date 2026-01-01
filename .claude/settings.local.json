@@ -98,7 +98,8 @@
       "Bash(xxd:*)",
       "Bash(unix2dos:*)",
       "Bash(git checkout:*)",
-      "Bash(dotnet test:*)"
+      "Bash(dotnet test:*)",
+      "Bash(docker ps:*)"
     ],
     "deny": [],
     "ask": []
