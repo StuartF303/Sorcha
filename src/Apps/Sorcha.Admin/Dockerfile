@@ -25,14 +25,14 @@ RUN dotnet publish "Sorcha.Admin.csproj" -c Release -o /app/publish /p:UseAppHos
 FROM nginx:alpine AS final
 WORKDIR /usr/share/nginx/html
 
-# Copy published Blazor WASM files
-COPY --from=build /app/publish/wwwroot .
+# Copy published Blazor WASM files to /admin subpath
+COPY --from=build /app/publish/wwwroot ./admin
 
 # Copy custom nginx configuration
 COPY src/Apps/Sorcha.Admin/nginx.conf /etc/nginx/nginx.conf
 
-# Expose port 8080
-EXPOSE 8080
+# Expose port 80 (standard HTTP)
+EXPOSE 80
 
 # Run nginx
 CMD ["nginx", "-g", "daemon off;"]
