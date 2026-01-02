@@ -9,12 +9,14 @@ x-otel-env: &otel-env
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker
 
 # Shared JWT configuration for all services
+# Installation name is used to derive issuer and audience automatically
+# The tenant service is the JWT authority - it issues tokens with the installation name
+# All other services validate tokens against this same installation name
 # The signing key is loaded from .env file or generated automatically
 # For production: Replace with Azure Key Vault or other secure key management
 x-jwt-env: &jwt-env
+  JwtSettings__InstallationName: ${INSTALLATION_NAME:-localhost}
   JwtSettings__SigningKey: ${JWT_SIGNING_KEY:-c29yY2hhLWRvY2tlci1kZXYta2V5LTIwMjUtbWluLTI1Ni1iaXRzLXNlY3VyZQ==}
-  JwtSettings__Issuer: http://tenant-service:8080
-  JwtSettings__Audience: http://api-gateway:8080
 
 services:
   # ===========================
@@ -200,8 +202,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__TenantDatabase: Host=postgres;Database=sorcha_tenant;Username=sorcha;Password=sorcha_dev_password
       Redis__ConnectionString: redis:6379
-      # Override JWT settings for tenant service (it issues tokens)
-      JwtSettings__Audience__0: http://api-gateway:8080
+      # Tenant service is the JWT authority - it issues tokens using the installation name
       JwtSettings__SigningKeySource: Configuration
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys

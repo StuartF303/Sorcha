@@ -67,7 +67,7 @@ public class AuthenticationService : IAuthenticationService
             formData["scope"] = request.Scope;
         }
 
-        var tokenResponse = await PostTokenRequestAsync(profile.AuthTokenUrl, formData);
+        var tokenResponse = await PostTokenRequestAsync(profile.GetAuthTokenUrl(), formData);
 
         // Cache the token
         var cacheEntry = new TokenCacheEntry
@@ -121,7 +121,7 @@ public class AuthenticationService : IAuthenticationService
             formData["scope"] = request.Scope;
         }
 
-        var tokenResponse = await PostTokenRequestAsync(profile.AuthTokenUrl, formData);
+        var tokenResponse = await PostTokenRequestAsync(profile.GetAuthTokenUrl(), formData);
 
         // Cache the token
         var cacheEntry = new TokenCacheEntry
@@ -190,7 +190,7 @@ public class AuthenticationService : IAuthenticationService
                 ["client_id"] = profile.DefaultClientId ?? "sorcha-cli"
             };
 
-            var tokenResponse = await PostTokenRequestAsync(profile.AuthTokenUrl, formData);
+            var tokenResponse = await PostTokenRequestAsync(profile.GetAuthTokenUrl(), formData);
 
             // Update cache with new token
             var cacheEntry = new TokenCacheEntry

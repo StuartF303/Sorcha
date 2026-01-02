@@ -38,13 +38,14 @@ public class ProfileListCommand : BaseCommand
 
     protected override async Task<int> ExecuteAsync(CommandContext context)
     {
-        var profiles = await context.ConfigurationService.ListProfilesAsync();
-        var config = await context.ConfigurationService.GetConfigurationAsync();
+        var configService = new ConfigurationService();
+        var profiles = await configService.ListProfilesAsync();
+        var config = await configService.GetConfigurationAsync();
 
         var profileList = profiles.Select(p => new
         {
             p.Name,
-            p.TenantServiceUrl,
+            ServiceUrl = !string.IsNullOrWhiteSpace(p.ServiceUrl) ? p.ServiceUrl : p.GetTenantServiceUrl(),
             Active = p.Name == config.ActiveProfile
         });
 
@@ -118,30 +119,29 @@ public class ConfigInitCommand : Command
             description: "Profile name",
             getDefaultValue: () => "docker");
 
-        var tenantUrlOption = new Option<string>(
+        var serviceUrlOption = new Option<string?>(
+            aliases: ["--service-url", "-s"],
+            description: "Base URL for all services (recommended - e.g., 'http://localhost')");
+
+        var tenantUrlOption = new Option<string?>(
             aliases: ["--tenant-url", "-t"],
-            description: "Tenant Service URL",
-            getDefaultValue: () => "http://localhost/api/tenants");
+            description: "Tenant Service URL (optional override)");
 
-        var registerUrlOption = new Option<string>(
+        var registerUrlOption = new Option<string?>(
             aliases: ["--register-url", "-r"],
-            description: "Register Service URL",
-            getDefaultValue: () => "http://localhost/api/register");
+            description: "Register Service URL (optional override)");
 
-        var walletUrlOption = new Option<string>(
+        var walletUrlOption = new Option<string?>(
             aliases: ["--wallet-url", "-w"],
-            description: "Wallet Service URL",
-            getDefaultValue: () => "http://localhost/api/wallets");
+            description: "Wallet Service URL (optional override)");
 
-        var peerUrlOption = new Option<string>(
+        var peerUrlOption = new Option<string?>(
             aliases: ["--peer-url"],
-            description: "Peer Service URL",
-            getDefaultValue: () => "http://localhost/api/peers");
+            description: "Peer Service URL (optional override)");
 
-        var authUrlOption = new Option<string>(
+        var authUrlOption = new Option<string?>(
             aliases: ["--auth-url", "-a"],
-            description: "Auth Token URL",
-            getDefaultValue: () => "http://localhost/api/service-auth/token");
+            description: "Auth Token URL (optional override)");
 
         var clientIdOption = new Option<string>(
             aliases: ["--client-id", "-c"],
@@ -169,6 +169,7 @@ public class ConfigInitCommand : Command
             getDefaultValue: () => true);
 
         AddOption(profileOption);
+        AddOption(serviceUrlOption);
         AddOption(tenantUrlOption);
         AddOption(registerUrlOption);
         AddOption(walletUrlOption);
@@ -185,11 +186,12 @@ public class ConfigInitCommand : Command
             try
             {
                 var profileName = context.ParseResult.GetValueForOption(profileOption)!;
-                var tenantUrl = context.ParseResult.GetValueForOption(tenantUrlOption)!;
-                var registerUrl = context.ParseResult.GetValueForOption(registerUrlOption)!;
-                var walletUrl = context.ParseResult.GetValueForOption(walletUrlOption)!;
-                var peerUrl = context.ParseResult.GetValueForOption(peerUrlOption)!;
-                var authUrl = context.ParseResult.GetValueForOption(authUrlOption)!;
+                var serviceUrl = context.ParseResult.GetValueForOption(serviceUrlOption);
+                var tenantUrl = context.ParseResult.GetValueForOption(tenantUrlOption);
+                var registerUrl = context.ParseResult.GetValueForOption(registerUrlOption);
+                var walletUrl = context.ParseResult.GetValueForOption(walletUrlOption);
+                var peerUrl = context.ParseResult.GetValueForOption(peerUrlOption);
+                var authUrl = context.ParseResult.GetValueForOption(authUrlOption);
                 var clientId = context.ParseResult.GetValueForOption(clientIdOption)!;
                 var verifySsl = context.ParseResult.GetValueForOption(verifySslOption);
                 var timeout = context.ParseResult.GetValueForOption(timeoutOption);
@@ -198,10 +200,23 @@ public class ConfigInitCommand : Command
 
                 var configService = new ConfigurationService();
 
+                // Validate that either base service URL or specific URLs are provided
+                if (string.IsNullOrWhiteSpace(serviceUrl) &&
+                    string.IsNullOrWhiteSpace(tenantUrl) &&
+                    string.IsNullOrWhiteSpace(registerUrl) &&
+                    string.IsNullOrWhiteSpace(walletUrl) &&
+                    string.IsNullOrWhiteSpace(peerUrl))
+                {
+                    Console.Error.WriteLine("Error: Either --service-url or at least one specific service URL must be provided.");
+                    Environment.Exit(ExitCodes.ValidationError);
+                    return;
+                }
+
                 // Create profile
                 var profile = new Profile
                 {
                     Name = profileName,
+                    ServiceUrl = serviceUrl,
                     TenantServiceUrl = tenantUrl,
                     RegisterServiceUrl = registerUrl,
                     WalletServiceUrl = walletUrl,
@@ -235,11 +250,17 @@ public class ConfigInitCommand : Command
 
                 // Output result
                 Console.WriteLine($"✓ Profile '{profileName}' {(isUpdate ? "updated" : "created")}");
-                Console.WriteLine($"  Tenant Service:   {tenantUrl}");
-                Console.WriteLine($"  Register Service: {registerUrl}");
-                Console.WriteLine($"  Wallet Service:   {walletUrl}");
-                Console.WriteLine($"  Peer Service:     {peerUrl}");
-                Console.WriteLine($"  Auth Token URL:   {authUrl}");
+
+                if (!string.IsNullOrWhiteSpace(serviceUrl))
+                {
+                    Console.WriteLine($"  Base Service URL: {serviceUrl}");
+                }
+
+                Console.WriteLine($"  Tenant Service:   {profile.GetTenantServiceUrl()}{(string.IsNullOrWhiteSpace(tenantUrl) ? " (from base)" : "")}");
+                Console.WriteLine($"  Register Service: {profile.GetRegisterServiceUrl()}{(string.IsNullOrWhiteSpace(registerUrl) ? " (from base)" : "")}");
+                Console.WriteLine($"  Wallet Service:   {profile.GetWalletServiceUrl()}{(string.IsNullOrWhiteSpace(walletUrl) ? " (from base)" : "")}");
+                Console.WriteLine($"  Peer Service:     {profile.GetPeerServiceUrl()}{(string.IsNullOrWhiteSpace(peerUrl) ? " (from base)" : "")}");
+                Console.WriteLine($"  Auth Token URL:   {profile.GetAuthTokenUrl()}{(string.IsNullOrWhiteSpace(authUrl) ? " (from base)" : "")}");
                 Console.WriteLine($"  Connectivity:     {connectivityStatus}");
                 if (setActive)
                 {
@@ -259,10 +280,10 @@ public class ConfigInitCommand : Command
     {
         var urls = new[]
         {
-            ("Tenant", profile.TenantServiceUrl),
-            ("Register", profile.RegisterServiceUrl),
-            ("Wallet", profile.WalletServiceUrl),
-            ("Peer", profile.PeerServiceUrl)
+            ("Tenant", profile.GetTenantServiceUrl()),
+            ("Register", profile.GetRegisterServiceUrl()),
+            ("Wallet", profile.GetWalletServiceUrl()),
+            ("Peer", profile.GetPeerServiceUrl())
         };
 
         var results = new List<(string Service, bool Success)>();

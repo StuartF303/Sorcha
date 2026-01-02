@@ -14,7 +14,7 @@ public interface ITenantServiceClient
     /// Lists all organizations.
     /// </summary>
     [Get("/api/organizations")]
-    Task<List<Organization>> ListOrganizationsAsync([Header("Authorization")] string authorization);
+    Task<OrganizationListResponse> ListOrganizationsAsync([Header("Authorization")] string authorization);
 
     /// <summary>
     /// Gets an organization by ID.

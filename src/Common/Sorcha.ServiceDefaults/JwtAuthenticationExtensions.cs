@@ -19,12 +19,22 @@ namespace Microsoft.Extensions.Hosting;
 public class JwtSettings
 {
     /// <summary>
+    /// Installation name - used to derive issuer and audience if not explicitly set.
+    /// This should be unique per deployment (e.g., "localhost", "dev.sorcha.io", "prod.sorcha.io").
+    /// </summary>
+    public string? InstallationName { get; set; }
+
+    /// <summary>
     /// JWT token issuer (iss claim).
+    /// If not explicitly set, derived from InstallationName as "http://{InstallationName}".
+    /// The tenant service is the authority that issues tokens with this issuer.
     /// </summary>
     public string Issuer { get; set; } = "https://tenant.sorcha.io";
 
     /// <summary>
     /// Valid audiences for tokens (aud claim).
+    /// If not explicitly set, derived from InstallationName as ["http://{InstallationName}"].
+    /// All services in an installation should accept tokens with this audience.
     /// </summary>
     public string[] Audience { get; set; } = ["https://api.sorcha.io"];
 
@@ -102,7 +112,32 @@ public static class JwtAuthenticationExtensions
         var configuration = builder.Configuration;
         var environment = builder.Environment;
 
+        // Get installation name first (if provided)
+        var installationName = configuration["JwtSettings:InstallationName"];
+
+        // Apply installation name-based defaults if InstallationName is provided
+        // and explicit Issuer/Audience are not set
+        var issuerFromConfig = configuration["JwtSettings:Issuer"];
+        var audienceFromConfig = configuration["JwtSettings:Audience:0"];
+
+        // Create JWT settings with installation name-based defaults if applicable
         var jwtSettings = configuration.GetSection("JwtSettings").Get<JwtSettings>() ?? new JwtSettings();
+
+        // Override with installation name-based values if:
+        // 1. Installation name is provided
+        // 2. No explicit issuer or audience configuration exists
+        if (!string.IsNullOrWhiteSpace(installationName))
+        {
+            if (string.IsNullOrWhiteSpace(issuerFromConfig))
+            {
+                jwtSettings.Issuer = $"http://{installationName}";
+            }
+
+            if (string.IsNullOrWhiteSpace(audienceFromConfig))
+            {
+                jwtSettings.Audience = [$"http://{installationName}"];
+            }
+        }
 
         // Get or generate signing key
         var signingKey = GetOrGenerateSigningKey(configuration, environment.IsDevelopment());
@@ -117,6 +152,7 @@ public static class JwtAuthenticationExtensions
         // Register JwtSettings as a singleton for services that need to issue tokens
         builder.Services.AddSingleton(new JwtSettings
         {
+            InstallationName = jwtSettings.InstallationName,
             Issuer = jwtSettings.Issuer,
             Audience = jwtSettings.Audience,
             SigningKey = signingKey,

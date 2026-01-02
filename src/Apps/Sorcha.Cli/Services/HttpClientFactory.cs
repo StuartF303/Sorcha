@@ -30,7 +30,7 @@ public class HttpClientFactory
             throw new InvalidOperationException($"Profile '{profileName}' does not exist.");
         }
 
-        var httpClient = CreateHttpClient(profile, profile.TenantServiceUrl);
+        var httpClient = CreateHttpClient(profile, profile.GetTenantServiceUrl());
         return RestService.For<ITenantServiceClient>(httpClient);
     }
 
@@ -45,7 +45,7 @@ public class HttpClientFactory
             throw new InvalidOperationException($"Profile '{profileName}' does not exist.");
         }
 
-        var httpClient = CreateHttpClient(profile, profile.RegisterServiceUrl);
+        var httpClient = CreateHttpClient(profile, profile.GetRegisterServiceUrl());
         return RestService.For<IRegisterServiceClient>(httpClient);
     }
 
@@ -60,7 +60,7 @@ public class HttpClientFactory
             throw new InvalidOperationException($"Profile '{profileName}' does not exist.");
         }
 
-        var httpClient = CreateHttpClient(profile, profile.WalletServiceUrl);
+        var httpClient = CreateHttpClient(profile, profile.GetWalletServiceUrl());
         return RestService.For<IWalletServiceClient>(httpClient);
     }
 
@@ -75,7 +75,7 @@ public class HttpClientFactory
             throw new InvalidOperationException($"Profile '{profileName}' does not exist.");
         }
 
-        var httpClient = CreateHttpClient(profile, profile.PeerServiceUrl);
+        var httpClient = CreateHttpClient(profile, profile.GetPeerServiceUrl());
         return RestService.For<IPeerServiceClient>(httpClient);
     }
 

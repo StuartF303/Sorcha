@@ -1,6 +1,27 @@
 namespace Sorcha.Cli.Models;
 
 /// <summary>
+/// Organization status enumeration.
+/// </summary>
+public enum OrganizationStatus
+{
+    /// <summary>
+    /// Organization is active and operational.
+    /// </summary>
+    Active = 0,
+
+    /// <summary>
+    /// Organization is suspended.
+    /// </summary>
+    Suspended = 1,
+
+    /// <summary>
+    /// Organization is inactive/deleted.
+    /// </summary>
+    Inactive = 2
+}
+
+/// <summary>
 /// Represents an organization (tenant) in the Sorcha platform.
 /// </summary>
 public class Organization
@@ -8,7 +29,7 @@ public class Organization
     /// <summary>
     /// Unique identifier for the organization.
     /// </summary>
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; }
 
     /// <summary>
     /// Organization name.
@@ -18,17 +39,12 @@ public class Organization
     /// <summary>
     /// Subdomain for the organization.
     /// </summary>
-    public string? Subdomain { get; set; }
+    public string Subdomain { get; set; } = string.Empty;
 
     /// <summary>
-    /// Organization description.
+    /// Organization status.
     /// </summary>
-    public string? Description { get; set; }
-
-    /// <summary>
-    /// Whether the organization is active.
-    /// </summary>
-    public bool IsActive { get; set; } = true;
+    public OrganizationStatus Status { get; set; }
 
     /// <summary>
     /// Creation timestamp.
@@ -36,9 +52,51 @@ public class Organization
     public DateTimeOffset CreatedAt { get; set; }
 
     /// <summary>
-    /// Last update timestamp.
+    /// Branding configuration.
     /// </summary>
-    public DateTimeOffset? UpdatedAt { get; set; }
+    public BrandingConfiguration? Branding { get; set; }
+}
+
+/// <summary>
+/// Branding configuration for an organization.
+/// </summary>
+public class BrandingConfiguration
+{
+    /// <summary>
+    /// URL to organization logo.
+    /// </summary>
+    public string? LogoUrl { get; set; }
+
+    /// <summary>
+    /// Primary brand color (hex format).
+    /// </summary>
+    public string? PrimaryColor { get; set; }
+
+    /// <summary>
+    /// Secondary brand color (hex format).
+    /// </summary>
+    public string? SecondaryColor { get; set; }
+
+    /// <summary>
+    /// Company tagline.
+    /// </summary>
+    public string? CompanyTagline { get; set; }
+}
+
+/// <summary>
+/// Response containing a list of organizations.
+/// </summary>
+public class OrganizationListResponse
+{
+    /// <summary>
+    /// List of organizations.
+    /// </summary>
+    public List<Organization> Organizations { get; set; } = [];
+
+    /// <summary>
+    /// Total count of organizations.
+    /// </summary>
+    public int TotalCount { get; set; }
 }
 
 /// <summary>
@@ -49,17 +107,17 @@ public class CreateOrganizationRequest
     /// <summary>
     /// Organization name.
     /// </summary>
-    public string Name { get; set; } = string.Empty;
+    public required string Name { get; set; }
 
     /// <summary>
-    /// Subdomain for the organization.
+    /// Unique subdomain (3-50 alphanumeric characters with hyphens).
     /// </summary>
-    public string? Subdomain { get; set; }
+    public required string Subdomain { get; set; }
 
     /// <summary>
-    /// Organization description.
+    /// Optional branding configuration.
     /// </summary>
-    public string? Description { get; set; }
+    public BrandingConfiguration? Branding { get; set; }
 }
 
 /// <summary>
@@ -68,17 +126,17 @@ public class CreateOrganizationRequest
 public class UpdateOrganizationRequest
 {
     /// <summary>
-    /// Organization name.
+    /// Updated organization name.
     /// </summary>
     public string? Name { get; set; }
 
     /// <summary>
-    /// Organization description.
+    /// Updated organization status.
     /// </summary>
-    public string? Description { get; set; }
+    public OrganizationStatus? Status { get; set; }
 
     /// <summary>
-    /// Whether the organization is active.
+    /// Updated branding configuration.
     /// </summary>
-    public bool? IsActive { get; set; }
+    public BrandingConfiguration? Branding { get; set; }
 }

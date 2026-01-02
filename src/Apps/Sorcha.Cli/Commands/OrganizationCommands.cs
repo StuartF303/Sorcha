@@ -58,22 +58,22 @@ public class OrgListCommand : Command
                 var client = await clientFactory.CreateTenantServiceClientAsync(profileName);
 
                 // Call API
-                var organizations = await client.ListOrganizationsAsync($"Bearer {token}");
+                var response = await client.ListOrganizationsAsync($"Bearer {token}");
 
                 // Display results
-                if (organizations == null || organizations.Count == 0)
+                if (response?.Organizations == null || response.Organizations.Count == 0)
                 {
                     ConsoleHelper.WriteInfo("No organizations found.");
                     return;
                 }
 
-                ConsoleHelper.WriteSuccess($"Found {organizations.Count} organization(s):");
+                ConsoleHelper.WriteSuccess($"Found {response.Organizations.Count} organization(s) (Total: {response.TotalCount}):");
                 Console.WriteLine();
-                Console.WriteLine($"{"ID",-30} {"Name",-30} {"Subdomain",-20}");
-                Console.WriteLine(new string('-', 82));
-                foreach (var org in organizations)
+                Console.WriteLine($"{"ID",-38} {"Name",-30} {"Subdomain",-20} {"Status",-10}");
+                Console.WriteLine(new string('-', 100));
+                foreach (var org in response.Organizations)
                 {
-                    Console.WriteLine($"{org.Id,-30} {org.Name,-30} {org.Subdomain,-20}");
+                    Console.WriteLine($"{org.Id,-38} {org.Name,-30} {org.Subdomain,-20} {org.Status,-10}");
                 }
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
@@ -143,12 +143,18 @@ public class OrgGetCommand : Command
                 Console.WriteLine();
                 Console.WriteLine($"  ID:          {org.Id}");
                 Console.WriteLine($"  Name:        {org.Name}");
-                Console.WriteLine($"  Subdomain:   {org.Subdomain ?? "(none)"}");
-                Console.WriteLine($"  Description: {org.Description ?? "(none)"}");
+                Console.WriteLine($"  Subdomain:   {org.Subdomain}");
+                Console.WriteLine($"  Status:      {org.Status}");
                 Console.WriteLine($"  Created:     {org.CreatedAt:yyyy-MM-dd HH:mm:ss}");
-                if (org.UpdatedAt.HasValue)
+                if (org.Branding != null)
                 {
-                    Console.WriteLine($"  Updated:     {org.UpdatedAt:yyyy-MM-dd HH:mm:ss}");
+                    Console.WriteLine($"  Branding:");
+                    if (!string.IsNullOrEmpty(org.Branding.LogoUrl))
+                        Console.WriteLine($"    Logo:      {org.Branding.LogoUrl}");
+                    if (!string.IsNullOrEmpty(org.Branding.PrimaryColor))
+                        Console.WriteLine($"    Primary:   {org.Branding.PrimaryColor}");
+                    if (!string.IsNullOrEmpty(org.Branding.CompanyTagline))
+                        Console.WriteLine($"    Tagline:   {org.Branding.CompanyTagline}");
                 }
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
@@ -193,19 +199,17 @@ public class OrgCreateCommand : Command
             IsRequired = true
         };
 
-        var subdomainOption = new Option<string?>(
+        var subdomainOption = new Option<string>(
             aliases: new[] { "--subdomain", "-s" },
-            description: "Organization subdomain");
-
-        var descriptionOption = new Option<string?>(
-            aliases: new[] { "--description", "-d" },
-            description: "Organization description");
+            description: "Unique subdomain (3-50 alphanumeric characters with hyphens)")
+        {
+            IsRequired = true
+        };
 
         AddOption(nameOption);
         AddOption(subdomainOption);
-        AddOption(descriptionOption);
 
-        this.SetHandler(async (name, subdomain, description) =>
+        this.SetHandler(async (name, subdomain) =>
         {
             try
             {
@@ -229,8 +233,7 @@ public class OrgCreateCommand : Command
                 var request = new CreateOrganizationRequest
                 {
                     Name = name,
-                    Subdomain = subdomain,
-                    Description = description
+                    Subdomain = subdomain
                 };
 
                 // Call API
@@ -241,11 +244,8 @@ public class OrgCreateCommand : Command
                 Console.WriteLine();
                 Console.WriteLine($"  ID:          {org.Id}");
                 Console.WriteLine($"  Name:        {org.Name}");
-                Console.WriteLine($"  Subdomain:   {org.Subdomain ?? "(none)"}");
-                if (!string.IsNullOrEmpty(org.Description))
-                {
-                    Console.WriteLine($"  Description: {org.Description}");
-                }
+                Console.WriteLine($"  Subdomain:   {org.Subdomain}");
+                Console.WriteLine($"  Status:      {org.Status}");
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
             {
@@ -272,7 +272,7 @@ public class OrgCreateCommand : Command
                 ConsoleHelper.WriteError($"Failed to create organization: {ex.Message}");
                 Environment.ExitCode = ExitCodes.GeneralError;
             }
-        }, nameOption, subdomainOption, descriptionOption);
+        }, nameOption, subdomainOption);
     }
 }
 
@@ -298,22 +298,22 @@ public class OrgUpdateCommand : Command
             aliases: new[] { "--name", "-n" },
             description: "Organization name");
 
-        var descriptionOption = new Option<string?>(
-            aliases: new[] { "--description", "-d" },
-            description: "Organization description");
+        var statusOption = new Option<OrganizationStatus?>(
+            aliases: new[] { "--status", "-s" },
+            description: "Organization status (Active, Suspended, Inactive)");
 
         AddOption(idOption);
         AddOption(nameOption);
-        AddOption(descriptionOption);
+        AddOption(statusOption);
 
-        this.SetHandler(async (id, name, description) =>
+        this.SetHandler(async (id, name, status) =>
         {
             try
             {
                 // Validate that at least one field is provided
-                if (string.IsNullOrEmpty(name) && string.IsNullOrEmpty(description))
+                if (string.IsNullOrEmpty(name) && !status.HasValue)
                 {
-                    ConsoleHelper.WriteError("At least one field (--name or --description) must be provided.");
+                    ConsoleHelper.WriteError("At least one field (--name or --status) must be provided.");
                     Environment.ExitCode = ExitCodes.ValidationError;
                     return;
                 }
@@ -338,7 +338,7 @@ public class OrgUpdateCommand : Command
                 var request = new UpdateOrganizationRequest
                 {
                     Name = name,
-                    Description = description
+                    Status = status
                 };
 
                 // Call API
@@ -349,7 +349,8 @@ public class OrgUpdateCommand : Command
                 Console.WriteLine();
                 Console.WriteLine($"  ID:          {org.Id}");
                 Console.WriteLine($"  Name:        {org.Name}");
-                Console.WriteLine($"  Description: {org.Description ?? "(none)"}");
+                Console.WriteLine($"  Subdomain:   {org.Subdomain}");
+                Console.WriteLine($"  Status:      {org.Status}");
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
@@ -376,7 +377,7 @@ public class OrgUpdateCommand : Command
                 ConsoleHelper.WriteError($"Failed to update organization: {ex.Message}");
                 Environment.ExitCode = ExitCodes.GeneralError;
             }
-        }, idOption, nameOption, descriptionOption);
+        }, idOption, nameOption, statusOption);
     }
 }
 
