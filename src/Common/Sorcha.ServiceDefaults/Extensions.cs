@@ -199,20 +199,23 @@ public static class Extensions
             // Referrer policy
             context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
 
-            // Check if this is a Scalar documentation path or landing page that needs relaxed CSP
+            // Check if this is a path that needs relaxed CSP (UI apps, documentation, landing page)
             var path = context.Request.Path.Value ?? "";
             if (path.StartsWith("/scalar", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/", StringComparison.OrdinalIgnoreCase))
             {
-                // Scalar UI requires scripts and styles to function
+                // UI apps (Blazor WASM, Scalar) require scripts and styles to function
+                // Blazor WebAssembly specifically needs 'unsafe-eval' for .NET runtime
                 context.Response.Headers["Content-Security-Policy"] =
                     "default-src 'self'; " +
                     "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; " +
                     "style-src 'self' 'unsafe-inline'; " +
                     "img-src 'self' data: https:; " +
                     "font-src 'self' data:; " +
-                    "connect-src 'self'; " +
+                    "connect-src 'self' ws: wss:; " +
                     "worker-src 'self' blob:; " +
+                    "manifest-src 'self'; " +
                     "frame-ancestors 'none'";
             }
             else

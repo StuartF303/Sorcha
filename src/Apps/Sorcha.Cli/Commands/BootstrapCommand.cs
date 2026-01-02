@@ -208,6 +208,36 @@ public class BootstrapCommand : Command
                         AnsiConsole.Write(table);
                         AnsiConsole.WriteLine();
 
+                        // Save installation record to config
+                        var installation = new Installation
+                        {
+                            Name = $"{profileName}-{response.OrganizationSubdomain}",
+                            ProfileName = profileName,
+                            OrganizationId = response.OrganizationId,
+                            OrganizationName = response.OrganizationName,
+                            OrganizationSubdomain = response.OrganizationSubdomain,
+                            AdminUserId = response.AdminUserId,
+                            AdminEmail = response.AdminEmail,
+                            ServicePrincipalId = response.ServicePrincipalId,
+                            ServicePrincipalClientId = response.ServicePrincipalClientId,
+                            CreatedAt = DateTime.UtcNow,
+                            BootstrapVersion = typeof(BootstrapCommand).Assembly.GetName().Version?.ToString() ?? "unknown"
+                        };
+
+                        var config = await configService.GetConfigurationAsync();
+                        config.Installations[installation.Name] = installation;
+
+                        // Set as active installation if it's the first one
+                        if (config.Installations.Count == 1 || string.IsNullOrEmpty(config.ActiveInstallation))
+                        {
+                            config.ActiveInstallation = installation.Name;
+                        }
+
+                        await configService.SaveConfigurationAsync(config);
+
+                        AnsiConsole.MarkupLine($"[dim]Installation record saved: {installation.Name}[/]");
+                        AnsiConsole.WriteLine();
+
                         // Save credentials reminder
                         var panel = new Panel(
                             new Markup($"[bold green]✓ Bootstrap successful![/]\n\n" +

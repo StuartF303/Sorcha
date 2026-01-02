@@ -4,9 +4,19 @@
 .DESCRIPTION
     Interactive PowerShell script to configure a fresh Sorcha installation using
     the `sorcha bootstrap` command. This script:
+    - Reads existing installation records from CLI config (~/.sorcha/config.json)
+    - Checks for previous installations for the selected profile
+    - Offers previous values as defaults in interactive mode
     - Creates the initial organization
     - Sets up the administrative user
     - Optionally creates a service principal for automation
+    - Displays the saved installation record details after successful bootstrap
+
+    The CLI automatically saves installation records to config.json, including:
+    - Organization ID, name, and subdomain
+    - Admin user ID and email
+    - Service principal details (if created)
+    - Bootstrap timestamp and version
 .PARAMETER Profile
     Configuration profile name (default: local)
 .PARAMETER NonInteractive
@@ -79,6 +89,40 @@ $configDir = Join-Path $env:USERPROFILE ".sorcha"
 $configFile = Join-Path $configDir "config.json"
 if (-not (Test-Path $configDir)) {
     New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+}
+
+# Function to read CLI configuration
+function Get-SorchaConfig {
+    if (Test-Path $configFile) {
+        try {
+            $configJson = Get-Content $configFile -Raw | ConvertFrom-Json
+            return $configJson
+        } catch {
+            Write-Host "Warning: Could not read config file: $_" -ForegroundColor Yellow
+            return $null
+        }
+    }
+    return $null
+}
+
+# Function to find existing installations for profile
+function Get-ExistingInstallations {
+    param([string]$ProfileName)
+
+    $config = Get-SorchaConfig
+    if ($null -eq $config -or $null -eq $config.Installations) {
+        return @()
+    }
+
+    $installations = @()
+    $config.Installations.PSObject.Properties | ForEach-Object {
+        $installation = $_.Value
+        if ($installation.ProfileName -eq $ProfileName) {
+            $installations += $installation
+        }
+    }
+
+    return $installations
 }
 
 # Color output helpers
@@ -187,6 +231,47 @@ if (-not $serviceReady) {
 
 Write-Host ""
 
+# Check for existing installations
+Write-Step "Checking for existing installations..."
+$existingInstallations = Get-ExistingInstallations -ProfileName $Profile
+
+if ($existingInstallations.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  Found $($existingInstallations.Count) existing installation(s) for profile '$Profile':" -ForegroundColor Yellow
+    foreach ($inst in $existingInstallations) {
+        Write-Host "    - $($inst.Name)" -ForegroundColor Gray
+        Write-Host "      Org: $($inst.OrganizationName) ($($inst.OrganizationSubdomain))" -ForegroundColor Gray
+        Write-Host "      Admin: $($inst.AdminEmail)" -ForegroundColor Gray
+        Write-Host "      Created: $($inst.CreatedAt)" -ForegroundColor Gray
+        Write-Host ""
+    }
+
+    if (-not $NonInteractive) {
+        # Offer to use most recent installation as defaults
+        $mostRecent = $existingInstallations | Sort-Object -Property CreatedAt -Descending | Select-Object -First 1
+
+        Write-Host "  The CLI will offer previous values as defaults during prompts." -ForegroundColor Cyan
+        Write-Host "  Most recent installation: $($mostRecent.Name)" -ForegroundColor Cyan
+        Write-Host ""
+
+        # Set defaults from most recent installation if not provided
+        if (-not $OrgName) {
+            $OrgName = $mostRecent.OrganizationName
+        }
+        if (-not $Subdomain) {
+            $Subdomain = $mostRecent.OrganizationSubdomain
+        }
+        if (-not $AdminEmail) {
+            $AdminEmail = $mostRecent.AdminEmail
+        }
+    }
+} else {
+    Write-Success "No existing installations found for profile '$Profile'"
+    Write-Info "This will be your first installation for this profile"
+}
+
+Write-Host ""
+
 # Build sorcha bootstrap command arguments
 $bootstrapArgs = @(
     "bootstrap",
@@ -215,6 +300,9 @@ if ($NonInteractive) {
 } else {
     Write-Info "Running in interactive mode - you will be prompted for inputs"
     Write-Info "Using profile: $Profile"
+    if ($existingInstallations.Count -gt 0) {
+        Write-Info "Previous values will be offered as defaults"
+    }
 }
 
 Write-Host ""
@@ -240,17 +328,47 @@ try {
 
     Write-Success "Sorcha platform has been initialized successfully"
     Write-Host ""
+
+    # Read config to show the saved installation record
+    $updatedConfig = Get-SorchaConfig
+    if ($null -ne $updatedConfig -and $null -ne $updatedConfig.Installations) {
+        $newInstallations = Get-ExistingInstallations -ProfileName $Profile
+        $latestInstallation = $newInstallations | Sort-Object -Property CreatedAt -Descending | Select-Object -First 1
+
+        if ($null -ne $latestInstallation) {
+            Write-Host "Installation Record:" -ForegroundColor Cyan
+            Write-Host "  Name: $($latestInstallation.Name)" -ForegroundColor White
+            Write-Host "  Organization: $($latestInstallation.OrganizationName)" -ForegroundColor Gray
+            Write-Host "  Subdomain: $($latestInstallation.OrganizationSubdomain)" -ForegroundColor Gray
+            Write-Host "  Admin Email: $($latestInstallation.AdminEmail)" -ForegroundColor Gray
+            Write-Host "  Organization ID: $($latestInstallation.OrganizationId)" -ForegroundColor Gray
+            Write-Host "  Admin User ID: $($latestInstallation.AdminUserId)" -ForegroundColor Gray
+            if ($latestInstallation.ServicePrincipalId) {
+                Write-Host "  Service Principal ID: $($latestInstallation.ServicePrincipalId)" -ForegroundColor Gray
+            }
+            Write-Host ""
+
+            if ($updatedConfig.ActiveInstallation -eq $latestInstallation.Name) {
+                Write-Success "Set as active installation"
+                Write-Host ""
+            }
+        }
+    }
+
     Write-Host "Next Steps:" -ForegroundColor Cyan
     Write-Host "  1. Login as admin:" -ForegroundColor White
     Write-Host "     sorcha auth login --profile $Profile" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  2. View configuration:" -ForegroundColor White
+    Write-Host "  2. View installations:" -ForegroundColor White
+    Write-Host "     sorcha config list --installations" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  3. View all configuration:" -ForegroundColor White
     Write-Host "     sorcha config list --profiles" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  3. Create additional users:" -ForegroundColor White
+    Write-Host "  4. Create additional users:" -ForegroundColor White
     Write-Host "     sorcha user create --profile $Profile" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  4. View API documentation:" -ForegroundColor White
+    Write-Host "  5. View API documentation:" -ForegroundColor White
 
     $apiDocsUrl = switch ($Profile) {
         "docker" { "http://localhost:8080/scalar/" }

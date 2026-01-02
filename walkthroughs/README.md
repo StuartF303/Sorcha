@@ -41,7 +41,7 @@ walkthroughs/
 
 **What you'll learn:**
 - Starting Sorcha services with Docker Compose
-- Bootstrapping the platform (org + admin user)
+- Bootstrapping the platform (org + admin user) with installation tracking
 - JWT authentication
 - Uploading blueprints via REST API
 - Working with sample blueprints
@@ -50,6 +50,29 @@ walkthroughs/
 - `upload-blueprint-test.ps1` - Main script for blueprint upload
 - `test-jwt.ps1` - Authentication testing
 - `DOCKER-BOOTSTRAP-RESULTS.md` - Complete results and troubleshooting
+
+### [AdminIntegration](./AdminIntegration/)
+**Status:** ✅ Complete
+**Date:** 2026-01-02
+**Purpose:** Integrate Sorcha.Admin (Blazor WASM) into Docker deployment behind API Gateway
+
+**What you'll learn:**
+- Multi-stage Docker builds for Blazor WebAssembly
+- nginx configuration for SPA subpath hosting
+- YARP reverse proxy routing with API Gateway
+- Blazor base path configuration
+- Docker Compose service integration
+- Admin UI authentication flow
+
+**Key files:**
+- `README.md` - Comprehensive integration guide
+- `INTEGRATION-RESULTS.md` - Detailed test results and architecture
+- `test-admin-integration.ps1` - Automated testing script
+- `.walkthrough-info.md` - Quick reference metadata
+
+**Access Points:**
+- Admin UI: http://localhost/admin
+- Credentials: stuart.mackintosh@sorcha.dev / SorchaDev2025!
 
 ---
 

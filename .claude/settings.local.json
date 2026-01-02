@@ -143,7 +143,10 @@
       "Bash(git commit:*)",
       "Bash(Select-String -Pattern \"HTTP|401|500|error\" -Context 0,1)",
       "Bash(Select-String -Pattern \"error|Error|warn:\" -Context 1)",
-      "Bash(Select-Object -First 10)"
+      "Bash(Select-Object -First 10)",
+      "Bash(then echo \"exists\")",
+      "Bash(else echo \"not found\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

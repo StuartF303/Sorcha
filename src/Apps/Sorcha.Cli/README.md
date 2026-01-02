@@ -250,6 +250,86 @@ sorcha auth login --profile staging
 sorcha config set-profile staging
 ```
 
+### Installation Records
+
+The CLI automatically tracks bootstrap installations in the configuration file. When you run `sorcha bootstrap`, an installation record is created with:
+
+- Organization ID, name, and subdomain
+- Admin user ID and email
+- Service principal details (if created)
+- Bootstrap timestamp and version
+- Profile used for the installation
+
+**Example Installation Record in config.json:**
+
+```json
+{
+  "activeProfile": "dev",
+  "activeInstallation": "dev-acme",
+  "installations": {
+    "dev-acme": {
+      "name": "dev-acme",
+      "profileName": "dev",
+      "organizationId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "organizationName": "Acme Corp",
+      "organizationSubdomain": "acme",
+      "adminUserId": "8fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "adminEmail": "admin@acme.com",
+      "servicePrincipalId": "9fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "servicePrincipalClientId": "sorcha-app-acme",
+      "createdAt": "2025-12-11T10:30:00Z",
+      "bootstrapVersion": "1.0.0"
+    }
+  }
+}
+```
+
+**Viewing Installations:**
+
+```bash
+# List all installation records
+sorcha config list --installations
+
+# View specific installation details
+sorcha config get-installation dev-acme
+```
+
+**Benefits:**
+
+- **Automatic Tracking**: Every bootstrap creates a record - no manual tracking needed
+- **Profile Defaults**: Bootstrap script offers previous values as defaults for the same profile
+- **Multiple Installations**: Track multiple bootstrapped environments per profile
+- **Quick Reference**: Organization IDs and admin user IDs readily available
+- **Audit Trail**: Timestamp and version tracking for compliance
+
+**Using Installation Records:**
+
+The bootstrap PowerShell script (`scripts/bootstrap-sorcha.ps1`) integrates with installation records:
+
+1. **First Bootstrap**: Creates new installation record
+2. **Subsequent Bootstraps**: Offers previous values as defaults (interactive mode)
+3. **Post-Bootstrap**: Displays the saved installation record details
+
+Example bootstrap with existing installation:
+
+```powershell
+PS> .\scripts\bootstrap-sorcha.ps1 -Profile dev
+
+==> Checking for existing installations...
+
+  Found 1 existing installation(s) for profile 'dev':
+    - dev-acme
+      Org: Acme Corp (acme)
+      Admin: admin@acme.com
+      Created: 2025-12-11T10:30:00Z
+
+  The CLI will offer previous values as defaults during prompts.
+  Most recent installation: dev-acme
+
+# Interactive prompts will now suggest "Acme Corp" as default org name
+# and "admin@acme.com" as default admin email
+```
+
 ### Environment Variables
 
 You can override the configuration directory:
@@ -265,6 +345,59 @@ This is useful for:
 - CI/CD environments
 
 ## Command Reference
+
+### Bootstrap Command
+
+| Command | Description |
+|---------|-------------|
+| `sorcha bootstrap` | Bootstrap a fresh Sorcha installation |
+
+**Options:**
+- `--org-name, -n` - Organization name
+- `--subdomain, -s` - Organization subdomain
+- `--description, -d` - Organization description (optional)
+- `--admin-email, -e` - Administrator email address
+- `--admin-name, -a` - Administrator display name
+- `--admin-password, -p` - Administrator password (prompted if not provided)
+- `--create-sp` - Create service principal for automation
+- `--sp-name` - Service principal name (if --create-sp is used)
+- `--non-interactive, -y` - Non-interactive mode (all options must be provided)
+- `--profile` - Configuration profile to use
+
+**Example:**
+```bash
+# Interactive mode (recommended)
+sorcha bootstrap --profile docker
+
+# Non-interactive mode
+sorcha bootstrap --profile local \
+  --org-name "Acme Corp" \
+  --subdomain "acme" \
+  --admin-email "admin@acme.com" \
+  --admin-name "Admin User" \
+  --admin-password "SecureP@ss123!" \
+  --non-interactive
+
+# With service principal
+sorcha bootstrap --profile dev --create-sp --sp-name "automation-sp"
+```
+
+**What it does:**
+1. Creates the initial organization
+2. Sets up the administrative user
+3. Optionally creates a service principal for automation
+4. Saves installation record to `~/.sorcha/config.json`
+5. Sets as active installation if it's the first one
+
+**Script Alternative:**
+
+Use the PowerShell bootstrap script for additional features:
+```powershell
+# Windows/PowerShell
+.\scripts\bootstrap-sorcha.ps1 -Profile docker
+
+# Checks service health, shows existing installations, displays results
+```
 
 ### Authentication Commands
 
