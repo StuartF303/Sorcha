@@ -56,6 +56,13 @@ public static class OrganizationEndpoints
             .Produces<OrganizationResponse>()
             .Produces(StatusCodes.Status404NotFound);
 
+        group.MapGet("/stats", GetOrganizationStats)
+            .WithName("GetOrganizationStats")
+            .WithSummary("Get organization statistics")
+            .WithDescription("Gets count of active organizations. Public endpoint for dashboard.")
+            .AllowAnonymous()
+            .Produces<OrganizationStatsResponse>();
+
         group.MapPut("/{id:guid}", UpdateOrganization)
             .WithName("UpdateOrganization")
             .WithSummary("Update an organization")
@@ -354,6 +361,30 @@ public static class OrganizationEndpoints
 
         return Guid.TryParse(userIdClaim, out var userId) ? userId : Guid.Empty;
     }
+
+    private static async Task<Ok<OrganizationStatsResponse>> GetOrganizationStats(
+        IOrganizationService organizationService,
+        CancellationToken cancellationToken)
+    {
+        var response = await organizationService.GetOrganizationStatsAsync(cancellationToken);
+        return TypedResults.Ok(response);
+    }
+}
+
+/// <summary>
+/// Organization statistics response.
+/// </summary>
+public record OrganizationStatsResponse
+{
+    /// <summary>
+    /// Total number of active organizations.
+    /// </summary>
+    public int TotalOrganizations { get; init; }
+
+    /// <summary>
+    /// Total number of users across all organizations.
+    /// </summary>
+    public int TotalUsers { get; init; }
 }
 
 /// <summary>

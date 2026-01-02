@@ -174,16 +174,17 @@ public class DashboardStatisticsService
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(5);
 
-            // Query tenants endpoint
-            var response = await client.GetAsync($"{baseUrl}/api/tenants", cancellationToken);
+            // Query organization stats endpoint (public, no auth required)
+            var response = await client.GetAsync($"{baseUrl}/api/organizations/stats", cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync(cancellationToken);
                 using var doc = JsonDocument.Parse(content);
 
-                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                // The stats endpoint returns { "totalOrganizations": 5, "totalUsers": 10 }
+                if (doc.RootElement.TryGetProperty("totalOrganizations", out var totalOrgsElement))
                 {
-                    stats.TotalTenants = doc.RootElement.GetArrayLength();
+                    stats.TotalTenants = totalOrgsElement.GetInt32();
                 }
             }
         }

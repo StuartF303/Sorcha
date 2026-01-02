@@ -1,8 +1,10 @@
 @page "/"
 @using Sorcha.Admin.Services
 @using Sorcha.Admin.Components
+@using System.Text.Json
 @inject NavigationManager Navigation
 @inject EventLogService EventLog
+@inject HttpClient Http
 
 <PageTitle>Home - Sorcha Platform</PageTitle>
 
@@ -308,18 +310,18 @@
                     <MudCardContent>
                         <MudGrid>
                             <MudItem xs="6">
-                                <MudText Typo="Typo.h4" Class="mb-1">42</MudText>
+                                <MudText Typo="Typo.h4" Class="mb-1">@totalUsers</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">Active Users</MudText>
                             </MudItem>
                             <MudItem xs="6">
-                                <MudText Typo="Typo.h4" Class="mb-1">5</MudText>
+                                <MudText Typo="Typo.h4" Class="mb-1">@totalTenants</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">Tenants</MudText>
                             </MudItem>
                         </MudGrid>
                         <MudDivider Class="my-3" />
                         <MudText Typo="Typo.body2">
                             <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Color="Color.Success" />
-                            3 new users this week
+                            @newUsersThisWeek new users this week
                         </MudText>
                     </MudCardContent>
                     <MudCardActions>
@@ -448,8 +450,57 @@
 </MudContainer>
 
 @code {
-    protected override void OnInitialized()
+    private int totalUsers = 0;
+    private int totalTenants = 0;
+    private int newUsersThisWeek = 0;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
     {
         EventLog.LogInfo("Dashboard loaded", "Welcome to Sorcha Platform");
+        await LoadDashboardStatisticsAsync();
+    }
+
+    private async Task LoadDashboardStatisticsAsync()
+    {
+        try
+        {
+            isLoading = true;
+
+            // Fetch dashboard statistics from API Gateway
+            var response = await Http.GetAsync("/api/dashboard");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(content);
+                var root = doc.RootElement;
+
+                // Extract tenant count
+                if (root.TryGetProperty("TotalTenants", out var tenantsElement))
+                {
+                    totalTenants = tenantsElement.GetInt32();
+                }
+
+                // TODO: Extract user count when available from Tenant Service
+                // For now, keep placeholder value
+                totalUsers = 42;
+                newUsersThisWeek = 3;
+
+                EventLog.LogSuccess("Dashboard statistics loaded", $"Found {totalTenants} tenants");
+            }
+            else
+            {
+                EventLog.LogWarning("Failed to load dashboard statistics", $"HTTP {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            EventLog.LogError("Error loading dashboard statistics", ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 }

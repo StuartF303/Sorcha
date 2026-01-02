@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Sorcha.Tenant.Service.Endpoints;
 using Sorcha.Tenant.Service.Models;
 using Sorcha.Tenant.Service.Models.Dtos;
 
@@ -145,5 +146,13 @@ public interface IOrganizationService
     /// <returns>Validation result with message.</returns>
     Task<(bool IsValid, string? ErrorMessage)> ValidateSubdomainAsync(
         string subdomain,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets organization statistics (count of organizations and users).
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Organization statistics.</returns>
+    Task<OrganizationStatsResponse> GetOrganizationStatsAsync(
         CancellationToken cancellationToken = default);
 }

@@ -3,6 +3,7 @@
 
 using System.Text.RegularExpressions;
 using Sorcha.Tenant.Service.Data.Repositories;
+using Sorcha.Tenant.Service.Endpoints;
 using Sorcha.Tenant.Service.Models;
 using Sorcha.Tenant.Service.Models.Dtos;
 
@@ -361,6 +362,23 @@ public partial class OrganizationService : IOrganizationService
         }
 
         return (true, null);
+    }
+
+    /// <inheritdoc />
+    public async Task<OrganizationStatsResponse> GetOrganizationStatsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var organizations = await _organizationRepository.GetAllActiveAsync(cancellationToken);
+
+        // TODO: Implement user count efficiently
+        // For now, returning 0 for user count to avoid additional repository method
+        var totalUsers = 0;
+
+        return new OrganizationStatsResponse
+        {
+            TotalOrganizations = organizations.Count,
+            TotalUsers = totalUsers
+        };
     }
 
     [GeneratedRegex("^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$")]
