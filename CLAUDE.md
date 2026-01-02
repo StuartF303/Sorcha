@@ -566,6 +566,36 @@ app.MapPost("/api/wallets", async (CreateWalletRequest request) => { });
 6. **Follow the MVD priorities** - P0 first, then P1, P2, P3
 7. **Maintain consistency** with existing code patterns
 
+### Creating Walkthroughs
+
+When creating test scripts, demos, or exploration work:
+
+**✅ DO:**
+- Create a dedicated subdirectory in `walkthroughs/YourWalkthroughName/`
+- Include a README.md explaining the purpose and how to use the scripts
+- Use clear naming: PascalCase for directories, lowercase-hyphen for scripts
+- Document actual results, limitations, and next steps
+- Make scripts runnable from the repository root
+- Include error handling and clear output
+
+**❌ DON'T:**
+- Put test scripts or results directly in the repository root
+- Create undocumented scripts without context
+- Use hardcoded credentials (use variables)
+- Leave scripts without error handling
+
+**Structure:**
+```
+walkthroughs/
+└── YourWalkthroughName/
+    ├── README.md              # Overview and instructions
+    ├── test-*.ps1             # Test scripts
+    ├── demo-*.ps1             # Demo scripts
+    └── *-RESULTS.md           # Results and findings
+```
+
+See [walkthroughs/README.md](walkthroughs/README.md) for detailed guidelines and [walkthroughs/BlueprintStorageBasic/](walkthroughs/BlueprintStorageBasic/) for an example.
+
 ---
 
 ## 🏁 Quick Checklist for Code Changes

@@ -87,8 +87,6 @@
       "Bash(choco install:*)",
       "Bash(Select-String -Pattern \"hub|Hub|connect|Connected\" -Context 1)",
       "Bash(Select-Object -Last 20)",
-      "Bash(Select-String -Pattern \"successfully connected|hub.*connect|connection.*hub|failed.*connect\" -Context 0,2)",
-      "Bash(Select-String -Pattern \"peer.*registered|peer.*connected|incoming.*connection\" -Context 0,1)",
       "Bash(Select-Object -Last 15)",
       "Bash(dotnet dev-certs:*)",
       "Bash(dotnet build:*)",
@@ -141,7 +139,11 @@
       "Bash(powershell.exe -Command \"$body = @{grant_type=''password''; username=''stuart.mackintosh@sorcha.dev''; password=''SorchaDev2025!''; client_id=''sorcha-cli''}; $response = Invoke-RestMethod -Uri ''http://localhost:5110/api/service-auth/token'' -Method POST -Body $body -ContentType ''application/x-www-form-urlencoded''; $token = $response.access_token; $parts = $token.Split\\(''.''\\); $payload = [System.Text.Encoding]::UTF8.GetString\\([System.Convert]::FromBase64String\\($parts[1] + ''=''*\\(4-\\($parts[1].Length%4\\)\\)\\)\\); Write-Host $payload\")",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File test-jwt.ps1)",
       "Bash(Select-String -Pattern \"Failed:|Passed:\" -Context 0,1)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(Select-String -Pattern \"HTTP|401|500|error\" -Context 0,1)",
+      "Bash(Select-String -Pattern \"error|Error|warn:\" -Context 1)",
+      "Bash(Select-Object -First 10)"
     ],
     "deny": [],
     "ask": []
