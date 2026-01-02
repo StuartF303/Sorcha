@@ -103,7 +103,7 @@ public class OrganizationCommandsTests
     }
 
     [Fact]
-    public void OrgCreateCommand_ShouldHaveOptionalSubdomainAndDescriptionOptions()
+    public void OrgCreateCommand_ShouldHaveRequiredSubdomainOption()
     {
         // Arrange & Act
         var command = new OrgCreateCommand(_clientFactory, AuthService, ConfigService);
@@ -111,11 +111,7 @@ public class OrganizationCommandsTests
         // Assert
         var subdomainOption = command.Options.FirstOrDefault(o => o.Name == "subdomain");
         subdomainOption.Should().NotBeNull();
-        subdomainOption!.IsRequired.Should().BeFalse();
-
-        var descriptionOption = command.Options.FirstOrDefault(o => o.Name == "description");
-        descriptionOption.Should().NotBeNull();
-        descriptionOption!.IsRequired.Should().BeFalse();
+        subdomainOption!.IsRequired.Should().BeTrue();
     }
 
     [Fact]
@@ -134,7 +130,7 @@ public class OrganizationCommandsTests
     }
 
     [Fact]
-    public void OrgUpdateCommand_ShouldHaveOptionalNameAndDescriptionOptions()
+    public void OrgUpdateCommand_ShouldHaveOptionalNameAndStatusOptions()
     {
         // Arrange & Act
         var command = new OrgUpdateCommand(_clientFactory, AuthService, ConfigService);
@@ -144,9 +140,9 @@ public class OrganizationCommandsTests
         nameOption.Should().NotBeNull();
         nameOption!.IsRequired.Should().BeFalse();
 
-        var descriptionOption = command.Options.FirstOrDefault(o => o.Name == "description");
-        descriptionOption.Should().NotBeNull();
-        descriptionOption!.IsRequired.Should().BeFalse();
+        var statusOption = command.Options.FirstOrDefault(o => o.Name == "status");
+        statusOption.Should().NotBeNull();
+        statusOption!.IsRequired.Should().BeFalse();
     }
 
     [Fact]
@@ -205,14 +201,14 @@ public class OrganizationCommandsTests
     }
 
     [Fact]
-    public async Task OrgCreateCommand_ShouldParseArguments_WithRequiredName()
+    public async Task OrgCreateCommand_ShouldParseArguments_WithRequiredFields()
     {
         // Arrange
         var rootCommand = new RootCommand();
         rootCommand.AddCommand(new OrgCreateCommand(_clientFactory, AuthService, ConfigService));
 
-        // Act
-        var exitCode = await rootCommand.InvokeAsync("create --name \"Test Org\"");
+        // Act - Both name and subdomain are required
+        var exitCode = await rootCommand.InvokeAsync("create --name \"Test Org\" --subdomain testorg");
 
         // Assert
         exitCode.Should().Be(0);
@@ -225,8 +221,8 @@ public class OrganizationCommandsTests
         var rootCommand = new RootCommand();
         rootCommand.AddCommand(new OrgCreateCommand(_clientFactory, AuthService, ConfigService));
 
-        // Act
-        var exitCode = await rootCommand.InvokeAsync("create --name \"Test Org\" --subdomain testorg --description \"Test organization\"");
+        // Act - Name and subdomain are the only options
+        var exitCode = await rootCommand.InvokeAsync("create --name \"Test Org\" --subdomain testorg");
 
         // Assert
         exitCode.Should().Be(0);

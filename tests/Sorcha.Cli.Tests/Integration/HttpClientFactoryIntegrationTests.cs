@@ -75,13 +75,17 @@ public class HttpClientFactoryIntegrationTests : IDisposable
     public async Task TenantServiceClient_ListOrganizations_ShouldMakeCorrectRequest()
     {
         // Arrange
-        var organizations = new List<Organization>
+        var response = new OrganizationListResponse
         {
-            new() { Id = "org-1", Name = "Org 1", IsActive = true, CreatedAt = DateTimeOffset.UtcNow },
-            new() { Id = "org-2", Name = "Org 2", IsActive = true, CreatedAt = DateTimeOffset.UtcNow }
+            Organizations =
+            [
+                new() { Id = Guid.Parse("00000000-0000-0000-0001-000000000001"), Name = "Org 1", Status = OrganizationStatus.Active, CreatedAt = DateTimeOffset.UtcNow },
+                new() { Id = Guid.Parse("00000000-0000-0000-0001-000000000002"), Name = "Org 2", Status = OrganizationStatus.Active, CreatedAt = DateTimeOffset.UtcNow }
+            ],
+            TotalCount = 2
         };
 
-        _mockHandler.SetupResponse(HttpMethod.Get, "/api/organizations", HttpStatusCode.OK, organizations);
+        _mockHandler.SetupResponse(HttpMethod.Get, "/api/organizations", HttpStatusCode.OK, response);
 
         var httpClient = new HttpClient(_mockHandler)
         {
@@ -95,9 +99,9 @@ public class HttpClientFactoryIntegrationTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result.Should().HaveCount(2);
-        result[0].Id.Should().Be("org-1");
-        result[1].Id.Should().Be("org-2");
+        result.Organizations.Should().HaveCount(2);
+        result.Organizations[0].Id.Should().Be(Guid.Parse("00000000-0000-0000-0001-000000000001"));
+        result.Organizations[1].Id.Should().Be(Guid.Parse("00000000-0000-0000-0001-000000000002"));
 
         _mockHandler.Requests.Should().HaveCount(1);
         _mockHandler.Requests[0].Method.Should().Be(HttpMethod.Get);
@@ -108,12 +112,13 @@ public class HttpClientFactoryIntegrationTests : IDisposable
     public async Task TenantServiceClient_GetOrganization_ShouldMakeCorrectRequest()
     {
         // Arrange
+        var orgId = Guid.Parse("00000000-0000-0000-0001-000000000123");
         var organization = new Organization
         {
-            Id = "org-123",
+            Id = orgId,
             Name = "Test Org",
             Subdomain = "testorg",
-            IsActive = true,
+            Status = OrganizationStatus.Active,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -131,7 +136,7 @@ public class HttpClientFactoryIntegrationTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result.Id.Should().Be("org-123");
+        result.Id.Should().Be(orgId);
         result.Name.Should().Be("Test Org");
         result.Subdomain.Should().Be("testorg");
 
@@ -146,16 +151,16 @@ public class HttpClientFactoryIntegrationTests : IDisposable
         var request = new CreateOrganizationRequest
         {
             Name = "New Org",
-            Subdomain = "neworg",
-            Description = "Test organization"
+            Subdomain = "neworg"
         };
 
+        var newOrgId = Guid.Parse("00000000-0000-0000-0001-00000000cafe");
         var response = new Organization
         {
-            Id = "org-new",
+            Id = newOrgId,
             Name = request.Name,
             Subdomain = request.Subdomain,
-            IsActive = true,
+            Status = OrganizationStatus.Active,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -173,7 +178,7 @@ public class HttpClientFactoryIntegrationTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result.Id.Should().Be("org-new");
+        result.Id.Should().Be(newOrgId);
         result.Name.Should().Be("New Org");
 
         _mockHandler.Requests.Should().HaveCount(1);
@@ -187,14 +192,15 @@ public class HttpClientFactoryIntegrationTests : IDisposable
         var request = new UpdateOrganizationRequest
         {
             Name = "Updated Org",
-            Description = "Updated description"
+            Status = OrganizationStatus.Active
         };
 
+        var orgId = Guid.Parse("00000000-0000-0000-0001-000000000123");
         var response = new Organization
         {
-            Id = "org-123",
-            Name = request.Name,
-            IsActive = true,
+            Id = orgId,
+            Name = "Updated Org",
+            Status = OrganizationStatus.Active,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -212,7 +218,7 @@ public class HttpClientFactoryIntegrationTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result.Id.Should().Be("org-123");
+        result.Id.Should().Be(orgId);
         result.Name.Should().Be("Updated Org");
 
         _mockHandler.Requests.Should().HaveCount(1);
