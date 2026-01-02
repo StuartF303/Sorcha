@@ -146,7 +146,9 @@
       "Bash(Select-Object -First 10)",
       "Bash(then echo \"exists\")",
       "Bash(else echo \"not found\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(Select-String -Pattern \"tenant\" -Context 0,1)",
+      "Bash(Select-Object -Last 10)"
     ],
     "deny": [],
     "ask": []
