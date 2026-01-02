@@ -32,17 +32,6 @@ public class CliConfiguration
     public bool QuietMode { get; set; } = false;
 
     /// <summary>
-    /// Collection of installation records (bootstrapped instances).
-    /// Key is the installation name (e.g., "local-dev", "docker-demo").
-    /// </summary>
-    public Dictionary<string, Installation> Installations { get; set; } = new();
-
-    /// <summary>
-    /// Name of the currently active installation (for quick access to org/user IDs).
-    /// </summary>
-    public string? ActiveInstallation { get; set; }
-
-    /// <summary>
     /// Gets the currently active profile, or null if not set.
     /// </summary>
     public Profile? GetActiveProfile()
@@ -51,16 +40,5 @@ public class CliConfiguration
             return null;
 
         return Profiles.TryGetValue(ActiveProfile, out var profile) ? profile : null;
-    }
-
-    /// <summary>
-    /// Gets the currently active installation, or null if not set.
-    /// </summary>
-    public Installation? GetActiveInstallation()
-    {
-        if (string.IsNullOrEmpty(ActiveInstallation))
-            return null;
-
-        return Installations.TryGetValue(ActiveInstallation, out var installation) ? installation : null;
     }
 }

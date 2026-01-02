@@ -41,7 +41,7 @@ walkthroughs/
 
 **What you'll learn:**
 - Starting Sorcha services with Docker Compose
-- Bootstrapping the platform (org + admin user) with installation tracking
+- Bootstrapping the platform (org + admin user)
 - JWT authentication
 - Uploading blueprints via REST API
 - Working with sample blueprints

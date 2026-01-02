@@ -4,21 +4,14 @@
 .DESCRIPTION
     Interactive PowerShell script to configure a fresh Sorcha installation using
     the `sorcha bootstrap` command. This script:
-    - Reads existing installation records from CLI config (~/.sorcha/config.json)
-    - Checks for previous installations for the selected profile
-    - Offers previous values as defaults in interactive mode
+    - Reads service URLs from CLI config (~/.sorcha/config.json) for the selected profile
+    - Checks if Sorcha Tenant Service is running before proceeding
     - Creates the initial organization
     - Sets up the administrative user
     - Optionally creates a service principal for automation
-    - Displays the saved installation record details after successful bootstrap
-
-    The CLI automatically saves installation records to config.json, including:
-    - Organization ID, name, and subdomain
-    - Admin user ID and email
-    - Service principal details (if created)
-    - Bootstrap timestamp and version
 .PARAMETER Profile
-    Configuration profile name (default: local)
+    Configuration profile name. If not specified, uses activeProfile from ~/.sorcha/config.json,
+    or defaults to 'local' if config doesn't exist
 .PARAMETER NonInteractive
     Run in non-interactive mode using defaults
 .PARAMETER OrgName
@@ -53,7 +46,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
-    [string]$Profile = "local",
+    [string]$Profile,
 
     [Parameter(Mandatory = $false)]
     [switch]$NonInteractive,
@@ -105,24 +98,20 @@ function Get-SorchaConfig {
     return $null
 }
 
-# Function to find existing installations for profile
-function Get-ExistingInstallations {
+# Function to get profile from config
+function Get-ProfileConfig {
     param([string]$ProfileName)
 
     $config = Get-SorchaConfig
-    if ($null -eq $config -or $null -eq $config.Installations) {
-        return @()
+    if ($null -eq $config -or $null -eq $config.Profiles) {
+        return $null
     }
 
-    $installations = @()
-    $config.Installations.PSObject.Properties | ForEach-Object {
-        $installation = $_.Value
-        if ($installation.ProfileName -eq $ProfileName) {
-            $installations += $installation
-        }
+    if ($config.Profiles.PSObject.Properties.Name -contains $ProfileName) {
+        return $config.Profiles.$ProfileName
     }
 
-    return $installations
+    return $null
 }
 
 # Color output helpers
@@ -166,6 +155,23 @@ Write-Host "║                                                                �
 Write-Host "╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
+# Determine which profile to use
+if ([string]::IsNullOrEmpty($Profile)) {
+    # No profile specified, try to read from config
+    $config = Get-SorchaConfig
+    if ($null -ne $config -and -not [string]::IsNullOrEmpty($config.ActiveProfile)) {
+        $Profile = $config.ActiveProfile
+        Write-Info "Using active profile from config: $Profile"
+    } else {
+        # Fallback to default
+        $Profile = "local"
+        Write-Info "No active profile in config, using default: $Profile"
+    }
+} else {
+    Write-Info "Using profile from parameter: $Profile"
+}
+Write-Host ""
+
 # Check prerequisites
 Write-Step "Checking prerequisites..."
 
@@ -187,12 +193,38 @@ $maxAttempts = 5
 $attempt = 0
 $serviceReady = $false
 
-# Determine health URL based on profile
-$healthUrl = switch ($Profile) {
-    "docker" { "http://localhost:8080/tenant/health" }
-    "local" { "http://localhost:5110/health" }
-    "dev" { "https://localhost:7080/health" }
-    default { "http://localhost:5110/health" }
+# Get health URL from profile config, with fallback to defaults
+$profileConfig = Get-ProfileConfig -ProfileName $Profile
+if ($null -ne $profileConfig) {
+    # Check for tenantServiceUrl first (older style with separate service URLs)
+    if ($null -ne $profileConfig.TenantServiceUrl) {
+        $healthUrl = "$($profileConfig.TenantServiceUrl)/health"
+        Write-Info "Using Tenant Service URL from config: $($profileConfig.TenantServiceUrl)"
+    }
+    # Otherwise check for serviceUrl (newer style with single base URL)
+    elseif ($null -ne $profileConfig.ServiceUrl) {
+        $healthUrl = "$($profileConfig.ServiceUrl)/api/tenant/health"
+        Write-Info "Using Service URL from config: $($profileConfig.ServiceUrl)/api/tenant"
+    }
+    else {
+        # Profile exists but no URL configured
+        Write-Host "  Profile '$Profile' found but no service URL configured, using defaults" -ForegroundColor Yellow
+        $healthUrl = switch ($Profile) {
+            "docker" { "http://localhost/api/tenant/health" }
+            "local" { "http://localhost:5110/health" }
+            "dev" { "https://localhost:7080/health" }
+            default { "http://localhost:5110/health" }
+        }
+    }
+} else {
+    # Fallback to defaults if config not found
+    Write-Host "  Profile '$Profile' not found in config, using default URLs" -ForegroundColor Yellow
+    $healthUrl = switch ($Profile) {
+        "docker" { "http://localhost/api/tenant/health" }
+        "local" { "http://localhost:5110/health" }
+        "dev" { "https://localhost:7080/health" }
+        default { "http://localhost:5110/health" }
+    }
 }
 
 while ($attempt -lt $maxAttempts -and -not $serviceReady) {
@@ -231,47 +263,6 @@ if (-not $serviceReady) {
 
 Write-Host ""
 
-# Check for existing installations
-Write-Step "Checking for existing installations..."
-$existingInstallations = Get-ExistingInstallations -ProfileName $Profile
-
-if ($existingInstallations.Count -gt 0) {
-    Write-Host ""
-    Write-Host "  Found $($existingInstallations.Count) existing installation(s) for profile '$Profile':" -ForegroundColor Yellow
-    foreach ($inst in $existingInstallations) {
-        Write-Host "    - $($inst.Name)" -ForegroundColor Gray
-        Write-Host "      Org: $($inst.OrganizationName) ($($inst.OrganizationSubdomain))" -ForegroundColor Gray
-        Write-Host "      Admin: $($inst.AdminEmail)" -ForegroundColor Gray
-        Write-Host "      Created: $($inst.CreatedAt)" -ForegroundColor Gray
-        Write-Host ""
-    }
-
-    if (-not $NonInteractive) {
-        # Offer to use most recent installation as defaults
-        $mostRecent = $existingInstallations | Sort-Object -Property CreatedAt -Descending | Select-Object -First 1
-
-        Write-Host "  The CLI will offer previous values as defaults during prompts." -ForegroundColor Cyan
-        Write-Host "  Most recent installation: $($mostRecent.Name)" -ForegroundColor Cyan
-        Write-Host ""
-
-        # Set defaults from most recent installation if not provided
-        if (-not $OrgName) {
-            $OrgName = $mostRecent.OrganizationName
-        }
-        if (-not $Subdomain) {
-            $Subdomain = $mostRecent.OrganizationSubdomain
-        }
-        if (-not $AdminEmail) {
-            $AdminEmail = $mostRecent.AdminEmail
-        }
-    }
-} else {
-    Write-Success "No existing installations found for profile '$Profile'"
-    Write-Info "This will be your first installation for this profile"
-}
-
-Write-Host ""
-
 # Build sorcha bootstrap command arguments
 $bootstrapArgs = @(
     "bootstrap",
@@ -300,9 +291,6 @@ if ($NonInteractive) {
 } else {
     Write-Info "Running in interactive mode - you will be prompted for inputs"
     Write-Info "Using profile: $Profile"
-    if ($existingInstallations.Count -gt 0) {
-        Write-Info "Previous values will be offered as defaults"
-    }
 }
 
 Write-Host ""
@@ -328,53 +316,39 @@ try {
 
     Write-Success "Sorcha platform has been initialized successfully"
     Write-Host ""
-
-    # Read config to show the saved installation record
-    $updatedConfig = Get-SorchaConfig
-    if ($null -ne $updatedConfig -and $null -ne $updatedConfig.Installations) {
-        $newInstallations = Get-ExistingInstallations -ProfileName $Profile
-        $latestInstallation = $newInstallations | Sort-Object -Property CreatedAt -Descending | Select-Object -First 1
-
-        if ($null -ne $latestInstallation) {
-            Write-Host "Installation Record:" -ForegroundColor Cyan
-            Write-Host "  Name: $($latestInstallation.Name)" -ForegroundColor White
-            Write-Host "  Organization: $($latestInstallation.OrganizationName)" -ForegroundColor Gray
-            Write-Host "  Subdomain: $($latestInstallation.OrganizationSubdomain)" -ForegroundColor Gray
-            Write-Host "  Admin Email: $($latestInstallation.AdminEmail)" -ForegroundColor Gray
-            Write-Host "  Organization ID: $($latestInstallation.OrganizationId)" -ForegroundColor Gray
-            Write-Host "  Admin User ID: $($latestInstallation.AdminUserId)" -ForegroundColor Gray
-            if ($latestInstallation.ServicePrincipalId) {
-                Write-Host "  Service Principal ID: $($latestInstallation.ServicePrincipalId)" -ForegroundColor Gray
-            }
-            Write-Host ""
-
-            if ($updatedConfig.ActiveInstallation -eq $latestInstallation.Name) {
-                Write-Success "Set as active installation"
-                Write-Host ""
-            }
-        }
-    }
-
     Write-Host "Next Steps:" -ForegroundColor Cyan
     Write-Host "  1. Login as admin:" -ForegroundColor White
     Write-Host "     sorcha auth login --profile $Profile" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  2. View installations:" -ForegroundColor White
-    Write-Host "     sorcha config list --installations" -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "  3. View all configuration:" -ForegroundColor White
+    Write-Host "  2. View configuration:" -ForegroundColor White
     Write-Host "     sorcha config list --profiles" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  4. Create additional users:" -ForegroundColor White
+    Write-Host "  3. Create additional users:" -ForegroundColor White
     Write-Host "     sorcha user create --profile $Profile" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  5. View API documentation:" -ForegroundColor White
+    Write-Host "  4. View API documentation:" -ForegroundColor White
 
-    $apiDocsUrl = switch ($Profile) {
-        "docker" { "http://localhost:8080/scalar/" }
-        "local" { "http://localhost:5110/scalar/" }
-        "dev" { "https://localhost:7080/scalar/" }
-        default { "http://localhost:5110/scalar/" }
+    # Use profile config for API docs URL if available
+    if ($null -ne $profileConfig) {
+        if ($null -ne $profileConfig.TenantServiceUrl) {
+            $apiDocsUrl = "$($profileConfig.TenantServiceUrl)/scalar/"
+        } elseif ($null -ne $profileConfig.ServiceUrl) {
+            $apiDocsUrl = "$($profileConfig.ServiceUrl)/scalar/"
+        } else {
+            $apiDocsUrl = switch ($Profile) {
+                "docker" { "http://localhost/scalar/" }
+                "local" { "http://localhost:5110/scalar/" }
+                "dev" { "https://localhost:7080/scalar/" }
+                default { "http://localhost:5110/scalar/" }
+            }
+        }
+    } else {
+        $apiDocsUrl = switch ($Profile) {
+            "docker" { "http://localhost/scalar/" }
+            "local" { "http://localhost:5110/scalar/" }
+            "dev" { "https://localhost:7080/scalar/" }
+            default { "http://localhost:5110/scalar/" }
+        }
     }
     Write-Host "     $apiDocsUrl" -ForegroundColor Gray
     Write-Host ""
