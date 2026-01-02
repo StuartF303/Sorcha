@@ -56,7 +56,7 @@
     <NotAuthorized>
         <MudIconButton Icon="@Icons.Material.Filled.Login"
                        Color="Color.Inherit"
-                       Href="/login"
+                       Href="/admin/login"
                        Title="Login" />
     </NotAuthorized>
 </AuthorizeView>
@@ -75,7 +75,7 @@
             Snackbar.Add("Logged out successfully", Severity.Info);
 
             // Navigate to login page with force reload
-            Navigation.NavigateTo("/login", forceLoad: true);
+            Navigation.NavigateTo("/admin/login", forceLoad: true);
         }
         catch (Exception ex)
         {

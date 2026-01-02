@@ -46,7 +46,7 @@ public class ProfileListCommand : BaseCommand
         {
             p.Name,
             ServiceUrl = !string.IsNullOrWhiteSpace(p.ServiceUrl) ? p.ServiceUrl : p.GetTenantServiceUrl(),
-            Active = p.Name == config.ActiveProfile
+            Active = !string.IsNullOrEmpty(config.ActiveProfile) && p.Name == config.ActiveProfile
         });
 
         WriteCollection(context, profileList);

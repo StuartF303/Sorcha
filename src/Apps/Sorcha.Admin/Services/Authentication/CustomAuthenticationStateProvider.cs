@@ -107,12 +107,20 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
                         {
                             foreach (var item in element.EnumerateArray())
                             {
-                                claims.Add(new Claim(claimType, item.ToString()));
+                                // Get the actual string value, not the JSON representation
+                                var value = item.ValueKind == System.Text.Json.JsonValueKind.String
+                                    ? item.GetString() ?? ""
+                                    : item.ToString();
+                                claims.Add(new Claim(claimType, value));
                             }
                         }
                         else
                         {
-                            claims.Add(new Claim(claimType, element.ToString()));
+                            // Get string value for non-array elements
+                            var value = element.ValueKind == System.Text.Json.JsonValueKind.String
+                                ? element.GetString() ?? ""
+                                : element.ToString();
+                            claims.Add(new Claim(claimType, value));
                         }
                     }
                     else

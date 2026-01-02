@@ -83,8 +83,23 @@ public static class AuthenticationExtensions
         services.Configure<JwtConfiguration>(options =>
         {
             var section = configuration.GetSection("JwtSettings");
+            var installationName = configuration["JwtSettings:InstallationName"];
 
-            options.Issuer = configuration["JwtSettings:Issuer"] ?? "https://tenant.sorcha.io";
+            // Derive issuer from installation name if not explicitly set
+            var issuerFromConfig = configuration["JwtSettings:Issuer"];
+            if (!string.IsNullOrWhiteSpace(issuerFromConfig))
+            {
+                options.Issuer = issuerFromConfig;
+            }
+            else if (!string.IsNullOrWhiteSpace(installationName))
+            {
+                options.Issuer = $"http://{installationName}";
+            }
+            else
+            {
+                options.Issuer = "https://tenant.sorcha.io";
+            }
+
             options.SigningKey = configuration["JwtSettings:SigningKey"];
             options.AccessTokenLifetimeMinutes = section.GetValue("AccessTokenLifetimeMinutes", 60);
             options.RefreshTokenLifetimeHours = section.GetValue("RefreshTokenLifetimeHours", 24);
@@ -99,6 +114,7 @@ public static class AuthenticationExtensions
             // - Array: JwtSettings:Audience:0, JwtSettings:Audience:1
             // - Single value: JwtSettings:Audience
             // - Environment variable array: JwtSettings__Audience__0
+            // - Derived from InstallationName if not set
             var audienceSection = configuration.GetSection("JwtSettings:Audience");
             var audienceChildren = audienceSection.GetChildren().ToList();
 
@@ -114,6 +130,16 @@ public static class AuthenticationExtensions
                 if (!string.IsNullOrEmpty(singleAudience))
                 {
                     options.Audiences = [singleAudience];
+                }
+                else if (!string.IsNullOrWhiteSpace(installationName))
+                {
+                    // Derive from installation name
+                    options.Audiences = [$"http://{installationName}"];
+                }
+                else
+                {
+                    // Fallback to default
+                    options.Audiences = ["https://api.sorcha.io"];
                 }
             }
         });

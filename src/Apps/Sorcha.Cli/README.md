@@ -41,16 +41,17 @@ dotnet run --project src/Apps/Sorcha.Cli -- auth status
 
 ### 1. First-Time Setup
 
-On first run, the CLI will create a default configuration file at `~/.sorcha/config.json` with three preconfigured profiles:
+On first run, the CLI will create a default configuration file at `~/.sorcha/config.json` with a single **docker** profile preconfigured for local Docker Compose deployments:
 
-- **dev** - Local development (https://localhost:7080)
-- **staging** - Staging environment
-- **production** - Production environment
+- **docker** - Local Docker Compose deployment via API Gateway (http://localhost)
+
+You can add additional profiles using `sorcha config init` command.
 
 ### 2. Authenticate
 
 ```bash
 # Login interactively (recommended for security)
+# Uses the active profile (docker by default)
 sorcha auth login
 
 # Or login with a specific profile
@@ -67,10 +68,10 @@ sorcha auth status
 
 Output:
 ```
-Profile: dev
+Profile: docker
 Status: Authenticated ✓
 Token expires: 2025-12-11T10:30:00Z (59.5 minutes remaining)
-Subject: admin@acme.com
+Subject: admin@sorcha.dev
 Type: user
 ```
 
@@ -151,11 +152,11 @@ sorcha auth login --client-id my-app-id --client-secret my-secret
 
 ### Multi-Profile Authentication
 
-You can authenticate separately for each profile (dev, staging, production):
+You can authenticate separately for each profile:
 
 ```bash
-# Login to dev
-sorcha auth login --profile dev
+# Login to docker (default)
+sorcha auth login
 
 # Login to staging
 sorcha auth login --profile staging
@@ -164,7 +165,7 @@ sorcha auth login --profile staging
 sorcha auth status --profile staging
 
 # Logout from specific profile
-sorcha auth logout --profile dev
+sorcha auth logout --profile staging
 
 # Logout from all profiles
 sorcha auth logout --all
@@ -193,38 +194,27 @@ The CLI stores its configuration at `~/.sorcha/config.json`.
 
 **Default Configuration:**
 
-The CLI comes preconfigured with four profiles:
+The CLI comes with a single preconfigured profile optimized for local Docker Compose deployments:
 
-- **dev** - Local development with .NET Aspire (HTTPS, ports 7080-7083)
-- **local** - Docker containers (HTTP, ports 5080-5083)
-- **staging** - Staging environment
-- **production** - Production environment
+- **docker** - Local Docker Compose deployment via API Gateway (http://localhost)
+
+All service URLs are routed through the API Gateway, which handles routing to the individual services (tenant, wallet, register, peer).
 
 ```json
 {
-  "activeProfile": "dev",
+  "activeProfile": "docker",
   "defaultOutputFormat": "table",
   "verboseLogging": false,
   "quietMode": false,
   "profiles": {
-    "dev": {
-      "name": "dev",
-      "tenantServiceUrl": "https://localhost:7080",
-      "registerServiceUrl": "https://localhost:7081",
-      "peerServiceUrl": "https://localhost:7082",
-      "walletServiceUrl": "https://localhost:7083",
-      "authTokenUrl": "https://localhost:7080/api/service-auth/token",
-      "defaultClientId": "sorcha-cli",
-      "verifySsl": false,
-      "timeoutSeconds": 30
-    },
-    "local": {
-      "name": "local",
-      "tenantServiceUrl": "http://localhost:5080",
-      "registerServiceUrl": "http://localhost:5081",
-      "peerServiceUrl": "http://localhost:5082",
-      "walletServiceUrl": "http://localhost:5083",
-      "authTokenUrl": "http://localhost:5080/api/service-auth/token",
+    "docker": {
+      "name": "docker",
+      "serviceUrl": "http://localhost",
+      "tenantServiceUrl": null,
+      "registerServiceUrl": null,
+      "peerServiceUrl": null,
+      "walletServiceUrl": null,
+      "authTokenUrl": "http://localhost/api/service-auth/token",
       "defaultClientId": "sorcha-cli",
       "verifySsl": false,
       "timeoutSeconds": 30
@@ -233,21 +223,40 @@ The CLI comes preconfigured with four profiles:
 }
 ```
 
-**Profile Selection:**
+**Note:** When service-specific URLs are `null`, they are derived from `serviceUrl` via the API Gateway routing.
 
+### Managing Profiles
+
+**List all profiles:**
 ```bash
-# Use dev profile (default)
-sorcha auth login
+sorcha config list
+```
 
-# Use local profile for Docker
-sorcha auth login --profile local
-sorcha org list --profile local
+**Create a new profile:**
+```bash
+# Create profile with base service URL (recommended)
+sorcha config init --profile staging --service-url https://staging.sorcha.dev
 
-# Use staging profile
+# Create profile with specific service URLs
+sorcha config init --profile prod \
+  --tenant-url https://tenant.sorcha.io \
+  --wallet-url https://wallet.sorcha.io \
+  --register-url https://register.sorcha.io \
+  --peer-url https://peer.sorcha.io
+
+# Create Aspire profile for local .NET Aspire development
+sorcha config init --profile aspire --service-url https://localhost:7082
+```
+
+**Switch active profile:**
+```bash
+sorcha config set-active staging
+```
+
+**Use a specific profile for a single command:**
+```bash
 sorcha auth login --profile staging
-
-# Switch active profile
-sorcha config set-profile staging
+sorcha org list --profile prod
 ```
 
 ### Environment Variables
@@ -265,6 +274,28 @@ This is useful for:
 - CI/CD environments
 
 ## Command Reference
+
+### Configuration Commands
+
+| Command | Description |
+|---------|-------------|
+| `sorcha config list` | List all configuration profiles |
+| `sorcha config init` | Initialize or update a configuration profile |
+| `sorcha config set-active` | Set the active profile |
+
+**Config Init Options:**
+- `--profile, -p` - Profile name (default: docker)
+- `--service-url, -s` - Base URL for all services (recommended)
+- `--tenant-url, -t` - Tenant Service URL override
+- `--register-url, -r` - Register Service URL override
+- `--wallet-url, -w` - Wallet Service URL override
+- `--peer-url` - Peer Service URL override
+- `--auth-url, -a` - Auth Token URL override
+- `--client-id, -c` - Default client ID (default: sorcha-cli)
+- `--verify-ssl` - Verify SSL certificates (default: false)
+- `--timeout` - Request timeout in seconds (default: 30)
+- `--check-connectivity` - Verify connectivity to services (default: true)
+- `--set-active` - Set as active profile (default: true)
 
 ### Authentication Commands
 
@@ -359,7 +390,7 @@ All commands support these global options:
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--profile, -p` | Configuration profile to use | dev |
+| `--profile, -p` | Configuration profile to use | docker |
 | `--output, -o` | Output format (table, json, csv) | table |
 | `--quiet, -q` | Suppress non-essential output | false |
 | `--verbose, -v` | Enable verbose logging | false |

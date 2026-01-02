@@ -176,112 +176,30 @@ public class ConfigurationService : IConfigurationService
     }
 
     /// <summary>
-    /// Creates a default configuration with dev, local (Docker), staging, and production profiles.
+    /// Creates a default configuration with a single Docker profile for local development.
+    /// Additional profiles can be added using 'sorcha config init'.
     /// </summary>
     private static CliConfiguration CreateDefaultConfiguration()
     {
         return new CliConfiguration
         {
-            ActiveProfile = "dev",
+            ActiveProfile = "docker",
             DefaultOutputFormat = "table",
             VerboseLogging = false,
             QuietMode = false,
             Profiles = new Dictionary<string, Profile>
             {
-                ["dev"] = new Profile
-                {
-                    Name = "dev",
-                    TenantServiceUrl = "https://localhost:7080",
-                    RegisterServiceUrl = "https://localhost:7081",
-                    PeerServiceUrl = "https://localhost:7082",
-                    WalletServiceUrl = "https://localhost:7083",
-                    AuthTokenUrl = "https://localhost:7080/api/service-auth/token",
-                    DefaultClientId = "sorcha-cli",
-                    VerifySsl = false,
-                    TimeoutSeconds = 30
-                },
-                ["local"] = new Profile
-                {
-                    Name = "local",
-                    TenantServiceUrl = "http://localhost:5080",
-                    RegisterServiceUrl = "http://localhost:5081",
-                    PeerServiceUrl = "http://localhost:5082",
-                    WalletServiceUrl = "http://localhost:5083",
-                    AuthTokenUrl = "http://localhost:5080/api/service-auth/token",
-                    DefaultClientId = "sorcha-cli",
-                    VerifySsl = false,
-                    TimeoutSeconds = 30
-                },
                 ["docker"] = new Profile
                 {
                     Name = "docker",
-                    TenantServiceUrl = "http://localhost:8080/tenant",
-                    RegisterServiceUrl = "http://localhost:8080/register",
-                    PeerServiceUrl = "http://localhost:8080/peer",
-                    WalletServiceUrl = "http://localhost:8080/wallet",
-                    AuthTokenUrl = "http://localhost:8080/tenant/api/service-auth/token",
+                    ServiceUrl = "http://localhost",
+                    TenantServiceUrl = null,  // Derived from ServiceUrl via API Gateway
+                    RegisterServiceUrl = null,  // Derived from ServiceUrl via API Gateway
+                    PeerServiceUrl = null,  // Derived from ServiceUrl via API Gateway
+                    WalletServiceUrl = null,  // Derived from ServiceUrl via API Gateway
+                    AuthTokenUrl = "http://localhost/api/service-auth/token",
                     DefaultClientId = "sorcha-cli",
                     VerifySsl = false,
-                    TimeoutSeconds = 30
-                },
-                ["aspire"] = new Profile
-                {
-                    Name = "aspire",
-                    TenantServiceUrl = "https://localhost:7051/api/tenant",
-                    RegisterServiceUrl = "https://localhost:7051/api/register",
-                    PeerServiceUrl = "https://localhost:7051/api/peer",
-                    WalletServiceUrl = "https://localhost:7051/api/wallet",
-                    AuthTokenUrl = "https://localhost:7051/api/tenant/api/service-auth/token",
-                    DefaultClientId = "sorcha-cli",
-                    VerifySsl = false,
-                    TimeoutSeconds = 30
-                },
-                ["staging"] = new Profile
-                {
-                    Name = "staging",
-                    TenantServiceUrl = "https://n0.sorcha.dev",
-                    RegisterServiceUrl = "https://n0.sorcha.dev",
-                    PeerServiceUrl = "https://n0.sorcha.dev",
-                    WalletServiceUrl = "https://n0.sorcha.dev",
-                    AuthTokenUrl = "https://n0.sorcha.dev/api/service-auth/token",
-                    DefaultClientId = "sorcha-cli",
-                    VerifySsl = false,  // Disabled due to Azure cert revocation check issue
-                    TimeoutSeconds = 30
-                },
-                ["docker-direct"] = new Profile
-                {
-                    Name = "docker-direct",
-                    TenantServiceUrl = "http://localhost:5110",
-                    RegisterServiceUrl = "http://localhost:5290",
-                    PeerServiceUrl = "http://localhost:5002",
-                    WalletServiceUrl = "http://localhost:5001",
-                    AuthTokenUrl = "http://localhost:5110/api/service-auth/token",
-                    DefaultClientId = "sorcha-cli",
-                    VerifySsl = false,
-                    TimeoutSeconds = 30
-                },
-                ["docker-lan"] = new Profile
-                {
-                    Name = "docker-lan",
-                    TenantServiceUrl = "http://192.168.51.211:8080",
-                    RegisterServiceUrl = "http://192.168.51.213:8080",
-                    PeerServiceUrl = "http://192.168.51.201:8080",
-                    WalletServiceUrl = "http://192.168.51.212:8080",
-                    AuthTokenUrl = "http://192.168.51.211:8080/api/service-auth/token",
-                    DefaultClientId = "sorcha-cli",
-                    VerifySsl = false,
-                    TimeoutSeconds = 30
-                },
-                ["production"] = new Profile
-                {
-                    Name = "production",
-                    TenantServiceUrl = "https://tenant.sorcha.io",
-                    RegisterServiceUrl = "https://register.sorcha.io",
-                    PeerServiceUrl = "https://peer.sorcha.io",
-                    WalletServiceUrl = "https://wallet.sorcha.io",
-                    AuthTokenUrl = "https://tenant.sorcha.io/api/service-auth/token",
-                    DefaultClientId = "sorcha-cli",
-                    VerifySsl = true,
                     TimeoutSeconds = 30
                 }
             }

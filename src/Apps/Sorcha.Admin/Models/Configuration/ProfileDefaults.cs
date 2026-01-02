@@ -70,7 +70,8 @@ public static class ProfileDefaults
     }
 
     /// <summary>
-    /// Gets the default active profile name ("local" for local development with Aspire).
+    /// Gets the default active profile name ("docker" for Docker Compose deployments).
+    /// Changed from "local" to match Docker deployment default.
     /// </summary>
-    public static string DefaultActiveProfile => "local";
+    public static string DefaultActiveProfile => "docker";
 }

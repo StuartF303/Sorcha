@@ -13,19 +13,6 @@
     <DialogContent>
         <MudText Typo="Typo.h6" Class="mb-4">Login to Sorcha Admin</MudText>
 
-        <MudSelect T="string" @bind-Value="_selectedProfile" Label="Environment" Variant="Variant.Outlined"
-                   Class="mb-3" Required="true" Disabled="_isLoading">
-            @foreach (var profile in _profiles)
-            {
-                <MudSelectItem T="string" Value="@profile.Key">
-                    <MudText>@profile.Value.Name</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        @GetProfileDescription(profile.Value)
-                    </MudText>
-                </MudSelectItem>
-            }
-        </MudSelect>
-
         <MudTextField T="string" @bind-Value="_username" Label="Username or Email" Variant="Variant.Outlined"
                       Class="mb-3" Required="true" Disabled="_isLoading"
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person"
@@ -44,6 +31,32 @@
                 @_errorMessage
             </MudAlert>
         }
+
+        <!-- Advanced Options - Collapsible -->
+        <MudExpansionPanels Class="mb-3">
+            <MudExpansionPanel Text="Advanced Options" IsInitiallyExpanded="false">
+                <MudSelect T="string" @bind-Value="_selectedProfile" Label="Environment" Variant="Variant.Outlined"
+                           Class="mb-2" Required="true" Disabled="_isLoading"
+                           HelperText="Change only if connecting to a different environment">
+                    @foreach (var profile in _profiles)
+                    {
+                        <MudSelectItem T="string" Value="@profile.Key">
+                            <div>
+                                <MudText>@profile.Value.Name</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @GetProfileDescription(profile.Value)
+                                </MudText>
+                            </div>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+                    Currently connected to: <strong>@_selectedProfile</strong>
+                </MudText>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
 
         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
             Default credentials: admin@sorcha.local
@@ -71,7 +84,7 @@
     [CascadingParameter] MudBlazor.IDialogReference? MudDialog { get; set; }
 
     private Dictionary<string, Profile> _profiles = new();
-    private string _selectedProfile = "dev";
+    private string _selectedProfile = "docker"; // Default to docker profile
     private string _username = "admin@sorcha.local";
     private string _password = "";
     private bool _isLoading = false;

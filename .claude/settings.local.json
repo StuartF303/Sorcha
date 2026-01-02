@@ -148,7 +148,13 @@
       "Bash(else echo \"not found\")",
       "Bash(fi)",
       "Bash(Select-String -Pattern \"tenant\" -Context 0,1)",
-      "Bash(Select-Object -Last 10)"
+      "Bash(Select-Object -Last 10)",
+      "Bash(netsh interface ipv4 show excludedportrange:*)",
+      "Bash($env:USERPROFILE.sorchaconfig.json)",
+      "Bash(Get-Content:*)",
+      "Bash(Select-Object -First 25)",
+      "Bash(Select-String -Pattern \"JWT|jwt|Issuer|Audience|InstallationName\" -Context 0,1)",
+      "Bash(Select-String -Pattern \"Now listening|Application started\" -Context 0,2)"
     ],
     "deny": [],
     "ask": []
