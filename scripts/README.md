@@ -1,6 +1,95 @@
 # Sorcha Docker Scripts
 
-This directory contains utility scripts for building and publishing Sorcha Docker images.
+This directory contains utility scripts for managing Sorcha Docker deployments, including state reset, bootstrapping, and publishing images.
+
+---
+
+## 🔄 Reset Docker State
+
+Scripts to reset the Docker environment by clearing all Sorcha containers and database volumes. Use this to get a clean slate before running bootstrap or when troubleshooting.
+
+### Windows (PowerShell)
+
+**Script:** `reset-docker-state.ps1`
+
+#### Basic Usage
+
+```powershell
+# Reset with confirmation prompt
+.\scripts\reset-docker-state.ps1
+
+# Reset without confirmation (CI/CD)
+.\scripts\reset-docker-state.ps1 -Yes
+
+# Remove containers but keep database volumes
+.\scripts\reset-docker-state.ps1 -KeepVolumes
+```
+
+#### Parameters
+
+| Parameter | Alias | Default | Description |
+|-----------|-------|---------|-------------|
+| `-Yes` | `-y` | `false` | Skip confirmation prompt |
+| `-KeepVolumes` | - | `false` | Keep database volumes (only remove containers) |
+
+### Linux/macOS (Bash)
+
+**Script:** `reset-docker-state.sh`
+
+#### Basic Usage
+
+```bash
+# Make script executable (first time only)
+chmod +x scripts/reset-docker-state.sh
+
+# Reset with confirmation prompt
+./scripts/reset-docker-state.sh
+
+# Reset without confirmation
+./scripts/reset-docker-state.sh -y
+
+# Remove containers but keep volumes
+./scripts/reset-docker-state.sh --keep-volumes
+```
+
+### What Gets Reset
+
+The script performs the following actions:
+
+1. ✅ Checks Docker daemon is running and healthy
+2. 🛑 Stops all Sorcha containers
+3. 🗑️ Removes all Sorcha containers
+4. 💾 Removes database volumes (unless `--keep-volumes` is specified):
+   - PostgreSQL data (`sorcha_postgres-data`)
+   - MongoDB data (`sorcha_mongodb-data`)
+   - Redis data (`sorcha_redis-data`)
+   - Data protection keys (`sorcha_dataprotection-keys`)
+
+### When to Use
+
+- 🔧 **Before bootstrap**: Get a fresh state for initial setup
+- 🐛 **Troubleshooting**: Clear corrupted state or stuck containers
+- 🧪 **Testing**: Reset to known clean state between test runs
+- 🔄 **Schema changes**: Clear databases after migration changes
+
+### Safety Features
+
+- Requires explicit confirmation unless `-y` or `-Yes` flag is used
+- Shows current state before resetting
+- Verifies clean state after reset
+- Provides clear next steps
+
+---
+
+## 🚀 Bootstrap Sorcha
+
+Scripts to bootstrap a fresh Sorcha installation with initial tenant, wallet, and configuration.
+
+**Scripts:**
+- Windows: `bootstrap-sorcha.ps1`
+- Linux/macOS: `bootstrap-sorcha.sh`
+
+See `README-BOOTSTRAP.md` for detailed documentation.
 
 ---
 

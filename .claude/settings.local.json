@@ -117,14 +117,22 @@
       "Bash(sorcha auth login:*)",
       "Bash(docker restart:*)",
       "Bash(docker-compose build:*)",
-      "Bash(docker-compose restart:*)"
+      "Bash(docker-compose restart:*)",
+      "Bash(powershell.exe -File scripts/reset-docker-state.ps1 -Help)",
+      "Bash(docker volume ls:*)",
+      "Bash(./scripts/reset-docker-state.sh:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(./scripts/bootstrap-sorcha.sh:*)",
+      "Bash(sorcha config list:*)"
     ],
     "deny": [],
     "ask": []
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "azure"
+    "azure",
+    "docker",
+    "MCP_DOCKER"
   ],
   "outputStyle": "default"
 }

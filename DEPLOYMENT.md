@@ -544,6 +544,58 @@ docker-compose logs -f api-gateway
 docker-compose logs -f wallet-service
 ```
 
+### Reset Docker State (Clean Slate)
+
+If you're experiencing persistent issues or want to start completely fresh, use the reset script to clear all containers and volumes:
+
+**Windows (PowerShell):**
+```powershell
+# Reset with confirmation prompt
+.\scripts\reset-docker-state.ps1
+
+# Reset without confirmation (automated)
+.\scripts\reset-docker-state.ps1 -Yes
+
+# Remove containers but keep database volumes
+.\scripts\reset-docker-state.ps1 -KeepVolumes
+```
+
+**Linux/macOS:**
+```bash
+# Reset with confirmation prompt
+./scripts/reset-docker-state.sh
+
+# Reset without confirmation
+./scripts/reset-docker-state.sh -y
+
+# Remove containers but keep volumes
+./scripts/reset-docker-state.sh --keep-volumes
+```
+
+**What it does:**
+- ✅ Checks Docker is running and healthy
+- 🛑 Stops all Sorcha containers
+- 🗑️ Removes all Sorcha containers
+- 💾 Clears database volumes (PostgreSQL, MongoDB, Redis)
+- 🧹 Removes data protection keys
+
+**When to use:**
+- Before running bootstrap for the first time
+- After schema changes or migrations
+- When containers are in an inconsistent state
+- When troubleshooting database corruption
+- Between test runs to ensure clean state
+
+**After reset, rebuild:**
+```bash
+# Start infrastructure and services
+docker-compose up -d
+
+# Run bootstrap to initialize system
+.\scripts\bootstrap-sorcha.ps1  # Windows
+./scripts/bootstrap-sorcha.sh   # Linux/Mac
+```
+
 ### High Memory Usage
 
 **Check resources:**
