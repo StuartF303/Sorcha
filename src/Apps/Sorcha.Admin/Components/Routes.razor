@@ -1,13 +1,14 @@
-@using Sorcha.Admin.Components.Authentication
 @using Microsoft.AspNetCore.Components.Authorization
+@using Sorcha.Admin.Components.Authentication
 
 <CascadingAuthenticationState>
+    <AuthenticationStateSerialization />
     <MudThemeProvider />
     <MudPopoverProvider />
     <MudDialogProvider />
     <MudSnackbarProvider />
 
-    <Router AppAssembly="@typeof(App).Assembly">
+    <Router AppAssembly="@typeof(Program).Assembly">
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <NotAuthorized>
@@ -26,8 +27,21 @@
         <NotFound>
             <PageTitle>Not Found</PageTitle>
             <LayoutView Layout="@typeof(MainLayout)">
-                <p>Sorry, there's nothing at this address.</p>
+                <MudContainer Class="mt-8">
+                    <MudText Typo="Typo.h4">Page Not Found</MudText>
+                    <MudText Typo="Typo.body1" Class="mt-4">
+                        Sorry, there's nothing at this address.
+                    </MudText>
+                    <MudButton Href="/" Color="Color.Primary" Variant="Variant.Filled" Class="mt-4">
+                        Go to Homepage
+                    </MudButton>
+                </MudContainer>
             </LayoutView>
         </NotFound>
     </Router>
 </CascadingAuthenticationState>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+}

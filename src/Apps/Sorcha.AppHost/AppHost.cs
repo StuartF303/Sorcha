@@ -72,7 +72,7 @@ var validatorService = builder.AddProject<Projects.Sorcha_Validator_Service>("va
     .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
     .WithEnvironment("JwtSettings__Audience", "https://sorcha.local");
 
-// Add API Gateway as the single external entry point
+// Add API Gateway as the API entry point for backend services
 var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
     .WithReference(tenantService)
     .WithReference(blueprintService)
@@ -81,12 +81,13 @@ var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
     .WithReference(peerService)
     .WithReference(validatorService)
     .WithReference(redis)
-    .WithExternalHttpEndpoints(); // Only the gateway is exposed externally
+    .WithExternalHttpEndpoints(); // Exposed for API calls from Admin UI
 
-// Add Blazor WebAssembly client
-// Note: Blazor WASM is a static client app
-var blazorClient = builder.AddProject<Projects.Sorcha_Admin>("admin-ui")
-    .WithExternalHttpEndpoints(); // Expose client for browser access
+// Add Blazor Hybrid Admin UI as the default homepage
+// Note: This is now a Blazor Web App (Hybrid) with Server + WASM render modes
+var adminUI = builder.AddProject<Projects.Sorcha_Admin>("admin-ui")
+    .WithReference(apiGateway) // Admin can discover and call API Gateway
+    .WithExternalHttpEndpoints(); // Primary external entry point for users
 
 builder.Build().Run();
 

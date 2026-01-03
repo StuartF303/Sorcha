@@ -1,4 +1,6 @@
 @page "/admin/tenants"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Administrator,SystemAdmin")]
 
 <PageTitle>Tenant Management - Sorcha Platform</PageTitle>

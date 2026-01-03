@@ -1,4 +1,6 @@
 @page "/my-wallet"
+@rendermode InteractiveWebAssembly
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Consumer,User,Designer,Administrator")]
 
 <PageTitle>My Wallet - Sorcha Platform</PageTitle>

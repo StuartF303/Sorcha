@@ -90,11 +90,15 @@
     private bool _showError = false;
     private string _errorMessage = "";
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var config = await ConfigService.GetConfigurationAsync();
-        _profiles = config.Profiles;
-        _selectedProfile = config.ActiveProfile ?? ProfileDefaults.DefaultActiveProfile;
+        if (firstRender)
+        {
+            var config = await ConfigService.GetConfigurationAsync();
+            _profiles = config.Profiles;
+            _selectedProfile = config.ActiveProfile ?? ProfileDefaults.DefaultActiveProfile;
+            StateHasChanged();
+        }
     }
 
     private async Task Login()

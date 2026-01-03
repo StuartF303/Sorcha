@@ -2,6 +2,8 @@
 @using Sorcha.Admin.Services
 @using Sorcha.Admin.Components
 @using System.Text.Json
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@attribute [AllowAnonymous]
 @inject NavigationManager Navigation
 @inject EventLogService EventLog
 @inject HttpClient Http
@@ -48,7 +50,7 @@
                         </MudList>
                     </MudItem>
                     <MudItem xs="12" md="4" Class="d-flex flex-column justify-center align-center">
-                        <MudButton Href="/admin/login"
+                        <MudButton Href="/login"
                                    Color="Color.Primary"
                                    Variant="Variant.Filled"
                                    Size="Size.Large"

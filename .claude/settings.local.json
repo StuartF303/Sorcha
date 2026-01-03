@@ -154,7 +154,11 @@
       "Bash(Get-Content:*)",
       "Bash(Select-Object -First 25)",
       "Bash(Select-String -Pattern \"JWT|jwt|Issuer|Audience|InstallationName\" -Context 0,1)",
-      "Bash(Select-String -Pattern \"Now listening|Application started\" -Context 0,2)"
+      "Bash(Select-String -Pattern \"Now listening|Application started\" -Context 0,2)",
+      "Bash(Select-String -Pattern \"error|Error|Build FAILED|Build succeeded\" -Context 0,1)",
+      "Bash(Select-String -Pattern \"CS0436|Build succeeded|Build FAILED\" -Context 0,1)",
+      "Bash(Select-String -Pattern 'admin-ui|error|Error|exception|Exception|fail|Fail' -Context 2)",
+      "Bash(Select-String -Pattern \"error\")"
     ],
     "deny": [],
     "ask": []

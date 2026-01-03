@@ -92,9 +92,12 @@
     private bool hasLoadedOnce = false;
     private DateTime lastCheckTime = DateTime.Now;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await RefreshStatus();
+        if (firstRender)
+        {
+            await RefreshStatus();
+        }
     }
 
     private async Task RefreshStatus()

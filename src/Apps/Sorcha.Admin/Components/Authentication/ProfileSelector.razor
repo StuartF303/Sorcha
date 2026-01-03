@@ -43,9 +43,12 @@
     private string? _activeProfileName;
     private Profile? _currentProfile;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadProfiles();
+        if (firstRender)
+        {
+            await LoadProfiles();
+        }
     }
 
     private async Task LoadProfiles()

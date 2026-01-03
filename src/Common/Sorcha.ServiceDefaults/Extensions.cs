@@ -203,6 +203,15 @@ public static class Extensions
             var path = context.Request.Path.Value ?? "";
             if (path.StartsWith("/scalar", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/login", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/design", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/_content", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/js", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/css", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/manifest.json", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/favicon", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/icon-", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/", StringComparison.OrdinalIgnoreCase))
             {
                 // UI apps (Blazor WASM, Scalar) require scripts and styles to function
@@ -210,9 +219,9 @@ public static class Extensions
                 context.Response.Headers["Content-Security-Policy"] =
                     "default-src 'self'; " +
                     "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; " +
-                    "style-src 'self' 'unsafe-inline'; " +
+                    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
                     "img-src 'self' data: https:; " +
-                    "font-src 'self' data:; " +
+                    "font-src 'self' data: https://fonts.gstatic.com; " +
                     "connect-src 'self' ws: wss:; " +
                     "worker-src 'self' blob:; " +
                     "manifest-src 'self'; " +

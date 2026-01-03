@@ -1,0 +1,48 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Sorcha.Admin.Services.Authentication
+@using Sorcha.Admin.Models.Authentication
+@using System.Security.Claims
+@inject PersistentComponentState PersistentState
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@implements IDisposable
+
+@* This component serializes authentication state from server to client *@
+@code {
+    private PersistingComponentStateSubscription _subscription;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to persist auth state before server rendering completes
+        _subscription = PersistentState.RegisterOnPersisting(PersistAuthenticationState, RenderMode.InteractiveWebAssembly);
+    }
+
+    private async Task PersistAuthenticationState()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var principal = authState.User;
+
+        if (principal?.Identity?.IsAuthenticated == true)
+        {
+            var userInfo = new UserInfo
+            {
+                UserId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty,
+                UserName = principal.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty,
+                Email = principal.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty,
+                Roles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray(),
+                AdditionalClaims = principal.Claims
+                    .Where(c => c.Type != ClaimTypes.NameIdentifier &&
+                               c.Type != ClaimTypes.Name &&
+                               c.Type != ClaimTypes.Email &&
+                               c.Type != ClaimTypes.Role)
+                    .ToDictionary(c => c.Type, c => c.Value)
+            };
+
+            PersistentState.PersistAsJson(nameof(UserInfo), userInfo);
+        }
+    }
+
+    public void Dispose()
+    {
+        _subscription.Dispose();
+    }
+}

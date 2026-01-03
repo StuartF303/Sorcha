@@ -1,4 +1,6 @@
 @page "/admin/audit"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Administrator,SystemAdmin")]
 
 <PageTitle>Audit Logs - Sorcha Platform</PageTitle>

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.JSInterop;
 using Sorcha.Admin.Services.Configuration;
 using System.Security.Claims;
 
@@ -7,22 +8,27 @@ namespace Sorcha.Admin.Services.Authentication;
 /// <summary>
 /// Custom authentication state provider for Sorcha Admin.
 /// Integrates JWT token authentication with Blazor's authorization system.
+/// Handles both server-side prerendering and client-side interactive rendering.
 /// </summary>
 public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 {
     private readonly IAuthenticationService _authService;
     private readonly IConfigurationService _configService;
+    private readonly IJSRuntime _jsRuntime;
 
     public CustomAuthenticationStateProvider(
         IAuthenticationService authService,
-        IConfigurationService configService)
+        IConfigurationService configService,
+        IJSRuntime jsRuntime)
     {
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _jsRuntime = jsRuntime ?? throw new ArgumentNullException(nameof(jsRuntime));
     }
 
     /// <summary>
     /// Gets the current authentication state by checking for a valid token.
+    /// During server-side prerendering, returns anonymous state since JSInterop is not available.
     /// </summary>
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
@@ -49,9 +55,20 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 
             return new AuthenticationState(user);
         }
+        catch (InvalidOperationException)
+        {
+            // JSInterop not available during prerendering - return anonymous
+            // Auth state will be loaded after interactive render on client
+            return CreateAnonymousState();
+        }
+        catch (JSException)
+        {
+            // JavaScript error during auth check - return anonymous
+            return CreateAnonymousState();
+        }
         catch
         {
-            // Error parsing token or checking authentication - return anonymous
+            // Other error parsing token or checking authentication - return anonymous
             return CreateAnonymousState();
         }
     }

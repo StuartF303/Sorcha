@@ -1,4 +1,6 @@
 @page "/dev/webhooks"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Developer,Administrator")]
 
 <PageTitle>Webhooks - Sorcha Platform</PageTitle>

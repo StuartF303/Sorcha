@@ -189,10 +189,10 @@ app.MapGet("/api/client/instructions", (ClientDownloadService clientService) =>
 .WithTags("Client");
 
 // ===========================
-// Landing Page
+// Gateway Status Page (moved from / to /gateway to allow Admin UI to serve homepage)
 // ===========================
 
-app.MapGet("/", async (HealthAggregationService healthService, DashboardStatisticsService dashboardService, IConfiguration configuration, HttpContext context) =>
+app.MapGet("/gateway", async (HealthAggregationService healthService, DashboardStatisticsService dashboardService, IConfiguration configuration, HttpContext context) =>
 {
     var stats = await healthService.GetSystemStatisticsAsync();
     var health = await healthService.GetAggregatedHealthAsync();
@@ -206,7 +206,7 @@ app.MapGet("/", async (HealthAggregationService healthService, DashboardStatisti
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sorcha API Gateway Landing Page</title>
+    <title>Sorcha API Gateway Status</title>
     <style>
         * {
             margin: 0;
@@ -430,6 +430,7 @@ app.MapGet("/", async (HealthAggregationService healthService, DashboardStatisti
             </div>
 
             <div class="actions">
+                <a href="/" class="btn btn-primary">🏠 Admin UI Home</a>
                 {{(showAspireLink ? $@"<a href=""{aspireDashboardUrl}"" class=""btn btn-primary"" target=""_blank"">🎛️ Aspire Dashboard</a>" : "")}}
                 <a href="/scalar/" class="btn btn-primary">📚 API Documentation</a>
                 <a href="/api/docs" class="btn btn-primary">📑 API Docs Index</a>

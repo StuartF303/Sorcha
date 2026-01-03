@@ -1,4 +1,6 @@
 @page "/dev/performance"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@attribute [Authorize]
 @attribute [Authorize(Roles = "Developer,Administrator")]
 
 <PageTitle>Performance Tools - Sorcha Platform</PageTitle>
