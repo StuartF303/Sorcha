@@ -1,3 +1,4 @@
+using Microsoft.JSInterop;
 using Sorcha.Admin.Models.Authentication;
 using Sorcha.Admin.Models.Configuration;
 using Sorcha.Admin.Services.Configuration;
@@ -17,15 +18,30 @@ public class AuthenticationService : IAuthenticationService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfigurationService _configService;
     private readonly BrowserTokenCache _tokenCache;
+    private readonly IJSRuntime _jsRuntime;
 
     public AuthenticationService(
         IHttpClientFactory httpClientFactory,
         IConfigurationService configService,
-        BrowserTokenCache tokenCache)
+        BrowserTokenCache tokenCache,
+        IJSRuntime jsRuntime)
     {
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _tokenCache = tokenCache ?? throw new ArgumentNullException(nameof(tokenCache));
+        _jsRuntime = jsRuntime ?? throw new ArgumentNullException(nameof(jsRuntime));
+    }
+
+    private async Task LogAsync(string level, string message, object? data = null)
+    {
+        try
+        {
+            await _jsRuntime.InvokeVoidAsync($"console.{level}", $"[AuthenticationService] {message}", data ?? "");
+        }
+        catch
+        {
+            // Ignore logging errors
+        }
     }
 
     /// <summary>
@@ -34,6 +50,8 @@ public class AuthenticationService : IAuthenticationService
     /// </summary>
     public async Task<TokenResponse> LoginAsync(LoginRequest request, string profileName)
     {
+        await LogAsync("info", $"LoginAsync called for profile: '{profileName}', username: '{request?.Username}'");
+
         if (request == null)
             throw new ArgumentNullException(nameof(request));
 
@@ -41,9 +59,15 @@ public class AuthenticationService : IAuthenticationService
             throw new ArgumentException("Profile name cannot be null or empty.", nameof(profileName));
 
         // Get profile configuration
+        await LogAsync("debug", $"Getting profile configuration for '{profileName}'...");
         var profile = await _configService.GetProfileAsync(profileName);
         if (profile == null)
+        {
+            await LogAsync("error", $"Profile '{profileName}' not found");
             throw new InvalidOperationException($"Profile '{profileName}' not found.");
+        }
+
+        await LogAsync("debug", $"Profile found: AuthTokenUrl = '{profile.AuthTokenUrl}'");
 
         // Create HTTP client
         var httpClient = _httpClientFactory.CreateClient();
@@ -65,19 +89,28 @@ public class AuthenticationService : IAuthenticationService
         try
         {
             // POST to token endpoint
+            await LogAsync("debug", $"Posting to token endpoint: {profile.AuthTokenUrl}");
             var response = await httpClient.PostAsync(profile.AuthTokenUrl, content);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
+                await LogAsync("error", $"Authentication failed: HTTP {response.StatusCode}", errorContent);
                 throw new UnauthorizedAccessException(
                     $"Authentication failed: {response.StatusCode}. {errorContent}");
             }
 
+            await LogAsync("debug", "Authentication successful, parsing token response...");
+
             // Parse token response
             var tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>();
             if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
+            {
+                await LogAsync("error", "Invalid token response from server");
                 throw new InvalidOperationException("Invalid token response from server.");
+            }
+
+            await LogAsync("debug", $"Token received: length = {tokenResponse.AccessToken.Length}, expires_in = {tokenResponse.ExpiresIn}");
 
             // Store token in cache
             var cacheEntry = new TokenCacheEntry
@@ -89,14 +122,26 @@ public class AuthenticationService : IAuthenticationService
                 Subject = request.Username
             };
 
+            await LogAsync("info", $"Storing token in cache for profile '{profileName}'...");
             await _tokenCache.SetAsync(profileName, cacheEntry);
+            await LogAsync("info", $"✓ Login completed successfully for '{request.Username}'");
 
             return tokenResponse;
         }
         catch (HttpRequestException ex)
         {
+            await LogAsync("error", $"HTTP request failed: {ex.Message}", ex.StackTrace);
             throw new InvalidOperationException(
                 $"Failed to connect to authentication server at {profile.AuthTokenUrl}", ex);
+        }
+        catch (Exception ex) when (ex is not UnauthorizedAccessException)
+        {
+            await LogAsync("error", $"Unexpected error during login: {ex.Message}", new {
+                ExceptionType = ex.GetType().Name,
+                Message = ex.Message,
+                StackTrace = ex.StackTrace
+            });
+            throw;
         }
     }
 

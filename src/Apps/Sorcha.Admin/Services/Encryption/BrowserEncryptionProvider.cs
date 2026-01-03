@@ -89,18 +89,45 @@ public class BrowserEncryptionProvider : IEncryptionProvider
         if (string.IsNullOrEmpty(plaintext))
             throw new ArgumentException("Plaintext cannot be null or empty.", nameof(plaintext));
 
+        await LogAsync("debug", $"EncryptAsync called with plaintext length: {plaintext.Length}");
+
         await EnsureInitializedAsync();
 
         try
         {
-            var encrypted = await _jsRuntime.InvokeAsync<byte[]>(
+            await LogAsync("debug", "Calling SorchaEncryption.encrypt via JSInterop...");
+            // JavaScript returns Base64 string for JSInterop compatibility
+            var base64Encrypted = await _jsRuntime.InvokeAsync<string>(
                 "SorchaEncryption.encrypt", plaintext);
+
+            await LogAsync("debug", $"Encryption successful: {base64Encrypted.Length} base64 characters returned");
+
+            // Convert Base64 string to byte array
+            var encrypted = Convert.FromBase64String(base64Encrypted);
+            await LogAsync("debug", $"Converted to {encrypted.Length} bytes");
 
             return encrypted;
         }
         catch (JSException ex)
         {
-            throw new InvalidOperationException("Encryption failed in browser.", ex);
+            await LogAsync("error", $"Encryption failed: {ex.Message}", new {
+                ExceptionType = ex.GetType().Name,
+                Message = ex.Message,
+                StackTrace = ex.StackTrace
+            });
+            throw new InvalidOperationException($"Encryption failed in browser: {ex.Message}", ex);
+        }
+    }
+
+    private async Task LogAsync(string level, string message, object? data = null)
+    {
+        try
+        {
+            await _jsRuntime.InvokeVoidAsync($"console.{level}", $"[BrowserEncryptionProvider] {message}", data ?? "");
+        }
+        catch
+        {
+            // Ignore logging errors
         }
     }
 
@@ -118,8 +145,11 @@ public class BrowserEncryptionProvider : IEncryptionProvider
 
         try
         {
+            // Convert byte array to Base64 for JavaScript
+            var base64Ciphertext = Convert.ToBase64String(ciphertext);
+
             var decrypted = await _jsRuntime.InvokeAsync<string>(
-                "SorchaEncryption.decrypt", ciphertext);
+                "SorchaEncryption.decrypt", base64Ciphertext);
 
             return decrypted;
         }

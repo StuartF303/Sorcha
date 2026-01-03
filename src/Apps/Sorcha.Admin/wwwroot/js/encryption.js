@@ -62,7 +62,7 @@ window.SorchaEncryption = {
     /**
      * Encrypts plaintext using AES-256-GCM.
      * @param {string} plaintext - The plaintext string to encrypt
-     * @returns {Uint8Array} Encrypted data (IV + ciphertext combined)
+     * @returns {string} Base64-encoded encrypted data (IV + ciphertext combined)
      */
     async encrypt(plaintext) {
         if (!this.isInitialized) {
@@ -88,8 +88,8 @@ window.SorchaEncryption = {
             result.set(iv, 0);
             result.set(new Uint8Array(ciphertext), iv.length);
 
-            // Return as array (Blazor will receive as byte[])
-            return Array.from(result);
+            // Convert to Base64 for JSInterop compatibility
+            return btoa(String.fromCharCode.apply(null, result));
         } catch (error) {
             console.error("[SorchaEncryption] Encryption failed:", error);
             throw new Error("Encryption failed");
@@ -98,17 +98,21 @@ window.SorchaEncryption = {
 
     /**
      * Decrypts ciphertext using AES-256-GCM.
-     * @param {Array<number>|Uint8Array} encryptedData - The encrypted data (IV + ciphertext)
+     * @param {string} base64Data - Base64-encoded encrypted data (IV + ciphertext)
      * @returns {string} Decrypted plaintext string
      */
-    async decrypt(encryptedData) {
+    async decrypt(base64Data) {
         if (!this.isInitialized) {
             await this.initialize();
         }
 
         try {
-            // Convert to Uint8Array if needed
-            const data = new Uint8Array(encryptedData);
+            // Decode Base64 to Uint8Array
+            const binary = atob(base64Data);
+            const data = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                data[i] = binary.charCodeAt(i);
+            }
 
             // Extract IV (first 12 bytes) and ciphertext (remaining bytes)
             const iv = data.slice(0, 12);

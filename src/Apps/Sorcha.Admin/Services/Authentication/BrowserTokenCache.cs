@@ -1,4 +1,5 @@
 using Blazored.LocalStorage;
+using Microsoft.JSInterop;
 using Sorcha.Admin.Models.Authentication;
 using Sorcha.Admin.Services.Encryption;
 using System.Text.Json;
@@ -16,14 +17,29 @@ public class BrowserTokenCache
 {
     private readonly ILocalStorageService _localStorage;
     private readonly IEncryptionProvider _encryption;
+    private readonly IJSRuntime _jsRuntime;
     private const string TOKEN_CACHE_PREFIX = "sorcha:tokens:";
 
     public BrowserTokenCache(
         ILocalStorageService localStorage,
-        IEncryptionProvider encryption)
+        IEncryptionProvider encryption,
+        IJSRuntime jsRuntime)
     {
         _localStorage = localStorage ?? throw new ArgumentNullException(nameof(localStorage));
         _encryption = encryption ?? throw new ArgumentNullException(nameof(encryption));
+        _jsRuntime = jsRuntime ?? throw new ArgumentNullException(nameof(jsRuntime));
+    }
+
+    private async Task LogAsync(string level, string message, object? data = null)
+    {
+        try
+        {
+            await _jsRuntime.InvokeVoidAsync($"console.{level}", $"[BrowserTokenCache] {message}", data ?? "");
+        }
+        catch
+        {
+            // Ignore logging errors
+        }
     }
 
     /// <summary>
@@ -33,6 +49,8 @@ public class BrowserTokenCache
     /// <param name="entry">Token cache entry to store.</param>
     public async Task SetAsync(string profile, TokenCacheEntry entry)
     {
+        await LogAsync("info", $"SetAsync called for profile: '{profile}'");
+
         if (string.IsNullOrEmpty(profile))
             throw new ArgumentException("Profile cannot be null or empty.", nameof(profile));
 
@@ -43,22 +61,41 @@ public class BrowserTokenCache
 
         try
         {
+            await LogAsync("debug", $"Starting token storage for profile '{profile}'", new {
+                Profile = profile,
+                Subject = entry.Subject,
+                ExpiresAt = entry.ExpiresAt.ToString("O")
+            });
+
             // Serialize token entry to JSON
+            await LogAsync("debug", "Step 1: Serializing token entry to JSON...");
             var json = JsonSerializer.Serialize(entry);
+            await LogAsync("debug", $"JSON serialized: {json.Length} characters");
 
             // Encrypt the JSON
+            await LogAsync("debug", "Step 2: Encrypting JSON...");
             var encrypted = await _encryption.EncryptAsync(json);
+            await LogAsync("debug", $"Encryption completed: {encrypted.Length} bytes");
 
             // Encode as Base64 for LocalStorage storage
+            await LogAsync("debug", "Step 3: Encoding as Base64...");
             var base64 = Convert.ToBase64String(encrypted);
+            await LogAsync("debug", $"Base64 encoding completed: {base64.Length} characters");
 
             // Store in LocalStorage
+            await LogAsync("debug", $"Step 4: Storing in LocalStorage with key: '{key}'...");
             await _localStorage.SetItemAsStringAsync(key, base64);
+            await LogAsync("info", $"✓ Token successfully stored for profile '{profile}'");
         }
         catch (Exception ex)
         {
+            await LogAsync("error", $"✗ Failed to store token for profile '{profile}': {ex.Message}", new {
+                ExceptionType = ex.GetType().Name,
+                Message = ex.Message,
+                StackTrace = ex.StackTrace
+            });
             throw new InvalidOperationException(
-                $"Failed to store token for profile '{profile}'.", ex);
+                $"Failed to store token for profile '{profile}'. Error: {ex.Message}", ex);
         }
     }
 
