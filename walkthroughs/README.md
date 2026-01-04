@@ -74,6 +74,31 @@ walkthroughs/
 - Admin UI: http://localhost/admin
 - Credentials: stuart.mackintosh@sorcha.dev / SorchaDev2025!
 
+### [UserWalletCreation](./UserWalletCreation/)
+**Status:** 🚧 Planning Phase
+**Date:** 2026-01-04
+**Purpose:** Create users in an organization and set up their default wallets, with multi-user blueprint sharing scenarios
+
+**What you'll learn:**
+- User management via Tenant Service API
+- Wallet creation with HD wallet (BIP32/BIP39/BIP44) support
+- JWT authentication flow for users
+- Multi-tenancy and organization isolation
+- Cryptographic key algorithms (ED25519, NIST P-256, RSA-4096)
+- Mnemonic phrase management and security
+- Multi-user blueprint workflows (Phase 2)
+
+**Key files:**
+- `README.md` - Walkthrough overview and quick start
+- `PLAN.md` - Detailed implementation plan
+- `scripts/phase1-create-user-wallet.ps1` - Main user + wallet creation script
+- `scripts/test-user-login.ps1` - Test authentication
+- `data/test-users.json` - Sample user configurations
+
+**Phases:**
+- **Phase 1:** Single user with default wallet ✅ Planned
+- **Phase 2:** Multi-user blueprint sharing 🚧 Future
+
 ---
 
 ## Creating a New Walkthrough

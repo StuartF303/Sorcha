@@ -158,7 +158,12 @@
       "Bash(Select-String -Pattern \"error|Error|Build FAILED|Build succeeded\" -Context 0,1)",
       "Bash(Select-String -Pattern \"CS0436|Build succeeded|Build FAILED\" -Context 0,1)",
       "Bash(Select-String -Pattern 'admin-ui|error|Error|exception|Exception|fail|Fail' -Context 2)",
-      "Bash(Select-String -Pattern \"error\")"
+      "Bash(Select-String -Pattern \"error\")",
+      "Bash(wc:*)",
+      "Bash(Select-Object -First 150)",
+      "Bash(Select-String -Pattern \"JWT\")",
+      "Bash(Select-String -Pattern \"authentication|Authorization|401\" -Context 2)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTAwMDAtMDAwMS0wMDAwMDAwMDAwMDEiLCJlbWFpbCI6ImFkbWluQHNvcmNoYS5sb2NhbCIsImp0aSI6Ijg4MTU1OGZhLWE5ODMtNGU5Yi04NTI4LWU4OGUzOTM0ZjFiYiIsIm5hbWUiOiJTeXN0ZW0gQWRtaW5pc3RyYXRvciIsIm9yZ19pZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMSIsIm9yZ19uYW1lIjoiU29yY2hhIExvY2FsIiwidG9rZW5fdHlwZSI6InVzZXIiLCJyb2xlIjpbIkFkbWluaXN0cmF0b3IiLCJTeXN0ZW1BZG1pbiIsIkRlc2lnbmVyIiwiRGV2ZWxvcGVyIiwiVXNlciIsIkNvbnN1bWVyIiwiQXVkaXRvciJdLCJuYmYiOjE3Njc0ODk4ODUsImV4cCI6MTc2NzQ5MzQ4NSwiaWF0IjoxNzY3NDg5ODg1LCJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCJ9.UFOODyIHinGQU2qbGtwVELTBOhK-3ocLTh9PtaJaoj4\")"
     ],
     "deny": [],
     "ask": []

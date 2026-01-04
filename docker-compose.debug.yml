@@ -1,0 +1,13 @@
+# Docker Compose override for JWT debugging
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.debug.yml up -d tenant-service
+
+services:
+  tenant-service:
+    environment:
+      # Enable debug logging for authentication/authorization
+      Logging__LogLevel__Microsoft.AspNetCore.Authentication: Debug
+      Logging__LogLevel__Microsoft.AspNetCore.Authorization: Debug
+      Logging__LogLevel__JwtAuthentication: Debug
+
+      # Also log all claims
+      Logging__LogLevel__Sorcha.Tenant.Service: Debug
