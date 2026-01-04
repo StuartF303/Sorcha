@@ -377,9 +377,10 @@ public class AdminEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
                 ProposerValidatorId = "validator-1",
                 ProposerSignature = new Signature
                 {
-                    PublicKey = "pub-key",
-                    SignatureValue = "sig-value",
-                    Algorithm = "ED25519"
+                    PublicKey = System.Text.Encoding.UTF8.GetBytes("pub-key"),
+                    SignatureValue = System.Text.Encoding.UTF8.GetBytes("sig-value"),
+                    Algorithm = "ED25519",
+                    SignedAt = DateTimeOffset.UtcNow
                 },
                 Transactions = new List<Transaction>
                 {
@@ -454,9 +455,10 @@ public class AdminEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
                 ProposerValidatorId = "validator-1",
                 ProposerSignature = new Signature
                 {
-                    PublicKey = "pub-key",
-                    SignatureValue = "sig-value",
-                    Algorithm = "ED25519"
+                    PublicKey = System.Text.Encoding.UTF8.GetBytes("pub-key"),
+                    SignatureValue = System.Text.Encoding.UTF8.GetBytes("sig-value"),
+                    Algorithm = "ED25519",
+                    SignedAt = DateTimeOffset.UtcNow
                 },
                 Transactions = new List<Transaction>(),
                 Votes = new List<ConsensusVote>(),
@@ -505,9 +507,10 @@ public class AdminEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
             {
                 new Signature
                 {
-                    PublicKey = "pub-key",
-                    SignatureValue = "sig-value",
-                    Algorithm = "ED25519"
+                    PublicKey = System.Text.Encoding.UTF8.GetBytes("pub-key"),
+                    SignatureValue = System.Text.Encoding.UTF8.GetBytes("sig-value"),
+                    Algorithm = "ED25519",
+                    SignedAt = DateTimeOffset.UtcNow
                 }
             },
             CreatedAt = DateTimeOffset.UtcNow,

@@ -237,7 +237,7 @@ public class DocketBuilderTests
         result.MerkleRoot.Should().NotBeNullOrEmpty(); // Real merkle root computed
         result.Transactions.Should().HaveCount(2);
         result.ProposerValidatorId.Should().Be(_validatorConfig.ValidatorId);
-        result.ProposerSignature.SignatureValue.Should().Be(expectedSignature);
+        result.ProposerSignature.SignatureValue.Should().BeEquivalentTo(System.Text.Encoding.UTF8.GetBytes(expectedSignature));
         result.Status.Should().Be(DocketStatus.Proposed);
     }
 
@@ -331,8 +331,8 @@ public class DocketBuilderTests
             w => w.SignDataAsync(_validatorConfig.SystemWalletId!, It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Once);
 
-        result!.ProposerSignature.PublicKey.Should().Be(_validatorConfig.SystemWalletId);
-        result.ProposerSignature.SignatureValue.Should().Be(expectedSignature);
+        result!.ProposerSignature.PublicKey.Should().BeEquivalentTo(System.Text.Encoding.UTF8.GetBytes(_validatorConfig.SystemWalletId!));
+        result.ProposerSignature.SignatureValue.Should().BeEquivalentTo(System.Text.Encoding.UTF8.GetBytes(expectedSignature));
     }
 
     [Fact]
@@ -362,7 +362,7 @@ public class DocketBuilderTests
             w => w.CreateOrRetrieveSystemWalletAsync(_validatorConfig.ValidatorId, It.IsAny<CancellationToken>()),
             Times.Once);
 
-        result!.ProposerSignature.PublicKey.Should().Be(createdWalletId);
+        result!.ProposerSignature.PublicKey.Should().BeEquivalentTo(System.Text.Encoding.UTF8.GetBytes(createdWalletId));
     }
 
     [Fact]
@@ -574,9 +574,10 @@ public class DocketBuilderTests
             {
                 new Signature
                 {
-                    PublicKey = "public-key",
-                    SignatureValue = "signature-value",
-                    Algorithm = "ED25519"
+                    PublicKey = System.Text.Encoding.UTF8.GetBytes("public-key"),
+                    SignatureValue = System.Text.Encoding.UTF8.GetBytes("signature-value"),
+                    Algorithm = "ED25519",
+                    SignedAt = DateTimeOffset.UtcNow
                 }
             },
             CreatedAt = DateTimeOffset.UtcNow,
@@ -602,9 +603,10 @@ public class DocketBuilderTests
             ProposerValidatorId = "validator-1",
             ProposerSignature = new Signature
             {
-                PublicKey = "system-wallet",
-                SignatureValue = "signature",
-                Algorithm = "ED25519"
+                PublicKey = System.Text.Encoding.UTF8.GetBytes("system-wallet"),
+                SignatureValue = System.Text.Encoding.UTF8.GetBytes("signature"),
+                Algorithm = "ED25519",
+                SignedAt = DateTimeOffset.UtcNow
             },
             MerkleRoot = "merkle-root"
         };

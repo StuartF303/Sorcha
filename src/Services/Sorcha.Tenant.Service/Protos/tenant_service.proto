@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+syntax = "proto3";
+
+package sorcha.tenant.v1;
+
+option csharp_namespace = "Sorcha.Tenant.Service.Protos";
+
+import "google/protobuf/timestamp.proto";
+
+// Tenant Service (System Organization Configuration Extension)
+// Provides system organization configuration including validator wallet settings
+//
+// NOTE: This proto defines ONLY the system organization configuration endpoints
+// needed for validator wallet integration. The full Tenant Service API may have
+// additional RPCs for tenant management, user management, etc.
+service TenantService {
+  // Get system organization configuration
+  // Returns configuration for the default system organization including validator wallet ID
+  rpc GetSystemOrganizationConfig(GetSystemOrgConfigRequest) returns (SystemOrgConfigResponse);
+
+  // Update system organization configuration
+  // Allows administrators to set/change the validator wallet ID
+  rpc UpdateSystemOrganizationConfig(UpdateSystemOrgConfigRequest) returns (SystemOrgConfigResponse);
+}
+
+//
+// Request/Response Messages
+//
+
+// Request to get system organization configuration
+message GetSystemOrgConfigRequest {
+  // No parameters needed - system organization is a singleton
+  // In the future, this could include a filter or specific config key request
+}
+
+// Response containing system organization configuration
+message SystemOrgConfigResponse {
+  // System organization unique identifier
+  // Typically a well-known GUID like "00000000-0000-0000-0000-000000000001"
+  string organization_id = 1;
+
+  // System organization name
+  string organization_name = 2;
+
+  // System organization subdomain
+  string subdomain = 3;
+
+  // Validator wallet ID
+  // This is the wallet that the Validator Service will use for signing dockets and votes
+  // Can be null if not yet configured
+  string validator_wallet_id = 4;
+
+  // Timestamp when configuration was last updated
+  google.protobuf.Timestamp updated_at = 5;
+
+  // Administrator who last updated the configuration
+  string updated_by = 6;
+}
+
+// Request to update system organization configuration
+message UpdateSystemOrgConfigRequest {
+  // The organization ID to update (must be system organization)
+  string organization_id = 1;
+
+  // The new validator wallet ID
+  // Set to empty string to clear the configuration
+  string validator_wallet_id = 2;
+
+  // Administrator performing the update (for audit logging)
+  string updated_by = 3;
+}
+
+//
+// Error Handling
+//
+
+// Common error codes for Tenant Service operations
+enum TenantServiceErrorCode {
+  // Unknown error
+  TENANT_SERVICE_ERROR_CODE_UNSPECIFIED = 0;
+
+  // System organization not found (should never happen)
+  SYSTEM_ORG_NOT_FOUND = 1;
+
+  // Validator wallet ID is invalid or wallet doesn't exist
+  INVALID_WALLET_ID = 2;
+
+  // Unauthorized - only system administrators can modify config
+  UNAUTHORIZED = 3;
+
+  // Configuration is locked and cannot be modified
+  CONFIG_LOCKED = 4;
+}
+
+// Error details for tenant service operations
+message TenantServiceError {
+  // Error code
+  TenantServiceErrorCode error_code = 1;
+
+  // Human-readable error message
+  string message = 2;
+
+  // Additional context about the error
+  map<string, string> details = 3;
+}
+
+//
+// Notes for Implementation
+//
+
+// 1. Authentication/Authorization:
+//    - GetSystemOrganizationConfig: Read access for Validator Service (service-to-service auth)
+//    - UpdateSystemOrganizationConfig: System administrator role required
+//
+// 2. Validation:
+//    - validator_wallet_id must reference an existing wallet in Wallet Service
+//    - Tenant Service should call Wallet Service GetWalletDetails to verify wallet exists
+//    - If wallet doesn't exist, return INVALID_WALLET_ID error
+//
+// 3. Audit Logging:
+//    - All configuration changes must be logged with timestamp and updated_by
+//    - Changes to validator_wallet_id should trigger high-priority audit events
+//
+// 4. Environment Variable Override:
+//    - Validator Service may override this configuration with VALIDATOR_WALLET_ID env var
+//    - Environment variable takes precedence over Tenant Service configuration
+//
+// 5. Configuration Fallback Strategy (Validator Service):
+//    - Try environment variable VALIDATOR_WALLET_ID first
+//    - If not set, call GetSystemOrganizationConfig
+//    - If both fail or return empty, fail service startup with clear error message

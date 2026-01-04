@@ -1,0 +1,187 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+syntax = "proto3";
+
+package sorcha.wallet.v1;
+
+option csharp_namespace = "Sorcha.Wallet.Service.Protos";
+
+import "google/protobuf/timestamp.proto";
+
+// Wallet Service
+// Provides cryptographic wallet management and signing operations for Sorcha services
+service WalletService {
+  // Get wallet details by wallet ID
+  // Returns wallet metadata including address, algorithm, and version
+  rpc GetWalletDetails(GetWalletDetailsRequest) returns (WalletDetailsResponse);
+
+  // Sign data with a wallet's private key
+  // Accepts data hash and optional derivation path
+  rpc SignData(SignDataRequest) returns (SignDataResponse);
+
+  // Verify a signature against data hash and public key
+  // Returns verification result
+  rpc VerifySignature(VerifySignatureRequest) returns (VerifySignatureResponse);
+
+  // Retrieve a derived private key from a BIP44 derivation path
+  // Returns derived key bytes (root key never exposed)
+  // Security: Only returns derived keys, never the master/root private key
+  rpc GetDerivedKey(GetDerivedKeyRequest) returns (GetDerivedKeyResponse);
+}
+
+//
+// Request/Response Messages
+//
+
+// Request to get wallet details
+message GetWalletDetailsRequest {
+  // The wallet ID to retrieve details for
+  string wallet_id = 1;
+}
+
+// Response containing wallet details
+message WalletDetailsResponse {
+  // Unique wallet identifier
+  string wallet_id = 1;
+
+  // Bech32-encoded wallet address (e.g., ws11q...)
+  string address = 2;
+
+  // Public key bytes for signature verification
+  bytes public_key = 3;
+
+  // Cryptographic algorithm used by this wallet
+  WalletAlgorithm algorithm = 4;
+
+  // Wallet version for rotation detection
+  int32 version = 5;
+
+  // BIP44 derivation path if applicable (e.g., m/44'/0'/0'/0/0)
+  string derivation_path = 6;
+
+  // Timestamp when wallet was created
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// Request to sign data
+message SignDataRequest {
+  // The wallet ID to use for signing
+  string wallet_id = 1;
+
+  // The data hash to sign (typically 32 bytes)
+  bytes data_hash = 2;
+
+  // Optional: BIP44 derivation path for derived key signing
+  // If omitted, uses the wallet's default signing key
+  string derivation_path = 3;
+}
+
+// Response containing signature
+message SignDataResponse {
+  // The cryptographic signature bytes
+  bytes signature = 1;
+
+  // Public key that can verify this signature
+  bytes public_key = 2;
+
+  // Algorithm used for signing
+  WalletAlgorithm algorithm = 3;
+
+  // Wallet version at time of signing (for rotation detection)
+  int32 version = 4;
+
+  // Timestamp when signature was created
+  google.protobuf.Timestamp signed_at = 5;
+}
+
+// Request to verify a signature
+message VerifySignatureRequest {
+  // The signature to verify
+  bytes signature = 1;
+
+  // The data hash that was signed
+  bytes data_hash = 2;
+
+  // The public key to verify with
+  bytes public_key = 3;
+
+  // The algorithm to use for verification
+  WalletAlgorithm algorithm = 4;
+}
+
+// Response containing verification result
+message VerifySignatureResponse {
+  // Whether the signature is valid
+  bool is_valid = 1;
+
+  // Error message if verification failed
+  string error_message = 2;
+
+  // Timestamp when verification was performed
+  google.protobuf.Timestamp verified_at = 3;
+}
+
+// Request to get a derived private key
+message GetDerivedKeyRequest {
+  // The wallet ID to derive key from
+  string wallet_id = 1;
+
+  // BIP44 derivation path (e.g., m/44'/0'/0'/0/0)
+  // Must follow BIP44 format: m/purpose'/coin_type'/account'/change/address_index
+  string derivation_path = 2;
+}
+
+// Response containing derived private key
+message GetDerivedKeyResponse {
+  // The derived private key bytes
+  // SECURITY: This is a child key, never the root private key
+  bytes private_key = 1;
+
+  // Public key corresponding to the derived private key
+  bytes public_key = 2;
+
+  // Algorithm of the derived key
+  WalletAlgorithm algorithm = 3;
+
+  // The derivation path that was used
+  string derivation_path = 4;
+
+  // Warning: Private key should be cached in memory only, never persisted
+  // See FR-012 and SC-006 in feature specification
+}
+
+//
+// Enums
+//
+
+// Supported cryptographic algorithms
+enum WalletAlgorithm {
+  // Unknown/unspecified algorithm
+  WALLET_ALGORITHM_UNSPECIFIED = 0;
+
+  // Edwards-curve Digital Signature Algorithm (default, fastest)
+  ED25519 = 1;
+
+  // NIST P-256 (secp256r1) elliptic curve
+  NISTP256 = 2;
+
+  // RSA with 4096-bit keys
+  RSA4096 = 3;
+}
+
+//
+// Common Messages
+//
+
+// Error details for failed operations
+message ErrorDetails {
+  // Error code
+  string code = 1;
+
+  // Human-readable error message
+  string message = 2;
+
+  // Additional context about the error
+  map<string, string> details = 3;
+}

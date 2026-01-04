@@ -292,9 +292,10 @@ public class ValidatorOrchestrator : IValidatorOrchestrator
                     ProposerValidatorId = "unknown",
                     ProposerSignature = new Signature
                     {
-                        PublicKey = "error",
-                        SignatureValue = "error",
-                        Algorithm = "error"
+                        PublicKey = System.Text.Encoding.UTF8.GetBytes("error"),
+                        SignatureValue = System.Text.Encoding.UTF8.GetBytes("error"),
+                        Algorithm = "error",
+                        SignedAt = DateTimeOffset.UtcNow
                     },
                     MerkleRoot = "error"
                 },
