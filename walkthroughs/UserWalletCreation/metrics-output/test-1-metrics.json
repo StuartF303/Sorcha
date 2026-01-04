@@ -1,0 +1,46 @@
+﻿{
+    "totalDurationMs":  486,
+    "configuration":  {
+                          "mnemonicWordCount":  12,
+                          "walletAlgorithm":  "ED25519",
+                          "orgName":  "Alice Corp",
+                          "orgSubdomain":  "alice-20260104113602",
+                          "userEmail":  "alice-20260104113602@test.local"
+                      },
+    "timestamp":  "2026-01-04T11:36:03.0465041+00:00",
+    "operations":  [
+                       {
+                           "success":  true,
+                           "timestamp":  "2026-01-04T11:36:03.2864109+00:00",
+                           "name":  "Bootstrap Organization + User",
+                           "durationMs":  224
+                       },
+                       {
+                           "success":  true,
+                           "timestamp":  "2026-01-04T11:36:03.4564720+00:00",
+                           "name":  "User Login (JWT generation)",
+                           "durationMs":  153
+                       },
+                       {
+                           "success":  true,
+                           "timestamp":  "2026-01-04T11:36:03.4907313+00:00",
+                           "name":  "Create Wallet",
+                           "durationMs":  25
+                       },
+                       {
+                           "success":  true,
+                           "timestamp":  "2026-01-04T11:36:03.5245316+00:00",
+                           "name":  "List User Wallets",
+                           "durationMs":  16
+                       }
+                   ],
+    "success":  true,
+    "results":  {
+                    "mnemonicWords":  12,
+                    "organizationId":  "b90eb9c3-bfc0-46cc-88f8-4344e0fd943b",
+                    "walletAlgorithm":  "ED25519",
+                    "userId":  "d923ae16-09bf-4d78-887d-94663dcc6d5a",
+                    "walletAddress":  "ws11qq9xph3tapthsenh2mc4x5aphzgkxtqdwa3s9npelx404jddr04q5mjtwky"
+                },
+    "testId":  "53923e5b-e27a-4cf5-bad2-9178d1dcc2e8"
+}

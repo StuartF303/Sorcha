@@ -1,0 +1,46 @@
+﻿{
+    "totalDurationMs":  383,
+    "configuration":  {
+                          "mnemonicWordCount":  24,
+                          "walletAlgorithm":  "ED25519",
+                          "orgName":  "Diana Corp",
+                          "orgSubdomain":  "diana-20260104113607",
+                          "userEmail":  "diana-20260104113607@test.local"
+                      },
+    "timestamp":  "2026-01-04T11:36:07.0325579+00:00",
+    "operations":  [
+                       {
+                           "success":  true,
+                           "timestamp":  "2026-01-04T11:36:07.2135844+00:00",
+                           "name":  "Bootstrap Organization + User",
+                           "durationMs":  176
+                       },
+                       {
+                           "success":  true,
+                           "timestamp":  "2026-01-04T11:36:07.3771598+00:00",
+                           "name":  "User Login (JWT generation)",
+                           "durationMs":  157
+                       },
+                       {
+                           "success":  true,
+                           "timestamp":  "2026-01-04T11:36:07.3976054+00:00",
+                           "name":  "Create Wallet",
+                           "durationMs":  15
+                       },
+                       {
+                           "success":  true,
+                           "timestamp":  "2026-01-04T11:36:07.4124143+00:00",
+                           "name":  "List User Wallets",
+                           "durationMs":  8
+                       }
+                   ],
+    "success":  true,
+    "results":  {
+                    "mnemonicWords":  24,
+                    "organizationId":  "80c82138-43af-4832-b542-0579eea2489a",
+                    "walletAlgorithm":  "ED25519",
+                    "userId":  "8eb91c00-75f6-49d4-ac54-3b2e08f19cc2",
+                    "walletAddress":  "ws11qqgltk308cdul5j8rfqsg47nfrs4t8v85gak329wrn72z5et2ldggrna2ch"
+                },
+    "testId":  "27f60bde-1df1-4aa0-8e5b-17a5d77b35c6"
+}

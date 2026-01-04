@@ -68,8 +68,9 @@ public class WalletDbContext : DbContext
             // Primary key is the wallet address (unique identifier)
             entity.HasKey(e => e.Address);
             entity.Property(e => e.Address)
-                .HasMaxLength(256)
-                .IsRequired();
+                .HasColumnType("text")
+                .IsRequired()
+                .HasComment("Wallet address in Bech32m format (ws1...). Variable length by algorithm: ED25519 ~66 chars, NISTP256 ~107 chars, RSA4096 ~700 chars.");
 
             // Required fields
             entity.Property(e => e.EncryptedPrivateKey)
@@ -166,11 +167,11 @@ public class WalletDbContext : DbContext
             // Required fields
             entity.Property(e => e.ParentWalletAddress)
                 .IsRequired()
-                .HasMaxLength(256);
+                .HasColumnType("text");
 
             entity.Property(e => e.Address)
                 .IsRequired()
-                .HasMaxLength(256);
+                .HasColumnType("text");
 
             entity.Property(e => e.DerivationPath)
                 .IsRequired()
@@ -234,7 +235,7 @@ public class WalletDbContext : DbContext
             // Required fields
             entity.Property(e => e.ParentWalletAddress)
                 .IsRequired()
-                .HasMaxLength(256);
+                .HasColumnType("text");
 
             entity.Property(e => e.Subject)
                 .IsRequired()
@@ -300,7 +301,7 @@ public class WalletDbContext : DbContext
             // Required fields
             entity.Property(e => e.ParentWalletAddress)
                 .IsRequired()
-                .HasMaxLength(256);
+                .HasColumnType("text");
 
             entity.Property(e => e.TransactionType)
                 .IsRequired()

@@ -1,0 +1,35 @@
+﻿{
+    "error":  "The remote server returned an error: (500) Internal Server Error.",
+    "totalDurationMs":  1445,
+    "configuration":  {
+                          "mnemonicWordCount":  12,
+                          "walletAlgorithm":  "RSA4096",
+                          "orgName":  "Charlie LLC",
+                          "orgSubdomain":  "charlie-20260104113605",
+                          "userEmail":  "charlie-20260104113605@test.local"
+                      },
+    "timestamp":  "2026-01-04T11:36:05.0569894+00:00",
+    "operations":  [
+                       {
+                           "success":  true,
+                           "timestamp":  "2026-01-04T11:36:05.2208463+00:00",
+                           "name":  "Bootstrap Organization + User",
+                           "durationMs":  158
+                       },
+                       {
+                           "success":  true,
+                           "timestamp":  "2026-01-04T11:36:05.3758398+00:00",
+                           "name":  "User Login (JWT generation)",
+                           "durationMs":  148
+                       },
+                       {
+                           "timestamp":  "2026-01-04T11:36:06.4993344+00:00",
+                           "success":  false,
+                           "error":  "The remote server returned an error: (500) Internal Server Error.",
+                           "name":  "Create Wallet",
+                           "durationMs":  1111
+                       }
+                   ],
+    "success":  false,
+    "testId":  "3bec7fab-f48a-4360-962c-6ad7c4c93682"
+}
