@@ -1,46 +1,46 @@
 ﻿{
-    "totalDurationMs":  410,
+    "totalDurationMs":  415,
     "configuration":  {
                           "mnemonicWordCount":  12,
                           "walletAlgorithm":  "NISTP256",
                           "orgName":  "Bob Inc",
-                          "orgSubdomain":  "bob-20260104113604",
-                          "userEmail":  "bob-20260104113604@test.local"
+                          "orgSubdomain":  "bob-20260104115518",
+                          "userEmail":  "bob-20260104115518@test.local"
                       },
-    "timestamp":  "2026-01-04T11:36:04.1012242+00:00",
+    "timestamp":  "2026-01-04T11:55:18.6534218+00:00",
     "operations":  [
                        {
                            "success":  true,
-                           "timestamp":  "2026-01-04T11:36:04.2661065+00:00",
+                           "timestamp":  "2026-01-04T11:55:18.8187442+00:00",
                            "name":  "Bootstrap Organization + User",
-                           "durationMs":  156
+                           "durationMs":  157
                        },
                        {
                            "success":  true,
-                           "timestamp":  "2026-01-04T11:36:04.4252316+00:00",
+                           "timestamp":  "2026-01-04T11:55:18.9800400+00:00",
                            "name":  "User Login (JWT generation)",
-                           "durationMs":  151
+                           "durationMs":  154
                        },
                        {
                            "success":  true,
-                           "timestamp":  "2026-01-04T11:36:04.4936746+00:00",
+                           "timestamp":  "2026-01-04T11:55:19.0491562+00:00",
                            "name":  "Create Wallet",
-                           "durationMs":  62
+                           "durationMs":  63
                        },
                        {
                            "success":  true,
-                           "timestamp":  "2026-01-04T11:36:04.5085594+00:00",
+                           "timestamp":  "2026-01-04T11:55:19.0652772+00:00",
                            "name":  "List User Wallets",
-                           "durationMs":  8
+                           "durationMs":  9
                        }
                    ],
     "success":  true,
     "results":  {
                     "mnemonicWords":  12,
-                    "organizationId":  "527c1ecb-ece1-4064-9b1c-75205347d932",
+                    "organizationId":  "28828e23-041f-4da0-a649-27c3545cdf89",
                     "walletAlgorithm":  "NISTP256",
-                    "userId":  "eef9ff9f-a42c-4981-a58d-0d1474100b24",
-                    "walletAddress":  "ws11qy5kp34jnkusqcdj5uz0mrzpvk69m5y28gj27wuprm5vuzpshtlugauf8n5vfrd4kuhrvymcxcnl6rh4dsml5zmzxusq97kdafje4dhkxh7zzk"
+                    "userId":  "81ea019e-71c1-47f5-84a6-353b512ca894",
+                    "walletAddress":  "ws11qy8upzrfy9snlfe6d8l34sg4h0tq80gu5gayj8znmmm7lxzpqk258d0llzx4xchr4jdgxdwa9z5k0wef4srw95ry2qqqekdavkpt0azdcq32wr"
                 },
-    "testId":  "fc53af6f-854b-46d1-99fa-4e393afc35b8"
+    "testId":  "9ab1ea58-f431-40e3-babb-6bb7b73b7f8c"
 }
