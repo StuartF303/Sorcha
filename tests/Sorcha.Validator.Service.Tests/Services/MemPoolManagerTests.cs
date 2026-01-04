@@ -657,9 +657,10 @@ public class MemPoolManagerTests
             {
                 new Signature
                 {
-                    PublicKey = "public-key-1",
-                    SignatureValue = "signature-value-1",
-                    Algorithm = "ED25519"
+                    PublicKey = System.Text.Encoding.UTF8.GetBytes("public-key-1"),
+                    SignatureValue = System.Text.Encoding.UTF8.GetBytes("signature-value-1"),
+                    Algorithm = "ED25519",
+                    SignedAt = DateTimeOffset.UtcNow
                 }
             },
             CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-1),

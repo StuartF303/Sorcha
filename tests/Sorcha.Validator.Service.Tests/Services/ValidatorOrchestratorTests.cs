@@ -632,9 +632,10 @@ public class ValidatorOrchestratorTests
                 {
                     new Signature
                     {
-                        PublicKey = "public-key",
-                        SignatureValue = "signature-value",
-                        Algorithm = "ED25519"
+                        PublicKey = System.Text.Encoding.UTF8.GetBytes("public-key"),
+                        SignatureValue = System.Text.Encoding.UTF8.GetBytes("signature-value"),
+                        Algorithm = "ED25519",
+                        SignedAt = DateTimeOffset.UtcNow
                     }
                 },
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -655,9 +656,10 @@ public class ValidatorOrchestratorTests
             ProposerValidatorId = "validator-proposer",
             ProposerSignature = new Signature
             {
-                PublicKey = "proposer-key",
-                SignatureValue = "proposer-sig",
-                Algorithm = "ED25519"
+                PublicKey = System.Text.Encoding.UTF8.GetBytes("proposer-key"),
+                SignatureValue = System.Text.Encoding.UTF8.GetBytes("proposer-sig"),
+                Algorithm = "ED25519",
+                SignedAt = DateTimeOffset.UtcNow
             },
             MerkleRoot = "merkle-root"
         };
@@ -677,9 +679,10 @@ public class ValidatorOrchestratorTests
             VotedAt = DateTimeOffset.UtcNow,
             ValidatorSignature = new Signature
             {
-                PublicKey = $"{validatorId}-key",
-                SignatureValue = "vote-signature",
-                Algorithm = "ED25519"
+                PublicKey = System.Text.Encoding.UTF8.GetBytes($"{validatorId}-key"),
+                SignatureValue = System.Text.Encoding.UTF8.GetBytes("vote-signature"),
+                Algorithm = "ED25519",
+                SignedAt = DateTimeOffset.UtcNow
             },
             DocketHash = "docket-hash"
         };

@@ -209,9 +209,9 @@ public class ConsensusEngine : IConsensusEngine
 
             // Validate proposer signature
             var signatureValid = await _walletClient.VerifySignatureAsync(
-                docket.ProposerSignature.PublicKey,
+                Convert.ToBase64String(docket.ProposerSignature.PublicKey),
                 docket.DocketHash,
-                docket.ProposerSignature.SignatureValue,
+                Convert.ToBase64String(docket.ProposerSignature.SignatureValue),
                 docket.ProposerSignature.Algorithm,
                 cancellationToken);
 
@@ -247,7 +247,9 @@ public class ConsensusEngine : IConsensusEngine
             {
                 var signatures = transaction.Signatures.Select(s =>
                     new Sorcha.Validator.Core.Validators.TransactionSignature(
-                        s.PublicKey, s.SignatureValue, s.Algorithm)).ToList();
+                        Convert.ToBase64String(s.PublicKey),
+                        Convert.ToBase64String(s.SignatureValue),
+                        s.Algorithm)).ToList();
 
                 var validationResult = _transactionValidator.ValidateTransactionStructure(
                     transaction.TransactionId,
@@ -310,8 +312,8 @@ public class ConsensusEngine : IConsensusEngine
                 MerkleRoot = docket.MerkleRoot,
                 ProposerSignature = new Sorcha.Validator.Grpc.V1.Signature
                 {
-                    PublicKey = docket.ProposerSignature.PublicKey,
-                    SignatureValue = docket.ProposerSignature.SignatureValue,
+                    PublicKey = Convert.ToBase64String(docket.ProposerSignature.PublicKey),
+                    SignatureValue = Convert.ToBase64String(docket.ProposerSignature.SignatureValue),
                     Algorithm = docket.ProposerSignature.Algorithm
                 }
             };
@@ -363,9 +365,10 @@ public class ConsensusEngine : IConsensusEngine
                 VotedAt = response.VotedAt.ToDateTimeOffset(),
                 ValidatorSignature = new Models.Signature
                 {
-                    PublicKey = response.ValidatorSignature.PublicKey,
-                    SignatureValue = response.ValidatorSignature.SignatureValue,
-                    Algorithm = response.ValidatorSignature.Algorithm
+                    PublicKey = Convert.FromBase64String(response.ValidatorSignature.PublicKey),
+                    SignatureValue = Convert.FromBase64String(response.ValidatorSignature.SignatureValue),
+                    Algorithm = response.ValidatorSignature.Algorithm,
+                    SignedAt = response.VotedAt.ToDateTimeOffset()
                 },
                 DocketHash = docket.DocketHash
             };
@@ -414,9 +417,9 @@ public class ConsensusEngine : IConsensusEngine
 
             // Verify vote signature
             var signatureValid = await _walletClient.VerifySignatureAsync(
-                vote.ValidatorSignature.PublicKey,
+                Convert.ToBase64String(vote.ValidatorSignature.PublicKey),
                 vote.DocketHash,
-                vote.ValidatorSignature.SignatureValue,
+                Convert.ToBase64String(vote.ValidatorSignature.SignatureValue),
                 vote.ValidatorSignature.Algorithm,
                 cancellationToken);
 
@@ -453,6 +456,11 @@ public class ConsensusEngine : IConsensusEngine
             docket.DocketHash,
             cancellationToken);
 
+        // TODO: Replace with proper wallet integration using IWalletIntegrationService
+        // For now, convert string representations to byte arrays
+        var publicKeyBytes = System.Text.Encoding.UTF8.GetBytes(systemWalletId);
+        var signatureBytes = System.Text.Encoding.UTF8.GetBytes(signature);
+
         return new Models.ConsensusVote
         {
             VoteId = voteId,
@@ -462,9 +470,10 @@ public class ConsensusEngine : IConsensusEngine
             VotedAt = votedAt,
             ValidatorSignature = new Models.Signature
             {
-                PublicKey = systemWalletId,
-                SignatureValue = signature,
-                Algorithm = "ED25519" // TODO: Get from wallet service
+                PublicKey = publicKeyBytes,
+                SignatureValue = signatureBytes,
+                Algorithm = "ED25519", // TODO: Get from wallet service
+                SignedAt = votedAt
             },
             DocketHash = docket.DocketHash
         };
@@ -489,6 +498,11 @@ public class ConsensusEngine : IConsensusEngine
             docket.DocketHash,
             cancellationToken);
 
+        // TODO: Replace with proper wallet integration using IWalletIntegrationService
+        // For now, convert string representations to byte arrays
+        var publicKeyBytes = System.Text.Encoding.UTF8.GetBytes(systemWalletId);
+        var signatureBytes = System.Text.Encoding.UTF8.GetBytes(signature);
+
         return new Models.ConsensusVote
         {
             VoteId = voteId,
@@ -499,9 +513,10 @@ public class ConsensusEngine : IConsensusEngine
             VotedAt = votedAt,
             ValidatorSignature = new Models.Signature
             {
-                PublicKey = systemWalletId,
-                SignatureValue = signature,
-                Algorithm = "ED25519" // TODO: Get from wallet service
+                PublicKey = publicKeyBytes,
+                SignatureValue = signatureBytes,
+                Algorithm = "ED25519", // TODO: Get from wallet service
+                SignedAt = votedAt
             },
             DocketHash = docket.DocketHash
         };
@@ -539,8 +554,8 @@ public class ConsensusEngine : IConsensusEngine
         {
             protoTx.Signatures.Add(new Sorcha.Validator.Grpc.V1.Signature
             {
-                PublicKey = sig.PublicKey,
-                SignatureValue = sig.SignatureValue,
+                PublicKey = Convert.ToBase64String(sig.PublicKey),
+                SignatureValue = Convert.ToBase64String(sig.SignatureValue),
                 Algorithm = sig.Algorithm
             });
         }

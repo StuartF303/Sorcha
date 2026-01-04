@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Sorcha.Validator.Grpc.V1;
 using Sorcha.Validator.Service.Services;
 using Sorcha.Validator.Service.Models;
-using Google.Protobuf.WellKnownTypes;
 
 namespace Sorcha.Validator.Service.GrpcServices;
 
@@ -70,8 +71,8 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
                 VotedAt = Timestamp.FromDateTimeOffset(vote.VotedAt),
                 ValidatorSignature = new Grpc.V1.Signature
                 {
-                    PublicKey = vote.ValidatorSignature.PublicKey,
-                    SignatureValue = vote.ValidatorSignature.SignatureValue,
+                    PublicKey = Convert.ToBase64String(vote.ValidatorSignature.PublicKey),
+                    SignatureValue = Convert.ToBase64String(vote.ValidatorSignature.SignatureValue),
                     Algorithm = vote.ValidatorSignature.Algorithm
                 }
             };
@@ -183,9 +184,10 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
             ProposerValidatorId = request.ProposerValidatorId,
             ProposerSignature = new Models.Signature
             {
-                PublicKey = request.ProposerSignature.PublicKey,
-                SignatureValue = request.ProposerSignature.SignatureValue,
-                Algorithm = request.ProposerSignature.Algorithm
+                PublicKey = Convert.FromBase64String(request.ProposerSignature.PublicKey),
+                SignatureValue = Convert.FromBase64String(request.ProposerSignature.SignatureValue),
+                Algorithm = request.ProposerSignature.Algorithm,
+                SignedAt = DateTimeOffset.UtcNow // Using current time as fallback
             },
             MerkleRoot = request.MerkleRoot
         };
@@ -212,9 +214,10 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
             ProposerValidatorId = request.ProposerValidatorId,
             ProposerSignature = new Models.Signature
             {
-                PublicKey = request.ProposerSignature.PublicKey,
-                SignatureValue = request.ProposerSignature.SignatureValue,
-                Algorithm = request.ProposerSignature.Algorithm
+                PublicKey = Convert.FromBase64String(request.ProposerSignature.PublicKey),
+                SignatureValue = Convert.FromBase64String(request.ProposerSignature.SignatureValue),
+                Algorithm = request.ProposerSignature.Algorithm,
+                SignedAt = DateTimeOffset.UtcNow // Using current time as fallback
             },
             MerkleRoot = request.MerkleRoot,
             Votes = consensusVotes
@@ -231,9 +234,10 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
 
         var signatures = protoTx.Signatures.Select(s => new Models.Signature
         {
-            PublicKey = s.PublicKey,
-            SignatureValue = s.SignatureValue,
-            Algorithm = s.Algorithm
+            PublicKey = Convert.FromBase64String(s.PublicKey),
+            SignatureValue = Convert.FromBase64String(s.SignatureValue),
+            Algorithm = s.Algorithm,
+            SignedAt = DateTimeOffset.UtcNow // Proto doesn't have timestamp, using current time
         }).ToList();
 
         var metadata = new Dictionary<string, string>();
@@ -281,9 +285,10 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
             VotedAt = protoVote.VotedAt.ToDateTimeOffset(),
             ValidatorSignature = new Models.Signature
             {
-                PublicKey = protoVote.ValidatorSignature.PublicKey,
-                SignatureValue = protoVote.ValidatorSignature.SignatureValue,
-                Algorithm = protoVote.ValidatorSignature.Algorithm
+                PublicKey = Convert.FromBase64String(protoVote.ValidatorSignature.PublicKey),
+                SignatureValue = Convert.FromBase64String(protoVote.ValidatorSignature.SignatureValue),
+                Algorithm = protoVote.ValidatorSignature.Algorithm,
+                SignedAt = protoVote.VotedAt.ToDateTimeOffset()
             },
             DocketHash = protoVote.DocketHash
         };

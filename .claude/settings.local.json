@@ -168,7 +168,11 @@
       "Bash(python:*)",
       "Bash(Select-String -Pattern \"error|Error|Exception|500\" -Context 2)",
       "Bash(Select-String -Pattern \"RSA4096|error|Error|exception|Exception\" -Context 2)",
-      "Bash(Select-Object -Last 30)"
+      "Bash(Select-Object -Last 30)",
+      "Bash(Select-String -Pattern \"Validator\")",
+      "Skill(speckit.plan)",
+      "Bash(Select-String -Pattern \"error|Error|Build succeeded|Build FAILED\" -Context 0,1)",
+      "Bash(Select-String -Pattern \"Passed|Failed|Skipped|Total\")"
     ],
     "deny": [],
     "ask": []

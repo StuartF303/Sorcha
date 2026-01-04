@@ -425,6 +425,10 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
     /// </summary>
     private static ValidateTransactionRequest CreateValidTransactionRequest()
     {
+        // Note: API expects Base64-encoded byte arrays for cryptographic data
+        var publicKeyBytes = System.Text.Encoding.UTF8.GetBytes("public-key-1");
+        var signatureBytes = System.Text.Encoding.UTF8.GetBytes("signature-value-1");
+
         return new ValidateTransactionRequest
         {
             TransactionId = $"tx-{Guid.NewGuid()}",
@@ -437,8 +441,8 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
             {
                 new SignatureRequest
                 {
-                    PublicKey = "public-key-1",
-                    SignatureValue = "signature-value-1",
+                    PublicKey = Convert.ToBase64String(publicKeyBytes),
+                    SignatureValue = Convert.ToBase64String(signatureBytes),
                     Algorithm = "ED25519"
                 }
             },

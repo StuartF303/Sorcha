@@ -58,9 +58,10 @@ public static class ValidationEndpoints
                 ExpiresAt = request.ExpiresAt,
                 Signatures = request.Signatures.Select(s => new Signature
                 {
-                    PublicKey = s.PublicKey,
-                    SignatureValue = s.SignatureValue,
-                    Algorithm = s.Algorithm
+                    PublicKey = Convert.FromBase64String(s.PublicKey),
+                    SignatureValue = Convert.FromBase64String(s.SignatureValue),
+                    Algorithm = s.Algorithm,
+                    SignedAt = request.CreatedAt
                 }).ToList(),
                 PayloadHash = request.PayloadHash,
                 Priority = request.Priority,

@@ -2,9 +2,11 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using FluentValidation;
+using Grpc.Net.Client;
 using Scalar.AspNetCore;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Endpoints;
+using Sorcha.Validator.Service.Services;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.Cryptography.Core;
 using Sorcha.Cryptography.Utilities;
@@ -31,8 +33,14 @@ builder.Services.Configure<Sorcha.Validator.Service.Configuration.MemPoolConfigu
 builder.Services.Configure<Sorcha.Validator.Service.Configuration.DocketBuildConfiguration>(
     builder.Configuration.GetSection("DocketBuild"));
 
-// Add Cryptography services (required for hashing operations)
+// Configure WalletConfiguration (T013)
+var walletConfig = builder.Configuration.GetSection("WalletService").Get<WalletConfiguration>()
+    ?? throw new InvalidOperationException("WalletService configuration is required");
+builder.Services.AddSingleton(walletConfig);
+
+// Add Cryptography services (required for hashing and signing operations)
 builder.Services.AddScoped<IHashProvider, HashProvider>();
+builder.Services.AddSingleton<ICryptoModule, CryptoModule>(); // T013: Register ICryptoModule
 builder.Services.AddScoped<MerkleTree>();
 builder.Services.AddScoped<DocketHasher>();
 
@@ -69,6 +77,30 @@ builder.Services.AddScoped<Sorcha.Validator.Service.Services.IValidatorOrchestra
 
 // Add consolidated service clients
 builder.Services.AddServiceClients(builder.Configuration);
+
+// Configure gRPC channel for Wallet Service (T014)
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<WalletConfiguration>();
+    return GrpcChannel.ForAddress(config.Endpoint, new GrpcChannelOptions
+    {
+        // Configure HTTP/2 keep-alive for long-running connections
+        HttpHandler = new SocketsHttpHandler
+        {
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5),
+            KeepAlivePingDelay = TimeSpan.FromSeconds(60),
+            KeepAlivePingTimeout = TimeSpan.FromSeconds(30),
+            EnableMultipleHttp2Connections = true
+        }
+    });
+});
+
+// Register WalletIntegrationService as singleton (T014)
+// Singleton lifetime chosen for:
+// - Wallet details cached for service lifetime (FR-002)
+// - Derived key cache persists across requests (performance)
+// - Thread-safe implementation with SemaphoreSlim
+builder.Services.AddSingleton<IWalletIntegrationService, WalletIntegrationService>();
 
 // Add background services
 builder.Services.AddHostedService<Sorcha.Validator.Service.Services.MemPoolCleanupService>();

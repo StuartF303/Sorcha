@@ -1,4 +1,4 @@
-# CLAUDE.md - AI Assistant Guide for Sorcha Project
+﻿# CLAUDE.md - AI Assistant Guide for Sorcha Project
 
 **Version:** 1.1
 **Last Updated:** 2025-12-07
