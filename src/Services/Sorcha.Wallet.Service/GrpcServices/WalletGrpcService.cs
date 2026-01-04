@@ -76,7 +76,7 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
     ///   <item>Unavailable - Database connection failure</item>
     /// </list>
     /// </remarks>
-    public override Task<GetWalletDetailsResponse> GetWalletDetails(
+    public override Task<WalletDetailsResponse> GetWalletDetails(
         GetWalletDetailsRequest request,
         ServerCallContext context)
     {
@@ -126,9 +126,9 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
         ServerCallContext context)
     {
         _logger.LogInformation(
-            "SignData called for wallet ID: {WalletId}, data length: {DataLength} bytes",
+            "SignData called for wallet ID: {WalletId}, data hash length: {DataHashLength} bytes",
             request.WalletId,
-            request.Data.Length);
+            request.DataHash.Length);
 
         // TODO: Implement data signing
         // 1. Validate request (WalletId, Data not empty, Data is 32 bytes)
