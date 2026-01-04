@@ -30,6 +30,16 @@ public static class ValidationEndpoints
         return group;
     }
 
+    public static RouteGroupBuilder MapGenesisEndpoint(this RouteGroupBuilder group)
+    {
+        group.MapPost("/genesis", SubmitGenesisTransaction)
+            .WithName("SubmitGenesisTransaction")
+            .WithSummary("Submits a genesis transaction for register creation")
+            .WithDescription("Accepts genesis transactions from Register Service with control record payloads");
+
+        return group;
+    }
+
     /// <summary>
     /// Validates a transaction and adds it to the memory pool
     /// </summary>
@@ -151,6 +161,80 @@ public static class ValidationEndpoints
     }
 
     /// <summary>
+    /// Submits a genesis transaction for register creation
+    /// </summary>
+    private static async Task<IResult> SubmitGenesisTransaction(
+        [FromBody] GenesisTransactionRequest request,
+        [FromServices] IMemPoolManager memPoolManager,
+        [FromServices] ILogger<Program> logger,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            logger.LogInformation("Submitting genesis transaction for register {RegisterId}", request.RegisterId);
+
+            // Create genesis transaction for memory pool
+            var transaction = new Transaction
+            {
+                TransactionId = request.TransactionId,
+                RegisterId = request.RegisterId,
+                BlueprintId = "genesis", // Special marker for genesis transactions
+                ActionId = "register-creation",
+                Payload = request.ControlRecordPayload,
+                CreatedAt = request.CreatedAt,
+                ExpiresAt = null, // Genesis transactions don't expire
+                Signatures = request.Signatures.Select(s => new Signature
+                {
+                    PublicKey = Convert.FromBase64String(s.PublicKey),
+                    SignatureValue = Convert.FromBase64String(s.SignatureValue),
+                    Algorithm = s.Algorithm,
+                    SignedAt = request.CreatedAt
+                }).ToList(),
+                PayloadHash = request.PayloadHash,
+                Priority = TransactionPriority.High, // Genesis has highest priority
+                Metadata = new Dictionary<string, string>
+                {
+                    { "Type", "Genesis" },
+                    { "RegisterName", request.RegisterName ?? string.Empty },
+                    { "TenantId", request.TenantId ?? string.Empty }
+                }
+            };
+
+            // Add to memory pool
+            var added = await memPoolManager.AddTransactionAsync(request.RegisterId, transaction, cancellationToken);
+
+            if (!added)
+            {
+                logger.LogWarning("Failed to add genesis transaction for register {RegisterId} to memory pool", request.RegisterId);
+                return Results.Conflict(new
+                {
+                    Success = false,
+                    Message = "Failed to add genesis transaction to memory pool (pool full or duplicate)"
+                });
+            }
+
+            logger.LogInformation("Genesis transaction for register {RegisterId} added to memory pool successfully", request.RegisterId);
+
+            return Results.Ok(new
+            {
+                Success = true,
+                TransactionId = request.TransactionId,
+                RegisterId = request.RegisterId,
+                AddedAt = DateTimeOffset.UtcNow,
+                Message = "Genesis transaction accepted and queued for docket creation"
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error submitting genesis transaction for register {RegisterId}", request.RegisterId);
+            return Results.Problem(
+                title: "Internal server error",
+                detail: ex.Message,
+                statusCode: 500);
+        }
+    }
+
+    /// <summary>
     /// Gets memory pool statistics for a register
     /// </summary>
     private static async Task<IResult> GetMemPoolStats(
@@ -189,4 +273,19 @@ public record SignatureRequest
     public required string PublicKey { get; init; }
     public required string SignatureValue { get; init; }
     public required string Algorithm { get; init; }
+}
+
+/// <summary>
+/// Request model for genesis transaction submission
+/// </summary>
+public record GenesisTransactionRequest
+{
+    public required string TransactionId { get; init; }
+    public required string RegisterId { get; init; }
+    public required JsonElement ControlRecordPayload { get; init; }
+    public required string PayloadHash { get; init; }
+    public required List<SignatureRequest> Signatures { get; init; }
+    public required DateTimeOffset CreatedAt { get; init; }
+    public string? RegisterName { get; init; }
+    public string? TenantId { get; init; }
 }

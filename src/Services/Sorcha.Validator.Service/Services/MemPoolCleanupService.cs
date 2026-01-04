@@ -11,16 +11,16 @@ namespace Sorcha.Validator.Service.Services;
 /// </summary>
 public class MemPoolCleanupService : BackgroundService
 {
-    private readonly IMemPoolManager _memPoolManager;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly MemPoolConfiguration _config;
     private readonly ILogger<MemPoolCleanupService> _logger;
 
     public MemPoolCleanupService(
-        IMemPoolManager memPoolManager,
+        IServiceScopeFactory scopeFactory,
         IOptions<MemPoolConfiguration> config,
         ILogger<MemPoolCleanupService> logger)
     {
-        _memPoolManager = memPoolManager ?? throw new ArgumentNullException(nameof(memPoolManager));
+        _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -40,7 +40,10 @@ public class MemPoolCleanupService : BackgroundService
 
                 try
                 {
-                    await _memPoolManager.CleanupExpiredTransactionsAsync(stoppingToken);
+                    // Create a scope to resolve IMemPoolManager
+                    using var scope = _scopeFactory.CreateScope();
+                    var memPoolManager = scope.ServiceProvider.GetRequiredService<IMemPoolManager>();
+                    await memPoolManager.CleanupExpiredTransactionsAsync(stoppingToken);
                 }
                 catch (Exception ex)
                 {

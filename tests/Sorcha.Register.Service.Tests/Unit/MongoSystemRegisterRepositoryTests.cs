@@ -291,9 +291,9 @@ public class MongoSystemRegisterRepositoryIntegrationTests
     /// <summary>
     /// Helper method to create test entries
     /// </summary>
-    private static SystemRegisterEntry CreateTestEntry(string blueprintId)
+    private static Sorcha.Register.Service.Repositories.SystemRegisterEntry CreateTestEntry(string blueprintId)
     {
-        return new SystemRegisterEntry
+        return new Sorcha.Register.Service.Repositories.SystemRegisterEntry
         {
             BlueprintId = blueprintId,
             RegisterId = Guid.Empty, // System register uses empty GUID

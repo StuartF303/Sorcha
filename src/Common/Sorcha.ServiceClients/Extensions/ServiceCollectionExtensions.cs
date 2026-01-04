@@ -7,6 +7,7 @@ using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Register;
 using Sorcha.ServiceClients.Blueprint;
 using Sorcha.ServiceClients.Peer;
+using Sorcha.ServiceClients.Validator;
 
 namespace Sorcha.ServiceClients.Extensions;
 
@@ -49,6 +50,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRegisterServiceClient, RegisterServiceClient>();
         services.AddScoped<IBlueprintServiceClient, BlueprintServiceClient>();
         services.AddScoped<IPeerServiceClient, PeerServiceClient>();
+        services.AddScoped<IValidatorServiceClient, ValidatorServiceClient>();
+
+        // Register HttpClient for ValidatorServiceClient
+        services.AddHttpClient<ValidatorServiceClient>();
 
         return services;
     }

@@ -1235,6 +1235,293 @@ public class RegisterHeightUpdatedEvent
 - Track register creation and update timestamps
 - Enforce register name length limits (1-38 characters)
 
+### FR-REG-001A: Register Creation with Genesis Transactions and Control Records
+
+**As a** system administrator or authorized user
+**I want to** create a new register with cryptographically signed control records and a genesis transaction
+**So that** the register has an immutable audit trail of its creation, ownership, and administrative control from inception
+
+**Background:**
+
+When a register is created, it must establish:
+1. **Identity and Metadata**: Name, description, creation timestamp
+2. **Administrative Control**: Who has ownership and administrative rights
+3. **Cryptographic Proof**: Signatures proving the creator authorized the register creation
+4. **Genesis Transaction**: First immutable record establishing the register's authority chain
+
+This ensures:
+- **Non-repudiation**: Creator cannot deny creating the register
+- **Auditability**: Clear trail of who created and controls the register
+- **DAD Security Model**: Disclosure (control record shows admins), Alteration (immutable genesis), Destruction (permanent record)
+
+**Control Record Structure:**
+
+The control record is a JSON-Schema validated document stored in the genesis transaction:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RegisterControlRecord",
+  "type": "object",
+  "required": ["registerId", "name", "createdAt", "attestations"],
+  "properties": {
+    "registerId": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$",
+      "description": "Unique register identifier (GUID without hyphens)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 38,
+      "description": "Human-readable register name"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Purpose and scope of the register"
+    },
+    "tenantId": {
+      "type": "string",
+      "description": "Owning tenant/organization identifier"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 creation timestamp (UTC)"
+    },
+    "attestations": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Cryptographic attestations of administrative roles",
+      "items": {
+        "type": "object",
+        "required": ["role", "subject", "publicKey", "signature"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["owner", "admin", "auditor", "designer"],
+            "description": "Administrative role being attested"
+          },
+          "subject": {
+            "type": "string",
+            "description": "DID or user identifier (e.g., did:sorcha:user-123)"
+          },
+          "publicKey": {
+            "type": "string",
+            "description": "Base64-encoded public key for verification"
+          },
+          "signature": {
+            "type": "string",
+            "description": "Cryptographic signature of the control record hash"
+          },
+          "algorithm": {
+            "type": "string",
+            "enum": ["ED25519", "NISTP256", "RSA4096"],
+            "description": "Signature algorithm used"
+          },
+          "grantedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this role was granted (UTC)"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional register metadata (tags, category, etc.)"
+    }
+  }
+}
+```
+
+**API Workflow:**
+
+Register creation follows a two-phase workflow to allow client-side signing:
+
+**Phase 1: Initiate Register Creation**
+```http
+POST /api/registers/initiate
+Content-Type: application/json
+
+{
+  "name": "Document Registry",
+  "description": "Tracks all corporate documents",
+  "tenantId": "org-abc123",
+  "creator": {
+    "userId": "user-456",
+    "walletId": "wallet-xyz789"
+  },
+  "additionalAdmins": [
+    {
+      "userId": "user-789",
+      "walletId": "wallet-abc",
+      "role": "admin"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "registerId": "a1b2c3d4e5f6...",
+  "controlRecord": {
+    "registerId": "a1b2c3d4e5f6...",
+    "name": "Document Registry",
+    "description": "Tracks all corporate documents",
+    "tenantId": "org-abc123",
+    "createdAt": "2025-01-04T15:30:00Z",
+    "attestations": [
+      {
+        "role": "owner",
+        "subject": "did:sorcha:user-456",
+        "publicKey": "[to-be-filled]",
+        "signature": "[to-be-signed]",
+        "algorithm": "ED25519",
+        "grantedAt": "2025-01-04T15:30:00Z"
+      },
+      {
+        "role": "admin",
+        "subject": "did:sorcha:user-789",
+        "publicKey": "[to-be-filled]",
+        "signature": "[to-be-signed]",
+        "algorithm": "ED25519",
+        "grantedAt": "2025-01-04T15:30:00Z"
+      }
+    ]
+  },
+  "dataToSign": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "expiresAt": "2025-01-04T15:35:00Z"
+}
+```
+
+**Phase 2: Finalize Register Creation**
+
+Client signs the `dataToSign` hash with each admin's wallet, then submits:
+
+```http
+POST /api/registers/finalize
+Content-Type: application/json
+
+{
+  "registerId": "a1b2c3d4e5f6...",
+  "controlRecord": {
+    "registerId": "a1b2c3d4e5f6...",
+    "name": "Document Registry",
+    "description": "Tracks all corporate documents",
+    "tenantId": "org-abc123",
+    "createdAt": "2025-01-04T15:30:00Z",
+    "attestations": [
+      {
+        "role": "owner",
+        "subject": "did:sorcha:user-456",
+        "publicKey": "MCowBQYDK2VwAyEA...",
+        "signature": "5g3JvK7nM8pL...",
+        "algorithm": "ED25519",
+        "grantedAt": "2025-01-04T15:30:00Z"
+      },
+      {
+        "role": "admin",
+        "subject": "did:sorcha:user-789",
+        "publicKey": "MCowBQYDK2VwAyEA...",
+        "signature": "9k2LqP5rN4mK...",
+        "algorithm": "ED25519",
+        "grantedAt": "2025-01-04T15:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "registerId": "a1b2c3d4e5f6...",
+  "status": "created",
+  "genesisTransactionId": "genesis-tx-a1b2c3d4...",
+  "genesisDocketId": "0",
+  "createdAt": "2025-01-04T15:30:15Z"
+}
+```
+
+**Backend Processing:**
+
+1. **Initiate Phase (`POST /api/registers/initiate`)**:
+   - Generate unique register ID
+   - Create control record template with creator as owner
+   - Compute SHA-256 hash of control record JSON (canonical form)
+   - Store pending registration (expires in 5 minutes)
+   - Return unsigned control record + hash to client
+
+2. **Finalize Phase (`POST /api/registers/finalize`)**:
+   - Validate control record JSON against schema
+   - Verify each attestation signature matches public key
+   - Verify signatures are valid for the control record hash
+   - Create register in database
+   - Create genesis transaction with control record payload
+   - Submit genesis transaction to Validator Service mempool
+   - Wait for Validator to create genesis docket
+
+3. **Validator Service Processing**:
+   - Detect `TransactionType.Genesis` in mempool
+   - Create genesis docket with transaction
+   - Sign docket with validator wallet
+   - Store docket to register (height 0)
+   - Notify Register Service of completion
+
+**Acceptance Criteria:**
+
+- System generates unique register ID during initiation
+- Control record structure validates against JSON Schema
+- At least one attestation with role="owner" is required
+- Multiple attestations supported (owner, admin, auditor, designer)
+- Signatures verified using Sorcha.Cryptography library
+- Supported signature algorithms: ED25519, NISTP256, RSA4096
+- Genesis transaction created with type `TransactionType.Genesis`
+- Genesis transaction includes entire control record as payload
+- Genesis transaction submitted to Validator Service mempool
+- Validator creates genesis docket (height 0) for new register
+- Genesis docket signed by validator wallet
+- Register creation fails if any signature is invalid
+- Pending registrations expire after 5 minutes
+- Control record immutably stored in genesis transaction
+- Full audit trail from creation to first docket
+- API returns 201 Created with register details on success
+- API returns 400 Bad Request for invalid control records
+- API returns 401 Unauthorized for signature verification failures
+- API returns 408 Request Timeout for expired pending registrations
+
+**Non-Functional Requirements:**
+
+- Initiation completes within 500ms (p95)
+- Finalization (excluding validator processing) completes within 2 seconds (p95)
+- End-to-end register creation (including genesis docket) completes within 10 seconds (p95)
+- JSON Schema validation performance: <50ms per control record
+- Signature verification: <100ms per attestation (ED25519), <200ms (RSA4096)
+- Supports up to 10 attestations per register
+- Control record size limit: 16KB
+- Thread-safe pending registration storage (supports concurrent initiations)
+
+**Security Considerations:**
+
+- Control record hash computed using canonical JSON (RFC 8785) to prevent signature malleability
+- Signatures verified server-side before register creation
+- Public keys extracted from wallet service, not client-provided (prevents impersonation)
+- Genesis transaction marked immutable (cannot be modified or deleted)
+- Replay protection: pending registrations use nonce/timestamp
+- Rate limiting: Max 10 register creations per user per hour
+
+**Future Enhancements:**
+
+- Blueprint workflow for register creation orchestration (Phase 2)
+- Role-based permissions within control record (read-only admin, etc.)
+- Time-limited attestations with expiration
+- Multi-signature thresholds (e.g., 2-of-3 owners required)
+- Attestation revocation mechanism
+- Integration with DID documents for subject verification
+
 ### FR-REG-002: Transaction Storage
 
 **As a** blockchain participant

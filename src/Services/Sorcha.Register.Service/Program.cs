@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.OData.ModelBuilder;
 using MongoDB.Driver;
 using Scalar.AspNetCore;
+using Sorcha.Cryptography.Interfaces;
 using Sorcha.Register.Core.Events;
 using Sorcha.Register.Core.Managers;
 using Sorcha.Register.Core.Storage;
@@ -16,6 +17,7 @@ using Sorcha.Register.Service.Hubs;
 using Sorcha.Register.Service.Repositories;
 using Sorcha.Register.Service.Services;
 using Sorcha.Register.Storage.InMemory;
+using Sorcha.ServiceClients.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -323,6 +325,16 @@ builder.Services.AddScoped<RegisterManager>();
 builder.Services.AddScoped<TransactionManager>();
 builder.Services.AddScoped<QueryManager>();
 
+// Register creation orchestration
+builder.Services.AddSingleton<IRegisterCreationOrchestrator, RegisterCreationOrchestrator>();
+
+// Register cryptography services (from Sorcha.Cryptography)
+builder.Services.AddScoped<IHashProvider, Sorcha.Cryptography.Core.HashProvider>();
+builder.Services.AddScoped<ICryptoModule, Sorcha.Cryptography.Core.CryptoModule>();
+
+// Register wallet service client
+builder.Services.AddServiceClients(builder.Configuration);
+
 // Register MongoDB for system register
 builder.Services.AddSingleton<IMongoClient>(sp =>
 {
@@ -517,6 +529,144 @@ registersGroup.MapGet("/stats/count", async (RegisterManager manager) =>
 .WithName("GetRegisterCount")
 .WithSummary("Get register count")
 .WithDescription("Returns the total number of registers.");
+
+// ===========================
+// Register Creation with Genesis Transactions (FR-REG-001A)
+// ===========================
+
+/// <summary>
+/// Initiate register creation (Phase 1): Generate unsigned control record
+/// </summary>
+registersGroup.MapPost("/initiate", async (
+    IRegisterCreationOrchestrator orchestrator,
+    InitiateRegisterCreationRequest request,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var response = await orchestrator.InitiateAsync(request, cancellationToken);
+        return Results.Ok(response);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message, details = "Invalid request parameters" });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(
+            title: "Register initiation failed",
+            detail: ex.Message,
+            statusCode: 500);
+    }
+})
+.WithName("InitiateRegisterCreation")
+.WithSummary("Initiate register creation (Phase 1)")
+.WithDescription(@"
+**Phase 1: Generate Unsigned Control Record**
+
+Initiates the two-phase register creation workflow by generating a unique register ID
+and unsigned control record template. The client must sign the returned `dataToSign` hash
+with each admin's wallet before calling the finalize endpoint.
+
+**Workflow:**
+1. Server generates unique register ID and control record template
+2. Server computes SHA-256 hash of control record for signing
+3. Client signs the hash with each admin's wallet (offline/client-side)
+4. Client calls /finalize with signed control record
+
+**Control Record:**
+The control record establishes administrative control with cryptographic attestations.
+At least one 'owner' attestation is required.
+
+**Expiration:**
+The pending registration expires after 5 minutes. The client must finalize within this timeframe.
+
+**Returns:**
+- `registerId`: Generated unique ID
+- `controlRecord`: Template with placeholder signatures
+- `dataToSign`: SHA-256 hash to sign with wallets
+- `expiresAt`: Expiration timestamp
+- `nonce`: Replay protection nonce
+");
+
+/// <summary>
+/// Finalize register creation (Phase 2): Verify signatures and create register
+/// </summary>
+registersGroup.MapPost("/finalize", async (
+    IRegisterCreationOrchestrator orchestrator,
+    FinalizeRegisterCreationRequest request,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var response = await orchestrator.FinalizeAsync(request, cancellationToken);
+        return Results.Created($"/api/registers/{response.RegisterId}", response);
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("expired"))
+    {
+        return Results.Problem(
+            title: "Registration expired",
+            detail: ex.Message,
+            statusCode: 408); // Request Timeout
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Results.Problem(
+            title: "Signature verification failed",
+            detail: ex.Message,
+            statusCode: 401); // Unauthorized
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message, details = "Invalid control record or signatures" });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(
+            title: "Register finalization failed",
+            detail: ex.Message,
+            statusCode: 500);
+    }
+})
+.WithName("FinalizeRegisterCreation")
+.WithSummary("Finalize register creation (Phase 2)")
+.WithDescription(@"
+**Phase 2: Verify Signatures and Create Register**
+
+Completes the register creation workflow by verifying all attestation signatures,
+creating the register in the database, and generating the genesis transaction.
+
+**Workflow:**
+1. Server retrieves pending registration by ID and nonce
+2. Server validates control record against JSON Schema
+3. Server verifies each attestation signature using public keys
+4. Server creates register in database
+5. Server creates genesis transaction with control record payload
+6. Server submits genesis transaction to Validator Service
+7. Validator creates genesis docket (height 0)
+
+**Signature Verification:**
+- Each attestation signature is verified using the subject's public key
+- Supported algorithms: ED25519, NISTP256, RSA4096
+- Signature must match the SHA-256 hash from initiation phase
+
+**Genesis Transaction:**
+The genesis transaction contains the signed control record and establishes
+an immutable audit trail of register creation and ownership.
+
+**Returns:**
+- `registerId`: Created register ID
+- `status`: 'created'
+- `genesisTransactionId`: Genesis transaction ID
+- `genesisDocketId`: '0' (genesis docket)
+- `createdAt`: Creation timestamp
+
+**Errors:**
+- 400 Bad Request: Invalid control record or validation errors
+- 401 Unauthorized: Signature verification failed
+- 408 Request Timeout: Pending registration expired
+- 500 Internal Server Error: Database or service error
+");
 
 // ===========================
 // Transaction Management API
