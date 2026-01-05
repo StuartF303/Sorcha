@@ -320,26 +320,94 @@ Signature verification failed for attestation: subject=did:sorcha:admin, role=Ow
 - ✅ Wallet signing operation succeeds
 - ❌ Cryptographic verification fails
 
-**Possible Root Causes** (under investigation):
-1. **Canonical JSON Mismatch**: The control record JSON serialization in finalize may differ from initiate
-   - Initiate computes hash: `JsonSerializer.Serialize(controlRecord, _canonicalJsonOptions)` (line 117)
-   - Finalize receives already-serialized control record from client
-   - May have different field ordering, whitespace, or null handling
+**Root Cause Identified: Double-Hashing Bug**:
 
-2. **Data Signed vs Data Verified Mismatch**:
-   - Wallet signs: SHA-256 hash of canonical JSON (32 bytes)
-   - Register verifies: Expects same 32-byte hash
-   - If control record is reconstructed differently, hashes won't match
+The signature verification fails due to a **double-hashing bug** in the Wallet Service's `TransactionService`:
 
-3. **Algorithm Parameter Mismatch**:
-   - Wallet uses: `WalletNetworks.ED25519` → `Ed25519.Sign()`
-   - Register uses: `MapAlgorithm(SignatureAlgorithm.ED25519)` → `ICryptoModule.VerifyAsync()`
-   - Potential parameter mismatch in verification call
+**The Problem**:
+```csharp
+// src/Common/Sorcha.Wallet.Core/Services/Implementation/TransactionService.cs:50
+public async Task<byte[]> SignTransactionAsync(byte[] transactionData, ...)
+{
+    // BUG: Hashes the data AGAIN before signing
+    var hash = _hashProvider.ComputeHash(transactionData, HashType.SHA256);
+    var signResult = await _cryptoModule.SignAsync(hash, ...);
+}
+```
+
+**What Happens**:
+1. Register Service: Computes `SHA-256(controlRecordJSON)` → Hash A (32 bytes)
+2. Client: Sends Hash A to Wallet Service
+3. Wallet Service: Computes `SHA-256(Hash A)` → Hash B, signs Hash B ❌
+4. Register Service: Tries to verify signature against Hash A ❌ MISMATCH
+
+**The Workflow**:
+```
+RegisterCreationOrchestrator.InitiateAsync():
+  controlRecordJson = Serialize(controlRecord)
+  hashA = SHA-256(controlRecordJson)  // 32 bytes
+  Store hashA in pending registration
+
+Client Script:
+  Receives hashA (hex format)
+  Converts to base64: hashA_base64
+  POST /api/v1/wallets/{address}/sign { transactionData: hashA_base64 }
+
+WalletManager.SignTransactionAsync():
+  data = FromBase64(hashA_base64)  // Gets hashA as bytes
+  Calls TransactionService.SignTransactionAsync(data, ...)
+
+TransactionService.SignTransactionAsync():
+  hashB = SHA-256(hashA)  // ❌ DOUBLE HASH!
+  signature = Sign(hashB)  // Signs hashB, not hashA
+
+RegisterCreationOrchestrator.FinalizeAsync():
+  Verify(signature, hashA, publicKey)  // ❌ FAILS - signature is for hashB
+```
+
+**The Fix**:
+
+Option 1: Add `/api/v1/wallets/{address}/sign-hash` endpoint that signs pre-computed hashes directly
+```csharp
+public async Task<byte[]> SignHashAsync(byte[] hash, byte[] privateKey, byte network)
+{
+    // Sign the hash directly without additional hashing
+    var signResult = await _cryptoModule.SignAsync(hash, network, privateKey);
+    return signResult.Value;
+}
+```
+
+Option 2: Modify `TransactionService` to detect if data is already a hash (32 bytes for SHA-256)
+```csharp
+public async Task<byte[]> SignTransactionAsync(byte[] transactionData, ...)
+{
+    // If data is already 32 bytes (SHA-256 hash size), skip hashing
+    var hash = transactionData.Length == 32
+        ? transactionData
+        : _hashProvider.ComputeHash(transactionData, HashType.SHA256);
+
+    var signResult = await _cryptoModule.SignAsync(hash, ...);
+}
+```
+
+Option 3 (Preferred): Pass a flag indicating whether data is pre-hashed
+```csharp
+public async Task<byte[]> SignAsync(
+    byte[] data,
+    byte[] privateKey,
+    string algorithm,
+    bool isPreHashed = false)
+{
+    var hash = isPreHashed ? data : _hashProvider.ComputeHash(data, HashType.SHA256);
+    var signResult = await _cryptoModule.SignAsync(hash, ...);
+}
+```
 
 **Code References**:
-- Signing: `WalletManager.cs` lines 550-593
-- Verification: `RegisterCreationOrchestrator.cs` lines 317-370
-- Hash computation: `RegisterCreationOrchestrator.cs` lines 117-121
+- Double-hashing bug: `Sorcha.Wallet.Core/Services/Implementation/TransactionService.cs` line 50
+- Register hash computation: `RegisterCreationOrchestrator.cs` lines 117-121
+- Register verification: `RegisterCreationOrchestrator.cs` lines 317-370
+- Wallet signing flow: `WalletManager.cs` lines 550-593
 
 **Next Steps**:
 1. Add detailed logging of canonical JSON in both initiate and finalize
