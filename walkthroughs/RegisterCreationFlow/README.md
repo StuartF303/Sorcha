@@ -253,13 +253,125 @@ pwsh walkthroughs/RegisterCreationFlow/test-register-creation-docker.ps1
 **Issue**: Signature verification failure
 - **Solution**: Use valid signatures (in demo, we use placeholders - this will fail real verification)
 
+## Real Wallet Signing Integration (test-register-creation-with-real-signing.ps1)
+
+**Status**: 4 of 5 steps working (80% functional)
+
+This enhanced walkthrough integrates real cryptographic signing via the Wallet Service:
+
+```powershell
+# Test with ED25519 (default)
+pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.ps1
+
+# Test with NIST P-256
+pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.ps1 -Algorithm NISTP256
+
+# Test with RSA-4096
+pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.ps1 -Algorithm RSA4096
+
+# Direct service access for debugging
+pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.ps1 -Profile direct
+```
+
+### Workflow Steps
+
+1. ✅ **Admin Authentication** (Tenant Service)
+   - Authenticates via `/api/service-auth/token`
+   - Obtains bearer token for subsequent requests
+   - Status: **WORKING**
+
+2. ✅ **Wallet Creation** (Wallet Service)
+   - Creates HD wallet with specified algorithm (ED25519/NISTP256/RSA4096)
+   - Generates mnemonic (BIP39), derives keys (BIP32/BIP44)
+   - Returns wallet address and public key
+   - Status: **WORKING**
+
+3. ✅ **Register Initiation** (Register Service)
+   - POST to `/api/registers/initiate`
+   - Generates canonical JSON hash of control record
+   - Returns registerId, nonce, and hash to sign
+   - Status: **WORKING**
+
+4. ✅ **Data Signing** (Wallet Service)
+   - Signs SHA-256 hash with wallet private key
+   - POST to `/api/v1/wallets/{address}/sign`
+   - Returns Base64-encoded signature
+   - Status: **WORKING**
+
+5. ❌ **Signature Verification** (Register Service)
+   - POST to `/api/registers/finalize` with signed control record
+   - Verifies signature using `Sorcha.Cryptography.ICryptoModule.VerifyAsync()`
+   - Status: **FAILING** (HTTP 401 Unauthorized)
+
+### Known Issues
+
+#### Issue: Signature Verification Failure
+
+**Symptom**: Finalize endpoint returns HTTP 401 with log message:
+```
+Signature verification failed for attestation: subject=did:sorcha:admin, role=Owner
+```
+
+**Investigation Findings**:
+- ✅ Signature byte length correct for ED25519 (64 bytes)
+- ✅ Public key byte length correct (32 bytes)
+- ✅ Hash byte length correct (32 bytes for SHA-256)
+- ✅ Base64 encoding/decoding working correctly
+- ✅ Wallet signing operation succeeds
+- ❌ Cryptographic verification fails
+
+**Possible Root Causes** (under investigation):
+1. **Canonical JSON Mismatch**: The control record JSON serialization in finalize may differ from initiate
+   - Initiate computes hash: `JsonSerializer.Serialize(controlRecord, _canonicalJsonOptions)` (line 117)
+   - Finalize receives already-serialized control record from client
+   - May have different field ordering, whitespace, or null handling
+
+2. **Data Signed vs Data Verified Mismatch**:
+   - Wallet signs: SHA-256 hash of canonical JSON (32 bytes)
+   - Register verifies: Expects same 32-byte hash
+   - If control record is reconstructed differently, hashes won't match
+
+3. **Algorithm Parameter Mismatch**:
+   - Wallet uses: `WalletNetworks.ED25519` → `Ed25519.Sign()`
+   - Register uses: `MapAlgorithm(SignatureAlgorithm.ED25519)` → `ICryptoModule.VerifyAsync()`
+   - Potential parameter mismatch in verification call
+
+**Code References**:
+- Signing: `WalletManager.cs` lines 550-593
+- Verification: `RegisterCreationOrchestrator.cs` lines 317-370
+- Hash computation: `RegisterCreationOrchestrator.cs` lines 117-121
+
+**Next Steps**:
+1. Add detailed logging of canonical JSON in both initiate and finalize
+2. Compare hex dumps of data signed vs data verified
+3. Verify Sorcha.Cryptography test coverage for ED25519 verification
+4. Consider adding debug endpoint to return signed data for comparison
+
+### Technical Fixes Applied
+
+**Fix #1: Wallet Response Structure** (Commit: 6d80caf)
+- Wallet API returns nested `{ wallet: {...}, mnemonicWords: [...] }` structure
+- Updated scripts to access `$response.wallet.address` instead of `$response.address`
+
+**Fix #2: Pending Registration State Loss** (Commit: 6d80caf)
+- Created `IPendingRegistrationStore` singleton service
+- Implemented `PendingRegistrationStore` with `ConcurrentDictionary`
+- Prevents state loss between initiate and finalize requests
+- DI: Orchestrator (scoped) injects store (singleton)
+
+**Fix #3: Control Record Request Structure** (Commit: 6d80caf)
+- Finalize endpoint expects full control record with attestations
+- Updated request to include: registerId, name, description, tenantId, metadata, attestations
+- Attestations include: role, subject, publicKey (Base64), signature (Base64), algorithm
+
 ## Next Steps
 
 After this walkthrough:
-1. Integrate real wallet signing (Wallet Service)
-2. Test with multiple attestations (owner + admins)
-3. Test with different signature algorithms (ED25519, NIST P-256, RSA-4096)
-4. Verify docket creation from genesis transaction
+1. ~~Integrate real wallet signing (Wallet Service)~~ ✅ **COMPLETED**
+2. **Resolve signature verification issue** (current blocker)
+3. Test with multiple attestations (owner + admins)
+4. Test with different signature algorithms (NISTP256, RSA4096)
+5. Verify docket creation from genesis transaction
 
 ## References
 
