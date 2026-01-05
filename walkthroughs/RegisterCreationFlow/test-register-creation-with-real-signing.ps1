@@ -15,7 +15,10 @@ param(
     [string]$AdminEmail = "admin@sorcha.local",
 
     [Parameter(Mandatory=$false)]
-    [string]$AdminPassword = "Dev_Pass_2025!"
+    [string]$AdminPassword = "Dev_Pass_2025!",
+
+    [Parameter(Mandatory=$false)]
+    [switch]$ShowJson = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -312,6 +315,13 @@ try {
         $genesisTransactionId = $finalizeResponse.genesisTransactionId
     }
 
+    # Show full JSON if requested
+    if ($ShowJson) {
+        Write-Host ""
+        Write-Host "Full Finalization Response (JSON):" -ForegroundColor Magenta
+        Write-Host ($finalizeResponse | ConvertTo-Json -Depth 10) -ForegroundColor DarkGray
+    }
+
 } catch {
     Write-Error "Failed to finalize register creation"
     Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
@@ -347,6 +357,56 @@ if ($genesisTransactionId) {
         Write-Host "  Type: $($txResponse.type)" -ForegroundColor White
         Write-Host "  Register ID: $($txResponse.registerId)" -ForegroundColor White
         Write-Host "  Status: $($txResponse.status)" -ForegroundColor White
+
+        # Show full JSON if requested
+        if ($ShowJson) {
+            Write-Host ""
+            Write-Host "================================================================================" -ForegroundColor Magenta
+            Write-Host "  FULL GENESIS TRANSACTION JSON" -ForegroundColor Magenta
+            Write-Host "================================================================================" -ForegroundColor Magenta
+            Write-Host ""
+            Write-Host ($txResponse | ConvertTo-Json -Depth 10) -ForegroundColor Gray
+            Write-Host ""
+
+            # Extract and display control record if available
+            if ($txResponse.controlRecord) {
+                Write-Host "================================================================================" -ForegroundColor Cyan
+                Write-Host "  REGISTER CONTROL RECORD" -ForegroundColor Cyan
+                Write-Host "================================================================================" -ForegroundColor Cyan
+                Write-Host ""
+                Write-Host ($txResponse.controlRecord | ConvertTo-Json -Depth 10) -ForegroundColor Gray
+                Write-Host ""
+
+                # Show attestations
+                if ($txResponse.controlRecord.attestations) {
+                    Write-Host "Attestations (Verified Owner Signatures):" -ForegroundColor Yellow
+                    foreach ($attestation in $txResponse.controlRecord.attestations) {
+                        Write-Host "  - Subject: $($attestation.subject)" -ForegroundColor White
+                        Write-Host "    Role: $($attestation.role)" -ForegroundColor Gray
+                        Write-Host "    Public Key: $($attestation.publicKey)" -ForegroundColor Gray
+                        Write-Host "    Algorithm: $($attestation.algorithm)" -ForegroundColor Gray
+                        Write-Host "    Signature: $($attestation.signature)" -ForegroundColor DarkGray
+                        Write-Host ""
+                    }
+                }
+            }
+
+            # Extract and display signed docket if available
+            if ($txResponse.signedDocket) {
+                Write-Host "================================================================================" -ForegroundColor Green
+                Write-Host "  SIGNED DOCKET (System Wallet Signature)" -ForegroundColor Green
+                Write-Host "================================================================================" -ForegroundColor Green
+                Write-Host ""
+                Write-Host ($txResponse.signedDocket | ConvertTo-Json -Depth 10) -ForegroundColor Gray
+                Write-Host ""
+
+                Write-Host "Docket Signature Details:" -ForegroundColor Yellow
+                Write-Host "  Algorithm: $($txResponse.signedDocket.algorithm)" -ForegroundColor White
+                Write-Host "  Public Key: $($txResponse.signedDocket.publicKey)" -ForegroundColor Gray
+                Write-Host "  Signature: $($txResponse.signedDocket.signature)" -ForegroundColor DarkGray
+                Write-Host ""
+            }
+        }
 
     } catch {
         $statusCode = $_.Exception.Response.StatusCode.value__
@@ -418,6 +478,8 @@ Write-Host "     pwsh test-register-creation-with-real-signing.ps1 -Algorithm NI
 Write-Host "     pwsh test-register-creation-with-real-signing.ps1 -Algorithm RSA4096" -ForegroundColor DarkGray
 Write-Host "  2. Test via direct profile for debugging:" -ForegroundColor Gray
 Write-Host "     pwsh test-register-creation-with-real-signing.ps1 -Profile direct" -ForegroundColor DarkGray
-Write-Host "  3. Add transactions to the register" -ForegroundColor Gray
-Write-Host "  4. Verify transaction chain integrity" -ForegroundColor Gray
+Write-Host "  3. View full JSON structures (control record, genesis transaction, signed docket):" -ForegroundColor Gray
+Write-Host "     pwsh test-register-creation-with-real-signing.ps1 -ShowJson" -ForegroundColor DarkGray
+Write-Host "  4. Add transactions to the register" -ForegroundColor Gray
+Write-Host "  5. Verify transaction chain integrity" -ForegroundColor Gray
 Write-Host ""
