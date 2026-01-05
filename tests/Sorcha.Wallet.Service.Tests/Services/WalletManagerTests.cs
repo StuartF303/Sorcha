@@ -358,7 +358,8 @@ public class WalletManagerTests : IDisposable
             transactionData);
 
         // Assert
-        signature.Should().Equal(expectedSignature);
+        signature.Signature.Should().Equal(expectedSignature);
+        signature.PublicKey.Should().NotBeEmpty();
 
         // Verify event
         var events = _eventPublisher.GetPublishedEvents();

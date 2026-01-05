@@ -156,7 +156,8 @@ public class EndToEndTests : IDisposable
             transactionData);
 
         signature.Should().NotBeNull();
-        signature.Should().NotBeEmpty();
+        signature.Signature.Should().NotBeEmpty();
+        signature.PublicKey.Should().NotBeEmpty();
 
         // Verify signing event
         events = _eventPublisher.GetPublishedEvents();

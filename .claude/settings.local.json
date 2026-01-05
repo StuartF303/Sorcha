@@ -202,7 +202,8 @@
       "Bash(Start-Sleep -Seconds 5)",
       "mcp__MCP_DOCKER__browser_wait_for",
       "Bash(Start-Sleep -Seconds 10)",
-      "Bash(Select-String -Pattern \"sorcha-admin|NAME\")"
+      "Bash(Select-String -Pattern \"sorcha-admin|NAME\")",
+      "Bash(Select-String -Pattern \"error|Build succeeded|Build FAILED\")"
     ],
     "deny": [],
     "ask": []
