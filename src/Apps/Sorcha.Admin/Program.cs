@@ -17,7 +17,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
     // Trust all proxies (we're behind API Gateway in Docker)
-    options.KnownNetworks.Clear();
+    options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 });
 
@@ -49,14 +49,14 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
+// Configuration Services (Server-side)
+builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
+
 // Server-side authentication state provider
 // Register both the concrete type (for components that need NotifyAuthenticationStateChanged)
 // and as the interface (for the framework)
 builder.Services.AddScoped<CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthenticationStateProvider>());
-
-// Configuration Services (Server-side)
-builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
 
 // Encryption Services (Server-side)
 builder.Services.AddScoped<Sorcha.Admin.Services.Encryption.IEncryptionProvider,
