@@ -63,9 +63,10 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
-            "Initiating register creation for name '{Name}' in tenant '{TenantId}'",
+            "Initiating register creation for name '{Name}' in tenant '{TenantId}' with {OwnerCount} owner(s)",
             request.Name,
-            request.TenantId);
+            request.TenantId,
+            request.Owners.Count);
 
         // Generate unique register ID (GUID without hyphens)
         var registerId = Guid.NewGuid().ToString("N");
@@ -73,59 +74,115 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         var expiresAt = createdAt.Add(_pendingExpirationTime);
         var nonce = GenerateNonce();
 
-        // Create control record template with creator as owner
-        var controlRecord = new RegisterControlRecord
-        {
-            RegisterId = registerId,
-            Name = request.Name,
-            Description = request.Description,
-            TenantId = request.TenantId,
-            CreatedAt = createdAt,
-            Metadata = request.Metadata,
-            Attestations = new List<RegisterAttestation>
-            {
-                new RegisterAttestation
-                {
-                    Role = RegisterRole.Owner,
-                    Subject = $"did:sorcha:{request.Creator.UserId}",
-                    PublicKey = "[to-be-filled]",
-                    Signature = "[to-be-signed]",
-                    Algorithm = SignatureAlgorithm.ED25519, // Default, client can override
-                    GrantedAt = createdAt
-                }
-            }
-        };
+        // Create attestations to sign for each owner
+        var attestationsToSign = new List<AttestationToSign>();
 
-        // Add additional administrators if specified
+        _logger.LogInformation(
+            "Processing owners for register {RegisterId}: {OwnerCount} owner(s) provided",
+            registerId,
+            request.Owners?.Count ?? 0);
+
+        // Generate attestation data for each owner
+        foreach (var owner in request.Owners ?? new List<OwnerInfo>())
+        {
+            var attestationData = new AttestationSigningData
+            {
+                Role = RegisterRole.Owner,
+                Subject = $"did:sorcha:{owner.UserId}",
+                RegisterId = registerId,
+                RegisterName = request.Name,
+                GrantedAt = createdAt
+            };
+
+            // Serialize to canonical JSON
+            // NOTE: We send the canonical JSON itself, not the hash.
+            // The wallet's TransactionService will hash it before signing.
+            var canonicalJson = JsonSerializer.Serialize(attestationData, _canonicalJsonOptions);
+
+            // Compute hash for logging purposes
+            var hashBytes = _hashProvider.ComputeHash(
+                Encoding.UTF8.GetBytes(canonicalJson),
+                Sorcha.Cryptography.Enums.HashType.SHA256);
+            var attestationHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+            _logger.LogInformation(
+                "Created attestation for {Subject} ({Role}): hash={Hash}, json={Json}",
+                attestationData.Subject,
+                attestationData.Role,
+                attestationHash,
+                canonicalJson);
+
+            attestationsToSign.Add(new AttestationToSign
+            {
+                UserId = owner.UserId,
+                WalletId = owner.WalletId,
+                Role = RegisterRole.Owner,
+                AttestationData = attestationData,
+                DataToSign = canonicalJson  // Send canonical JSON, not hash
+            });
+
+            _logger.LogDebug(
+                "Created attestation for owner {UserId}, hash: {Hash}",
+                owner.UserId,
+                attestationHash);
+        }
+
+        // Generate attestation data for additional administrators
         if (request.AdditionalAdmins != null)
         {
             foreach (var admin in request.AdditionalAdmins)
             {
-                controlRecord.Attestations.Add(new RegisterAttestation
+                var attestationData = new AttestationSigningData
                 {
                     Role = admin.Role,
                     Subject = $"did:sorcha:{admin.UserId}",
-                    PublicKey = "[to-be-filled]",
-                    Signature = "[to-be-signed]",
-                    Algorithm = SignatureAlgorithm.ED25519,
+                    RegisterId = registerId,
+                    RegisterName = request.Name,
                     GrantedAt = createdAt
+                };
+
+                // Serialize to canonical JSON
+                // NOTE: We send the canonical JSON itself, not the hash.
+                // The wallet's TransactionService will hash it before signing.
+                var canonicalJson = JsonSerializer.Serialize(attestationData, _canonicalJsonOptions);
+
+                // Compute hash for logging purposes
+                var hashBytes = _hashProvider.ComputeHash(
+                    Encoding.UTF8.GetBytes(canonicalJson),
+                    Sorcha.Cryptography.Enums.HashType.SHA256);
+                var attestationHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+                attestationsToSign.Add(new AttestationToSign
+                {
+                    UserId = admin.UserId,
+                    WalletId = admin.WalletId,
+                    Role = admin.Role,
+                    AttestationData = attestationData,
+                    DataToSign = canonicalJson  // Send canonical JSON, not hash
                 });
+
+                _logger.LogDebug(
+                    "Created attestation for admin {UserId}, hash: {Hash}",
+                    admin.UserId,
+                    attestationHash);
             }
         }
 
-        // Compute canonical JSON hash for signing
-        var canonicalJson = JsonSerializer.Serialize(controlRecord, _canonicalJsonOptions);
-        var hashBytes = _hashProvider.ComputeHash(
-            Encoding.UTF8.GetBytes(canonicalJson),
-            Sorcha.Cryptography.Enums.HashType.SHA256);
-        var controlRecordHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
-
-        // Store pending registration
+        // Store pending registration with register metadata
         var pending = new PendingRegistration
         {
             RegisterId = registerId,
-            ControlRecord = controlRecord,
-            ControlRecordHash = controlRecordHash,
+            ControlRecord = new RegisterControlRecord
+            {
+                RegisterId = registerId,
+                Name = request.Name,
+                Description = request.Description,
+                TenantId = request.TenantId,
+                CreatedAt = createdAt,
+                Metadata = request.Metadata,
+                Attestations = new List<RegisterAttestation>() // Will be filled during finalization
+            },
+            ControlRecordHash = string.Empty, // Not computed yet - will be computed after attestations collected
             CreatedAt = createdAt,
             ExpiresAt = expiresAt,
             Nonce = nonce
@@ -137,15 +194,15 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         _ = Task.Run(async () => await CleanupExpiredPendingRegistrationsAsync(), cancellationToken);
 
         _logger.LogInformation(
-            "Register initiation created with ID {RegisterId}, expires at {ExpiresAt}",
+            "Register initiation created with ID {RegisterId}, {AttestationCount} attestation(s) to sign, expires at {ExpiresAt}",
             registerId,
+            attestationsToSign.Count,
             expiresAt);
 
         return new InitiateRegisterCreationResponse
         {
             RegisterId = registerId,
-            ControlRecord = controlRecord,
-            DataToSign = controlRecordHash,
+            AttestationsToSign = attestationsToSign,
             ExpiresAt = expiresAt,
             Nonce = nonce
         };
@@ -159,8 +216,9 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
-            "Finalizing register creation for ID {RegisterId}",
-            request.RegisterId);
+            "Finalizing register creation for ID {RegisterId} with {AttestationCount} signed attestations",
+            request.RegisterId,
+            request.SignedAttestations.Count);
 
         // Retrieve and remove pending registration
         if (!_pendingStore.TryRemove(request.RegisterId, out var pending))
@@ -187,8 +245,31 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             throw new InvalidOperationException($"Pending registration expired for register ID {request.RegisterId}");
         }
 
-        // Validate control record structure
-        var validationErrors = ValidateControlRecord(request.ControlRecord);
+        // Verify all attestation signatures against individual attestation data
+        await VerifyAttestationsAsync(request.SignedAttestations, request.RegisterId, cancellationToken);
+
+        // Construct control record from verified attestations
+        var controlRecord = new RegisterControlRecord
+        {
+            RegisterId = pending.ControlRecord.RegisterId,
+            Name = pending.ControlRecord.Name,
+            Description = pending.ControlRecord.Description,
+            TenantId = pending.ControlRecord.TenantId,
+            CreatedAt = pending.ControlRecord.CreatedAt,
+            Metadata = pending.ControlRecord.Metadata,
+            Attestations = request.SignedAttestations.Select(sa => new RegisterAttestation
+            {
+                Role = sa.AttestationData.Role,
+                Subject = sa.AttestationData.Subject,
+                PublicKey = sa.PublicKey,
+                Signature = sa.Signature,
+                Algorithm = sa.Algorithm,
+                GrantedAt = sa.AttestationData.GrantedAt
+            }).ToList()
+        };
+
+        // Validate constructed control record
+        var validationErrors = ValidateControlRecord(controlRecord);
         if (validationErrors.Any())
         {
             _logger.LogWarning(
@@ -198,13 +279,14 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             throw new ArgumentException($"Control record validation failed: {string.Join(", ", validationErrors)}");
         }
 
-        // Verify all attestation signatures
-        await VerifyAttestationsAsync(request.ControlRecord, pending.ControlRecordHash, cancellationToken);
+        _logger.LogInformation(
+            "Control record constructed successfully with {AttestationCount} verified attestations",
+            controlRecord.Attestations.Count);
 
         // Create register in database
         var register = await _registerManager.CreateRegisterAsync(
-            request.ControlRecord.Name,
-            request.ControlRecord.TenantId,
+            controlRecord.Name,
+            controlRecord.TenantId,
             advertise: false, // Default to private
             isFullReplica: true,
             cancellationToken);
@@ -212,7 +294,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         _logger.LogInformation("Created register {RegisterId} in database", register.Id);
 
         // Create genesis transaction with control record payload
-        var genesisTransaction = CreateGenesisTransaction(register.Id, request.ControlRecord);
+        var genesisTransaction = CreateGenesisTransaction(register.Id, controlRecord);
 
         _logger.LogInformation(
             "Created genesis transaction {TransactionId} for register {RegisterId}",
@@ -220,22 +302,22 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             register.Id);
 
         // Submit genesis transaction to Validator Service mempool
-        var controlRecordJson = JsonSerializer.Serialize(request.ControlRecord, _canonicalJsonOptions);
+        var controlRecordJson = JsonSerializer.Serialize(controlRecord, _canonicalJsonOptions);
         var submissionRequest = new GenesisTransactionSubmission
         {
             TransactionId = genesisTransaction.TxId,
             RegisterId = register.Id,
             ControlRecordPayload = JsonDocument.Parse(controlRecordJson).RootElement,
             PayloadHash = genesisTransaction.Payloads[0].Hash,
-            Signatures = request.ControlRecord.Attestations.Select(a => new GenesisSignature
+            Signatures = controlRecord.Attestations.Select(a => new GenesisSignature
             {
                 PublicKey = a.PublicKey,
                 SignatureValue = a.Signature,
                 Algorithm = a.Algorithm.ToString()
             }).ToList(),
-            CreatedAt = request.ControlRecord.CreatedAt,
-            RegisterName = request.ControlRecord.Name,
-            TenantId = request.ControlRecord.TenantId
+            CreatedAt = controlRecord.CreatedAt,
+            RegisterName = controlRecord.Name,
+            TenantId = controlRecord.TenantId
         };
 
         var submitted = await _validatorClient.SubmitGenesisTransactionAsync(submissionRequest, cancellationToken);
@@ -312,61 +394,97 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     }
 
     /// <summary>
-    /// Verifies all attestation signatures
+    /// Verifies all attestation signatures against individual attestation data hashes
     /// </summary>
     private async Task VerifyAttestationsAsync(
-        RegisterControlRecord controlRecord,
-        string expectedHash,
+        List<SignedAttestation> signedAttestations,
+        string registerId,
         CancellationToken cancellationToken)
     {
         _logger.LogDebug(
-            "Verifying {Count} attestations for register {RegisterId}",
-            controlRecord.Attestations.Count,
-            controlRecord.RegisterId);
+            "Verifying {Count} signed attestations for register {RegisterId}",
+            signedAttestations.Count,
+            registerId);
 
-        foreach (var attestation in controlRecord.Attestations)
+        foreach (var signedAttestation in signedAttestations)
         {
             try
             {
+                // Reconstruct the canonical JSON of the attestation data
+                var canonicalJson = JsonSerializer.Serialize(
+                    signedAttestation.AttestationData,
+                    _canonicalJsonOptions);
+
+                // Compute SHA-256 hash of attestation data
+                var hashBytes = _hashProvider.ComputeHash(
+                    Encoding.UTF8.GetBytes(canonicalJson),
+                    Sorcha.Cryptography.Enums.HashType.SHA256);
+
+                var attestationHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+                _logger.LogInformation(
+                    "Verifying attestation: subject={Subject}, role={Role}, hash={Hash}, json={Json}",
+                    signedAttestation.AttestationData.Subject,
+                    signedAttestation.AttestationData.Role,
+                    attestationHash,
+                    canonicalJson);
+
                 // Convert base64 public key and signature to bytes
-                var publicKeyBytes = Convert.FromBase64String(attestation.PublicKey);
-                var signatureBytes = Convert.FromBase64String(attestation.Signature);
-                var hashBytes = Convert.FromHexString(expectedHash);
+                var publicKeyBytes = Convert.FromBase64String(signedAttestation.PublicKey);
+                var signatureBytes = Convert.FromBase64String(signedAttestation.Signature);
+
+                _logger.LogInformation(
+                    "Verifying: sigLen={SigLen}, hashLen={HashLen}, pubKeyLen={PubKeyLen}, algo={Algo}",
+                    signatureBytes.Length,
+                    hashBytes.Length,
+                    publicKeyBytes.Length,
+                    signedAttestation.Algorithm);
 
                 // Verify signature using Sorcha.Cryptography
                 var verifyResult = await _cryptoModule.VerifyAsync(
                     signatureBytes,
                     hashBytes,
-                    MapAlgorithm(attestation.Algorithm),
+                    MapAlgorithm(signedAttestation.Algorithm),
                     publicKeyBytes,
                     cancellationToken);
+
+                _logger.LogInformation(
+                    "Verification result: {Result} for {Subject}",
+                    verifyResult,
+                    signedAttestation.AttestationData.Subject);
 
                 if (verifyResult != Sorcha.Cryptography.Enums.CryptoStatus.Success)
                 {
                     _logger.LogWarning(
-                        "Signature verification failed for attestation: subject={Subject}, role={Role}",
-                        attestation.Subject,
-                        attestation.Role);
+                        "Signature verification failed for attestation: subject={Subject}, role={Role}, hash={Hash}",
+                        signedAttestation.AttestationData.Subject,
+                        signedAttestation.AttestationData.Role,
+                        attestationHash);
                     throw new UnauthorizedAccessException(
-                        $"Invalid signature for attestation: {attestation.Subject} ({attestation.Role})");
+                        $"Invalid signature for attestation: {signedAttestation.AttestationData.Subject} ({signedAttestation.AttestationData.Role})");
                 }
 
                 _logger.LogDebug(
                     "Verified signature for {Subject} ({Role})",
-                    attestation.Subject,
-                    attestation.Role);
+                    signedAttestation.AttestationData.Subject,
+                    signedAttestation.AttestationData.Role);
             }
             catch (FormatException ex)
             {
-                _logger.LogError(ex, "Invalid base64 encoding in attestation for {Subject}", attestation.Subject);
-                throw new ArgumentException($"Invalid base64 encoding in attestation for {attestation.Subject}", ex);
+                _logger.LogError(
+                    ex,
+                    "Invalid base64 encoding in attestation for {Subject}",
+                    signedAttestation.AttestationData.Subject);
+                throw new ArgumentException(
+                    $"Invalid base64 encoding in attestation for {signedAttestation.AttestationData.Subject}",
+                    ex);
             }
         }
 
         _logger.LogInformation(
             "All {Count} attestations verified successfully for register {RegisterId}",
-            controlRecord.Attestations.Count,
-            controlRecord.RegisterId);
+            signedAttestations.Count,
+            registerId);
     }
 
     /// <summary>

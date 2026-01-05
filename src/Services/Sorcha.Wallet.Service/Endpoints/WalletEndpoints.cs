@@ -349,16 +349,18 @@ public static class WalletEndpoints
         try
         {
             var transactionData = Convert.FromBase64String(request.TransactionData);
-            var signature = await walletManager.SignTransactionAsync(
+            var (signature, publicKey) = await walletManager.SignTransactionAsync(
                 address,
                 transactionData,
+                request.DerivationPath,
                 cancellationToken);
 
             var response = new SignTransactionResponse
             {
                 Signature = Convert.ToBase64String(signature),
                 SignedBy = address,
-                SignedAt = DateTime.UtcNow
+                SignedAt = DateTime.UtcNow,
+                PublicKey = Convert.ToBase64String(publicKey)
             };
 
             return Results.Ok(response);

@@ -19,4 +19,9 @@ public class SignTransactionResponse
     /// Timestamp when the transaction was signed
     /// </summary>
     public DateTime SignedAt { get; set; }
+
+    /// <summary>
+    /// Base64-encoded public key used for signing (derived key if derivation path was specified)
+    /// </summary>
+    public string? PublicKey { get; set; }
 }

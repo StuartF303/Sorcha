@@ -547,9 +547,10 @@ public class WalletManager : IWalletService
     }
 
     /// <inheritdoc/>
-    public async Task<byte[]> SignTransactionAsync(
+    public async Task<(byte[] Signature, byte[] PublicKey)> SignTransactionAsync(
         string walletAddress,
         byte[] transactionData,
+        string? derivationPath = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(walletAddress))
@@ -565,14 +566,48 @@ public class WalletManager : IWalletService
                 throw new InvalidOperationException($"Wallet {walletAddress} not found");
             }
 
-            // Decrypt private key
-            var privateKey = await _keyManagement.DecryptPrivateKeyAsync(
+            // Decrypt master private key
+            var masterKey = await _keyManagement.DecryptPrivateKeyAsync(
                 wallet.EncryptedPrivateKey,
                 wallet.EncryptionKeyId);
 
+            byte[] signingKey;
+            byte[] publicKey;
+
+            // If derivation path provided, derive child key
+            if (!string.IsNullOrWhiteSpace(derivationPath))
+            {
+                // Resolve Sorcha system paths (e.g., "sorcha:register-attestation") to BIP44 paths
+                var resolvedPath = Constants.SorchaDerivationPaths.IsSystemPath(derivationPath)
+                    ? Constants.SorchaDerivationPaths.ResolvePath(derivationPath)
+                    : derivationPath;
+
+                var parsedPath = new DerivationPath(resolvedPath);
+                var (derivedPrivateKey, derivedPublicKey) = await _keyManagement.DeriveKeyAtPathAsync(
+                    masterKey,
+                    parsedPath,
+                    wallet.Algorithm);
+
+                signingKey = derivedPrivateKey;
+                publicKey = derivedPublicKey;
+
+                _logger.LogInformation(
+                    "Signing transaction for wallet {Address} with derived key at path {Path} (resolved: {ResolvedPath})",
+                    walletAddress, derivationPath, resolvedPath);
+            }
+            else
+            {
+                signingKey = masterKey;
+                publicKey = Convert.FromBase64String(wallet.PublicKey);
+
+                _logger.LogInformation(
+                    "Signing transaction for wallet {Address} with master key",
+                    walletAddress);
+            }
+
             // Sign transaction
             var signature = await _transactionService.SignTransactionAsync(
-                transactionData, privateKey, wallet.Algorithm);
+                transactionData, signingKey, wallet.Algorithm);
 
             // Publish event
             await _eventPublisher.PublishAsync(new TransactionSignedEvent
@@ -583,7 +618,7 @@ public class WalletManager : IWalletService
             }, cancellationToken);
 
             _logger.LogInformation("Signed transaction for wallet {Address}", walletAddress);
-            return signature;
+            return (signature, publicKey);
         }
         catch (Exception ex)
         {

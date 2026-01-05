@@ -150,22 +150,24 @@ Write-Step "Step 3: Initiate Register Creation"
 
 $registerName = "Test Register with $Algorithm Signing"
 $tenantId = "test-tenant-001"
-$ownerDid = "did:sorcha:admin"
+$userId = "admin-user-001"
 
-# Convert public key to hex for register control record
-$publicKeyBytes = [Convert]::FromBase64String($publicKeyBase64)
-$publicKeyHex = [BitConverter]::ToString($publicKeyBytes).Replace("-", "").ToLower()
-
+# NEW WORKFLOW: Send owner array instead of single creator
 $initiateRequest = @{
     name = $registerName
-    description = "Register created with real $Algorithm wallet signing at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    description = "Register created with real $Algorithm wallet signing (attestation-based) at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
     tenantId = $tenantId
-    ownerDid = $ownerDid
-    ownerPublicKey = "$Algorithm`:$publicKeyHex"
-} | ConvertTo-Json
+    owners = @(
+        @{
+            userId = $userId
+            walletId = $walletAddress
+            role = "Owner"
+        }
+    )
+} | ConvertTo-Json -Depth 10
 
 try {
-    Write-Info "Initiating register creation..."
+    Write-Info "Initiating register creation with new attestation workflow..."
     Write-Host "Request:" -ForegroundColor Gray
     Write-Host $initiateRequest -ForegroundColor DarkGray
     Write-Host ""
@@ -183,12 +185,20 @@ try {
     Write-Host ""
     Write-Host "Initiation Response:" -ForegroundColor Yellow
     Write-Host "  Register ID: $($initiateResponse.registerId)" -ForegroundColor White
-    Write-Host "  Data to Sign (Hex Hash): $($initiateResponse.dataToSign)" -ForegroundColor White
     Write-Host "  Nonce: $($initiateResponse.nonce)" -ForegroundColor White
     Write-Host "  Expires At: $($initiateResponse.expiresAt)" -ForegroundColor White
+    Write-Host "  Attestations to Sign: $($initiateResponse.attestationsToSign.Count)" -ForegroundColor White
+
+    foreach ($attestation in $initiateResponse.attestationsToSign) {
+        Write-Host ""
+        Write-Host "  Attestation for User: $($attestation.userId)" -ForegroundColor Cyan
+        Write-Host "    Wallet: $($attestation.walletId)" -ForegroundColor Gray
+        Write-Host "    Role: $($attestation.role)" -ForegroundColor Gray
+        Write-Host "    Data to Sign (SHA-256 Hash): $($attestation.dataToSign)" -ForegroundColor Gray
+    }
 
     $registerId = $initiateResponse.registerId
-    $dataToSignHex = $initiateResponse.dataToSign
+    $attestationsToSign = $initiateResponse.attestationsToSign
     $nonce = $initiateResponse.nonce
 
 } catch {
@@ -200,96 +210,84 @@ try {
     exit 1
 }
 
-# Step 4: Sign the Register Data with Wallet
-Write-Step "Step 4: Sign Register Data with Wallet"
+# Step 4: Sign Each Attestation with Wallet (using derivation path)
+Write-Step "Step 4: Sign Attestations with Wallet"
 
-Write-Info "Converting hex hash to bytes for signing..."
-Write-Host "  Data Hash (Hex): $dataToSignHex" -ForegroundColor Gray
+$signedAttestations = @()
 
-# Convert hex string to bytes, then to base64 for wallet service
-$dataBytes = [byte[]]::new($dataToSignHex.Length / 2)
-for ($i = 0; $i -lt $dataToSignHex.Length; $i += 2) {
-    $dataBytes[$i/2] = [Convert]::ToByte($dataToSignHex.Substring($i, 2), 16)
-}
-$dataToSignBase64 = [Convert]::ToBase64String($dataBytes)
+foreach ($attestation in $attestationsToSign) {
+    Write-Info "Signing attestation for user: $($attestation.userId)"
+    Write-Host "  Wallet: $($attestation.walletId)" -ForegroundColor Gray
+    Write-Host "  Role: $($attestation.role)" -ForegroundColor Gray
 
-Write-Host "  Data Hash (Base64): $dataToSignBase64" -ForegroundColor Gray
-Write-Host ""
+    # The dataToSign is now canonical JSON (not a hash)
+    # The wallet's TransactionService will hash it before signing
+    $canonicalJson = $attestation.dataToSign
+    Write-Host "  Canonical JSON: $canonicalJson" -ForegroundColor Gray
 
-$signBody = @{
-    transactionData = $dataToSignBase64
-} | ConvertTo-Json
+    # Convert canonical JSON string to UTF-8 bytes, then to base64 for wallet service
+    $dataBytes = [System.Text.Encoding]::UTF8.GetBytes($canonicalJson)
+    $dataToSignBase64 = [Convert]::ToBase64String($dataBytes)
 
-try {
-    Write-Info "Sending sign request to wallet service..."
-    Write-Host "  Wallet: $walletAddress" -ForegroundColor Gray
-    Write-Host "  Endpoint: POST $WalletServiceUrl/$walletAddress/sign" -ForegroundColor Gray
-    Write-Host ""
+    # NEW: Include derivation path for attestation signing
+    $signBody = @{
+        transactionData = $dataToSignBase64
+        derivationPath = "sorcha:register-attestation"
+    } | ConvertTo-Json
 
-    $signResponse = Invoke-RestMethod `
-        -Uri "$WalletServiceUrl/$walletAddress/sign" `
-        -Method POST `
-        -Headers @{
-            Authorization = "Bearer $adminToken"
-            "Content-Type" = "application/json"
-        } `
-        -Body $signBody `
-        -UseBasicParsing
+    try {
+        Write-Info "Sending sign request with derivation path 'sorcha:register-attestation'..."
 
-    Write-Success "Data signed successfully!"
-    Write-Host ""
-    Write-Host "Signature Details:" -ForegroundColor Yellow
-    Write-Host "  Signature (Base64): $($signResponse.signature)" -ForegroundColor White
-    Write-Host "  Signed By: $($signResponse.signedBy)" -ForegroundColor White
-    Write-Host "  Signed At: $($signResponse.signedAt)" -ForegroundColor White
+        $signResponse = Invoke-RestMethod `
+            -Uri "$WalletServiceUrl/$($attestation.walletId)/sign" `
+            -Method POST `
+            -Headers @{
+                Authorization = "Bearer $adminToken"
+                "Content-Type" = "application/json"
+            } `
+            -Body $signBody `
+            -UseBasicParsing
 
-    $signatureBase64 = $signResponse.signature
+        Write-Success "Attestation signed successfully!"
+        Write-Host "  Signature (Base64): $($signResponse.signature)" -ForegroundColor Gray
+        Write-Host "  Derived Public Key: $($signResponse.publicKey)" -ForegroundColor Gray
+        Write-Host ""
 
-    # Convert signature to hex for register service
-    $signatureBytes = [Convert]::FromBase64String($signatureBase64)
-    $signatureHex = [BitConverter]::ToString($signatureBytes).Replace("-", "").ToLower()
-    Write-Host "  Signature (Hex): $signatureHex" -ForegroundColor Gray
+        # Build signed attestation for finalize request
+        $signedAttestation = @{
+            attestationData = $attestation.attestationData
+            publicKey = $signResponse.publicKey  # Use derived public key from signing response
+            signature = $signResponse.signature
+            algorithm = $Algorithm
+        }
 
-} catch {
-    Write-Error "Failed to sign data with wallet"
-    Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
-    if ($_.ErrorDetails) {
-        Write-Host "  Details: $($_.ErrorDetails.Message)" -ForegroundColor Red
+        $signedAttestations += $signedAttestation
+
+    } catch {
+        Write-Error "Failed to sign attestation for user $($attestation.userId)"
+        Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
+        if ($_.ErrorDetails) {
+            Write-Host "  Details: $($_.ErrorDetails.Message)" -ForegroundColor Red
+        }
+        exit 1
     }
-    exit 1
 }
 
-# Step 5: Finalize Register Creation with Real Signature
+Write-Success "All attestations signed successfully!"
+Write-Host "  Total signed attestations: $($signedAttestations.Count)" -ForegroundColor White
+
+# Step 5: Finalize Register Creation with Signed Attestations
 Write-Step "Step 5: Finalize Register Creation"
 
-# Construct control record with signature
-$controlRecord = @{
-    registerId = $registerId
-    name = $registerName
-    description = "Register created with real $Algorithm wallet signing at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-    tenantId = $tenantId
-    createdAt = (Get-Date).ToUniversalTime().ToString("o")
-    metadata = @{}
-    attestations = @(
-        @{
-            role = "Owner"
-            subject = $ownerDid
-            publicKey = $publicKeyBase64  # Wallet service returns base64
-            signature = $signatureBase64   # Wallet service returns base64
-            algorithm = $Algorithm
-            grantedAt = (Get-Date).ToUniversalTime().ToString("o")
-        }
-    )
-}
-
+# NEW WORKFLOW: Send signed attestations array
 $finalizeRequest = @{
     registerId = $registerId
     nonce = $nonce
-    controlRecord = $controlRecord
+    signedAttestations = $signedAttestations
 } | ConvertTo-Json -Depth 10
 
 try {
-    Write-Info "Finalizing register creation with real signature..."
+    Write-Info "Finalizing register creation with signed attestations..."
     Write-Host "Request:" -ForegroundColor Gray
     Write-Host $finalizeRequest -ForegroundColor DarkGray
     Write-Host ""
@@ -322,10 +320,11 @@ try {
     }
     Write-Host ""
     Write-Host "Possible causes:" -ForegroundColor Yellow
-    Write-Host "  - Signature verification failed" -ForegroundColor Gray
+    Write-Host "  - Attestation signature verification failed" -ForegroundColor Gray
     Write-Host "  - Nonce expired (5-minute TTL)" -ForegroundColor Gray
     Write-Host "  - Public key format mismatch" -ForegroundColor Gray
     Write-Host "  - Register ID not found" -ForegroundColor Gray
+    Write-Host "  - Attestation data mismatch (registerId, registerName changed)" -ForegroundColor Gray
     exit 1
 }
 
@@ -372,9 +371,9 @@ Write-Host ""
 Write-Host "Test Results:" -ForegroundColor Yellow
 Write-Host "  [OK] Admin authentication" -ForegroundColor Green
 Write-Host "  [OK] Wallet creation ($Algorithm)" -ForegroundColor Green
-Write-Host "  [OK] Register creation initiation" -ForegroundColor Green
-Write-Host "  [OK] Data signing with wallet" -ForegroundColor Green
-Write-Host "  [OK] Signature verification by Register Service" -ForegroundColor Green
+Write-Host "  [OK] Register creation initiation (attestation-based)" -ForegroundColor Green
+Write-Host "  [OK] Attestation signing with derivation path" -ForegroundColor Green
+Write-Host "  [OK] Individual attestation signature verification" -ForegroundColor Green
 Write-Host "  [OK] Register creation finalized" -ForegroundColor Green
 
 if ($genesisTransactionId) {
@@ -398,11 +397,19 @@ Write-Host ""
 Write-Host "What was tested:" -ForegroundColor Yellow
 Write-Host "  - Tenant Service: Admin authentication via service-auth/token" -ForegroundColor Gray
 Write-Host "  - Wallet Service: Create HD wallet with $Algorithm" -ForegroundColor Gray
-Write-Host "  - Wallet Service: Sign data with private key (real signature)" -ForegroundColor Gray
-Write-Host "  - Register Service: Initiate register creation (get canonical hash)" -ForegroundColor Gray
-Write-Host "  - Register Service: Verify signature with public key" -ForegroundColor Gray
-Write-Host "  - Register Service: Create register with verified signature" -ForegroundColor Gray
-Write-Host "  - Validator Service: Submit genesis transaction to mempool" -ForegroundColor Gray
+Write-Host "  - Wallet Service: Sign attestations with derivation path (sorcha:register-attestation)" -ForegroundColor Gray
+Write-Host "  - Register Service: Initiate register creation (generate individual attestations)" -ForegroundColor Gray
+Write-Host "  - Register Service: Verify individual attestation signatures" -ForegroundColor Gray
+Write-Host "  - Register Service: Construct control record from verified attestations" -ForegroundColor Gray
+Write-Host "  - Register Service: Submit genesis transaction to Validator" -ForegroundColor Gray
+Write-Host "  - Validator Service: Sign control record with system wallet (sorcha:register-control)" -ForegroundColor Gray
+Write-Host "  - Validator Service: Add genesis transaction to mempool" -ForegroundColor Gray
+Write-Host ""
+Write-Host "Architectural Improvements:" -ForegroundColor Yellow
+Write-Host "  - Multi-owner support: Each owner signs individual attestation" -ForegroundColor Cyan
+Write-Host "  - Derivation paths: Uses Sorcha system paths for role-based signing" -ForegroundColor Cyan
+Write-Host "  - Two-phase signing: Owner attestations + system wallet control record" -ForegroundColor Cyan
+Write-Host "  - Prevents tampering: RegisterName included in attestation prevents changes" -ForegroundColor Cyan
 Write-Host ""
 
 Write-Host "Next Steps:" -ForegroundColor Yellow
