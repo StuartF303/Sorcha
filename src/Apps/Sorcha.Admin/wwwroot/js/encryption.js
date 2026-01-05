@@ -14,13 +14,28 @@
 window.SorchaEncryption = {
     cryptoKey: null,
     isInitialized: false,
+    encryptionAvailable: false,
+    fallbackMode: false,
 
     /**
      * Initializes the encryption system by deriving an AES-256 key from browser fingerprint.
      * This key persists for the browser session and is used for all encrypt/decrypt operations.
+     *
+     * Falls back to plaintext storage if Web Crypto API is unavailable (HTTP on non-localhost).
      */
     async initialize() {
         if (this.isInitialized) {
+            return;
+        }
+
+        // Check if Web Crypto API is available
+        if (!window.crypto || !window.crypto.subtle) {
+            console.warn("[SorchaEncryption] Web Crypto API not available - falling back to plaintext storage");
+            console.warn("[SorchaEncryption] This typically occurs when accessing over HTTP on non-localhost addresses");
+            console.warn("[SorchaEncryption] For production, configure HTTPS to enable encryption");
+            this.encryptionAvailable = false;
+            this.fallbackMode = true;
+            this.isInitialized = true;
             return;
         }
 
@@ -51,22 +66,37 @@ window.SorchaEncryption = {
                 ["encrypt", "decrypt"]
             );
 
+            this.encryptionAvailable = true;
+            this.fallbackMode = false;
             this.isInitialized = true;
-            console.debug("[SorchaEncryption] Initialized successfully");
+            console.debug("[SorchaEncryption] Initialized successfully with AES-256-GCM encryption");
         } catch (error) {
             console.error("[SorchaEncryption] Initialization failed:", error);
-            throw new Error("Failed to initialize encryption system");
+            console.warn("[SorchaEncryption] Falling back to plaintext storage");
+            this.encryptionAvailable = false;
+            this.fallbackMode = true;
+            this.isInitialized = true;
         }
     },
 
     /**
      * Encrypts plaintext using AES-256-GCM.
+     * Falls back to plaintext (Base64-encoded) if encryption is unavailable.
      * @param {string} plaintext - The plaintext string to encrypt
-     * @returns {string} Base64-encoded encrypted data (IV + ciphertext combined)
+     * @returns {string} Base64-encoded encrypted data (IV + ciphertext combined) or Base64-encoded plaintext
      */
     async encrypt(plaintext) {
         if (!this.isInitialized) {
             await this.initialize();
+        }
+
+        // Fallback mode - return plaintext with marker prefix
+        // WARNING: Data is not encrypted in fallback mode!
+        if (this.fallbackMode) {
+            console.warn("[SorchaEncryption] Storing data without encryption (Web Crypto API unavailable)");
+            console.warn("[SorchaEncryption] Configure HTTPS for production to enable encryption");
+            // Return plaintext with a marker so C# knows it's unencrypted
+            return "PLAINTEXT:" + plaintext;
         }
 
         try {
@@ -98,12 +128,20 @@ window.SorchaEncryption = {
 
     /**
      * Decrypts ciphertext using AES-256-GCM.
-     * @param {string} base64Data - Base64-encoded encrypted data (IV + ciphertext)
+     * In fallback mode, just decodes Base64 (data was never encrypted).
+     * @param {string} base64Data - Base64-encoded encrypted data (IV + ciphertext) or Base64-encoded plaintext
      * @returns {string} Decrypted plaintext string
      */
     async decrypt(base64Data) {
         if (!this.isInitialized) {
             await this.initialize();
+        }
+
+        // Fallback mode - check for plaintext marker
+        if (this.fallbackMode || base64Data.startsWith("PLAINTEXT:")) {
+            console.debug("[SorchaEncryption] Returning plaintext (no decryption - fallback mode)");
+            // Remove the marker prefix and return plaintext
+            return base64Data.replace("PLAINTEXT:", "");
         }
 
         try {

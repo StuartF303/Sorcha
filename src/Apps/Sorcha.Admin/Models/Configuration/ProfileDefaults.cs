@@ -35,15 +35,16 @@ public static class ProfileDefaults
             // Docker Compose environment
             // Uses API Gateway for routing (all services behind gateway on port 80)
             // Admin UI is hosted at /admin, all API services at /api/*
+            // Internal Docker network URLs use api-gateway:8080
             ["docker"] = new Profile
             {
                 Name = "docker",
-                TenantServiceUrl = "http://localhost/api/tenant",
-                RegisterServiceUrl = "http://localhost/api/register",
-                PeerServiceUrl = "http://localhost/api/peer",
-                WalletServiceUrl = "http://localhost/api/wallet",
-                BlueprintServiceUrl = "http://localhost/api/blueprint",
-                AuthTokenUrl = "http://localhost/api/service-auth/token",
+                TenantServiceUrl = "http://api-gateway:8080/api/tenant",
+                RegisterServiceUrl = "http://api-gateway:8080/api/register",
+                PeerServiceUrl = "http://api-gateway:8080/api/peer",
+                WalletServiceUrl = "http://api-gateway:8080/api/wallet",
+                BlueprintServiceUrl = "http://api-gateway:8080/api/blueprint",
+                AuthTokenUrl = "http://api-gateway:8080/api/service-auth/token",
                 DefaultClientId = "sorcha-admin",
                 VerifySsl = false,
                 TimeoutSeconds = 30,

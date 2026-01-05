@@ -32,44 +32,80 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     /// </summary>
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
+        await LogAsync("info", "[CustomAuthStateProvider] GetAuthenticationStateAsync called");
+
         try
         {
             // Get active profile
+            await LogAsync("debug", "[CustomAuthStateProvider] Retrieving active profile...");
             var profile = await _configService.GetActiveProfileAsync();
             if (profile == null)
             {
+                await LogAsync("warn", "[CustomAuthStateProvider] No active profile found - returning anonymous");
                 return CreateAnonymousState();
             }
+            await LogAsync("info", $"[CustomAuthStateProvider] Active profile: {profile.Name}");
 
             // Get access token
+            await LogAsync("debug", $"[CustomAuthStateProvider] Retrieving access token for profile: {profile.Name}");
             var token = await _authService.GetAccessTokenAsync(profile.Name);
             if (string.IsNullOrEmpty(token))
             {
+                await LogAsync("warn", "[CustomAuthStateProvider] No access token found - returning anonymous");
                 return CreateAnonymousState();
             }
+            await LogAsync("info", $"[CustomAuthStateProvider] Access token retrieved (length: {token.Length})");
 
             // Parse JWT to extract claims
+            await LogAsync("debug", "[CustomAuthStateProvider] Parsing JWT claims...");
             var claims = ParseClaimsFromJwt(token);
-            var identity = new ClaimsIdentity(claims, "jwt");
+            var claimsList = claims.ToList();
+            await LogAsync("info", $"[CustomAuthStateProvider] Parsed {claimsList.Count} claims");
+
+            foreach (var claim in claimsList)
+            {
+                await LogAsync("debug", $"[CustomAuthStateProvider] Claim: {claim.Type} = {claim.Value}");
+            }
+
+            var identity = new ClaimsIdentity(claimsList, "jwt");
             var user = new ClaimsPrincipal(identity);
 
+            await LogAsync("info", $"[CustomAuthStateProvider] Authentication successful - User: {user.Identity?.Name ?? "Unknown"}, IsAuthenticated: {user.Identity?.IsAuthenticated}");
             return new AuthenticationState(user);
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
             // JSInterop not available during prerendering - return anonymous
             // Auth state will be loaded after interactive render on client
+            await LogAsync("warn", $"[CustomAuthStateProvider] JSInterop not available (prerendering): {ex.Message}");
             return CreateAnonymousState();
         }
-        catch (JSException)
+        catch (JSException ex)
         {
             // JavaScript error during auth check - return anonymous
+            await LogAsync("error", $"[CustomAuthStateProvider] JavaScript error: {ex.Message}");
             return CreateAnonymousState();
+        }
+        catch (Exception ex)
+        {
+            // Other error parsing token or checking authentication - return anonymous
+            await LogAsync("error", $"[CustomAuthStateProvider] Unexpected error: {ex.GetType().Name} - {ex.Message}");
+            return CreateAnonymousState();
+        }
+    }
+
+    /// <summary>
+    /// Logs a message to the browser console via JSInterop.
+    /// </summary>
+    private async Task LogAsync(string level, string message)
+    {
+        try
+        {
+            await _jsRuntime.InvokeVoidAsync($"console.{level}", message);
         }
         catch
         {
-            // Other error parsing token or checking authentication - return anonymous
-            return CreateAnonymousState();
+            // Ignore logging errors (JSInterop may not be available)
         }
     }
 

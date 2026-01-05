@@ -96,15 +96,26 @@ public class BrowserEncryptionProvider : IEncryptionProvider
         try
         {
             await LogAsync("debug", "Calling SorchaEncryption.encrypt via JSInterop...");
-            // JavaScript returns Base64 string for JSInterop compatibility
-            var base64Encrypted = await _jsRuntime.InvokeAsync<string>(
+            // JavaScript returns either Base64 string or plaintext with marker
+            var result = await _jsRuntime.InvokeAsync<string>(
                 "SorchaEncryption.encrypt", plaintext);
 
-            await LogAsync("debug", $"Encryption successful: {base64Encrypted.Length} base64 characters returned");
+            await LogAsync("debug", $"Encryption result: {result.Length} characters returned");
 
-            // Convert Base64 string to byte array
-            var encrypted = Convert.FromBase64String(base64Encrypted);
-            await LogAsync("debug", $"Converted to {encrypted.Length} bytes");
+            // Check if this is fallback mode (plaintext with marker)
+            if (result.StartsWith("PLAINTEXT:"))
+            {
+                await LogAsync("warn", "Using fallback mode - data is NOT encrypted");
+                // Remove marker and convert plaintext to UTF-8 bytes
+                var plaintextData = result.Substring("PLAINTEXT:".Length);
+                var bytes = System.Text.Encoding.UTF8.GetBytes(plaintextData);
+                await LogAsync("debug", $"Converted plaintext to {bytes.Length} UTF-8 bytes");
+                return bytes;
+            }
+
+            // Normal encrypted mode - convert Base64 to bytes
+            var encrypted = Convert.FromBase64String(result);
+            await LogAsync("debug", $"Converted encrypted Base64 to {encrypted.Length} bytes");
 
             return encrypted;
         }
@@ -145,7 +156,15 @@ public class BrowserEncryptionProvider : IEncryptionProvider
 
         try
         {
-            // Convert byte array to Base64 for JavaScript
+            // Check if this is plaintext (UTF-8 bytes, not Base64-encoded encrypted data)
+            var text = System.Text.Encoding.UTF8.GetString(ciphertext);
+            if (text.StartsWith("PLAINTEXT:"))
+            {
+                await LogAsync("warn", "Decrypting fallback mode data (NOT encrypted)");
+                return text.Substring("PLAINTEXT:".Length);
+            }
+
+            // Normal encrypted mode - convert to Base64 for JavaScript
             var base64Ciphertext = Convert.ToBase64String(ciphertext);
 
             var decrypted = await _jsRuntime.InvokeAsync<string>(

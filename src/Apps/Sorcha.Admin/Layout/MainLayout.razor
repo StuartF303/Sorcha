@@ -1,7 +1,10 @@
 @using Sorcha.Admin.Components.Authentication
+@using Sorcha.Admin.Services.Authentication
+@using Microsoft.AspNetCore.Components.Authorization
 @inherits LayoutComponentBase
 
 <MudThemeProvider />
+<MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
@@ -31,7 +34,40 @@
 </MudLayout>
 
 @code {
+    [Inject] private CustomAuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+
     private bool _drawerOpen = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("console.log", "[MainLayout] OnAfterRenderAsync called - firstRender");
+
+                // Explicitly trigger authentication state retrieval and notification
+                // This ensures the auth state is loaded from LocalStorage in new isolated circuits
+                await JSRuntime.InvokeVoidAsync("console.log", "[MainLayout] Calling NotifyAuthenticationStateChanged...");
+                AuthStateProvider.NotifyAuthenticationStateChanged();
+
+                await JSRuntime.InvokeVoidAsync("console.log", "[MainLayout] NotifyAuthenticationStateChanged completed");
+
+                // Small delay to allow the notification to propagate
+                await Task.Delay(50);
+
+                // Trigger re-render to update AuthorizeView components
+                await JSRuntime.InvokeVoidAsync("console.log", "[MainLayout] Calling StateHasChanged...");
+                StateHasChanged();
+                await JSRuntime.InvokeVoidAsync("console.log", "[MainLayout] OnAfterRenderAsync completed");
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("console.error", $"[MainLayout] Error in OnAfterRenderAsync: {ex.Message}");
+            }
+        }
+    }
 
     private void ToggleDrawer()
     {

@@ -1,12 +1,14 @@
 @page "/"
 @using Sorcha.Admin.Services
+@using Sorcha.Admin.Services.Authentication
 @using Sorcha.Admin.Components
 @using System.Text.Json
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @attribute [AllowAnonymous]
 @inject NavigationManager Navigation
 @inject EventLogService EventLog
 @inject HttpClient Http
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Home - Sorcha Platform</PageTitle>
 
@@ -459,8 +461,43 @@
 
     protected override async Task OnInitializedAsync()
     {
-        EventLog.LogInfo("Dashboard loaded", "Welcome to Sorcha Platform");
-        await LoadDashboardStatisticsAsync();
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("console.log", "[Index] OnInitializedAsync called");
+
+            EventLog.LogInfo("Dashboard loaded", "Welcome to Sorcha Platform");
+
+            // Explicitly trigger authentication state retrieval and notification
+            await JSRuntime.InvokeVoidAsync("console.log", "[Index] Calling NotifyAuthenticationStateChanged...");
+            AuthStateProvider.NotifyAuthenticationStateChanged();
+            await JSRuntime.InvokeVoidAsync("console.log", "[Index] NotifyAuthenticationStateChanged completed");
+
+            await LoadDashboardStatisticsAsync();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("console.error", $"[Index] Error in OnInitializedAsync: {ex.Message}");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("console.log", "[Index] OnAfterRenderAsync called - firstRender");
+                // Small delay to allow notification to propagate
+                await Task.Delay(50);
+                // Trigger re-render to update AuthorizeView components
+                StateHasChanged();
+                await JSRuntime.InvokeVoidAsync("console.log", "[Index] OnAfterRenderAsync completed");
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("console.error", $"[Index] Error in OnAfterRenderAsync: {ex.Message}");
+            }
+        }
     }
 
     private async Task LoadDashboardStatisticsAsync()
