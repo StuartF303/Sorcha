@@ -34,11 +34,16 @@ public class InitiateRegisterCreationRequest
     public string TenantId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Creator information
+    /// Register owners (at least one required)
     /// </summary>
+    /// <remarks>
+    /// Each owner will need to sign an attestation to approve register creation.
+    /// Multiple owners provide multi-party approval for register creation.
+    /// </remarks>
     [Required]
-    [JsonPropertyName("creator")]
-    public CreatorInfo Creator { get; set; } = new();
+    [MinLength(1, ErrorMessage = "At least one owner is required")]
+    [JsonPropertyName("owners")]
+    public List<OwnerInfo> Owners { get; set; } = new();
 
     /// <summary>
     /// Additional administrators to grant access
@@ -54,12 +59,12 @@ public class InitiateRegisterCreationRequest
 }
 
 /// <summary>
-/// Creator information for register initialization
+/// Owner information for register initialization
 /// </summary>
-public class CreatorInfo
+public class OwnerInfo
 {
     /// <summary>
-    /// User identifier
+    /// User identifier (DID)
     /// </summary>
     [Required]
     [JsonPropertyName("userId")]
@@ -71,6 +76,14 @@ public class CreatorInfo
     [Required]
     [JsonPropertyName("walletId")]
     public string WalletId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Creator information for register initialization (legacy compatibility)
+/// </summary>
+[Obsolete("Use OwnerInfo instead. This class is maintained for backward compatibility.")]
+public class CreatorInfo : OwnerInfo
+{
 }
 
 /// <summary>
@@ -112,16 +125,14 @@ public class InitiateRegisterCreationResponse
     public string RegisterId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Control record template to sign
+    /// Attestations that need to be signed by owners/admins
     /// </summary>
-    [JsonPropertyName("controlRecord")]
-    public RegisterControlRecord ControlRecord { get; set; } = new();
-
-    /// <summary>
-    /// SHA-256 hash of control record to sign
-    /// </summary>
-    [JsonPropertyName("dataToSign")]
-    public string DataToSign { get; set; } = string.Empty;
+    /// <remarks>
+    /// Each owner/admin must sign their individual attestation data.
+    /// The attestation data includes role, subject, registerId, registerName, and grantedAt.
+    /// </remarks>
+    [JsonPropertyName("attestationsToSign")]
+    public List<AttestationToSign> AttestationsToSign { get; set; } = new();
 
     /// <summary>
     /// Expiration time for this pending registration
@@ -134,6 +145,60 @@ public class InitiateRegisterCreationResponse
     /// </summary>
     [JsonPropertyName("nonce")]
     public string Nonce { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Legacy field: SHA-256 hash of control record (deprecated)
+    /// </summary>
+    [Obsolete("Use AttestationsToSign instead. Each owner/admin signs their individual attestation.")]
+    [JsonPropertyName("dataToSign")]
+    public string? DataToSign { get; set; }
+
+    /// <summary>
+    /// Legacy field: Control record template (deprecated)
+    /// </summary>
+    [Obsolete("Control record is constructed during finalization after all attestations are signed.")]
+    [JsonPropertyName("controlRecord")]
+    public RegisterControlRecord? ControlRecord { get; set; }
+}
+
+/// <summary>
+/// Attestation data that needs to be signed by an owner or admin
+/// </summary>
+public class AttestationToSign
+{
+    /// <summary>
+    /// User identifier (wallet address) for the person who needs to sign
+    /// </summary>
+    [JsonPropertyName("userId")]
+    public string UserId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Wallet identifier for signing
+    /// </summary>
+    [JsonPropertyName("walletId")]
+    public string WalletId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Role being attested to
+    /// </summary>
+    [JsonPropertyName("role")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public RegisterRole Role { get; set; }
+
+    /// <summary>
+    /// Attestation data to sign (canonical JSON)
+    /// </summary>
+    [JsonPropertyName("attestationData")]
+    public AttestationSigningData AttestationData { get; set; } = new();
+
+    /// <summary>
+    /// SHA-256 hash of the attestation data (hex-encoded)
+    /// </summary>
+    /// <remarks>
+    /// This is the hash that should be signed by the wallet at walletId.
+    /// </remarks>
+    [JsonPropertyName("dataToSign")]
+    public string DataToSign { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -158,11 +223,54 @@ public class FinalizeRegisterCreationRequest
     public string Nonce { get; set; } = string.Empty;
 
     /// <summary>
-    /// Control record with signed attestations
+    /// Signed attestations from all owners/admins
     /// </summary>
     [Required]
+    [MinLength(1, ErrorMessage = "At least one signed attestation is required")]
+    [JsonPropertyName("signedAttestations")]
+    public List<SignedAttestation> SignedAttestations { get; set; } = new();
+
+    /// <summary>
+    /// Legacy field: Control record (deprecated)
+    /// </summary>
+    [Obsolete("Use SignedAttestations instead. Control record is constructed from attestations.")]
     [JsonPropertyName("controlRecord")]
-    public RegisterControlRecord ControlRecord { get; set; } = new();
+    public RegisterControlRecord? ControlRecord { get; set; }
+}
+
+/// <summary>
+/// A signed attestation from an owner or admin
+/// </summary>
+public class SignedAttestation
+{
+    /// <summary>
+    /// The attestation data that was signed
+    /// </summary>
+    [Required]
+    [JsonPropertyName("attestationData")]
+    public AttestationSigningData AttestationData { get; set; } = new();
+
+    /// <summary>
+    /// Public key used for signing (Base64)
+    /// </summary>
+    [Required]
+    [JsonPropertyName("publicKey")]
+    public string PublicKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Signature of the attestation data hash (Base64)
+    /// </summary>
+    [Required]
+    [JsonPropertyName("signature")]
+    public string Signature { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Algorithm used for signing
+    /// </summary>
+    [Required]
+    [JsonPropertyName("algorithm")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public SignatureAlgorithm Algorithm { get; set; }
 }
 
 /// <summary>
@@ -199,6 +307,53 @@ public class FinalizeRegisterCreationResponse
     /// </summary>
     [JsonPropertyName("createdAt")]
     public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>
+/// Data structure that each owner/admin signs to attest to register creation
+/// </summary>
+/// <remarks>
+/// This structure is serialized to canonical JSON (RFC 8785) and hashed with SHA-256.
+/// The hash is then signed by the owner's wallet using their private key.
+/// Including registerName prevents name changes after attestation signing.
+/// </remarks>
+public class AttestationSigningData
+{
+    /// <summary>
+    /// Role being granted (Owner, Admin, etc.)
+    /// </summary>
+    [Required]
+    [JsonPropertyName("role")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public RegisterRole Role { get; set; }
+
+    /// <summary>
+    /// Subject DID (e.g., "did:sorcha:user-001")
+    /// </summary>
+    [Required]
+    [JsonPropertyName("subject")]
+    public string Subject { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Register identifier being attested to
+    /// </summary>
+    [Required]
+    [JsonPropertyName("registerId")]
+    public string RegisterId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Register name (immutable after signing)
+    /// </summary>
+    [Required]
+    [JsonPropertyName("registerName")]
+    public string RegisterName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Timestamp when this attestation was granted
+    /// </summary>
+    [Required]
+    [JsonPropertyName("grantedAt")]
+    public DateTimeOffset GrantedAt { get; set; }
 }
 
 /// <summary>

@@ -55,11 +55,13 @@ public interface IWalletServiceClient
     /// </summary>
     /// <param name="walletAddress">Wallet address to use for signing</param>
     /// <param name="transactionData">Transaction data to sign</param>
+    /// <param name="derivationPath">Optional key derivation path (BIP44 or Sorcha system path like "sorcha:register-attestation")</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Digital signature (raw bytes)</returns>
-    Task<byte[]> SignTransactionAsync(
+    /// <returns>Digital signature (base64-encoded string)</returns>
+    Task<string> SignTransactionAsync(
         string walletAddress,
         byte[] transactionData,
+        string? derivationPath = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

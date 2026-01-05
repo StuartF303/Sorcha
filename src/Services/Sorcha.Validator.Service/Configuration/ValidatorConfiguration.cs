@@ -14,9 +14,16 @@ public class ValidatorConfiguration
     public string ValidatorId { get; set; } = Guid.NewGuid().ToString();
 
     /// <summary>
-    /// System wallet ID (managed by Wallet Service)
+    /// System wallet address for signing control records and dockets
     /// </summary>
-    public string? SystemWalletId { get; set; }
+    /// <remarks>
+    /// The system wallet is managed by the Wallet Service and is used exclusively by the Validator Service
+    /// for system-level signing operations:
+    /// - Signing complete control records after attestation collection
+    /// - Signing finalized dockets after transaction validation
+    /// This wallet address must be configured and accessible via the Wallet Service.
+    /// </remarks>
+    public required string SystemWalletAddress { get; set; }
 
     /// <summary>
     /// Maximum depth for blockchain reorganization (fork resolution)

@@ -174,7 +174,17 @@
       "Bash(Select-String -Pattern \"error|Error|Build succeeded|Build FAILED\" -Context 0,1)",
       "Bash(Select-String -Pattern \"Passed|Failed|Skipped|Total\")",
       "Bash(Select-Object -First 30)",
-      "Bash(Select-String -Pattern \"Passed|Failed|Total tests\")"
+      "Bash(Select-String -Pattern \"Passed|Failed|Total tests\")",
+      "Bash(Select-String -Pattern \"dotnet\")",
+      "Bash(Select-String -Pattern \"error|Error|warn|initiate|Exception\" -Context 0,1)",
+      "Bash(http://sorcha-register-service:8080/api/registers/initiate)",
+      "Bash(Select-String -Pattern \"Profile|Register|Validator|Initiate|OK|X|Failed\")",
+      "Bash(Select-String -Pattern \"Finalizing|signature|verify|error|Error|Exception\" -Context 0,1)",
+      "Bash(Select-String \"diagnose|debug|test-jwt\")",
+      "Bash(Select-String -Pattern \"Build succeeded|Build FAILED|error\")",
+      "Bash(Select-String -Pattern \"sorcha-register-service|NAME\")",
+      "Bash(Select-String -Pattern \"Processing owners|Initiating register\")",
+      "Bash(Select-String -Pattern \"Verifying|Verification result|Finalizing\" -Context 0,1)"
     ],
     "deny": [],
     "ask": []

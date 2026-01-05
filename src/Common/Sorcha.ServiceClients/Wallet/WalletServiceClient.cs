@@ -86,22 +86,33 @@ public class WalletServiceClient : IWalletServiceClient
         }
     }
 
-    public async Task<byte[]> SignTransactionAsync(
+    public async Task<string> SignTransactionAsync(
         string walletAddress,
         byte[] transactionData,
+        string? derivationPath = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogDebug("Signing transaction with wallet {WalletAddress}", walletAddress);
+            if (string.IsNullOrWhiteSpace(derivationPath))
+            {
+                _logger.LogDebug("Signing transaction with wallet {WalletAddress}", walletAddress);
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "Signing transaction with wallet {WalletAddress} using derivation path {DerivationPath}",
+                    walletAddress, derivationPath);
+            }
 
             // TODO: Implement gRPC/HTTP call to Wallet Service
             _logger.LogWarning("Wallet Service transaction signing not yet implemented - returning placeholder");
 
-            var signature = System.Text.Encoding.UTF8.GetBytes(
-                $"tx-signature-{walletAddress}-{DateTimeOffset.UtcNow.Ticks}");
+            var signatureBytes = System.Text.Encoding.UTF8.GetBytes(
+                $"tx-signature-{walletAddress}-{derivationPath ?? "default"}-{DateTimeOffset.UtcNow.Ticks}");
 
-            return await Task.FromResult(signature);
+            var signatureBase64 = Convert.ToBase64String(signatureBytes);
+            return await Task.FromResult(signatureBase64);
         }
         catch (Exception ex)
         {

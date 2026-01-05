@@ -12,4 +12,13 @@ public class SignTransactionRequest
     /// </summary>
     [Required]
     public required string TransactionData { get; set; }
+
+    /// <summary>
+    /// Optional key derivation path for signing
+    /// </summary>
+    /// <remarks>
+    /// Can be a custom path (e.g., "m/44'/0'/0'/0/5") or a Sorcha system path (e.g., "sorcha:register-attestation").
+    /// If not specified, the wallet's default signing key is used.
+    /// </remarks>
+    public string? DerivationPath { get; set; }
 }

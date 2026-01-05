@@ -166,12 +166,73 @@ public static class ValidationEndpoints
     private static async Task<IResult> SubmitGenesisTransaction(
         [FromBody] GenesisTransactionRequest request,
         [FromServices] IMemPoolManager memPoolManager,
+        [FromServices] Microsoft.Extensions.Options.IOptions<Sorcha.Validator.Service.Configuration.ValidatorConfiguration> validatorConfig,
+        [FromServices] Sorcha.ServiceClients.Wallet.IWalletServiceClient walletClient,
+        [FromServices] Sorcha.Cryptography.Interfaces.IHashProvider hashProvider,
         [FromServices] ILogger<Program> logger,
         CancellationToken cancellationToken)
     {
         try
         {
             logger.LogInformation("Submitting genesis transaction for register {RegisterId}", request.RegisterId);
+
+            // Serialize control record to canonical JSON
+            var controlRecordJson = System.Text.Json.JsonSerializer.Serialize(
+                request.ControlRecordPayload,
+                new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = false,
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                });
+
+            // Compute SHA-256 hash of control record
+            var controlRecordBytes = System.Text.Encoding.UTF8.GetBytes(controlRecordJson);
+            var controlRecordHash = hashProvider.ComputeHash(
+                controlRecordBytes,
+                Sorcha.Cryptography.Enums.HashType.SHA256);
+            var controlRecordHashHex = Convert.ToHexString(controlRecordHash).ToLowerInvariant();
+
+            logger.LogDebug(
+                "Control record hash for register {RegisterId}: {Hash}",
+                request.RegisterId,
+                controlRecordHashHex);
+
+            // Sign control record with system wallet using the register-control derivation path
+            var systemWalletAddress = validatorConfig.Value.SystemWalletAddress;
+            var systemWalletSignature = await walletClient.SignTransactionAsync(
+                systemWalletAddress,
+                controlRecordBytes,
+                "sorcha:register-control", // Use system derivation path for control record signing
+                cancellationToken);
+
+            logger.LogInformation(
+                "Control record signed by system wallet {WalletAddress} for register {RegisterId}",
+                systemWalletAddress,
+                request.RegisterId);
+
+            // Convert attestation signatures from request
+            var signatures = request.Signatures.Select(s => new Signature
+            {
+                PublicKey = Convert.FromBase64String(s.PublicKey),
+                SignatureValue = Convert.FromBase64String(s.SignatureValue),
+                Algorithm = s.Algorithm,
+                SignedAt = request.CreatedAt
+            }).ToList();
+
+            // Add system wallet signature
+            // TODO: Get public key from wallet service
+            signatures.Add(new Signature
+            {
+                PublicKey = System.Text.Encoding.UTF8.GetBytes(systemWalletAddress), // Placeholder
+                SignatureValue = Convert.FromBase64String(systemWalletSignature),
+                Algorithm = "ED25519", // TODO: Get from wallet
+                SignedAt = DateTimeOffset.UtcNow
+            });
+
+            logger.LogDebug(
+                "Total signatures for register {RegisterId}: {Count} (attestations + system wallet)",
+                request.RegisterId,
+                signatures.Count);
 
             // Create genesis transaction for memory pool
             var transaction = new Transaction
@@ -183,20 +244,15 @@ public static class ValidationEndpoints
                 Payload = request.ControlRecordPayload,
                 CreatedAt = request.CreatedAt,
                 ExpiresAt = null, // Genesis transactions don't expire
-                Signatures = request.Signatures.Select(s => new Signature
-                {
-                    PublicKey = Convert.FromBase64String(s.PublicKey),
-                    SignatureValue = Convert.FromBase64String(s.SignatureValue),
-                    Algorithm = s.Algorithm,
-                    SignedAt = request.CreatedAt
-                }).ToList(),
+                Signatures = signatures,
                 PayloadHash = request.PayloadHash,
                 Priority = TransactionPriority.High, // Genesis has highest priority
                 Metadata = new Dictionary<string, string>
                 {
                     { "Type", "Genesis" },
                     { "RegisterName", request.RegisterName ?? string.Empty },
-                    { "TenantId", request.TenantId ?? string.Empty }
+                    { "TenantId", request.TenantId ?? string.Empty },
+                    { "SystemWalletAddress", systemWalletAddress }
                 }
             };
 

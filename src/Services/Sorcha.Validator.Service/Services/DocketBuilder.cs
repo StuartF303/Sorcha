@@ -127,14 +127,13 @@ public class DocketBuilder : IDocketBuilder
                 createdAt);
 
             // Sign docket with system wallet
-            var systemWalletId = _validatorConfig.SystemWalletId
-                ?? await _walletClient.CreateOrRetrieveSystemWalletAsync(_validatorConfig.ValidatorId, cancellationToken);
+            var systemWalletAddress = _validatorConfig.SystemWalletAddress;
 
-            var signature = await _walletClient.SignDataAsync(systemWalletId, docketHash, cancellationToken);
+            var signature = await _walletClient.SignDataAsync(systemWalletAddress, docketHash, cancellationToken);
 
             // TODO: Replace with proper wallet integration using IWalletIntegrationService
             // For now, convert string representations to byte arrays
-            var publicKeyBytes = System.Text.Encoding.UTF8.GetBytes(systemWalletId);
+            var publicKeyBytes = System.Text.Encoding.UTF8.GetBytes(systemWalletAddress);
             var signatureBytes = System.Text.Encoding.UTF8.GetBytes(signature);
 
             // Create docket

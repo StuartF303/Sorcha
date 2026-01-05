@@ -621,12 +621,13 @@ actionsGroup.MapPost("/", async (
         var txHash = await hashProvider.ComputeHashAsync(txHashStream);
         var txHashHex = BitConverter.ToString(txHash).Replace("-", "").ToLowerInvariant();
 
-        // 7. Sign the transaction with Wallet Service
+        // 7. Sign the transaction with Wallet Service (returns base64-encoded signature)
         var transactionBytes = System.Text.Encoding.UTF8.GetBytes(
             System.Text.Json.JsonSerializer.Serialize(transaction));
         var signature = await walletClient.SignTransactionAsync(
             request.SenderWallet,
-            transactionBytes);
+            transactionBytes,
+            derivationPath: null); // Use wallet's default signing key
 
         // 8. Convert to Register TransactionModel and submit to Register Service
         var registerTransaction = new Sorcha.Register.Models.TransactionModel
@@ -644,8 +645,8 @@ actionsGroup.MapPost("/", async (
                 WalletAccess = new[] { kvp.Key }
             }).ToArray(),
             PayloadCount = (ulong)encryptedPayloads.Count,
-            // Add signature to transaction (Base64 encoded)
-            Signature = Convert.ToBase64String(signature)
+            // Signature is already Base64 encoded from wallet service
+            Signature = signature
         };
 
         // Submit to Register Service

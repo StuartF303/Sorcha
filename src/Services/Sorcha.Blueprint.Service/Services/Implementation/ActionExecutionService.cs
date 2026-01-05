@@ -130,13 +130,15 @@ public class ActionExecutionService : IActionExecutionService
             accumulatedState.PreviousTransactionId,
             cancellationToken);
 
-        // 11. Sign transaction
-        var signature = await _walletClient.SignTransactionAsync(
+        // 11. Sign transaction (using default signing key, no derivation path)
+        var signatureBase64 = await _walletClient.SignTransactionAsync(
             request.SenderWallet,
             transaction.TransactionData,
+            derivationPath: null, // Use wallet's default signing key
             cancellationToken);
 
-        transaction.Signature = signature;
+        // Convert base64 signature to bytes for transaction model
+        transaction.Signature = Convert.FromBase64String(signatureBase64);
 
         // 12. Submit to Register
         var submittedTx = await _registerClient.SubmitTransactionAsync(
