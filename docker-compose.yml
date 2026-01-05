@@ -337,13 +337,20 @@ services:
     environment:
       - NGINX_HOST=localhost
       - NGINX_PORT=80
+      # API Gateway configuration for backend API calls
+      - ApiGateway__BaseUrl=http://api-gateway:8080
+      # Aspire service discovery (alternative)
+      - services__api-gateway__http__0=http://api-gateway:8080
+    volumes:
+      - dataprotection-keys:/root/.aspnet/DataProtection-Keys
     networks:
       - sorcha-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
+    # Note: Health check disabled - wget not available in aspnet runtime image
+    # healthcheck:
+    #   test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+    #   interval: 10s
+    #   timeout: 3s
+    #   retries: 3
 
   api-gateway:
     build:
