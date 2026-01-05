@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
-using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -25,10 +24,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     private readonly IHashProvider _hashProvider;
     private readonly ICryptoModule _cryptoModule;
     private readonly IValidatorServiceClient _validatorClient;
-
-    // Thread-safe in-memory storage for pending registrations
-    // TODO: Replace with distributed cache (Redis) for production multi-instance deployments
-    private readonly ConcurrentDictionary<string, PendingRegistration> _pendingRegistrations = new();
+    private readonly IPendingRegistrationStore _pendingStore;
 
     private readonly TimeSpan _pendingExpirationTime = TimeSpan.FromMinutes(5);
     private readonly JsonSerializerOptions _canonicalJsonOptions;
@@ -39,7 +35,8 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         IWalletServiceClient walletClient,
         IHashProvider hashProvider,
         ICryptoModule cryptoModule,
-        IValidatorServiceClient validatorClient)
+        IValidatorServiceClient validatorClient,
+        IPendingRegistrationStore pendingStore)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _registerManager = registerManager ?? throw new ArgumentNullException(nameof(registerManager));
@@ -47,6 +44,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
         _validatorClient = validatorClient ?? throw new ArgumentNullException(nameof(validatorClient));
+        _pendingStore = pendingStore ?? throw new ArgumentNullException(nameof(pendingStore));
 
         // Configure JSON serialization for canonical form (RFC 8785)
         _canonicalJsonOptions = new JsonSerializerOptions
@@ -133,7 +131,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             Nonce = nonce
         };
 
-        _pendingRegistrations[registerId] = pending;
+        _pendingStore.Add(registerId, pending);
 
         // Schedule cleanup of expired pending registrations
         _ = Task.Run(async () => await CleanupExpiredPendingRegistrationsAsync(), cancellationToken);
@@ -164,8 +162,8 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             "Finalizing register creation for ID {RegisterId}",
             request.RegisterId);
 
-        // Retrieve pending registration
-        if (!_pendingRegistrations.TryGetValue(request.RegisterId, out var pending))
+        // Retrieve and remove pending registration
+        if (!_pendingStore.TryRemove(request.RegisterId, out var pending))
         {
             _logger.LogWarning("Pending registration not found for ID {RegisterId}", request.RegisterId);
             throw new InvalidOperationException($"Pending registration not found for register ID {request.RegisterId}");
@@ -182,10 +180,9 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             throw new UnauthorizedAccessException("Invalid nonce - possible replay attack");
         }
 
-        // Check expiration
+        // Check expiration (already removed from store above)
         if (pending.IsExpired())
         {
-            _pendingRegistrations.TryRemove(request.RegisterId, out _);
             _logger.LogWarning("Pending registration expired for ID {RegisterId}", request.RegisterId);
             throw new InvalidOperationException($"Pending registration expired for register ID {request.RegisterId}");
         }
@@ -258,8 +255,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
                 genesisTransaction.TxId);
         }
 
-        // Remove from pending registrations
-        _pendingRegistrations.TryRemove(request.RegisterId, out _);
+        // Note: Pending registration already removed from store at the start of this method
 
         return new FinalizeRegisterCreationResponse
         {
@@ -436,24 +432,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     private async Task CleanupExpiredPendingRegistrationsAsync()
     {
         await Task.Delay(TimeSpan.FromMinutes(1)); // Run every minute
-
-        var expired = _pendingRegistrations
-            .Where(kvp => kvp.Value.IsExpired())
-            .Select(kvp => kvp.Key)
-            .ToList();
-
-        foreach (var registerId in expired)
-        {
-            if (_pendingRegistrations.TryRemove(registerId, out _))
-            {
-                _logger.LogDebug("Removed expired pending registration {RegisterId}", registerId);
-            }
-        }
-
-        if (expired.Any())
-        {
-            _logger.LogInformation("Cleaned up {Count} expired pending registrations", expired.Count);
-        }
+        _pendingStore.CleanupExpired();
     }
 }
 

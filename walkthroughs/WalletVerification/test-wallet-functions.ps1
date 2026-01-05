@@ -145,22 +145,22 @@ try {
     Write-Success "Wallet created successfully!"
     Write-Host ""
     Write-Host "Wallet Details:" -ForegroundColor Yellow
-    Write-Host "  Name: $($createResponse.name)" -ForegroundColor White
-    Write-Host "  Address: $($createResponse.address)" -ForegroundColor White
-    Write-Host "  Algorithm: $($createResponse.algorithm)" -ForegroundColor White
-    Write-Host "  Public Key: $($createResponse.publicKey)" -ForegroundColor White
+    Write-Host "  Name: $($createResponse.wallet.name)" -ForegroundColor White
+    Write-Host "  Address: $($createResponse.wallet.address)" -ForegroundColor White
+    Write-Host "  Algorithm: $($createResponse.wallet.algorithm)" -ForegroundColor White
+    Write-Host "  Public Key: $($createResponse.wallet.publicKey)" -ForegroundColor White
     Write-Host ""
 
-    if ($createResponse.mnemonic) {
+    if ($createResponse.mnemonicWords) {
         Write-Host "================================================" -ForegroundColor Yellow
         Write-Host "  MNEMONIC PHRASE (SAVE SECURELY!)" -ForegroundColor Yellow
         Write-Host "================================================" -ForegroundColor Yellow
-        Write-Host $createResponse.mnemonic -ForegroundColor Cyan
+        Write-Host ($createResponse.mnemonicWords -join " ") -ForegroundColor Cyan
         Write-Host "================================================" -ForegroundColor Yellow
         Write-Host ""
     }
 
-    $walletAddress = $createResponse.address
+    $walletAddress = $createResponse.wallet.address
 
 } catch {
     Write-Error "Failed to create wallet"

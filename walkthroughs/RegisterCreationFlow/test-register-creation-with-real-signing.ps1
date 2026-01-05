@@ -1,41 +1,60 @@
 #!/usr/bin/env pwsh
-# End-to-End Register Creation with Real Wallet Signing
-# Tests complete workflow: Admin auth -> Create wallet -> Sign register data -> Create register
+# Complete Register Creation Flow with Real Wallet Signing
+# Extends the basic register creation walkthrough with actual cryptographic signatures
 
 param(
+    [Parameter(Mandatory=$false)]
+    [ValidateSet('gateway', 'direct')]
+    [string]$Profile = 'gateway',
+
+    [Parameter(Mandatory=$false)]
+    [ValidateSet("ED25519", "NISTP256", "RSA4096")]
+    [string]$Algorithm = "ED25519",
+
     [Parameter(Mandatory=$false)]
     [string]$AdminEmail = "admin@sorcha.local",
 
     [Parameter(Mandatory=$false)]
-    [string]$AdminPassword = "Dev_Pass_2025!",
-
-    [Parameter(Mandatory=$false)]
-    [string]$ApiGatewayUrl = "http://localhost",
-
-    [Parameter(Mandatory=$false)]
-    [ValidateSet("ED25519", "NISTP256", "RSA4096")]
-    [string]$Algorithm = "ED25519"
+    [string]$AdminPassword = "Dev_Pass_2025!"
 )
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "================================================================================" -ForegroundColor Cyan
-Write-Host "  Register Creation with Real Wallet Signing" -ForegroundColor Cyan
+Write-Host "  Complete Register Creation with Real Wallet Signing" -ForegroundColor Cyan
 Write-Host "================================================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "This test demonstrates the complete register creation workflow:" -ForegroundColor Yellow
-Write-Host "  1. Admin authentication" -ForegroundColor Gray
-Write-Host "  2. Wallet creation with specified algorithm" -ForegroundColor Gray
-Write-Host "  3. Register creation initiation (get data to sign)" -ForegroundColor Gray
-Write-Host "  4. Sign register data with wallet" -ForegroundColor Gray
-Write-Host "  5. Finalize register creation with real signature" -ForegroundColor Gray
-Write-Host "  6. Verify register was created" -ForegroundColor Gray
-Write-Host ""
 
+# Configuration based on profile
+$ApiGatewayUrl = "http://localhost"
+$RegisterServiceUrl = ""
+$ValidatorServiceUrl = ""
+
+switch ($Profile) {
+    'gateway' {
+        $RegisterServiceUrl = "$ApiGatewayUrl/api/registers"
+        $ValidatorServiceUrl = "$ApiGatewayUrl/api/validator"
+        $WalletServiceUrl = "$ApiGatewayUrl/api/v1/wallets"
+        $ProfileDescription = "API Gateway (YARP Routing)"
+        Write-Host "Profile: $Profile (Recommended)" -ForegroundColor Green
+        Write-Host "Mode: All requests routed through API Gateway" -ForegroundColor Gray
+    }
+    'direct' {
+        $RegisterServiceUrl = "http://localhost:5290"
+        $ValidatorServiceUrl = "http://localhost:5100"
+        $WalletServiceUrl = "http://localhost:5000/api/v1/wallets"
+        $ProfileDescription = "Direct Service Access"
+        Write-Host "Profile: $Profile (Debugging)" -ForegroundColor Yellow
+        Write-Host "Mode: Direct access to service ports (bypasses gateway)" -ForegroundColor Gray
+    }
+}
+
+Write-Host ""
 Write-Host "Configuration:" -ForegroundColor Yellow
-Write-Host "  API Gateway: $ApiGatewayUrl" -ForegroundColor White
-Write-Host "  Admin User: $AdminEmail" -ForegroundColor White
-Write-Host "  Wallet Algorithm: $Algorithm" -ForegroundColor White
+Write-Host "  Profile: $ProfileDescription" -ForegroundColor White
+Write-Host "  Register Service: $RegisterServiceUrl" -ForegroundColor White
+Write-Host "  Wallet Service: $WalletServiceUrl" -ForegroundColor White
+Write-Host "  Algorithm: $Algorithm" -ForegroundColor White
 Write-Host ""
 
 # Helper functions
@@ -83,10 +102,10 @@ try {
     exit 1
 }
 
-# Step 2: Create Wallet for Signing
+# Step 2: Create Wallet for Register Owner
 Write-Step "Step 2: Create Wallet for Register Owner"
 
-$walletName = "Register Owner Wallet $(Get-Date -Format 'yyyy-MM-dd-HHmmss')"
+$walletName = "Register Owner ($Algorithm) $(Get-Date -Format 'yyyy-MM-dd HHmmss')"
 $createWalletBody = @{
     name = $walletName
     algorithm = $Algorithm
@@ -94,10 +113,10 @@ $createWalletBody = @{
 } | ConvertTo-Json
 
 try {
-    Write-Info "Creating $Algorithm wallet for register owner..."
+    Write-Info "Creating $Algorithm wallet..."
 
     $createResponse = Invoke-RestMethod `
-        -Uri "$ApiGatewayUrl/api/v1/wallets" `
+        -Uri "$WalletServiceUrl" `
         -Method POST `
         -Headers @{
             Authorization = "Bearer $adminToken"
@@ -112,17 +131,10 @@ try {
     Write-Host "  Name: $($createResponse.wallet.name)" -ForegroundColor White
     Write-Host "  Address: $($createResponse.wallet.address)" -ForegroundColor White
     Write-Host "  Algorithm: $($createResponse.wallet.algorithm)" -ForegroundColor White
-    Write-Host "  Public Key: $($createResponse.wallet.publicKey)" -ForegroundColor White
+    Write-Host "  Public Key (Base64): $($createResponse.wallet.publicKey)" -ForegroundColor White
 
     $walletAddress = $createResponse.wallet.address
-    $publicKey = $createResponse.wallet.publicKey
-
-    # Parse algorithm-prefixed public key
-    if ($publicKey -match "^($Algorithm):(.+)$") {
-        $publicKeyHex = $matches[2]
-    } else {
-        $publicKeyHex = $publicKey
-    }
+    $publicKeyBase64 = $createResponse.wallet.publicKey
 
 } catch {
     Write-Error "Failed to create wallet"
@@ -140,9 +152,13 @@ $registerName = "Test Register with $Algorithm Signing"
 $tenantId = "test-tenant-001"
 $ownerDid = "did:sorcha:admin"
 
+# Convert public key to hex for register control record
+$publicKeyBytes = [Convert]::FromBase64String($publicKeyBase64)
+$publicKeyHex = [BitConverter]::ToString($publicKeyBytes).Replace("-", "").ToLower()
+
 $initiateRequest = @{
     name = $registerName
-    description = "Register created with real $Algorithm wallet signing"
+    description = "Register created with real $Algorithm wallet signing at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
     tenantId = $tenantId
     ownerDid = $ownerDid
     ownerPublicKey = "$Algorithm`:$publicKeyHex"
@@ -155,7 +171,7 @@ try {
     Write-Host ""
 
     $initiateResponse = Invoke-RestMethod `
-        -Uri "$ApiGatewayUrl/api/registers/initiate" `
+        -Uri "$RegisterServiceUrl/initiate" `
         -Method POST `
         -Headers @{
             "Content-Type" = "application/json"
@@ -167,12 +183,12 @@ try {
     Write-Host ""
     Write-Host "Initiation Response:" -ForegroundColor Yellow
     Write-Host "  Register ID: $($initiateResponse.registerId)" -ForegroundColor White
-    Write-Host "  Data to Sign (Hash): $($initiateResponse.dataToSign)" -ForegroundColor White
+    Write-Host "  Data to Sign (Hex Hash): $($initiateResponse.dataToSign)" -ForegroundColor White
     Write-Host "  Nonce: $($initiateResponse.nonce)" -ForegroundColor White
     Write-Host "  Expires At: $($initiateResponse.expiresAt)" -ForegroundColor White
 
     $registerId = $initiateResponse.registerId
-    $dataToSign = $initiateResponse.dataToSign
+    $dataToSignHex = $initiateResponse.dataToSign
     $nonce = $initiateResponse.nonce
 
 } catch {
@@ -187,22 +203,31 @@ try {
 # Step 4: Sign the Register Data with Wallet
 Write-Step "Step 4: Sign Register Data with Wallet"
 
-Write-Info "Signing register control record hash with $Algorithm wallet..."
-Write-Host "  Wallet Address: $walletAddress" -ForegroundColor Gray
-Write-Host "  Data Hash to Sign: $dataToSign" -ForegroundColor Gray
+Write-Info "Converting hex hash to bytes for signing..."
+Write-Host "  Data Hash (Hex): $dataToSignHex" -ForegroundColor Gray
+
+# Convert hex string to bytes, then to base64 for wallet service
+$dataBytes = [byte[]]::new($dataToSignHex.Length / 2)
+for ($i = 0; $i -lt $dataToSignHex.Length; $i += 2) {
+    $dataBytes[$i/2] = [Convert]::ToByte($dataToSignHex.Substring($i, 2), 16)
+}
+$dataToSignBase64 = [Convert]::ToBase64String($dataBytes)
+
+Write-Host "  Data Hash (Base64): $dataToSignBase64" -ForegroundColor Gray
 Write-Host ""
 
-# The dataToSign is already a hex string (canonical JSON hash)
-# We need to sign this hex string
 $signBody = @{
-    data = $dataToSign
+    transactionData = $dataToSignBase64
 } | ConvertTo-Json
 
 try {
     Write-Info "Sending sign request to wallet service..."
+    Write-Host "  Wallet: $walletAddress" -ForegroundColor Gray
+    Write-Host "  Endpoint: POST $WalletServiceUrl/$walletAddress/sign" -ForegroundColor Gray
+    Write-Host ""
 
     $signResponse = Invoke-RestMethod `
-        -Uri "$ApiGatewayUrl/api/v1/wallets/$walletAddress/sign" `
+        -Uri "$WalletServiceUrl/$walletAddress/sign" `
         -Method POST `
         -Headers @{
             Authorization = "Bearer $adminToken"
@@ -214,11 +239,16 @@ try {
     Write-Success "Data signed successfully!"
     Write-Host ""
     Write-Host "Signature Details:" -ForegroundColor Yellow
-    Write-Host "  Algorithm: $($signResponse.algorithm)" -ForegroundColor White
-    Write-Host "  Signature: $($signResponse.signature)" -ForegroundColor White
-    Write-Host "  Public Key: $($signResponse.publicKey)" -ForegroundColor White
+    Write-Host "  Signature (Base64): $($signResponse.signature)" -ForegroundColor White
+    Write-Host "  Signed By: $($signResponse.signedBy)" -ForegroundColor White
+    Write-Host "  Signed At: $($signResponse.signedAt)" -ForegroundColor White
 
-    $signature = $signResponse.signature
+    $signatureBase64 = $signResponse.signature
+
+    # Convert signature to hex for register service
+    $signatureBytes = [Convert]::FromBase64String($signatureBase64)
+    $signatureHex = [BitConverter]::ToString($signatureBytes).Replace("-", "").ToLower()
+    Write-Host "  Signature (Hex): $signatureHex" -ForegroundColor Gray
 
 } catch {
     Write-Error "Failed to sign data with wallet"
@@ -226,26 +256,37 @@ try {
     if ($_.ErrorDetails) {
         Write-Host "  Details: $($_.ErrorDetails.Message)" -ForegroundColor Red
     }
-    Write-Host ""
-    Write-Host "This may indicate:" -ForegroundColor Yellow
-    Write-Host "  - Wallet Service sign endpoint is not implemented" -ForegroundColor Gray
-    Write-Host "  - Wallet address is incorrect" -ForegroundColor Gray
-    Write-Host "  - Signature format is not compatible" -ForegroundColor Gray
     exit 1
 }
 
 # Step 5: Finalize Register Creation with Real Signature
 Write-Step "Step 5: Finalize Register Creation"
 
+# Construct control record with signature
+$controlRecord = @{
+    registerId = $registerId
+    name = $registerName
+    description = "Register created with real $Algorithm wallet signing at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    tenantId = $tenantId
+    createdAt = (Get-Date).ToUniversalTime().ToString("o")
+    metadata = @{}
+    attestations = @(
+        @{
+            role = "Owner"
+            subject = $ownerDid
+            publicKey = $publicKeyBase64  # Wallet service returns base64
+            signature = $signatureBase64   # Wallet service returns base64
+            algorithm = $Algorithm
+            grantedAt = (Get-Date).ToUniversalTime().ToString("o")
+        }
+    )
+}
+
 $finalizeRequest = @{
     registerId = $registerId
     nonce = $nonce
-    signedData = @{
-        dataToSign = $dataToSign
-        signature = $signature
-        publicKey = "$Algorithm`:$publicKeyHex"
-    }
-} | ConvertTo-Json -Depth 5
+    controlRecord = $controlRecord
+} | ConvertTo-Json -Depth 10
 
 try {
     Write-Info "Finalizing register creation with real signature..."
@@ -254,7 +295,7 @@ try {
     Write-Host ""
 
     $finalizeResponse = Invoke-RestMethod `
-        -Uri "$ApiGatewayUrl/api/registers/finalize" `
+        -Uri "$RegisterServiceUrl/finalize" `
         -Method POST `
         -Headers @{
             "Content-Type" = "application/json"
@@ -296,7 +337,7 @@ if ($genesisTransactionId) {
         Write-Info "Checking genesis transaction in validator..."
 
         $txResponse = Invoke-RestMethod `
-            -Uri "$ApiGatewayUrl/api/validator/transactions/$genesisTransactionId" `
+            -Uri "$ValidatorServiceUrl/transactions/$genesisTransactionId" `
             -Method GET `
             -UseBasicParsing
 
@@ -324,7 +365,7 @@ if ($genesisTransactionId) {
 # Summary
 Write-Host ""
 Write-Host "================================================================================" -ForegroundColor Cyan
-Write-Host "  End-to-End Test Summary" -ForegroundColor Cyan
+Write-Host "  Complete Register Creation: SUCCESS!" -ForegroundColor Green
 Write-Host "================================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -333,12 +374,11 @@ Write-Host "  [OK] Admin authentication" -ForegroundColor Green
 Write-Host "  [OK] Wallet creation ($Algorithm)" -ForegroundColor Green
 Write-Host "  [OK] Register creation initiation" -ForegroundColor Green
 Write-Host "  [OK] Data signing with wallet" -ForegroundColor Green
-Write-Host "  [OK] Register creation finalization" -ForegroundColor Green
+Write-Host "  [OK] Signature verification by Register Service" -ForegroundColor Green
+Write-Host "  [OK] Register creation finalized" -ForegroundColor Green
 
 if ($genesisTransactionId) {
     Write-Host "  [OK] Genesis transaction submitted" -ForegroundColor Green
-} else {
-    Write-Host "  [SKIP] Genesis transaction (not available)" -ForegroundColor Yellow
 }
 
 Write-Host ""
@@ -347,27 +387,30 @@ Write-Host "  Name: $registerName" -ForegroundColor White
 Write-Host "  Register ID: $registerId" -ForegroundColor White
 Write-Host "  Owner Wallet: $walletAddress" -ForegroundColor White
 Write-Host "  Algorithm: $Algorithm" -ForegroundColor White
+Write-Host "  Profile: $Profile" -ForegroundColor White
 Write-Host ""
 
 Write-Host "================================================================================" -ForegroundColor Cyan
-Write-Host "  COMPLETE SUCCESS - Real Wallet Signing Verified!" -ForegroundColor Green
+Write-Host "  End-to-End Workflow Verified with Real Cryptographic Signatures!" -ForegroundColor Green
 Write-Host "================================================================================" -ForegroundColor Cyan
 Write-Host ""
 
 Write-Host "What was tested:" -ForegroundColor Yellow
-Write-Host "  - Wallet Service: Create wallet with $Algorithm" -ForegroundColor Gray
-Write-Host "  - Wallet Service: Sign data with private key" -ForegroundColor Gray
-Write-Host "  - Register Service: Initiate register creation" -ForegroundColor Gray
-Write-Host "  - Register Service: Verify signature" -ForegroundColor Gray
+Write-Host "  - Tenant Service: Admin authentication via service-auth/token" -ForegroundColor Gray
+Write-Host "  - Wallet Service: Create HD wallet with $Algorithm" -ForegroundColor Gray
+Write-Host "  - Wallet Service: Sign data with private key (real signature)" -ForegroundColor Gray
+Write-Host "  - Register Service: Initiate register creation (get canonical hash)" -ForegroundColor Gray
+Write-Host "  - Register Service: Verify signature with public key" -ForegroundColor Gray
 Write-Host "  - Register Service: Create register with verified signature" -ForegroundColor Gray
-Write-Host "  - Validator Service: Submit genesis transaction" -ForegroundColor Gray
+Write-Host "  - Validator Service: Submit genesis transaction to mempool" -ForegroundColor Gray
 Write-Host ""
 
 Write-Host "Next Steps:" -ForegroundColor Yellow
 Write-Host "  1. Test with other algorithms:" -ForegroundColor Gray
-Write-Host "     pwsh test-register-with-wallet-signing.ps1 -Algorithm NISTP256" -ForegroundColor DarkGray
-Write-Host "     pwsh test-register-with-wallet-signing.ps1 -Algorithm RSA4096" -ForegroundColor DarkGray
-Write-Host "  2. Test register operations (add transactions)" -ForegroundColor Gray
-Write-Host "  3. Verify transaction chain integrity" -ForegroundColor Gray
-Write-Host "  4. Test multi-signature scenarios" -ForegroundColor Gray
+Write-Host "     pwsh test-register-creation-with-real-signing.ps1 -Algorithm NISTP256" -ForegroundColor DarkGray
+Write-Host "     pwsh test-register-creation-with-real-signing.ps1 -Algorithm RSA4096" -ForegroundColor DarkGray
+Write-Host "  2. Test via direct profile for debugging:" -ForegroundColor Gray
+Write-Host "     pwsh test-register-creation-with-real-signing.ps1 -Profile direct" -ForegroundColor DarkGray
+Write-Host "  3. Add transactions to the register" -ForegroundColor Gray
+Write-Host "  4. Verify transaction chain integrity" -ForegroundColor Gray
 Write-Host ""
