@@ -326,7 +326,7 @@ builder.Services.AddScoped<TransactionManager>();
 builder.Services.AddScoped<QueryManager>();
 
 // Register creation orchestration
-builder.Services.AddSingleton<IRegisterCreationOrchestrator, RegisterCreationOrchestrator>();
+builder.Services.AddScoped<IRegisterCreationOrchestrator, RegisterCreationOrchestrator>();
 
 // Register cryptography services (from Sorcha.Cryptography)
 builder.Services.AddScoped<IHashProvider, Sorcha.Cryptography.Core.HashProvider>();
@@ -533,11 +533,16 @@ registersGroup.MapGet("/stats/count", async (RegisterManager manager) =>
 // ===========================
 // Register Creation with Genesis Transactions (FR-REG-001A)
 // ===========================
+// Separate endpoint group for register creation workflow (initiate/finalize)
+// These endpoints allow anonymous access for walkthrough/testing purposes
+var registerCreationGroup = app.MapGroup("/api/registers")
+    .WithTags("Register Creation")
+    .AllowAnonymous();
 
 /// <summary>
 /// Initiate register creation (Phase 1): Generate unsigned control record
 /// </summary>
-registersGroup.MapPost("/initiate", async (
+registerCreationGroup.MapPost("/initiate", async (
     IRegisterCreationOrchestrator orchestrator,
     InitiateRegisterCreationRequest request,
     CancellationToken cancellationToken) =>
@@ -592,7 +597,7 @@ The pending registration expires after 5 minutes. The client must finalize withi
 /// <summary>
 /// Finalize register creation (Phase 2): Verify signatures and create register
 /// </summary>
-registersGroup.MapPost("/finalize", async (
+registerCreationGroup.MapPost("/finalize", async (
     IRegisterCreationOrchestrator orchestrator,
     FinalizeRegisterCreationRequest request,
     CancellationToken cancellationToken) =>

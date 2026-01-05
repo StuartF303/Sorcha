@@ -166,7 +166,8 @@ services:
     image: sorcha/register-service:latest
     container_name: sorcha-register-service
     restart: unless-stopped
-    # No ports published - internal service only, accessed via API Gateway
+    ports:
+      - "5290:8080"  # Exposed for walkthrough testing
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: register-service
@@ -174,6 +175,10 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
       ConnectionStrings__MongoDB: mongodb://sorcha:sorcha_dev_password@mongodb:27017
+      ServiceClients__WalletService__Address: http://sorcha-wallet-service:8080
+      ServiceClients__WalletService__UseGrpc: "false"
+      ServiceClients__ValidatorService__Address: http://sorcha-validator-service:8080
+      ServiceClients__ValidatorService__UseGrpc: "false"
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:

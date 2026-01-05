@@ -204,50 +204,93 @@ Sorcha/
 
 ### Quick Start
 
+> **⚠️ IMPORTANT:** Sorcha now uses **Docker-Compose as the primary development environment**. When you modify service code, you must rebuild the Docker container. See [Docker Development Workflow](docs/DOCKER-DEVELOPMENT-WORKFLOW.md) for details.
+
 1. **Clone the repository**
    ```bash
    git clone https://github.com/StuartF303/Sorcha.git
    cd Sorcha
    ```
 
-2. **Restore dependencies**
+2. **Start all services with Docker Compose** ⭐ **RECOMMENDED**
    ```bash
-   dotnet restore
+   docker-compose up -d
    ```
 
-3. **Build the solution**
+   **Access the services:**
+   - Register Service: http://localhost:5290
+   - Validator Service: http://localhost:5100
+   - API Gateway: http://localhost:5110
+   - Admin UI: http://localhost:5111
+   - Aspire Dashboard: http://localhost:18888
+
+3. **Run walkthrough tests**
    ```bash
-   dotnet build
+   pwsh walkthroughs/RegisterCreationFlow/test-register-creation-docker.ps1
    ```
 
-4. **Run all tests**
+4. **After making code changes, rebuild the service:**
    ```bash
-   dotnet test
-   ```
+   # Quick rebuild script
+   pwsh scripts/rebuild-service.ps1 <service-name>
 
-5. **Start the application**
-   ```bash
-   # Using Aspire (recommended)
-   dotnet run --project src/Apps/Sorcha.AppHost
-
-   # Or run services individually
-   dotnet run --project src/Services/Sorcha.ApiGateway
+   # Or manually:
+   docker-compose build <service-name>
+   docker-compose up -d --force-recreate <service-name>
    ```
 
 ### Running in Development
 
-#### Option 1: Using .NET Aspire (Recommended)
+> **📘 Full Docker Workflow Guide:** [docs/DOCKER-DEVELOPMENT-WORKFLOW.md](docs/DOCKER-DEVELOPMENT-WORKFLOW.md)
 
-The easiest way to run all services with orchestration:
+#### Option 1: Using Docker Compose (Recommended for Active Development)
+
+**Start all services:**
+```bash
+docker-compose up -d
+```
+
+**View logs:**
+```bash
+docker-compose logs -f                    # All services
+docker logs sorcha-register-service -f    # Specific service
+```
+
+**Rebuild after code changes:**
+```bash
+# Using helper script (recommended)
+pwsh scripts/rebuild-service.ps1 register-service
+
+# Or manually
+docker-compose build register-service
+docker-compose up -d --force-recreate register-service
+```
+
+**Stop all services:**
+```bash
+docker-compose down
+```
+
+**Why Docker-Compose for development:**
+- ✅ Production-like environment
+- ✅ Complete service isolation
+- ✅ Consistent across team
+- ✅ Works with walkthroughs
+- ✅ No .NET version conflicts
+- ✅ Easy to reset state
+
+#### Option 2: Using .NET Aspire AppHost (For Debugging)
+
+Use AppHost when you need Visual Studio debugging with breakpoints:
 
 ```bash
 dotnet run --project src/Apps/Sorcha.AppHost
 ```
 
 This will:
-- Start all services with standardized ports
+- Start all services with .NET process isolation
 - Launch the Aspire dashboard at `http://localhost:18888`
-- Configure service discovery and health checks automatically
+- Enable Visual Studio debugger attachment
 - Start PostgreSQL, MongoDB, and Redis containers via Docker
 
 **Access Points:**
