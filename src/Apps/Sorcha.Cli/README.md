@@ -1,6 +1,27 @@
 # Sorcha CLI - Administrative Tool
 
+**Version:** 1.0.5-build.2153+08a162d9ce
+**Status:** 🟡 **In Active Development** (60% Feature Complete)
+**Last Updated:** 2026-01-05
+
 The Sorcha CLI is a cross-platform command-line interface for managing the Sorcha distributed ledger platform. It provides comprehensive commands for authentication, organization management, wallet operations, transaction handling, register administration, and peer network monitoring.
+
+## 📊 **Current Implementation Status**
+
+| Component | Status | Completion |
+|-----------|--------|-----------|
+| **Foundation** (Config, Auth, Token Cache) | ✅ Complete | 100% |
+| **Authentication Commands** | ✅ Complete | 100% |
+| **Configuration Commands** | ✅ Complete | 100% |
+| **List/Get Operations** | 🟢 Implemented | 80% |
+| **Create/Update/Delete Operations** | 🟡 Partial | 20% |
+| **Advanced Features** (Export, Crypto, Monitoring) | 🔴 Not Started | 0% |
+| **Interactive REPL Mode** | 🔴 Not Started | 0% |
+
+**What works:** Authentication, configuration, viewing organizations/users/registers/wallets/transactions
+**What doesn't work yet:** Creating/updating entities, transaction export, wallet signing, peer monitoring
+
+See [CLI-CAPABILITIES-AUDIT.md](CLI-CAPABILITIES-AUDIT.md) for detailed status.
 
 ## Table of Contents
 

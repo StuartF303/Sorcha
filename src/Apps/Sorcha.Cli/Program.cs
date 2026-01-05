@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Sorcha.Cli.Commands;
@@ -169,9 +170,17 @@ internal class Program
         var versionCommand = new Command("version", "Display CLI version information");
         versionCommand.SetHandler(() =>
         {
-            Console.WriteLine("Sorcha CLI v1.0.0");
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            var version = assembly.GetName().Version;
+            var fileVersion = assembly.GetCustomAttribute<System.Reflection.AssemblyFileVersionAttribute>()?.Version;
+            var infoVersion = assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+
+            Console.WriteLine($"Sorcha CLI v{infoVersion ?? version?.ToString() ?? "1.0.0"}");
+            Console.WriteLine($"Assembly Version: {version}");
+            Console.WriteLine($"File Version: {fileVersion}");
             Console.WriteLine($".NET Runtime: {Environment.Version}");
             Console.WriteLine($"OS: {Environment.OSVersion}");
+            Console.WriteLine($"Platform: {System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier}");
         });
         rootCommand.AddCommand(versionCommand);
 

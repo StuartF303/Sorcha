@@ -99,6 +99,13 @@ TenantServiceUrl = Environment.GetEnvironmentVariable("ApiGateway__BaseUrl")
 
 ## Fixed Issues (Reference)
 
+### ✅ JavaScript Interop During Prerendering (FIXED 2026-01-05)
+**Problem:** Container logs showing "JavaScript interop calls cannot be issued at this time" 500 errors
+**Cause:** `Index.razor` calling `JSRuntime.InvokeVoidAsync()` in `OnInitializedAsync()` during server-side prerendering
+**Fix:** Moved all JavaScript interop calls from `OnInitializedAsync()` to `OnAfterRenderAsync(bool firstRender)`
+**Files:** `src/Apps/Sorcha.Admin/Pages/Index.razor` (lines 462-505)
+**Impact:** Container now starts cleanly without 500 errors, page renders correctly
+
 ### ✅ Main Content Not Rendering (FIXED 2026-01-05)
 **Problem:** Entire page content area was empty, only navigation rendered
 **Cause:** SystemStatusCard component blocking on synchronous LocalStorage access during prerendering

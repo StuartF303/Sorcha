@@ -463,20 +463,19 @@
     {
         try
         {
-            await JSRuntime.InvokeVoidAsync("console.log", "[Index] OnInitializedAsync called");
-
+            // NOTE: Cannot use JSRuntime during prerendering - moved to OnAfterRenderAsync
             EventLog.LogInfo("Dashboard loaded", "Welcome to Sorcha Platform");
 
-            // Explicitly trigger authentication state retrieval and notification
-            await JSRuntime.InvokeVoidAsync("console.log", "[Index] Calling NotifyAuthenticationStateChanged...");
+            // Trigger authentication state notification (no JSRuntime needed)
             AuthStateProvider.NotifyAuthenticationStateChanged();
-            await JSRuntime.InvokeVoidAsync("console.log", "[Index] NotifyAuthenticationStateChanged completed");
 
+            // Load data (no JSRuntime calls)
             await LoadDashboardStatisticsAsync();
         }
         catch (Exception ex)
         {
-            await JSRuntime.InvokeVoidAsync("console.error", $"[Index] Error in OnInitializedAsync: {ex.Message}");
+            // Cannot log to console during prerendering
+            Console.WriteLine($"[Index] Error in OnInitializedAsync: {ex.Message}");
         }
     }
 
@@ -486,11 +485,16 @@
         {
             try
             {
+                // JavaScript interop is safe here (after initial render)
                 await JSRuntime.InvokeVoidAsync("console.log", "[Index] OnAfterRenderAsync called - firstRender");
+                await JSRuntime.InvokeVoidAsync("console.log", "[Index] Dashboard initialized successfully");
+
                 // Small delay to allow notification to propagate
                 await Task.Delay(50);
+
                 // Trigger re-render to update AuthorizeView components
                 StateHasChanged();
+
                 await JSRuntime.InvokeVoidAsync("console.log", "[Index] OnAfterRenderAsync completed");
             }
             catch (Exception ex)

@@ -47,10 +47,11 @@ public class ConfigurationServiceTests : IDisposable
 
         // Assert
         config.Should().NotBeNull();
-        config.ActiveProfile.Should().Be("dev");
-        config.Profiles.Should().ContainKey("dev");
-        config.Profiles.Should().ContainKey("staging");
-        config.Profiles.Should().ContainKey("production");
+        config.ActiveProfile.Should().Be("docker");
+        config.Profiles.Should().ContainKey("docker");
+        config.DefaultOutputFormat.Should().Be("table");
+        config.VerboseLogging.Should().BeFalse();
+        config.QuietMode.Should().BeFalse();
     }
 
     [Fact]
@@ -60,12 +61,13 @@ public class ConfigurationServiceTests : IDisposable
         await _service.EnsureConfigDirectoryAsync();
 
         // Act
-        var profile = await _service.GetProfileAsync("dev");
+        var profile = await _service.GetProfileAsync("docker");
 
         // Assert
         profile.Should().NotBeNull();
-        profile!.Name.Should().Be("dev");
-        profile.TenantServiceUrl.Should().Contain("localhost");
+        profile!.Name.Should().Be("docker");
+        profile.ServiceUrl.Should().Be("http://localhost");
+        profile.GetAuthTokenUrl().Should().Contain("localhost");
     }
 
     [Fact]
@@ -113,12 +115,12 @@ public class ConfigurationServiceTests : IDisposable
     {
         // Arrange
         var config = await _service.GetConfigurationAsync();
-        var devProfile = config.Profiles["dev"];
-        devProfile.TimeoutSeconds = 120;
+        var dockerProfile = config.Profiles["docker"];
+        dockerProfile.TimeoutSeconds = 120;
 
         // Act
-        await _service.UpsertProfileAsync(devProfile);
-        var retrieved = await _service.GetProfileAsync("dev");
+        await _service.UpsertProfileAsync(dockerProfile);
+        var retrieved = await _service.GetProfileAsync("docker");
 
         // Assert
         retrieved.Should().NotBeNull();
@@ -130,6 +132,16 @@ public class ConfigurationServiceTests : IDisposable
     {
         // Arrange
         await _service.EnsureConfigDirectoryAsync();
+
+        // Create a new profile to set as active
+        var stagingProfile = new Profile
+        {
+            Name = "staging",
+            ServiceUrl = "https://staging.sorcha.io",
+            VerifySsl = true,
+            TimeoutSeconds = 30
+        };
+        await _service.UpsertProfileAsync(stagingProfile);
 
         // Act
         await _service.SetActiveProfileAsync("staging");
@@ -213,10 +225,8 @@ public class ConfigurationServiceTests : IDisposable
         var profiles = await _service.ListProfilesAsync();
 
         // Assert
-        profiles.Should().HaveCountGreaterThanOrEqualTo(3);
-        profiles.Should().Contain(p => p.Name == "dev");
-        profiles.Should().Contain(p => p.Name == "staging");
-        profiles.Should().Contain(p => p.Name == "production");
+        profiles.Should().HaveCountGreaterThanOrEqualTo(1);
+        profiles.Should().Contain(p => p.Name == "docker");
     }
 
     [Fact]
