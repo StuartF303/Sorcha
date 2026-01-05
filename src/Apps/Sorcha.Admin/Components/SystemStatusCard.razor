@@ -178,15 +178,39 @@
 
     private string GetEnvironmentName()
     {
-        var config = ConfigService.GetConfigurationAsync().Result;
-        return config?.ActiveProfile ?? "Unknown";
+        try
+        {
+            // Safe for prerendering - will return "Unknown" if LocalStorage not available
+            var configTask = ConfigService.GetConfigurationAsync();
+            if (configTask.IsCompleted)
+            {
+                return configTask.Result?.ActiveProfile ?? "Unknown";
+            }
+            return "Loading...";
+        }
+        catch
+        {
+            return "Unknown";
+        }
     }
 
     private string GetApiEndpoint()
     {
-        var config = ConfigService.GetConfigurationAsync().Result;
-        var profile = config?.GetActiveProfile();
-        return profile?.TenantServiceUrl ?? "Not configured";
+        try
+        {
+            // Safe for prerendering - will return default if LocalStorage not available
+            var configTask = ConfigService.GetConfigurationAsync();
+            if (configTask.IsCompleted)
+            {
+                var profile = configTask.Result?.GetActiveProfile();
+                return profile?.TenantServiceUrl ?? "Not configured";
+            }
+            return "Loading...";
+        }
+        catch
+        {
+            return "Not configured";
+        }
     }
 
     private List<ServiceHealthDto> GetServiceStatuses()
