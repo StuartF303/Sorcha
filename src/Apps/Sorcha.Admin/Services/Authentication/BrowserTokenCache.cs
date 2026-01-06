@@ -1,4 +1,3 @@
-using Blazored.LocalStorage;
 using Microsoft.JSInterop;
 using Sorcha.Admin.Models.Authentication;
 using Sorcha.Admin.Services.Encryption;
@@ -10,22 +9,22 @@ namespace Sorcha.Admin.Services.Authentication;
 /// Token cache using browser LocalStorage with encryption.
 /// Stores JWT tokens encrypted at rest to protect against casual inspection.
 ///
+/// Uses direct JSRuntime calls to localStorage for synchronous, reliable writes
+/// that complete before navigation events can terminate the JavaScript context.
+///
 /// Storage Key Format: sorcha:tokens:{profileName}
 /// Storage Value Format: Base64-encoded encrypted JSON of TokenCacheEntry
 /// </summary>
-public class BrowserTokenCache
+public class BrowserTokenCache : ITokenCache
 {
-    private readonly ILocalStorageService _localStorage;
     private readonly IEncryptionProvider _encryption;
     private readonly IJSRuntime _jsRuntime;
     private const string TOKEN_CACHE_PREFIX = "sorcha:tokens:";
 
     public BrowserTokenCache(
-        ILocalStorageService localStorage,
         IEncryptionProvider encryption,
         IJSRuntime jsRuntime)
     {
-        _localStorage = localStorage ?? throw new ArgumentNullException(nameof(localStorage));
         _encryption = encryption ?? throw new ArgumentNullException(nameof(encryption));
         _jsRuntime = jsRuntime ?? throw new ArgumentNullException(nameof(jsRuntime));
     }
@@ -82,9 +81,16 @@ public class BrowserTokenCache
             var base64 = Convert.ToBase64String(encrypted);
             await LogAsync("debug", $"Base64 encoding completed: {base64.Length} characters");
 
-            // Store in LocalStorage
+            // Store in LocalStorage using synchronous JSRuntime to ensure write completes
+            // before any navigation that might terminate the JavaScript context
             await LogAsync("debug", $"Step 4: Storing in LocalStorage with key: '{key}'...");
-            await _localStorage.SetItemAsStringAsync(key, base64);
+            await _jsRuntime.InvokeVoidAsync("localStorage.setItem", key, base64);
+
+            // Verify write succeeded by reading back
+            var verified = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", key);
+            if (verified != base64)
+                throw new InvalidOperationException("LocalStorage write verification failed");
+
             await LogAsync("info", $"✓ Token successfully stored for profile '{profile}'");
         }
         catch (Exception ex)
@@ -114,8 +120,8 @@ public class BrowserTokenCache
 
         try
         {
-            // Retrieve from LocalStorage
-            var base64 = await _localStorage.GetItemAsStringAsync(key);
+            // Retrieve from LocalStorage using synchronous JSRuntime
+            var base64 = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", key);
 
             if (string.IsNullOrEmpty(base64))
                 return null;
@@ -173,6 +179,17 @@ public class BrowserTokenCache
     }
 
     /// <summary>
+    /// Checks if a valid (non-expired) token exists for the specified profile.
+    /// Implements ITokenCache interface method.
+    /// </summary>
+    /// <param name="profileName">Profile name to check.</param>
+    /// <returns>True if a valid token exists, false otherwise.</returns>
+    public async Task<bool> HasValidTokenAsync(string profileName)
+    {
+        return await ExistsAsync(profileName);
+    }
+
+    /// <summary>
     /// Removes the cached token for the specified profile.
     /// </summary>
     /// <param name="profile">Profile name to clear token for.</param>
@@ -185,7 +202,8 @@ public class BrowserTokenCache
 
         try
         {
-            await _localStorage.RemoveItemAsync(key);
+            // Remove from LocalStorage using synchronous JSRuntime
+            await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", key);
         }
         catch (Exception ex)
         {
@@ -202,16 +220,23 @@ public class BrowserTokenCache
     {
         try
         {
-            // Get all LocalStorage keys
-            var keys = await _localStorage.KeysAsync();
+            // Get all LocalStorage keys using JSRuntime
+            var length = await _jsRuntime.InvokeAsync<int>("eval", "localStorage.length");
+            var tokenKeys = new List<string>();
 
-            // Filter to token keys only
-            var tokenKeys = keys.Where(k => k.StartsWith(TOKEN_CACHE_PREFIX)).ToList();
+            for (int i = 0; i < length; i++)
+            {
+                var key = await _jsRuntime.InvokeAsync<string>("localStorage.key", i);
+                if (!string.IsNullOrEmpty(key) && key.StartsWith(TOKEN_CACHE_PREFIX))
+                {
+                    tokenKeys.Add(key);
+                }
+            }
 
             // Remove all token keys
             foreach (var key in tokenKeys)
             {
-                await _localStorage.RemoveItemAsync(key);
+                await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", key);
             }
         }
         catch (Exception ex)
@@ -228,14 +253,19 @@ public class BrowserTokenCache
     {
         try
         {
-            // Get all LocalStorage keys
-            var keys = await _localStorage.KeysAsync();
+            // Get all LocalStorage keys using JSRuntime
+            var length = await _jsRuntime.InvokeAsync<int>("eval", "localStorage.length");
+            var profiles = new List<string>();
 
-            // Extract profile names from token keys
-            var profiles = keys
-                .Where(k => k.StartsWith(TOKEN_CACHE_PREFIX))
-                .Select(k => k.Substring(TOKEN_CACHE_PREFIX.Length))
-                .ToList();
+            for (int i = 0; i < length; i++)
+            {
+                var key = await _jsRuntime.InvokeAsync<string>("localStorage.key", i);
+                if (!string.IsNullOrEmpty(key) && key.StartsWith(TOKEN_CACHE_PREFIX))
+                {
+                    var profileName = key.Substring(TOKEN_CACHE_PREFIX.Length);
+                    profiles.Add(profileName);
+                }
+            }
 
             return profiles;
         }

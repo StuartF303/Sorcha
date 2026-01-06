@@ -17,13 +17,13 @@ public class AuthenticationService : IAuthenticationService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfigurationService _configService;
-    private readonly BrowserTokenCache _tokenCache;
+    private readonly ITokenCache _tokenCache;
     private readonly IJSRuntime _jsRuntime;
 
     public AuthenticationService(
         IHttpClientFactory httpClientFactory,
         IConfigurationService configService,
-        BrowserTokenCache tokenCache,
+        ITokenCache tokenCache,
         IJSRuntime jsRuntime)
     {
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));

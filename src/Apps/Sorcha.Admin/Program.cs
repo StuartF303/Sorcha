@@ -64,7 +64,11 @@ builder.Services.AddScoped<Sorcha.Admin.Services.Encryption.IEncryptionProvider,
 
 // Authentication Services (Server-side)
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
-builder.Services.AddScoped<BrowserTokenCache>(); // For compatibility
+
+// Token Cache - Use server-side session storage instead of browser localStorage
+// This avoids Blazor Server circuit recreation issues where localStorage writes
+// are queued in the old circuit's JavaScript and never complete before navigation
+builder.Services.AddScoped<ITokenCache, ServerSideTokenCache>();
 
 // HTTP Services - Configure HttpClient to use API Gateway
 builder.Services.AddHttpClient("SorchaAPI", (sp, client) =>
@@ -100,6 +104,25 @@ builder.Services.AddBlazoredLocalStorage();
 // Add event log service (singleton to persist events across requests)
 builder.Services.AddSingleton<EventLogService>();
 
+// Configure ASP.NET Core Session for server-side token caching
+// This is required for ServerSideTokenCache to work across Blazor circuit recreation
+builder.Services.AddDistributedMemoryCache(); // In-memory session storage (can be replaced with Redis for production)
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromHours(8); // Match authentication cookie timeout
+    options.Cookie.Name = "Sorcha.Session";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.IsEssential = true; // Required for GDPR compliance
+});
+
+// Add Data Protection for encrypting session data
+builder.Services.AddDataProtection();
+
+// Add HttpContextAccessor for ServerSideTokenCache
+builder.Services.AddHttpContextAccessor();
+
 // Note: SchemaLibraryService is only needed for designer pages which run in WASM mode
 // Client project will register it with LocalStorage cache
 
@@ -124,6 +147,9 @@ app.UseHttpsRedirection();
 
 // Map static assets BEFORE MapRazorComponents (required for Blazor framework files)
 app.MapStaticAssets();
+
+// Session middleware MUST come before authentication
+app.UseSession();
 
 // Authentication & Authorization middleware
 app.UseAuthentication();

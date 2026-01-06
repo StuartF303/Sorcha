@@ -180,16 +180,14 @@
             // Set active profile
             await ConfigService.SetActiveProfileAsync(_selectedProfile);
 
-            // Notify authentication state changed
-            AuthStateProvider.NotifyAuthenticationStateChanged();
-
             Snackbar.Add($"Welcome, {_loginModel.Username}!", Severity.Success);
 
-            // Small delay to ensure auth state propagates to all components
-            await Task.Delay(100);
+            // Notify authentication state changed - this triggers AuthorizeView updates
+            AuthStateProvider.NotifyAuthenticationStateChanged();
 
-            // Redirect to home page (without forceLoad to keep the same Blazor circuit)
-            Navigation.NavigateTo("/", forceLoad: false);
+            // Navigate to home page
+            // With server-side session storage, tokens persist across circuit recreation
+            Navigation.NavigateTo("/", forceLoad: true);
         }
         catch (Exception ex)
         {
