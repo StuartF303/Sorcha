@@ -512,6 +512,8 @@ The authentication system is designed for extensibility. To add new auth methods
 - No session timeout UI warning (auto-refresh mitigates this)
 - Profile export/import UI not yet implemented (manual via DevTools)
 
+**For critical known issues and detailed troubleshooting, see [KNOWN-ISSUES.md](KNOWN-ISSUES.md)**
+
 ## Support
 
 ### Documentation

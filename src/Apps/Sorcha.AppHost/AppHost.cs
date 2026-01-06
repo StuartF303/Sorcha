@@ -83,12 +83,12 @@ var apiGateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
     .WithReference(peerService)
     .WithReference(validatorService)
     .WithReference(redis)
-    .WithExternalHttpEndpoints(); // Exposed for API calls from Admin UI
+    .WithExternalHttpEndpoints(); // Exposed for API calls from UI
 
-// Add Blazor Hybrid Admin UI as the default homepage
-// Note: This is now a Blazor Web App (Hybrid) with Server + WASM render modes
-var adminUI = builder.AddProject<Projects.Sorcha_Admin>("admin-ui")
-    .WithReference(apiGateway) // Admin can discover and call API Gateway
+// Add Blazor WebAssembly UI as the default homepage
+// Note: This is a Blazor Web App with Server + WASM render modes
+var uiWeb = builder.AddProject<Projects.Sorcha_UI_Web>("ui-web")
+    .WithReference(apiGateway) // UI can discover and call API Gateway
     .WithExternalHttpEndpoints(); // Primary external entry point for users
 
 builder.Build().Run();

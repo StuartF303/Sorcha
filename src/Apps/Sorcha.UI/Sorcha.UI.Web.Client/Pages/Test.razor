@@ -1,0 +1,10 @@
+@page "/test"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<h3>Test Page</h3>
+<p>If you can see this, Blazor WASM is working!</p>
+<p>Current time: @DateTime.Now.ToString("HH:mm:ss")</p>
+
+@code {
+    // No dependencies - just a simple test
+}

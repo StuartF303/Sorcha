@@ -1,0 +1,37 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+
+<div class="topbar">
+    <div class="topbar-start">
+        <a href="/" class="topbar-brand">
+            <span class="topbar-logo">🔷</span>
+            <span class="topbar-title">Sorcha</span>
+        </a>
+    </div>
+
+    <div class="topbar-end">
+        <AuthorizeView>
+            <Authorized>
+                <div class="topbar-user">
+                    <span class="topbar-username">@context.User.Identity?.Name</span>
+                    <button class="btn btn-sm btn-outline-light" @onclick="HandleLogout">
+                        Logout
+                    </button>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <a href="/login" class="btn btn-sm btn-primary">
+                    Sign In
+                </a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</div>
+
+@code {
+    private void HandleLogout()
+    {
+        // TODO: Implement logout functionality
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}

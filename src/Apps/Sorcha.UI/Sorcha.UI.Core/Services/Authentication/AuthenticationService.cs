@@ -1,0 +1,205 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Json;
+using System.Security.Claims;
+using Sorcha.UI.Core.Models.Authentication;
+using Sorcha.UI.Core.Services.Configuration;
+
+namespace Sorcha.UI.Core.Services.Authentication;
+
+/// <summary>
+/// OAuth2 Password Grant authentication service
+/// </summary>
+public class AuthenticationService : IAuthenticationService
+{
+    private readonly HttpClient _httpClient;
+    private readonly ITokenCache _tokenCache;
+    private readonly IConfigurationService _configurationService;
+    private readonly JwtSecurityTokenHandler _jwtHandler = new();
+
+    public AuthenticationService(
+        HttpClient httpClient,
+        ITokenCache tokenCache,
+        IConfigurationService configurationService)
+    {
+        _httpClient = httpClient;
+        _tokenCache = tokenCache;
+        _configurationService = configurationService;
+    }
+
+    /// <inheritdoc />
+    public async Task<TokenResponse> LoginAsync(LoginRequest request, string profileName)
+    {
+        if (!request.IsValid())
+        {
+            throw new ArgumentException("Invalid login request", nameof(request));
+        }
+
+        var profile = await _configurationService.GetProfileAsync(profileName);
+        if (profile == null)
+        {
+            throw new InvalidOperationException($"Profile '{profileName}' not found");
+        }
+
+        // Call OAuth2 token endpoint with form-urlencoded data
+        var formData = new Dictionary<string, string>
+        {
+            ["username"] = request.Username,
+            ["password"] = request.Password,
+            ["grant_type"] = request.GrantType,
+            ["client_id"] = "sorcha-ui-web" // Client identifier for UI
+        };
+
+        // Build URL: if ApiGatewayUrl is empty, use relative path (same origin)
+        var tokenUrl = string.IsNullOrEmpty(profile.ApiGatewayUrl)
+            ? "/api/service-auth/token"
+            : $"{profile.ApiGatewayUrl}/api/service-auth/token";
+
+        var response = await _httpClient.PostAsync(tokenUrl, new FormUrlEncodedContent(formData));
+
+        response.EnsureSuccessStatusCode();
+
+        var tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>();
+        if (tokenResponse == null || !tokenResponse.IsValid())
+        {
+            throw new InvalidOperationException("Invalid token response from server");
+        }
+
+        // Cache the token
+        var cacheEntry = TokenCacheEntry.FromTokenResponse(tokenResponse, profileName);
+        await _tokenCache.StoreTokenAsync(profileName, cacheEntry);
+
+        return tokenResponse;
+    }
+
+    /// <inheritdoc />
+    public async Task<string?> GetAccessTokenAsync(string profileName)
+    {
+        var entry = await _tokenCache.GetTokenAsync(profileName);
+
+        if (entry == null || entry.IsExpired)
+        {
+            return null;
+        }
+
+        // Auto-refresh if near expiration
+        if (entry.IsNearExpiration && !string.IsNullOrEmpty(entry.RefreshToken))
+        {
+            await RefreshTokenAsync(profileName);
+            entry = await _tokenCache.GetTokenAsync(profileName);
+        }
+
+        return entry?.AccessToken;
+    }
+
+    /// <inheritdoc />
+    public async Task<string?> GetRefreshTokenAsync(string profileName)
+    {
+        var entry = await _tokenCache.GetTokenAsync(profileName);
+        return entry?.RefreshToken;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> RefreshTokenAsync(string profileName)
+    {
+        var refreshToken = await GetRefreshTokenAsync(profileName);
+        if (string.IsNullOrEmpty(refreshToken))
+        {
+            return false;
+        }
+
+        var profile = await _configurationService.GetProfileAsync(profileName);
+        if (profile == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var formData = new Dictionary<string, string>
+            {
+                ["refresh_token"] = refreshToken,
+                ["grant_type"] = "refresh_token",
+                ["client_id"] = "sorcha-ui-web"
+            };
+
+            // Build URL: if ApiGatewayUrl is empty, use relative path (same origin)
+            var tokenUrl = string.IsNullOrEmpty(profile.ApiGatewayUrl)
+                ? "/api/service-auth/token"
+                : $"{profile.ApiGatewayUrl}/api/service-auth/token";
+
+            var response = await _httpClient.PostAsync(tokenUrl, new FormUrlEncodedContent(formData));
+
+            if (!response.IsSuccessStatusCode)
+            {
+                await _tokenCache.RemoveTokenAsync(profileName);
+                return false;
+            }
+
+            var tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>();
+            if (tokenResponse == null || !tokenResponse.IsValid())
+            {
+                return false;
+            }
+
+            var cacheEntry = TokenCacheEntry.FromTokenResponse(tokenResponse, profileName);
+            await _tokenCache.StoreTokenAsync(profileName, cacheEntry);
+
+            return true;
+        }
+        catch
+        {
+            await _tokenCache.RemoveTokenAsync(profileName);
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task LogoutAsync(string profileName)
+    {
+        await _tokenCache.RemoveTokenAsync(profileName);
+    }
+
+    /// <inheritdoc />
+    public bool IsAuthenticated(string profileName)
+    {
+        var entry = _tokenCache.GetTokenAsync(profileName).GetAwaiter().GetResult();
+        return entry != null && !entry.IsExpired;
+    }
+
+    /// <inheritdoc />
+    public async Task<AuthenticationStateInfo> GetAuthenticationInfoAsync()
+    {
+        var activeProfileName = await _configurationService.GetActiveProfileNameAsync();
+        var entry = await _tokenCache.GetTokenAsync(activeProfileName);
+
+        if (entry == null || entry.IsExpired)
+        {
+            return AuthenticationStateInfo.Unauthenticated();
+        }
+
+        try
+        {
+            var jwtToken = _jwtHandler.ReadJwtToken(entry.AccessToken);
+            var username = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value
+                           ?? jwtToken.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+
+            var roles = jwtToken.Claims
+                .Where(c => c.Type == ClaimTypes.Role || c.Type == "role")
+                .Select(c => c.Value)
+                .ToList();
+
+            return new AuthenticationStateInfo
+            {
+                IsAuthenticated = true,
+                Username = username,
+                Roles = roles,
+                ProfileName = activeProfileName,
+                ExpiresAt = entry.ExpiresAt
+            };
+        }
+        catch
+        {
+            return AuthenticationStateInfo.Unauthenticated();
+        }
+    }
+}

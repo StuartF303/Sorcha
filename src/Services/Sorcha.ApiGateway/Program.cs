@@ -430,7 +430,7 @@ app.MapGet("/gateway", async (HealthAggregationService healthService, DashboardS
             </div>
 
             <div class="actions">
-                <a href="/" class="btn btn-primary">🏠 Admin UI Home</a>
+                <a href="/" class="btn btn-primary">🏠 Sorcha UI Home</a>
                 {{(showAspireLink ? $@"<a href=""{aspireDashboardUrl}"" class=""btn btn-primary"" target=""_blank"">🎛️ Aspire Dashboard</a>" : "")}}
                 <a href="/scalar/" class="btn btn-primary">📚 API Documentation</a>
                 <a href="/api/docs" class="btn btn-primary">📑 API Docs Index</a>
