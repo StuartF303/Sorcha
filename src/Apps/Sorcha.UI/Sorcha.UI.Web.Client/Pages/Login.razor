@@ -187,8 +187,8 @@
             new Profile
             {
                 Name = "Docker",
-                ApiGatewayUrl = "http://localhost:8080",
-                Description = "Docker Compose backend services",
+                ApiGatewayUrl = "", // Empty = use same origin as UI (relative URLs)
+                Description = "Docker Compose backend services (same origin as UI)",
                 IsSystemProfile = true
             }
         };
@@ -211,8 +211,8 @@
             new Profile
             {
                 Name = "Docker",
-                ApiGatewayUrl = "http://localhost:8080",
-                Description = "Docker Compose backend",
+                ApiGatewayUrl = "", // Empty = use same origin as UI (relative URLs)
+                Description = "Docker Compose backend (same origin as UI)",
                 IsSystemProfile = true
             }
         };
