@@ -161,13 +161,14 @@ Comprehensive implementation plan covering:
 - [x] Create comprehensive implementation plan
 - [x] Clarify implementation decisions
 
-### Phase 2: Implementation 📋
+### Phase 2: Implementation ✅ (Local Providers Complete)
 **Priority: Local providers first (faster development), then cloud**
-- [ ] Implement Windows DPAPI provider (Priority 1)
-- [ ] Implement Linux Secret Service provider (Priority 2)
-- [ ] Implement macOS Keychain provider (Priority 3)
-- [ ] Implement Azure Key Vault provider (Priority 4)
-- [ ] Update service configuration and DI registration
+- [x] Implement structured audit logging framework ✅
+- [x] Implement Windows DPAPI provider (Priority 1) ✅
+- [x] Implement Linux Secret Service provider (Priority 2) ✅
+- [ ] Implement macOS Keychain provider (Priority 3) ⏸️ (Deferred - focus on Windows/Linux)
+- [ ] Implement Azure Key Vault provider (Priority 4) 📋
+- [x] Update service configuration and DI registration ✅
 
 ### Phase 3: Testing 📋
 - [ ] Unit tests for each provider
@@ -194,19 +195,26 @@ Comprehensive implementation plan covering:
 **Existing Code:**
 - `src/Common/Sorcha.Wallet.Core/Encryption/Interfaces/IEncryptionProvider.cs` - Interface definition
 - `src/Common/Sorcha.Wallet.Core/Encryption/Providers/LocalEncryptionProvider.cs` - Current implementation
-- `src/Services/Sorcha.Wallet.Service/Extensions/WalletServiceExtensions.cs` - Service configuration
+- `src/Services/Sorcha.Wallet.Service/Extensions/WalletServiceExtensions.cs` - Service configuration ✅ (Updated)
 - `src/Apps/Sorcha.Cli/Infrastructure/WindowsDpapiEncryption.cs` - Windows DPAPI example
 - `src/Apps/Sorcha.Cli/Infrastructure/MacOsKeychainEncryption.cs` - macOS Keychain example
 - `src/Apps/Sorcha.Cli/Infrastructure/LinuxEncryption.cs` - Linux encryption example
 
-**New Files (To Be Created):**
-- `src/Common/Sorcha.Wallet.Core/Encryption/Providers/AzureKeyVaultEncryptionProvider.cs`
-- `src/Common/Sorcha.Wallet.Core/Encryption/Providers/WindowsDpapiEncryptionProvider.cs`
-- `src/Common/Sorcha.Wallet.Core/Encryption/Providers/MacOsKeychainEncryptionProvider.cs`
-- `src/Common/Sorcha.Wallet.Core/Encryption/Providers/LinuxSecretServiceEncryptionProvider.cs`
-- `tests/Sorcha.Wallet.Core.Tests/Encryption/AzureKeyVaultEncryptionProviderTests.cs`
-- `tests/Sorcha.Wallet.Core.Tests/Encryption/WindowsDpapiEncryptionProviderTests.cs`
-- `tests/Sorcha.Wallet.Service.Benchmarks/EncryptionBenchmarks.cs`
+**Implemented Files (2026-01-11):**
+- `src/Common/Sorcha.Wallet.Core/Encryption/Logging/EncryptionAuditLogger.cs` ✅ (New)
+- `src/Common/Sorcha.Wallet.Core/Encryption/Configuration/EncryptionProviderOptions.cs` ✅ (New)
+- `src/Common/Sorcha.Wallet.Core/Encryption/Providers/WindowsDpapiEncryptionProvider.cs` ✅ (New)
+- `src/Common/Sorcha.Wallet.Core/Encryption/Providers/LinuxSecretServiceEncryptionProvider.cs` ✅ (New)
+- `src/Services/Sorcha.Wallet.Service/appsettings.json` ✅ (Updated with encryption config examples)
+- `walkthroughs/WalletEncryption/docker-compose.encryption-example.yml` ✅ (New)
+
+**Pending Files:**
+- `src/Common/Sorcha.Wallet.Core/Encryption/Providers/AzureKeyVaultEncryptionProvider.cs` 📋
+- `src/Common/Sorcha.Wallet.Core/Encryption/Providers/MacOsKeychainEncryptionProvider.cs` ⏸️ (Deferred)
+- `tests/Sorcha.Wallet.Core.Tests/Encryption/AzureKeyVaultEncryptionProviderTests.cs` 📋
+- `tests/Sorcha.Wallet.Core.Tests/Encryption/WindowsDpapiEncryptionProviderTests.cs` 📋
+- `tests/Sorcha.Wallet.Core.Tests/Encryption/LinuxSecretServiceEncryptionProviderTests.cs` 📋
+- `tests/Sorcha.Wallet.Service.Benchmarks/EncryptionBenchmarks.cs` 📋
 
 ---
 
