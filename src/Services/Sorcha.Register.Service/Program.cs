@@ -16,7 +16,9 @@ using Sorcha.Register.Service.Extensions;
 using Sorcha.Register.Service.Hubs;
 using Sorcha.Register.Service.Repositories;
 using Sorcha.Register.Service.Services;
+using Microsoft.Extensions.Options;
 using Sorcha.Register.Storage.InMemory;
+using Sorcha.Register.Storage.MongoDB;
 using Sorcha.ServiceClients.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -317,7 +319,30 @@ builder.Services.AddOpenApi(options =>
 });
 
 // Register storage and event infrastructure
-builder.Services.AddSingleton<IRegisterRepository, InMemoryRegisterRepository>();
+// Smart configuration: Use MongoDB if configured, otherwise InMemory
+var storageType = builder.Configuration["RegisterStorage:Type"] ?? "InMemory";
+if (storageType.Equals("MongoDB", StringComparison.OrdinalIgnoreCase))
+{
+    // Configure MongoDB storage
+    builder.Services.Configure<MongoRegisterStorageConfiguration>(
+        builder.Configuration.GetSection("RegisterStorage:MongoDB"));
+
+    builder.Services.AddSingleton<IRegisterRepository>(sp =>
+    {
+        var options = sp.GetRequiredService<IOptions<MongoRegisterStorageConfiguration>>();
+        var logger = sp.GetRequiredService<ILogger<MongoRegisterRepository>>();
+        return new MongoRegisterRepository(options, logger);
+    });
+
+    Console.WriteLine($"✅ Register Service using MongoDB storage: {builder.Configuration["RegisterStorage:MongoDB:ConnectionString"]}");
+}
+else
+{
+    // Use in-memory storage (default)
+    builder.Services.AddSingleton<IRegisterRepository, InMemoryRegisterRepository>();
+    Console.WriteLine("✅ Register Service using InMemory storage (development mode)");
+}
+
 builder.Services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 
 // Register managers

@@ -12,6 +12,7 @@ COPY ["src/Common/Sorcha.TransactionHandler/Sorcha.TransactionHandler.csproj", "
 COPY ["src/Common/Sorcha.Register.Models/Sorcha.Register.Models.csproj", "src/Common/Sorcha.Register.Models/"]
 COPY ["src/Core/Sorcha.Register.Core/Sorcha.Register.Core.csproj", "src/Core/Sorcha.Register.Core/"]
 COPY ["src/Core/Sorcha.Register.Storage.InMemory/Sorcha.Register.Storage.InMemory.csproj", "src/Core/Sorcha.Register.Storage.InMemory/"]
+COPY ["src/Core/Sorcha.Register.Storage.MongoDB/Sorcha.Register.Storage.MongoDB.csproj", "src/Core/Sorcha.Register.Storage.MongoDB/"]
 
 # Restore dependencies
 RUN dotnet restore "src/Services/Sorcha.Register.Service/Sorcha.Register.Service.csproj"

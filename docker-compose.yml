@@ -175,6 +175,14 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
       ConnectionStrings__MongoDB: mongodb://sorcha:sorcha_dev_password@mongodb:27017
+      # Configure MongoDB storage (production-ready persistence)
+      RegisterStorage__Type: MongoDB
+      RegisterStorage__MongoDB__ConnectionString: mongodb://sorcha:sorcha_dev_password@mongodb:27017
+      RegisterStorage__MongoDB__DatabaseName: sorcha_register
+      RegisterStorage__MongoDB__RegisterCollectionName: registers
+      RegisterStorage__MongoDB__TransactionCollectionName: transactions
+      RegisterStorage__MongoDB__DocketCollectionName: dockets
+      RegisterStorage__MongoDB__CreateIndexesOnStartup: "true"
       ServiceClients__WalletService__Address: http://sorcha-wallet-service:8080
       ServiceClients__WalletService__UseGrpc: "false"
       ServiceClients__ValidatorService__Address: http://sorcha-validator-service:8080

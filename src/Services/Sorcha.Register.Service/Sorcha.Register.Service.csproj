@@ -14,6 +14,7 @@
     <ProjectReference Include="..\..\Common\Sorcha.ServiceClients\Sorcha.ServiceClients.csproj" />
     <ProjectReference Include="..\..\Core\Sorcha.Register.Core\Sorcha.Register.Core.csproj" />
     <ProjectReference Include="..\..\Core\Sorcha.Register.Storage.InMemory\Sorcha.Register.Storage.InMemory.csproj" />
+    <ProjectReference Include="..\..\Core\Sorcha.Register.Storage.MongoDB\Sorcha.Register.Storage.MongoDB.csproj" />
   </ItemGroup>
 
   <ItemGroup>
