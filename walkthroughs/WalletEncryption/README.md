@@ -159,12 +159,14 @@ Comprehensive implementation plan covering:
 - [x] Review existing OS encryption patterns (CLI tool)
 - [x] Design provider architecture
 - [x] Create comprehensive implementation plan
+- [x] Clarify implementation decisions
 
 ### Phase 2: Implementation 📋
-- [ ] Implement Azure Key Vault provider
-- [ ] Implement Windows DPAPI provider
-- [ ] Implement macOS Keychain provider
-- [ ] Implement Linux Secret Service provider
+**Priority: Local providers first (faster development), then cloud**
+- [ ] Implement Windows DPAPI provider (Priority 1)
+- [ ] Implement Linux Secret Service provider (Priority 2)
+- [ ] Implement macOS Keychain provider (Priority 3)
+- [ ] Implement Azure Key Vault provider (Priority 4)
 - [ ] Update service configuration and DI registration
 
 ### Phase 3: Testing 📋

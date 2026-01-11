@@ -26,7 +26,7 @@ This document outlines the implementation plan for production-ready encryption p
 - Q: For Windows DPAPI provider, where should encrypted DEKs (Data Encryption Keys) be persisted? → A: File-based storage on persistent Docker volume
 - Q: How should key rotation work when a new default encryption key is created? → A: Automatic rotation with backward compatibility (new wallets use new key, old wallets keep original key, optional background re-encryption)
 - Q: What level of audit logging should be implemented for encryption operations (Encrypt/Decrypt/CreateKey)? → A: Structured logging with sanitization (log all operations with timestamp, keyId, operation type, success/failure, user context, sanitize sensitive data)
-- Q: What implementation order should be used for the four encryption providers? → A: Cloud (Azure Key Vault) first, then local providers (Windows DPAPI, Linux, macOS)
+- Q: What implementation order should be used for the four encryption providers? → A: Local providers first (Windows DPAPI, Linux, macOS) for faster development and testing, then cloud (Azure Key Vault)
 
 ---
 
@@ -1018,21 +1018,22 @@ public class EncryptionBenchmarks
 
 ### Phase 1: Implement Providers (Week 1-2)
 
-**Implementation Order:** Cloud first, then local providers
+**Implementation Order:** Local providers first (faster development, no Azure dependencies), then cloud
 
-**Week 1 - Cloud Provider (Priority 1):**
-1. ✅ Create provider interfaces and base classes
-2. ✅ Implement `AzureKeyVaultEncryptionProvider` with caching strategy
-3. ✅ Implement structured audit logging
-4. ✅ Unit tests for Azure Key Vault provider
-5. ✅ Integration tests with test Azure Key Vault instance
+**Week 1 - Local Providers (Priority 1-3):**
+1. [ ] Create provider interfaces and base classes
+2. [ ] Implement structured audit logging framework
+3. [ ] Implement `WindowsDpapiEncryptionProvider` with Docker volume support
+4. [ ] Implement `LinuxSecretServiceEncryptionProvider` with fallback
+5. [ ] Implement `MacOsKeychainEncryptionProvider` (development)
+6. [ ] Update configuration system for provider selection
+7. [ ] Update `WalletServiceExtensions` for provider registration
+8. [ ] Unit tests for each local provider
 
-**Week 2 - Local Providers (Priority 2-4):**
-6. ✅ Implement `WindowsDpapiEncryptionProvider` with Docker volume support
-7. ✅ Implement `LinuxSecretServiceEncryptionProvider` with fallback
-8. ✅ Implement `MacOsKeychainEncryptionProvider` (development)
-9. ✅ Update configuration system for provider selection
-10. ✅ Update `WalletServiceExtensions` for provider registration
+**Week 2 - Cloud Provider (Priority 4):**
+9. [ ] Implement `AzureKeyVaultEncryptionProvider` with caching strategy
+10. [ ] Integration tests with test Azure Key Vault instance
+11. [ ] Test failover and caching behavior
 
 ### Phase 2: Testing (Week 1)
 
@@ -1134,20 +1135,20 @@ public class EncryptionBenchmarks
 
 ### Task Breakdown
 
-**Implementation Order: Cloud → Local**
+**Implementation Order: Local → Cloud**
 
-**Core Infrastructure - Azure Key Vault (P0, Week 1):**
-- [ ] Create `src/Common/Sorcha.Wallet.Core/Encryption/Providers/AzureKeyVaultEncryptionProvider.cs` with caching
-- [ ] Implement structured audit logging framework
-- [ ] Add configuration models for Azure Key Vault provider
-- [ ] Update `src/Services/Sorcha.Wallet.Service/Extensions/WalletServiceExtensions.cs` (Azure provider registration)
-
-**Core Infrastructure - Local Providers (P0, Week 2):**
+**Core Infrastructure - Local Providers (P0, Week 1):**
+- [ ] Implement structured audit logging framework (base for all providers)
 - [ ] Create `src/Common/Sorcha.Wallet.Core/Encryption/Providers/WindowsDpapiEncryptionProvider.cs` with Docker volume support
 - [ ] Create `src/Common/Sorcha.Wallet.Core/Encryption/Providers/LinuxSecretServiceEncryptionProvider.cs` with fallback
 - [ ] Create `src/Common/Sorcha.Wallet.Core/Encryption/Providers/MacOsKeychainEncryptionProvider.cs`
-- [ ] Update configuration system for all providers (provider selection logic)
-- [ ] Update `WalletServiceExtensions.cs` for all local providers
+- [ ] Add configuration models for local providers
+- [ ] Update `src/Services/Sorcha.Wallet.Service/Extensions/WalletServiceExtensions.cs` (local provider registration)
+
+**Core Infrastructure - Azure Key Vault (P1, Week 2):**
+- [ ] Create `src/Common/Sorcha.Wallet.Core/Encryption/Providers/AzureKeyVaultEncryptionProvider.cs` with caching
+- [ ] Add configuration models for Azure Key Vault provider
+- [ ] Update `WalletServiceExtensions.cs` (Azure provider registration)
 
 **Testing (P0):**
 - [ ] Unit tests for each provider (core encryption/decryption)
@@ -1180,26 +1181,27 @@ public class EncryptionBenchmarks
 
 ## Next Steps
 
-**Implementation Priority:** Cloud first, then local providers
+**Implementation Priority:** Local providers first (faster development, no Azure dependencies), then cloud
 
-1. **Phase 1A - Azure Key Vault (Week 1)**
-   - Set up Azure Key Vault instance for development/testing
-   - Implement `AzureKeyVaultEncryptionProvider` with read-through caching
-   - Implement structured audit logging framework
-   - Write unit and integration tests for Azure provider
-   - Validate caching strategy under simulated outage conditions
-
-2. **Phase 1B - Local Providers (Week 2)**
+1. **Phase 1A - Local Providers (Week 1)**
+   - Implement structured audit logging framework (base for all providers)
    - Implement `WindowsDpapiEncryptionProvider` with Docker volume persistence
    - Implement `LinuxSecretServiceEncryptionProvider` with file fallback
    - Implement `MacOsKeychainEncryptionProvider` for development
    - Update configuration system and DI registration
+   - Write unit tests for each local provider
    - Test automatic key rotation with backward compatibility
+
+2. **Phase 1B - Azure Key Vault (Week 2)**
+   - Set up Azure Key Vault instance for development/testing
+   - Implement `AzureKeyVaultEncryptionProvider` with read-through caching
+   - Write unit and integration tests for Azure provider
+   - Validate caching strategy under simulated outage conditions
 
 3. **Phase 2 - Testing & Documentation (Week 3)**
    - Complete platform-specific integration tests
    - Run performance benchmarks (target <50ms p95 for Azure, <10ms for local)
-   - Create setup guides (Azure, Windows, Linux, macOS)
+   - Create setup guides (Windows, Linux, macOS, Azure)
    - Update deployment documentation (Docker, Azure templates)
 
 4. **Phase 3 - Deployment (Week 4)**
