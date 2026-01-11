@@ -223,8 +223,8 @@ public static class WalletServiceExtensions
     {
         if (!OperatingSystem.IsWindows())
         {
-            var logger = loggerFactory.CreateLogger<WalletServiceExtensions>();
-            logger.LogWarning(
+            var fallbackLogger = loggerFactory.CreateLogger("Sorcha.Wallet.Service.Extensions.WalletServiceExtensions");
+            fallbackLogger.LogWarning(
                 "Windows DPAPI provider requested but not running on Windows. Falling back to LocalEncryptionProvider.");
             return new LocalEncryptionProvider(
                 loggerFactory.CreateLogger<LocalEncryptionProvider>());
@@ -263,8 +263,8 @@ public static class WalletServiceExtensions
     {
         if (!OperatingSystem.IsLinux())
         {
-            var logger = loggerFactory.CreateLogger<WalletServiceExtensions>();
-            logger.LogWarning(
+            var fallbackLogger = loggerFactory.CreateLogger("Sorcha.Wallet.Service.Extensions.WalletServiceExtensions");
+            fallbackLogger.LogWarning(
                 "Linux Secret Service provider requested but not running on Linux. Falling back to LocalEncryptionProvider.");
             return new LocalEncryptionProvider(
                 loggerFactory.CreateLogger<LocalEncryptionProvider>());
@@ -306,7 +306,7 @@ public static class WalletServiceExtensions
         EncryptionProviderOptions options,
         ILoggerFactory loggerFactory)
     {
-        var logger = loggerFactory.CreateLogger<WalletServiceExtensions>();
+        var logger = loggerFactory.CreateLogger("Sorcha.Wallet.Service.Extensions.WalletServiceExtensions");
         logger.LogError(
             "Invalid encryption provider type: {ProviderType}. Falling back to LocalEncryptionProvider. " +
             "Valid types: Local, WindowsDpapi, LinuxSecretService, MacOsKeychain, AzureKeyVault",

@@ -2,6 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Collections.Concurrent;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
