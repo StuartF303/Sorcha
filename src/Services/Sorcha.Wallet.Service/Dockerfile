@@ -35,6 +35,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN mkdir -p /home/app/.aspnet/DataProtection-Keys && \
     chown -R 1654:1654 /home/app/.aspnet
 
+# Create wallet encryption keys directory with proper permissions for non-root user
+RUN mkdir -p /var/lib/sorcha/wallet-keys && \
+    chown -R 1654:1654 /var/lib/sorcha
+
 # Final stage - Ubuntu Chiseled (distroless)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final
 WORKDIR /app
@@ -50,6 +54,7 @@ COPY --from=dependencies /lib/x86_64-linux-gnu/libresolv.so.2* /lib/x86_64-linux
 
 # Copy directory structure with permissions from dependencies stage
 COPY --from=dependencies --chown=$APP_UID:$APP_UID /home/app/.aspnet /home/app/.aspnet
+COPY --from=dependencies --chown=$APP_UID:$APP_UID /var/lib/sorcha /var/lib/sorcha
 
 # Expose ports
 EXPOSE 8080

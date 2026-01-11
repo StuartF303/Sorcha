@@ -140,12 +140,19 @@ services:
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: wallet-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
       ConnectionStrings__wallet-db: Host=postgres;Database=sorcha_wallet;Username=sorcha;Password=sorcha_dev_password;Timeout=30;Command Timeout=30
+      # Encryption Provider Configuration
+      # LinuxSecretService with fallback to file-based key storage (Docker doesn't have D-Bus)
+      EncryptionProvider__Type: LinuxSecretService
+      EncryptionProvider__DefaultKeyId: wallet-master-key-2025
+      EncryptionProvider__LinuxSecretService__ServiceName: sorcha-wallet-service
+      EncryptionProvider__LinuxSecretService__FallbackKeyStorePath: /var/lib/sorcha/wallet-keys
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
+      - wallet-encryption-keys:/var/lib/sorcha/wallet-keys
     depends_on:
       redis:
         condition: service_healthy
@@ -418,3 +425,4 @@ volumes:
   postgres-data:
   mongodb-data:
   dataprotection-keys:
+  wallet-encryption-keys:
