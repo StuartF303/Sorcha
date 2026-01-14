@@ -1,0 +1,134 @@
+@page "/app"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Dashboard - Sorcha</PageTitle>
+
+<div class="dashboard">
+    <h1>Welcome back, @_username!</h1>
+    <p class="lead">Manage your blueprints, wallets, and transactions.</p>
+
+    <div class="dashboard-stats">
+        <div class="stat-card">
+            <div class="stat-icon">📋</div>
+            <div class="stat-content">
+                <div class="stat-value">0</div>
+                <div class="stat-label">Blueprints</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">👛</div>
+            <div class="stat-content">
+                <div class="stat-value">0</div>
+                <div class="stat-label">Wallets</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-content">
+                <div class="stat-value">0</div>
+                <div class="stat-label">Transactions</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-actions">
+        <h3>Quick Actions</h3>
+        <div class="action-buttons">
+            <a href="/app/blueprints/new" class="btn btn-primary">
+                Create Blueprint
+            </a>
+            <a href="/app/wallets" class="btn btn-outline-primary">
+                Manage Wallets
+            </a>
+            <a href="/app/transactions" class="btn btn-outline-secondary">
+                View Transactions
+            </a>
+        </div>
+    </div>
+
+    <div class="dashboard-recent">
+        <h3>Recent Activity</h3>
+        <div class="empty-state">
+            <p class="text-muted">No recent activity</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .dashboard {
+        padding: 2rem;
+    }
+
+    .dashboard h1 {
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+
+    .stat-label {
+        color: #6c757d;
+    }
+
+    .dashboard-actions {
+        margin: 2rem 0;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .dashboard-recent {
+        margin-top: 2rem;
+    }
+
+    .empty-state {
+        background: #f8f9fa;
+        padding: 2rem;
+        border-radius: 8px;
+        text-align: center;
+        margin-top: 1rem;
+    }
+</style>
+
+@code {
+    private string _username = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _username = authState.User.Identity?.Name ?? "User";
+    }
+}

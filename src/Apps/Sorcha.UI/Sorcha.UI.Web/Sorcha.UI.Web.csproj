@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Sorcha.UI.Web.Client\Sorcha.UI.Web.Client.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.1" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
   </ItemGroup>
 
 </Project>

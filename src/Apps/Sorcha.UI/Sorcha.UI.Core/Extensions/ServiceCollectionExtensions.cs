@@ -38,10 +38,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AuthenticationStateProvider>(sp =>
             sp.GetRequiredService<CustomAuthenticationStateProvider>());
 
+        // Auth state sync service (for SSR -> WASM token handoff)
+        services.AddScoped<AuthStateSync>();
+
         // HTTP message handler for authenticated API calls (registered but not used by AuthenticationService)
         services.AddTransient<AuthenticatedHttpMessageHandler>();
 
         return services;
     }
-
 }

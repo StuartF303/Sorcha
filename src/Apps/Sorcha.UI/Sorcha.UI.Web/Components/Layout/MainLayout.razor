@@ -1,13 +1,57 @@
-﻿@inherits LayoutComponentBase
-@using Sorcha.UI.Web.Client.Components.Layout
+@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
 
 <div class="app-container">
-    <TopBar />
+    <nav class="app-topbar">
+        <div class="topbar-brand">
+            <a href="/app">Sorcha</a>
+        </div>
+        <div class="topbar-actions">
+            <AuthorizeView>
+                <Authorized>
+                    <span class="user-name">@context.User.Identity?.Name</span>
+                    <form method="post" action="/api/auth/logout" class="d-inline">
+                        <button type="submit" class="btn btn-outline-light btn-sm">Sign Out</button>
+                    </form>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </nav>
 
     <div class="app-body">
-        <div class="app-sidebar">
-            <SideNav />
-        </div>
+        <aside class="app-sidebar">
+            <nav class="sidebar-nav">
+                <a href="/app" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/app/blueprints" class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Blueprints</span>
+                </a>
+                <a href="/app/wallets" class="nav-item">
+                    <span class="nav-icon">👛</span>
+                    <span class="nav-text">Wallets</span>
+                </a>
+                <a href="/app/transactions" class="nav-item">
+                    <span class="nav-icon">📝</span>
+                    <span class="nav-text">Transactions</span>
+                </a>
+                <a href="/app/settings" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Settings</span>
+                </a>
+                <hr class="nav-divider" />
+                <a href="/" class="nav-item">
+                    <span class="nav-icon">🏠</span>
+                    <span class="nav-text">Public Home</span>
+                </a>
+                <a href="/explorer" class="nav-item">
+                    <span class="nav-icon">🔍</span>
+                    <span class="nav-text">Explorer</span>
+                </a>
+            </nav>
+        </aside>
 
         <main class="app-main">
             <article class="app-content">
@@ -16,6 +60,91 @@
         </main>
     </div>
 </div>
+
+<style>
+    .app-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    .app-topbar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .topbar-brand a {
+        color: white;
+        font-size: 1.25rem;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .user-name {
+        opacity: 0.9;
+    }
+
+    .app-body {
+        display: flex;
+        flex: 1;
+    }
+
+    .app-sidebar {
+        width: 240px;
+        background: #2d3748;
+        color: white;
+        padding: 1rem 0;
+    }
+
+    .sidebar-nav {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1.5rem;
+        color: rgba(255,255,255,0.8);
+        text-decoration: none;
+        transition: background 0.2s;
+    }
+
+    .nav-item:hover {
+        background: rgba(255,255,255,0.1);
+        color: white;
+    }
+
+    .nav-icon {
+        font-size: 1.25rem;
+    }
+
+    .nav-divider {
+        border-color: rgba(255,255,255,0.1);
+        margin: 1rem 0;
+    }
+
+    .app-main {
+        flex: 1;
+        background: #f7fafc;
+        overflow-y: auto;
+    }
+
+    .app-content {
+        padding: 0;
+    }
+</style>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

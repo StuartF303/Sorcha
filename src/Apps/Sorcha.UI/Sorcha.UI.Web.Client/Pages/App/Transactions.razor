@@ -1,0 +1,21 @@
+@page "/app/transactions"
+@attribute [Authorize]
+
+<PageTitle>Transactions - Sorcha</PageTitle>
+
+<div class="page-content">
+    <h1>Transactions</h1>
+    <p class="lead">View and manage your transactions</p>
+
+    <div class="empty-state">
+        <div class="empty-icon">📝</div>
+        <h3>No Transactions Yet</h3>
+        <p class="text-muted">Your transaction history will appear here</p>
+    </div>
+</div>
+
+<style>
+    .page-content { padding: 2rem; }
+    .empty-state { text-align: center; padding: 4rem; background: white; border-radius: 8px; }
+    .empty-icon { font-size: 4rem; margin-bottom: 1rem; }
+</style>

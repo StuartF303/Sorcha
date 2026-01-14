@@ -1,0 +1,25 @@
+@page "/app/blueprints"
+@attribute [Authorize]
+
+<PageTitle>Blueprints - Sorcha</PageTitle>
+
+<div class="page-content">
+    <h1>Blueprints</h1>
+    <p class="lead">Create and manage workflow blueprints</p>
+    
+    <div class="toolbar mb-4">
+        <a href="/app/blueprints/new" class="btn btn-primary">Create Blueprint</a>
+    </div>
+
+    <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <h3>No Blueprints Yet</h3>
+        <p class="text-muted">Create your first blueprint to get started</p>
+    </div>
+</div>
+
+<style>
+    .page-content { padding: 2rem; }
+    .empty-state { text-align: center; padding: 4rem; background: white; border-radius: 8px; }
+    .empty-icon { font-size: 4rem; margin-bottom: 1rem; }
+</style>

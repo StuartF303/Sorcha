@@ -1,0 +1,25 @@
+@page "/app/wallets"
+@attribute [Authorize]
+
+<PageTitle>Wallets - Sorcha</PageTitle>
+
+<div class="page-content">
+    <h1>Wallets</h1>
+    <p class="lead">Manage your cryptographic wallets</p>
+    
+    <div class="toolbar mb-4">
+        <button class="btn btn-primary">Create Wallet</button>
+    </div>
+
+    <div class="empty-state">
+        <div class="empty-icon">👛</div>
+        <h3>No Wallets Yet</h3>
+        <p class="text-muted">Create your first wallet to start signing transactions</p>
+    </div>
+</div>
+
+<style>
+    .page-content { padding: 2rem; }
+    .empty-state { text-align: center; padding: 4rem; background: white; border-radius: 8px; }
+    .empty-icon { font-size: 4rem; margin-bottom: 1rem; }
+</style>
