@@ -598,7 +598,7 @@ public class WalletManager : IWalletService
             else
             {
                 signingKey = masterKey;
-                publicKey = Convert.FromBase64String(wallet.PublicKey);
+                publicKey = Convert.FromBase64String(wallet.PublicKey!);
 
                 _logger.LogInformation(
                     "Signing transaction for wallet {Address} with master key",

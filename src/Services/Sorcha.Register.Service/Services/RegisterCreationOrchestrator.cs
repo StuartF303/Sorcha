@@ -228,7 +228,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         }
 
         // Verify nonce (replay protection)
-        if (pending.Nonce != request.Nonce)
+        if (pending!.Nonce != request.Nonce)
         {
             _logger.LogWarning(
                 "Invalid nonce for register {RegisterId}: expected {Expected}, got {Actual}",

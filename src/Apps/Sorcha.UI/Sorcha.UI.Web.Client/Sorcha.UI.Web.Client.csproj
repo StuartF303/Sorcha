@@ -7,16 +7,26 @@
     <NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>
     <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <NoWarn>$(NoWarn);NU1608</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Client-side WASM packages -->
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.1" />
+    <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
     <PackageReference Include="MudBlazor" Version="8.15.0" />
+    <PackageReference Include="Z.Blazor.Diagrams" Version="3.0.4" />
+    <PackageReference Include="JsonLogic" Version="5.5.0" />
+    <PackageReference Include="JsonSchema.Net" Version="8.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sorcha.UI.Shared\Sorcha.UI.Shared.csproj" />
     <ProjectReference Include="..\Sorcha.UI.Core\Sorcha.UI.Core.csproj" />
+    <ProjectReference Include="..\..\..\Common\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
+    <ProjectReference Include="..\..\..\Core\Sorcha.Blueprint.Fluent\Sorcha.Blueprint.Fluent.csproj" />
+    <ProjectReference Include="..\..\..\Core\Sorcha.Blueprint.Schemas\Sorcha.Blueprint.Schemas.csproj" />
   </ItemGroup>
 
 </Project>

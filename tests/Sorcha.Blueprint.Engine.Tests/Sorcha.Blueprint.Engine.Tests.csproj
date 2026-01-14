@@ -8,6 +8,8 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!-- Suppress nullable warnings in test code - test assertions handle null cases -->
+    <NoWarn>$(NoWarn);CS8600;CS8602;CS8604;CS8620</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -19,7 +19,7 @@ public static class WalletMapper
         {
             Address = wallet.Address,
             Name = wallet.Name,
-            PublicKey = wallet.PublicKey,
+            PublicKey = wallet.PublicKey!,
             Algorithm = wallet.Algorithm,
             Status = wallet.Status.ToString(),
             Owner = wallet.Owner,

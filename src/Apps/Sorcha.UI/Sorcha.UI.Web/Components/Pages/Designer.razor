@@ -1,21 +1,23 @@
-@page "/designer"
+@page "/design"
+@using Blazor.Diagrams
 @using Blazor.Diagrams.Core.Geometry
 @using Blazor.Diagrams.Core.Models
 @using Blazor.Diagrams.Options
-@using Sorcha.Admin.Models
-@using Sorcha.Admin.Components
+@using Blazor.Diagrams.Components
+@using Sorcha.UI.Core.Models.Designer
+@using Sorcha.UI.Web.Components.Designer
 @using Sorcha.Blueprint.Models
 @using Blazored.LocalStorage
 @using System.Text.Json
 @using System.Text.Json.Nodes
 @using BlueprintAction = Sorcha.Blueprint.Models.Action
-@rendermode InteractiveWebAssembly
+@rendermode RenderMode.InteractiveServer
 @attribute [Authorize]
 @inject ILocalStorageService LocalStorage
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
-@inject Services.EventLogService EventLog
+@inject Sorcha.UI.Core.Services.EventLogService EventLog
 
 <PageTitle>Blueprint Designer</PageTitle>
 
@@ -135,7 +137,7 @@
             Diagram = new BlazorDiagram(options);
 
             // Register custom widget for action nodes
-            Diagram.RegisterComponent<ActionNodeModel, Components.ActionNodeWidget>();
+            Diagram.RegisterComponent<ActionNodeModel, Sorcha.UI.Web.Components.Designer.ActionNodeWidget>();
 
             Diagram.SelectionChanged += OnDiagramSelectionChanged;
 

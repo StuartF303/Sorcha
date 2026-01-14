@@ -6,6 +6,9 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!-- xUnit1012: Null used for non-nullable InlineData - intentional for null testing -->
+    <!-- CA1416: Windows-specific DPAPI code - tests are conditionally skipped on non-Windows -->
+    <NoWarn>$(NoWarn);xUnit1012;CA1416</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,6 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Explicit reference to resolve assembly version conflict MSB3277 -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.1" />
     <PackageReference Include="Azure.Identity" Version="1.17.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageReference Include="xunit" Version="2.9.3" />

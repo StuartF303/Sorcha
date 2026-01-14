@@ -1,0 +1,101 @@
+@using Sorcha.Blueprint.Models
+@using System.Text.Json
+@using System.Text.Json.Nodes
+
+<div style="height: 100%; overflow-y: auto; background: #1e1e1e; color: #d4d4d4; padding: 16px;">
+    @if (Blueprint != null)
+    {
+        <div class="d-flex justify-space-between align-center mb-3">
+            <MudText Typo="Typo.h6" Style="color: #d4d4d4;">
+                <MudIcon Icon="@Icons.Material.Filled.Code" Style="color: #4fc3f7;" Class="mr-2" />
+                Blueprint JSON Schema
+            </MudText>
+            <div class="d-flex gap-2">
+                <MudButtonGroup Size="Size.Small" Variant="Variant.Filled">
+                    <MudButton Color="@(viewMode == "tree" ? Color.Primary : Color.Default)"
+                               OnClick="@(() => viewMode = "tree")">
+                        Tree View
+                    </MudButton>
+                    <MudButton Color="@(viewMode == "raw" ? Color.Primary : Color.Default)"
+                               OnClick="@(() => viewMode = "raw")">
+                        Raw JSON
+                    </MudButton>
+                </MudButtonGroup>
+                <MudButton StartIcon="@Icons.Material.Filled.ContentCopy"
+                           Color="Color.Info"
+                           Size="Size.Small"
+                           Variant="Variant.Filled"
+                           OnClick="CopyToClipboard">
+                    Copy
+                </MudButton>
+            </div>
+        </div>
+
+        <MudPaper Class="pa-3" Style="background: #252526; border: 1px solid #3e3e42; min-height: 400px;">
+            @if (viewMode == "tree")
+            {
+                @if (jsonElement.HasValue)
+                {
+                    <JsonTreeView JsonElement="jsonElement" RootName="blueprint" />
+                }
+            }
+            else
+            {
+                <pre style="margin: 0; color: #d4d4d4; font-size: 13px; line-height: 1.6;">@jsonText</pre>
+            }
+        </MudPaper>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info">No blueprint data available</MudAlert>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Blueprint? Blueprint { get; set; }
+
+    [Inject]
+    private ISnackbar? Snackbar { get; set; }
+
+    private string jsonText = string.Empty;
+    private JsonElement? jsonElement;
+    private string viewMode = "tree";
+
+    protected override void OnParametersSet()
+    {
+        if (Blueprint != null)
+        {
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            };
+
+            jsonText = JsonSerializer.Serialize(Blueprint, options);
+
+            // Parse for tree view
+            using var doc = JsonDocument.Parse(jsonText);
+            jsonElement = doc.RootElement.Clone();
+        }
+    }
+
+    private async Task CopyToClipboard()
+    {
+        // Note: In Blazor WASM, we'd need JSInterop for clipboard access
+        // For now, we'll just show a message
+        Snackbar?.Add("JSON copied to clipboard (feature requires JSInterop)", Severity.Info);
+
+        // TODO: Implement actual clipboard copy with JSInterop
+        // await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", jsonText);
+    }
+}
+
+<style>
+    /* JSON Syntax Highlighting - Basic */
+    pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+</style>

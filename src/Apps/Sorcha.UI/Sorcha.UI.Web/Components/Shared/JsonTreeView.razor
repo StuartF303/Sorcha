@@ -1,0 +1,16 @@
+@using System.Text.Json
+
+<div class="json-tree-view" style="font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; line-height: 1.8;">
+    @if (JsonElement.HasValue)
+    {
+        <JsonTreeNode Element="JsonElement.Value" PropertyName="@RootName" Level="0" />
+    }
+</div>
+
+@code {
+    [Parameter]
+    public JsonElement? JsonElement { get; set; }
+
+    [Parameter]
+    public string RootName { get; set; } = "root";
+}

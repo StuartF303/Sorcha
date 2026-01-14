@@ -457,7 +457,9 @@
     private int totalUsers = 0;
     private int totalTenants = 0;
     private int newUsersThisWeek = 0;
-    private bool isLoading = true;
+#pragma warning disable CS0414 // Field is assigned but never used - reserved for future loading indicator
+    private bool _isLoading = true;
+#pragma warning restore CS0414
 
     protected override async Task OnInitializedAsync()
     {
@@ -508,7 +510,7 @@
     {
         try
         {
-            isLoading = true;
+            _isLoading = true;
 
             // Fetch dashboard statistics from API Gateway
             var response = await Http.GetAsync("/api/dashboard");
@@ -543,7 +545,7 @@
         }
         finally
         {
-            isLoading = false;
+            _isLoading = false;
         }
     }
 }

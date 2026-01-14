@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Sorcha.Blueprint.Models</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CS1591: Suppress missing XML doc warnings for internal types; public API is documented -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
