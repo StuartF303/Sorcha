@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Blazored.LocalStorage;
+using MudBlazor.Services;
+using Sorcha.Blueprint.Schemas;
 using Sorcha.UI.Web.Components;
 using Sorcha.UI.Web.Services;
 
@@ -23,6 +26,28 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient("BackendApi", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
+});
+
+// Add MudBlazor services
+builder.Services.AddMudServices(config =>
+{
+    config.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.BottomRight;
+    config.SnackbarConfiguration.VisibleStateDuration = 5000;
+});
+
+// Add Blazored LocalStorage for browser storage
+builder.Services.AddBlazoredLocalStorage();
+
+// Add Schema Library services
+builder.Services.AddScoped<ISchemaCacheService, LocalStorageSchemaCacheService>();
+builder.Services.AddScoped<SchemaLibraryService>(sp =>
+{
+    var cacheService = sp.GetRequiredService<ISchemaCacheService>();
+    var schemaLibrary = new SchemaLibraryService(cacheService);
+    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var httpClient = httpClientFactory.CreateClient();
+    schemaLibrary.AddRepository(new SchemaStoreRepository(httpClient));
+    return schemaLibrary;
 });
 
 // Add cookie authentication (used for tracking login state and token handoff)

@@ -1,4 +1,6 @@
-@page "/design"
+@page "/designer"
+@rendermode InteractiveWebAssembly
+@attribute [Authorize]
 @using Blazor.Diagrams
 @using Blazor.Diagrams.Core.Geometry
 @using Blazor.Diagrams.Core.Models
@@ -11,15 +13,12 @@
 @using System.Text.Json
 @using System.Text.Json.Nodes
 @using BlueprintAction = Sorcha.Blueprint.Models.Action
-@rendermode RenderMode.InteractiveServer
-@attribute [Authorize]
 @inject ILocalStorageService LocalStorage
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
-@inject Sorcha.UI.Core.Services.EventLogService EventLog
 
-<PageTitle>Blueprint Designer</PageTitle>
+<PageTitle>Blueprint Designer - Sorcha Platform</PageTitle>
 
 <div style="width: 100%; height: 100vh; display: flex; flex-direction: column; position: relative;">
     <!-- Toolbar and Canvas Container with Right Panel -->
@@ -137,7 +136,7 @@
             Diagram = new BlazorDiagram(options);
 
             // Register custom widget for action nodes
-            Diagram.RegisterComponent<ActionNodeModel, Sorcha.UI.Core.Components.Designer.ActionNodeWidget>();
+            Diagram.RegisterComponent<ActionNodeModel, ActionNodeWidget>();
 
             Diagram.SelectionChanged += OnDiagramSelectionChanged;
 
@@ -170,11 +169,10 @@
             // Add welcome nodes
             AddWelcomeNodes();
 
-            EventLog.LogInfo("Blueprint Designer initialized", $"Loaded {savedBlueprints.Count} saved blueprints");
+            Console.WriteLine($"Blueprint Designer initialized - Loaded {savedBlueprints.Count} saved blueprints");
         }
         catch (Exception ex)
         {
-            EventLog.LogError("Failed to initialize Blueprint Designer", ex.Message);
             Console.WriteLine($"Error initializing diagram: {ex.Message}");
             Console.WriteLine($"Stack trace: {ex.StackTrace}");
         }
@@ -361,7 +359,7 @@
     {
         CurrentBlueprint = updatedBlueprint;
         Snackbar.Add("Blueprint properties saved", Severity.Success);
-        EventLog.LogSuccess("Blueprint properties updated", $"Title: {updatedBlueprint.Title}");
+        Console.WriteLine($"Blueprint properties updated - Title: {updatedBlueprint.Title}");
         StateHasChanged();
     }
 
@@ -383,7 +381,7 @@
             }
 
             Snackbar.Add($"Action {updatedAction.Id} properties saved", Severity.Success);
-            EventLog.LogSuccess("Action properties updated", $"Action: {updatedAction.Title}");
+            Console.WriteLine($"Action properties updated - Action: {updatedAction.Title}");
             StateHasChanged();
         }
     }
@@ -426,12 +424,11 @@
 
             await RefreshBlueprintList();
             Snackbar.Add($"Blueprint '{CurrentBlueprint.Title}' saved successfully", Severity.Success);
-            EventLog.LogSuccess($"Saved blueprint '{CurrentBlueprint.Title}'", $"Version {CurrentBlueprint.Version} - {CurrentBlueprint.Actions.Count} actions");
+            Console.WriteLine($"Saved blueprint '{CurrentBlueprint.Title}' - Version {CurrentBlueprint.Version} - {CurrentBlueprint.Actions.Count} actions");
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Error saving blueprint: {ex.Message}", Severity.Error);
-            EventLog.LogError($"Failed to save blueprint", ex.Message);
             Console.WriteLine($"Error saving blueprint: {ex.Message}");
         }
     }
@@ -490,12 +487,11 @@
             actionCounter = blueprint.Actions.Count;
 
             Snackbar.Add($"Blueprint '{blueprint.Title}' loaded successfully", Severity.Success);
-            EventLog.LogSuccess($"Loaded blueprint '{blueprint.Title}'", $"Version {blueprint.Version} - {blueprint.Actions.Count} actions");
+            Console.WriteLine($"Loaded blueprint '{blueprint.Title}' - Version {blueprint.Version} - {blueprint.Actions.Count} actions");
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Error loading blueprint: {ex.Message}", Severity.Error);
-            EventLog.LogError($"Failed to load blueprint", ex.Message);
             Console.WriteLine($"Error loading blueprint: {ex.Message}");
         }
     }
@@ -674,7 +670,7 @@
 
         var summary = $"P:{participantCount} D:{disclosureCount} C:{calculationCount} DS:{dataSchemaCount}";
 
-        return $"▶ {action.Title}\n{summary}";
+        return $"{action.Title}\n{summary}";
     }
 
     public void Dispose()
@@ -683,5 +679,10 @@
         {
             Diagram.SelectionChanged -= OnDiagramSelectionChanged;
         }
+
+        // Unsubscribe from static events
+        ActionNodeModel.AddParticipantRequested -= OnAddParticipantToAction;
+        ActionNodeModel.AddConditionRequested -= OnAddConditionToAction;
+        ActionNodeModel.ShowPropertiesRequested -= OnShowActionProperties;
     }
 }
