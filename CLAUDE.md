@@ -2,25 +2,9 @@
 
 A distributed ledger platform for secure, multi-participant data flow orchestration built on .NET 10 and .NET Aspire.
 
-Sorcha reimagines data governance through the **DAD** (Disclosure, Alteration, Destruction) security model - creating cryptographically secured registers where disclosure is managed through defined schemas, alteration is recorded on immutable ledgers, and destruction risk is eliminated through peer network replication.
+Sorcha implements the **DAD** (Disclosure, Alteration, Destruction) security model - creating cryptographically secured registers where disclosure is managed through defined schemas, alteration is recorded on immutable ledgers, and destruction risk is eliminated through peer network replication.
 
 **Current Status:** 98% MVD Complete | Production Readiness: 30%
-
----
-
-## Tech Stack
-
-| Layer | Technology | Version | Purpose |
-|-------|------------|---------|---------|
-| Runtime | .NET | 10.0 | LTS runtime with latest C# features |
-| Orchestration | .NET Aspire | 13.0+ | Service discovery, health checks, telemetry |
-| API | Minimal APIs | - | Modern, lightweight REST endpoints |
-| Real-time | SignalR | - | WebSocket notifications with Redis backplane |
-| Databases | PostgreSQL/MongoDB/Redis | 17/8/8 | Relational, document, and cache storage |
-| Auth | JWT Bearer | - | Service-to-service and user authentication |
-| Crypto | NBitcoin | - | HD wallets (BIP32/39/44), multi-algorithm signing |
-| Testing | xUnit + FluentAssertions | - | Unit and integration testing |
-| Docs | Scalar.AspNetCore | 2.12+ | Interactive OpenAPI documentation |
 
 ---
 
@@ -29,79 +13,40 @@ Sorcha reimagines data governance through the **DAD** (Disclosure, Alteration, D
 ```bash
 # Prerequisites: .NET 10 SDK, Docker Desktop
 
-# Clone and start all services
-git clone https://github.com/StuartF303/Sorcha.git
-cd Sorcha
+# Start all services (recommended)
 docker-compose up -d
 
 # Access points:
-# - API Gateway:       http://localhost:80
-# - Register Service:  http://localhost:5290
-# - Aspire Dashboard:  http://localhost:18888
+# - API Gateway:      http://localhost:80
+# - Admin UI:         http://localhost/admin
+# - Aspire Dashboard: http://localhost:18888
 
-# Run walkthrough tests
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation-docker.ps1
-
-# After code changes, rebuild a service:
-docker-compose build register-service && docker-compose up -d --force-recreate register-service
-```
-
-**Alternative: Run with .NET Aspire** (for debugging with breakpoints):
-```bash
+# Alternative: Run with Aspire (debugging with breakpoints)
 dotnet run --project src/Apps/Sorcha.AppHost
-# Aspire Dashboard: http://localhost:18888
 # Services available on HTTPS ports (7000-7290)
-```
 
-**Build and Test:**
-```bash
-dotnet restore && dotnet build
-dotnet test
-dotnet format  # Before committing
+# Build and test
+dotnet restore && dotnet build && dotnet test
 ```
 
 ---
 
-## Project Structure
+## Tech Stack
 
-```
-Sorcha/
-├── src/
-│   ├── Apps/
-│   │   ├── Sorcha.AppHost/           # .NET Aspire orchestrator
-│   │   ├── Sorcha.Cli/               # Administrative CLI tool
-│   │   ├── Sorcha.Admin/             # Blazor WASM admin UI
-│   │   └── Sorcha.UI/                # Main UI application
-│   ├── Common/
-│   │   ├── Sorcha.Blueprint.Models/  # Domain models with JSON-LD
-│   │   ├── Sorcha.Cryptography/      # Multi-algorithm crypto (ED25519, P-256, RSA)
-│   │   ├── Sorcha.ServiceClients/    # Consolidated HTTP/gRPC clients
-│   │   ├── Sorcha.ServiceDefaults/   # Aspire shared configuration
-│   │   └── Sorcha.TransactionHandler/ # Transaction building/serialization
-│   ├── Core/
-│   │   ├── Sorcha.Blueprint.Engine/  # Portable execution engine (WASM-compatible)
-│   │   ├── Sorcha.Blueprint.Fluent/  # Fluent API for blueprints
-│   │   └── Sorcha.Register.Core/     # Ledger business logic
-│   └── Services/
-│       ├── Sorcha.ApiGateway/        # YARP reverse proxy
-│       ├── Sorcha.Blueprint.Service/ # Workflow management (100%)
-│       ├── Sorcha.Register.Service/  # Distributed ledger (100%)
-│       ├── Sorcha.Wallet.Service/    # Crypto wallet management (95%)
-│       ├── Sorcha.Tenant.Service/    # Multi-tenant auth (85%)
-│       ├── Sorcha.Peer.Service/      # P2P network (70%)
-│       └── Sorcha.Validator.Service/ # Blockchain consensus (95%)
-├── tests/                            # Test projects (30 projects, ~1,100+ tests)
-├── docs/                             # Technical documentation (80+ files)
-├── .specify/                         # Spec-Kit specifications (150+ files)
-├── walkthroughs/                     # Runnable demo scripts
-└── .claude/                          # Claude Code configuration
-    ├── commands/                     # Spec-Kit skills (9 commands)
-    └── settings.local.json           # Permission config
-```
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| Runtime | .NET 10 / C# 13 | LTS runtime with latest features |
+| Orchestration | .NET Aspire 13+ | Service discovery, health checks, telemetry |
+| API | Minimal APIs + Scalar | REST endpoints with OpenAPI docs |
+| Real-time | SignalR + Redis | WebSocket notifications |
+| Databases | PostgreSQL / MongoDB / Redis | Relational, document, cache |
+| Auth | JWT Bearer | Service-to-service and user authentication |
+| Crypto | NBitcoin + Sorcha.Cryptography | HD wallets (BIP32/39/44), ED25519, P-256, RSA-4096 |
+| Testing | xUnit + FluentAssertions + Moq | 1,100+ tests across 30 projects |
 
 ---
 
-## Architecture Overview
+## Architecture
 
 ```
 ┌─────────────┐     ┌─────────────────┐     ┌──────────────────┐
@@ -110,183 +55,177 @@ Sorcha/
 └─────────────┘     └─────────────────┘     └────────┬─────────┘
                             │                         │
                     ┌───────┴───────┐        ┌───────┴────────┐
-                    │               │        │                │
               ┌─────▼─────┐   ┌─────▼─────┐  │  ┌────────────▼┐
               │  Wallet   │   │ Register  │◀─┘  │  Validator  │
               │  Service  │   │  Service  │     │   Service   │
-              └───────────┘   └───────────┘     └─────────────┘
-                    │               │                  │
-              ┌─────▼─────┐   ┌─────▼─────┐     ┌─────▼─────┐
-              │PostgreSQL │   │  MongoDB  │     │   Redis   │
-              └───────────┘   └───────────┘     └───────────┘
+              └─────┬─────┘   └─────┬─────┘     └─────────────┘
+              │PostgreSQL │   │  MongoDB  │     │   Redis     │
 ```
 
-**Key Flows:**
-- **Blueprint Execution:** Submit action → Validate schema → Apply JSON Logic → Route to next participant → Sign with wallet → Store on register
-- **Service Communication:** HTTP via ServiceClients (gRPC planned, Peer Service uses gRPC)
-- **Real-time Updates:** SignalR hubs on Blueprint (`/actionshub`) and Register (`/hubs/register`) services with Redis backplane
+**Key Services:**
+| Service | Status | Port (Docker/Aspire) | Purpose |
+|---------|--------|---------------------|---------|
+| Blueprint | 100% | 5000 / 7000 | Workflow management, SignalR |
+| Register | 100% | 5290 / 7290 | Distributed ledger, OData |
+| Wallet | 95% | internal / 7001 | Crypto operations, HD wallets |
+| Tenant | 85% | 5110 / 7110 | Multi-tenant auth, JWT issuer |
+| Validator | 95% | internal / 7004 | Consensus, chain integrity |
+| Peer | 70% | 5002 / 7002 | P2P network, gRPC |
+| API Gateway | 95% | 80 / 7082 | YARP reverse proxy |
+
+---
+
+## Project Structure
+
+```
+src/
+├── Apps/
+│   ├── Sorcha.AppHost/              # .NET Aspire orchestrator
+│   ├── Sorcha.Admin/                # Blazor WASM admin UI (host)
+│   │   └── Sorcha.Admin.Client/     # Admin UI client components
+│   ├── Sorcha.Cli/                  # Administrative CLI tool
+│   ├── Sorcha.Demo/                 # Demo application
+│   └── Sorcha.UI/                   # Main UI application
+│       ├── Sorcha.UI.Core/          # Shared UI components
+│       ├── Sorcha.UI.Web/           # Web host
+│       └── Sorcha.UI.Web.Client/    # Web client (Blazor WASM)
+├── Common/
+│   ├── Sorcha.Blueprint.Models/     # Domain models with JSON-LD
+│   ├── Sorcha.Cryptography/         # Multi-algorithm crypto (ED25519, P-256, RSA)
+│   ├── Sorcha.Register.Models/      # Register domain models
+│   ├── Sorcha.ServiceClients/       # Consolidated HTTP/gRPC clients
+│   ├── Sorcha.ServiceDefaults/      # Aspire shared configuration
+│   ├── Sorcha.Storage.*/            # Storage abstraction layer (5 projects)
+│   │   ├── Abstractions/            # IRepository<T>, IUnitOfWork interfaces
+│   │   ├── EFCore/                  # Entity Framework Core implementation
+│   │   ├── InMemory/                # In-memory implementation (testing)
+│   │   ├── MongoDB/                 # MongoDB implementation
+│   │   └── Redis/                   # Redis caching implementation
+│   ├── Sorcha.Tenant.Models/        # Tenant domain models
+│   ├── Sorcha.TransactionHandler/   # Transaction building/serialization
+│   ├── Sorcha.Validator.Core/       # Enclave-safe validation library
+│   └── Sorcha.Wallet.Core/          # Wallet domain logic
+├── Core/
+│   ├── Sorcha.Blueprint.Engine/     # Portable execution (WASM-compatible)
+│   ├── Sorcha.Blueprint.Fluent/     # Fluent API for blueprint construction
+│   ├── Sorcha.Blueprint.Schemas/    # Schema management with caching
+│   ├── Sorcha.Register.Core/        # Ledger business logic
+│   └── Sorcha.Register.Storage.*/   # Register-specific storage (3 projects)
+│       ├── Sorcha.Register.Storage/ # Storage abstractions
+│       ├── InMemory/                # In-memory implementation
+│       └── MongoDB/                 # MongoDB implementation
+└── Services/                        # 7 microservices
+    ├── Sorcha.ApiGateway/           # YARP reverse proxy
+    ├── Sorcha.Blueprint.Service/    # Workflow management
+    ├── Sorcha.Peer.Service/         # P2P networking (gRPC)
+    ├── Sorcha.Register.Service/     # Distributed ledger
+    ├── Sorcha.Tenant.Service/       # Multi-tenant authentication
+    ├── Sorcha.Validator.Service/    # Blockchain validation
+    └── Sorcha.Wallet.Service/       # Crypto wallet management
+
+tests/                               # 30 test projects
+├── *.Tests/                         # Unit tests per component
+├── *.IntegrationTests/              # Integration tests
+├── *.PerformanceTests/              # Performance/load tests
+└── Sorcha.UI.E2E.Tests/             # End-to-end Playwright tests
+```
+
+**Project Count:** 38 source projects, 30 test projects
 
 ---
 
 ## Development Guidelines
 
-### Code Style
+### File Naming
+- **C# Files:** PascalCase (e.g., `WalletManager.cs`, `IActionStore.cs`)
+- **Test Files:** `{ClassName}Tests.cs` (e.g., `WalletManagerTests.cs`)
 
-**File Naming:** PascalCase for C# files (e.g., `WalletManager.cs`, `IActionStore.cs`)
+### Code Naming
+| Element | Convention | Example |
+|---------|------------|---------|
+| Classes/Interfaces | PascalCase, `I` prefix for interfaces | `WalletManager`, `IWalletService` |
+| Methods/Properties | PascalCase | `CreateWalletAsync`, `IsEnabled` |
+| Parameters/Variables | camelCase | `walletId`, `transactionData` |
+| Private fields | _camelCase | `_repository`, `_logger` |
+| Constants | PascalCase | `MaxRetryCount`, `DefaultTimeout` |
+| Async methods | `Async` suffix | `ValidateAsync`, `ProcessAsync` |
 
-**Code Naming:**
-- Classes/Interfaces: `PascalCase` (interfaces prefixed with `I`)
-- Methods/Properties: `PascalCase`
-- Parameters/Variables: `camelCase`
-- Private fields: `_camelCase`
-- Constants: `PascalCase`
-- Async methods: Suffix with `Async` (e.g., `CreateWalletAsync`)
-
-**Folder Structure for Services:**
-```
-Services/
-├── Interfaces/           # IWalletService.cs, IKeyManagementService.cs
-└── Implementation/       # WalletManager.cs, KeyManagementService.cs
-```
-
-**Test Naming Convention:**
+### Test Naming
 ```csharp
 // Pattern: MethodName_Scenario_ExpectedBehavior
-[Fact]
 public async Task ValidateAsync_ValidData_ReturnsValid() { }
-
-[Fact]
 public void Build_WithoutTitle_ThrowsInvalidOperationException() { }
 ```
 
-**Import Order:**
+### Import Order
 ```csharp
 using System.Text.Json;           // 1. System
 using Microsoft.Extensions.DI;    // 2. Microsoft
 using FluentAssertions;           // 3. Third-party
-using Sorcha.Blueprint.Models;    // 4. Project
+using Sorcha.Blueprint.Models;    // 4. Sorcha
 ```
 
-**License Header (Required):**
-```csharp
-// SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+### Service Folder Structure
+```
+Services/Sorcha.*.Service/
+├── Endpoints/           # Minimal API endpoint definitions
+├── Extensions/          # Service collection extensions
+├── GrpcServices/        # gRPC service implementations (if applicable)
+├── Mappers/             # DTO/Model mapping
+├── Models/              # Request/Response DTOs
+├── Services/            # Business logic
+│   ├── Interfaces/      # IWalletService, IKeyManagementService
+│   └── Implementation/  # WalletManager, KeyManagementService
+└── Program.cs           # Entry point
 ```
 
-**XML Documentation (Required for public APIs):**
-```csharp
-/// <summary>
-/// Creates a new wallet with a randomly generated mnemonic.
-/// </summary>
-/// <param name="name">Wallet name</param>
-/// <returns>Created wallet and mnemonic (MUST be saved by caller)</returns>
-public async Task<(Wallet, Mnemonic)> CreateWalletAsync(string name) { }
-```
+---
 
-### Critical Patterns
+## Critical Patterns
 
-**1. Use .NET 10 OpenAPI with Scalar (NOT Swagger):**
+### 1. Use Scalar for OpenAPI (NOT Swagger)
 ```csharp
-app.MapPost("/api/wallets", async (CreateWalletRequest request) => { })
+// .NET 10 built-in OpenAPI with Scalar UI
+app.MapPost("/api/wallets", handler)
     .WithName("CreateWallet")
     .WithSummary("Create a new wallet");
 ```
 
-**2. Use Consolidated Service Clients:**
+### 2. Use Consolidated Service Clients
 ```csharp
 // Always use Sorcha.ServiceClients - NEVER create duplicate clients
 builder.Services.AddServiceClients(builder.Configuration);
 ```
 
-**3. Create Blueprints as JSON/YAML (NOT Fluent API):**
+### 3. Blueprint Creation Policy
+- **Primary:** Create blueprints as JSON or YAML files
+- **Secondary:** Fluent API for programmatic/dynamic blueprint generation
 ```json
-{
-  "title": "Purchase Order",
-  "participants": [{ "id": "buyer", "name": "Buyer Organization" }],
-  "actions": [{ "id": 0, "title": "Submit Order", "sender": "buyer" }]
-}
+{ "title": "...", "participants": [...], "actions": [...] }
 ```
 
-**4. JsonSchema.Net Validation:**
+### 4. JsonSchema.Net Requires JsonElement
 ```csharp
 // CRITICAL: Evaluate() expects JsonElement, not JsonNode
 JsonElement element = JsonSerializer.Deserialize<JsonElement>(json);
 var result = schema.Evaluate(element);
 ```
 
-**5. Dependency Injection Pattern:**
+### 5. Storage Abstraction Pattern
 ```csharp
-// Constructor injection with null checks
-public WalletManager(
-    IKeyManagementService keyManagement,
-    IWalletRepository repository,
-    ILogger<WalletManager> logger)
+// Use IRepository<T> from Sorcha.Storage.Abstractions
+public class WalletService
 {
-    _keyManagement = keyManagement ?? throw new ArgumentNullException(nameof(keyManagement));
-    _repository = repository ?? throw new ArgumentNullException(nameof(repository));
-    _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly IRepository<Wallet> _repository;
+    public WalletService(IRepository<Wallet> repository) => _repository = repository;
 }
 ```
 
-**6. Service Registration Pattern:**
+### 6. License Header (Required)
 ```csharp
-// In Program.cs - register interfaces with implementations
-builder.Services.AddScoped<IWalletService, WalletManager>();
-builder.Services.AddSingleton<IWalletRepository, InMemoryWalletRepository>();
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
 ```
-
----
-
-## Available Commands
-
-| Command | Description |
-|---------|-------------|
-| `docker-compose up -d` | Start all services (recommended) |
-| `docker-compose logs -f <service>` | View service logs |
-| `dotnet run --project src/Apps/Sorcha.AppHost` | Start with Aspire (debugging) |
-| `dotnet test` | Run all tests |
-| `dotnet test --filter "FullyQualifiedName~Blueprint"` | Run filtered tests |
-| `dotnet format` | Format code |
-| `pwsh scripts/rebuild-service.ps1 <name>` | Rebuild Docker service |
-
----
-
-## Port Configuration
-
-| Service | Docker | Aspire (HTTPS) |
-|---------|--------|----------------|
-| Blueprint | 5000 | 7000 |
-| Wallet | (internal) | 7001 |
-| Register | 5290 | 7290 |
-| Tenant | 5110 | 7110 |
-| API Gateway | 80/443 | 7082 |
-| Peer (gRPC) | 5002 | 7002 |
-| Aspire Dashboard | 18888 | 18888 |
-
-**Infrastructure (Docker):**
-| Service | Port |
-|---------|------|
-| PostgreSQL | 5432 |
-| MongoDB | 27017 |
-| Redis | 6379 |
-
-See @docs/PORT-CONFIGURATION.md for complete reference.
-
----
-
-## Testing
-
-```bash
-dotnet test                                           # All tests
-dotnet test --collect:"XPlat Code Coverage"          # With coverage
-dotnet test tests/Sorcha.Blueprint.Service.Tests     # Specific project
-```
-
-**Coverage Requirements:** Core libraries >85%, Services >80%
-
-**Test Frameworks:**
-- xUnit (primary), FluentAssertions (assertions), Moq (mocking)
-- Testcontainers (integration), NBomber (performance), Playwright (E2E)
 
 ---
 
@@ -294,68 +233,69 @@ dotnet test tests/Sorcha.Blueprint.Service.Tests     # Specific project
 
 | Document | Purpose |
 |----------|---------|
-| @.specify/constitution.md | Architectural principles and non-negotiable standards |
-| @.specify/MASTER-PLAN.md | Implementation phases and priorities |
-| @.specify/AI-CODE-DOCUMENTATION-POLICY.md | **MANDATORY** documentation requirements |
-| @docs/development-status.md | Current completion status (98% MVD) |
-| @docs/PORT-CONFIGURATION.md | Service port assignments |
-| @docs/AUTHENTICATION-SETUP.md | JWT configuration guide |
-| @docs/architecture.md | System architecture diagrams |
+| `.specify/constitution.md` | Architectural principles (read first!) |
+| `.specify/MASTER-TASKS.md` | Task tracking with priorities |
+| `.specify/AI-CODE-DOCUMENTATION-POLICY.md` | MANDATORY documentation requirements |
+| `docs/PORT-CONFIGURATION.md` | Complete port assignments |
+| `docs/AUTHENTICATION-SETUP.md` | JWT configuration guide |
+| `docs/development-status.md` | Current completion status |
+| `docs/architecture.md` | System architecture diagrams |
 
 ---
 
 ## AI Assistant Requirements
 
-### MANDATORY Documentation Updates
-
-When generating ANY code, update these documents:
-
-1. **.specify/MASTER-TASKS.md** - Update task status (📋 → 🚧 → ✅)
-2. **README files** - Update if features/APIs changed
-3. **docs/ files** - Update architecture/status if changed
-4. **OpenAPI/XML docs** - Ensure all endpoints documented
+### MANDATORY: Update these when generating code
+1. `.specify/MASTER-TASKS.md` - Task status (📋 → 🚧 → ✅)
+2. README files - If features/APIs changed
+3. `docs/` files - If architecture/status changed
+4. OpenAPI/XML docs - All endpoints documented
 
 **PRs without documentation updates will NOT be approved.**
 
 ### DO
-
-- Read @.specify/constitution.md before coding
-- Check @.specify/MASTER-TASKS.md for task priorities
-- Follow established patterns in existing code
+- Read `.specify/constitution.md` before coding
+- Check `.specify/MASTER-TASKS.md` for task priorities
 - Write tests alongside code (>85% coverage)
-- Use .NET 10 OpenAPI (NOT Swagger/Swashbuckle)
+- Use `Sorcha.ServiceClients` for HTTP calls
+- Use `Sorcha.Cryptography` for crypto operations
+- Use `Sorcha.Storage.*` for data persistence
 - Reference task IDs in commits
 
 ### DON'T
-
-- Generate code without updating documentation
-- Skip writing tests
-- Create duplicate service clients (use Sorcha.ServiceClients)
-- Commit secrets or sensitive data
-- Use Swagger/Swashbuckle
-- Ignore the constitution's principles
+- Use Swagger/Swashbuckle (use Scalar)
+- Create duplicate service clients
 - Use `JsonNode` with JsonSchema.Net (use `JsonElement`)
+- Commit secrets or credentials
+- Skip documentation updates
+- Store mnemonics (user responsibility to backup)
 
 ---
 
-### Walkthroughs
+## Commands
 
-When creating demos or test scripts:
-```
-walkthroughs/
-└── YourWalkthroughName/
-    ├── README.md              # Overview and instructions
-    ├── test-*.ps1             # Test scripts
-    └── *-RESULTS.md           # Results and findings
-```
+```bash
+# Docker
+docker-compose up -d                              # Start services
+docker-compose logs -f <service>                  # View logs
+docker-compose build <service> && docker-compose up -d --force-recreate <service>  # Rebuild
 
-See @walkthroughs/README.md for guidelines.
+# .NET Aspire
+dotnet run --project src/Apps/Sorcha.AppHost      # Start with Aspire
+
+# Build & Test
+dotnet restore && dotnet build                    # Build solution
+dotnet test                                       # Run all tests
+dotnet test --filter "FullyQualifiedName~Blueprint"  # Filtered tests
+dotnet test --collect:"XPlat Code Coverage"       # With coverage
+
+# Code Quality
+dotnet format                                     # Format code
+```
 
 ---
 
 ## Claude Code Skills
-
-Spec-Kit skills available via `.claude/commands/`:
 
 | Command | Purpose |
 |---------|---------|
@@ -368,37 +308,17 @@ Spec-Kit skills available via `.claude/commands/`:
 
 ---
 
-## Current Status
+## Walkthroughs
 
-| Service | Status | Tests | Notes |
-|---------|--------|-------|-------|
-| Blueprint Service | 100% | 123 | Full orchestration, SignalR, JWT auth |
-| Register Service | 100% | 112 | 20 REST endpoints, OData, SignalR |
-| Wallet Service | 95% | 111 | EF Core, JWT auth, all crypto ops |
-| Validator Service | 95% | 80%+ | Consensus, memory pool, gRPC |
-| Tenant Service | 85% | 67 | Auth flows, 91% test pass rate |
-| Peer Service | 70% | - | Hub connection, replication, heartbeat |
+Interactive demos and test scripts are in `walkthroughs/`:
 
-**Pending for Production:**
-- Database migrations for production deployment
-- Azure Key Vault integration
-- API Gateway JWT validation
-- Security hardening (rate limiting)
+| Walkthrough | Status | Purpose |
+|-------------|--------|---------|
+| `BlueprintStorageBasic/` | ✅ | Docker startup, bootstrap, JWT auth |
+| `AdminIntegration/` | ✅ | Blazor WASM behind API Gateway |
+| `UserWalletCreation/` | 🚧 | User management, wallet creation |
 
----
-
-## Security Guidelines
-
-**DO:**
-- Use `Sorcha.Cryptography` for all crypto operations (ED25519, P-256, RSA-4096)
-- Use environment variables for secrets
-- Encrypt sensitive data at rest (AES-256-GCM)
-- Use TLS for all communication
-
-**DON'T:**
-- Commit secrets, keys, or credentials
-- Store mnemonics (user responsibility to backup)
-- Log sensitive data (keys, passwords)
+See `walkthroughs/README.md` for guidelines on creating new walkthroughs.
 
 ---
 
@@ -415,8 +335,33 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 
 ---
 
-**Version:** 2.2 | **Updated:** 2026-01-17 | Built with .NET 10 and .NET Aspire
+**Version:** 2.4 | **Updated:** 2026-01-18 | Built with .NET 10 and .NET Aspire
 
----
 
-*This document serves as the primary context for AI assistants. Rules (coding conventions) and Skills (workflow guides) are derived from patterns documented here.*
+## Skill Usage Guide
+
+When working on tasks involving these technologies, invoke the corresponding skill:
+
+| Skill | Invoke When |
+|-------|-------------|
+| postgresql | Manages PostgreSQL databases and Entity Framework Core integration |
+| scalar | Generates and configures Scalar OpenAPI UI for API documentation |
+| redis | Implements Redis caching and session management |
+| signalr | Implements real-time WebSocket communication using SignalR |
+| minimal-apis | Defines REST endpoints using Minimal APIs with OpenAPI documentation |
+| yarp | Configures YARP reverse proxy for API gateway routing |
+| mongodb | Configures MongoDB document storage and query operations |
+| aspire | Configures .NET Aspire orchestration, service discovery, and telemetry |
+| dotnet | Manages .NET 10 runtime, C# 13 syntax, and project configuration |
+| blazor | Builds Blazor WASM components for admin and main UI applications |
+| fluent-assertions | Creates readable test assertions with FluentAssertions library |
+| grpc | Defines gRPC services for peer-to-peer network communication |
+| entity-framework | Handles Entity Framework Core database access and migrations |
+| moq | Mocks dependencies in unit tests using Moq framework |
+| cryptography | Applies multi-algorithm cryptography (ED25519, P-256, RSA-4096) |
+| jwt | Implements JWT Bearer authentication for service-to-service authorization |
+| nbitcoin | Utilizes NBitcoin for HD wallet operations (BIP32/39/44) |
+| xunit | Writes unit tests with xUnit framework across 30 test projects |
+| docker | Manages Docker containerization and docker-compose orchestration |
+| playwright | Develops end-to-end UI tests with Playwright for Blazor applications |
+| frontend-design | Styles Blazor WASM components with CSS and responsive design patterns |
