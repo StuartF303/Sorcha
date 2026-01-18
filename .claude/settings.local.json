@@ -220,6 +220,7 @@
       "Bash(powershell -ExecutionPolicy Bypass -File C:/Projects/Sorcha/test-ui-screenshot.ps1)",
       "Bash(Select-String -Pattern \"link.*stylesheet|Temp\" -Context 0,0)",
       "mcp__MCP_DOCKER__browser_select_option",
+      "Bash(docker-compose stop:*)",
       "Bash(Select-String -Pattern \"sorcha-ui-web|NAME\")",
       "Bash(Get-ChildItem -Path \"C:\\\\Projects\\\\Sorcha\\\\src\\\\Apps\" -Directory)",
       "Bash(Select-Object Name)",

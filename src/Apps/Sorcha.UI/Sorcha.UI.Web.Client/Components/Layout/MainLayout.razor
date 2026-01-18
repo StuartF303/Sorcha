@@ -1,0 +1,136 @@
+@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudThemeProvider Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudText Typo="Typo.h5" Class="ml-3">Sorcha</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                    <MudMenuItem>
+                        <div class="d-flex flex-column py-2 px-3">
+                            <MudText Typo="Typo.body2" Color="Color.Primary">@context.User.Identity?.Name</MudText>
+                            <MudText Typo="Typo.caption" Class="mt-1">@GetUserRole(context)</MudText>
+                        </div>
+                    </MudMenuItem>
+                    <MudDivider />
+                    <MudMenuItem Icon="@Icons.Material.Filled.Settings" OnClick="@(() => Navigation.NavigateTo("/settings"))">
+                        Settings
+                    </MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="@HandleLogout">
+                        Logout
+                    </MudMenuItem>
+                </MudMenu>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Href="/login" Variant="Variant.Text" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Login">
+                    Sign In
+                </MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <MudDrawerHeader>
+            <MudText Typo="Typo.h6">Navigation</MudText>
+        </MudDrawerHeader>
+        <AuthorizeView>
+            <Authorized>
+                <MudNavMenu>
+                    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
+                        Dashboard
+                    </MudNavLink>
+                    <MudDivider Class="my-2" />
+                    <MudNavGroup Title="Blueprints" Icon="@Icons.Material.Filled.Description" Expanded="false">
+                        <MudNavLink Href="/blueprints" Icon="@Icons.Material.Filled.List">
+                            All Blueprints
+                        </MudNavLink>
+                        <MudNavLink Href="/blueprints/designer" Icon="@Icons.Material.Filled.Add">
+                            Create Blueprint
+                        </MudNavLink>
+                    </MudNavGroup>
+                    <MudNavGroup Title="Wallets" Icon="@Icons.Material.Filled.AccountBalanceWallet" Expanded="false">
+                        <MudNavLink Href="/wallets" Icon="@Icons.Material.Filled.List">
+                            All Wallets
+                        </MudNavLink>
+                        <MudNavLink Href="/wallets/create" Icon="@Icons.Material.Filled.Add">
+                            Create Wallet
+                        </MudNavLink>
+                    </MudNavGroup>
+                    <MudNavLink Href="/transactions" Icon="@Icons.Material.Filled.Receipt">
+                        Transactions
+                    </MudNavLink>
+                    <MudNavLink Href="/registers" Icon="@Icons.Material.Filled.Storage">
+                        Registers
+                    </MudNavLink>
+                    <MudDivider Class="my-2" />
+                    <MudNavLink Href="/admin" Icon="@Icons.Material.Filled.AdminPanelSettings">
+                        Administration
+                    </MudNavLink>
+                </MudNavMenu>
+            </Authorized>
+            <NotAuthorized>
+                <MudNavMenu>
+                    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
+                        Home
+                    </MudNavLink>
+                    <MudNavLink Href="/login" Icon="@Icons.Material.Filled.Login">
+                        Sign In
+                    </MudNavLink>
+                </MudNavMenu>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#667eea",
+            Secondary = "#764ba2",
+            AppbarBackground = "#667eea",
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#667eea",
+            Secondary = "#764ba2",
+        }
+    };
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private string GetUserRole(AuthenticationState authState)
+    {
+        var roleClaim = authState.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role);
+        return roleClaim?.Value ?? "User";
+    }
+
+    private async Task HandleLogout()
+    {
+        // Navigate to a logout handler page
+        Navigation.NavigateTo("/logout", forceLoad: true);
+    }
+}

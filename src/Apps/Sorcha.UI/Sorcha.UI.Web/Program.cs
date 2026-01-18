@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Blazored.LocalStorage;
 using MudBlazor.Services;
 using Sorcha.Blueprint.Schemas;
+using Sorcha.UI.Web.Client.Pages;
 using Sorcha.UI.Web.Components;
 using Sorcha.UI.Web.Services;
 
@@ -135,10 +136,9 @@ app.UseStaticFiles();
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
-// Only use HTTPS redirection when NOT in Development mode
-// In Development/Docker, the API Gateway handles TLS termination and HTTPS redirects
-// This prevents incorrect redirects to internal Docker hostnames/ports
-if (!app.Environment.IsDevelopment())
+// HTTPS redirection disabled for Docker development
+// Enable only in production when certificates are properly configured
+if (app.Environment.IsProduction())
 {
     app.UseHttpsRedirection();
 }
