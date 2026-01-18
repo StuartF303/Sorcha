@@ -341,17 +341,18 @@ services:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: ui-web
       ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: https://+:8443;http://+:8080
-      ASPNETCORE_HTTPS_PORTS: 8443
-      ASPNETCORE_Kestrel__Certificates__Default__Password: SorchaDevCert2025!
-      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/sorcha-ui-web.pfx
+      ASPNETCORE_URLS: http://+:8080
+      # HTTPS disabled for Docker development - use HTTP only
+      # ASPNETCORE_HTTPS_PORTS: 8443
+      # ASPNETCORE_Kestrel__Certificates__Default__Password: SorchaDevCert2025!
+      # ASPNETCORE_Kestrel__Certificates__Default__Path: /https/sorcha-ui-web.pfx
       # API Gateway configuration for backend API calls
       ApiGateway__BaseUrl: http://api-gateway:8080
       # Aspire service discovery (alternative)
       services__api-gateway__http__0: http://api-gateway:8080
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
-      - ./certs:/https:ro
+      - ./docker/certs:/https:ro
     depends_on:
       - aspire-dashboard
     networks:

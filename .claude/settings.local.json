@@ -219,7 +219,8 @@
       "Bash(Select-String -Pattern \"\\(Build succeeded|Build FAILED|warning|error\\)\")",
       "Bash(powershell -ExecutionPolicy Bypass -File C:/Projects/Sorcha/test-ui-screenshot.ps1)",
       "Bash(Select-String -Pattern \"link.*stylesheet|Temp\" -Context 0,0)",
-      "mcp__MCP_DOCKER__browser_select_option"
+      "mcp__MCP_DOCKER__browser_select_option",
+      "Bash(docker-compose stop:*)"
     ],
     "deny": [],
     "ask": []

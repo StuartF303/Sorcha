@@ -249,11 +249,17 @@
             // Perform login
             var response = await AuthService.LoginAsync(request, _selectedProfile);
 
+            // Give the token cache a moment to persist (Blazor WASM LocalStorage timing)
+            await Task.Delay(100);
+
             // Notify authentication state changed
             AuthStateProvider.NotifyAuthenticationStateChanged();
 
-            // Navigate to home
-            Navigation.NavigateTo("/", forceLoad: true);
+            // Small delay to ensure state propagates before navigation
+            await Task.Delay(100);
+
+            // Navigate without forcing full reload (keeps Blazor state)
+            Navigation.NavigateTo("/", forceLoad: false);
         }
         catch (HttpRequestException ex)
         {

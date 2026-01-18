@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.DataProtection;
+using MudBlazor.Services;
 using Sorcha.UI.Web.Client.Pages;
 using Sorcha.UI.Web.Components;
 
@@ -18,6 +19,9 @@ builder.Services.AddRazorComponents()
 
 // Add authorization services
 builder.Services.AddAuthorization();
+
+// Add MudBlazor services (required for server-side prerendering)
+builder.Services.AddMudServices();
 
 var app = builder.Build();
 
@@ -69,7 +73,14 @@ app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
+
+// HTTPS redirection disabled for Docker development
+// Enable only in production when certificates are properly configured
+if (app.Environment.IsProduction())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseRouting();
 app.UseAntiforgery();
 

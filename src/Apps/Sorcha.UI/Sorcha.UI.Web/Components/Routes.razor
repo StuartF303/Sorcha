@@ -1,7 +1,7 @@
 ﻿<CascadingAuthenticationState>
     <Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(Sorcha.UI.Web.Client._Imports).Assembly }">
         <Found Context="routeData">
-            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Sorcha.UI.Web.Client.Components.Layout.MainLayout)">
                 <NotAuthorized Context="authContext">
                     @if (authContext.User.Identity?.IsAuthenticated != true)
                     {
