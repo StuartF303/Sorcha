@@ -1,24 +1,42 @@
-﻿<CascadingAuthenticationState>
+@using Microsoft.AspNetCore.Components.Authorization
+
+<CascadingAuthenticationState>
     <Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(Sorcha.UI.Web.Client._Imports).Assembly }">
         <Found Context="routeData">
-            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Sorcha.UI.Web.Client.Components.Layout.MainLayout)">
+            @* Public routes use RouteView - no auth required *@
+            @* Authenticated routes (/app/*) have @attribute [Authorize] and redirect if not auth *@
+            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
                 <NotAuthorized Context="authContext">
                     @if (authContext.User.Identity?.IsAuthenticated != true)
                     {
-                        <RedirectToLogin />
+                        <Sorcha.UI.Web.Client.Components.RedirectToLogin />
                     }
                     else
                     {
-                        <p role="alert">You are not authorized to access this resource.</p>
+                        <div class="alert alert-warning m-4">
+                            <h4>Access Denied</h4>
+                            <p>You do not have permission to access this resource.</p>
+                        </div>
                     }
                 </NotAuthorized>
+                <Authorizing>
+                    <div class="text-center p-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Checking authorization...</span>
+                        </div>
+                    </div>
+                </Authorizing>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="routeData" Selector="h1" />
         </Found>
+        <NotFound>
+            <LayoutView Layout="typeof(Layout.MainLayout)">
+                <div class="text-center p-5">
+                    <h1>Page Not Found</h1>
+                    <p class="lead">The page you're looking for doesn't exist.</p>
+                    <a href="/" class="btn btn-primary">Go Home</a>
+                </div>
+            </LayoutView>
+        </NotFound>
     </Router>
 </CascadingAuthenticationState>
-
-@code {
-    [CascadingParameter]
-    private HttpContext? HttpContext { get; set; }
-}

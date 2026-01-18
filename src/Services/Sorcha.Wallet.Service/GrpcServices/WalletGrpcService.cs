@@ -38,7 +38,7 @@ namespace Sorcha.Wallet.Service.GrpcServices;
 ///   <item>FR-001: Provide wallet access to Validator Service</item>
 ///   <item>FR-012: Root key never exposed</item>
 ///   <item>FR-017: Support derived key retrieval for performance</item>
-///   <item>SC-005: gRPC response time < 100ms (p95)</item>
+///   <item>SC-005: gRPC response time &lt; 100ms (p95)</item>
 /// </list>
 /// </remarks>
 public class WalletGrpcService : Protos.WalletService.WalletServiceBase
@@ -68,7 +68,7 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
     /// verification without requiring additional round trips.
     /// </para>
     ///
-    /// <para><b>Performance:</b> Target p95 < 50ms (database query + mapping)</para>
+    /// <para><b>Performance:</b> Target p95 &lt; 50ms (database query + mapping)</para>
     ///
     /// <para><b>Error Handling:</b></para>
     /// <list type="bullet">
@@ -105,7 +105,7 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
     /// using the wallet's public key.
     /// </para>
     ///
-    /// <para><b>Performance:</b> Target p95 < 80ms (ED25519), < 150ms (RSA4096)</para>
+    /// <para><b>Performance:</b> Target p95 &lt; 80ms (ED25519), &lt; 150ms (RSA4096)</para>
     ///
     /// <para><b>Security:</b></para>
     /// <list type="bullet">
@@ -154,7 +154,7 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
     /// service.
     /// </para>
     ///
-    /// <para><b>Performance:</b> Target p95 < 50ms (all algorithms)</para>
+    /// <para><b>Performance:</b> Target p95 &lt; 50ms (all algorithms)</para>
     ///
     /// <para><b>Error Handling:</b></para>
     /// <list type="bullet">
@@ -202,7 +202,7 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
     ///   <item>Log all derived key retrievals for audit</item>
     /// </list>
     ///
-    /// <para><b>Performance:</b> Target p95 < 100ms (PBKDF2 + BIP32 derivation)</para>
+    /// <para><b>Performance:</b> Target p95 &lt; 100ms (PBKDF2 + BIP32 derivation)</para>
     ///
     /// <para><b>Supported Derivation Paths:</b></para>
     /// <list type="bullet">

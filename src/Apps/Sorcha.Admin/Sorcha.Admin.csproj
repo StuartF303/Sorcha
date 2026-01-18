@@ -4,7 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <NoWarn>$(NoWarn);NU1608</NoWarn>
+    <!-- NU1608: Package version higher than dependency constraint -->
+    <!-- MUD0002: MudBlazor analyzer false positive for valid component properties like Title -->
+    <NoWarn>$(NoWarn);NU1608;MUD0002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

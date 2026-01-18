@@ -307,7 +307,7 @@
         var dialog = await DialogService.ShowAsync<LoadBlueprintDialog>("Load Blueprint", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled && result.Data is string blueprintId)
+        if (result is not null && !result.Canceled && result.Data is string blueprintId)
         {
             await LoadBlueprint(blueprintId);
         }
@@ -323,7 +323,7 @@
         var dialog = await DialogService.ShowAsync<BlueprintPropertiesDialog>("Blueprint Properties", parameters);
         var result = await dialog.Result;
 
-        if (!result.Canceled && result.Data is Blueprint updatedBlueprint)
+        if (result is not null && !result.Canceled && result.Data is Blueprint updatedBlueprint)
         {
             CurrentBlueprint = updatedBlueprint;
             Snackbar.Add("Blueprint properties updated", Severity.Success);

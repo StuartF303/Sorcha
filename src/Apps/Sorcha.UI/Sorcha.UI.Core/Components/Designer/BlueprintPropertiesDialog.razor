@@ -1,0 +1,238 @@
+@using Sorcha.Blueprint.Models
+@using System.Text.Json
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center justify-space-between" style="width: 100%;">
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Settings" Class="mr-2" />
+                Blueprint Properties
+            </MudText>
+            <div>
+                <MudIconButton Icon="@Icons.Material.Filled.Save"
+                               Color="Color.Success"
+                               Size="Size.Small"
+                               OnClick="Save"
+                               Title="Save changes" />
+                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                               Color="Color.Default"
+                               Size="Size.Small"
+                               OnClick="Cancel"
+                               Title="Close without saving" />
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+            <!-- Basic Info Tab -->
+            <MudTabPanel Text="Basic Info">
+                <MudTextField @bind-Value="Blueprint.Title"
+                              Label="Title"
+                              Variant="Variant.Outlined"
+                              Class="mb-3"
+                              Required="true"
+                              HelperText="Name of the blueprint" />
+
+                <MudTextField @bind-Value="Blueprint.Description"
+                              Label="Description"
+                              Variant="Variant.Outlined"
+                              Class="mb-3"
+                              Lines="3"
+                              Required="true"
+                              HelperText="Brief description of what this blueprint does" />
+
+                <MudNumericField @bind-Value="Blueprint.Version"
+                                 Label="Version"
+                                 Variant="Variant.Outlined"
+                                 Class="mb-3"
+                                 Min="1"
+                                 HelperText="Blueprint version number" />
+
+                <MudDivider Class="my-3" />
+
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Workflow Summary</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                    Total Participants: @Blueprint.Participants.Count | Total Actions: @Blueprint.Actions.Count
+                </MudText>
+
+                <MudDivider Class="my-3" />
+
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    ID: @Blueprint.Id
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Created: @Blueprint.CreatedAt.ToString("g")
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Updated: @Blueprint.UpdatedAt.ToString("g")
+                </MudText>
+            </MudTabPanel>
+
+            <!-- Participants Tab -->
+            <MudTabPanel Text="Participants">
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                    Define the participants who can perform actions in this workflow. Each action can then reference these participants.
+                </MudText>
+
+                @if (Blueprint.Participants.Any())
+                {
+                    @foreach (var participant in Blueprint.Participants.Select((p, i) => new { Participant = p, Index = i }))
+                    {
+                        <MudPaper Class="pa-3 mb-3" Outlined="true">
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2">Participant @(participant.Index + 1)</MudText>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               OnClick="@(() => RemoveParticipant(participant.Index))" />
+                            </div>
+
+                            <MudTextField @bind-Value="participant.Participant.Name"
+                                          Label="Name"
+                                          Variant="Variant.Outlined"
+                                          Class="mb-2"
+                                          Required="true" />
+
+                            <MudTextField @bind-Value="participant.Participant.Organisation"
+                                          Label="Organisation"
+                                          Variant="Variant.Outlined"
+                                          Class="mb-2" />
+
+                            <MudTextField @bind-Value="participant.Participant.WalletAddress"
+                                          Label="Wallet Address"
+                                          Variant="Variant.Outlined"
+                                          Class="mb-2" />
+
+                            <MudTextField @bind-Value="participant.Participant.DidUri"
+                                          Label="DID URI"
+                                          Variant="Variant.Outlined" />
+                        </MudPaper>
+                    }
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info">No participants defined. Add at least 2 participants.</MudAlert>
+                }
+
+                <MudButton StartIcon="@Icons.Material.Filled.Add"
+                           Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           OnClick="AddParticipant"
+                           Class="mt-2">
+                    Add Participant
+                </MudButton>
+            </MudTabPanel>
+
+            <!-- Data Schemas Tab -->
+            <MudTabPanel Text="Data Schemas">
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                    Define the data schemas that this blueprint operates on. These schemas define the structure of data passed between actions.
+                </MudText>
+
+                @if (Blueprint.DataSchemas != null && Blueprint.DataSchemas.Any())
+                {
+                    @foreach (var schema in Blueprint.DataSchemas.Select((s, i) => new { Schema = s, Index = i }))
+                    {
+                        <MudPaper Class="pa-3 mb-3" Outlined="true">
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2">Schema @(schema.Index + 1)</MudText>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               OnClick="@(() => RemoveDataSchema(schema.Index))" />
+                            </div>
+
+                            <MudTextField Value="@schema.Schema.RootElement.ToString()"
+                                          Label="JSON Schema"
+                                          Variant="Variant.Outlined"
+                                          Lines="8"
+                                          ReadOnly="true"
+                                          HelperText="View/Edit in JSON format" />
+                        </MudPaper>
+                    }
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info">No data schemas defined. Schemas are optional but recommended.</MudAlert>
+                }
+
+                <MudButton StartIcon="@Icons.Material.Filled.Add"
+                           Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           OnClick="AddDataSchema"
+                           Class="mt-2">
+                    Add Data Schema
+                </MudButton>
+            </MudTabPanel>
+        </MudTabs>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudBlazor.IDialogReference? MudDialog { get; set; }
+
+    [Parameter]
+    public Blueprint Blueprint { get; set; } = new();
+
+    private void AddParticipant()
+    {
+        Blueprint.Participants.Add(new Participant
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = $"Participant {Blueprint.Participants.Count + 1}",
+            Organisation = "",
+            WalletAddress = "",
+            DidUri = ""
+        });
+        StateHasChanged();
+    }
+
+    private void RemoveParticipant(int index)
+    {
+        if (index >= 0 && index < Blueprint.Participants.Count)
+        {
+            Blueprint.Participants.RemoveAt(index);
+            StateHasChanged();
+        }
+    }
+
+    private void AddDataSchema()
+    {
+        // Create a simple empty schema template
+        var emptySchema = JsonDocument.Parse(@"{
+            ""$schema"": ""http://json-schema.org/draft-07/schema#"",
+            ""type"": ""object"",
+            ""properties"": {},
+            ""required"": []
+        }");
+
+        if (Blueprint.DataSchemas == null)
+        {
+            Blueprint.DataSchemas = new List<JsonDocument>();
+        }
+
+        Blueprint.DataSchemas.Add(emptySchema);
+        StateHasChanged();
+    }
+
+    private void RemoveDataSchema(int index)
+    {
+        if (Blueprint.DataSchemas != null && index >= 0 && index < Blueprint.DataSchemas.Count)
+        {
+            Blueprint.DataSchemas.RemoveAt(index);
+            StateHasChanged();
+        }
+    }
+
+    private void Save()
+    {
+        Blueprint.UpdatedAt = DateTimeOffset.UtcNow;
+        MudDialog?.Close(DialogResult.Ok(Blueprint));
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Close();
+    }
+}

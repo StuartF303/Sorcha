@@ -75,7 +75,7 @@ public static class ValidationEndpoints
                 }).ToList(),
                 PayloadHash = request.PayloadHash,
                 Priority = request.Priority,
-                Metadata = request.Metadata
+                Metadata = request.Metadata ?? new Dictionary<string, string>()
             };
 
             // Validate transaction structure

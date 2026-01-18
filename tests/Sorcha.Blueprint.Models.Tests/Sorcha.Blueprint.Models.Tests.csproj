@@ -6,6 +6,9 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!-- Suppress nullable warnings in test code - test assertions handle null cases -->
+    <!-- xUnit1012: Null used for non-nullable InlineData - intentional for null testing -->
+    <NoWarn>$(NoWarn);CS8600;CS8602;CS8604;CS8620;xUnit1012</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

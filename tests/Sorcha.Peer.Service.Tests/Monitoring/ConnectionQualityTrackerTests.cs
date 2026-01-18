@@ -209,8 +209,12 @@ public class ConnectionQualityTrackerTests
 
         // Assert
         quality.Should().NotBeNull();
-        // Just verify it's calculated, exact rating depends on algorithm
+        // Verify rating is at least as good as expected minimum
         quality!.QualityRating.Should().NotBeEmpty();
+        quality.QualityRating.Should().BeOneOf("Excellent", "Good", "Fair", "Poor");
+        // For low latency we expect better ratings
+        if (expectedMinRating == "Excellent")
+            quality.QualityRating.Should().Be("Excellent");
     }
 
     [Fact]

@@ -75,7 +75,7 @@ public class ConditionBuilder
 
         if (_routes.Count == 1 && _elseParticipantId == null)
         {
-            return _routes[0].Condition;
+            return _routes[0].Condition ?? JsonNode.Parse("{\"==\":[0,0]}")!;
         }
 
         // Build nested if-then-else structure

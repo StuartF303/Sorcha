@@ -14,6 +14,7 @@
     <ProjectReference Include="..\..\Common\Sorcha.ServiceClients\Sorcha.ServiceClients.csproj" />
     <ProjectReference Include="..\..\Core\Sorcha.Register.Core\Sorcha.Register.Core.csproj" />
     <ProjectReference Include="..\..\Core\Sorcha.Register.Storage.InMemory\Sorcha.Register.Storage.InMemory.csproj" />
+    <ProjectReference Include="..\..\Core\Sorcha.Register.Storage.MongoDB\Sorcha.Register.Storage.MongoDB.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,7 +23,7 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.OData" Version="9.4.1" />
     <PackageReference Include="MongoDB.Driver" Version="3.5.2" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.11.10" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.12.4" />
   </ItemGroup>
 
 </Project>

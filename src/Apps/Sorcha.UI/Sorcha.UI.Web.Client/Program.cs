@@ -1,6 +1,9 @@
+using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
+using Sorcha.Blueprint.Schemas;
 using Sorcha.UI.Core.Extensions;
+using Sorcha.UI.Core.Services.Authentication;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
@@ -19,4 +22,28 @@ builder.Services.AddMudServices(config =>
     config.SnackbarConfiguration.HideTransitionDuration = 300;
 });
 
-await builder.Build().RunAsync();
+// Add local storage for WASM pages (blueprints, schemas, user preferences)
+builder.Services.AddBlazoredLocalStorage();
+
+// Add schema library service with caching (for designer and schema library pages)
+builder.Services.AddScoped<ISchemaCacheService, LocalStorageSchemaCacheService>();
+builder.Services.AddScoped<SchemaLibraryService>(sp =>
+{
+    var cacheService = sp.GetRequiredService<ISchemaCacheService>();
+    var schemaLibrary = new SchemaLibraryService(cacheService);
+
+    // Add SchemaStore repository with HttpClient
+    var httpClient = sp.GetRequiredService<HttpClient>();
+    schemaLibrary.AddRepository(new SchemaStoreRepository(httpClient));
+
+    return schemaLibrary;
+});
+
+var host = builder.Build();
+
+// Sync auth state from server cookie to WASM LocalStorage
+// This picks up tokens from the server-side login flow
+var authStateSync = host.Services.GetRequiredService<AuthStateSync>();
+await authStateSync.SyncAuthStateAsync();
+
+await host.RunAsync();

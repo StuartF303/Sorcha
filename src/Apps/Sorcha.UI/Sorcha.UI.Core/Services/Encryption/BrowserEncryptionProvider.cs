@@ -3,17 +3,47 @@ using Microsoft.JSInterop;
 namespace Sorcha.UI.Core.Services.Encryption;
 
 /// <summary>
-/// Browser-based encryption provider using Web Crypto API
+/// Browser-based encryption provider using Web Crypto API.
+/// Persists encryption key in LocalStorage to survive page refreshes.
 /// </summary>
 public class BrowserEncryptionProvider : IEncryptionProvider
 {
+    private const string KeyStorageKey = "sorcha:encryption-key";
     private readonly IJSRuntime _jsRuntime;
-    private readonly Lazy<Task<string>> _encryptionKey;
+    private string? _cachedKey;
 
     public BrowserEncryptionProvider(IJSRuntime jsRuntime)
     {
         _jsRuntime = jsRuntime;
-        _encryptionKey = new Lazy<Task<string>>(async () => await GenerateKeyAsync());
+    }
+
+    /// <summary>
+    /// Gets or creates the encryption key.
+    /// Key is persisted in LocalStorage to survive page refreshes.
+    /// </summary>
+    private async Task<string> GetOrCreateKeyAsync()
+    {
+        // Return cached key if available
+        if (!string.IsNullOrEmpty(_cachedKey))
+        {
+            return _cachedKey;
+        }
+
+        // Try to load existing key from LocalStorage
+        var existingKey = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", KeyStorageKey);
+        
+        if (!string.IsNullOrEmpty(existingKey))
+        {
+            _cachedKey = existingKey;
+            return existingKey;
+        }
+
+        // Generate new key and persist it
+        var newKey = await GenerateKeyAsync();
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", KeyStorageKey, newKey);
+        _cachedKey = newKey;
+        
+        return newKey;
     }
 
     /// <inheritdoc />
@@ -24,7 +54,7 @@ public class BrowserEncryptionProvider : IEncryptionProvider
             throw new ArgumentException("Plaintext cannot be null or empty", nameof(plaintext));
         }
 
-        var key = await _encryptionKey.Value;
+        var key = await GetOrCreateKeyAsync();
         return await _jsRuntime.InvokeAsync<string>(
             "EncryptionHelper.encrypt",
             plaintext,
@@ -45,7 +75,7 @@ public class BrowserEncryptionProvider : IEncryptionProvider
             throw new ArgumentException("Invalid ciphertext format. Expected: {iv}:{ciphertext}", nameof(ciphertext));
         }
 
-        var key = await _encryptionKey.Value;
+        var key = await GetOrCreateKeyAsync();
         return await _jsRuntime.InvokeAsync<string>(
             "EncryptionHelper.decrypt",
             ciphertext,

@@ -5,12 +5,27 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <!-- NU1608: Package version higher than dependency constraint -->
+    <!-- MUD0002: MudBlazor analyzer false positive for valid component properties like Title -->
+    <NoWarn>$(NoWarn);NU1608;MUD0002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sorcha.UI.Web.Client\Sorcha.UI.Web.Client.csproj" />
+    <!-- Server-side packages -->
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.1" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
     <PackageReference Include="MudBlazor" Version="8.15.0" />
+    <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
+    <PackageReference Include="JsonLogic" Version="5.5.0" />
+    <PackageReference Include="JsonSchema.Net" Version="8.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sorcha.UI.Web.Client\Sorcha.UI.Web.Client.csproj" />
+    <ProjectReference Include="..\Sorcha.UI.Core\Sorcha.UI.Core.csproj" />
+    <ProjectReference Include="..\..\..\Common\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
+    <ProjectReference Include="..\..\..\Core\Sorcha.Blueprint.Fluent\Sorcha.Blueprint.Fluent.csproj" />
+    <ProjectReference Include="..\..\..\Core\Sorcha.Blueprint.Schemas\Sorcha.Blueprint.Schemas.csproj" />
   </ItemGroup>
 
 </Project>

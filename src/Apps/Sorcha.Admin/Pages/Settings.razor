@@ -373,7 +373,7 @@
         var dialog = await DialogService.ShowAsync<AddSchemaProviderDialog>("Add Schema Provider", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled && result.Data is SchemaProvider newProvider)
+        if (result is not null && !result.Canceled && result.Data is SchemaProvider newProvider)
         {
             schemaProviders.Add(newProvider);
             await SaveSchemaProviders();
@@ -454,7 +454,7 @@
         var dialog = await DialogService.ShowAsync<ProfileEditorDialog>("Edit Profile", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result is not null && !result.Canceled)
         {
             await LoadConfiguration();
             Snackbar.Add($"Profile '{profile.Name}' updated successfully", Severity.Success);
@@ -481,7 +481,7 @@
         var dialog = await DialogService.ShowAsync<ProfileEditorDialog>("New Profile", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result is not null && !result.Canceled)
         {
             await LoadConfiguration();
             Snackbar.Add($"Profile '{newProfile.Name}' created successfully", Severity.Success);

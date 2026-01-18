@@ -1,10 +1,13 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using Sorcha.Cryptography;
 using Sorcha.Cryptography.Core;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.Wallet.Core.Data;
+using Sorcha.Wallet.Core.Encryption.Configuration;
 using Sorcha.Wallet.Core.Encryption.Interfaces;
 using Sorcha.Wallet.Core.Encryption.Providers;
 using Sorcha.Wallet.Core.Events.Interfaces;
@@ -38,7 +41,7 @@ public static class WalletServiceExtensions
         services.AddSingleton<IWalletUtilities, Sorcha.Cryptography.Utilities.WalletUtilities>();
 
         // Register infrastructure services
-        services.AddSingleton<IEncryptionProvider, LocalEncryptionProvider>();
+        services.AddEncryptionProvider(configuration);
         services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
 
         // Register database and repository
@@ -177,6 +180,140 @@ public static class WalletServiceExtensions
             logger.LogError(ex, "An error occurred while applying Wallet Service migrations");
             throw;
         }
+    }
+
+    /// <summary>
+    /// Adds encryption provider based on configuration
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <param name="configuration">Application configuration</param>
+    /// <returns>The service collection for chaining</returns>
+    private static IServiceCollection AddEncryptionProvider(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Bind configuration options
+        services.Configure<EncryptionProviderOptions>(
+            configuration.GetSection(EncryptionProviderOptions.SectionName));
+
+        // Register encryption provider factory
+        services.AddSingleton<IEncryptionProvider>(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<EncryptionProviderOptions>>().Value;
+            var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+
+            return options.Type.ToLowerInvariant() switch
+            {
+                "windowsdpapi" => CreateWindowsDpapiProvider(options, loggerFactory),
+                "linuxsecretservice" => CreateLinuxSecretServiceProvider(options, loggerFactory),
+                "local" => CreateLocalProvider(options, loggerFactory),
+                _ => CreateLocalProviderWithWarning(options, loggerFactory)
+            };
+        });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Creates Windows DPAPI encryption provider
+    /// </summary>
+    private static IEncryptionProvider CreateWindowsDpapiProvider(
+        EncryptionProviderOptions options,
+        ILoggerFactory loggerFactory)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            var fallbackLogger = loggerFactory.CreateLogger("Sorcha.Wallet.Service.Extensions.WalletServiceExtensions");
+            fallbackLogger.LogWarning(
+                "Windows DPAPI provider requested but not running on Windows. Falling back to LocalEncryptionProvider.");
+            return new LocalEncryptionProvider(
+                loggerFactory.CreateLogger<LocalEncryptionProvider>());
+        }
+
+        var dpapiOptions = options.WindowsDpapi ?? new WindowsDpapiOptions();
+
+        // Parse DataProtectionScope
+        var scope = dpapiOptions.Scope.ToLowerInvariant() switch
+        {
+            "currentuser" => DataProtectionScope.CurrentUser,
+            "localmachine" => DataProtectionScope.LocalMachine,
+            _ => DataProtectionScope.LocalMachine
+        };
+
+        var logger = loggerFactory.CreateLogger<WindowsDpapiEncryptionProvider>();
+        logger.LogInformation(
+            "Initializing Windows DPAPI encryption provider. KeyStorePath: {KeyStorePath}, Scope: {Scope}, DefaultKeyId: {DefaultKeyId}",
+            dpapiOptions.KeyStorePath,
+            scope,
+            options.DefaultKeyId);
+
+        return new WindowsDpapiEncryptionProvider(
+            keyStorePath: dpapiOptions.KeyStorePath,
+            defaultKeyId: options.DefaultKeyId,
+            scope: scope,
+            logger: logger);
+    }
+
+    /// <summary>
+    /// Creates Linux Secret Service encryption provider
+    /// </summary>
+    private static IEncryptionProvider CreateLinuxSecretServiceProvider(
+        EncryptionProviderOptions options,
+        ILoggerFactory loggerFactory)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            var fallbackLogger = loggerFactory.CreateLogger("Sorcha.Wallet.Service.Extensions.WalletServiceExtensions");
+            fallbackLogger.LogWarning(
+                "Linux Secret Service provider requested but not running on Linux. Falling back to LocalEncryptionProvider.");
+            return new LocalEncryptionProvider(
+                loggerFactory.CreateLogger<LocalEncryptionProvider>());
+        }
+
+        var linuxOptions = options.LinuxSecretService ?? new LinuxSecretServiceOptions();
+
+        var logger = loggerFactory.CreateLogger<LinuxSecretServiceEncryptionProvider>();
+        logger.LogInformation(
+            "Initializing Linux Secret Service encryption provider. FallbackPath: {FallbackPath}, DefaultKeyId: {DefaultKeyId}",
+            linuxOptions.FallbackKeyStorePath,
+            options.DefaultKeyId);
+
+        return new LinuxSecretServiceEncryptionProvider(
+            fallbackKeyPath: linuxOptions.FallbackKeyStorePath,
+            defaultKeyId: options.DefaultKeyId,
+            logger: logger);
+    }
+
+    /// <summary>
+    /// Creates local encryption provider (development only)
+    /// </summary>
+    private static IEncryptionProvider CreateLocalProvider(
+        EncryptionProviderOptions options,
+        ILoggerFactory loggerFactory)
+    {
+        var logger = loggerFactory.CreateLogger<LocalEncryptionProvider>();
+        logger.LogWarning(
+            "Using LocalEncryptionProvider (development only). Keys will be lost on service restart. " +
+            "For production, use WindowsDpapi, LinuxSecretService, or AzureKeyVault.");
+
+        return new LocalEncryptionProvider(logger);
+    }
+
+    /// <summary>
+    /// Creates local provider with warning about invalid configuration
+    /// </summary>
+    private static IEncryptionProvider CreateLocalProviderWithWarning(
+        EncryptionProviderOptions options,
+        ILoggerFactory loggerFactory)
+    {
+        var logger = loggerFactory.CreateLogger("Sorcha.Wallet.Service.Extensions.WalletServiceExtensions");
+        logger.LogError(
+            "Invalid encryption provider type: {ProviderType}. Falling back to LocalEncryptionProvider. " +
+            "Valid types: Local, WindowsDpapi, LinuxSecretService, MacOsKeychain, AzureKeyVault",
+            options.Type);
+
+        return new LocalEncryptionProvider(
+            loggerFactory.CreateLogger<LocalEncryptionProvider>());
     }
 }
 

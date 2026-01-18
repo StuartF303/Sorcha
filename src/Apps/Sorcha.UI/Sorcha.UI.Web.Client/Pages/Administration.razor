@@ -1,0 +1,57 @@
+@page "/admin"
+@rendermode InteractiveWebAssembly
+@attribute [Authorize]
+
+<PageTitle>Administration - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Class="mr-2" />
+        Administration
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        Monitor and manage Sorcha platform services
+    </MudText>
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+        <MudTabPanel Text="Blueprint Service" Icon="@Icons.Material.Filled.Api">
+            <BlueprintServiceAdmin />
+        </MudTabPanel>
+        <MudTabPanel Text="Peer Service" Icon="@Icons.Material.Filled.Hub">
+            <PeerServiceAdmin />
+        </MudTabPanel>
+        <MudTabPanel Text="System Health" Icon="@Icons.Material.Filled.HealthAndSafety">
+            <MudAlert Severity="Severity.Info" Class="mb-4">
+                System health monitoring coming soon...
+            </MudAlert>
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudPaper Elevation="2" Class="pa-4 text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Class="mt-2">All Systems Operational</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">No issues detected</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudPaper Elevation="2" Class="pa-4 text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Storage" Color="Color.Info" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Class="mt-2">Database</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">PostgreSQL / MongoDB</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudPaper Elevation="2" Class="pa-4 text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Warning" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Class="mt-2">Security</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">TLS Enabled</MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+        <MudTabPanel Text="Audit Log" Icon="@Icons.Material.Filled.History">
+            <MudAlert Severity="Severity.Info">
+                Audit logging will be implemented in a future version.
+            </MudAlert>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>

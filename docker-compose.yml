@@ -140,12 +140,19 @@ services:
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: wallet-service
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
       ConnectionStrings__wallet-db: Host=postgres;Database=sorcha_wallet;Username=sorcha;Password=sorcha_dev_password;Timeout=30;Command Timeout=30
+      # Encryption Provider Configuration
+      # LinuxSecretService with fallback to file-based key storage (Docker doesn't have D-Bus)
+      EncryptionProvider__Type: LinuxSecretService
+      EncryptionProvider__DefaultKeyId: wallet-master-key-2025
+      EncryptionProvider__LinuxSecretService__ServiceName: sorcha-wallet-service
+      EncryptionProvider__LinuxSecretService__FallbackKeyStorePath: /var/lib/sorcha/wallet-keys
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
+      - wallet-encryption-keys:/var/lib/sorcha/wallet-keys
     depends_on:
       redis:
         condition: service_healthy
@@ -175,6 +182,14 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
       ConnectionStrings__MongoDB: mongodb://sorcha:sorcha_dev_password@mongodb:27017
+      # Configure MongoDB storage (production-ready persistence)
+      RegisterStorage__Type: MongoDB
+      RegisterStorage__MongoDB__ConnectionString: mongodb://sorcha:sorcha_dev_password@mongodb:27017
+      RegisterStorage__MongoDB__DatabaseName: sorcha_register
+      RegisterStorage__MongoDB__RegisterCollectionName: registers
+      RegisterStorage__MongoDB__TransactionCollectionName: transactions
+      RegisterStorage__MongoDB__DocketCollectionName: dockets
+      RegisterStorage__MongoDB__CreateIndexesOnStartup: "true"
       ServiceClients__WalletService__Address: http://sorcha-wallet-service:8080
       ServiceClients__WalletService__UseGrpc: "false"
       ServiceClients__ValidatorService__Address: http://sorcha-validator-service:8080
@@ -411,3 +426,4 @@ volumes:
   postgres-data:
   mongodb-data:
   dataprotection-keys:
+  wallet-encryption-keys:

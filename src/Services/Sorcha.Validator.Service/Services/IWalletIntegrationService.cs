@@ -42,9 +42,9 @@ namespace Sorcha.Validator.Service.Services;
 ///   <item>FR-003: Sign all dockets before broadcasting</item>
 ///   <item>FR-004: Sign all consensus votes</item>
 ///   <item>FR-005: Verify peer vote signatures</item>
-///   <item>SC-001: Wallet initialization < 5 seconds</item>
+///   <item>SC-001: Wallet initialization &lt; 5 seconds</item>
 ///   <item>SC-003: Sign 10+ dockets/second</item>
-///   <item>SC-004: Verify signatures < 100ms/vote</item>
+///   <item>SC-004: Verify signatures &lt; 100ms/vote</item>
 /// </list>
 /// </remarks>
 public interface IWalletIntegrationService
@@ -73,7 +73,7 @@ public interface IWalletIntegrationService
     /// <list type="bullet">
     ///   <item>FR-002: MUST cache wallet details for service lifetime</item>
     ///   <item>FR-015: MUST detect and handle wallet rotation</item>
-    ///   <item>SC-001: Wallet initialization < 5 seconds</item>
+    ///   <item>SC-001: Wallet initialization &lt; 5 seconds</item>
     /// </list>
     /// </remarks>
     /// <exception cref="InvalidOperationException">
@@ -171,7 +171,7 @@ public interface IWalletIntegrationService
     /// <list type="bullet">
     ///   <item>FR-005: MUST verify peer vote signatures</item>
     ///   <item>FR-017: MAY use local crypto for verification</item>
-    ///   <item>SC-004: Verify signatures < 100ms/vote</item>
+    ///   <item>SC-004: Verify signatures &lt; 100ms/vote</item>
     /// </list>
     /// </remarks>
     Task<bool> VerifySignatureAsync(

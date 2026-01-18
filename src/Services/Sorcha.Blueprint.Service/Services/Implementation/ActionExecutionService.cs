@@ -363,7 +363,7 @@ public class ActionExecutionService : IActionExecutionService
                 {
                     // Evaluate JSON Logic condition
                     // Using JsonLogic.NET or similar library
-                    conditionMatches = EvaluateJsonLogicCondition(route.Condition.ToString(), flattenedData);
+                    conditionMatches = EvaluateJsonLogicCondition(route.Condition.ToString(), flattenedData!);
                 }
 
                 if (conditionMatches)
