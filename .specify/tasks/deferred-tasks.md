@@ -1,0 +1,49 @@
+# Deferred Tasks
+
+**These tasks are not required for MVD and will be addressed post-launch.**
+
+**Back to:** [MASTER-TASKS.md](../MASTER-TASKS.md)
+
+---
+
+## Peer Service Transaction Processing
+
+| ID | Task | Priority | Effort | Status | Notes |
+|----|------|----------|--------|--------|-------|
+| PEER-1 | Transaction processing loop | P3 | 12h | 📋 Deferred | Sprint 4 originally planned |
+| PEER-2 | Transaction distribution | P3 | 10h | 📋 Deferred | P2P gossip protocol |
+| PEER-3 | Streaming communication | P3 | 8h | 📋 Deferred | gRPC streaming |
+
+---
+
+## Tenant Service Full Implementation
+
+| ID | Task | Priority | Effort | Status | Notes |
+|----|------|----------|--------|--------|-------|
+| TENANT-1 | Multi-tenant data isolation | P3 | 16h | 📋 Deferred | Use simple provider for MVD |
+| TENANT-2 | Azure AD integration | P3 | 12h | 📋 Deferred | Full identity federation |
+| TENANT-3 | Billing and metering | P3 | 20h | 📋 Deferred | Enterprise feature |
+
+---
+
+## Advanced Features
+
+| ID | Task | Priority | Effort | Status | Notes |
+|----|------|----------|--------|--------|-------|
+| ADV-1 | Smart contract support | P3 | 40h | 📋 Deferred | Future roadmap |
+| ADV-2 | Advanced consensus | P3 | 32h | 📋 Deferred | Beyond simple Register |
+| ADV-3 | External SDK development | P3 | 24h | 📋 Deferred | Developer ecosystem |
+| ADV-4 | Blueprint marketplace | P3 | 30h | 📋 Deferred | Community feature |
+
+---
+
+## Summary
+
+**Total Deferred Tasks:** 10
+**Total Deferred Effort:** 204 hours (~5 weeks)
+
+These tasks represent features that enhance the platform but are not critical for the Minimum Viable Deliverable (MVD). They can be prioritized for post-MVD development based on user feedback and business requirements.
+
+---
+
+**Back to:** [MASTER-TASKS.md](../MASTER-TASKS.md)
