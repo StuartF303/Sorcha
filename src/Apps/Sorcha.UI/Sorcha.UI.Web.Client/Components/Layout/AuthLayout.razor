@@ -1,0 +1,23 @@
+@inherits LayoutComponentBase
+
+<div class="auth-layout">
+    <div class="auth-container">
+        @Body
+    </div>
+</div>
+
+<style>
+    .auth-layout {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        padding: 2rem;
+    }
+
+    .auth-container {
+        width: 100%;
+        max-width: 450px;
+    }
+</style>

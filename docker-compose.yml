@@ -174,7 +174,7 @@ services:
     container_name: sorcha-register-service
     restart: unless-stopped
     ports:
-      - "5290:8080"  # Exposed for walkthrough testing
+      - "5380:8080"  # Exposed for walkthrough testing (5290 is in Windows excluded range)
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: register-service
@@ -214,7 +214,7 @@ services:
     container_name: sorcha-tenant-service
     restart: unless-stopped
     ports:
-      - "5110:8080"  # Exposed for direct access during development/bootstrap
+      - "5450:8080"  # Exposed for direct access during development/bootstrap (5110 is in Windows excluded range)
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: tenant-service
@@ -323,8 +323,8 @@ services:
     container_name: sorcha-validator-service
     restart: unless-stopped
     ports:
-      - "5100:8080"        # HTTP REST API and health checks
-      - "5101:8081"        # gRPC endpoint
+      - "5800:8080"        # HTTP REST API and health checks (5100/5460 in Windows excluded ranges)
+      - "5801:8081"        # gRPC endpoint
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: validator-service
@@ -350,8 +350,8 @@ services:
     container_name: sorcha-ui-web
     restart: unless-stopped
     ports:
-      - "5173:8080"  # HTTP - Map to localhost:5173 for consistency with dev environment
-      - "5174:8443"  # HTTPS - Map to localhost:5174 (API Gateway uses 443)
+      - "5400:8080"  # HTTP - Map to localhost:5400 (5173 is in Windows excluded range)
+      - "5401:8443"  # HTTPS - Map to localhost:5401
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: ui-web

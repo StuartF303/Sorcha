@@ -12,17 +12,10 @@
     <ToolCommandName>sorcha</ToolCommandName>
     <PackageId>Sorcha.Cli</PackageId>
 
-    <!-- Auto-incrementing version for development -->
-    <!-- Format: 1.0.Patch+build.timestamp -->
-    <!-- Uses day-of-year for patch (1-366), build metadata for hour+minute -->
-    <!-- Example: 1.0.5+build.1430 (5th day of year, built at 14:30 UTC) -->
-    <VersionPrefix>1.0.$([System.DateTime]::UtcNow.DayOfYear)</VersionPrefix>
-    <VersionSuffix>build.$([System.DateTime]::UtcNow.ToString(HHmm))</VersionSuffix>
+    <!-- Stable version for development -->
+    <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
-
-    <!-- Use non-deterministic build for timestamp-based versioning -->
-    <Deterministic>false</Deterministic>
 
     <Authors>Sorcha Project</Authors>
     <Description>Administrative CLI tool for managing Sorcha distributed ledger platform</Description>
