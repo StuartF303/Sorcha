@@ -222,13 +222,14 @@ public static class Extensions
             {
                 // UI apps (Blazor WASM, Scalar) require scripts and styles to function
                 // Blazor WebAssembly specifically needs 'unsafe-eval' for .NET runtime
+                // Allow connections to localhost on any port for Aspire development scenarios
                 context.Response.Headers["Content-Security-Policy"] =
                     "default-src 'self'; " +
                     "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; " +
                     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
                     "img-src 'self' data: https:; " +
                     "font-src 'self' data: https://fonts.gstatic.com; " +
-                    "connect-src 'self' ws: wss:; " +
+                    "connect-src 'self' https://localhost:* http://localhost:* wss://localhost:* ws://localhost:*; " +
                     "worker-src 'self' blob:; " +
                     "manifest-src 'self'; " +
                     "frame-ancestors 'none'";

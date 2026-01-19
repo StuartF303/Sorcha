@@ -9,10 +9,11 @@ namespace Sorcha.UI.Core.Services;
 public class ApiConfiguration
 {
     /// <summary>
-    /// Base URL for the API Gateway
-    /// In production, this would come from configuration
+    /// Base URL for the API Gateway.
+    /// Empty string means relative URLs (same origin), which works when served through the gateway.
+    /// For local development with Aspire, set to "https://localhost:7082".
     /// </summary>
-    public static string GatewayBaseUrl { get; set; } = "https://localhost:7082";
+    public static string GatewayBaseUrl { get; set; } = "";
 
     /// <summary>
     /// Blueprint API endpoint (via gateway)

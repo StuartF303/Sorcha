@@ -4,15 +4,17 @@
 namespace Sorcha.Admin.Services;
 
 /// <summary>
-/// Configuration for API endpoints
+/// Configuration for API endpoints.
+/// Uses relative URLs by default so requests go through the same origin (API Gateway proxy).
 /// </summary>
 public class ApiConfiguration
 {
     /// <summary>
-    /// Base URL for the API Gateway
-    /// In production, this would come from configuration
+    /// Base URL for the API Gateway.
+    /// Empty string means relative URLs (same origin) - ideal for WASM apps behind a proxy.
+    /// Can be set to an absolute URL for direct API Gateway access in development.
     /// </summary>
-    public static string GatewayBaseUrl { get; set; } = "https://localhost:7082";
+    public static string GatewayBaseUrl { get; set; } = "";
 
     /// <summary>
     /// Blueprint API endpoint (via gateway)

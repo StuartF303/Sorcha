@@ -321,6 +321,47 @@ app.MapGet("/api/peers/connected", (PeerListManager peerListManager, HttpContext
     .WithTags("Peers")
     .AllowAnonymous();
 
+// Service health check with metrics (for admin dashboard)
+app.MapGet("/api/health", (PeerListManager peerListManager, StatisticsAggregator statisticsAggregator) =>
+{
+    try
+    {
+        var allPeers = peerListManager.GetAllPeers();
+        var healthyPeers = peerListManager.GetHealthyPeers();
+        var stats = statisticsAggregator.GetStatistics();
+
+        return Results.Ok(new
+        {
+            status = "healthy",
+            service = "peer-service",
+            timestamp = DateTimeOffset.UtcNow,
+            version = "1.0.0",
+            uptime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString(@"dd\.hh\:mm\:ss"),
+            metrics = new
+            {
+                totalPeers = stats.PeerStats.TotalPeers,
+                healthyPeers = stats.PeerStats.HealthyPeers,
+                unhealthyPeers = stats.PeerStats.UnhealthyPeers,
+                averageLatencyMs = stats.PeerStats.AverageLatencyMs,
+                queueSize = stats.QueueStats.QueueSize
+            }
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new
+        {
+            status = "unhealthy",
+            service = "peer-service",
+            timestamp = DateTimeOffset.UtcNow,
+            error = ex.Message
+        }, statusCode: 503);
+    }
+})
+.WithName("HealthCheck")
+.WithSummary("Service health check with metrics")
+.WithTags("Health");
+
 app.Run();
 
 // Make the implicit Program class accessible to integration tests
