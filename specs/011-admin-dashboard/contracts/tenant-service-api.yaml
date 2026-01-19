@@ -1,0 +1,504 @@
+# Tenant Service API Contract (Existing)
+# These endpoints already exist - documenting for UI implementation reference
+
+openapi: 3.0.3
+info:
+  title: Tenant Service - Admin Dashboard Endpoints
+  version: 1.0.0
+  description: |
+    Existing Tenant Service endpoints consumed by the Admin Dashboard.
+    All endpoints require JWT Bearer authentication.
+
+servers:
+  - url: /api
+    description: Tenant Service via API Gateway
+
+paths:
+  /organizations:
+    get:
+      operationId: ListOrganizations
+      summary: List all organizations
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Organization list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Requires Administrator role
+
+    post:
+      operationId: CreateOrganization
+      summary: Create new organization
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+
+  /organizations/{id}:
+    get:
+      operationId: GetOrganization
+      summary: Get organization by ID
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Organization details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+        '404':
+          description: Not found
+
+    put:
+      operationId: UpdateOrganization
+      summary: Update organization
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationRequest'
+      responses:
+        '200':
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+        '404':
+          description: Not found
+        '403':
+          description: Requires Administrator role
+
+    delete:
+      operationId: DeactivateOrganization
+      summary: Deactivate organization (soft delete)
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Organization deactivated
+        '404':
+          description: Not found
+        '403':
+          description: Requires Administrator role
+
+  /organizations/stats:
+    get:
+      operationId: GetOrganizationStats
+      summary: Get platform statistics
+      tags: [Organizations]
+      responses:
+        '200':
+          description: Platform KPIs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationStatsResponse'
+
+  /organizations/validate-subdomain/{subdomain}:
+    get:
+      operationId: ValidateSubdomain
+      summary: Validate subdomain availability
+      tags: [Organizations]
+      parameters:
+        - name: subdomain
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subdomain is valid and available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubdomainValidationResponse'
+        '400':
+          description: Subdomain is invalid or unavailable
+
+  /organizations/{organizationId}/users:
+    get:
+      operationId: GetOrganizationUsers
+      summary: List organization users
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: includeInactive
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+
+    post:
+      operationId: AddUserToOrganization
+      summary: Add user to organization
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddUserToOrganizationRequest'
+      responses:
+        '201':
+          description: User added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation error
+        '403':
+          description: Requires Administrator role
+
+  /organizations/{organizationId}/users/{userId}:
+    get:
+      operationId: GetOrganizationUser
+      summary: Get user details
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: Not found
+
+    put:
+      operationId: UpdateOrganizationUser
+      summary: Update user
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '403':
+          description: Requires Administrator role
+        '404':
+          description: Not found
+
+    delete:
+      operationId: RemoveUserFromOrganization
+      summary: Remove user from organization
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: User removed
+        '403':
+          description: Requires Administrator role
+        '404':
+          description: Not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateOrganizationRequest:
+      type: object
+      required: [name, subdomain]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        subdomain:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
+        branding:
+          $ref: '#/components/schemas/BrandingConfiguration'
+
+    UpdateOrganizationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/OrganizationStatus'
+        branding:
+          $ref: '#/components/schemas/BrandingConfiguration'
+
+    OrganizationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        subdomain:
+          type: string
+        status:
+          $ref: '#/components/schemas/OrganizationStatus'
+        createdAt:
+          type: string
+          format: date-time
+        branding:
+          $ref: '#/components/schemas/BrandingConfiguration'
+
+    OrganizationListResponse:
+      type: object
+      properties:
+        organizations:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrganizationResponse'
+        totalCount:
+          type: integer
+
+    OrganizationStatsResponse:
+      type: object
+      properties:
+        totalOrganizations:
+          type: integer
+        totalUsers:
+          type: integer
+
+    OrganizationStatus:
+      type: string
+      enum: [Active, Suspended, Deleted]
+
+    BrandingConfiguration:
+      type: object
+      properties:
+        logoUrl:
+          type: string
+          format: uri
+        primaryColor:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        secondaryColor:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        companyTagline:
+          type: string
+
+    SubdomainValidationResponse:
+      type: object
+      properties:
+        subdomain:
+          type: string
+        isValid:
+          type: boolean
+        errorMessage:
+          type: string
+
+    AddUserToOrganizationRequest:
+      type: object
+      required: [email, displayName, externalIdpUserId]
+      properties:
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        externalIdpUserId:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+          default: [Member]
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/IdentityStatus'
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        email:
+          type: string
+        displayName:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/IdentityStatus'
+        createdAt:
+          type: string
+          format: date-time
+        lastLoginAt:
+          type: string
+          format: date-time
+
+    UserListResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        totalCount:
+          type: integer
+
+    UserRole:
+      type: string
+      enum: [Administrator, SystemAdmin, Designer, Developer, User, Consumer, Auditor, Member]
+
+    IdentityStatus:
+      type: string
+      enum: [Active, Suspended, Deleted]

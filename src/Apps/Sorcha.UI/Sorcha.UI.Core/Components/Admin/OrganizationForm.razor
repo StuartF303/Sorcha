@@ -1,0 +1,346 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor.Utilities
+@using Sorcha.UI.Core.Services
+@inject IOrganizationAdminService OrganizationService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(IsEdit ? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)" Class="mr-2" />
+            @(IsEdit ? "Edit Organization" : "Create Organization")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudStack Spacing="4">
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+                }
+
+                @* Basic Information Section *@
+                <MudText Typo="Typo.subtitle1" Class="mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+                    Basic Information
+                </MudText>
+
+                <MudTextField @bind-Value="_name"
+                              Label="Organization Name"
+                              Placeholder="Enter organization name"
+                              Required="true"
+                              RequiredError="Organization name is required"
+                              Immediate="true"
+                              Variant="Variant.Outlined"
+                              aria-label="Name" />
+
+                <MudTextField @bind-Value="_subdomain"
+                              Label="Subdomain"
+                              Placeholder="Enter subdomain (e.g., acme)"
+                              Required="true"
+                              RequiredError="Subdomain is required"
+                              Immediate="true"
+                              Disabled="IsEdit"
+                              HelperText="@(IsEdit ? "Subdomain cannot be changed after creation" : "Must be lowercase letters, numbers, and hyphens only")"
+                              Variant="Variant.Outlined"
+                              TextChanged="OnSubdomainChangedAsync"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@GetSubdomainValidationIcon()"
+                              AdornmentColor="@GetSubdomainValidationColor()"
+                              aria-label="Subdomain" />
+
+                @if (!string.IsNullOrEmpty(_subdomainValidationMessage))
+                {
+                    <MudText Typo="Typo.caption" Color="@(_subdomainIsValid ? Color.Success : Color.Error)">
+                        @_subdomainValidationMessage
+                    </MudText>
+                }
+
+                @* Branding Section *@
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1">
+                    <MudIcon Icon="@Icons.Material.Filled.Palette" Size="Size.Small" Class="mr-1" />
+                    Branding Configuration
+                </MudText>
+
+                <MudTextField @bind-Value="_logoUrl"
+                              Label="Logo URL"
+                              Placeholder="https://example.com/logo.png"
+                              Variant="Variant.Outlined"
+                              aria-label="Logo URL" />
+
+                <MudStack Row="true" Spacing="2">
+                    <MudColorPicker @bind-Value="_primaryColor"
+                                    Label="Primary Color"
+                                    Variant="Variant.Outlined"
+                                    PickerVariant="PickerVariant.Inline"
+                                    DisableToolbar="true"
+                                    Style="flex: 1" />
+                    <MudColorPicker @bind-Value="_secondaryColor"
+                                    Label="Secondary Color"
+                                    Variant="Variant.Outlined"
+                                    PickerVariant="PickerVariant.Inline"
+                                    DisableToolbar="true"
+                                    Style="flex: 1" />
+                </MudStack>
+
+                <MudTextField @bind-Value="_companyTagline"
+                              Label="Company Tagline"
+                              Placeholder="Your company tagline or motto"
+                              Variant="Variant.Outlined"
+                              aria-label="Tagline" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_isSaving">Cancel</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="SubmitAsync"
+                   Disabled="@(!_isValid || _isSaving || (!IsEdit && !_subdomainIsValid))">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @(IsEdit ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    [Parameter]
+    public OrganizationDto? Organization { get; set; }
+
+    private MudForm? _form;
+    private bool _isValid;
+    private bool _isSaving;
+    private string? _error;
+
+    // Form fields
+    private string _name = string.Empty;
+    private string _subdomain = string.Empty;
+    private string? _logoUrl;
+    private MudColor _primaryColor = new("#1976D2");
+    private MudColor _secondaryColor = new("#424242");
+    private string? _companyTagline;
+
+    // Subdomain validation
+    private bool _subdomainIsValid;
+    private string? _subdomainValidationMessage;
+    private CancellationTokenSource? _subdomainValidationCts;
+    private bool _isValidatingSubdomain;
+
+    protected override void OnParametersSet()
+    {
+        if (IsEdit && Organization != null)
+        {
+            _name = Organization.Name;
+            _subdomain = Organization.Subdomain;
+            _subdomainIsValid = true; // Existing subdomain is valid
+
+            if (Organization.Branding != null)
+            {
+                _logoUrl = Organization.Branding.LogoUrl;
+                if (!string.IsNullOrEmpty(Organization.Branding.PrimaryColor))
+                {
+                    _primaryColor = new MudColor(Organization.Branding.PrimaryColor);
+                }
+                if (!string.IsNullOrEmpty(Organization.Branding.SecondaryColor))
+                {
+                    _secondaryColor = new MudColor(Organization.Branding.SecondaryColor);
+                }
+                _companyTagline = Organization.Branding.CompanyTagline;
+            }
+        }
+    }
+
+    private async Task OnSubdomainChangedAsync(string value)
+    {
+        _subdomain = value;
+
+        if (IsEdit)
+        {
+            return; // Don't validate on edit
+        }
+
+        // Cancel previous validation
+        _subdomainValidationCts?.Cancel();
+        _subdomainValidationCts = new CancellationTokenSource();
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            _subdomainIsValid = false;
+            _subdomainValidationMessage = null;
+            return;
+        }
+
+        // Basic format validation
+        if (!IsValidSubdomainFormat(value))
+        {
+            _subdomainIsValid = false;
+            _subdomainValidationMessage = "Subdomain must contain only lowercase letters, numbers, and hyphens";
+            return;
+        }
+
+        _isValidatingSubdomain = true;
+        _subdomainValidationMessage = "Checking availability...";
+        StateHasChanged();
+
+        try
+        {
+            // Debounce - wait 500ms before calling API
+            await Task.Delay(500, _subdomainValidationCts.Token);
+
+            var result = await OrganizationService.ValidateSubdomainAsync(value, _subdomainValidationCts.Token);
+            _subdomainIsValid = result.IsValid;
+            _subdomainValidationMessage = result.IsValid
+                ? "Subdomain is available"
+                : result.ErrorMessage ?? "Subdomain is not available";
+        }
+        catch (OperationCanceledException)
+        {
+            // Validation was cancelled, ignore
+        }
+        catch (Exception)
+        {
+            _subdomainIsValid = false;
+            _subdomainValidationMessage = "Unable to validate subdomain";
+        }
+        finally
+        {
+            _isValidatingSubdomain = false;
+            StateHasChanged();
+        }
+    }
+
+    private static bool IsValidSubdomainFormat(string subdomain)
+    {
+        if (string.IsNullOrWhiteSpace(subdomain) || subdomain.Length < 3 || subdomain.Length > 63)
+        {
+            return false;
+        }
+
+        // Must start and end with alphanumeric
+        if (!char.IsLetterOrDigit(subdomain[0]) || !char.IsLetterOrDigit(subdomain[^1]))
+        {
+            return false;
+        }
+
+        // Only lowercase letters, numbers, and hyphens
+        foreach (var c in subdomain)
+        {
+            if (!char.IsLower(c) && !char.IsDigit(c) && c != '-')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private string GetSubdomainValidationIcon()
+    {
+        if (IsEdit || string.IsNullOrWhiteSpace(_subdomain))
+        {
+            return string.Empty;
+        }
+
+        if (_isValidatingSubdomain)
+        {
+            return Icons.Material.Filled.HourglassEmpty;
+        }
+
+        return _subdomainIsValid
+            ? Icons.Material.Filled.CheckCircle
+            : Icons.Material.Filled.Error;
+    }
+
+    private Color GetSubdomainValidationColor()
+    {
+        if (IsEdit || string.IsNullOrWhiteSpace(_subdomain) || _isValidatingSubdomain)
+        {
+            return Color.Default;
+        }
+
+        return _subdomainIsValid ? Color.Success : Color.Error;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+        }
+
+        if (!_isValid || (!IsEdit && !_subdomainIsValid))
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _error = null;
+
+        try
+        {
+            var branding = new BrandingDto
+            {
+                LogoUrl = _logoUrl,
+                PrimaryColor = _primaryColor.Value,
+                SecondaryColor = _secondaryColor.Value,
+                CompanyTagline = _companyTagline
+            };
+
+            OrganizationDto result;
+
+            if (IsEdit && Organization != null)
+            {
+                var updateRequest = new UpdateOrganizationDto
+                {
+                    Name = _name,
+                    Branding = branding
+                };
+
+                var updated = await OrganizationService.UpdateOrganizationAsync(Organization.Id, updateRequest);
+                if (updated == null)
+                {
+                    _error = "Failed to update organization. It may have been deleted.";
+                    return;
+                }
+                result = updated;
+            }
+            else
+            {
+                var createRequest = new CreateOrganizationDto
+                {
+                    Name = _name,
+                    Subdomain = _subdomain,
+                    Branding = branding
+                };
+
+                result = await OrganizationService.CreateOrganizationAsync(createRequest);
+            }
+
+            MudDialog?.Close(DialogResult.Ok(result));
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to {(IsEdit ? "update" : "create")} organization: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+}

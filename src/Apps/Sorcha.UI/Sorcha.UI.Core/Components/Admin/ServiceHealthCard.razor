@@ -1,0 +1,147 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Admin
+
+<MudPaper Elevation="2" Class="pa-4 service-health-card" Style="cursor: pointer" @onclick="ShowDetailDialog"
+          data-testid="service-health-card">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudStack Spacing="1">
+            <MudText Typo="Typo.subtitle1"><strong>@Status.ServiceName</strong></MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">@Status.Endpoint</MudText>
+        </MudStack>
+        <MudChip T="string" Color="@GetStatusColor()" Icon="@GetStatusIcon()"
+                 Size="Size.Small" data-testid="health-status">
+            @GetStatusText()
+        </MudChip>
+    </MudStack>
+
+    @if (Status.LastCheckTime.HasValue)
+    {
+        <MudDivider Class="my-2" />
+        <MudStack Row="true" Justify="Justify.SpaceBetween">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Last check: @Status.LastCheckTime.Value.ToString("HH:mm:ss")
+            </MudText>
+            @if (Status.LastCheckDuration.HasValue)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @Status.LastCheckDuration.Value.TotalMilliseconds.ToString("F0")ms
+                </MudText>
+            }
+        </MudStack>
+    }
+
+    @if (!string.IsNullOrEmpty(Status.Version))
+    {
+        <MudText Typo="Typo.caption" Color="Color.Tertiary" Class="mt-1">
+            v@(Status.Version)
+        </MudText>
+    }
+</MudPaper>
+
+<MudDialog @bind-Visible="_dialogVisible">
+    <TitleContent>
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+            <MudIcon Icon="@GetStatusIcon()" Color="@GetStatusColor()" />
+            <MudText Typo="Typo.h6">@Status.ServiceName</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudSimpleTable Dense="true" Class="mt-2">
+            <tbody>
+                <tr>
+                    <td><strong>Status</strong></td>
+                    <td>
+                        <MudChip T="string" Color="@GetStatusColor()" Size="Size.Small">
+                            @GetStatusText()
+                        </MudChip>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Endpoint</strong></td>
+                    <td>@Status.Endpoint</td>
+                </tr>
+                @if (Status.Version != null)
+                {
+                    <tr>
+                        <td><strong>Version</strong></td>
+                        <td>@Status.Version</td>
+                    </tr>
+                }
+                @if (Status.Uptime != null)
+                {
+                    <tr>
+                        <td><strong>Uptime</strong></td>
+                        <td>@Status.Uptime</td>
+                    </tr>
+                }
+                @if (Status.LastCheckTime.HasValue)
+                {
+                    <tr>
+                        <td><strong>Last Check</strong></td>
+                        <td>@Status.LastCheckTime.Value.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    </tr>
+                }
+                @if (Status.LastCheckDuration.HasValue)
+                {
+                    <tr>
+                        <td><strong>Response Time</strong></td>
+                        <td>@Status.LastCheckDuration.Value.TotalMilliseconds.ToString("F0") ms</td>
+                    </tr>
+                }
+                @if (!string.IsNullOrEmpty(Status.ErrorMessage))
+                {
+                    <tr>
+                        <td><strong>Error</strong></td>
+                        <td><MudText Color="Color.Error">@Status.ErrorMessage</MudText></td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDialog">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter]
+    public required ServiceHealthStatus Status { get; set; }
+
+    private bool _dialogVisible;
+
+    private Color GetStatusColor() => Status.Status switch
+    {
+        HealthStatus.Healthy => Color.Success,
+        HealthStatus.Degraded => Color.Warning,
+        HealthStatus.Unhealthy => Color.Error,
+        _ => Color.Default
+    };
+
+    private string GetStatusIcon() => Status.Status switch
+    {
+        HealthStatus.Healthy => Icons.Material.Filled.CheckCircle,
+        HealthStatus.Degraded => Icons.Material.Filled.Warning,
+        HealthStatus.Unhealthy => Icons.Material.Filled.Error,
+        _ => Icons.Material.Filled.HelpOutline
+    };
+
+    private string GetStatusText() => Status.Status switch
+    {
+        HealthStatus.Healthy => "Healthy",
+        HealthStatus.Degraded => "Degraded",
+        HealthStatus.Unhealthy => "Unhealthy",
+        _ => "Unknown"
+    };
+
+    private void ShowDetailDialog()
+    {
+        _dialogVisible = true;
+    }
+
+    private void CloseDialog()
+    {
+        _dialogVisible = false;
+    }
+}

@@ -1,0 +1,226 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Services
+@inject IOrganizationAdminService OrganizationService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(IsEdit ? Icons.Material.Filled.Edit : Icons.Material.Filled.PersonAdd)" Class="mr-2" />
+            @(IsEdit ? "Edit User" : "Add User")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudStack Spacing="4">
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+                }
+
+                @* User Information Section *@
+                <MudText Typo="Typo.subtitle1" Class="mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
+                    User Information
+                </MudText>
+
+                <MudTextField @bind-Value="_email"
+                              Label="Email"
+                              Placeholder="user@example.com"
+                              InputType="InputType.Email"
+                              Required="true"
+                              RequiredError="Email is required"
+                              Disabled="IsEdit"
+                              HelperText="@(IsEdit ? "Email cannot be changed" : "User's email address")"
+                              Immediate="true"
+                              Variant="Variant.Outlined"
+                              aria-label="Email" />
+
+                <MudTextField @bind-Value="_displayName"
+                              Label="Display Name"
+                              Placeholder="Enter user's name"
+                              Required="true"
+                              RequiredError="Display name is required"
+                              Immediate="true"
+                              Variant="Variant.Outlined"
+                              aria-label="Name" />
+
+                @if (!IsEdit)
+                {
+                    <MudTextField @bind-Value="_externalIdpUserId"
+                                  Label="External IDP User ID"
+                                  Placeholder="Enter external identity provider user ID"
+                                  Required="true"
+                                  RequiredError="External IDP User ID is required"
+                                  HelperText="The user's ID in the external identity provider (e.g., Auth0, Azure AD)"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined"
+                                  aria-label="External IDP User ID" />
+                }
+
+                @* Role Assignment Section *@
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1">
+                    <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Small" Class="mr-1" />
+                    Role Assignment
+                </MudText>
+
+                <MudSelect T="string"
+                           @bind-Value="_selectedRole"
+                           Label="Role"
+                           Variant="Variant.Outlined"
+                           Required="true"
+                           RequiredError="Role is required"
+                           data-testid="role-selector"
+                           aria-label="Role">
+                    <MudSelectItem Value="@("Administrator")">
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Small" Color="Color.Primary" />
+                            <MudText>Administrator</MudText>
+                        </MudStack>
+                    </MudSelectItem>
+                    <MudSelectItem Value="@("Designer")">
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.DesignServices" Size="Size.Small" Color="Color.Secondary" />
+                            <MudText>Designer</MudText>
+                        </MudStack>
+                    </MudSelectItem>
+                    <MudSelectItem Value="@("Member")">
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                            <MudText>Member</MudText>
+                        </MudStack>
+                    </MudSelectItem>
+                </MudSelect>
+
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @GetRoleDescription(_selectedRole)
+                </MudText>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_isSaving">Cancel</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="SubmitAsync"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @(IsEdit ? "Update" : "Add")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    [Parameter]
+    public Guid OrganizationId { get; set; }
+
+    [Parameter]
+    public UserDto? User { get; set; }
+
+    private MudForm? _form;
+    private bool _isValid;
+    private bool _isSaving;
+    private string? _error;
+
+    // Form fields
+    private string _email = string.Empty;
+    private string _displayName = string.Empty;
+    private string _externalIdpUserId = string.Empty;
+    private string _selectedRole = "Member";
+
+    protected override void OnParametersSet()
+    {
+        if (IsEdit && User != null)
+        {
+            _email = User.Email;
+            _displayName = User.DisplayName;
+            _selectedRole = User.Roles.FirstOrDefault() ?? "Member";
+        }
+    }
+
+    private static string GetRoleDescription(string role) => role switch
+    {
+        "Administrator" => "Full access to manage organization settings, users, and all resources.",
+        "Designer" => "Can create and manage blueprints, schemas, and workflows.",
+        "Member" => "Basic access to view and participate in assigned workflows.",
+        _ => "Select a role for this user."
+    };
+
+    private async Task SubmitAsync()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+        }
+
+        if (!_isValid)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _error = null;
+
+        try
+        {
+            UserDto result;
+
+            if (IsEdit && User != null)
+            {
+                var updateRequest = new UpdateUserDto
+                {
+                    DisplayName = _displayName,
+                    Roles = [_selectedRole]
+                };
+
+                var updated = await OrganizationService.UpdateOrganizationUserAsync(
+                    OrganizationId, User.Id, updateRequest);
+
+                if (updated == null)
+                {
+                    _error = "Failed to update user. The user may have been removed.";
+                    return;
+                }
+                result = updated;
+            }
+            else
+            {
+                var addRequest = new AddUserDto
+                {
+                    Email = _email,
+                    DisplayName = _displayName,
+                    ExternalIdpUserId = _externalIdpUserId,
+                    Roles = [_selectedRole]
+                };
+
+                result = await OrganizationService.AddUserToOrganizationAsync(OrganizationId, addRequest);
+            }
+
+            MudDialog?.Close(DialogResult.Ok(result));
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to {(IsEdit ? "update" : "add")} user: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+}
