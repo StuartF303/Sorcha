@@ -1,0 +1,235 @@
+@page "/wallets/create"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@attribute [Authorize]
+@inject IWalletApiService WalletService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<PageTitle>Create Wallet - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.AddCard" Class="mr-2" />
+        Create New Wallet
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        Create a new HD wallet for cryptographic operations
+    </MudText>
+
+    @switch (currentStep)
+    {
+        case WizardStep.Form:
+            <MudPaper Class="pa-6" Elevation="2">
+                <EditForm Model="@request" OnValidSubmit="CreateWalletAsync">
+                    <DataAnnotationsValidator />
+
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudTextField Label="Wallet Name" @bind-Value="request.Name" Required="true" RequiredError="Name is required" Variant="Variant.Outlined" HelperText="A friendly name for your wallet" />
+                        </MudItem>
+
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="string" Label="Algorithm" @bind-Value="request.Algorithm" Required="true" RequiredError="Algorithm is required" Variant="Variant.Outlined" HelperText="Cryptographic algorithm">
+                                <MudSelectItem Value="@("ED25519")">ED25519 (Recommended)</MudSelectItem>
+                                <MudSelectItem Value="@("NISTP256")">NIST P-256</MudSelectItem>
+                                <MudSelectItem Value="@("RSA4096")">RSA 4096</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="int" Label="Word Count" @bind-Value="request.WordCount" Required="true" Variant="Variant.Outlined" HelperText="Mnemonic phrase length">
+                                <MudSelectItem Value="12">12 words (Standard)</MudSelectItem>
+                                <MudSelectItem Value="15">15 words</MudSelectItem>
+                                <MudSelectItem Value="18">18 words</MudSelectItem>
+                                <MudSelectItem Value="21">21 words</MudSelectItem>
+                                <MudSelectItem Value="24">24 words (Maximum security)</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="12">
+                            <MudTextField Label="Passphrase (Optional)" @bind-Value="request.Passphrase" InputType="@(showPassphrase ? InputType.Text : InputType.Password)" Variant="Variant.Outlined" HelperText="Additional security layer. Must be remembered for recovery!" Adornment="Adornment.End" AdornmentIcon="@(showPassphrase ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" OnAdornmentClick="() => showPassphrase = !showPassphrase" />
+                        </MudItem>
+
+                        <MudItem xs="12">
+                            <MudAlert Severity="Severity.Info" Class="mb-2">
+                                <MudText Typo="Typo.body2">
+                                    <strong>ED25519</strong> is recommended for most use cases. It offers the best balance of security and performance.
+                                </MudText>
+                            </MudAlert>
+                        </MudItem>
+
+                        <MudItem xs="12" Class="d-flex justify-space-between">
+                            <MudButton Href="wallets" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack">
+                                Cancel
+                            </MudButton>
+                            <MudButton ButtonType="ButtonType.Submit" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Disabled="@isCreating">
+                                @if (isCreating)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    <span>Creating...</span>
+                                }
+                                else
+                                {
+                                    <span>Create Wallet</span>
+                                }
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </EditForm>
+            </MudPaper>
+            break;
+
+        case WizardStep.MnemonicDisplay:
+            <MudPaper Class="pa-6" Elevation="4" Style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);">
+                <MudAlert Severity="Severity.Warning" Class="mb-4" Icon="@Icons.Material.Filled.Warning">
+                    <MudText Typo="Typo.h6">CRITICAL: Backup Your Recovery Phrase</MudText>
+                    <MudText Typo="Typo.body2" Class="mt-2">
+                        @response?.Warning
+                    </MudText>
+                </MudAlert>
+
+                <MudText Typo="Typo.h6" Class="mb-3">Your Recovery Phrase</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    Write down these words in order and store them in a safe place.
+                </MudText>
+
+                <MudGrid Spacing="2" Class="mb-4">
+                    @if (response?.MnemonicWords != null)
+                    {
+                        for (int i = 0; i < response.MnemonicWords.Length; i++)
+                        {
+                            var index = i;
+                            <MudItem xs="4" sm="3" md="2">
+                                <MudPaper Class="pa-2 text-center" Outlined="true" Style="background: white;">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@(index + 1)</MudText>
+                                    <MudText Typo="Typo.body1" Style="font-family: monospace; font-weight: 600;">@response.MnemonicWords[index]</MudText>
+                                </MudPaper>
+                            </MudItem>
+                        }
+                    }
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudButton OnClick="CopyMnemonicAsync" Color="Color.Default" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ContentCopy" Class="mb-4">
+                    Copy All Words
+                </MudButton>
+
+                <MudAlert Severity="Severity.Error" Class="mb-4" Icon="@Icons.Material.Filled.Error">
+                    <MudText Typo="Typo.body2">
+                        <strong>Never share your recovery phrase with anyone.</strong> Anyone with these words can access your wallet and sign transactions on your behalf.
+                    </MudText>
+                </MudAlert>
+
+                <MudDivider Class="my-4" />
+
+                <MudStack>
+                    <MudCheckBox T="bool" @bind-Value="hasWrittenDown" Color="Color.Primary">
+                        I have written down my recovery phrase and stored it securely
+                    </MudCheckBox>
+                    <MudCheckBox T="bool" @bind-Value="understandsOneTime" Color="Color.Primary">
+                        I understand this phrase will NEVER be shown again
+                    </MudCheckBox>
+                    <MudCheckBox T="bool" @bind-Value="understandsPassphrase" Color="Color.Primary" Disabled="@(string.IsNullOrEmpty(request.Passphrase))">
+                        @if (string.IsNullOrEmpty(request.Passphrase))
+                        {
+                            <span>No passphrase used (not required)</span>
+                        }
+                        else
+                        {
+                            <span>I have also recorded my passphrase separately</span>
+                        }
+                    </MudCheckBox>
+                </MudStack>
+
+                <MudDivider Class="my-4" />
+
+                <div class="d-flex justify-end">
+                    <MudButton OnClick="NavigateToWallet" Color="Color.Primary" Variant="Variant.Filled" Disabled="@(!CanProceed)" StartIcon="@Icons.Material.Filled.ArrowForward">
+                        Continue to Wallet
+                    </MudButton>
+                </div>
+            </MudPaper>
+            break;
+    }
+</MudContainer>
+
+@code {
+    private enum WizardStep { Form, MnemonicDisplay }
+    private WizardStep currentStep = WizardStep.Form;
+
+    private CreateWalletRequest request = new()
+    {
+        Name = "",
+        Algorithm = "ED25519",
+        WordCount = 12
+    };
+
+    private CreateWalletResponse? response;
+    private bool isCreating;
+    private bool showPassphrase;
+
+    // Confirmation checkboxes
+    private bool hasWrittenDown;
+    private bool understandsOneTime;
+    private bool understandsPassphrase;
+
+    private bool CanProceed => hasWrittenDown && understandsOneTime &&
+        (string.IsNullOrEmpty(request.Passphrase) || understandsPassphrase);
+
+    private async Task CreateWalletAsync()
+    {
+        isCreating = true;
+
+        try
+        {
+            response = await WalletService.CreateWalletAsync(request);
+            currentStep = WizardStep.MnemonicDisplay;
+            Snackbar.Add($"Wallet '{request.Name}' created successfully!", Severity.Success);
+        }
+        catch (HttpRequestException ex)
+        {
+            Snackbar.Add($"Failed to create wallet: {ex.Message}", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An unexpected error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isCreating = false;
+        }
+    }
+
+    private async Task CopyMnemonicAsync()
+    {
+        if (response?.MnemonicWords == null)
+            return;
+
+        var mnemonic = string.Join(" ", response.MnemonicWords);
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", mnemonic);
+        Snackbar.Add("Recovery phrase copied to clipboard", Severity.Info);
+    }
+
+    private void NavigateToWallet()
+    {
+        if (response?.Wallet != null)
+        {
+            var walletAddress = response.Wallet.Address;
+
+            // Clear mnemonic from memory before navigating
+            if (response.MnemonicWords != null)
+            {
+                Array.Clear(response.MnemonicWords, 0, response.MnemonicWords.Length);
+            }
+            response = null;
+
+            Navigation.NavigateTo($"wallets/{walletAddress}");
+        }
+        else
+        {
+            Navigation.NavigateTo("wallets");
+        }
+    }
+}

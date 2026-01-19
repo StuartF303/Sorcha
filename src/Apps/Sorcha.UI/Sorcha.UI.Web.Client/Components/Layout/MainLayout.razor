@@ -9,10 +9,11 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
+<CascadingAuthenticationState>
 <MudLayout>
     <MudAppBar Elevation="1">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
-        <MudText Typo="Typo.h5" Class="ml-3">Sorcha</MudText>
+        <MudText Typo="Typo.h5" Class="ml-3" Style="cursor: pointer;" @onclick="@(() => Navigation.NavigateTo("dashboard"))">Sorcha</MudText>
         <MudSpacer />
         <AuthorizeView>
             <Authorized>
@@ -24,7 +25,7 @@
                         </div>
                     </MudMenuItem>
                     <MudDivider />
-                    <MudMenuItem Icon="@Icons.Material.Filled.Settings" OnClick="@(() => Navigation.NavigateTo("/settings"))">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Settings" OnClick="@(() => Navigation.NavigateTo("settings"))">
                         Settings
                     </MudMenuItem>
                     <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="@HandleLogout">
@@ -33,7 +34,7 @@
                 </MudMenu>
             </Authorized>
             <NotAuthorized>
-                <MudButton Href="/login" Variant="Variant.Text" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Login">
+                <MudButton Href="auth/login" Variant="Variant.Text" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Login">
                     Sign In
                 </MudButton>
             </NotAuthorized>
@@ -47,44 +48,47 @@
         <AuthorizeView>
             <Authorized>
                 <MudNavMenu>
-                    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
+                    <MudNavLink Href="dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
                         Dashboard
                     </MudNavLink>
                     <MudDivider Class="my-2" />
                     <MudNavGroup Title="Blueprints" Icon="@Icons.Material.Filled.Description" Expanded="false">
-                        <MudNavLink Href="/blueprints" Icon="@Icons.Material.Filled.List">
+                        <MudNavLink Href="blueprints" Icon="@Icons.Material.Filled.List">
                             All Blueprints
                         </MudNavLink>
-                        <MudNavLink Href="/blueprints/designer" Icon="@Icons.Material.Filled.Add">
+                        <MudNavLink Href="designer" Icon="@Icons.Material.Filled.Add">
                             Create Blueprint
                         </MudNavLink>
                     </MudNavGroup>
                     <MudNavGroup Title="Wallets" Icon="@Icons.Material.Filled.AccountBalanceWallet" Expanded="false">
-                        <MudNavLink Href="/wallets" Icon="@Icons.Material.Filled.List">
+                        <MudNavLink Href="wallets" Icon="@Icons.Material.Filled.List">
                             All Wallets
                         </MudNavLink>
-                        <MudNavLink Href="/wallets/create" Icon="@Icons.Material.Filled.Add">
+                        <MudNavLink Href="wallets/create" Icon="@Icons.Material.Filled.Add">
                             Create Wallet
                         </MudNavLink>
+                        <MudNavLink Href="wallets/recover" Icon="@Icons.Material.Filled.Restore">
+                            Recover Wallet
+                        </MudNavLink>
                     </MudNavGroup>
-                    <MudNavLink Href="/transactions" Icon="@Icons.Material.Filled.Receipt">
+                    <MudNavLink Href="transactions" Icon="@Icons.Material.Filled.Receipt">
                         Transactions
                     </MudNavLink>
-                    <MudNavLink Href="/registers" Icon="@Icons.Material.Filled.Storage">
+                    <MudNavLink Href="registers" Icon="@Icons.Material.Filled.Storage">
                         Registers
                     </MudNavLink>
                     <MudDivider Class="my-2" />
-                    <MudNavLink Href="/admin" Icon="@Icons.Material.Filled.AdminPanelSettings">
+                    <MudNavLink Href="schemas" Icon="@Icons.Material.Filled.Schema">
+                        Schema Library
+                    </MudNavLink>
+                    <MudNavLink Href="admin" Icon="@Icons.Material.Filled.AdminPanelSettings">
                         Administration
                     </MudNavLink>
                 </MudNavMenu>
             </Authorized>
             <NotAuthorized>
                 <MudNavMenu>
-                    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
-                        Home
-                    </MudNavLink>
-                    <MudNavLink Href="/login" Icon="@Icons.Material.Filled.Login">
+                    <MudNavLink Href="auth/login" Icon="@Icons.Material.Filled.Login">
                         Sign In
                     </MudNavLink>
                 </MudNavMenu>
@@ -98,6 +102,7 @@
         </MudContainer>
     </MudMainContent>
 </MudLayout>
+</CascadingAuthenticationState>
 
 @code {
     private bool _drawerOpen = true;
@@ -128,9 +133,9 @@
         return roleClaim?.Value ?? "User";
     }
 
-    private async Task HandleLogout()
+    private void HandleLogout()
     {
-        // Navigate to a logout handler page
-        Navigation.NavigateTo("/logout", forceLoad: true);
+        // Navigate to logout page using relative path
+        Navigation.NavigateTo("auth/logout", forceLoad: false);
     }
 }

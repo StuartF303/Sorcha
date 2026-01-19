@@ -1,0 +1,610 @@
+@page "/wallets/{Address}"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@attribute [Authorize]
+@inject IWalletApiService WalletService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+
+<PageTitle>Wallet Details - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    @if (isLoading)
+    {
+        <MudPaper Class="pa-8 text-center" Elevation="2">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+            <MudText Typo="Typo.body1" Class="mt-4">Loading wallet details...</MudText>
+        </MudPaper>
+    }
+    else if (wallet == null)
+    {
+        <MudAlert Severity="Severity.Error">
+            Wallet not found or you don't have access to it.
+        </MudAlert>
+        <MudButton Href="wallets" Variant="Variant.Outlined" Class="mt-4" StartIcon="@Icons.Material.Filled.ArrowBack">
+            Back to Wallets
+        </MudButton>
+    }
+    else
+    {
+        <!-- Header -->
+        <MudPaper Class="pa-4 mb-4" Elevation="2">
+            <div class="d-flex flex-wrap justify-space-between align-center gap-4">
+                <div class="d-flex align-center gap-3">
+                    <MudAvatar Color="GetAlgorithmColor(wallet.Algorithm)" Size="Size.Large">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" />
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.h5">@wallet.Name</MudText>
+                        <div class="d-flex align-center gap-2">
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Style="font-family: monospace;">
+                                @TruncateAddress(wallet.Address)
+                            </MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="CopyWalletAddress" />
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-center gap-2">
+                    <MudChip T="string" Color="GetStatusColor(wallet.Status)" Size="Size.Medium">
+                        @wallet.Status
+                    </MudChip>
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Variant="Variant.Outlined">
+                        @wallet.Algorithm
+                    </MudChip>
+                    <MudButton Href="wallets" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack">
+                        Back
+                    </MudButton>
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="ConfirmDelete" />
+                </div>
+            </div>
+        </MudPaper>
+
+        <!-- Tabs -->
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+            <!-- Overview Tab -->
+            <MudTabPanel Text="Overview" Icon="@Icons.Material.Filled.Info">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudPaper Class="pa-4" Outlined="true">
+                            <MudText Typo="Typo.h6" Class="mb-3">Wallet Information</MudText>
+                            <MudSimpleTable Dense="true" Hover="true" Style="overflow-x: auto;">
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Address</strong></td>
+                                        <td>
+                                            <div class="d-flex align-center">
+                                                <code style="font-size: 0.85rem; word-break: break-all;">@wallet.Address</code>
+                                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="CopyWalletAddress" />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Algorithm</strong></td>
+                                        <td>@wallet.Algorithm</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Status</strong></td>
+                                        <td>
+                                            <MudChip T="string" Color="GetStatusColor(wallet.Status)" Size="Size.Small">@wallet.Status</MudChip>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Owner</strong></td>
+                                        <td>@wallet.Owner</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Tenant</strong></td>
+                                        <td>@wallet.Tenant</td>
+                                    </tr>
+                                </tbody>
+                            </MudSimpleTable>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudPaper Class="pa-4" Outlined="true">
+                            <MudText Typo="Typo.h6" Class="mb-3">Public Key</MudText>
+                            <div class="d-flex align-center mb-3">
+                                <code style="font-size: 0.75rem; word-break: break-all; max-height: 100px; overflow-y: auto; display: block; background: #f5f5f5; padding: 8px; border-radius: 4px; flex-grow: 1;">@wallet.PublicKey</code>
+                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="CopyPublicKey" />
+                            </div>
+                            <MudDivider Class="my-3" />
+                            <MudText Typo="Typo.h6" Class="mb-3">Timestamps</MudText>
+                            <MudSimpleTable Dense="true" Hover="true">
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Created</strong></td>
+                                        <td>@wallet.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Updated</strong></td>
+                                        <td>@wallet.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC</td>
+                                    </tr>
+                                </tbody>
+                            </MudSimpleTable>
+                        </MudPaper>
+                    </MudItem>
+
+                    @if (wallet.Metadata.Any())
+                    {
+                        <MudItem xs="12">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Metadata</MudText>
+                                <MudSimpleTable Dense="true" Hover="true">
+                                    <thead>
+                                        <tr>
+                                            <th>Key</th>
+                                            <th>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var (key, value) in wallet.Metadata)
+                                        {
+                                            <tr>
+                                                <td><strong>@key</strong></td>
+                                                <td>@value</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudTabPanel>
+
+            <!-- Addresses Tab -->
+            <MudTabPanel Text="Addresses" Icon="@Icons.Material.Filled.List">
+                <MudPaper Class="pa-4" Outlined="true">
+                    <div class="d-flex justify-space-between align-center mb-4">
+                        <MudText Typo="Typo.h6">Derived Addresses</MudText>
+                        <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenRegisterAddressDialog">
+                            Register Address
+                        </MudButton>
+                    </div>
+
+                    @if (isLoadingAddresses)
+                    {
+                        <MudProgressLinear Indeterminate="true" />
+                    }
+                    else if (addresses?.Addresses.Any() == true)
+                    {
+                        <MudTable Items="@addresses.Addresses" Dense="true" Hover="true" Striped="true">
+                            <HeaderContent>
+                                <MudTh>Index</MudTh>
+                                <MudTh>Address</MudTh>
+                                <MudTh>Path</MudTh>
+                                <MudTh>Label</MudTh>
+                                <MudTh>Used</MudTh>
+                                <MudTh>Actions</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Index">@context.Index</MudTd>
+                                <MudTd DataLabel="Address">
+                                    <div class="d-flex align-center">
+                                        <code style="font-size: 0.8rem;">@TruncateAddress(context.Address)</code>
+                                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="@(() => CopyAddressToClipboard(context.Address))" />
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Path"><code>@context.DerivationPath</code></MudTd>
+                                <MudTd DataLabel="Label">@(context.Label ?? "-")</MudTd>
+                                <MudTd DataLabel="Used">
+                                    @if (context.IsUsed)
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small">Used</MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Default" Size="Size.Small">Unused</MudChip>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Actions">
+                                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="@(() => CopyAddressToClipboard(context.Address))" />
+                                </MudTd>
+                            </RowTemplate>
+                            <PagerContent>
+                                <MudTablePager PageSizeOptions="new int[] { 10, 25, 50 }" />
+                            </PagerContent>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body1" Color="Color.Secondary" Class="text-center pa-4">
+                            No derived addresses registered yet.
+                        </MudText>
+                    }
+                </MudPaper>
+            </MudTabPanel>
+
+            <!-- Signing Tab -->
+            <MudTabPanel Text="Sign Data" Icon="@Icons.Material.Filled.Edit">
+                <MudGrid>
+                    <MudItem xs="12" md="8">
+                        <MudPaper Class="pa-4" Outlined="true">
+                            <MudText Typo="Typo.h6" Class="mb-3">Sign Data</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                                Sign arbitrary data using this wallet's private key.
+                            </MudText>
+
+                            <MudGrid>
+                                <MudItem xs="12">
+                                    <MudRadioGroup T="string" @bind-Value="signInputMode">
+                                        <MudRadio Value="@("text")" Color="Color.Primary">Text Input</MudRadio>
+                                        <MudRadio Value="@("base64")" Color="Color.Primary">Base64 Input</MudRadio>
+                                    </MudRadioGroup>
+                                </MudItem>
+
+                                <MudItem xs="12">
+                                    <MudTextField T="string" @bind-Value="signDataInput" Label="@GetSignInputLabel()" Lines="4" Variant="Variant.Outlined" HelperText="@GetSignInputHelperText()" />
+                                </MudItem>
+
+                                <MudItem xs="12">
+                                    <MudTextField T="string" @bind-Value="signDerivationPath" Label="Derivation Path (Optional)" Variant="Variant.Outlined" HelperText="e.g., m/44'/0'/0'/0/5 or leave empty for default key" />
+                                </MudItem>
+
+                                <MudItem xs="12">
+                                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SignDataAsync" Disabled="@(string.IsNullOrWhiteSpace(signDataInput) || isSigning)" StartIcon="@Icons.Material.Filled.Edit">
+                                        @if (isSigning)
+                                        {
+                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                            <span>Signing...</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Sign Data</span>
+                                        }
+                                    </MudButton>
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        @if (signatureResult != null)
+                        {
+                            <MudPaper Class="pa-4" Outlined="true" Style="background: #e8f5e9;">
+                                <MudText Typo="Typo.h6" Class="mb-3" Color="Color.Success">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-1" />
+                                    Signature Result
+                                </MudText>
+
+                                <MudText Typo="Typo.caption"><strong>Signature (Base64)</strong></MudText>
+                                <div class="d-flex align-center mb-2">
+                                    <code style="font-size: 0.7rem; word-break: break-all; background: white; padding: 8px; border-radius: 4px; flex-grow: 1; max-height: 80px; overflow-y: auto;">@signatureResult.Signature</code>
+                                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="CopySignature" />
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(signatureResult.PublicKey))
+                                {
+                                    <MudText Typo="Typo.caption"><strong>Public Key Used</strong></MudText>
+                                    <div class="d-flex align-center mb-2">
+                                        <code style="font-size: 0.7rem; word-break: break-all; background: white; padding: 8px; border-radius: 4px; flex-grow: 1; max-height: 60px; overflow-y: auto;">@signatureResult.PublicKey</code>
+                                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="CopySignaturePublicKey" />
+                                    </div>
+                                }
+
+                                <MudText Typo="Typo.caption"><strong>Signed At</strong></MudText>
+                                <MudText Typo="Typo.body2">@signatureResult.SignedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC</MudText>
+                            </MudPaper>
+                        }
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
+            <!-- Transactions Tab (Placeholder) -->
+            <MudTabPanel Text="Transactions" Icon="@Icons.Material.Filled.Receipt">
+                <MudPaper Class="pa-8 text-center" Outlined="true">
+                    <MudIcon Icon="@Icons.Material.Filled.Construction" Size="Size.Large" Color="Color.Warning" Class="mb-3" />
+                    <MudText Typo="Typo.h6" Class="mb-2">Transaction History Coming Soon</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        The transaction listing API is not yet implemented. This feature will be available in a future release.
+                    </MudText>
+                </MudPaper>
+            </MudTabPanel>
+        </MudTabs>
+    }
+</MudContainer>
+
+<!-- Register Address Dialog -->
+<MudDialog @bind-Visible="registerAddressDialogVisible" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+            Register Derived Address
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Info" Class="mb-3">
+                    Register an HD wallet address that was derived client-side. The server will store the address metadata for tracking.
+                </MudAlert>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="registerRequest.DerivedAddress" Label="Derived Address" Required="true" Variant="Variant.Outlined" HelperText="The derived wallet address" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="registerRequest.DerivedPublicKey" Label="Derived Public Key (Base64)" Required="true" Lines="2" Variant="Variant.Outlined" HelperText="Base64-encoded public key" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="registerRequest.DerivationPath" Label="Derivation Path" Required="true" Variant="Variant.Outlined" HelperText="e.g., m/44'/0'/0'/0/1" Placeholder="m/44'/0'/0'/0/0" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="registerRequest.Label" Label="Label (Optional)" Variant="Variant.Outlined" HelperText="A friendly label for this address" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="registerRequest.Notes" Label="Notes (Optional)" Lines="2" Variant="Variant.Outlined" HelperText="Additional notes" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseRegisterAddressDialog">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="RegisterAddressAsync" Disabled="@(isRegisteringAddress || !IsRegisterRequestValid)">
+            @if (isRegisteringAddress)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Registering...</span>
+            }
+            else
+            {
+                <span>Register</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter]
+    public string Address { get; set; } = "";
+
+    private WalletDto? wallet;
+    private AddressListResponse? addresses;
+    private bool isLoading = true;
+    private bool isLoadingAddresses;
+
+    // Signing state
+    private string signInputMode = "text";
+    private string signDataInput = "";
+    private string? signDerivationPath;
+    private SignTransactionResponse? signatureResult;
+    private bool isSigning;
+
+    // Register address dialog state
+    private bool registerAddressDialogVisible;
+    private RegisterAddressRequest registerRequest = new()
+    {
+        DerivedAddress = "",
+        DerivedPublicKey = "",
+        DerivationPath = "m/44'/0'/0'/0/0"
+    };
+    private bool isRegisteringAddress;
+
+    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private bool IsRegisterRequestValid =>
+        !string.IsNullOrWhiteSpace(registerRequest.DerivedAddress) &&
+        !string.IsNullOrWhiteSpace(registerRequest.DerivedPublicKey) &&
+        !string.IsNullOrWhiteSpace(registerRequest.DerivationPath);
+
+    private string GetSignInputLabel() => signInputMode == "text" ? "Data to Sign" : "Base64-Encoded Data";
+    private string GetSignInputHelperText() => signInputMode == "text" ? "Enter text to sign" : "Enter base64-encoded data";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWalletAsync();
+    }
+
+    private async Task LoadWalletAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            wallet = await WalletService.GetWalletAsync(Address);
+            if (wallet != null)
+            {
+                await LoadAddressesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load wallet: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadAddressesAsync()
+    {
+        isLoadingAddresses = true;
+
+        try
+        {
+            addresses = await WalletService.GetAddressesAsync(Address);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load addresses: {ex.Message}", Severity.Warning);
+        }
+        finally
+        {
+            isLoadingAddresses = false;
+        }
+    }
+
+    private async Task SignDataAsync()
+    {
+        if (string.IsNullOrWhiteSpace(signDataInput))
+            return;
+
+        isSigning = true;
+        signatureResult = null;
+
+        try
+        {
+            // Convert input to base64 if in text mode
+            var base64Data = signInputMode == "text"
+                ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(signDataInput))
+                : signDataInput;
+
+            var request = new SignTransactionRequest
+            {
+                TransactionData = base64Data,
+                DerivationPath = string.IsNullOrWhiteSpace(signDerivationPath) ? null : signDerivationPath
+            };
+
+            signatureResult = await WalletService.SignDataAsync(Address, request);
+            Snackbar.Add("Data signed successfully!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to sign data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSigning = false;
+        }
+    }
+
+    private void OpenRegisterAddressDialog()
+    {
+        registerRequest = new RegisterAddressRequest
+        {
+            DerivedAddress = "",
+            DerivedPublicKey = "",
+            DerivationPath = "m/44'/0'/0'/0/0"
+        };
+        registerAddressDialogVisible = true;
+    }
+
+    private void CloseRegisterAddressDialog()
+    {
+        registerAddressDialogVisible = false;
+    }
+
+    private async Task RegisterAddressAsync()
+    {
+        if (!IsRegisterRequestValid)
+            return;
+
+        isRegisteringAddress = true;
+
+        try
+        {
+            await WalletService.RegisterAddressAsync(Address, registerRequest);
+            Snackbar.Add("Address registered successfully!", Severity.Success);
+            CloseRegisterAddressDialog();
+            await LoadAddressesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to register address: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isRegisteringAddress = false;
+        }
+    }
+
+    private async Task ConfirmDelete()
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.ContentText, $"Are you sure you want to delete wallet '{wallet?.Name}'? This action can be reversed by support." },
+            { x => x.ButtonText, "Delete" },
+            { x => x.Color, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Delete Wallet", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await DeleteWalletAsync();
+        }
+    }
+
+    private async Task DeleteWalletAsync()
+    {
+        try
+        {
+            var success = await WalletService.DeleteWalletAsync(Address);
+            if (success)
+            {
+                Snackbar.Add($"Wallet deleted successfully", Severity.Success);
+                Navigation.NavigateTo("wallets");
+            }
+            else
+            {
+                Snackbar.Add("Wallet not found", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to delete wallet: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // Copy helper methods - avoid lambda with string literals in Razor attributes
+    private async Task CopyWalletAddress()
+    {
+        if (wallet != null)
+            await CopyToClipboard(wallet.Address, "Address");
+    }
+
+    private async Task CopyPublicKey()
+    {
+        if (wallet != null)
+            await CopyToClipboard(wallet.PublicKey, "Public key");
+    }
+
+    private async Task CopySignature()
+    {
+        if (signatureResult != null)
+            await CopyToClipboard(signatureResult.Signature, "Signature");
+    }
+
+    private async Task CopySignaturePublicKey()
+    {
+        if (signatureResult?.PublicKey != null)
+            await CopyToClipboard(signatureResult.PublicKey, "Public key");
+    }
+
+    private async Task CopyAddressToClipboard(string address)
+    {
+        await CopyToClipboard(address, "Address");
+    }
+
+    private async Task CopyToClipboard(string text, string label)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+        Snackbar.Add($"{label} copied to clipboard", Severity.Info);
+    }
+
+    private static string TruncateAddress(string address)
+    {
+        if (address.Length <= 16)
+            return address;
+        return $"{address[..8]}...{address[^8..]}";
+    }
+
+    private static Color GetStatusColor(string status) => status.ToUpperInvariant() switch
+    {
+        "ACTIVE" => Color.Success,
+        "ARCHIVED" => Color.Warning,
+        "DELETED" => Color.Error,
+        "LOCKED" => Color.Info,
+        _ => Color.Default
+    };
+
+    private static Color GetAlgorithmColor(string algorithm) => algorithm.ToUpperInvariant() switch
+    {
+        "ED25519" => Color.Primary,
+        "NISTP256" => Color.Secondary,
+        "RSA4096" => Color.Tertiary,
+        _ => Color.Default
+    };
+}

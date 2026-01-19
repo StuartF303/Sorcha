@@ -1,0 +1,236 @@
+@page "/wallets"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@attribute [Authorize]
+@inject IWalletApiService WalletService
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Wallets - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="mr-2" />
+        Wallet Management
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        Manage your HD wallets for cryptographic signing and address generation
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12">
+            <MudPaper Class="pa-4 mb-4" Elevation="2">
+                <div class="d-flex justify-space-between align-center flex-wrap gap-2">
+                    <MudTextField T="string" @bind-Value="searchText" Placeholder="Search wallets..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Class="flex-grow-1 mr-3" Style="max-width: 400px;" />
+                    <div class="d-flex gap-2">
+                        <MudButton Href="wallets/recover" Color="Color.Secondary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Restore">
+                            Recover Wallet
+                        </MudButton>
+                        <MudButton Href="wallets/create" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add">
+                            Create Wallet
+                        </MudButton>
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        @if (isLoading)
+        {
+            <MudItem xs="12">
+                <MudPaper Class="pa-8 text-center" Elevation="2">
+                    <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+                    <MudText Typo="Typo.body1" Class="mt-4">Loading wallets...</MudText>
+                </MudPaper>
+            </MudItem>
+        }
+        else if (error != null)
+        {
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Error" Class="mb-4">
+                    @error
+                </MudAlert>
+            </MudItem>
+        }
+        else if (filteredWallets.Any())
+        {
+            @foreach (var wallet in filteredWallets)
+            {
+                <MudItem xs="12" md="6" lg="4">
+                    <MudCard Elevation="2" Class="wallet-card" @onclick="() => ViewWallet(wallet.Address)" Style="cursor: pointer;">
+                        <MudCardHeader>
+                            <CardHeaderAvatar>
+                                <MudAvatar Color="GetAlgorithmColor(wallet.Algorithm)" Size="Size.Medium">
+                                    <MudIcon Icon="@Icons.Material.Filled.Key" />
+                                </MudAvatar>
+                            </CardHeaderAvatar>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">@wallet.Name</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @TruncateAddress(wallet.Address)
+                                </MudText>
+                            </CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudChip T="string" Color="GetStatusColor(wallet.Status)" Size="Size.Small">
+                                    @wallet.Status
+                                </MudChip>
+                            </CardHeaderActions>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudStack Row="true" Spacing="2" Class="mb-2">
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                                    @wallet.Algorithm
+                                </MudChip>
+                            </MudStack>
+                            <MudDivider Class="my-2" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Class="mr-1" />
+                                Created @wallet.CreatedAt.ToString("MMM dd, yyyy")
+                            </MudText>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <span @onclick:stopPropagation="true">
+                                <MudButton Color="Color.Primary" Variant="Variant.Text" OnClick="() => ViewWallet(wallet.Address)">
+                                    View Details
+                                </MudButton>
+                            </span>
+                            <MudSpacer />
+                            <span @onclick:stopPropagation="true">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => ConfirmDelete(wallet)" />
+                            </span>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        }
+        else
+        {
+            <MudItem xs="12">
+                <MudPaper Class="pa-8 text-center" Elevation="2">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Size="Size.Large" Color="Color.Secondary" Class="mb-3" />
+                    <MudText Typo="Typo.h6" Class="mb-2">No Wallets Found</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                        Get started by creating your first wallet or recovering an existing one
+                    </MudText>
+                    <MudStack Row="true" Justify="Justify.Center" Spacing="2">
+                        <MudButton Href="wallets/recover" Color="Color.Secondary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Restore">
+                            Recover Wallet
+                        </MudButton>
+                        <MudButton Href="wallets/create" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add">
+                            Create Wallet
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private string searchText = "";
+    private List<WalletDto> wallets = new();
+    private bool isLoading = true;
+    private string? error;
+
+    private IEnumerable<WalletDto> filteredWallets => string.IsNullOrWhiteSpace(searchText)
+        ? wallets
+        : wallets.Where(w =>
+            w.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+            w.Address.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+            w.Algorithm.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWalletsAsync();
+    }
+
+    private async Task LoadWalletsAsync()
+    {
+        isLoading = true;
+        error = null;
+
+        try
+        {
+            wallets = await WalletService.GetWalletsAsync();
+        }
+        catch (HttpRequestException ex)
+        {
+            error = $"Failed to load wallets: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            error = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ViewWallet(string address)
+    {
+        Navigation.NavigateTo($"wallets/{address}");
+    }
+
+    private async Task ConfirmDelete(WalletDto wallet)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.ContentText, $"Are you sure you want to delete wallet '{wallet.Name}'? This action can be reversed by support." },
+            { x => x.ButtonText, "Delete" },
+            { x => x.Color, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Delete Wallet", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await DeleteWalletAsync(wallet);
+        }
+    }
+
+    private async Task DeleteWalletAsync(WalletDto wallet)
+    {
+        try
+        {
+            var success = await WalletService.DeleteWalletAsync(wallet.Address);
+            if (success)
+            {
+                wallets.Remove(wallet);
+                Snackbar.Add($"Wallet '{wallet.Name}' deleted successfully", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Wallet not found", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to delete wallet: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static string TruncateAddress(string address)
+    {
+        if (address.Length <= 16)
+            return address;
+        return $"{address[..8]}...{address[^8..]}";
+    }
+
+    private static Color GetStatusColor(string status) => status.ToUpperInvariant() switch
+    {
+        "ACTIVE" => Color.Success,
+        "ARCHIVED" => Color.Warning,
+        "DELETED" => Color.Error,
+        "LOCKED" => Color.Info,
+        _ => Color.Default
+    };
+
+    private static Color GetAlgorithmColor(string algorithm) => algorithm.ToUpperInvariant() switch
+    {
+        "ED25519" => Color.Primary,
+        "NISTP256" => Color.Secondary,
+        "RSA4096" => Color.Tertiary,
+        _ => Color.Default
+    };
+}

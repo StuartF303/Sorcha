@@ -4,6 +4,7 @@ using Sorcha.UI.Core.Services.Authentication;
 using Sorcha.UI.Core.Services.Configuration;
 using Sorcha.UI.Core.Services.Encryption;
 using Sorcha.UI.Core.Services.Http;
+using Sorcha.UI.Core.Services.Wallet;
 
 namespace Sorcha.UI.Core.Extensions;
 
@@ -43,6 +44,20 @@ public static class ServiceCollectionExtensions
 
         // HTTP message handler for authenticated API calls (registered but not used by AuthenticationService)
         services.AddTransient<AuthenticatedHttpMessageHandler>();
+
+        // Wallet API Service with authenticated HttpClient
+        services.AddScoped<IWalletApiService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            return new WalletApiService(httpClient);
+        });
 
         return services;
     }

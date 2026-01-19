@@ -1,0 +1,257 @@
+@page "/wallets/recover"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@attribute [Authorize]
+@inject IWalletApiService WalletService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Recover Wallet - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.Restore" Class="mr-2" />
+        Recover Wallet
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        Recover an existing wallet using your BIP39 recovery phrase
+    </MudText>
+
+    <MudPaper Class="pa-6" Elevation="2">
+        <MudAlert Severity="Severity.Info" Class="mb-4" Icon="@Icons.Material.Filled.Info">
+            <MudText Typo="Typo.body2">
+                Enter your recovery phrase to restore access to your wallet. The algorithm and passphrase must match the original wallet configuration.
+            </MudText>
+        </MudAlert>
+
+        <EditForm Model="@request" OnValidSubmit="RecoverWalletAsync">
+            <DataAnnotationsValidator />
+
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField Label="Wallet Name" @bind-Value="request.Name" Required="true" RequiredError="Name is required" Variant="Variant.Outlined" HelperText="A friendly name for the recovered wallet" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" Label="Algorithm" @bind-Value="request.Algorithm" Required="true" RequiredError="Algorithm is required" Variant="Variant.Outlined" HelperText="Must match original wallet">
+                        <MudSelectItem Value="@("ED25519")">ED25519</MudSelectItem>
+                        <MudSelectItem Value="@("NISTP256")">NIST P-256</MudSelectItem>
+                        <MudSelectItem Value="@("RSA4096")">RSA 4096</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int" Label="Word Count" @bind-Value="wordCount" Required="true" Variant="Variant.Outlined" HelperText="Number of words in phrase">
+                        <MudSelectItem Value="12">12 words</MudSelectItem>
+                        <MudSelectItem Value="15">15 words</MudSelectItem>
+                        <MudSelectItem Value="18">18 words</MudSelectItem>
+                        <MudSelectItem Value="21">21 words</MudSelectItem>
+                        <MudSelectItem Value="24">24 words</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField Label="Passphrase (Optional)" @bind-Value="request.Passphrase" InputType="@(showPassphrase ? InputType.Text : InputType.Password)" Variant="Variant.Outlined" HelperText="If you used a passphrase, enter it here" Adornment="Adornment.End" AdornmentIcon="@(showPassphrase ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" OnAdornmentClick="() => showPassphrase = !showPassphrase" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.h6" Class="mb-3">Recovery Phrase</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                        Enter your @wordCount-word recovery phrase below:
+                    </MudText>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <div class="d-flex justify-space-between align-center mb-2">
+                        <MudText Typo="Typo.caption">Enter words (separated by spaces)</MudText>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="ClearWords" StartIcon="@Icons.Material.Filled.Clear">
+                            Clear
+                        </MudButton>
+                    </div>
+
+                    @if (useTextArea)
+                    {
+                        <MudTextField T="string" @bind-Value="mnemonicText" Lines="3" Variant="Variant.Outlined" Placeholder="word1 word2 word3 ..." FullWidth="true" HelperText="@GetWordCountHelperText()" />
+                    }
+                    else
+                    {
+                        <MudGrid Spacing="1">
+                            @for (int i = 0; i < wordCount; i++)
+                            {
+                                var index = i;
+                                <MudItem xs="4" sm="3" md="2">
+                                    <MudTextField T="string" Value="@(index < words.Count ? words[index] : "")" ValueChanged="@(value => SetWord(index, value))" Variant="Variant.Outlined" Margin="Margin.Dense" Label="@($"{index + 1}")" Style="font-family: monospace;" />
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    }
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSwitch T="bool" @bind-Value="useTextArea" Color="Color.Primary" Label="Paste mode (single text field)" />
+                </MudItem>
+
+                @if (!string.IsNullOrEmpty(validationError))
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Error">@validationError</MudAlert>
+                    </MudItem>
+                }
+
+                <MudItem xs="12" Class="d-flex justify-space-between mt-4">
+                    <MudButton Href="wallets" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack">
+                        Cancel
+                    </MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Restore" Disabled="@(isRecovering || !HasValidWordCount)">
+                        @if (isRecovering)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <span>Recovering...</span>
+                        }
+                        else
+                        {
+                            <span>Recover Wallet</span>
+                        }
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private RecoverWalletRequest request = new()
+    {
+        Name = "",
+        Algorithm = "ED25519",
+        MnemonicWords = Array.Empty<string>()
+    };
+
+    private int wordCount = 12;
+    private List<string> words = new();
+    private string mnemonicText = "";
+    private bool useTextArea = false;
+    private bool showPassphrase;
+    private bool isRecovering;
+    private string? validationError;
+
+    private bool HasValidWordCount
+    {
+        get
+        {
+            var actualWords = GetMnemonicWords();
+            return actualWords.Length == wordCount && actualWords.All(w => !string.IsNullOrWhiteSpace(w));
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        InitializeWords();
+    }
+
+    private void InitializeWords()
+    {
+        words = Enumerable.Range(0, wordCount).Select(_ => "").ToList();
+    }
+
+    private void SetWord(int index, string value)
+    {
+        while (words.Count <= index)
+        {
+            words.Add("");
+        }
+        words[index] = value?.Trim().ToLowerInvariant() ?? "";
+    }
+
+    private string[] GetMnemonicWords()
+    {
+        if (useTextArea)
+        {
+            return mnemonicText
+                .Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(w => w.Trim().ToLowerInvariant())
+                .Where(w => !string.IsNullOrWhiteSpace(w))
+                .ToArray();
+        }
+        else
+        {
+            return words
+                .Select(w => w?.Trim().ToLowerInvariant() ?? "")
+                .Where(w => !string.IsNullOrWhiteSpace(w))
+                .ToArray();
+        }
+    }
+
+    private string GetWordCountHelperText()
+    {
+        var actualWords = GetMnemonicWords();
+        return $"{actualWords.Length}/{wordCount} words entered";
+    }
+
+    private void ClearWords()
+    {
+        mnemonicText = "";
+        InitializeWords();
+        validationError = null;
+    }
+
+    private async Task RecoverWalletAsync()
+    {
+        validationError = null;
+
+        var mnemonicWords = GetMnemonicWords();
+
+        if (mnemonicWords.Length != wordCount)
+        {
+            validationError = $"Please enter exactly {wordCount} words. Currently entered: {mnemonicWords.Length}";
+            return;
+        }
+
+        // Validate word count matches standard BIP39 lengths
+        if (!new[] { 12, 15, 18, 21, 24 }.Contains(mnemonicWords.Length))
+        {
+            validationError = "Word count must be 12, 15, 18, 21, or 24";
+            return;
+        }
+
+        request.MnemonicWords = mnemonicWords;
+        isRecovering = true;
+
+        try
+        {
+            var wallet = await WalletService.RecoverWalletAsync(request);
+            Snackbar.Add($"Wallet '{wallet.Name}' recovered successfully!", Severity.Success);
+
+            // Clear sensitive data
+            ClearWords();
+            request.Passphrase = null;
+
+            Navigation.NavigateTo($"wallets/{wallet.Address}");
+        }
+        catch (HttpRequestException ex)
+        {
+            if (ex.Message.Contains("409") || ex.Message.Contains("Conflict"))
+            {
+                validationError = "A wallet with this recovery phrase already exists";
+            }
+            else if (ex.Message.Contains("400") || ex.Message.Contains("BadRequest"))
+            {
+                validationError = "Invalid recovery phrase. Please check your words and try again.";
+            }
+            else
+            {
+                validationError = $"Failed to recover wallet: {ex.Message}";
+            }
+            Snackbar.Add(validationError, Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            validationError = $"An unexpected error occurred: {ex.Message}";
+            Snackbar.Add(validationError, Severity.Error);
+        }
+        finally
+        {
+            isRecovering = false;
+        }
+    }
+}
