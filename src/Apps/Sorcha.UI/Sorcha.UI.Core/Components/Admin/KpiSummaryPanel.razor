@@ -1,0 +1,71 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Admin
+
+<MudPaper Elevation="2" Class="pa-4 kpi-summary-panel" data-testid="kpi-summary-panel">
+    <MudText Typo="Typo.h6" Class="mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" />
+        Platform Overview
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="6" sm="3">
+            <MudStack AlignItems="AlignItems.Center" Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h4" Color="Color.Primary">@Kpis.TotalOrganizations</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Organizations</MudText>
+            </MudStack>
+        </MudItem>
+
+        <MudItem xs="6" sm="3">
+            <MudStack AlignItems="AlignItems.Center" Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Color="Color.Info" />
+                <MudText Typo="Typo.h4" Color="Color.Info">@Kpis.TotalUsers</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Users</MudText>
+            </MudStack>
+        </MudItem>
+
+        <MudItem xs="6" sm="3">
+            <MudStack AlignItems="AlignItems.Center" Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" />
+                <MudText Typo="Typo.h4" Color="Color.Success">@Kpis.HealthyServices</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Healthy Services</MudText>
+            </MudStack>
+        </MudItem>
+
+        <MudItem xs="6" sm="3">
+            <MudStack AlignItems="AlignItems.Center" Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.CloudQueue" Size="Size.Large" Color="Color.Default" />
+                <MudText Typo="Typo.h4">@Kpis.TotalServices</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Total Services</MudText>
+            </MudStack>
+        </MudItem>
+    </MudGrid>
+
+    @if (Kpis.TotalServices > 0)
+    {
+        <MudDivider Class="my-3" />
+        <MudProgressLinear Color="@GetHealthColor()" Value="@Kpis.HealthyServicesPercentage" Class="my-2" />
+        <MudStack Row="true" Justify="Justify.SpaceBetween">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Service Health: @Kpis.HealthyServicesPercentage.ToString("F0")%
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Updated: @Kpis.LastUpdated.ToString("HH:mm:ss")
+            </MudText>
+        </MudStack>
+    }
+</MudPaper>
+
+@code {
+    [Parameter]
+    public required PlatformKpis Kpis { get; set; }
+
+    private Color GetHealthColor()
+    {
+        if (Kpis.HealthyServicesPercentage >= 90) return Color.Success;
+        if (Kpis.HealthyServicesPercentage >= 50) return Color.Warning;
+        return Color.Error;
+    }
+}

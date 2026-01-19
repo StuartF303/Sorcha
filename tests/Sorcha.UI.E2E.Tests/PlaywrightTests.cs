@@ -28,7 +28,7 @@ public class BlazorUITests : PageTest
         await _app.StartAsync();
 
         // Get the Blazor client URL
-        _blazorUrl = _app.GetEndpoint("blazor-client").ToString();
+        _blazorUrl = _app.GetEndpoint("ui-web").ToString();
     }
 
     [OneTimeTearDown]

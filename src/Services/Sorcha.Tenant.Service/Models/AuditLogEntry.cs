@@ -118,5 +118,35 @@ public enum AuditEventType
     /// <summary>
     /// User authenticated using PassKey.
     /// </summary>
-    PassKeyAuthentication
+    PassKeyAuthentication,
+
+    /// <summary>
+    /// Organization was created by an administrator.
+    /// </summary>
+    OrganizationCreated,
+
+    /// <summary>
+    /// Organization details were updated by an administrator.
+    /// </summary>
+    OrganizationUpdated,
+
+    /// <summary>
+    /// Organization was deactivated (soft-deleted) by an administrator.
+    /// </summary>
+    OrganizationDeactivated,
+
+    /// <summary>
+    /// User was added to an organization by an administrator.
+    /// </summary>
+    UserAddedToOrganization,
+
+    /// <summary>
+    /// User details or roles were updated by an administrator.
+    /// </summary>
+    UserUpdatedInOrganization,
+
+    /// <summary>
+    /// User was removed from an organization by an administrator.
+    /// </summary>
+    UserRemovedFromOrganization
 }

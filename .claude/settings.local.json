@@ -226,7 +226,10 @@
       "Bash(Select-Object Name)",
       "Bash(Select-String -Pattern \"warning CS|error CS|Warning\\\\\\(s\\\\\\)|Error\\\\\\(s\\\\\\)\")",
       "Bash(Select-Object -First 60)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Skill(speckit.specify)",
+      "Skill(speckit.clarify)",
+      "Skill(speckit.tasks)"
     ],
     "deny": [],
     "ask": []

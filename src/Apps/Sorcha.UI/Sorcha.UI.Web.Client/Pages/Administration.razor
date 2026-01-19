@@ -1,6 +1,10 @@
 @page "/admin"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using Sorcha.UI.Core.Components.Admin
+@using Sorcha.UI.Core.Services
 
 <PageTitle>Administration - Sorcha Platform</PageTitle>
 
@@ -13,45 +17,80 @@
         Monitor and manage Sorcha platform services
     </MudText>
 
-    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
-        <MudTabPanel Text="Blueprint Service" Icon="@Icons.Material.Filled.Api">
-            <BlueprintServiceAdmin />
-        </MudTabPanel>
-        <MudTabPanel Text="Peer Service" Icon="@Icons.Material.Filled.Hub">
-            <PeerServiceAdmin />
-        </MudTabPanel>
-        <MudTabPanel Text="System Health" Icon="@Icons.Material.Filled.HealthAndSafety">
-            <MudAlert Severity="Severity.Info" Class="mb-4">
-                System health monitoring coming soon...
-            </MudAlert>
-            <MudGrid>
-                <MudItem xs="12" md="4">
-                    <MudPaper Elevation="2" Class="pa-4 text-center">
-                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="mt-2">All Systems Operational</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">No issues detected</MudText>
-                    </MudPaper>
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudPaper Elevation="2" Class="pa-4 text-center">
-                        <MudIcon Icon="@Icons.Material.Filled.Storage" Color="Color.Info" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="mt-2">Database</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">PostgreSQL / MongoDB</MudText>
-                    </MudPaper>
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudPaper Elevation="2" Class="pa-4 text-center">
-                        <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Warning" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="mt-2">Security</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">TLS Enabled</MudText>
-                    </MudPaper>
-                </MudItem>
-            </MudGrid>
-        </MudTabPanel>
-        <MudTabPanel Text="Audit Log" Icon="@Icons.Material.Filled.History">
-            <MudAlert Severity="Severity.Info">
-                Audit logging will be implemented in a future version.
-            </MudAlert>
-        </MudTabPanel>
-    </MudTabs>
+    @if (_selectedOrganization != null)
+    {
+        @* Show User Management when an organization is selected *@
+        <UserList Organization="_selectedOrganization"
+                  IsReadOnly="!_isOrgAdmin"
+                  CurrentUserId="_currentUserId"
+                  OnBackToOrganizations="OnBackToOrganizations" />
+    }
+    else
+    {
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4" @bind-ActivePanelIndex="_activeTabIndex">
+            <MudTabPanel Text="System Health" Icon="@Icons.Material.Filled.HealthAndSafety">
+                <ServiceHealthDashboard />
+            </MudTabPanel>
+            @if (_isSystemAdmin)
+            {
+                <MudTabPanel Text="Organizations" Icon="@Icons.Material.Filled.Business">
+                    <OrganizationList OnOrganizationSelected="OnOrganizationSelected" />
+                </MudTabPanel>
+            }
+            <MudTabPanel Text="Blueprint Service" Icon="@Icons.Material.Filled.Api">
+                <BlueprintServiceAdmin />
+            </MudTabPanel>
+            <MudTabPanel Text="Peer Service" Icon="@Icons.Material.Filled.Hub">
+                <PeerServiceAdmin />
+            </MudTabPanel>
+            <MudTabPanel Text="Audit Log" Icon="@Icons.Material.Filled.History">
+                <MudAlert Severity="Severity.Info">
+                    Audit logging will be implemented in a future version.
+                </MudAlert>
+            </MudTabPanel>
+        </MudTabs>
+    }
 </MudContainer>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    private int _activeTabIndex = 0;
+    private OrganizationDto? _selectedOrganization;
+    private bool _isSystemAdmin;
+    private bool _isOrgAdmin;
+    private Guid? _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationState != null)
+        {
+            var authState = await AuthenticationState;
+            _isSystemAdmin = authState.User.Claims
+                .Any(c => c.Type == ClaimTypes.Role && c.Value == "Administrator");
+
+            // Org admins can also manage users within their organization
+            _isOrgAdmin = _isSystemAdmin || authState.User.Claims
+                .Any(c => c.Type == ClaimTypes.Role && c.Value == "OrganizationAdmin");
+
+            // Get current user ID from claims for self-removal prevention
+            var userIdClaim = authState.User.Claims
+                .FirstOrDefault(c => c.Type == "sub" || c.Type == ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                _currentUserId = userId;
+            }
+        }
+    }
+
+    private void OnOrganizationSelected(OrganizationDto organization)
+    {
+        _selectedOrganization = organization;
+    }
+
+    private void OnBackToOrganizations()
+    {
+        _selectedOrganization = null;
+    }
+}
