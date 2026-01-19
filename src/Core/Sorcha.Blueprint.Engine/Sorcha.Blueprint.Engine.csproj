@@ -23,7 +23,7 @@
     <PackageReference Include="JsonLogic" Version="5.5.0" />
     <PackageReference Include="JsonPath.Net" Version="2.2.0" />
     <PackageReference Include="JsonE.Net" Version="2.5.1" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.2" />
   </ItemGroup>
 
 </Project>

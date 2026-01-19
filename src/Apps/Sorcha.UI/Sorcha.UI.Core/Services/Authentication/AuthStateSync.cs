@@ -32,7 +32,7 @@ public class AuthStateSync
     {
         try
         {
-            var response = await _httpClient.GetAsync("/api/auth/state");
+            var response = await _httpClient.GetAsync("/api/ui-auth/state");
             
             if (!response.IsSuccessStatusCode)
             {

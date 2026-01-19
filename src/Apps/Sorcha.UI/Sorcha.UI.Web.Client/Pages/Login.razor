@@ -1,4 +1,4 @@
-@page "/login"
+@page "/auth/login"
 @layout AuthLayout
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @using Sorcha.UI.Core.Models.Authentication
@@ -259,8 +259,8 @@
             // Small delay to ensure state propagates before navigation
             await Task.Delay(100);
 
-            // Navigate without forcing full reload (keeps Blazor state)
-            Navigation.NavigateTo("/", forceLoad: false);
+            // Navigate to dashboard without forcing full reload (keeps Blazor state)
+            Navigation.NavigateTo("dashboard", forceLoad: false);
         }
         catch (HttpRequestException ex)
         {

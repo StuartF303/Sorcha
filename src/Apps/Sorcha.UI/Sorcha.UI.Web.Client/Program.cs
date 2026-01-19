@@ -1,11 +1,16 @@
 using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using Sorcha.Blueprint.Schemas;
 using Sorcha.UI.Core.Extensions;
-using Sorcha.UI.Core.Services.Authentication;
+using Sorcha.UI.Web.Client;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
+// Register root components for standalone WASM
+builder.RootComponents.Add<Routes>("#app");
+builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // Register core services (authentication, encryption, configuration) with base address
 builder.Services.AddCoreServices(builder.HostEnvironment.BaseAddress);
@@ -41,9 +46,5 @@ builder.Services.AddScoped<SchemaLibraryService>(sp =>
 
 var host = builder.Build();
 
-// Sync auth state from server cookie to WASM LocalStorage
-// This picks up tokens from the server-side login flow
-var authStateSync = host.Services.GetRequiredService<AuthStateSync>();
-await authStateSync.SyncAuthStateAsync();
-
+// Run the WASM application
 await host.RunAsync();

@@ -1,5 +1,5 @@
 @page "/schemas"
-@rendermode InteractiveWebAssembly
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @attribute [Authorize]
 @inject SchemaLibraryService SchemaService
 @inject ISnackbar Snackbar

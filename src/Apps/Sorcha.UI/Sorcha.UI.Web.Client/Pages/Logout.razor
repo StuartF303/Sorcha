@@ -1,4 +1,4 @@
-@page "/logout"
+@page "/auth/logout"
 @layout AuthLayout
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @using Sorcha.UI.Web.Client.Components.Layout
@@ -24,7 +24,7 @@
         <div class="alert alert-success">
             <h5>Logged Out Successfully</h5>
             <p>You have been signed out.</p>
-            <a href="/login" class="btn btn-primary mt-2">Sign In Again</a>
+            <a href="auth/login" class="btn btn-primary mt-2">Sign In Again</a>
         </div>
     }
 </div>
@@ -53,7 +53,7 @@
 
             // Auto-redirect after 2 seconds
             await Task.Delay(2000);
-            Navigation.NavigateTo("/login", forceLoad: false);
+            Navigation.NavigateTo("auth/login", forceLoad: false);
         }
         catch (Exception)
         {

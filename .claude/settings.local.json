@@ -225,7 +225,8 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Projects\\\\Sorcha\\\\src\\\\Apps\" -Directory)",
       "Bash(Select-Object Name)",
       "Bash(Select-String -Pattern \"warning CS|error CS|Warning\\\\\\(s\\\\\\)|Error\\\\\\(s\\\\\\)\")",
-      "Bash(Select-Object -First 60)"
+      "Bash(Select-Object -First 60)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []
