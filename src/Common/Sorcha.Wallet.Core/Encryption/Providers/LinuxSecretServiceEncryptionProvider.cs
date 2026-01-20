@@ -101,14 +101,86 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
                 "Linux Secret Service not available, using file-based fallback: {FallbackPath}",
                 _fallbackKeyPath);
 
-            // Ensure fallback directory exists
-            Directory.CreateDirectory(_fallbackKeyPath);
+            // Ensure fallback directory exists and is writable
+            EnsureFallbackDirectoryIsWritable();
 
             // Load existing keys from fallback storage
             LoadKeysFromFallbackStorage();
 
             _auditLogger.LogProviderInitialized(
                 $"Mode=Fallback, FallbackPath={_fallbackKeyPath}, DefaultKeyId={_defaultKeyId}");
+        }
+    }
+
+    /// <summary>
+    /// Ensures the fallback key storage directory exists and is writable.
+    /// Provides clear error messages for common Docker permission issues.
+    /// </summary>
+    private void EnsureFallbackDirectoryIsWritable()
+    {
+        try
+        {
+            // Create directory if it doesn't exist
+            if (!Directory.Exists(_fallbackKeyPath))
+            {
+                Directory.CreateDirectory(_fallbackKeyPath);
+                _logger.LogInformation("Created fallback key storage directory: {FallbackPath}", _fallbackKeyPath);
+            }
+
+            // Verify directory is writable by creating and deleting a test file
+            var testFilePath = Path.Combine(_fallbackKeyPath, $".write-test-{Guid.NewGuid():N}");
+            try
+            {
+                File.WriteAllBytes(testFilePath, [0x00]);
+                File.Delete(testFilePath);
+                _logger.LogDebug("Fallback key storage directory is writable: {FallbackPath}", _fallbackKeyPath);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                throw new InvalidOperationException(
+                    $"Wallet encryption key storage directory is not writable: {_fallbackKeyPath}\n\n" +
+                    "This typically occurs on fresh Docker installations when the volume has incorrect permissions.\n\n" +
+                    "To fix this issue, run one of the following commands:\n\n" +
+                    "Option 1 - Fix permissions on existing volume:\n" +
+                    "  docker run --rm -v wallet-encryption-keys:/data alpine chown -R 1654:1654 /data\n\n" +
+                    "Option 2 - Delete and recreate the volume:\n" +
+                    "  docker-compose down\n" +
+                    "  docker volume rm sorcha_wallet-encryption-keys\n" +
+                    "  docker-compose up -d\n\n" +
+                    "Option 3 - Run the setup script:\n" +
+                    "  ./scripts/setup.ps1 (Windows) or ./scripts/setup.sh (Linux/macOS)\n\n" +
+                    "For more information, see: docs/FIRST-RUN-SETUP.md");
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex,
+                "Cannot create wallet encryption key storage directory: {FallbackPath}. " +
+                "Check that the container has write permissions to this path.",
+                _fallbackKeyPath);
+
+            throw new InvalidOperationException(
+                $"Cannot create wallet encryption key storage directory: {_fallbackKeyPath}\n\n" +
+                "This typically occurs when:\n" +
+                "1. The Docker volume was created with root ownership\n" +
+                "2. The container is running as a non-root user (UID 1654)\n\n" +
+                "To fix this issue, run:\n" +
+                "  docker run --rm -v wallet-encryption-keys:/data alpine chown -R 1654:1654 /data\n\n" +
+                "Or run the setup script:\n" +
+                "  ./scripts/setup.ps1 (Windows) or ./scripts/setup.sh (Linux/macOS)",
+                ex);
+        }
+        catch (IOException ex) when (ex.Message.Contains("Permission denied") || ex.Message.Contains("Access"))
+        {
+            _logger.LogError(ex,
+                "Permission denied accessing wallet encryption key storage: {FallbackPath}",
+                _fallbackKeyPath);
+
+            throw new InvalidOperationException(
+                $"Permission denied accessing wallet encryption key storage: {_fallbackKeyPath}\n\n" +
+                "Fix the volume permissions with:\n" +
+                "  docker run --rm -v wallet-encryption-keys:/data alpine chown -R 1654:1654 /data",
+                ex);
         }
     }
 
@@ -506,10 +578,11 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     /// </summary>
     private void LoadKeysFromFallbackStorage()
     {
+        // Directory existence and writability is already verified by EnsureFallbackDirectoryIsWritable()
         if (!Directory.Exists(_fallbackKeyPath))
         {
-            _logger.LogWarning(
-                "Fallback key storage directory does not exist, will be created: {FallbackPath}",
+            _logger.LogDebug(
+                "Fallback key storage directory is empty (fresh installation): {FallbackPath}",
                 _fallbackKeyPath);
             return;
         }

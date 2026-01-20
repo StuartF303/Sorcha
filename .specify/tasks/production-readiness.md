@@ -100,7 +100,7 @@
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| SETUP-001 | First-run setup wizard/script for fresh installations | P0 | 24h | 📋 Not Started | - |
+| SETUP-001 | First-run setup wizard/script for fresh installations | P0 | 24h | 🚧 30% Complete | - |
 
 ### SETUP-001 Problem Statement
 
@@ -146,6 +146,14 @@ The solution must provide an interactive setup process that:
 
 ### SETUP-001 Deliverables
 
+**Wallet Encryption (2026-01-20):**
+- [x] `scripts/fix-wallet-encryption-permissions.ps1` - Quick fix for volume permissions (Windows)
+- [x] `scripts/fix-wallet-encryption-permissions.sh` - Quick fix for volume permissions (Linux/macOS)
+- [x] Updated `LinuxSecretServiceEncryptionProvider` with `EnsureFallbackDirectoryIsWritable()` validation
+- [x] Updated `setup-wallet-encryption-docker.ps1/.sh` to fix permissions during setup
+- [x] Added helpful comments in `docker-compose.yml` about permissions requirement
+
+**Remaining Deliverables:**
 - [ ] `scripts/setup.ps1` - PowerShell setup wizard (Windows)
 - [ ] `scripts/setup.sh` - Bash setup script (Linux/macOS)
 - [ ] `scripts/setup-config.yaml` - Configuration template with defaults

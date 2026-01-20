@@ -426,4 +426,11 @@ volumes:
   postgres-data:
   mongodb-data:
   dataprotection-keys:
+  # Wallet encryption keys volume - stores encrypted Data Encryption Keys (DEKs)
+  # IMPORTANT: On fresh installations, this volume is created with root ownership.
+  # The wallet service runs as non-root (UID 1654) and will fail to write keys.
+  # To fix permissions, run one of:
+  #   - ./scripts/fix-wallet-encryption-permissions.ps1 (Windows)
+  #   - ./scripts/fix-wallet-encryption-permissions.sh (Linux/macOS)
+  #   - docker run --rm -v sorcha_wallet-encryption-keys:/data alpine chown -R 1654:1654 /data
   wallet-encryption-keys:

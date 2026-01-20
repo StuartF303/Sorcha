@@ -21,7 +21,11 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-01-20:**
-- 🔴 SETUP-001 RECORDED: P0 issue - Fresh install/commissioning missing resources
+- 🟡 SETUP-001 PARTIAL: Wallet encryption permissions fix implemented
+  - Added `EnsureFallbackDirectoryIsWritable()` with clear error messages
+  - Updated setup scripts to fix Docker volume permissions (UID 1654)
+  - Created `fix-wallet-encryption-permissions.ps1/.sh` quick-fix scripts
+  - Added helpful comments in docker-compose.yml
 - ✅ System Schema Store feature complete (T001-T080)
 
 **2026-01-01:**

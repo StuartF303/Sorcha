@@ -232,6 +232,18 @@ if ($volumeExists) {
     Write-Success "Volume 'wallet-encryption-keys' created"
 }
 
+# Step 5b: Fix volume permissions for non-root container user
+# The wallet service runs as UID 1654 (non-root), but Docker volumes are created with root ownership
+# This step ensures the container can write to the encryption keys directory
+Write-Step "Setting volume permissions for non-root container (UID 1654)..."
+docker run --rm -v wallet-encryption-keys:/data alpine chown -R 1654:1654 /data 2>&1 | Out-Null
+if ($LASTEXITCODE -eq 0) {
+    Write-Success "Volume permissions set correctly (owner: 1654:1654)"
+} else {
+    Write-Warning "Could not set volume permissions - service may fail to write encryption keys"
+    Write-Info "Run manually: docker run --rm -v wallet-encryption-keys:/data alpine chown -R 1654:1654 /data"
+}
+
 # Step 6: Build Wallet Service image (unless skipped)
 if (-not $SkipBuild) {
     Write-Step "Building Wallet Service Docker image..."
