@@ -3,7 +3,7 @@
 **Goal:** Complete the unified Blueprint-Action Service with full execution capabilities
 **Duration:** Weeks 1-14 (extended for validation testing)
 **Total Tasks:** 82
-**Completion:** 94% (77 complete, 0 in progress, 5 not started)
+**Completion:** 95% (78 complete, 0 in progress, 4 not started)
 
 **Back to:** [MASTER-TASKS.md](../MASTER-TASKS.md)
 
@@ -86,9 +86,17 @@
 | BP-5.5 | Implement SignalR ActionsHub | P2 | 8h | ✅ Complete | - |
 | BP-5.6 | Redis backplane for SignalR | P2 | 6h | ✅ Complete | - |
 | BP-5.7 | SignalR integration tests | P2 | 8h | ✅ Complete | - |
-| BP-5.8 | Client-side SignalR integration | P3 | 6h | ❌ Not Started | - |
+| BP-5.8 | Client-side SignalR integration | P3 | 6h | ✅ Complete | 2026-01-20 |
 
-**Sprint 5 Status:** ✅ **SERVER COMPLETE** (7/8 tasks, 1 client-side task deferred to P3)
+**Sprint 5 Status:** ✅ **COMPLETE** (8/8 tasks)
+**Completed:** 2026-01-20
+
+**BP-5.8 Deliverables:**
+- ✅ ActionsHubConnection service for Admin UI (manages SignalR connection lifecycle)
+- ✅ Action notification models (ActionNotification, ActionAvailableNotification, etc.)
+- ✅ ConnectionState model for UI connection status display
+- ✅ MyActions page with real-time updates, connection indicator, and snackbar notifications
+- ✅ API Gateway routes for /actionshub SignalR endpoint
 **Completed:** 2025-11-17
 
 ---

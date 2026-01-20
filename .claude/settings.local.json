@@ -229,7 +229,9 @@
       "Bash(pkill:*)",
       "Skill(speckit.specify)",
       "Skill(speckit.clarify)",
-      "Skill(speckit.tasks)"
+      "Skill(speckit.tasks)",
+      "WebFetch(domain:www.schemastore.org)",
+      "Skill(speckit.implement)"
     ],
     "deny": [],
     "ask": []

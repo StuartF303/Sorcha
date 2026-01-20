@@ -2,26 +2,60 @@
 @rendermode InteractiveWebAssembly
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Consumer,User,Designer,Administrator")]
+@using Sorcha.Admin.Client.Models.Actions
+@using Sorcha.Admin.Client.Services
+@inject ActionsHubConnection ActionsHub
+@inject ISnackbar Snackbar
+@implements IAsyncDisposable
 
 <PageTitle>My Pending Actions - Sorcha Platform</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-2">
-        <MudIcon Icon="@Icons.Material.Filled.Task" Class="mr-2" />
-        My Pending Actions
-    </MudText>
-    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
-        Actions requiring your attention
-    </MudText>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h4">
+                <MudIcon Icon="@Icons.Material.Filled.Task" Class="mr-2" />
+                My Pending Actions
+            </MudText>
+            <MudText Typo="Typo.body1" Color="Color.Secondary">
+                Actions requiring your attention
+            </MudText>
+        </MudStack>
+
+        @* Real-time connection status indicator *@
+        <MudChip T="string"
+                 Size="Size.Small"
+                 Color="@GetConnectionColor()"
+                 Icon="@GetConnectionIcon()"
+                 Variant="Variant.Outlined">
+            @connectionState.StatusText
+        </MudChip>
+    </MudStack>
+
+    @* Real-time notifications banner *@
+    @if (recentNotifications.Count > 0)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4" ShowCloseIcon="true" CloseIconClicked="ClearNotifications">
+            <MudText Typo="Typo.body2">
+                <strong>@recentNotifications.Count new notification(s)</strong> received via real-time updates
+            </MudText>
+        </MudAlert>
+    }
 
     <MudGrid>
         @foreach (var action in actions)
         {
             <MudItem xs="12" md="6" lg="4">
-                <MudCard Elevation="2">
+                <MudCard Elevation="2" Class="@(action.IsNew ? "new-action-highlight" : "")">
                     <MudCardHeader>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.h6">@action.Title</MudText>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudText Typo="Typo.h6">@action.Title</MudText>
+                                @if (action.IsNew)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">NEW</MudChip>
+                                }
+                            </MudStack>
                             <MudText Typo="Typo.body2" Color="Color.Secondary">@action.Workflow</MudText>
                         </CardHeaderContent>
                         <CardHeaderActions>
@@ -30,13 +64,19 @@
                     </MudCardHeader>
                     <MudCardContent>
                         <MudText Typo="Typo.body2" Class="mb-2">@action.Description</MudText>
+                        @if (!string.IsNullOrEmpty(action.InstanceId))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">
+                                Instance: @action.InstanceId[..Math.Min(8, action.InstanceId.Length)]...
+                            </MudText>
+                        }
                         <MudDivider Class="my-2" />
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" /> Due: @action.DueDate.ToString("MMM dd, yyyy")
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" /> Due: @action.DueDate.ToString("MMM dd, yyyy HH:mm")
                         </MudText>
                     </MudCardContent>
                     <MudCardActions>
-                        <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true">
+                        <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true" OnClick="() => TakeAction(action)">
                             Take Action
                         </MudButton>
                     </MudCardActions>
@@ -44,31 +84,242 @@
             </MudItem>
         }
 
+        @if (actions.Count == 0)
+        {
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Success" Class="mt-4">
+                    <MudText Typo="Typo.body2">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Class="mr-1" />
+                        No pending actions. You're all caught up!
+                    </MudText>
+                </MudAlert>
+            </MudItem>
+        }
+
         <MudItem xs="12">
-            <MudAlert Severity="Severity.Info" Class="mt-4">
-                <MudText Typo="Typo.body2">
-                    This is a placeholder page. Full action execution functionality will be implemented in future versions.
-                </MudText>
-            </MudAlert>
+            <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Info" />
+                    <MudText Typo="Typo.body2">
+                        <strong>Real-time updates enabled.</strong>
+                        New actions will appear automatically when they become available for your wallet.
+                        @if (connectionState.Status != ConnectionStatus.Connected)
+                        {
+                            <span class="ml-2" style="color: var(--mud-palette-warning);">
+                                (Currently @connectionState.StatusText.ToLower())
+                            </span>
+                        }
+                    </MudText>
+                </MudStack>
+            </MudPaper>
         </MudItem>
     </MudGrid>
 </MudContainer>
 
+<style>
+    .new-action-highlight {
+        animation: highlight-fade 3s ease-out;
+        border: 2px solid var(--mud-palette-success);
+    }
+
+    @@keyframes highlight-fade {
+        0% { background-color: rgba(76, 175, 80, 0.3); }
+        100% { background-color: transparent; }
+    }
+</style>
+
 @code {
-    private List<ActionItem> actions = new()
+    private List<ActionItem> actions = new();
+    private List<ActionAvailableNotification> recentNotifications = new();
+    private ConnectionState connectionState = new();
+
+    // Sample wallet address for demo - in production this would come from authentication
+    private const string DemoWalletAddress = "0x1234567890abcdef1234567890abcdef12345678";
+
+    protected override async Task OnInitializedAsync()
     {
-        new ActionItem { Title = "Review Loan Application", Workflow = "Loan Application #1234", Description = "Review applicant's credit history and financial documents", Priority = "High", PriorityColor = Color.Error, DueDate = DateTime.Now.AddDays(1) },
-        new ActionItem { Title = "Approve Document", Workflow = "Document Approval #9012", Description = "Approve contract for final signature", Priority = "Medium", PriorityColor = Color.Warning, DueDate = DateTime.Now.AddDays(2) },
-        new ActionItem { Title = "Verify Shipment", Workflow = "Supply Chain #5678", Description = "Verify shipment received and quality check passed", Priority = "Low", PriorityColor = Color.Info, DueDate = DateTime.Now.AddDays(5) },
+        // Initialize with sample data
+        LoadSampleActions();
+
+        // Subscribe to connection state changes
+        ActionsHub.OnConnectionStateChanged += HandleConnectionStateChanged;
+
+        // Subscribe to action events
+        ActionsHub.OnActionAvailable += HandleActionAvailable;
+        ActionsHub.OnActionConfirmed += HandleActionConfirmed;
+        ActionsHub.OnActionRejected += HandleActionRejected;
+        ActionsHub.OnWorkflowCompleted += HandleWorkflowCompleted;
+
+        // Start the SignalR connection
+        try
+        {
+            await ActionsHub.StartAsync();
+
+            // Subscribe to demo wallet notifications
+            await ActionsHub.SubscribeToWalletAsync(DemoWalletAddress);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to connect to real-time updates: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    private void LoadSampleActions()
+    {
+        actions = new List<ActionItem>
+        {
+            new ActionItem
+            {
+                Title = "Review Loan Application",
+                Workflow = "Loan Application #1234",
+                Description = "Review applicant's credit history and financial documents",
+                Priority = "High",
+                PriorityColor = Color.Error,
+                DueDate = DateTime.Now.AddDays(1)
+            },
+            new ActionItem
+            {
+                Title = "Approve Document",
+                Workflow = "Document Approval #9012",
+                Description = "Approve contract for final signature",
+                Priority = "Medium",
+                PriorityColor = Color.Warning,
+                DueDate = DateTime.Now.AddDays(2)
+            },
+            new ActionItem
+            {
+                Title = "Verify Shipment",
+                Workflow = "Supply Chain #5678",
+                Description = "Verify shipment received and quality check passed",
+                Priority = "Low",
+                PriorityColor = Color.Info,
+                DueDate = DateTime.Now.AddDays(5)
+            }
+        };
+    }
+
+    private void HandleConnectionStateChanged(ConnectionState state)
+    {
+        connectionState = state;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleActionAvailable(ActionAvailableNotification notification)
+    {
+        // Add to recent notifications
+        recentNotifications.Add(notification);
+
+        // Add new action to the list
+        var newAction = new ActionItem
+        {
+            Title = notification.ActionTitle,
+            Workflow = $"Instance: {notification.InstanceId}",
+            Description = $"Action #{notification.ActionId} is now available for you",
+            InstanceId = notification.InstanceId,
+            ActionId = notification.ActionId,
+            Priority = "New",
+            PriorityColor = Color.Success,
+            DueDate = DateTime.Now.AddDays(1),
+            IsNew = true
+        };
+
+        actions.Insert(0, newAction);
+
+        // Show snackbar notification
+        Snackbar.Add($"New action available: {notification.ActionTitle}", Severity.Success);
+
+        await InvokeAsync(StateHasChanged);
+
+        // Remove "new" highlight after 5 seconds
+        _ = Task.Delay(5000).ContinueWith(_ =>
+        {
+            newAction.IsNew = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private async Task HandleActionConfirmed(ActionNotification notification)
+    {
+        Snackbar.Add($"Action confirmed: {notification.TransactionHash[..8]}...", Severity.Info);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleActionRejected(ActionRejectedNotification notification)
+    {
+        Snackbar.Add($"Action #{notification.RejectedActionId} was rejected: {notification.Reason}", Severity.Warning);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleWorkflowCompleted(WorkflowCompletedNotification notification)
+    {
+        Snackbar.Add($"Workflow completed: {notification.InstanceId[..8]}...", Severity.Success);
+
+        // Remove actions from the completed workflow
+        actions.RemoveAll(a => a.InstanceId == notification.InstanceId);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void TakeAction(ActionItem action)
+    {
+        Snackbar.Add($"Opening action: {action.Title}", Severity.Info);
+        // In production, this would navigate to the action execution page
+    }
+
+    private void ClearNotifications()
+    {
+        recentNotifications.Clear();
+        StateHasChanged();
+    }
+
+    private Color GetConnectionColor() => connectionState.Status switch
+    {
+        ConnectionStatus.Connected => Color.Success,
+        ConnectionStatus.Connecting => Color.Info,
+        ConnectionStatus.Reconnecting => Color.Warning,
+        ConnectionStatus.Disconnected => Color.Error,
+        _ => Color.Default
     };
+
+    private string GetConnectionIcon() => connectionState.Status switch
+    {
+        ConnectionStatus.Connected => Icons.Material.Filled.SignalCellularAlt,
+        ConnectionStatus.Connecting => Icons.Material.Filled.Sync,
+        ConnectionStatus.Reconnecting => Icons.Material.Filled.SyncProblem,
+        ConnectionStatus.Disconnected => Icons.Material.Filled.SignalCellularOff,
+        _ => Icons.Material.Filled.HelpOutline
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        // Unsubscribe from events
+        ActionsHub.OnConnectionStateChanged -= HandleConnectionStateChanged;
+        ActionsHub.OnActionAvailable -= HandleActionAvailable;
+        ActionsHub.OnActionConfirmed -= HandleActionConfirmed;
+        ActionsHub.OnActionRejected -= HandleActionRejected;
+        ActionsHub.OnWorkflowCompleted -= HandleWorkflowCompleted;
+
+        // Unsubscribe from wallet
+        try
+        {
+            await ActionsHub.UnsubscribeFromWalletAsync(DemoWalletAddress);
+        }
+        catch
+        {
+            // Ignore errors during disposal
+        }
+    }
 
     public class ActionItem
     {
         public string Title { get; set; } = "";
         public string Workflow { get; set; } = "";
         public string Description { get; set; } = "";
+        public string? InstanceId { get; set; }
+        public int ActionId { get; set; }
         public string Priority { get; set; } = "";
         public Color PriorityColor { get; set; }
         public DateTime DueDate { get; set; }
+        public bool IsNew { get; set; }
     }
 }

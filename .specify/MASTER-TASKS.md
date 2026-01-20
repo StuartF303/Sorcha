@@ -12,15 +12,19 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 234 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 135 (58%)
+**Completed:** 136 (58%)
 **In Progress:** 0 (0%)
-**Not Started:** 99 (42%)
+**Not Started:** 98 (42%)
 
 ---
 
 ## Recent Updates
 
 **2026-01-20:**
+- ✅ BP-5.8 COMPLETE: Client-side SignalR integration for Admin UI
+  - ActionsHubConnection service for real-time action notifications
+  - MyActions page with live connection status and snackbar alerts
+  - API Gateway routes for /actionshub SignalR endpoint
 - 🟡 SETUP-001 PARTIAL: Wallet encryption permissions fix implemented
   - Added `EnsureFallbackDirectoryIsWritable()` with clear error messages
   - Updated setup scripts to fix Docker volume permissions (UID 1654)
@@ -54,14 +58,14 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete | Details |
 |-------|-------------|----------|-------------|-------------|------------|---------|
-| **Phase 1: Blueprint-Action** | 82 | 77 | 0 | 5 | **94%** ✅ | [View Tasks](tasks/phase1-blueprint-service.md) |
+| **Phase 1: Blueprint-Action** | 82 | 78 | 0 | 4 | **95%** ✅ | [View Tasks](tasks/phase1-blueprint-service.md) |
 | **Phase 2: Wallet Service** | 34 | 34 | 0 | 0 | **100%** ✅ | [View Tasks](tasks/phase2-wallet-service.md) |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ | [View Tasks](tasks/phase3-register-service.md) |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% | [View Tasks](tasks/phase4-enhancements.md) |
 | **Production Readiness** | 10 | 0 | 0 | 10 | 0% ⚠️ | [View Tasks](tasks/production-readiness.md) |
 | **CLI Admin Tool** | 60 | 0 | 0 | 60 | 0% | [View Tasks](tasks/cli-admin-tool.md) |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% | [View Tasks](tasks/deferred-tasks.md) |
-| **TOTAL** | **234** | **123** | **0** | **111** | **53%** | |
+| **TOTAL** | **234** | **124** | **0** | **110** | **53%** | |
 
 ### By Priority
 

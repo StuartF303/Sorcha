@@ -1,8 +1,10 @@
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.Extensions.Logging;
 using MudBlazor.Services;
 using Sorcha.Blueprint.Schemas;
+using Sorcha.Admin.Client.Services;
 using Sorcha.Admin.Services.Authentication;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -17,6 +19,16 @@ builder.Services.AddScoped<AuthenticationStateProvider, PersistentAuthentication
 builder.Services.AddScoped(sp => new HttpClient
 {
     BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
+});
+
+// SignalR Actions Hub connection for real-time action notifications
+// Uses the same base address as the HTTP client (goes through API Gateway)
+builder.Services.AddScoped<ActionsHubConnection>(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<ActionsHubConnection>>();
+    // Use the host environment base address which routes through API Gateway
+    var baseUrl = builder.HostEnvironment.BaseAddress.TrimEnd('/');
+    return new ActionsHubConnection(baseUrl, logger);
 });
 
 // Add MudBlazor services
