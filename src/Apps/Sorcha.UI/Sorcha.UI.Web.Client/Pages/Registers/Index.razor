@@ -1,0 +1,191 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@page "/registers"
+@using Microsoft.AspNetCore.Components.Authorization
+@using Sorcha.UI.Core.Components.Registers
+@using Sorcha.UI.Core.Models.Registers
+@using Sorcha.UI.Core.Services
+
+@inject IRegisterService RegisterService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDialogService DialogService
+
+<PageTitle>Registers - Sorcha</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h4">Registers</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                View and manage distributed ledger registers
+            </MudText>
+        </MudStack>
+        <MudStack Row="true" Spacing="2">
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                           Color="Color.Default"
+                           OnClick="RefreshRegistersAsync"
+                           Disabled="@_isLoading"
+                           aria-label="Refresh registers" />
+            @if (_isAdmin)
+            {
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="OpenCreateRegisterDialog"
+                           data-testid="create-register-button">
+                    Create Register
+                </MudButton>
+            }
+        </MudStack>
+    </MudStack>
+
+    @if (_isLoading)
+    {
+        <MudGrid Spacing="3">
+            @for (int i = 0; i < 6; i++)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="150px" />
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else if (_errorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4" data-testid="error-message">
+            @_errorMessage
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="RefreshRegistersAsync" Class="ml-2">
+                Retry
+            </MudButton>
+        </MudAlert>
+    }
+    else if (_registers.Count == 0)
+    {
+        <MudPaper Elevation="0" Class="pa-8 text-center" data-testid="empty-state">
+            <MudIcon Icon="@Icons.Material.Filled.Storage"
+                     Color="Color.Secondary"
+                     Size="Size.Large"
+                     Class="mb-4" />
+            <MudText Typo="Typo.h6" Color="Color.Secondary">No Registers Found</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                @if (_isAdmin)
+                {
+                    <text>Create your first register to get started.</text>
+                }
+                else
+                {
+                    <text>No registers are available for your organization.</text>
+                }
+            </MudText>
+            @if (_isAdmin)
+            {
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="OpenCreateRegisterDialog">
+                    Create Register
+                </MudButton>
+            }
+        </MudPaper>
+    }
+    else
+    {
+        <MudGrid Spacing="3">
+            @foreach (var register in _registers)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <RegisterCard Register="@register" OnClick="NavigateToRegister" />
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private List<RegisterViewModel> _registers = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private bool _isAdmin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAdminRole();
+        await LoadRegistersAsync();
+    }
+
+    private async Task CheckAdminRole()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var roleClaim = user.Claims.FirstOrDefault(c =>
+                c.Type == System.Security.Claims.ClaimTypes.Role ||
+                c.Type == "role");
+            _isAdmin = roleClaim?.Value == "Administrator";
+        }
+    }
+
+    private async Task LoadRegistersAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            _registers = (await RegisterService.GetRegistersAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load registers: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task RefreshRegistersAsync()
+    {
+        await LoadRegistersAsync();
+    }
+
+    private void NavigateToRegister(RegisterViewModel register)
+    {
+        Navigation.NavigateTo($"/registers/{register.Id}");
+    }
+
+    private async Task OpenCreateRegisterDialog()
+    {
+        var parameters = new DialogParameters<CreateRegisterWizard>
+        {
+            { x => x.TenantId, GetCurrentTenantId() },
+            { x => x.OnRegisterCreated, EventCallback.Factory.Create<RegisterViewModel>(this, OnRegisterCreated) }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        await DialogService.ShowAsync<CreateRegisterWizard>("Create Register", parameters, options);
+    }
+
+    private string GetCurrentTenantId()
+    {
+        // Get tenant ID from claims or use default
+        // In a real implementation, this would come from the auth context
+        return "default-tenant";
+    }
+
+    private async Task OnRegisterCreated(RegisterViewModel register)
+    {
+        // Refresh the register list after creation
+        await LoadRegistersAsync();
+    }
+}

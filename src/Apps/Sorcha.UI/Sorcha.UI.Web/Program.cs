@@ -59,7 +59,7 @@ app.Use(async (context, next) =>
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "img-src 'self' data: https:",
         "font-src 'self' data: https://fonts.gstatic.com",
-        "connect-src 'self' https://localhost:* http://localhost:* wss://localhost:* ws://localhost:*",
+        "connect-src 'self' https://localhost:* http://localhost:* wss://localhost:* ws://localhost:* https://www.schemastore.org",
         "worker-src 'self' blob:",
         "frame-ancestors 'none'",
         "base-uri 'self'",

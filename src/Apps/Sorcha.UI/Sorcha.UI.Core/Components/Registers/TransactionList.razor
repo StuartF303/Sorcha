@@ -1,0 +1,237 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Registers
+@using Sorcha.UI.Core.Services
+
+@inject ITransactionService TransactionService
+
+<div class="transaction-list-container" data-testid="transaction-list">
+    @if (_isLoading && _transactions.Count == 0)
+    {
+        <MudStack Spacing="2" Class="pa-4">
+            @for (int i = 0; i < 5; i++)
+            {
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="50px" />
+            }
+        </MudStack>
+    }
+    else if (_errorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="ma-4" data-testid="transaction-error">
+            @_errorMessage
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="RefreshAsync" Class="ml-2">
+                Retry
+            </MudButton>
+        </MudAlert>
+    }
+    else if (_transactions.Count == 0)
+    {
+        <MudPaper Elevation="0" Class="pa-8 text-center" data-testid="empty-transactions">
+            <MudIcon Icon="@Icons.Material.Filled.Receipt"
+                     Color="Color.Secondary"
+                     Size="Size.Large"
+                     Class="mb-4" />
+            <MudText Typo="Typo.h6" Color="Color.Secondary">No Transactions Yet</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                This register has no transactions. Submit a transaction via the CLI to see it here.
+            </MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudPaper Elevation="0" Class="pa-2 mb-2 transaction-header">
+            <MudGrid Spacing="2" Class="align-center">
+                <MudItem xs="3" sm="2">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">TX ID</MudText>
+                </MudItem>
+                <MudItem xs="3" sm="2">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Time</MudText>
+                </MudItem>
+                <MudItem xs="4" sm="3">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Sender</MudText>
+                </MudItem>
+                <MudItem xs="2" sm="2">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Type</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="3" Class="d-none d-sm-flex justify-end">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Block</MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <div class="transaction-scroll-container" @onscroll="OnScroll" @ref="_scrollContainer">
+            @foreach (var tx in _transactions)
+            {
+                <TransactionRow Transaction="@tx"
+                                IsSelected="@(SelectedTransaction?.TxId == tx.TxId)"
+                                OnClick="SelectTransaction" />
+            }
+
+            @if (_isLoading)
+            {
+                <MudStack Class="pa-4 justify-center align-center" Row="true">
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Loading more...</MudText>
+                </MudStack>
+            }
+            else if (_hasMore)
+            {
+                <MudButton FullWidth="true"
+                           Variant="Variant.Text"
+                           OnClick="LoadMoreAsync"
+                           Class="my-2">
+                    Load More (@_totalTransactions total)
+                </MudButton>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Register ID to load transactions for
+    /// </summary>
+    [Parameter]
+    public required string RegisterId { get; set; }
+
+    /// <summary>
+    /// Currently selected transaction
+    /// </summary>
+    [Parameter]
+    public TransactionViewModel? SelectedTransaction { get; set; }
+
+    /// <summary>
+    /// Callback when a transaction is selected
+    /// </summary>
+    [Parameter]
+    public EventCallback<TransactionViewModel?> SelectedTransactionChanged { get; set; }
+
+    /// <summary>
+    /// Callback when transactions are loaded
+    /// </summary>
+    [Parameter]
+    public EventCallback<int> OnTransactionsLoaded { get; set; }
+
+    private List<TransactionViewModel> _transactions = [];
+    private bool _isLoading;
+    private string? _errorMessage;
+    private int _currentPage = 1;
+    private int _pageSize = 20;
+    private bool _hasMore;
+    private int _totalTransactions;
+    private ElementReference _scrollContainer;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(RegisterId))
+        {
+            await LoadTransactionsAsync(reset: true);
+        }
+    }
+
+    public async Task RefreshAsync()
+    {
+        await LoadTransactionsAsync(reset: true);
+    }
+
+    public async Task PrependTransactionAsync(TransactionViewModel transaction)
+    {
+        // Add new transaction at the top
+        _transactions.Insert(0, transaction);
+        _totalTransactions++;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadTransactionsAsync(bool reset = false)
+    {
+        if (_isLoading)
+            return;
+
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            if (reset)
+            {
+                _currentPage = 1;
+                _transactions.Clear();
+            }
+
+            var response = await TransactionService.GetTransactionsAsync(
+                RegisterId,
+                _currentPage,
+                _pageSize);
+
+            if (reset)
+            {
+                _transactions = response.Transactions.ToList();
+            }
+            else
+            {
+                _transactions.AddRange(response.Transactions);
+            }
+
+            _totalTransactions = response.Total;
+            _hasMore = response.HasMore;
+            _currentPage++;
+
+            await OnTransactionsLoaded.InvokeAsync(_totalTransactions);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load transactions: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        await LoadTransactionsAsync();
+    }
+
+    private async Task SelectTransaction(TransactionViewModel transaction)
+    {
+        if (SelectedTransaction?.TxId == transaction.TxId)
+        {
+            // Deselect if clicking the same transaction
+            await SelectedTransactionChanged.InvokeAsync(null);
+        }
+        else
+        {
+            await SelectedTransactionChanged.InvokeAsync(transaction);
+        }
+    }
+
+    private async Task OnScroll(EventArgs e)
+    {
+        // Auto-load more when scrolled near the bottom
+        // This could be enhanced with JS interop for more precise scroll detection
+    }
+}
+
+<style>
+    .transaction-list-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .transaction-header {
+        position: sticky;
+        top: 0;
+        background-color: var(--mud-palette-surface);
+        z-index: 1;
+        border-bottom: 2px solid var(--mud-palette-divider);
+    }
+
+    .transaction-scroll-container {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+    }
+</style>

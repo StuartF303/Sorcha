@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.2" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
     <PackageReference Include="Microsoft.JSInterop" Version="10.0.2" />
     <PackageReference Include="MudBlazor" Version="8.15.0" />
@@ -18,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Common\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
+    <ProjectReference Include="..\..\..\Common\Sorcha.Register.Models\Sorcha.Register.Models.csproj" />
   </ItemGroup>
 
 </Project>

@@ -66,6 +66,9 @@ public static class ServiceCollectionExtensions
         // Admin Services
         services.AddAdminServices(baseAddress);
 
+        // Register Services
+        services.AddRegisterServices(baseAddress);
+
         return services;
     }
 
@@ -136,6 +139,51 @@ public static class ServiceCollectionExtensions
             var auditService = sp.GetRequiredService<IAuditService>();
             var logger = sp.GetRequiredService<ILogger<OrganizationAdminService>>();
             return new OrganizationAdminService(httpClient, auditService, logger);
+        });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers register and transaction services.
+    /// </summary>
+    public static IServiceCollection AddRegisterServices(this IServiceCollection services, string baseAddress)
+    {
+        // Register Service
+        services.AddScoped<IRegisterService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var logger = sp.GetRequiredService<ILogger<RegisterService>>();
+            return new RegisterService(httpClient, logger);
+        });
+
+        // Transaction Service
+        services.AddScoped<ITransactionService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var logger = sp.GetRequiredService<ILogger<TransactionService>>();
+            return new TransactionService(httpClient, logger);
+        });
+
+        // Register Hub Connection (SignalR)
+        services.AddScoped<RegisterHubConnection>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<RegisterHubConnection>>();
+            return new RegisterHubConnection(baseAddress, logger);
         });
 
         return services;

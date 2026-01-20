@@ -1,0 +1,57 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Registers
+
+<MudTooltip Text="@ConnectionState.StatusText">
+    <MudChip T="string"
+             Size="Size.Small"
+             Color="@GetColor()"
+             Icon="@GetIcon()"
+             data-testid="realtime-indicator">
+        @GetDisplayText()
+    </MudChip>
+</MudTooltip>
+
+@code {
+    /// <summary>
+    /// Current connection state
+    /// </summary>
+    [Parameter]
+    public required ConnectionState ConnectionState { get; set; }
+
+    /// <summary>
+    /// Whether to show the full status text or just an icon
+    /// </summary>
+    [Parameter]
+    public bool ShowText { get; set; } = true;
+
+    private Color GetColor() => ConnectionState.Status switch
+    {
+        ConnectionStatus.Connected => Color.Success,
+        ConnectionStatus.Connecting => Color.Info,
+        ConnectionStatus.Reconnecting => Color.Warning,
+        ConnectionStatus.Disconnected => Color.Error,
+        _ => Color.Default
+    };
+
+    private string GetIcon() => ConnectionState.Status switch
+    {
+        ConnectionStatus.Connected => Icons.Material.Filled.SignalCellularAlt,
+        ConnectionStatus.Connecting => Icons.Material.Filled.Sync,
+        ConnectionStatus.Reconnecting => Icons.Material.Filled.SyncProblem,
+        ConnectionStatus.Disconnected => Icons.Material.Filled.SignalCellularOff,
+        _ => Icons.Material.Filled.HelpOutline
+    };
+
+    private string GetDisplayText() => ShowText
+        ? ConnectionState.Status switch
+        {
+            ConnectionStatus.Connected => "Live",
+            ConnectionStatus.Connecting => "Connecting...",
+            ConnectionStatus.Reconnecting => "Reconnecting...",
+            ConnectionStatus.Disconnected => "Offline",
+            _ => "Unknown"
+        }
+        : string.Empty;
+}

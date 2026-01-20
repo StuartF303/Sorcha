@@ -1,0 +1,142 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Registers
+
+<MudPaper Elevation="0"
+          Class="@GetRowClass()"
+          @onclick="OnRowClick"
+          data-testid="transaction-row">
+    <MudGrid Spacing="2" Class="align-center">
+        <MudItem xs="3" sm="2">
+            <MudTooltip Text="@Transaction.TxId">
+                <MudText Typo="Typo.body2" Class="transaction-id">
+                    @Transaction.TxIdTruncated
+                </MudText>
+            </MudTooltip>
+        </MudItem>
+        <MudItem xs="3" sm="2">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                @Transaction.TimeStampFormatted
+            </MudText>
+        </MudItem>
+        <MudItem xs="4" sm="3">
+            <MudTooltip Text="@Transaction.SenderWallet">
+                <MudText Typo="Typo.body2" Class="sender-address">
+                    @Transaction.SenderTruncated
+                </MudText>
+            </MudTooltip>
+        </MudItem>
+        <MudItem xs="2" sm="2">
+            <MudChip T="string"
+                     Size="Size.Small"
+                     Color="@GetTypeColor()">
+                @Transaction.TransactionType
+            </MudChip>
+        </MudItem>
+        <MudItem xs="12" sm="3" Class="d-none d-sm-flex justify-end">
+            @if (Transaction.BlockNumber.HasValue)
+            {
+                <MudChip T="string"
+                         Size="Size.Small"
+                         Icon="@Icons.Material.Filled.Layers"
+                         Color="Color.Default">
+                    Block @Transaction.BlockNumber
+                </MudChip>
+            }
+            else
+            {
+                <MudChip T="string"
+                         Size="Size.Small"
+                         Icon="@Icons.Material.Filled.Schedule"
+                         Color="Color.Warning">
+                    Pending
+                </MudChip>
+            }
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    /// <summary>
+    /// The transaction to display
+    /// </summary>
+    [Parameter]
+    public required TransactionViewModel Transaction { get; set; }
+
+    /// <summary>
+    /// Whether this transaction is currently selected
+    /// </summary>
+    [Parameter]
+    public bool IsSelected { get; set; }
+
+    /// <summary>
+    /// Callback when the row is clicked
+    /// </summary>
+    [Parameter]
+    public EventCallback<TransactionViewModel> OnClick { get; set; }
+
+    private string GetRowClass()
+    {
+        var baseClass = "pa-3 transaction-row";
+
+        if (IsSelected)
+        {
+            baseClass += " selected";
+        }
+
+        if (Transaction.IsRecent)
+        {
+            baseClass += " recent";
+        }
+
+        return baseClass;
+    }
+
+    private Color GetTypeColor() => Transaction.TransactionType switch
+    {
+        "Action" => Color.Primary,
+        "Blueprint" => Color.Secondary,
+        _ => Color.Default
+    };
+
+    private async Task OnRowClick()
+    {
+        await OnClick.InvokeAsync(Transaction);
+    }
+}
+
+<style>
+    .transaction-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+
+    .transaction-row:hover {
+        background-color: var(--mud-palette-action-default-hover);
+    }
+
+    .transaction-row.selected {
+        background-color: var(--mud-palette-primary-lighten);
+    }
+
+    .transaction-row.recent {
+        animation: highlight-new 2s ease-out;
+    }
+
+    .transaction-id,
+    .sender-address {
+        font-family: monospace;
+        font-size: 0.85rem;
+    }
+
+    @@keyframes highlight-new {
+        0% {
+            background-color: var(--mud-palette-success-lighten);
+        }
+        100% {
+            background-color: transparent;
+        }
+    }
+</style>
