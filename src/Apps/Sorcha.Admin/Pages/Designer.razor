@@ -8,6 +8,7 @@
 @using Blazored.LocalStorage
 @using System.Text.Json
 @using System.Text.Json.Nodes
+@using Sorcha.Admin.Components.Designer
 @using BlueprintAction = Sorcha.Blueprint.Models.Action
 @rendermode InteractiveWebAssembly
 @attribute [Authorize]
@@ -16,6 +17,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject Services.EventLogService EventLog
+@inject Services.IBlueprintStorageService BlueprintStorage
 
 <PageTitle>Blueprint Designer</PageTitle>
 
@@ -58,6 +60,10 @@
 
                 <MudSpacer />
 
+                <OfflineSyncIndicator />
+
+                <MudDivider Vertical="true" FlexItem="true" Class="mx-2" />
+
                 <MudButton StartIcon="@Icons.Material.Filled.Save"
                            Color="Color.Success"
                            Size="MudBlazor.Size.Small"
@@ -72,6 +78,24 @@
                            Variant="Variant.Filled"
                            OnClick="@ShowLoadBlueprintDialog">
                     Load
+                </MudButton>
+
+                <MudDivider Vertical="true" FlexItem="true" Class="mx-2" />
+
+                <MudButton StartIcon="@Icons.Material.Filled.FileDownload"
+                           Color="Color.Default"
+                           Size="MudBlazor.Size.Small"
+                           Variant="Variant.Outlined"
+                           OnClick="@ShowExportDialog">
+                    Export
+                </MudButton>
+
+                <MudButton StartIcon="@Icons.Material.Filled.FileUpload"
+                           Color="Color.Default"
+                           Size="MudBlazor.Size.Small"
+                           Variant="Variant.Outlined"
+                           OnClick="@ShowImportDialog">
+                    Import
                 </MudButton>
             </div>
         </MudPaper>
@@ -142,6 +166,7 @@
             // Subscribe to action node toolbar events
             ActionNodeModel.AddParticipantRequested += OnAddParticipantToAction;
             ActionNodeModel.AddConditionRequested += OnAddConditionToAction;
+            ActionNodeModel.AddCalculationRequested += OnAddCalculationToAction;
             ActionNodeModel.ShowPropertiesRequested += OnShowActionProperties;
 
             // Initialize blueprint
@@ -154,6 +179,30 @@
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow
             };
+
+            // Attempt to migrate local blueprints to server (once)
+            var migrationKey = "sorcha:migration_completed";
+            var migrationCompleted = await LocalStorage.GetItemAsync<bool?>(migrationKey);
+            if (migrationCompleted != true)
+            {
+                try
+                {
+                    var migrationResult = await BlueprintStorage.MigrateLocalBlueprintsAsync();
+                    if (migrationResult.MigratedCount > 0)
+                    {
+                        EventLog.LogSuccess($"Migrated {migrationResult.MigratedCount} blueprint(s) to server", "Local blueprints synced");
+                        if (migrationResult.FailedCount > 0)
+                        {
+                            EventLog.LogWarning($"{migrationResult.FailedCount} blueprint(s) failed to migrate", $"IDs: {string.Join(", ", migrationResult.FailedIds)}");
+                        }
+                    }
+                    await LocalStorage.SetItemAsync(migrationKey, true);
+                }
+                catch (Exception ex)
+                {
+                    EventLog.LogWarning("Migration skipped", $"Server unavailable: {ex.Message}");
+                }
+            }
 
             // Load saved blueprints list
             await RefreshBlueprintList();
@@ -313,6 +362,79 @@
         }
     }
 
+    private async Task ShowExportDialog()
+    {
+        var parameters = new DialogParameters<ExportDialog>
+        {
+            { x => x.Blueprint, CurrentBlueprint }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ExportDialog>("Export Blueprint", parameters, options);
+        await dialog.Result;
+    }
+
+    private async Task ShowImportDialog()
+    {
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ImportDialog>("Import Blueprint", options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is Blueprint importedBlueprint)
+        {
+            // Clear current diagram
+            Diagram?.Nodes.Clear();
+            Diagram?.Links.Clear();
+
+            // Load imported blueprint
+            CurrentBlueprint = importedBlueprint;
+
+            // Recreate nodes from blueprint data
+            int yOffset = 100;
+            foreach (var participant in importedBlueprint.Participants)
+            {
+                var node = new ParticipantNodeModel(participant, new Point(100, yOffset))
+                {
+                    Title = participant.Name
+                };
+                node.AddPort(PortAlignment.Bottom);
+                Diagram?.Nodes.Add(node);
+                yOffset += 150;
+            }
+
+            yOffset = 100;
+            foreach (var action in importedBlueprint.Actions)
+            {
+                var node = new ActionNodeModel(action, new Point(400, yOffset))
+                {
+                    Title = GetActionNodeTitle(action)
+                };
+                node.Locked = false;
+                node.AddPort(PortAlignment.Top);
+                node.AddPort(PortAlignment.Bottom);
+                Diagram?.Nodes.Add(node);
+                yOffset += 150;
+            }
+
+            participantCounter = importedBlueprint.Participants.Count;
+            actionCounter = importedBlueprint.Actions.Count;
+
+            Snackbar.Add($"Blueprint '{importedBlueprint.Title}' imported successfully", Severity.Success);
+            EventLog.LogSuccess($"Imported blueprint '{importedBlueprint.Title}'", $"Actions: {importedBlueprint.Actions.Count}, Participants: {importedBlueprint.Participants.Count}");
+            StateHasChanged();
+        }
+    }
+
     private async Task ShowBlueprintProperties()
     {
         var parameters = new DialogParameters<BlueprintPropertiesDialog>
@@ -331,16 +453,222 @@
     }
 
     // Action node toolbar event handlers
-    private void OnAddParticipantToAction(BlueprintAction action)
+    private async void OnAddParticipantToAction(BlueprintAction action)
     {
-        // TODO: Implement add participant dialog
-        Snackbar.Add($"Add Participant to Action {action.Id} - Coming soon!", Severity.Info);
+        // First ensure there are participants in the blueprint
+        if (!CurrentBlueprint.Participants.Any())
+        {
+            var addFirst = await DialogService.ShowMessageBox(
+                "No Participants",
+                "This blueprint has no participants defined. Would you like to add a participant to the blueprint first?",
+                yesText: "Add Participant",
+                cancelText: "Cancel");
+
+            if (addFirst == true)
+            {
+                await AddBlueprintParticipant();
+            }
+            return;
+        }
+
+        // Show dialog to select which participant to add to this action
+        var availableParticipants = CurrentBlueprint.Participants
+            .Where(p => action.Participants?.All(ap => ap.Principal != p.WalletAddress && ap.Principal != p.Id) ?? true)
+            .ToList();
+
+        if (!availableParticipants.Any())
+        {
+            Snackbar.Add("All participants are already assigned to this action", Severity.Info);
+            return;
+        }
+
+        var parameters = new DialogParameters<SelectParticipantDialog>
+        {
+            { x => x.AvailableParticipants, availableParticipants },
+            { x => x.ActionTitle, action.Title }
+        };
+
+        var dialog = await DialogService.ShowAsync<SelectParticipantDialog>("Add Participant to Action", parameters);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is Participant selectedParticipant)
+        {
+            // Add participant condition to action
+            action.Participants ??= [];
+            action.Participants = action.Participants.Append(new Condition(selectedParticipant.WalletAddress ?? selectedParticipant.Id, true)).ToList();
+
+            // Update the diagram
+            var node = Diagram?.Nodes.OfType<ActionNodeModel>().FirstOrDefault(n => n.Action.Id == action.Id);
+            if (node != null)
+            {
+                node.Title = GetActionNodeTitle(action);
+            }
+
+            Snackbar.Add($"Added participant '{selectedParticipant.Name}' to action '{action.Title}'", Severity.Success);
+            StateHasChanged();
+        }
     }
 
-    private void OnAddConditionToAction(BlueprintAction action)
+    private async Task AddBlueprintParticipant()
     {
-        // TODO: Implement add condition dialog
-        Snackbar.Add($"Add Condition to Action {action.Id} - Coming soon!", Severity.Info);
+        var model = new ParticipantModel();
+        var existingNames = CurrentBlueprint.Participants.Select(p => p.Name).ToList();
+
+        var parameters = new DialogParameters<ParticipantEditor>
+        {
+            { x => x.Model, model },
+            { x => x.IsEditing, false },
+            { x => x.ExistingParticipantNames, existingNames },
+            { x => x.AvailableWalletAddresses, new List<string>() }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ParticipantEditor>("Add Participant", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is ParticipantModel savedModel)
+        {
+            var participant = savedModel.ToParticipant();
+            CurrentBlueprint.Participants.Add(participant);
+            participantCounter++;
+            Snackbar.Add($"Participant '{participant.Name}' added to blueprint", Severity.Success);
+            EventLog.LogSuccess("Participant added", $"Name: {participant.Name}");
+            StateHasChanged();
+        }
+    }
+
+    private async void OnAddConditionToAction(BlueprintAction action)
+    {
+        // Parse existing condition if present
+        var model = action.Condition is not null
+            ? ConditionModel.FromJsonLogic(action.Condition)
+            : new ConditionModel();
+
+        // Extract available fields from the action's data schemas
+        var availableFields = ExtractFieldsFromSchemas(action);
+
+        var parameters = new DialogParameters<ConditionEditor>
+        {
+            { x => x.Model, model },
+            { x => x.Participants, CurrentBlueprint.Participants.ToList() },
+            { x => x.AvailableFields, availableFields }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ConditionEditor>("Edit Condition", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is ConditionModel updatedModel)
+        {
+            // Convert model to JSON Logic and update action
+            action.Condition = updatedModel.ToJsonLogic();
+
+            // Update the diagram
+            var node = Diagram?.Nodes.OfType<ActionNodeModel>().FirstOrDefault(n => n.Action.Id == action.Id);
+            if (node != null)
+            {
+                node.Title = GetActionNodeTitle(action);
+            }
+
+            Snackbar.Add($"Condition updated for action '{action.Title}'", Severity.Success);
+            EventLog.LogSuccess("Condition updated", $"Action: {action.Title}");
+            StateHasChanged();
+        }
+    }
+
+    private async void OnAddCalculationToAction(BlueprintAction action)
+    {
+        // Extract available numeric fields from the action's data schemas
+        var availableFields = ExtractFieldsFromSchemas(action);
+
+        // Create a model - either new or from existing calculation
+        var model = new CalculationModel();
+
+        var parameters = new DialogParameters<CalculationEditor>
+        {
+            { x => x.Model, model },
+            { x => x.AvailableFields, availableFields }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<CalculationEditor>("Add Calculation", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is CalculationModel savedModel)
+        {
+            // Add the calculation to the action
+            action.Calculations ??= new Dictionary<string, JsonNode>();
+            var jsonLogic = savedModel.ToJsonLogic();
+            if (jsonLogic != null && !string.IsNullOrWhiteSpace(savedModel.TargetFieldPath))
+            {
+                action.Calculations[savedModel.TargetFieldPath] = jsonLogic;
+            }
+
+            // Update the diagram
+            var node = Diagram?.Nodes.OfType<ActionNodeModel>().FirstOrDefault(n => n.Action.Id == action.Id);
+            if (node != null)
+            {
+                node.Title = GetActionNodeTitle(action);
+            }
+
+            Snackbar.Add($"Calculation added to action '{action.Title}'", Severity.Success);
+            EventLog.LogSuccess("Calculation added", $"Action: {action.Title}, Target: {savedModel.TargetFieldPath}");
+            StateHasChanged();
+        }
+    }
+
+    private List<string> ExtractFieldsFromSchemas(BlueprintAction action)
+    {
+        var fields = new List<string>
+        {
+            // Common fields available in most workflows
+            "amount", "status", "approved", "quantity",
+            "total", "balance", "percentage", "rating",
+            "category", "type", "name", "id", "date"
+        };
+
+        // Try to extract fields from action's data schemas
+        if (action.DataSchemas is not null)
+        {
+            foreach (var schema in action.DataSchemas)
+            {
+                try
+                {
+                    var root = schema.RootElement;
+                    if (root.TryGetProperty("properties", out var props))
+                    {
+                        foreach (var prop in props.EnumerateObject())
+                        {
+                            if (!fields.Contains(prop.Name))
+                            {
+                                fields.Add(prop.Name);
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore schema parsing errors
+                }
+            }
+        }
+
+        return fields.Distinct().OrderBy(f => f).ToList();
     }
 
     private void OnShowActionProperties(BlueprintAction action)
@@ -404,27 +732,34 @@
             // Update timestamp
             CurrentBlueprint.UpdatedAt = DateTimeOffset.UtcNow;
 
-            // Get existing blueprints
-            var blueprintsJson = await LocalStorage.GetItemAsStringAsync(BLUEPRINTS_KEY);
-            var blueprints = string.IsNullOrEmpty(blueprintsJson)
-                ? new List<Blueprint>()
-                : JsonSerializer.Deserialize<List<Blueprint>>(blueprintsJson) ?? new List<Blueprint>();
+            // Use BlueprintStorageService for save (handles server + offline queue)
+            var result = await BlueprintStorage.SaveBlueprintAsync(CurrentBlueprint);
 
-            // Update or add current blueprint
-            var existing = blueprints.FirstOrDefault(b => b.Id == CurrentBlueprint.Id);
-            if (existing != null)
+            if (result.Success)
             {
-                blueprints.Remove(existing);
+                await RefreshBlueprintList();
+
+                if (result.SavedToServer)
+                {
+                    Snackbar.Add($"Blueprint '{CurrentBlueprint.Title}' saved to server", Severity.Success);
+                    EventLog.LogSuccess($"Saved blueprint '{CurrentBlueprint.Title}' to server", $"Version {CurrentBlueprint.Version} - {CurrentBlueprint.Actions.Count} actions");
+                }
+                else if (result.QueuedForSync)
+                {
+                    Snackbar.Add($"Blueprint '{CurrentBlueprint.Title}' saved locally (will sync when online)", Severity.Info);
+                    EventLog.LogInfo($"Blueprint '{CurrentBlueprint.Title}' queued for sync", $"Server unavailable - will sync automatically");
+                }
+                else
+                {
+                    Snackbar.Add($"Blueprint '{CurrentBlueprint.Title}' saved locally", Severity.Success);
+                    EventLog.LogSuccess($"Saved blueprint '{CurrentBlueprint.Title}' locally", $"Version {CurrentBlueprint.Version} - {CurrentBlueprint.Actions.Count} actions");
+                }
             }
-            blueprints.Add(CurrentBlueprint);
-
-            // Save to LocalStorage
-            var json = JsonSerializer.Serialize(blueprints);
-            await LocalStorage.SetItemAsStringAsync(BLUEPRINTS_KEY, json);
-
-            await RefreshBlueprintList();
-            Snackbar.Add($"Blueprint '{CurrentBlueprint.Title}' saved successfully", Severity.Success);
-            EventLog.LogSuccess($"Saved blueprint '{CurrentBlueprint.Title}'", $"Version {CurrentBlueprint.Version} - {CurrentBlueprint.Actions.Count} actions");
+            else
+            {
+                Snackbar.Add($"Error saving blueprint: {result.ErrorMessage}", Severity.Error);
+                EventLog.LogError($"Failed to save blueprint", result.ErrorMessage ?? "Unknown error");
+            }
         }
         catch (Exception ex)
         {
@@ -438,11 +773,8 @@
     {
         try
         {
-            var blueprintsJson = await LocalStorage.GetItemAsStringAsync(BLUEPRINTS_KEY);
-            if (string.IsNullOrEmpty(blueprintsJson)) return;
-
-            var blueprints = JsonSerializer.Deserialize<List<Blueprint>>(blueprintsJson);
-            var blueprint = blueprints?.FirstOrDefault(b => b.Id == blueprintId);
+            // Use BlueprintStorageService to load (checks server first, then local)
+            var blueprint = await BlueprintStorage.GetBlueprintAsync(blueprintId);
 
             if (blueprint == null)
             {
@@ -502,10 +834,9 @@
     {
         try
         {
-            var blueprintsJson = await LocalStorage.GetItemAsStringAsync(BLUEPRINTS_KEY);
-            savedBlueprints = string.IsNullOrEmpty(blueprintsJson)
-                ? new List<Blueprint>()
-                : JsonSerializer.Deserialize<List<Blueprint>>(blueprintsJson) ?? new List<Blueprint>();
+            // Use BlueprintStorageService to get blueprints (server first, then local cache)
+            var blueprints = await BlueprintStorage.GetBlueprintsAsync();
+            savedBlueprints = blueprints.ToList();
         }
         catch (Exception ex)
         {

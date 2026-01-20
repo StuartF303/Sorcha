@@ -1,0 +1,461 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.Admin.Models
+@using System.Text.Json.Nodes
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Calculate" Class="mr-2" />
+            Calculation Editor
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <!-- Target Field Selection -->
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Model.TargetFieldPath"
+                              Label="Target Field"
+                              Placeholder="Enter the field path for the result (e.g., total)"
+                              Variant="Variant.Outlined"
+                              HelperText="The calculated value will be stored in this field"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Output" />
+            </MudItem>
+
+            <!-- Expression Builder -->
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Expression Builder</MudText>
+                <MudPaper Class="pa-4 mud-background-gray" Outlined="true" Style="min-height: 60px;">
+                    <div class="d-flex flex-wrap gap-2 align-center">
+                        @foreach (var (element, index) in Model.Elements.Select((e, i) => (e, i)))
+                        {
+                            <MudChip T="string"
+                                     Color="@GetElementColor(element)"
+                                     Size="Size.Medium"
+                                     OnClose="@(() => RemoveElement(index))"
+                                     Class="ma-0">
+                                @GetElementDisplay(element)
+                            </MudChip>
+                        }
+                        @if (!Model.Elements.Any())
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Click buttons below to build your expression
+                            </MudText>
+                        }
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            <!-- Element Buttons -->
+            <MudItem xs="12" md="4">
+                <MudCard Elevation="0" Outlined="true">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.subtitle2">
+                                <MudIcon Icon="@Icons.Material.Filled.DataObject" Size="Size.Small" Class="mr-1" />
+                                Fields
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent Class="pt-0">
+                        <MudSelect T="string"
+                                   Label="Select Field"
+                                   Variant="Variant.Outlined"
+                                   @bind-Value="_selectedField"
+                                   Dense="true">
+                            @foreach (var field in AvailableFields)
+                            {
+                                <MudSelectItem Value="@field">@field</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudButton OnClick="AddField"
+                                   Color="Color.Primary"
+                                   Variant="Variant.Outlined"
+                                   Size="Size.Small"
+                                   Class="mt-2"
+                                   FullWidth="true"
+                                   Disabled="@string.IsNullOrEmpty(_selectedField)"
+                                   StartIcon="@Icons.Material.Filled.Add">
+                            Add Field
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudCard Elevation="0" Outlined="true">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.subtitle2">
+                                <MudIcon Icon="@Icons.Material.Filled.Functions" Size="Size.Small" Class="mr-1" />
+                                Operators
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent Class="pt-0">
+                        <div class="d-flex flex-wrap gap-2">
+                            <MudButton OnClick="@(() => AddOperator(ArithmeticOperator.Add))"
+                                       Color="Color.Secondary"
+                                       Variant="Variant.Filled"
+                                       Size="Size.Medium">
+                                +
+                            </MudButton>
+                            <MudButton OnClick="@(() => AddOperator(ArithmeticOperator.Subtract))"
+                                       Color="Color.Secondary"
+                                       Variant="Variant.Filled"
+                                       Size="Size.Medium">
+                                -
+                            </MudButton>
+                            <MudButton OnClick="@(() => AddOperator(ArithmeticOperator.Multiply))"
+                                       Color="Color.Secondary"
+                                       Variant="Variant.Filled"
+                                       Size="Size.Medium">
+                                *
+                            </MudButton>
+                            <MudButton OnClick="@(() => AddOperator(ArithmeticOperator.Divide))"
+                                       Color="Color.Secondary"
+                                       Variant="Variant.Filled"
+                                       Size="Size.Medium">
+                                /
+                            </MudButton>
+                        </div>
+                        <div class="d-flex gap-2 mt-2">
+                            <MudButton OnClick="AddOpenParen"
+                                       Color="Color.Info"
+                                       Variant="Variant.Outlined"
+                                       Size="Size.Small">
+                                (
+                            </MudButton>
+                            <MudButton OnClick="AddCloseParen"
+                                       Color="Color.Info"
+                                       Variant="Variant.Outlined"
+                                       Size="Size.Small">
+                                )
+                            </MudButton>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudCard Elevation="0" Outlined="true">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.subtitle2">
+                                <MudIcon Icon="@Icons.Material.Filled.Numbers" Size="Size.Small" Class="mr-1" />
+                                Constants
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent Class="pt-0">
+                        <MudNumericField T="decimal"
+                                         @bind-Value="_constantValue"
+                                         Label="Value"
+                                         Variant="Variant.Outlined"
+                                         Dense="true" />
+                        <MudButton OnClick="AddConstant"
+                                   Color="Color.Primary"
+                                   Variant="Variant.Outlined"
+                                   Size="Size.Small"
+                                   Class="mt-2"
+                                   FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Add">
+                            Add Constant
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <!-- Expression Preview -->
+            <MudItem xs="12">
+                <MudExpansionPanels>
+                    <MudExpansionPanel Text="Expression Preview">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Human-readable Expression:</MudText>
+                        <MudPaper Class="pa-3 mud-background-gray" Outlined="true">
+                            <MudText Typo="Typo.body1" Style="font-family: monospace;">
+                                @GetHumanReadableExpression()
+                            </MudText>
+                        </MudPaper>
+
+                        <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">JSON Logic Output:</MudText>
+                        <MudPaper Class="pa-3 mud-background-gray" Outlined="true">
+                            <pre style="font-size: 12px; margin: 0; overflow-x: auto;">@GetJsonLogicPreview()</pre>
+                        </MudPaper>
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            </MudItem>
+
+            <!-- Test Values -->
+            <MudItem xs="12">
+                <MudExpansionPanels>
+                    <MudExpansionPanel Text="Test Calculation">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Enter test values for fields:</MudText>
+                        <MudGrid>
+                            @foreach (var field in GetUsedFields())
+                            {
+                                <MudItem xs="12" sm="6" md="4">
+                                    <MudNumericField T="decimal"
+                                                     Label="@field"
+                                                     Variant="Variant.Outlined"
+                                                     Dense="true"
+                                                     Value="@GetTestValue(field)"
+                                                     ValueChanged="@(v => SetTestValue(field, v))" />
+                                </MudItem>
+                            }
+                        </MudGrid>
+
+                        @if (GetUsedFields().Any())
+                        {
+                            <MudAlert Severity="Severity.Info" Class="mt-3" Dense="true">
+                                <div class="d-flex justify-space-between align-center">
+                                    <MudText Typo="Typo.body2">Calculated Result:</MudText>
+                                    <MudText Typo="Typo.h6">
+                                        @(EvaluateExpression()?.ToString("N2") ?? "Invalid expression")
+                                    </MudText>
+                                </div>
+                            </MudAlert>
+                        }
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            </MudItem>
+
+            <!-- Quick Actions -->
+            <MudItem xs="12">
+                <div class="d-flex gap-2">
+                    <MudButton OnClick="ClearExpression"
+                               Color="Color.Error"
+                               Variant="Variant.Text"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Clear">
+                        Clear All
+                    </MudButton>
+                    <MudButton OnClick="UndoLast"
+                               Color="Color.Default"
+                               Variant="Variant.Text"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Undo"
+                               Disabled="@(!Model.Elements.Any())">
+                        Undo Last
+                    </MudButton>
+                </div>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="Save"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(!IsValid())">
+            Save Calculation
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public CalculationModel Model { get; set; } = new();
+
+    [Parameter]
+    public List<string> AvailableFields { get; set; } = [];
+
+    private string? _selectedField;
+    private decimal _constantValue = 0;
+    private Dictionary<string, decimal> _testValues = new();
+
+    protected override void OnInitialized()
+    {
+        // Create a copy of the model to allow cancellation
+        Model = new CalculationModel
+        {
+            TargetFieldPath = Model.TargetFieldPath,
+            Elements = Model.Elements.ToList()
+        };
+    }
+
+    private void AddField()
+    {
+        if (string.IsNullOrEmpty(_selectedField)) return;
+
+        Model.Elements.Add(new CalculationElement
+        {
+            Type = CalculationElementType.Field,
+            FieldPath = _selectedField
+        });
+
+        _selectedField = null;
+    }
+
+    private void AddOperator(ArithmeticOperator op)
+    {
+        Model.Elements.Add(new CalculationElement
+        {
+            Type = CalculationElementType.Operator,
+            Operator = op
+        });
+    }
+
+    private void AddConstant()
+    {
+        Model.Elements.Add(new CalculationElement
+        {
+            Type = CalculationElementType.Constant,
+            ConstantValue = _constantValue.ToString()
+        });
+    }
+
+    private void AddOpenParen()
+    {
+        Model.Elements.Add(new CalculationElement
+        {
+            Type = CalculationElementType.OpenParen
+        });
+    }
+
+    private void AddCloseParen()
+    {
+        Model.Elements.Add(new CalculationElement
+        {
+            Type = CalculationElementType.CloseParen
+        });
+    }
+
+    private void RemoveElement(int index)
+    {
+        if (index >= 0 && index < Model.Elements.Count)
+        {
+            Model.Elements.RemoveAt(index);
+        }
+    }
+
+    private void UndoLast()
+    {
+        if (Model.Elements.Any())
+        {
+            Model.Elements.RemoveAt(Model.Elements.Count - 1);
+        }
+    }
+
+    private void ClearExpression()
+    {
+        Model.Elements.Clear();
+        _testValues.Clear();
+    }
+
+    private string GetElementDisplay(CalculationElement element)
+    {
+        return element.Type switch
+        {
+            CalculationElementType.Field => element.FieldPath ?? "?",
+            CalculationElementType.Constant => element.ConstantValue ?? "0",
+            CalculationElementType.Operator => element.Operator switch
+            {
+                ArithmeticOperator.Add => "+",
+                ArithmeticOperator.Subtract => "-",
+                ArithmeticOperator.Multiply => "*",
+                ArithmeticOperator.Divide => "/",
+                _ => "?"
+            },
+            CalculationElementType.OpenParen => "(",
+            CalculationElementType.CloseParen => ")",
+            _ => "?"
+        };
+    }
+
+    private Color GetElementColor(CalculationElement element)
+    {
+        return element.Type switch
+        {
+            CalculationElementType.Field => Color.Primary,
+            CalculationElementType.Constant => Color.Success,
+            CalculationElementType.Operator => Color.Secondary,
+            CalculationElementType.OpenParen => Color.Info,
+            CalculationElementType.CloseParen => Color.Info,
+            _ => Color.Default
+        };
+    }
+
+    private string GetHumanReadableExpression()
+    {
+        if (!Model.Elements.Any()) return "(empty expression)";
+
+        return string.Join(" ", Model.Elements.Select(e => GetElementDisplay(e)));
+    }
+
+    private string GetJsonLogicPreview()
+    {
+        var jsonLogic = Model.ToJsonLogic();
+        if (jsonLogic is null) return "{ }";
+
+        return jsonLogic.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private List<string> GetUsedFields()
+    {
+        return Model.Elements
+            .Where(e => e.Type == CalculationElementType.Field && !string.IsNullOrEmpty(e.FieldPath))
+            .Select(e => e.FieldPath!)
+            .Distinct()
+            .ToList();
+    }
+
+    private decimal GetTestValue(string field)
+    {
+        return _testValues.TryGetValue(field, out var value) ? value : 0;
+    }
+
+    private void SetTestValue(string field, decimal value)
+    {
+        _testValues[field] = value;
+    }
+
+    private decimal? EvaluateExpression()
+    {
+        var values = _testValues.ToDictionary(
+            kvp => kvp.Key,
+            kvp => (object)kvp.Value);
+
+        return Model.Evaluate(values);
+    }
+
+    private bool IsValid()
+    {
+        if (string.IsNullOrWhiteSpace(Model.TargetFieldPath))
+            return false;
+
+        if (!Model.Elements.Any())
+            return false;
+
+        // Check parentheses balance
+        var balance = 0;
+        foreach (var element in Model.Elements)
+        {
+            if (element.Type == CalculationElementType.OpenParen) balance++;
+            if (element.Type == CalculationElementType.CloseParen) balance--;
+            if (balance < 0) return false;
+        }
+        if (balance != 0) return false;
+
+        // Check that we can generate valid JSON Logic
+        var jsonLogic = Model.ToJsonLogic();
+        return jsonLogic is not null;
+    }
+
+    private void Save()
+    {
+        if (!IsValid()) return;
+        MudDialog.Close(DialogResult.Ok(Model));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

@@ -1,0 +1,133 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.Admin.Models
+@using Sorcha.Admin.Services
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Sync" Class="mr-2" />
+            Pending Sync Items
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (QueuedItems.Any())
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                The following changes are waiting to be synced to the server.
+            </MudText>
+
+            <MudList T="SyncQueueItem" Dense="true" Class="pa-0">
+                @foreach (var item in QueuedItems)
+                {
+                    <MudListItem T="SyncQueueItem" Dense="true" Class="mb-2">
+                        <MudPaper Class="pa-3" Outlined="true" Style="width: 100%;">
+                            <div class="d-flex align-center justify-space-between">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@GetOperationIcon(item.Operation)"
+                                             Color="@GetOperationColor(item.Operation)"
+                                             Size="Size.Small"
+                                             Class="mr-2" />
+                                    <div>
+                                        <MudText Typo="Typo.body2">
+                                            @GetOperationLabel(item.Operation)
+                                        </MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            Blueprint: @item.BlueprintId[..Math.Min(8, item.BlueprintId.Length)]...
+                                        </MudText>
+                                        @if (item.RetryCount > 0)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Warning">
+                                                Failed @item.RetryCount time(s)
+                                                @if (!string.IsNullOrEmpty(item.LastError))
+                                                {
+                                                    <span>: @item.LastError</span>
+                                                }
+                                            </MudText>
+                                        }
+                                    </div>
+                                </div>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @item.CreatedAt.LocalDateTime.ToString("HH:mm")
+                                </MudText>
+                            </div>
+                        </MudPaper>
+                    </MudListItem>
+                }
+            </MudList>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info" Dense="true">
+                No pending sync items.
+            </MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Color="Color.Default">Close</MudButton>
+        @if (QueuedItems.Any())
+        {
+            <MudButton OnClick="ClearQueue"
+                       Color="Color.Error"
+                       Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.Delete">
+                Clear All
+            </MudButton>
+            <MudButton OnClick="SyncNow"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Sync">
+                Sync Now
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public List<SyncQueueItem> QueuedItems { get; set; } = [];
+
+    private void SyncNow()
+    {
+        MudDialog.Close(DialogResult.Ok("sync"));
+    }
+
+    private void ClearQueue()
+    {
+        MudDialog.Close(DialogResult.Ok("clear"));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private static string GetOperationIcon(SyncOperation op) => op switch
+    {
+        SyncOperation.Create => Icons.Material.Filled.Add,
+        SyncOperation.Update => Icons.Material.Filled.Edit,
+        SyncOperation.Delete => Icons.Material.Filled.Delete,
+        _ => Icons.Material.Filled.Help
+    };
+
+    private static Color GetOperationColor(SyncOperation op) => op switch
+    {
+        SyncOperation.Create => Color.Success,
+        SyncOperation.Update => Color.Info,
+        SyncOperation.Delete => Color.Error,
+        _ => Color.Default
+    };
+
+    private static string GetOperationLabel(SyncOperation op) => op switch
+    {
+        SyncOperation.Create => "Create",
+        SyncOperation.Update => "Update",
+        SyncOperation.Delete => "Delete",
+        _ => "Unknown"
+    };
+}

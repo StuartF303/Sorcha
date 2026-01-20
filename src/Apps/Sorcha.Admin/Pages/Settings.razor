@@ -6,10 +6,13 @@
 @using Sorcha.Admin.Components
 @using Sorcha.Admin.Components.Configuration
 @using Sorcha.Admin.Services.Configuration
+@using Sorcha.Admin.Services
 @using Blazored.LocalStorage
 @using System.Text.Json
 @inject ILocalStorageService LocalStorage
 @inject IConfigurationService ConfigService
+@inject IBlueprintStorageService BlueprintStorage
+@inject IOfflineSyncService SyncService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
@@ -210,6 +213,94 @@
                 </MudButton>
             </MudTabPanel>
 
+            <!-- Data & Storage Tab -->
+            <MudTabPanel Text="Data & Storage" Icon="@Icons.Material.Filled.Storage">
+                <MudText Typo="Typo.h6" Class="mb-3">Local Storage Management</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    Manage locally cached data. Clearing the cache will remove offline data but won't affect server-stored blueprints.
+                </MudText>
+
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudCard Elevation="0" Outlined="true">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.subtitle1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Cached" Size="Size.Small" Class="mr-1" />
+                                        Blueprint Cache
+                                    </MudText>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Clear locally cached blueprints. Server data will remain intact.
+                                </MudText>
+                                <MudButton OnClick="ClearBlueprintCache"
+                                           Color="Color.Warning"
+                                           Variant="Variant.Outlined"
+                                           StartIcon="@Icons.Material.Filled.DeleteSweep"
+                                           Disabled="_clearingCache">
+                                    @if (_clearingCache)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                        <text>Clearing...</text>
+                                    }
+                                    else
+                                    {
+                                        <text>Clear Blueprint Cache</text>
+                                    }
+                                </MudButton>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudCard Elevation="0" Outlined="true">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.subtitle1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Sync" Size="Size.Small" Class="mr-1" />
+                                        Sync Queue
+                                    </MudText>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                                    Pending sync items: <strong>@_pendingSyncCount</strong>
+                                </MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Clear all queued offline changes. This will discard unsaved changes.
+                                </MudText>
+                                <MudButton OnClick="ClearSyncQueue"
+                                           Color="Color.Error"
+                                           Variant="Variant.Outlined"
+                                           StartIcon="@Icons.Material.Filled.Clear"
+                                           Disabled="@(_pendingSyncCount == 0)">
+                                    Clear Sync Queue
+                                </MudButton>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudDivider Class="my-4" />
+                        <MudAlert Severity="Severity.Warning" Class="mb-4">
+                            <MudText Typo="Typo.subtitle2">Clear All Local Data</MudText>
+                            <MudText Typo="Typo.body2" Class="mb-2">
+                                This will reset all local settings, caches, and unsaved changes. Your server-stored blueprints will not be affected.
+                            </MudText>
+                            <MudButton OnClick="ClearAllLocalData"
+                                       Color="Color.Error"
+                                       Variant="Variant.Filled"
+                                       StartIcon="@Icons.Material.Filled.DeleteForever"
+                                       Class="mt-2">
+                                Clear All Local Data
+                            </MudButton>
+                        </MudAlert>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
             <!-- Version/Build Tab -->
             <MudTabPanel Text="About" Icon="@Icons.Material.Filled.Info">
                 <MudText Typo="Typo.h5" Class="mb-2">Sorcha Blueprint Designer</MudText>
@@ -288,6 +379,10 @@
     private Dictionary<string, Profile> _profiles = new();
     private Profile? _activeProfile;
 
+    // Storage state
+    private bool _clearingCache;
+    private int _pendingSyncCount;
+
     private const string SCHEMA_PROVIDERS_KEY = "sorcha:schemaProviders";
     private const string APPEARANCE_SETTINGS_KEY = "sorcha:appearanceSettings";
 
@@ -296,6 +391,20 @@
         await LoadSchemaProviders();
         await LoadAppearanceSettings();
         await LoadConfiguration();
+        await LoadSyncStatus();
+    }
+
+    private async Task LoadSyncStatus()
+    {
+        try
+        {
+            var items = await SyncService.GetQueuedItemsAsync();
+            _pendingSyncCount = items.Count;
+        }
+        catch
+        {
+            _pendingSyncCount = 0;
+        }
     }
 
     private async Task LoadSchemaProviders()
@@ -516,4 +625,82 @@
 
     [Inject]
     private IDialogService DialogService { get; set; } = default!;
+
+    private async Task ClearBlueprintCache()
+    {
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "Clear Blueprint Cache",
+            "This will remove locally cached blueprints. Server data will remain intact. Continue?",
+            yesText: "Clear", cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            _clearingCache = true;
+            StateHasChanged();
+
+            try
+            {
+                await BlueprintStorage.ClearLocalCacheAsync();
+                Snackbar.Add("Blueprint cache cleared", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error clearing cache: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                _clearingCache = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task ClearSyncQueue()
+    {
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "Clear Sync Queue",
+            "This will discard all pending offline changes. Are you sure?",
+            yesText: "Clear", cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            try
+            {
+                await SyncService.ClearQueueAsync();
+                _pendingSyncCount = 0;
+                Snackbar.Add("Sync queue cleared", Severity.Success);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error clearing sync queue: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task ClearAllLocalData()
+    {
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "Clear All Local Data",
+            "This will reset ALL local settings, caches, and unsaved changes. This action cannot be undone. Are you absolutely sure?",
+            yesText: "Yes, Clear Everything", cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            try
+            {
+                // Clear all local storage keys
+                await LocalStorage.ClearAsync();
+
+                Snackbar.Add("All local data cleared. Please refresh the page.", Severity.Success);
+
+                // Redirect to home after clearing
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error clearing local data: {ex.Message}", Severity.Error);
+            }
+        }
+    }
 }

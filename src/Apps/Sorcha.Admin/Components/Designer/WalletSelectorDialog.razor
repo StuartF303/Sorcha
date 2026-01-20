@@ -1,0 +1,112 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="mr-2" />
+            Select Wallet Address
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Enter a wallet address manually or select from available addresses.
+        </MudText>
+
+        <MudTextField @bind-Value="WalletAddress"
+                      Label="Wallet Address"
+                      Placeholder="0x..."
+                      Variant="Variant.Outlined"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Wallet"
+                      HelperText="Enter a valid wallet address (e.g., 0x1234...)"
+                      Class="mb-4" />
+
+        @if (AvailableAddresses.Any())
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Available Addresses</MudText>
+            <MudList T="string" Dense="true" Class="mb-4" Style="max-height: 200px; overflow-y: auto;">
+                @foreach (var address in AvailableAddresses)
+                {
+                    <MudListItem T="string"
+                                 Icon="@Icons.Material.Filled.AccountBalanceWallet"
+                                 OnClick="@(() => SelectAddress(address))">
+                        <div class="d-flex align-center justify-space-between" style="width: 100%;">
+                            <MudText Typo="Typo.body2" Style="font-family: monospace;">
+                                @TruncateAddress(address)
+                            </MudText>
+                            @if (WalletAddress == address)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" />
+                            }
+                        </div>
+                    </MudListItem>
+                }
+            </MudList>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(WalletAddress) && !IsValidAddress(WalletAddress))
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">
+                The entered address format may be invalid. Please verify before proceeding.
+            </MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="Submit"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@string.IsNullOrWhiteSpace(WalletAddress)">
+            Select
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public string WalletAddress { get; set; } = string.Empty;
+
+    [Parameter]
+    public List<string> AvailableAddresses { get; set; } = [];
+
+    private void SelectAddress(string address)
+    {
+        WalletAddress = address;
+    }
+
+    private void Submit()
+    {
+        MudDialog.Close(DialogResult.Ok(WalletAddress));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private string TruncateAddress(string address)
+    {
+        if (string.IsNullOrEmpty(address) || address.Length <= 16)
+            return address;
+        return $"{address[..8]}...{address[^6..]}";
+    }
+
+    private bool IsValidAddress(string address)
+    {
+        if (string.IsNullOrWhiteSpace(address)) return false;
+        // Basic validation: starts with 0x and is hex
+        if (address.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            var hex = address[2..];
+            return hex.Length > 0 && hex.All(c => char.IsAsciiHexDigit(c));
+        }
+        // Allow other formats for flexibility
+        return address.Length >= 8;
+    }
+}

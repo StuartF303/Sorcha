@@ -1,0 +1,193 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.Admin.Models
+@using Sorcha.Blueprint.Models
+@using System.Text.Json
+@using System.Text.Json.Nodes
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />
+            Condition Editor
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Build routing conditions to determine the next action in the workflow.
+        </MudText>
+
+        <!-- Target Participant Selector -->
+        @if (Participants.Any())
+        {
+            <MudSelect T="string"
+                       @bind-Value="Model.TargetParticipantId"
+                       Label="Target Participant (Optional)"
+                       Placeholder="Select target participant"
+                       Variant="Variant.Outlined"
+                       Clearable="true"
+                       Class="mb-4"
+                       HelperText="If set, this condition routes to the specified participant">
+                @foreach (var p in Participants)
+                {
+                    <MudSelectItem Value="@p.Id">@p.Name</MudSelectItem>
+                }
+            </MudSelect>
+        }
+
+        <!-- Logical Operator Toggle -->
+        @if (Model.Clauses.Count > 1)
+        {
+            <div class="d-flex align-center justify-center mb-4">
+                <MudText Class="mr-3">Combine clauses with:</MudText>
+                <MudToggleGroup T="LogicalOperator"
+                                @bind-Value="Model.Operator"
+                                Color="Color.Primary"
+                                Style="border-radius: 4px;">
+                    <MudToggleItem Value="LogicalOperator.And">
+                        <MudText>AND</MudText>
+                    </MudToggleItem>
+                    <MudToggleItem Value="LogicalOperator.Or">
+                        <MudText>OR</MudText>
+                    </MudToggleItem>
+                </MudToggleGroup>
+            </div>
+        }
+
+        <!-- Clauses -->
+        <div class="mb-4">
+            @if (Model.Clauses.Any())
+            {
+                @for (var i = 0; i < Model.Clauses.Count; i++)
+                {
+                    var index = i;
+                    <ConditionClause Clause="Model.Clauses[index]"
+                                     Index="index"
+                                     ShowIndex="true"
+                                     ShowLogicalOperator="Model.Clauses.Count > 1"
+                                     LogicalOp="Model.Operator"
+                                     AvailableFields="AvailableFields"
+                                     OnDelete="@(() => RemoveClause(index))" />
+                }
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                    No conditions defined. Click "Add Clause" to create a condition.
+                </MudAlert>
+            }
+        </div>
+
+        <MudButton StartIcon="@Icons.Material.Filled.Add"
+                   Variant="Variant.Outlined"
+                   Color="Color.Primary"
+                   OnClick="AddClause"
+                   Class="mb-4">
+            Add Clause
+        </MudButton>
+
+        <!-- JSON Logic Preview -->
+        <MudExpansionPanels Class="mt-4">
+            <MudExpansionPanel>
+                <TitleContent>
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Code" Class="mr-2" Size="Size.Small" />
+                        <MudText>JSON Logic Preview</MudText>
+                    </div>
+                </TitleContent>
+                <ChildContent>
+                    <MudTextField Value="@GetJsonPreview()"
+                                  Label="Generated JSON Logic"
+                                  Variant="Variant.Outlined"
+                                  Lines="5"
+                                  ReadOnly="true"
+                                  Style="font-family: monospace;" />
+                </ChildContent>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="Submit"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled">
+            Apply Condition
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public ConditionModel Model { get; set; } = new();
+
+    [Parameter]
+    public List<Participant> Participants { get; set; } = [];
+
+    [Parameter]
+    public List<string> AvailableFields { get; set; } = [];
+
+    protected override void OnInitialized()
+    {
+        // Ensure we have at least one clause for editing
+        if (Model.Clauses.Count == 0)
+        {
+            Model.Clauses.Add(new ConditionClause());
+        }
+
+        // Add common fields if none provided
+        if (!AvailableFields.Any())
+        {
+            AvailableFields =
+            [
+                "amount", "status", "approved", "quantity",
+                "total", "balance", "percentage", "rating",
+                "category", "type", "name", "id"
+            ];
+        }
+    }
+
+    private void AddClause()
+    {
+        Model.Clauses.Add(new ConditionClause());
+    }
+
+    private void RemoveClause(int index)
+    {
+        if (index >= 0 && index < Model.Clauses.Count)
+        {
+            Model.Clauses.RemoveAt(index);
+        }
+    }
+
+    private string GetJsonPreview()
+    {
+        try
+        {
+            var jsonLogic = Model.ToJsonLogic();
+            if (jsonLogic is null)
+                return "{ }";
+
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            return jsonLogic.ToJsonString(options);
+        }
+        catch
+        {
+            return "{ /* Error generating JSON Logic */ }";
+        }
+    }
+
+    private void Submit()
+    {
+        MudDialog.Close(DialogResult.Ok(Model));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}
