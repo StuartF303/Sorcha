@@ -1,0 +1,327 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@page "/registers/{RegisterId}"
+@using Sorcha.UI.Core.Components.Registers
+@using Sorcha.UI.Core.Models.Registers
+@using Sorcha.UI.Core.Services
+@implements IAsyncDisposable
+
+@inject IRegisterService RegisterService
+@inject ITransactionService TransactionService
+@inject RegisterHubConnection HubConnection
+@inject NavigationManager Navigation
+
+<PageTitle>@(_register?.Name ?? "Register") - Sorcha</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+    @* Header with back navigation *@
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                       Color="Color.Default"
+                       OnClick="NavigateBack"
+                       aria-label="Back to registers" />
+        @if (_isLoadingRegister)
+        {
+            <MudSkeleton Width="200px" Height="32px" />
+        }
+        else if (_register is not null)
+        {
+            <MudStack Spacing="0" Style="flex: 1">
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.h5">@_register.Name</MudText>
+                    <RegisterStatusBadge Status="@_register.Status" />
+                    <RealTimeIndicator ConnectionState="@_connectionState" />
+                </MudStack>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @_register.Id
+                </MudText>
+            </MudStack>
+        }
+        else
+        {
+            <MudText Typo="Typo.h5" Color="Color.Error">Register not found</MudText>
+        }
+    </MudStack>
+
+    @* New transactions notification banner *@
+    @if (_newTransactionsCount > 0)
+    {
+        <MudAlert Severity="Severity.Info"
+                  Class="mb-4"
+                  Icon="@Icons.Material.Filled.NewReleases"
+                  data-testid="new-transactions-alert">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudText>
+                    @_newTransactionsCount new transaction@(_newTransactionsCount > 1 ? "s" : "") available
+                </MudText>
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Info"
+                           Size="Size.Small"
+                           OnClick="LoadNewTransactionsAsync">
+                    Load Now
+                </MudButton>
+            </MudStack>
+        </MudAlert>
+    }
+
+    @if (_registerError is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">
+            @_registerError
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="LoadRegisterAsync" Class="ml-2">
+                Retry
+            </MudButton>
+        </MudAlert>
+    }
+    else if (_register is not null)
+    {
+        @* Register info summary *@
+        <MudPaper Elevation="1" Class="pa-4 mb-4">
+            <MudGrid Spacing="3">
+                <MudItem xs="6" sm="3">
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Height</MudText>
+                        <MudText Typo="Typo.h6">@_register.HeightFormatted</MudText>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Transactions</MudText>
+                        <MudText Typo="Typo.h6">@_totalTransactions</MudText>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Last Updated</MudText>
+                        <MudText Typo="Typo.body1">@_register.LastUpdateFormatted</MudText>
+                    </MudStack>
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Visibility</MudText>
+                        <MudText Typo="Typo.body1">
+                            @(_register.Advertise ? "Public" : "Private")
+                        </MudText>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        @* Main content area *@
+        <MudGrid Spacing="3">
+            @* Transaction list (takes full width when no selection, or 60% when selected) *@
+            <MudItem xs="12" md="@(_selectedTransaction is not null ? 7 : 12)">
+                <MudPaper Elevation="1" Class="transaction-list-paper">
+                    <MudStack Row="true"
+                              Justify="Justify.SpaceBetween"
+                              AlignItems="AlignItems.Center"
+                              Class="pa-3 border-bottom">
+                        <MudText Typo="Typo.h6">Transactions</MudText>
+                        <MudStack Row="true" Spacing="1">
+                            @if (!_connectionState.IsHealthy)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                               Size="Size.Small"
+                                               OnClick="RefreshTransactionsAsync"
+                                               aria-label="Refresh transactions" />
+                            }
+                        </MudStack>
+                    </MudStack>
+                    <div class="transaction-list-content">
+                        <TransactionList RegisterId="@RegisterId"
+                                         @ref="_transactionListRef"
+                                         @bind-SelectedTransaction="_selectedTransaction"
+                                         OnTransactionsLoaded="OnTransactionsLoaded" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            @* Transaction detail panel (shows when a transaction is selected) *@
+            @if (_selectedTransaction is not null)
+            {
+                <MudItem xs="12" md="5">
+                    <TransactionDetail Transaction="@_selectedTransaction"
+                                       OnClose="ClearSelection" />
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    [Parameter]
+    public string RegisterId { get; set; } = string.Empty;
+
+    private RegisterViewModel? _register;
+    private bool _isLoadingRegister = true;
+    private string? _registerError;
+    private TransactionViewModel? _selectedTransaction;
+    private int _totalTransactions;
+    private TransactionList? _transactionListRef;
+    private ConnectionState _connectionState = new();
+    private int _newTransactionsCount;
+    private List<string> _pendingTransactionIds = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to connection state changes
+        HubConnection.OnConnectionStateChanged += OnConnectionStateChanged;
+        HubConnection.OnTransactionConfirmed += OnTransactionConfirmedAsync;
+        HubConnection.OnRegisterHeightUpdated += OnRegisterHeightUpdatedAsync;
+
+        await LoadRegisterAsync();
+
+        // Start SignalR connection and subscribe to register
+        await StartRealtimeAsync();
+    }
+
+    private async Task StartRealtimeAsync()
+    {
+        try
+        {
+            await HubConnection.StartAsync();
+            await HubConnection.SubscribeToRegisterAsync(RegisterId);
+        }
+        catch (Exception ex)
+        {
+            // Log but don't fail - the UI still works without real-time updates
+            Console.WriteLine($"Failed to start real-time connection: {ex.Message}");
+        }
+    }
+
+    private void OnConnectionStateChanged(ConnectionState state)
+    {
+        _connectionState = state;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnTransactionConfirmedAsync(string registerId, string txId)
+    {
+        if (registerId != RegisterId)
+            return;
+
+        // Track new transaction - will be loaded when user clicks "Load Now"
+        _pendingTransactionIds.Add(txId);
+        _newTransactionsCount = _pendingTransactionIds.Count;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnRegisterHeightUpdatedAsync(string registerId, uint newHeight)
+    {
+        if (registerId != RegisterId || _register is null)
+            return;
+
+        // Update register height
+        _register = _register with { Height = newHeight };
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadNewTransactionsAsync()
+    {
+        if (_transactionListRef is null || _pendingTransactionIds.Count == 0)
+            return;
+
+        // Fetch and prepend each new transaction
+        foreach (var txId in _pendingTransactionIds.ToList())
+        {
+            var transaction = await TransactionService.GetTransactionAsync(RegisterId, txId);
+            if (transaction is not null)
+            {
+                await _transactionListRef.PrependTransactionAsync(transaction);
+            }
+        }
+
+        _pendingTransactionIds.Clear();
+        _newTransactionsCount = 0;
+    }
+
+    private async Task LoadRegisterAsync()
+    {
+        try
+        {
+            _isLoadingRegister = true;
+            _registerError = null;
+
+            _register = await RegisterService.GetRegisterAsync(RegisterId);
+
+            if (_register is null)
+            {
+                _registerError = "Register not found";
+            }
+        }
+        catch (Exception ex)
+        {
+            _registerError = $"Failed to load register: {ex.Message}";
+        }
+        finally
+        {
+            _isLoadingRegister = false;
+        }
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/registers");
+    }
+
+    private async Task RefreshTransactionsAsync()
+    {
+        if (_transactionListRef is not null)
+        {
+            await _transactionListRef.RefreshAsync();
+        }
+
+        // Clear any pending notifications since we're doing a full refresh
+        _pendingTransactionIds.Clear();
+        _newTransactionsCount = 0;
+    }
+
+    private void OnTransactionsLoaded(int total)
+    {
+        _totalTransactions = total;
+        StateHasChanged();
+    }
+
+    private void ClearSelection()
+    {
+        _selectedTransaction = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Unsubscribe from events
+        HubConnection.OnConnectionStateChanged -= OnConnectionStateChanged;
+        HubConnection.OnTransactionConfirmed -= OnTransactionConfirmedAsync;
+        HubConnection.OnRegisterHeightUpdated -= OnRegisterHeightUpdatedAsync;
+
+        // Unsubscribe from register updates
+        try
+        {
+            await HubConnection.UnsubscribeFromRegisterAsync(RegisterId);
+        }
+        catch
+        {
+            // Ignore errors during cleanup
+        }
+    }
+}
+
+<style>
+    .transaction-list-paper {
+        height: calc(100vh - 300px);
+        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .transaction-list-content {
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .border-bottom {
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+</style>

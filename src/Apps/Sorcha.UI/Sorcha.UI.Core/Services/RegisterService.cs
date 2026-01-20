@@ -1,0 +1,179 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+using System.Net.Http.Json;
+using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Sorcha.Register.Models;
+using Sorcha.UI.Core.Models.Registers;
+
+namespace Sorcha.UI.Core.Services;
+
+/// <summary>
+/// HTTP client implementation for Register API operations.
+/// </summary>
+public class RegisterService : IRegisterService
+{
+    private readonly HttpClient _httpClient;
+    private readonly ILogger<RegisterService> _logger;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    public RegisterService(HttpClient httpClient, ILogger<RegisterService> logger)
+    {
+        _httpClient = httpClient;
+        _logger = logger;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<RegisterViewModel>> GetRegistersAsync(
+        string? tenantId = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var url = "/api/registers";
+            if (!string.IsNullOrEmpty(tenantId))
+            {
+                url += $"?tenantId={Uri.EscapeDataString(tenantId)}";
+            }
+
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to fetch registers: {StatusCode}", response.StatusCode);
+                return [];
+            }
+
+            var registers = await response.Content.ReadFromJsonAsync<List<Register.Models.Register>>(
+                JsonOptions, cancellationToken);
+
+            return registers?.Select(MapToViewModel).ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching registers");
+            return [];
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<RegisterViewModel?> GetRegisterAsync(
+        string registerId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync(
+                $"/api/registers/{Uri.EscapeDataString(registerId)}",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return null;
+                }
+
+                _logger.LogWarning("Failed to fetch register {RegisterId}: {StatusCode}",
+                    registerId, response.StatusCode);
+                return null;
+            }
+
+            var register = await response.Content.ReadFromJsonAsync<Register.Models.Register>(
+                JsonOptions, cancellationToken);
+
+            return register != null ? MapToViewModel(register) : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching register {RegisterId}", registerId);
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<InitiateRegisterResponse?> InitiateRegisterAsync(
+        CreateRegisterRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(
+                "/api/registers/initiate",
+                request,
+                JsonOptions,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning("Failed to initiate register creation: {StatusCode} - {Error}",
+                    response.StatusCode, error);
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<InitiateRegisterResponse>(
+                JsonOptions, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error initiating register creation");
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<RegisterViewModel?> FinalizeRegisterAsync(
+        FinalizeRegisterRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(
+                "/api/registers/finalize",
+                request,
+                JsonOptions,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning("Failed to finalize register creation: {StatusCode} - {Error}",
+                    response.StatusCode, error);
+                return null;
+            }
+
+            var register = await response.Content.ReadFromJsonAsync<Register.Models.Register>(
+                JsonOptions, cancellationToken);
+
+            return register != null ? MapToViewModel(register) : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error finalizing register creation");
+            return null;
+        }
+    }
+
+    private static RegisterViewModel MapToViewModel(Register.Models.Register register)
+    {
+        return new RegisterViewModel
+        {
+            Id = register.Id,
+            Name = register.Name,
+            Height = register.Height,
+            Status = register.Status,
+            Advertise = register.Advertise,
+            IsFullReplica = register.IsFullReplica,
+            TenantId = register.TenantId,
+            CreatedAt = register.CreatedAt,
+            UpdatedAt = register.UpdatedAt
+        };
+    }
+}

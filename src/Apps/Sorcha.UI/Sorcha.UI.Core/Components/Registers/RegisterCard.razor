@@ -1,0 +1,86 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Registers
+
+<MudPaper Elevation="2"
+          Class="pa-4 register-card"
+          Style="cursor: pointer"
+          @onclick="OnCardClick"
+          data-testid="register-card">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudStack Spacing="1">
+            <MudText Typo="Typo.subtitle1">
+                <strong>@Register.Name</strong>
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                ID: @Register.Id[..8]...
+            </MudText>
+        </MudStack>
+        <RegisterStatusBadge Status="@Register.Status" />
+    </MudStack>
+
+    <MudDivider Class="my-2" />
+
+    <MudGrid Spacing="2">
+        <MudItem xs="6">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Height</MudText>
+                <MudText Typo="Typo.body2">
+                    <MudIcon Icon="@Icons.Material.Filled.Layers" Size="Size.Small" Class="mr-1" />
+                    @Register.HeightFormatted
+                </MudText>
+            </MudStack>
+        </MudItem>
+        <MudItem xs="6">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Last Update</MudText>
+                <MudText Typo="Typo.body2">
+                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+                    @Register.LastUpdateFormatted
+                </MudText>
+            </MudStack>
+        </MudItem>
+    </MudGrid>
+
+    @if (Register.Advertise)
+    {
+        <MudChip T="string"
+                 Color="Color.Info"
+                 Size="Size.Small"
+                 Icon="@Icons.Material.Filled.Public"
+                 Class="mt-2">
+            Public
+        </MudChip>
+    }
+</MudPaper>
+
+@code {
+    /// <summary>
+    /// The register to display
+    /// </summary>
+    [Parameter]
+    public required RegisterViewModel Register { get; set; }
+
+    /// <summary>
+    /// Callback when the card is clicked
+    /// </summary>
+    [Parameter]
+    public EventCallback<RegisterViewModel> OnClick { get; set; }
+
+    private async Task OnCardClick()
+    {
+        await OnClick.InvokeAsync(Register);
+    }
+}
+
+<style>
+    .register-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+
+    .register-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+</style>

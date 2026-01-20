@@ -1,0 +1,47 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.Register.Models.Enums
+
+<MudChip T="string"
+         Color="@GetStatusColor()"
+         Icon="@GetStatusIcon()"
+         Size="Size.Small"
+         data-testid="register-status-badge">
+    @GetStatusText()
+</MudChip>
+
+@code {
+    /// <summary>
+    /// The register status to display
+    /// </summary>
+    [Parameter]
+    public required RegisterStatus Status { get; set; }
+
+    private Color GetStatusColor() => Status switch
+    {
+        RegisterStatus.Online => Color.Success,
+        RegisterStatus.Offline => Color.Default,
+        RegisterStatus.Checking => Color.Warning,
+        RegisterStatus.Recovery => Color.Error,
+        _ => Color.Default
+    };
+
+    private string GetStatusIcon() => Status switch
+    {
+        RegisterStatus.Online => Icons.Material.Filled.CheckCircle,
+        RegisterStatus.Offline => Icons.Material.Filled.Cancel,
+        RegisterStatus.Checking => Icons.Material.Filled.Sync,
+        RegisterStatus.Recovery => Icons.Material.Filled.Warning,
+        _ => Icons.Material.Filled.HelpOutline
+    };
+
+    private string GetStatusText() => Status switch
+    {
+        RegisterStatus.Online => "Online",
+        RegisterStatus.Offline => "Offline",
+        RegisterStatus.Checking => "Checking",
+        RegisterStatus.Recovery => "Recovery",
+        _ => "Unknown"
+    };
+}

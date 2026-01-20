@@ -1,0 +1,347 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Registers
+@using Sorcha.UI.Core.Services
+
+@inject IRegisterService RegisterService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+            Create New Register
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @* Step indicator *@
+        <MudStepper @bind-ActiveIndex="_activeStep"
+                    Linear="true"
+                    Color="Color.Primary"
+                    Class="mb-4">
+            <MudStep Title="Name">
+                <MudText Typo="Typo.body2">Enter a name for your register</MudText>
+            </MudStep>
+            <MudStep Title="Options">
+                <MudText Typo="Typo.body2">Configure register settings</MudText>
+            </MudStep>
+            <MudStep Title="Create">
+                <MudText Typo="Typo.body2">Review and create</MudText>
+            </MudStep>
+        </MudStepper>
+
+        @* Step content *@
+        <MudPaper Elevation="0" Class="pa-4">
+            @if (_state.IsProcessing)
+            {
+                <MudStack AlignItems="AlignItems.Center" Spacing="4" Class="py-8">
+                    <MudProgressCircular Indeterminate="true" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">
+                        @GetProcessingMessage()
+                    </MudText>
+                </MudStack>
+            }
+            else if (_state.ErrorMessage is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-4">
+                    @_state.ErrorMessage
+                </MudAlert>
+            }
+            else
+            {
+                @switch (_activeStep)
+                {
+                    case 0:
+                        @* Step 1: Enter register name *@
+                        <MudStack Spacing="4">
+                            <MudTextField @bind-Value="_name"
+                                          Label="Register Name"
+                                          Placeholder="Enter a name (1-38 characters)"
+                                          Required="true"
+                                          RequiredError="Register name is required"
+                                          Counter="38"
+                                          MaxLength="38"
+                                          Immediate="true"
+                                          Validation="@ValidateName"
+                                          HelperText="A unique name to identify your register"
+                                          data-testid="register-name-input" />
+
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                <MudText Typo="Typo.body2">
+                                    The register name will be visible to all participants with access to the register.
+                                    Choose a descriptive name that reflects the register's purpose.
+                                </MudText>
+                            </MudAlert>
+                        </MudStack>
+                        break;
+
+                    case 1:
+                        @* Step 2: Configure options *@
+                        <MudStack Spacing="4">
+                            <MudPaper Elevation="0" Class="pa-3 mud-theme-secondary" Style="border-radius: 8px;">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body1">Public Register</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            Advertise this register to network peers
+                                        </MudText>
+                                    </MudStack>
+                                    <MudSwitch @bind-Value="_advertise"
+                                               Color="Color.Primary"
+                                               data-testid="advertise-switch" />
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudPaper Elevation="0" Class="pa-3 mud-theme-secondary" Style="border-radius: 8px;">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body1">Full Replica</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            Maintain complete transaction history
+                                        </MudText>
+                                    </MudStack>
+                                    <MudSwitch @bind-Value="_isFullReplica"
+                                               Color="Color.Primary"
+                                               data-testid="full-replica-switch" />
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                <MudText Typo="Typo.body2">
+                                    @if (_advertise)
+                                    {
+                                        <span><strong>Public:</strong> Other participants can discover and subscribe to this register.</span>
+                                    }
+                                    else
+                                    {
+                                        <span><strong>Private:</strong> Only invited participants can access this register.</span>
+                                    }
+                                </MudText>
+                            </MudAlert>
+                        </MudStack>
+                        break;
+
+                    case 2:
+                        @* Step 3: Review and create *@
+                        <MudStack Spacing="4">
+                            <MudText Typo="Typo.h6">Review Your Register</MudText>
+
+                            <MudPaper Elevation="1" Class="pa-4">
+                                <MudStack Spacing="3">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Name</MudText>
+                                        <MudText Typo="Typo.body1">@_name</MudText>
+                                    </MudStack>
+                                    <MudDivider />
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Visibility</MudText>
+                                        <MudChip T="string"
+                                                 Size="Size.Small"
+                                                 Color="@(_advertise ? Color.Success : Color.Default)">
+                                            @(_advertise ? "Public" : "Private")
+                                        </MudChip>
+                                    </MudStack>
+                                    <MudDivider />
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Storage Mode</MudText>
+                                        <MudChip T="string"
+                                                 Size="Size.Small"
+                                                 Color="@(_isFullReplica ? Color.Primary : Color.Secondary)">
+                                            @(_isFullReplica ? "Full Replica" : "Lightweight")
+                                        </MudChip>
+                                    </MudStack>
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                                <MudText Typo="Typo.body2">
+                                    Creating a register will require signing with your wallet credentials.
+                                    This action cannot be undone.
+                                </MudText>
+                            </MudAlert>
+                        </MudStack>
+                        break;
+                }
+            }
+        </MudPaper>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel"
+                   Disabled="@_state.IsProcessing">
+            Cancel
+        </MudButton>
+        @if (_activeStep > 0)
+        {
+            <MudButton OnClick="PreviousStep"
+                       Disabled="@_state.IsProcessing"
+                       Variant="Variant.Outlined">
+                Back
+            </MudButton>
+        }
+        @if (_activeStep < 2)
+        {
+            <MudButton OnClick="NextStep"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Disabled="@(!CanProceed())">
+                Next
+            </MudButton>
+        }
+        else
+        {
+            <MudButton OnClick="CreateRegisterAsync"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Disabled="@_state.IsProcessing"
+                       data-testid="create-register-button">
+                Create Register
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    /// <summary>
+    /// Tenant ID for the new register
+    /// </summary>
+    [Parameter]
+    public string TenantId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Callback when register is created successfully
+    /// </summary>
+    [Parameter]
+    public EventCallback<RegisterViewModel> OnRegisterCreated { get; set; }
+
+    private int _activeStep = 0;
+    private string _name = string.Empty;
+    private bool _advertise;
+    private bool _isFullReplica = true;
+    private RegisterCreationState _state = new();
+
+    private string? ValidateName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "Register name is required";
+
+        if (value.Length < 1)
+            return "Name must be at least 1 character";
+
+        if (value.Length > 38)
+            return "Name cannot exceed 38 characters";
+
+        return null;
+    }
+
+    private bool CanProceed() => _activeStep switch
+    {
+        0 => !string.IsNullOrWhiteSpace(_name) && _name.Length >= 1 && _name.Length <= 38,
+        1 => true,
+        2 => true,
+        _ => false
+    };
+
+    private string GetProcessingMessage() => _state.CurrentStep switch
+    {
+        2 => "Initiating register creation...",
+        3 => "Finalizing register creation...",
+        _ => "Processing..."
+    };
+
+    private void NextStep()
+    {
+        if (CanProceed() && _activeStep < 2)
+        {
+            _activeStep++;
+        }
+    }
+
+    private void PreviousStep()
+    {
+        if (_activeStep > 0)
+        {
+            _activeStep--;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+
+    private async Task CreateRegisterAsync()
+    {
+        _state = _state with
+        {
+            IsProcessing = true,
+            ErrorMessage = null,
+            CurrentStep = 2
+        };
+
+        try
+        {
+            // Step 1: Initiate register creation
+            var request = new CreateRegisterRequest
+            {
+                Name = _name,
+                TenantId = TenantId,
+                Advertise = _advertise,
+                IsFullReplica = _isFullReplica
+            };
+
+            var initiateResponse = await RegisterService.InitiateRegisterAsync(request);
+
+            if (initiateResponse is null)
+            {
+                _state = _state with
+                {
+                    IsProcessing = false,
+                    ErrorMessage = "Failed to initiate register creation. Please try again."
+                };
+                return;
+            }
+
+            _state = _state with
+            {
+                RegisterId = initiateResponse.RegisterId,
+                UnsignedControlRecord = initiateResponse.UnsignedControlRecord,
+                CurrentStep = 3
+            };
+
+            // For now, we auto-sign (in production, this would involve wallet interaction)
+            // The backend handles signing for the authenticated user
+            var finalizeRequest = new FinalizeRegisterRequest
+            {
+                RegisterId = initiateResponse.RegisterId,
+                SignedControlRecord = initiateResponse.UnsignedControlRecord // Backend handles signing
+            };
+
+            var register = await RegisterService.FinalizeRegisterAsync(finalizeRequest);
+
+            if (register is null)
+            {
+                _state = _state with
+                {
+                    IsProcessing = false,
+                    ErrorMessage = "Failed to finalize register creation. Please try again."
+                };
+                return;
+            }
+
+            // Success - notify parent and close dialog
+            await OnRegisterCreated.InvokeAsync(register);
+            MudDialog?.Close(DialogResult.Ok(register));
+        }
+        catch (Exception ex)
+        {
+            _state = _state with
+            {
+                IsProcessing = false,
+                ErrorMessage = $"An error occurred: {ex.Message}"
+            };
+        }
+    }
+}
