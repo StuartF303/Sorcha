@@ -4,8 +4,10 @@
 using Microsoft.AspNetCore.OutputCaching;
 using Scalar.AspNetCore;
 using System.Collections.Concurrent;
+using Sorcha.Blueprint.Service.Endpoints;
 using Sorcha.Blueprint.Service.Extensions;
 using Sorcha.Blueprint.Service.JsonLd;
+using Sorcha.Blueprint.Schemas.Services;
 using Sorcha.Cryptography.Core;
 using Sorcha.ServiceClients.Extensions;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
@@ -75,6 +77,17 @@ builder.Services.AddSignalR();
 // Add Notification service (Sprint 5)
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.INotificationService,
     Sorcha.Blueprint.Service.Services.Implementation.NotificationService>();
+
+// Add Schema Store services (Sprint 7)
+builder.Services.AddSingleton<SystemSchemaLoader>();
+builder.Services.AddScoped<ISchemaStore, SchemaStore>();
+
+// Add External Schema Provider (SchemaStore.org integration)
+builder.Services.AddHttpClient<IExternalSchemaProvider, SchemaStoreOrgProvider>(client =>
+{
+    client.BaseAddress = new Uri("https://www.schemastore.org/");
+    client.DefaultRequestHeaders.Add("User-Agent", "Sorcha-Blueprint-Service/1.0");
+});
 
 // Add JWT authentication and authorization (AUTH-002)
 // JWT authentication is now configured via shared ServiceDefaults with auto-key generation
@@ -277,25 +290,11 @@ blueprintGroup.MapGet("/{id}/versions/{version}", async (string id, int version,
 .CacheOutput(policy => policy.Expire(TimeSpan.FromDays(365)).Tag("published")); // Cache permanently - immutable
 
 // ===========================
-// Schema Endpoints
+// Schema Endpoints (Sprint 7 - Schema Store)
 // ===========================
 
-var schemaGroup = app.MapGroup("/api/schemas")
-    .WithTags("Schemas")
-    .RequireAuthorization();
-
-/// <summary>
-/// Get all available schemas
-/// </summary>
-schemaGroup.MapGet("/", async (string? category = null, string? source = null, string? search = null) =>
-{
-    // TODO: Implement schema repository integration
-    return Results.Ok(new { message = "Schema endpoint - coming soon" });
-})
-.WithName("GetSchemas")
-.WithSummary("Get schemas")
-.WithDescription("Retrieve available data schemas with optional filtering")
-.CacheOutput(policy => policy.Expire(TimeSpan.FromMinutes(15)).Tag("schemas"));
+// Map schema store endpoints (GET /api/v1/schemas/system, GET /api/v1/schemas/{identifier}, etc.)
+app.MapSchemaEndpoints();
 
 // ===========================
 // Template Endpoints

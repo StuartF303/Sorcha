@@ -1,0 +1,584 @@
+openapi: 3.1.0
+info:
+  title: Sorcha Schema Store API
+  description: API for managing JSON schemas in the Sorcha platform
+  version: 1.0.0
+  contact:
+    name: Sorcha Contributors
+
+servers:
+  - url: /api/v1
+    description: Blueprint Service API
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Schemas
+    description: Schema management operations
+  - name: External
+    description: External schema source operations
+
+paths:
+  /schemas:
+    get:
+      operationId: listSchemas
+      summary: List all accessible schemas
+      description: Returns schemas filtered by category and organization scope
+      tags: [Schemas]
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [System, External, Custom]
+          description: Filter by schema category
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [Active, Deprecated]
+            default: Active
+          description: Filter by status
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search term for title/description
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          description: Maximum results to return
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Pagination cursor
+      responses:
+        '200':
+          description: List of schemas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      operationId: createSchema
+      summary: Create a custom schema
+      description: Creates a new custom schema for the user's organization
+      tags: [Schemas]
+      security:
+        - bearerAuth: [administrator]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSchemaRequest'
+      responses:
+        '201':
+          description: Schema created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaEntryDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Schema with identifier already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /schemas/{identifier}:
+    parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Schema identifier
+
+    get:
+      operationId: getSchema
+      summary: Get schema by identifier
+      description: Returns the full schema including content
+      tags: [Schemas]
+      responses:
+        '200':
+          description: Schema details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaContentDto'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Version tag for caching
+        '304':
+          description: Not modified (use cached version)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      operationId: updateSchema
+      summary: Update a custom schema
+      description: Updates an existing custom schema (Custom category only)
+      tags: [Schemas]
+      security:
+        - bearerAuth: [administrator]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSchemaRequest'
+      responses:
+        '200':
+          description: Schema updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaEntryDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      operationId: deleteSchema
+      summary: Delete a custom schema
+      description: Deletes a custom schema (Custom category only)
+      tags: [Schemas]
+      security:
+        - bearerAuth: [administrator]
+      responses:
+        '204':
+          description: Schema deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /schemas/{identifier}/deprecate:
+    post:
+      operationId: deprecateSchema
+      summary: Deprecate a schema
+      description: Marks a schema as deprecated
+      tags: [Schemas]
+      security:
+        - bearerAuth: [administrator]
+      parameters:
+        - name: identifier
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Schema deprecated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaEntryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /schemas/{identifier}/activate:
+    post:
+      operationId: activateSchema
+      summary: Reactivate a deprecated schema
+      description: Changes schema status back to Active
+      tags: [Schemas]
+      security:
+        - bearerAuth: [administrator]
+      parameters:
+        - name: identifier
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Schema activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaEntryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /schemas/{identifier}/publish:
+    post:
+      operationId: publishSchema
+      summary: Publish a custom schema globally
+      description: Makes a custom schema visible to all organizations
+      tags: [Schemas]
+      security:
+        - bearerAuth: [administrator]
+      parameters:
+        - name: identifier
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Schema published globally
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaEntryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Identifier conflicts with existing global schema
+
+  /schemas/external/search:
+    get:
+      operationId: searchExternalSchemas
+      summary: Search external schema sources
+      description: Searches SchemaStore.org and other configured sources
+      tags: [External]
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+          description: Search term
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 50
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalSchemaSearchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /schemas/external/import:
+    post:
+      operationId: importExternalSchema
+      summary: Import an external schema
+      description: Fetches and stores a schema from an external source
+      tags: [External]
+      security:
+        - bearerAuth: [administrator]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportExternalSchemaRequest'
+      responses:
+        '201':
+          description: Schema imported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaEntryDto'
+        '400':
+          description: Invalid schema or URL
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Schema already imported
+
+  /schemas/system:
+    get:
+      operationId: listSystemSchemas
+      summary: List all system schemas
+      description: Returns the four core system schemas
+      tags: [Schemas]
+      responses:
+        '200':
+          description: System schemas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SchemaEntryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    SchemaEntryDto:
+      type: object
+      required:
+        - identifier
+        - title
+        - version
+        - category
+        - status
+        - source
+        - isGloballyPublished
+        - dateAdded
+        - dateModified
+      properties:
+        identifier:
+          type: string
+          example: "installation"
+        title:
+          type: string
+          example: "Installation"
+        description:
+          type: string
+          nullable: true
+        version:
+          type: string
+          example: "1.0.0"
+        category:
+          type: string
+          enum: [System, External, Custom]
+        status:
+          type: string
+          enum: [Active, Deprecated]
+        source:
+          $ref: '#/components/schemas/SchemaSourceDto'
+        organizationId:
+          type: string
+          nullable: true
+        isGloballyPublished:
+          type: boolean
+        dateAdded:
+          type: string
+          format: date-time
+        dateModified:
+          type: string
+          format: date-time
+        dateDeprecated:
+          type: string
+          format: date-time
+          nullable: true
+
+    SchemaContentDto:
+      allOf:
+        - $ref: '#/components/schemas/SchemaEntryDto'
+        - type: object
+          required:
+            - content
+          properties:
+            content:
+              type: object
+              description: The JSON Schema content
+
+    SchemaSourceDto:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [Internal, External, Custom]
+        uri:
+          type: string
+          format: uri
+          nullable: true
+        provider:
+          type: string
+          nullable: true
+        fetchedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateSchemaRequest:
+      type: object
+      required:
+        - identifier
+        - title
+        - version
+        - content
+      properties:
+        identifier:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          minLength: 3
+          maxLength: 100
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+$'
+        content:
+          type: object
+          description: Valid JSON Schema (draft 2020-12)
+
+    UpdateSchemaRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+$'
+        content:
+          type: object
+
+    SchemaListResponse:
+      type: object
+      required:
+        - schemas
+        - totalCount
+      properties:
+        schemas:
+          type: array
+          items:
+            $ref: '#/components/schemas/SchemaEntryDto'
+        totalCount:
+          type: integer
+        nextCursor:
+          type: string
+          nullable: true
+
+    ExternalSchemaSearchResponse:
+      type: object
+      required:
+        - results
+        - totalCount
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalSchemaResult'
+        totalCount:
+          type: integer
+        sourceStatus:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [Available, Unavailable, Cached]
+
+    ExternalSchemaResult:
+      type: object
+      required:
+        - name
+        - url
+        - source
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        url:
+          type: string
+          format: uri
+        source:
+          type: string
+          example: "SchemaStore.org"
+        fileMatch:
+          type: array
+          items:
+            type: string
+
+    ImportExternalSchemaRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+        identifier:
+          type: string
+          description: Override identifier (defaults to name from source)
+
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'

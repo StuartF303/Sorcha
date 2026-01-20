@@ -20,6 +20,10 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 ## Recent Updates
 
+**2026-01-20:**
+- 🔴 SETUP-001 RECORDED: P0 issue - Fresh install/commissioning missing resources
+- ✅ System Schema Store feature complete (T001-T080)
+
 **2026-01-01:**
 - ✅ TENANT-SERVICE-001 COMPLETE: Bootstrap API endpoint implemented
 - ✅ BOOTSTRAP SCRIPTS CREATED: PowerShell and Bash automation scripts
@@ -59,7 +63,7 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Priority | Total | Complete | In Progress | Not Started |
 |----------|-------|----------|-------------|-------------|
-| **P0 - Critical (MVD Blocker)** | 6 | 3 | 0 | 3 ⚠️ |
+| **P0 - Critical (MVD Blocker)** | 7 | 3 | 0 | 4 ⚠️ |
 | **P1 - High (Production Ready)** | 21 | 0 | 0 | 21 ⚠️ |
 | **P2 - Medium (Enhancements)** | 65 | 58 | 0 | 7 |
 | **P3 - Low (Post-MVD)** | 66 | 42 | 0 | 24 |

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sorcha.io/schemas/system/register",
+  "title": "Register",
+  "description": "Represents a data container with schema",
+  "type": "object",
+  "required": ["identifier", "title"],
+  "properties": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 3,
+      "maxLength": 100
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "schema": {
+      "type": "string",
+      "description": "Reference to schema identifier"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "active", "closed", "archived"]
+    }
+  }
+}
