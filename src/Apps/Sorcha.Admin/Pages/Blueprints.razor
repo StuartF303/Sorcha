@@ -3,8 +3,12 @@
 @attribute [Authorize]
 @attribute [Authorize(Roles = "Designer,Administrator")]
 @using Blazored.LocalStorage
+@using Sorcha.Admin.Services
+@using Sorcha.Admin.Components.Designer
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager Navigation
+@inject IBlueprintStorageService BlueprintStorage
+@inject ISnackbar Snackbar
 
 <PageTitle>Blueprint Library - Sorcha Platform</PageTitle>
 
@@ -22,16 +26,32 @@
             <MudPaper Class="pa-4 mb-4" Elevation="2">
                 <div class="d-flex justify-space-between align-center">
                     <MudTextField T="string" @bind-Value="searchText" Placeholder="Search blueprints..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Class="flex-grow-1 mr-3" />
-                    <MudButton Href="/designer" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add">
-                        Create Blueprint
-                    </MudButton>
+                    <div class="d-flex align-center gap-2">
+                        <OfflineSyncIndicator />
+                        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                       OnClick="RefreshBlueprints"
+                                       Disabled="_loading"
+                                       Title="Refresh blueprints" />
+                        <MudButton Href="/designer" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add">
+                            Create Blueprint
+                        </MudButton>
+                    </div>
                 </div>
             </MudPaper>
         </MudItem>
 
-        @if (blueprints.Any())
+        @if (_loading)
         {
-            @foreach (var blueprint in blueprints)
+            <MudItem xs="12">
+                <MudPaper Class="pa-8 text-center" Elevation="2">
+                    <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" Class="mb-3" />
+                    <MudText Typo="Typo.body1">Loading blueprints...</MudText>
+                </MudPaper>
+            </MudItem>
+        }
+        else if (FilteredBlueprints.Any())
+        {
+            @foreach (var blueprint in FilteredBlueprints)
             {
                 <MudItem xs="12" md="6" lg="4">
                     <MudCard Elevation="2">
@@ -43,18 +63,30 @@
                                 </MudText>
                             </CardHeaderContent>
                             <CardHeaderActions>
-                                <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" />
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" Href="/designer">Edit</MudMenuItem>
+                                    <MudMenuItem Icon="@Icons.Material.Filled.FileCopy" OnClick="@(() => DuplicateBlueprint(blueprint))">Duplicate</MudMenuItem>
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteBlueprint(blueprint))" Class="mud-error-text">Delete</MudMenuItem>
+                                </MudMenu>
                             </CardHeaderActions>
                         </MudCardHeader>
                         <MudCardContent>
                             <MudText Typo="Typo.body2" Class="mb-2">@blueprint.Description</MudText>
                             <MudDivider Class="my-2" />
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" /> @blueprint.Actions.Count actions
-                            </MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                <MudIcon Icon="@Icons.Material.Filled.Update" Size="Size.Small" /> Updated @blueprint.UpdatedAt.ToString("MMM dd, yyyy")
-                            </MudText>
+                            <div class="d-flex justify-space-between align-center">
+                                <div>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" /> @blueprint.Actions.Count actions
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        <MudIcon Icon="@Icons.Material.Filled.Update" Size="Size.Small" /> @blueprint.UpdatedAt.ToString("MMM dd, yyyy")
+                                    </MudText>
+                                </div>
+                                @if (_serverAvailable)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.Cloud">Synced</MudChip>
+                                }
+                            </div>
                         </MudCardContent>
                         <MudCardActions>
                             <MudButton Color="Color.Primary" Variant="Variant.Text" Href="/designer">Open</MudButton>
@@ -71,7 +103,14 @@
                     <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Size="Size.Large" Color="Color.Secondary" Class="mb-3" />
                     <MudText Typo="Typo.h6" Class="mb-2">No Blueprints Found</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-                        Get started by creating your first blueprint
+                        @if (string.IsNullOrWhiteSpace(searchText))
+                        {
+                            <text>Get started by creating your first blueprint</text>
+                        }
+                        else
+                        {
+                            <text>No blueprints match your search</text>
+                        }
                     </MudText>
                     <MudButton Href="/designer" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add">
                         Create Blueprint
@@ -81,9 +120,16 @@
         }
 
         <MudItem xs="12">
-            <MudAlert Severity="Severity.Info">
+            <MudAlert Severity="@(_serverAvailable ? Severity.Success : Severity.Info)">
                 <MudText Typo="Typo.body2">
-                    This page loads blueprints from browser LocalStorage. Server-side blueprint management will be implemented in future versions.
+                    @if (_serverAvailable)
+                    {
+                        <text>Connected to server. Blueprints are automatically synced to the cloud.</text>
+                    }
+                    else
+                    {
+                        <text>Working offline. Blueprints are saved locally and will sync when connected.</text>
+                    }
                 </MudText>
             </MudAlert>
         </MudItem>
@@ -92,22 +138,125 @@
 
 @code {
     private string searchText = "";
-    private List<Sorcha.Blueprint.Models.Blueprint> blueprints = new();
+    private List<Sorcha.Blueprint.Models.Blueprint> _blueprints = new();
+    private bool _loading = true;
+    private bool _serverAvailable;
+
+    private IEnumerable<Sorcha.Blueprint.Models.Blueprint> FilteredBlueprints =>
+        string.IsNullOrWhiteSpace(searchText)
+            ? _blueprints
+            : _blueprints.Where(b =>
+                b.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                (b.Description?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync()
     {
-        // Load blueprints from LocalStorage (same as designer page)
+        await RefreshBlueprints();
+    }
+
+    private async Task RefreshBlueprints()
+    {
+        _loading = true;
+        StateHasChanged();
+
         try
         {
-            var blueprintsJson = await LocalStorage.GetItemAsStringAsync("sorcha:blueprints");
-            if (!string.IsNullOrEmpty(blueprintsJson))
-            {
-                blueprints = System.Text.Json.JsonSerializer.Deserialize<List<Sorcha.Blueprint.Models.Blueprint>>(blueprintsJson) ?? new();
-            }
+            // Check server availability
+            _serverAvailable = await BlueprintStorage.IsServerAvailableAsync();
+
+            // Load blueprints from storage service (server first, then local cache)
+            var blueprints = await BlueprintStorage.GetBlueprintsAsync();
+            _blueprints = blueprints.ToList();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading blueprints: {ex.Message}");
+            Snackbar.Add($"Error loading blueprints: {ex.Message}", Severity.Error);
+            _blueprints = new();
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DuplicateBlueprint(Sorcha.Blueprint.Models.Blueprint blueprint)
+    {
+        try
+        {
+            var duplicate = new Sorcha.Blueprint.Models.Blueprint
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = $"{blueprint.Title} (Copy)",
+                Description = blueprint.Description,
+                Version = 1,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                Participants = blueprint.Participants.ToList(),
+                Actions = blueprint.Actions.ToList()
+            };
+
+            var result = await BlueprintStorage.SaveBlueprintAsync(duplicate);
+            if (result.Success)
+            {
+                await RefreshBlueprints();
+                Snackbar.Add($"Blueprint '{duplicate.Title}' created", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Failed to duplicate: {result.ErrorMessage}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error duplicating blueprint: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteBlueprint(Sorcha.Blueprint.Models.Blueprint blueprint)
+    {
+        // Store the blueprint info for deletion
+        var blueprintId = blueprint.Id;
+        var blueprintTitle = blueprint.Title;
+
+        // Show confirmation snackbar with action button
+        Snackbar.Add(
+            $"Are you sure you want to delete '{blueprintTitle}'?",
+            Severity.Warning,
+            config =>
+            {
+                config.Action = "Delete";
+                config.ActionColor = Color.Error;
+                config.RequireInteraction = true;
+                config.ShowCloseIcon = true;
+                config.OnClick = snackbar =>
+                {
+                    // Perform delete asynchronously
+                    _ = PerformDelete(blueprintId, blueprintTitle);
+                    return Task.CompletedTask;
+                };
+            });
+    }
+
+    private async Task PerformDelete(string blueprintId, string blueprintTitle)
+    {
+        try
+        {
+            var deleted = await BlueprintStorage.DeleteBlueprintAsync(blueprintId);
+            if (deleted)
+            {
+                await RefreshBlueprints();
+                Snackbar.Add($"Blueprint '{blueprintTitle}' deleted", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete blueprint", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting blueprint: {ex.Message}", Severity.Error);
         }
     }
 }

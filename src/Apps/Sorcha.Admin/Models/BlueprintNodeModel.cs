@@ -61,6 +61,7 @@ public class ActionNodeModel : BlueprintNodeModel
     // Events for toolbar actions
     public static event Action<BlueprintAction>? AddParticipantRequested;
     public static event Action<BlueprintAction>? AddConditionRequested;
+    public static event Action<BlueprintAction>? AddCalculationRequested;
     public static event Action<BlueprintAction>? ShowPropertiesRequested;
 
     public ActionNodeModel(BlueprintAction action, Point? position = null) : base(position)
@@ -85,5 +86,6 @@ public class ActionNodeModel : BlueprintNodeModel
     // Methods to raise events
     public static void RaiseAddParticipant(BlueprintAction action) => AddParticipantRequested?.Invoke(action);
     public static void RaiseAddCondition(BlueprintAction action) => AddConditionRequested?.Invoke(action);
+    public static void RaiseAddCalculation(BlueprintAction action) => AddCalculationRequested?.Invoke(action);
     public static void RaiseShowProperties(BlueprintAction action) => ShowPropertiesRequested?.Invoke(action);
 }

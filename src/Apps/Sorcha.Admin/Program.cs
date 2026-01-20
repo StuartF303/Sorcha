@@ -104,6 +104,11 @@ builder.Services.AddBlazoredLocalStorage();
 // Add event log service (singleton to persist events across requests)
 builder.Services.AddSingleton<EventLogService>();
 
+// Blueprint Designer Services
+builder.Services.AddSingleton<BlueprintSerializationService>();
+builder.Services.AddScoped<IOfflineSyncService, OfflineSyncService>();
+builder.Services.AddScoped<IBlueprintStorageService, BlueprintStorageService>();
+
 // Configure ASP.NET Core Session for server-side token caching
 // This is required for ServerSideTokenCache to work across Blazor circuit recreation
 builder.Services.AddDistributedMemoryCache(); // In-memory session storage (can be replaced with Redis for production)

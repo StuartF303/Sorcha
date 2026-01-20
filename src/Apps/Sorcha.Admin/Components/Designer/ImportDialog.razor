@@ -1,0 +1,210 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.Admin.Models
+@using Sorcha.Admin.Services
+@using Sorcha.Blueprint.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.FileUpload" Class="mr-2" />
+            Import Blueprint
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Import a blueprint from a JSON or YAML file.
+        </MudText>
+
+        <MudFileUpload T="IBrowserFile"
+                       FilesChanged="OnFileSelected"
+                       Accept=".json,.yaml,.yml"
+                       MaximumFileCount="1"
+                       Class="mb-4">
+            <ActivatorContent>
+                <MudPaper Height="120px"
+                          Outlined="true"
+                          Class="d-flex flex-column align-center justify-center pa-4"
+                          Style="cursor: pointer; border-style: dashed;">
+                    @if (_selectedFile == null)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" />
+                        <MudText Typo="Typo.body1" Class="mt-2">
+                            Click to select or drag a file here
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Supported formats: .json, .yaml, .yml
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Success" />
+                        <MudText Typo="Typo.body1" Class="mt-2">@_selectedFile.Name</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @FormatFileSize(_selectedFile.Size)
+                        </MudText>
+                    }
+                </MudPaper>
+            </ActivatorContent>
+        </MudFileUpload>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+        }
+
+        @if (_validationResult != null)
+        {
+            @if (_validationResult.IsValid)
+            {
+                <MudAlert Severity="Severity.Success" Class="mb-4">
+                    <MudText Typo="Typo.subtitle2">Blueprint validated successfully!</MudText>
+                    @if (_validationResult.Blueprint != null)
+                    {
+                        <MudText Typo="Typo.body2">
+                            Title: @_validationResult.Blueprint.Title
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            Actions: @_validationResult.Blueprint.Actions.Count | Participants: @_validationResult.Blueprint.Participants.Count
+                        </MudText>
+                    }
+                </MudAlert>
+
+                @if (_validationResult.Warnings.Any())
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mb-4">
+                        <MudText Typo="Typo.subtitle2">Warnings (@_validationResult.Warnings.Count)</MudText>
+                        <MudList T="ImportValidationWarning" Dense="true" Class="pa-0">
+                            @foreach (var warning in _validationResult.Warnings)
+                            {
+                                <MudListItem T="ImportValidationWarning" Dense="true">
+                                    <div class="d-flex align-center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Color="Color.Warning" Class="mr-2" />
+                                        <div>
+                                            <MudText Typo="Typo.body2">@warning.Message</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">@warning.Path</MudText>
+                                        </div>
+                                    </div>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    </MudAlert>
+                }
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-4">
+                    <MudText Typo="Typo.subtitle2">Validation Failed</MudText>
+                    <MudList T="ImportValidationError" Dense="true" Class="pa-0">
+                        @foreach (var error in _validationResult.Errors)
+                        {
+                            <MudListItem T="ImportValidationError" Dense="true">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@GetErrorIcon(error.Type)" Size="Size.Small" Color="Color.Error" Class="mr-2" />
+                                    <div>
+                                        <MudText Typo="Typo.body2">@error.Message</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @error.Path (@error.Type)
+                                        </MudText>
+                                    </div>
+                                </div>
+                            </MudListItem>
+                        }
+                    </MudList>
+                </MudAlert>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Color="Color.Default" Disabled="@_loading">Cancel</MudButton>
+        <MudButton OnClick="Import"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(_loading || _validationResult == null || !_validationResult.IsValid)"
+                   StartIcon="@Icons.Material.Filled.Upload">
+            Import
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Inject]
+    private BlueprintSerializationService SerializationService { get; set; } = null!;
+
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+
+    private IBrowserFile? _selectedFile;
+    private ImportValidationResult? _validationResult;
+    private bool _loading;
+
+    private async Task OnFileSelected(IBrowserFile file)
+    {
+        _selectedFile = file;
+        _validationResult = null;
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Read file content (limit to 5MB)
+            const long maxFileSize = 5 * 1024 * 1024;
+            using var stream = file.OpenReadStream(maxFileSize);
+            using var reader = new StreamReader(stream);
+            var content = await reader.ReadToEndAsync();
+
+            // Validate and parse
+            _validationResult = SerializationService.ValidateAndParse(content, file.Name);
+        }
+        catch (Exception ex)
+        {
+            _validationResult = ImportValidationResult.Failure(new ImportValidationError(
+                "/",
+                $"Failed to read file: {ex.Message}",
+                ImportErrorType.InvalidFormat));
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Import()
+    {
+        if (_validationResult?.IsValid == true && _validationResult.Blueprint != null)
+        {
+            Snackbar.Add($"Blueprint '{_validationResult.Blueprint.Title}' imported successfully", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(_validationResult.Blueprint));
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+
+    private static string GetErrorIcon(ImportErrorType type) => type switch
+    {
+        ImportErrorType.MissingRequiredField => Icons.Material.Filled.ErrorOutline,
+        ImportErrorType.InvalidFormat => Icons.Material.Filled.BrokenImage,
+        ImportErrorType.InvalidReference => Icons.Material.Filled.LinkOff,
+        ImportErrorType.CircularDependency => Icons.Material.Filled.Loop,
+        ImportErrorType.SchemaNotFound => Icons.Material.Filled.SearchOff,
+        ImportErrorType.UnsupportedVersion => Icons.Material.Filled.NewReleases,
+        _ => Icons.Material.Filled.Error
+    };
+}

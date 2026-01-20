@@ -1,0 +1,144 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.Admin.Models
+
+<MudPaper Class="pa-3 mb-2" Outlined="true">
+    <div class="d-flex align-center gap-2 mb-2">
+        @if (ShowIndex)
+        {
+            <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="mr-2">
+                @(Index + 1)
+            </MudChip>
+        }
+
+        @if (ShowLogicalOperator && Index > 0)
+        {
+            <MudChip T="string"
+                     Size="Size.Small"
+                     Color="@(LogicalOp == LogicalOperator.And ? Color.Primary : Color.Secondary)"
+                     Class="mr-2">
+                @(LogicalOp == LogicalOperator.And ? "AND" : "OR")
+            </MudChip>
+        }
+
+        <MudSpacer />
+
+        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                       Size="Size.Small"
+                       Color="Color.Error"
+                       OnClick="@(() => OnDelete.InvokeAsync())"
+                       Title="Remove clause" />
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <!-- Field Selector -->
+        <MudAutocomplete T="string"
+                         @bind-Value="Clause.FieldPath"
+                         Label="Field"
+                         Placeholder="Select or type field path"
+                         SearchFunc="SearchFields"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Dense="true"
+                         Style="min-width: 150px; flex: 1;"
+                         AdornmentIcon="@Icons.Material.Filled.DataObject"
+                         Adornment="Adornment.Start" />
+
+        <!-- Operator Selector -->
+        <MudSelect T="ComparisonOperator"
+                   @bind-Value="Clause.Operator"
+                   Label="Operator"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense"
+                   Dense="true"
+                   Style="min-width: 120px;">
+            <MudSelectItem Value="ComparisonOperator.Equals">= (equals)</MudSelectItem>
+            <MudSelectItem Value="ComparisonOperator.NotEquals">≠ (not equals)</MudSelectItem>
+            <MudSelectItem Value="ComparisonOperator.GreaterThan">&gt; (greater than)</MudSelectItem>
+            <MudSelectItem Value="ComparisonOperator.LessThan">&lt; (less than)</MudSelectItem>
+            <MudSelectItem Value="ComparisonOperator.GreaterOrEqual">≥ (greater or equal)</MudSelectItem>
+            <MudSelectItem Value="ComparisonOperator.LessOrEqual">≤ (less or equal)</MudSelectItem>
+            <MudSelectItem Value="ComparisonOperator.Contains">contains</MudSelectItem>
+            <MudSelectItem Value="ComparisonOperator.StartsWith">starts with</MudSelectItem>
+            <MudSelectItem Value="ComparisonOperator.EndsWith">ends with</MudSelectItem>
+        </MudSelect>
+
+        <!-- Value Input -->
+        <MudTextField T="string"
+                      @bind-Value="Clause.Value"
+                      Label="Value"
+                      Placeholder="Enter value"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Style="min-width: 120px; flex: 1;" />
+
+        <!-- Type Selector -->
+        <MudSelect T="ConditionFieldType"
+                   @bind-Value="Clause.ValueType"
+                   Label="Type"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense"
+                   Dense="true"
+                   Style="min-width: 100px;">
+            <MudSelectItem Value="ConditionFieldType.String">
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.TextFields" Size="Size.Small" Class="mr-1" />
+                    Text
+                </div>
+            </MudSelectItem>
+            <MudSelectItem Value="ConditionFieldType.Number">
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Numbers" Size="Size.Small" Class="mr-1" />
+                    Number
+                </div>
+            </MudSelectItem>
+            <MudSelectItem Value="ConditionFieldType.Boolean">
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.ToggleOn" Size="Size.Small" Class="mr-1" />
+                    Boolean
+                </div>
+            </MudSelectItem>
+            <MudSelectItem Value="ConditionFieldType.Date">
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Class="mr-1" />
+                    Date
+                </div>
+            </MudSelectItem>
+        </MudSelect>
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter]
+    public Models.ConditionClause Clause { get; set; } = new();
+
+    [Parameter]
+    public int Index { get; set; }
+
+    [Parameter]
+    public bool ShowIndex { get; set; } = true;
+
+    [Parameter]
+    public bool ShowLogicalOperator { get; set; } = true;
+
+    [Parameter]
+    public LogicalOperator LogicalOp { get; set; } = LogicalOperator.And;
+
+    [Parameter]
+    public List<string> AvailableFields { get; set; } = [];
+
+    [Parameter]
+    public EventCallback OnDelete { get; set; }
+
+    private Task<IEnumerable<string>> SearchFields(string? value, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(AvailableFields.AsEnumerable());
+
+        return Task.FromResult(AvailableFields
+            .Where(f => f.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .AsEnumerable());
+    }
+}

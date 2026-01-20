@@ -23,6 +23,12 @@
                            OnClick="@(() => ActionNodeModel.RaiseAddCondition(Node.Action))"
                            Class="node-toolbar-btn"
                            Title="Add Condition" />
+            <MudIconButton Icon="@Icons.Material.Filled.Calculate"
+                           Size="Size.Small"
+                           Color="Color.Default"
+                           OnClick="@(() => ActionNodeModel.RaiseAddCalculation(Node.Action))"
+                           Class="node-toolbar-btn"
+                           Title="Add Calculation" />
             <MudIconButton Icon="@Icons.Material.Filled.Settings"
                            Size="Size.Small"
                            Color="Color.Default"

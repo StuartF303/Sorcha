@@ -1,0 +1,68 @@
+{
+  "$schema": "https://sorcha.io/schemas/blueprint/v1.0",
+  "$id": "https://sorcha.io/blueprints/samples/simple-approval",
+  "title": "Simple Approval Workflow",
+  "description": "A basic two-step approval workflow for testing and demonstration",
+  "version": "1.0.0",
+  "participants": [
+    {
+      "id": "requester",
+      "name": "Request Submitter",
+      "organisation": "Department A",
+      "walletAddress": "",
+      "role": "Initiator"
+    },
+    {
+      "id": "approver",
+      "name": "Manager",
+      "organisation": "Department A",
+      "walletAddress": "",
+      "role": "Approver"
+    }
+  ],
+  "actions": [
+    {
+      "id": 1,
+      "title": "Submit Request",
+      "description": "Submit a request for approval",
+      "sender": "requester",
+      "participants": [
+        {
+          "principal": "approver",
+          "role": "Approver"
+        }
+      ],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "amount": { "type": "number" }
+          },
+          "required": ["title"]
+        }
+      ],
+      "next": [2]
+    },
+    {
+      "id": 2,
+      "title": "Approve or Reject",
+      "description": "Manager reviews and makes approval decision",
+      "sender": "approver",
+      "participants": [
+        {
+          "principal": "requester",
+          "role": "Observer"
+        }
+      ],
+      "next": []
+    }
+  ],
+  "metadata": {
+    "category": "General",
+    "tags": ["simple", "approval", "starter"],
+    "author": "Sorcha Team",
+    "createdAt": "2025-01-15T00:00:00Z"
+  }
+}

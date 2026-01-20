@@ -1,4 +1,5 @@
 @using Sorcha.Admin.Models
+@using Sorcha.Admin.Components.Designer
 @using Sorcha.Blueprint.Models
 @using System.Text.Json.Nodes
 @using BlueprintAction = Sorcha.Blueprint.Models.Action
@@ -344,6 +345,15 @@
             <MudText Typo="Typo.caption" Color="Color.Secondary">
                 Actions: @editedBlueprint.Actions.Count
             </MudText>
+
+            <MudDivider Class="my-4" />
+
+            <!-- Participants Section -->
+            <ParticipantList Participants="@editedBlueprint.Participants"
+                             OnParticipantAdded="OnParticipantAdded"
+                             OnParticipantUpdated="OnParticipantUpdated"
+                             OnParticipantDeleted="OnParticipantDeleted"
+                             AvailableWalletAddresses="@(new List<string>())" />
         }
     </div>
 </div>
@@ -390,6 +400,39 @@
 
     private Blueprint editedBlueprint = new();
     private BlueprintAction editedAction = new();
+
+    // Performance optimization: Track previous values to prevent unnecessary re-renders
+    private string? _previousBlueprintId;
+    private string? _previousSelectedNodeId;
+    private bool _forceRender;
+
+    protected override bool ShouldRender()
+    {
+        if (_forceRender)
+        {
+            _forceRender = false;
+            return true;
+        }
+
+        // Only re-render if the blueprint or selected node has changed
+        var currentBlueprintId = Blueprint?.Id;
+        var currentSelectedNodeId = SelectedNode?.NodeId;
+
+        if (currentBlueprintId != _previousBlueprintId || currentSelectedNodeId != _previousSelectedNodeId)
+        {
+            _previousBlueprintId = currentBlueprintId;
+            _previousSelectedNodeId = currentSelectedNodeId;
+            return true;
+        }
+
+        return true; // Allow normal re-renders for edits
+    }
+
+    private void ForceRerender()
+    {
+        _forceRender = true;
+        StateHasChanged();
+    }
 
     protected override void OnParametersSet()
     {
@@ -445,5 +488,31 @@
     private async Task DiscardChanges()
     {
         await OnDiscardChanges.InvokeAsync();
+    }
+
+    private async Task OnParticipantAdded(Participant participant)
+    {
+        editedBlueprint.Participants.Add(participant);
+        editedBlueprint.UpdatedAt = DateTimeOffset.UtcNow;
+        await OnBlueprintSaved.InvokeAsync(editedBlueprint);
+    }
+
+    private async Task OnParticipantUpdated(Participant participant)
+    {
+        var existing = editedBlueprint.Participants.FirstOrDefault(p => p.Id == participant.Id);
+        if (existing != null)
+        {
+            var index = editedBlueprint.Participants.IndexOf(existing);
+            editedBlueprint.Participants[index] = participant;
+            editedBlueprint.UpdatedAt = DateTimeOffset.UtcNow;
+            await OnBlueprintSaved.InvokeAsync(editedBlueprint);
+        }
+    }
+
+    private async Task OnParticipantDeleted(Participant participant)
+    {
+        editedBlueprint.Participants.Remove(participant);
+        editedBlueprint.UpdatedAt = DateTimeOffset.UtcNow;
+        await OnBlueprintSaved.InvokeAsync(editedBlueprint);
     }
 }

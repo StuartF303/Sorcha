@@ -1,0 +1,139 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.Admin.Services
+@using Sorcha.Blueprint.Models
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Class="mr-2" />
+            Sync Conflict Detected
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Warning" Class="mb-4">
+            The blueprint "@Conflict.Title" has been modified both locally and on the server.
+            Choose how to resolve this conflict.
+        </MudAlert>
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <div class="d-flex align-center mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Computer" Class="mr-2" />
+                        <MudText Typo="Typo.subtitle1">Local Version</MudText>
+                    </div>
+                    <MudDivider Class="mb-2" />
+                    <MudText Typo="Typo.body2" Class="mb-1">
+                        <strong>Title:</strong> @Conflict.LocalVersion.Title
+                    </MudText>
+                    <MudText Typo="Typo.body2" Class="mb-1">
+                        <strong>Version:</strong> @Conflict.LocalVersion.Version
+                    </MudText>
+                    <MudText Typo="Typo.body2" Class="mb-1">
+                        <strong>Actions:</strong> @Conflict.LocalVersion.Actions.Count
+                    </MudText>
+                    <MudText Typo="Typo.body2" Class="mb-1">
+                        <strong>Participants:</strong> @Conflict.LocalVersion.Participants.Count
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Modified: @Conflict.LocalVersion.UpdatedAt.LocalDateTime.ToString("g")
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <div class="d-flex align-center mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Cloud" Class="mr-2" />
+                        <MudText Typo="Typo.subtitle1">Server Version</MudText>
+                    </div>
+                    <MudDivider Class="mb-2" />
+                    <MudText Typo="Typo.body2" Class="mb-1">
+                        <strong>Title:</strong> @Conflict.ServerVersion.Title
+                    </MudText>
+                    <MudText Typo="Typo.body2" Class="mb-1">
+                        <strong>Version:</strong> @Conflict.ServerVersion.Version
+                    </MudText>
+                    <MudText Typo="Typo.body2" Class="mb-1">
+                        <strong>Actions:</strong> @Conflict.ServerVersion.Actions.Count
+                    </MudText>
+                    <MudText Typo="Typo.body2" Class="mb-1">
+                        <strong>Participants:</strong> @Conflict.ServerVersion.Participants.Count
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Modified: @Conflict.ServerVersion.UpdatedAt.LocalDateTime.ToString("g")
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Resolution Options:</MudText>
+
+        <MudRadioGroup @bind-Value="_selectedResolution">
+            <MudPaper Class="pa-3 mb-2" Outlined="true">
+                <MudRadio Value="ConflictResolution.KeepLocal" Color="Color.Primary" Dense="true">
+                    <div>
+                        <MudText Typo="Typo.body1">Keep Local Version</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Overwrite the server version with your local changes
+                        </MudText>
+                    </div>
+                </MudRadio>
+            </MudPaper>
+
+            <MudPaper Class="pa-3 mb-2" Outlined="true">
+                <MudRadio Value="ConflictResolution.KeepServer" Color="Color.Secondary" Dense="true">
+                    <div>
+                        <MudText Typo="Typo.body1">Keep Server Version</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Discard your local changes and use the server version
+                        </MudText>
+                    </div>
+                </MudRadio>
+            </MudPaper>
+
+            <MudPaper Class="pa-3 mb-2" Outlined="true">
+                <MudRadio Value="ConflictResolution.KeepBoth" Color="Color.Info" Dense="true">
+                    <div>
+                        <MudText Typo="Typo.body1">Keep Both</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Create a copy of your local version with a new ID
+                        </MudText>
+                    </div>
+                </MudRadio>
+            </MudPaper>
+        </MudRadioGroup>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="Resolve"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Check">
+            Apply Resolution
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public BlueprintConflict Conflict { get; set; } = null!;
+
+    private ConflictResolution _selectedResolution = ConflictResolution.KeepLocal;
+
+    private void Resolve()
+    {
+        MudDialog.Close(DialogResult.Ok(_selectedResolution));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}
