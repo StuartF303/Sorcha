@@ -124,11 +124,20 @@ public class BlueprintSerializationService
             {
                 foreach (var action in exportModel.Blueprint.Actions)
                 {
-                    if (!string.IsNullOrEmpty(action.ParticipantId) && !participantIds.Contains(action.ParticipantId))
+                    // Check Target participant reference
+                    if (!string.IsNullOrEmpty(action.Target) && !participantIds.Contains(action.Target))
                     {
                         warnings.Add(new ImportValidationWarning(
-                            $"/blueprint/actions/{action.Id}/participantId",
-                            $"Action '{action.Title}' references non-existent participant '{action.ParticipantId}'"));
+                            $"/blueprint/actions/{action.Id}/target",
+                            $"Action '{action.Title}' references non-existent target participant '{action.Target}'"));
+                    }
+
+                    // Check Sender participant reference
+                    if (!string.IsNullOrEmpty(action.Sender) && !participantIds.Contains(action.Sender))
+                    {
+                        warnings.Add(new ImportValidationWarning(
+                            $"/blueprint/actions/{action.Id}/sender",
+                            $"Action '{action.Title}' references non-existent sender '{action.Sender}'"));
                     }
                 }
             }

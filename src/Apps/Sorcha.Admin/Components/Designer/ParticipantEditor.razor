@@ -52,12 +52,18 @@
                               Placeholder="0x..."
                               Variant="Variant.Outlined"
                               Style="flex: 1;"
-                              HelperText="@GetWalletValidationMessage()" />
+                              HelperText="@GetWalletValidationMessage()"
+                              Disabled="@_loadingWallets" />
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Primary"
                            OnClick="OpenWalletSelector"
-                           StartIcon="@Icons.Material.Filled.Search"
+                           StartIcon="@(_loadingWallets ? null : Icons.Material.Filled.Search)"
+                           Disabled="@_loadingWallets"
                            Style="height: 56px; margin-top: -24px;">
+                    @if (_loadingWallets)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
                     Browse
                 </MudButton>
             </div>
@@ -117,6 +123,7 @@
     private MudForm _form = null!;
     private bool _isValid;
     private bool _duplicateNameWarning;
+    private bool _loadingWallets;
 
     protected override void OnParametersSet()
     {
@@ -139,24 +146,35 @@
 
     private async Task OpenWalletSelector()
     {
-        var parameters = new DialogParameters<WalletSelectorDialog>
-        {
-            { x => x.WalletAddress, Model.WalletAddress ?? string.Empty },
-            { x => x.AvailableAddresses, AvailableWalletAddresses }
-        };
+        _loadingWallets = true;
+        StateHasChanged();
 
-        var options = new DialogOptions
+        try
         {
-            MaxWidth = MaxWidth.Small,
-            FullWidth = true
-        };
+            var parameters = new DialogParameters<WalletSelectorDialog>
+            {
+                { x => x.WalletAddress, Model.WalletAddress ?? string.Empty },
+                { x => x.AvailableAddresses, AvailableWalletAddresses }
+            };
 
-        var dialog = await DialogService.ShowAsync<WalletSelectorDialog>("Select Wallet", parameters, options);
-        var result = await dialog.Result;
+            var options = new DialogOptions
+            {
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true
+            };
 
-        if (result is not null && !result.Canceled && result.Data is string selectedAddress)
+            var dialog = await DialogService.ShowAsync<WalletSelectorDialog>("Select Wallet", parameters, options);
+            var result = await dialog.Result;
+
+            if (result is not null && !result.Canceled && result.Data is string selectedAddress)
+            {
+                Model.WalletAddress = selectedAddress;
+            }
+        }
+        finally
         {
-            Model.WalletAddress = selectedAddress;
+            _loadingWallets = false;
+            StateHasChanged();
         }
     }
 

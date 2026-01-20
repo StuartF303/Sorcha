@@ -23,6 +23,9 @@ public class SyncQueueItem
     /// <summary>When this queue item was created.</summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
+    /// <summary>When this queue item was last updated.</summary>
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+
     /// <summary>Number of times this operation has been retried.</summary>
     public int RetryCount { get; set; } = 0;
 

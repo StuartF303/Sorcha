@@ -75,32 +75,32 @@
                       Style="min-width: 120px; flex: 1;" />
 
         <!-- Type Selector -->
-        <MudSelect T="FieldType"
+        <MudSelect T="ConditionFieldType"
                    @bind-Value="Clause.ValueType"
                    Label="Type"
                    Variant="Variant.Outlined"
                    Margin="Margin.Dense"
                    Dense="true"
                    Style="min-width: 100px;">
-            <MudSelectItem Value="FieldType.String">
+            <MudSelectItem Value="ConditionFieldType.String">
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.TextFields" Size="Size.Small" Class="mr-1" />
                     Text
                 </div>
             </MudSelectItem>
-            <MudSelectItem Value="FieldType.Number">
+            <MudSelectItem Value="ConditionFieldType.Number">
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.Numbers" Size="Size.Small" Class="mr-1" />
                     Number
                 </div>
             </MudSelectItem>
-            <MudSelectItem Value="FieldType.Boolean">
+            <MudSelectItem Value="ConditionFieldType.Boolean">
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.ToggleOn" Size="Size.Small" Class="mr-1" />
                     Boolean
                 </div>
             </MudSelectItem>
-            <MudSelectItem Value="FieldType.Date">
+            <MudSelectItem Value="ConditionFieldType.Date">
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Class="mr-1" />
                     Date
@@ -112,7 +112,7 @@
 
 @code {
     [Parameter]
-    public ConditionClause Clause { get; set; } = new();
+    public Models.ConditionClause Clause { get; set; } = new();
 
     [Parameter]
     public int Index { get; set; }

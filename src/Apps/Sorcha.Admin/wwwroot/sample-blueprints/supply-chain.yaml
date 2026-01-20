@@ -1,0 +1,147 @@
+# Supply Chain Tracking Blueprint
+# Demonstrates product tracking from manufacturer to retailer
+
+$schema: https://sorcha.io/schemas/blueprint/v1.0
+$id: https://sorcha.io/blueprints/samples/supply-chain
+title: Supply Chain Tracking
+description: Track products through the supply chain with verification at each step
+version: 1.0.0
+
+participants:
+  - id: manufacturer
+    name: Product Manufacturer
+    organisation: Global Manufacturing Co
+    walletAddress: ""
+    role: Initiator
+
+  - id: quality-control
+    name: Quality Control
+    organisation: Global Manufacturing Co
+    walletAddress: ""
+    role: Approver
+
+  - id: logistics
+    name: Logistics Provider
+    organisation: Swift Logistics
+    walletAddress: ""
+    role: Member
+
+  - id: customs
+    name: Customs Authority
+    organisation: National Customs
+    walletAddress: ""
+    role: Approver
+
+  - id: distributor
+    name: Regional Distributor
+    organisation: Regional Distribution Inc
+    walletAddress: ""
+    role: Member
+
+  - id: retailer
+    name: Retail Store
+    organisation: Retail Chain
+    walletAddress: ""
+    role: Member
+
+actions:
+  - id: 1
+    title: Product Registration
+    description: Manufacturer registers product batch with serial numbers and specifications
+    sender: manufacturer
+    participants:
+      - principal: quality-control
+        role: Approver
+    dataSchemas:
+      - $ref: https://sorcha.io/schemas/product-registration/v1.0
+    next: [2]
+
+  - id: 2
+    title: Quality Inspection
+    description: Quality control inspects and certifies the product batch
+    sender: quality-control
+    participants:
+      - principal: manufacturer
+        role: Observer
+      - principal: logistics
+        role: Member
+    conditions:
+      and:
+        - ">=":
+            - var: inspectionScore
+            - 85
+        - "==":
+            - var: defectCount
+            - 0
+    next: [3]
+
+  - id: 3
+    title: Shipment Dispatch
+    description: Logistics provider picks up and dispatches the shipment
+    sender: logistics
+    participants:
+      - principal: customs
+        role: Approver
+      - principal: distributor
+        role: Observer
+    dataSchemas:
+      - $ref: https://sorcha.io/schemas/shipment/v1.0
+    next: [4]
+
+  - id: 4
+    title: Customs Clearance
+    description: Customs authority reviews and clears the shipment
+    sender: customs
+    participants:
+      - principal: logistics
+        role: Member
+      - principal: distributor
+        role: Member
+    conditions:
+      and:
+        - "==":
+            - var: documentsComplete
+            - true
+        - "==":
+            - var: tariffsPaid
+            - true
+    next: [5]
+
+  - id: 5
+    title: Distribution Receipt
+    description: Distributor receives and verifies the shipment
+    sender: distributor
+    participants:
+      - principal: logistics
+        role: Observer
+      - principal: retailer
+        role: Member
+    calculations:
+      - targetField: receivedPercentage
+        expression:
+          "*":
+            - "/"
+                - var: receivedQuantity
+                - var: shippedQuantity
+            - 100
+    next: [6]
+
+  - id: 6
+    title: Retail Delivery
+    description: Final delivery to retail location
+    sender: distributor
+    participants:
+      - principal: retailer
+        role: Member
+      - principal: manufacturer
+        role: Observer
+    next: []
+
+metadata:
+  category: Supply Chain
+  tags:
+    - logistics
+    - tracking
+    - compliance
+  author: Sorcha Team
+  createdAt: "2025-01-15T00:00:00Z"

@@ -101,7 +101,7 @@ public class ConditionModel
 
             var fieldPath = string.Empty;
             var value = string.Empty;
-            var valueType = FieldType.String;
+            var valueType = ConditionFieldType.String;
 
             // First arg should be field reference
             if (args[0] is JsonObject fieldRef && fieldRef.ContainsKey("var"))
@@ -116,17 +116,17 @@ public class ConditionModel
                 if (jv.TryGetValue<decimal>(out var numVal))
                 {
                     value = numVal.ToString();
-                    valueType = FieldType.Number;
+                    valueType = ConditionFieldType.Number;
                 }
                 else if (jv.TryGetValue<bool>(out var boolVal))
                 {
                     value = boolVal.ToString().ToLowerInvariant();
-                    valueType = FieldType.Boolean;
+                    valueType = ConditionFieldType.Boolean;
                 }
                 else
                 {
                     value = jv.GetValue<string>() ?? string.Empty;
-                    valueType = FieldType.String;
+                    valueType = ConditionFieldType.String;
                 }
             }
 
@@ -158,7 +158,7 @@ public class ConditionClause
     public string Value { get; set; } = string.Empty;
 
     /// <summary>The data type of the value.</summary>
-    public FieldType ValueType { get; set; } = FieldType.String;
+    public ConditionFieldType ValueType { get; set; } = ConditionFieldType.String;
 
     /// <summary>
     /// Converts this clause to JSON Logic format.
@@ -182,8 +182,8 @@ public class ConditionClause
         var fieldRef = new { var = FieldPath };
         object typedValue = ValueType switch
         {
-            FieldType.Number => decimal.TryParse(Value, out var d) ? d : 0m,
-            FieldType.Boolean => bool.TryParse(Value, out var b) && b,
+            ConditionFieldType.Number => decimal.TryParse(Value, out var d) ? d : 0m,
+            ConditionFieldType.Boolean => bool.TryParse(Value, out var b) && b,
             _ => Value
         };
 
@@ -213,7 +213,7 @@ public enum ComparisonOperator
 }
 
 /// <summary>Data types for condition values.</summary>
-public enum FieldType
+public enum ConditionFieldType
 {
     String,
     Number,

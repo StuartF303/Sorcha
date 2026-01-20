@@ -116,7 +116,7 @@
 - [x] T042 [US3] Implement file upload and parsing for import
 - [x] T043 [US3] Add validation error display in ImportDialog with specific messages
 - [x] T044 [US3] Integrate Export/Import buttons into Designer.razor toolbar
-- [ ] T045 [US3] Create sample blueprints in wwwroot/sample-blueprints/ for testing
+- [x] T045 [US3] Create sample blueprints in wwwroot/sample-blueprints/ for testing
 
 **Checkpoint**: User Story 3 complete - blueprints can be exported and imported as files
 
@@ -174,12 +174,12 @@
 
 **Purpose**: Final improvements affecting multiple user stories
 
-- [ ] T065 [P] Add comprehensive error handling and user feedback across all dialogs
-- [ ] T066 [P] Add loading states for all async operations
-- [ ] T067 Add keyboard navigation and accessibility support to editors
-- [ ] T068 Performance optimization for large blueprints (50+ actions)
+- [x] T065 [P] Add comprehensive error handling and user feedback across all dialogs
+- [x] T066 [P] Add loading states for all async operations
+- [x] T067 Add keyboard navigation and accessibility support to editors
+- [x] T068 Performance optimization for large blueprints (50+ actions)
 - [x] T069 [P] Add clear local cache option in settings for post-migration cleanup
-- [ ] T070 Run quickstart.md validation scenarios end-to-end
+- [x] T070 Run quickstart.md validation scenarios end-to-end
 
 ---
 

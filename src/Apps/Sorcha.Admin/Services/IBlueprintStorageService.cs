@@ -101,13 +101,13 @@ public class BlueprintSaveResult
 public class MigrationResult
 {
     /// <summary>Number of blueprints successfully migrated.</summary>
-    public int MigratedCount { get; init; }
+    public int MigratedCount { get; set; }
 
     /// <summary>Number of blueprints that failed to migrate.</summary>
-    public int FailedCount { get; init; }
+    public int FailedCount { get; set; }
 
     /// <summary>IDs of blueprints that failed to migrate.</summary>
-    public List<string> FailedIds { get; init; } = [];
+    public List<string> FailedIds { get; } = [];
 }
 
 /// <summary>

@@ -221,19 +221,19 @@ public class BlueprintStorageService : IBlueprintStorageService
 
                 if (response.IsSuccessStatusCode)
                 {
-                    result = result with { MigratedCount = result.MigratedCount + 1 };
+                    result.MigratedCount++;
                 }
                 else
                 {
                     result.FailedIds.Add(blueprint.Id);
-                    result = result with { FailedCount = result.FailedCount + 1 };
+                    result.FailedCount++;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to migrate blueprint {Id}", blueprint.Id);
                 result.FailedIds.Add(blueprint.Id);
-                result = result with { FailedCount = result.FailedCount + 1 };
+                result.FailedCount++;
             }
         }
 

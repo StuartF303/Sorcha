@@ -5,7 +5,7 @@
 @using Sorcha.Admin.Models
 @using System.Text.Json.Nodes
 
-<MudDialog>
+<MudDialog @onkeydown="OnKeyDown">
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.Calculate" Class="mr-2" />
@@ -97,43 +97,55 @@
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent Class="pt-0">
-                        <div class="d-flex flex-wrap gap-2">
+                        <div class="d-flex flex-wrap gap-2" role="group" aria-label="Arithmetic operators">
                             <MudButton OnClick="@(() => AddOperator(ArithmeticOperator.Add))"
                                        Color="Color.Secondary"
                                        Variant="Variant.Filled"
-                                       Size="Size.Medium">
+                                       Size="Size.Medium"
+                                       aria-label="Add operator (plus)"
+                                       Title="Add (+)">
                                 +
                             </MudButton>
                             <MudButton OnClick="@(() => AddOperator(ArithmeticOperator.Subtract))"
                                        Color="Color.Secondary"
                                        Variant="Variant.Filled"
-                                       Size="Size.Medium">
+                                       Size="Size.Medium"
+                                       aria-label="Subtract operator (minus)"
+                                       Title="Subtract (-)">
                                 -
                             </MudButton>
                             <MudButton OnClick="@(() => AddOperator(ArithmeticOperator.Multiply))"
                                        Color="Color.Secondary"
                                        Variant="Variant.Filled"
-                                       Size="Size.Medium">
+                                       Size="Size.Medium"
+                                       aria-label="Multiply operator"
+                                       Title="Multiply (*)">
                                 *
                             </MudButton>
                             <MudButton OnClick="@(() => AddOperator(ArithmeticOperator.Divide))"
                                        Color="Color.Secondary"
                                        Variant="Variant.Filled"
-                                       Size="Size.Medium">
+                                       Size="Size.Medium"
+                                       aria-label="Divide operator"
+                                       Title="Divide (/)">
                                 /
                             </MudButton>
                         </div>
-                        <div class="d-flex gap-2 mt-2">
+                        <div class="d-flex gap-2 mt-2" role="group" aria-label="Parentheses">
                             <MudButton OnClick="AddOpenParen"
                                        Color="Color.Info"
                                        Variant="Variant.Outlined"
-                                       Size="Size.Small">
+                                       Size="Size.Small"
+                                       aria-label="Open parenthesis"
+                                       Title="Open parenthesis (">
                                 (
                             </MudButton>
                             <MudButton OnClick="AddCloseParen"
                                        Color="Color.Info"
                                        Variant="Variant.Outlined"
-                                       Size="Size.Small">
+                                       Size="Size.Small"
+                                       aria-label="Close parenthesis"
+                                       Title="Close parenthesis )">
                                 )
                             </MudButton>
                         </div>
@@ -223,6 +235,31 @@
                 </MudExpansionPanels>
             </MudItem>
 
+            <!-- Validation Status -->
+            <MudItem xs="12">
+                @if (!string.IsNullOrEmpty(_validationError))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mb-2">
+                        @_validationError
+                    </MudAlert>
+                }
+                else if (IsValid())
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Class="mr-1" />
+                        Expression is valid and ready to save.
+                    </MudAlert>
+                }
+            </MudItem>
+
+            <!-- Keyboard Shortcuts Help -->
+            <MudItem xs="12">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.Keyboard" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+                    Keyboard: +, -, *, / for operators | ( ) for parentheses | Ctrl+Z undo | Ctrl+Enter save
+                </MudText>
+            </MudItem>
+
             <!-- Quick Actions -->
             <MudItem xs="12">
                 <div class="d-flex gap-2">
@@ -260,6 +297,9 @@
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; } = null!;
 
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+
     [Parameter]
     public CalculationModel Model { get; set; } = new();
 
@@ -269,6 +309,7 @@
     private string? _selectedField;
     private decimal _constantValue = 0;
     private Dictionary<string, decimal> _testValues = new();
+    private string? _validationError;
 
     protected override void OnInitialized()
     {
@@ -427,11 +468,19 @@
 
     private bool IsValid()
     {
+        _validationError = null;
+
         if (string.IsNullOrWhiteSpace(Model.TargetFieldPath))
+        {
+            _validationError = "Target field is required.";
             return false;
+        }
 
         if (!Model.Elements.Any())
+        {
+            _validationError = "Expression cannot be empty. Add at least one element.";
             return false;
+        }
 
         // Check parentheses balance
         var balance = 0;
@@ -439,23 +488,101 @@
         {
             if (element.Type == CalculationElementType.OpenParen) balance++;
             if (element.Type == CalculationElementType.CloseParen) balance--;
-            if (balance < 0) return false;
+            if (balance < 0)
+            {
+                _validationError = "Unbalanced parentheses: found closing ')' without matching opening '('.";
+                return false;
+            }
         }
-        if (balance != 0) return false;
+        if (balance != 0)
+        {
+            _validationError = $"Unbalanced parentheses: {balance} unclosed '(' found.";
+            return false;
+        }
 
         // Check that we can generate valid JSON Logic
-        var jsonLogic = Model.ToJsonLogic();
-        return jsonLogic is not null;
+        try
+        {
+            var jsonLogic = Model.ToJsonLogic();
+            if (jsonLogic is null)
+            {
+                _validationError = "Unable to generate valid JSON Logic from the expression.";
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _validationError = $"Expression error: {ex.Message}";
+            return false;
+        }
+
+        return true;
     }
 
     private void Save()
     {
-        if (!IsValid()) return;
+        if (!IsValid())
+        {
+            Snackbar.Add(_validationError ?? "Validation failed", Severity.Warning);
+            StateHasChanged();
+            return;
+        }
         MudDialog.Close(DialogResult.Ok(Model));
     }
 
     private void Cancel()
     {
         MudDialog.Cancel();
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        // Ctrl+Z for undo
+        if (e.CtrlKey && e.Key == "z")
+        {
+            UndoLast();
+            StateHasChanged();
+        }
+        // Escape to cancel
+        else if (e.Key == "Escape")
+        {
+            Cancel();
+        }
+        // Ctrl+Enter to save
+        else if (e.CtrlKey && e.Key == "Enter")
+        {
+            Save();
+        }
+        // Keyboard shortcuts for operators
+        else if (!e.CtrlKey && !e.AltKey)
+        {
+            switch (e.Key)
+            {
+                case "+":
+                    AddOperator(ArithmeticOperator.Add);
+                    StateHasChanged();
+                    break;
+                case "-":
+                    AddOperator(ArithmeticOperator.Subtract);
+                    StateHasChanged();
+                    break;
+                case "*":
+                    AddOperator(ArithmeticOperator.Multiply);
+                    StateHasChanged();
+                    break;
+                case "/":
+                    AddOperator(ArithmeticOperator.Divide);
+                    StateHasChanged();
+                    break;
+                case "(":
+                    AddOpenParen();
+                    StateHasChanged();
+                    break;
+                case ")":
+                    AddCloseParen();
+                    StateHasChanged();
+                    break;
+            }
+        }
     }
 }

@@ -216,26 +216,47 @@
 
     private async Task DeleteBlueprint(Sorcha.Blueprint.Models.Blueprint blueprint)
     {
-        var confirmed = await Snackbar.Add(
-            $"Are you sure you want to delete '{blueprint.Title}'?",
+        // Store the blueprint info for deletion
+        var blueprintId = blueprint.Id;
+        var blueprintTitle = blueprint.Title;
+
+        // Show confirmation snackbar with action button
+        Snackbar.Add(
+            $"Are you sure you want to delete '{blueprintTitle}'?",
             Severity.Warning,
             config =>
             {
                 config.Action = "Delete";
                 config.ActionColor = Color.Error;
-                config.Onclick = async snackbar =>
+                config.RequireInteraction = true;
+                config.ShowCloseIcon = true;
+                config.OnClick = snackbar =>
                 {
-                    var deleted = await BlueprintStorage.DeleteBlueprintAsync(blueprint.Id);
-                    if (deleted)
-                    {
-                        await RefreshBlueprints();
-                        Snackbar.Add($"Blueprint '{blueprint.Title}' deleted", Severity.Success);
-                    }
-                    else
-                    {
-                        Snackbar.Add("Failed to delete blueprint", Severity.Error);
-                    }
+                    // Perform delete asynchronously
+                    _ = PerformDelete(blueprintId, blueprintTitle);
+                    return Task.CompletedTask;
                 };
             });
+    }
+
+    private async Task PerformDelete(string blueprintId, string blueprintTitle)
+    {
+        try
+        {
+            var deleted = await BlueprintStorage.DeleteBlueprintAsync(blueprintId);
+            if (deleted)
+            {
+                await RefreshBlueprints();
+                Snackbar.Add($"Blueprint '{blueprintTitle}' deleted", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete blueprint", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting blueprint: {ex.Message}", Severity.Error);
+        }
     }
 }

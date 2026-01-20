@@ -73,9 +73,10 @@ public class BlueprintStorageServiceTests
         var result = new MigrationResult
         {
             MigratedCount = 5,
-            FailedCount = 2,
-            FailedIds = ["id1", "id2"]
+            FailedCount = 2
         };
+        result.FailedIds.Add("id1");
+        result.FailedIds.Add("id2");
 
         // Assert
         result.MigratedCount.Should().Be(5);

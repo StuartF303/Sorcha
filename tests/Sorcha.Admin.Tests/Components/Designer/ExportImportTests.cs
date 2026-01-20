@@ -185,7 +185,7 @@ public class ExportImportTests
     {
         // Arrange
         var blueprint = CreateTestBlueprint();
-        blueprint.Actions[0].ParticipantId = "non-existent-participant";
+        blueprint.Actions[0].Target = "non-existent-participant";
         var json = _service.ToJson(blueprint);
 
         // Act
@@ -271,9 +271,9 @@ public class ExportImportTests
         restored.Participants.Should().HaveCount(original.Participants.Count);
     }
 
-    private static Blueprint CreateTestBlueprint()
+    private static Sorcha.Blueprint.Models.Blueprint CreateTestBlueprint()
     {
-        return new Blueprint
+        return new Sorcha.Blueprint.Models.Blueprint
         {
             Id = "test-blueprint-id",
             Title = "Test Blueprint",

@@ -62,23 +62,60 @@
     private JsonElement? jsonElement;
     private string viewMode = "tree";
 
+    // Performance optimization: Cache the serialized JSON and only regenerate when blueprint changes
+    private string? _cachedBlueprintId;
+    private DateTimeOffset? _cachedBlueprintUpdatedAt;
+    private int _cachedActionCount;
+    private int _cachedParticipantCount;
+
+    private static readonly JsonSerializerOptions _serializerOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
+
     protected override void OnParametersSet()
     {
         if (Blueprint != null)
         {
-            var options = new JsonSerializerOptions
+            // Only regenerate JSON if the blueprint has actually changed
+            if (ShouldRegenerateJson())
             {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-            };
-
-            jsonText = JsonSerializer.Serialize(Blueprint, options);
-
-            // Parse for tree view
-            using var doc = JsonDocument.Parse(jsonText);
-            jsonElement = doc.RootElement.Clone();
+                RegenerateJson();
+            }
         }
+    }
+
+    private bool ShouldRegenerateJson()
+    {
+        if (Blueprint == null) return false;
+
+        // Check if any key properties have changed
+        var hasChanged = _cachedBlueprintId != Blueprint.Id ||
+                        _cachedBlueprintUpdatedAt != Blueprint.UpdatedAt ||
+                        _cachedActionCount != Blueprint.Actions.Count ||
+                        _cachedParticipantCount != Blueprint.Participants.Count;
+
+        return hasChanged;
+    }
+
+    private void RegenerateJson()
+    {
+        if (Blueprint == null) return;
+
+        // Update cache tracking
+        _cachedBlueprintId = Blueprint.Id;
+        _cachedBlueprintUpdatedAt = Blueprint.UpdatedAt;
+        _cachedActionCount = Blueprint.Actions.Count;
+        _cachedParticipantCount = Blueprint.Participants.Count;
+
+        // Serialize blueprint
+        jsonText = JsonSerializer.Serialize(Blueprint, _serializerOptions);
+
+        // Parse for tree view
+        using var doc = JsonDocument.Parse(jsonText);
+        jsonElement = doc.RootElement.Clone();
     }
 
     private async Task CopyToClipboard()

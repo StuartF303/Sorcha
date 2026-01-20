@@ -36,7 +36,7 @@ public class ConditionEditorTests
         clause.FieldPath.Should().BeEmpty();
         clause.Operator.Should().Be(ComparisonOperator.Equals);
         clause.Value.Should().BeEmpty();
-        clause.ValueType.Should().Be(FieldType.String);
+        clause.ValueType.Should().Be(ConditionFieldType.String);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class ConditionEditorTests
                 FieldPath = "amount",
                 Operator = ComparisonOperator.GreaterThan,
                 Value = "100",
-                ValueType = FieldType.Number
+                ValueType = ConditionFieldType.Number
             }]
         };
 
@@ -92,14 +92,14 @@ public class ConditionEditorTests
                     FieldPath = "status",
                     Operator = ComparisonOperator.Equals,
                     Value = "approved",
-                    ValueType = FieldType.String
+                    ValueType = ConditionFieldType.String
                 },
                 new ConditionClause
                 {
                     FieldPath = "amount",
                     Operator = ComparisonOperator.LessThan,
                     Value = "1000",
-                    ValueType = FieldType.Number
+                    ValueType = ConditionFieldType.Number
                 }
             ]
         };
@@ -127,14 +127,14 @@ public class ConditionEditorTests
                     FieldPath = "category",
                     Operator = ComparisonOperator.Equals,
                     Value = "premium",
-                    ValueType = FieldType.String
+                    ValueType = ConditionFieldType.String
                 },
                 new ConditionClause
                 {
                     FieldPath = "category",
                     Operator = ComparisonOperator.Equals,
                     Value = "gold",
-                    ValueType = FieldType.String
+                    ValueType = ConditionFieldType.String
                 }
             ]
         };
@@ -157,7 +157,7 @@ public class ConditionEditorTests
             FieldPath = "name",
             Operator = ComparisonOperator.Equals,
             Value = "Alice",
-            ValueType = FieldType.String
+            ValueType = ConditionFieldType.String
         };
 
         // Act
@@ -179,7 +179,7 @@ public class ConditionEditorTests
             FieldPath = "quantity",
             Operator = ComparisonOperator.GreaterOrEqual,
             Value = "50",
-            ValueType = FieldType.Number
+            ValueType = ConditionFieldType.Number
         };
 
         // Act
@@ -201,7 +201,7 @@ public class ConditionEditorTests
             FieldPath = "approved",
             Operator = ComparisonOperator.Equals,
             Value = "true",
-            ValueType = FieldType.Boolean
+            ValueType = ConditionFieldType.Boolean
         };
 
         // Act
@@ -229,7 +229,7 @@ public class ConditionEditorTests
             FieldPath = "test",
             Operator = op,
             Value = "value",
-            ValueType = FieldType.String
+            ValueType = ConditionFieldType.String
         };
 
         // Act
@@ -265,7 +265,7 @@ public class ConditionEditorTests
         model.Clauses[0].FieldPath.Should().Be("status");
         model.Clauses[0].Operator.Should().Be(ComparisonOperator.Equals);
         model.Clauses[0].Value.Should().Be("active");
-        model.Clauses[0].ValueType.Should().Be(FieldType.String);
+        model.Clauses[0].ValueType.Should().Be(ConditionFieldType.String);
     }
 
     [Fact]
@@ -309,7 +309,7 @@ public class ConditionEditorTests
         model.Clauses.Should().HaveCount(1);
         model.Clauses[0].Operator.Should().Be(ComparisonOperator.GreaterThan);
         model.Clauses[0].Value.Should().Be("500");
-        model.Clauses[0].ValueType.Should().Be(FieldType.Number);
+        model.Clauses[0].ValueType.Should().Be(ConditionFieldType.Number);
     }
 
     [Fact]
@@ -324,7 +324,7 @@ public class ConditionEditorTests
         // Assert
         model.Clauses.Should().HaveCount(1);
         model.Clauses[0].Value.Should().Be("true");
-        model.Clauses[0].ValueType.Should().Be(FieldType.Boolean);
+        model.Clauses[0].ValueType.Should().Be(ConditionFieldType.Boolean);
     }
 
     [Fact]
@@ -341,14 +341,14 @@ public class ConditionEditorTests
                     FieldPath = "amount",
                     Operator = ComparisonOperator.GreaterThan,
                     Value = "100",
-                    ValueType = FieldType.Number
+                    ValueType = ConditionFieldType.Number
                 },
                 new ConditionClause
                 {
                     FieldPath = "status",
                     Operator = ComparisonOperator.Equals,
                     Value = "active",
-                    ValueType = FieldType.String
+                    ValueType = ConditionFieldType.String
                 }
             ]
         };
@@ -387,14 +387,14 @@ public class ConditionEditorTests
     }
 
     [Fact]
-    public void AllFieldTypes_HaveCorrectValues()
+    public void AllConditionFieldTypes_HaveCorrectValues()
     {
         // Assert
-        var types = Enum.GetValues<FieldType>();
-        types.Should().Contain(FieldType.String);
-        types.Should().Contain(FieldType.Number);
-        types.Should().Contain(FieldType.Boolean);
-        types.Should().Contain(FieldType.Date);
+        var types = Enum.GetValues<ConditionFieldType>();
+        types.Should().Contain(ConditionFieldType.String);
+        types.Should().Contain(ConditionFieldType.Number);
+        types.Should().Contain(ConditionFieldType.Boolean);
+        types.Should().Contain(ConditionFieldType.Date);
     }
 
     [Fact]
