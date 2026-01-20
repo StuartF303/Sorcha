@@ -96,6 +96,77 @@
 
 ---
 
+## First-Run Setup & Commissioning (P0 - BLOCKER)
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| SETUP-001 | First-run setup wizard/script for fresh installations | P0 | 24h | 📋 Not Started | - |
+
+### SETUP-001 Problem Statement
+
+**Issue:** On a totally clean build or fresh Docker Desktop installation, numerous key service resources are missing, causing startup failures:
+
+- Docker volumes for key storage (wallets, certificates)
+- File caches and data directories
+- `.env` files with deployment-specific configuration
+- Database initialization (schemas, seed data)
+- Redis configuration and initial state
+
+**Impact:** New developers or fresh deployments cannot start the system without manual intervention and tribal knowledge.
+
+### SETUP-001 Requirements
+
+The solution must provide an interactive setup process that:
+
+1. **Environment Detection:**
+   - Detect if this is a first-run (missing volumes, .env, databases)
+   - Check Docker Desktop availability and version
+   - Verify required ports are available (80, 5432, 6379, 27017, etc.)
+
+2. **Configuration Generation:**
+   - Prompt for deployment-specific values (organization name, admin email, domains)
+   - Generate `.env` file with secure defaults
+   - Generate `appsettings.Local.json` overrides
+   - Create service-specific configuration files
+
+3. **Infrastructure Provisioning:**
+   - Create required Docker volumes (`sorcha-postgres-data`, `sorcha-redis-data`, `sorcha-mongo-data`, `sorcha-wallet-keys`)
+   - Create required directories (`./data/caches`, `./data/logs`, `./data/uploads`)
+   - Set appropriate permissions
+
+4. **Database Initialization:**
+   - Run database migrations for all services
+   - Seed initial data (organizations, admin user, service principals)
+   - Verify database connectivity
+
+5. **Validation:**
+   - Health check all infrastructure services
+   - Verify service-to-service connectivity
+   - Generate setup report with credentials and next steps
+
+### SETUP-001 Deliverables
+
+- [ ] `scripts/setup.ps1` - PowerShell setup wizard (Windows)
+- [ ] `scripts/setup.sh` - Bash setup script (Linux/macOS)
+- [ ] `scripts/setup-config.yaml` - Configuration template with defaults
+- [ ] `scripts/validate-environment.ps1` - Environment validation script
+- [ ] `docs/FIRST-RUN-SETUP.md` - Comprehensive setup guide
+- [ ] Update `docker-compose.yml` to fail gracefully with helpful messages if not commissioned
+- [ ] Add pre-flight check to AppHost that detects missing resources
+
+### SETUP-001 Acceptance Criteria
+
+- [ ] Fresh clone + `docker-compose up` shows clear message to run setup first
+- [ ] Setup script runs interactively with sensible defaults
+- [ ] Setup script can run non-interactively with config file for CI/CD
+- [ ] All services start successfully after setup completes
+- [ ] Setup can be re-run safely (idempotent)
+- [ ] Clear documentation for both developers and operators
+
+**Related:** AUTH-003, AUTH-004, OPS-003
+
+---
+
 ## Operations & Monitoring (P1)
 
 | ID | Task | Priority | Effort | Status | Assignee |

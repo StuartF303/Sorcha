@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sorcha.io/schemas/system/participant",
+  "title": "Participant",
+  "description": "Represents an individual user in the system",
+  "type": "object",
+  "required": ["identifier", "displayName", "role"],
+  "properties": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 3,
+      "maxLength": 100
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "role": {
+      "type": "string",
+      "enum": ["administrator", "designer", "member"]
+    },
+    "organisationRef": {
+      "type": "string",
+      "description": "Reference to Organisation identifier"
+    }
+  }
+}

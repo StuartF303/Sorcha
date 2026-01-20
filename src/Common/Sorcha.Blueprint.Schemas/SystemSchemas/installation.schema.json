@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sorcha.io/schemas/system/installation",
+  "title": "Installation",
+  "description": "Represents a Sorcha system deployment",
+  "type": "object",
+  "required": ["name", "publicKey"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Installation display name"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Optional description"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9]+)?$",
+      "description": "Semantic version"
+    },
+    "publicKey": {
+      "type": "string",
+      "description": "Base64-encoded public key"
+    }
+  }
+}

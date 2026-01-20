@@ -229,7 +229,7 @@ public static class Extensions
                     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
                     "img-src 'self' data: https:; " +
                     "font-src 'self' data: https://fonts.gstatic.com; " +
-                    "connect-src 'self' https://localhost:* http://localhost:* wss://localhost:* ws://localhost:*; " +
+                    "connect-src 'self' https://localhost:* http://localhost:* wss://localhost:* ws://localhost:* https://www.schemastore.org https://json.schemastore.org; " +
                     "worker-src 'self' blob:; " +
                     "manifest-src 'self'; " +
                     "frame-ancestors 'none'";

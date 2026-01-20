@@ -37,8 +37,12 @@ builder.Services.AddScoped<SchemaLibraryService>(sp =>
     var cacheService = sp.GetRequiredService<ISchemaCacheService>();
     var schemaLibrary = new SchemaLibraryService(cacheService);
 
-    // Add SchemaStore repository with HttpClient
     var httpClient = sp.GetRequiredService<HttpClient>();
+
+    // Add Blueprint Service repository for system and custom schemas (with ETag caching)
+    schemaLibrary.AddRepository(new BlueprintServiceRepository(httpClient));
+
+    // Add SchemaStore repository for external schemas
     schemaLibrary.AddRepository(new SchemaStoreRepository(httpClient));
 
     return schemaLibrary;

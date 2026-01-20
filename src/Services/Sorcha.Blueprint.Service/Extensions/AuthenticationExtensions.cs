@@ -43,6 +43,10 @@ public static class AuthenticationExtensions
                     return canPublish || isAdmin;
                 }));
 
+            // Administrator role - for schema import and other admin operations
+            options.AddPolicy("Administrator", policy =>
+                policy.RequireRole("Administrator"));
+
             // Service-to-service operations
             options.AddPolicy("RequireService", policy =>
                 policy.RequireClaim("token_type", "service"));
