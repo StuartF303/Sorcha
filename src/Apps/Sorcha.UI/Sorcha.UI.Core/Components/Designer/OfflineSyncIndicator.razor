@@ -1,0 +1,245 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.UI.Core.Models.Designer
+@using Sorcha.UI.Core.Services
+@implements IDisposable
+
+@if (_pendingCount > 0)
+{
+    <MudTooltip Text="@GetTooltipText()">
+        <MudBadge Content="@_pendingCount"
+                  Color="Color.Warning"
+                  Overlap="true"
+                  Visible="true">
+            <MudIconButton Icon="@Icons.Material.Filled.CloudOff"
+                           Color="Color.Warning"
+                           Size="Size.Small"
+                           OnClick="ShowSyncDialog"
+                           Title="Pending sync items" />
+        </MudBadge>
+    </MudTooltip>
+}
+else if (_syncing)
+{
+    <MudTooltip Text="Syncing...">
+        <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" />
+    </MudTooltip>
+}
+else if (_isOnline)
+{
+    <MudTooltip Text="Connected to server">
+        <MudIconButton Icon="@Icons.Material.Filled.Cloud"
+                       Color="Color.Success"
+                       Size="Size.Small"
+                       Disabled="true" />
+    </MudTooltip>
+}
+else
+{
+    <MudTooltip Text="Offline - changes will sync when connected">
+        <MudIconButton Icon="@Icons.Material.Filled.CloudOff"
+                       Color="Color.Default"
+                       Size="Size.Small"
+                       Disabled="true" />
+    </MudTooltip>
+}
+
+@code {
+    [Inject]
+    private IOfflineSyncService SyncService { get; set; } = null!;
+
+    [Inject]
+    private IBlueprintStorageService StorageService { get; set; } = null!;
+
+    [Inject]
+    private IDialogService DialogService { get; set; } = null!;
+
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+
+    private int _pendingCount;
+    private bool _syncing;
+    private bool _isOnline;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to queue changes
+        SyncService.OnQueueChanged += OnQueueChanged;
+        SyncService.OnSyncCompleted += OnSyncCompleted;
+        SyncService.OnConflictDetected += OnConflictDetected;
+
+        // Initial state
+        _pendingCount = SyncService.PendingCount;
+        _isOnline = await StorageService.IsServerAvailableAsync();
+
+        // Start auto-sync
+        await SyncService.StartAutoSyncAsync();
+    }
+
+    private void OnQueueChanged(int count)
+    {
+        _pendingCount = count;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnSyncCompleted(object? sender, SyncCompletedEventArgs e)
+    {
+        _syncing = false;
+
+        if (e.SuccessCount > 0)
+        {
+            Snackbar.Add($"Synced {e.SuccessCount} item(s) successfully", Severity.Success);
+        }
+
+        if (e.FailedCount > 0)
+        {
+            Snackbar.Add($"{e.FailedCount} item(s) failed to sync", Severity.Warning);
+        }
+
+        if (e.ConflictCount > 0)
+        {
+            Snackbar.Add($"{e.ConflictCount} conflict(s) need resolution", Severity.Error);
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnConflictDetected(object? sender, ConflictDetectedEventArgs e)
+    {
+        await InvokeAsync(async () =>
+        {
+            await ShowConflictResolutionDialog(e.Conflict, e.QueueItem);
+        });
+    }
+
+    private async Task ShowConflictResolutionDialog(BlueprintConflict conflict, SyncQueueItem queueItem)
+    {
+        var parameters = new DialogParameters<ConflictResolutionDialog>
+        {
+            { x => x.Conflict, conflict }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ConflictResolutionDialog>("Sync Conflict", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is ConflictResolution resolution)
+        {
+            await ResolveConflict(conflict, queueItem, resolution);
+        }
+    }
+
+    private async Task ResolveConflict(BlueprintConflict conflict, SyncQueueItem queueItem, ConflictResolution resolution)
+    {
+        try
+        {
+            switch (resolution)
+            {
+                case ConflictResolution.KeepLocal:
+                    // Force overwrite server with local version (increment version)
+                    var localCopy = conflict.LocalVersion;
+                    localCopy.Version = conflict.ServerVersion.Version + 1;
+                    localCopy.UpdatedAt = DateTimeOffset.UtcNow;
+                    await StorageService.SaveBlueprintAsync(localCopy);
+                    await SyncService.RemoveFromQueueAsync(queueItem.Id);
+                    Snackbar.Add("Local version saved to server", Severity.Success);
+                    break;
+
+                case ConflictResolution.KeepServer:
+                    // Discard local changes, use server version
+                    await SyncService.RemoveFromQueueAsync(queueItem.Id);
+                    Snackbar.Add("Server version kept, local changes discarded", Severity.Info);
+                    break;
+
+                case ConflictResolution.KeepBoth:
+                    // Create a copy of local version with new ID
+                    var duplicate = conflict.LocalVersion;
+                    duplicate.Id = Guid.NewGuid().ToString();
+                    duplicate.Title = $"{duplicate.Title} (Copy)";
+                    duplicate.CreatedAt = DateTimeOffset.UtcNow;
+                    duplicate.UpdatedAt = DateTimeOffset.UtcNow;
+                    duplicate.Version = 1;
+                    await StorageService.SaveBlueprintAsync(duplicate);
+                    await SyncService.RemoveFromQueueAsync(queueItem.Id);
+                    Snackbar.Add($"Copy created: {duplicate.Title}", Severity.Success);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to resolve conflict: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ShowSyncDialog()
+    {
+        var items = await SyncService.GetQueuedItemsAsync();
+
+        var parameters = new DialogParameters<SyncQueueDialog>
+        {
+            { x => x.QueuedItems, items.ToList() }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<SyncQueueDialog>("Pending Sync Items", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is string action)
+        {
+            switch (action)
+            {
+                case "sync":
+                    await SyncNow();
+                    break;
+                case "clear":
+                    await SyncService.ClearQueueAsync();
+                    Snackbar.Add("Sync queue cleared", Severity.Info);
+                    break;
+            }
+        }
+    }
+
+    private async Task SyncNow()
+    {
+        _syncing = true;
+        StateHasChanged();
+
+        try
+        {
+            await SyncService.SyncNowAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Sync failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _syncing = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetTooltipText()
+    {
+        return $"{_pendingCount} item(s) pending sync. Click to view details.";
+    }
+
+    public void Dispose()
+    {
+        SyncService.OnQueueChanged -= OnQueueChanged;
+        SyncService.OnSyncCompleted -= OnSyncCompleted;
+        SyncService.OnConflictDetected -= OnConflictDetected;
+    }
+}

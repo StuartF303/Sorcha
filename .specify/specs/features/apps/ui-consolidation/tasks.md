@@ -2,14 +2,14 @@
 
 **Feature Branch**: `ui-consolidation`
 **Created**: 2026-01-21
-**Status**: 63% Complete
+**Status**: 74% Complete
 
 ## Task Summary
 
 | Status | Count |
 |--------|-------|
-| Complete | 22 |
-| Pending | 13 |
+| Complete | 26 |
+| Pending | 9 |
 | **Total** | **35** |
 
 ---
@@ -464,7 +464,7 @@
 ---
 
 ### UC-023: Migrate OfflineSyncIndicator Component
-- **Status**: Pending
+- **Status**: Complete
 - **Priority**: P2
 - **Estimate**: 2 hours
 - **Dependencies**: UC-022
@@ -475,15 +475,15 @@
 - `Admin/Components/Designer/OfflineSyncIndicator.razor` → `UI.Core/Components/Designer/`
 
 **Acceptance Criteria**:
-- [ ] Component copied and namespaces updated
-- [ ] Shows online/offline status
-- [ ] Shows pending sync count
-- [ ] Styled to match UI theme
+- [x] Component copied and namespaces updated
+- [x] Shows online/offline status
+- [x] Shows pending sync count
+- [x] Styled to match UI theme
 
 ---
 
 ### UC-024: Migrate SyncQueueDialog Component
-- **Status**: Pending
+- **Status**: Complete
 - **Priority**: P2
 - **Estimate**: 3 hours
 - **Dependencies**: UC-022, UC-023
@@ -494,15 +494,15 @@
 - `Admin/Components/Designer/SyncQueueDialog.razor` → `UI.Core/Components/Designer/`
 
 **Acceptance Criteria**:
-- [ ] Component copied and namespaces updated
-- [ ] Lists queued operations
-- [ ] Can retry failed items
-- [ ] Can discard items
+- [x] Component copied and namespaces updated
+- [x] Lists queued operations
+- [x] Can retry failed items
+- [x] Can discard items
 
 ---
 
 ### UC-025: Migrate ConflictResolutionDialog Component
-- **Status**: Pending
+- **Status**: Complete
 - **Priority**: P2
 - **Estimate**: 4 hours
 - **Dependencies**: UC-022
@@ -513,15 +513,15 @@
 - `Admin/Components/Designer/ConflictResolutionDialog.razor` → `UI.Core/Components/Designer/`
 
 **Acceptance Criteria**:
-- [ ] Component copied and namespaces updated
-- [ ] Shows local vs server versions
-- [ ] Can choose local or server
-- [ ] Can merge manually
+- [x] Component copied and namespaces updated
+- [x] Shows local vs server versions
+- [x] Can choose local or server
+- [x] Can merge manually
 
 ---
 
 ### UC-026: Integrate Offline Components with Designer
-- **Status**: Pending
+- **Status**: Complete
 - **Priority**: P2
 - **Estimate**: 4 hours
 - **Dependencies**: UC-023, UC-024, UC-025
@@ -532,9 +532,9 @@
 - `UI.Web.Client/Pages/Designer.razor`
 
 **Acceptance Criteria**:
-- [ ] Sync indicator in toolbar
-- [ ] Sync queue accessible
-- [ ] Conflict resolution triggers when needed
+- [x] Sync indicator in toolbar
+- [x] Sync queue accessible
+- [x] Conflict resolution triggers when needed
 
 ---
 
