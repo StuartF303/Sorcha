@@ -1,12 +1,21 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
 using Sorcha.UI.Core.Models.Configuration;
 
 namespace Sorcha.UI.Core.Services.Configuration;
 
 /// <summary>
-/// Service for managing user profiles and UI configuration
+/// Service for managing user profiles and UI configuration.
+/// Profiles define connection settings for different backend environments.
 /// </summary>
 public interface IConfigurationService
 {
+    /// <summary>
+    /// Event raised when the active profile changes.
+    /// </summary>
+    event EventHandler<ProfileChangedEventArgs>? ActiveProfileChanged;
+
     /// <summary>
     /// Gets all available profiles
     /// </summary>
@@ -19,6 +28,12 @@ public interface IConfigurationService
     /// <param name="name">Profile name</param>
     /// <returns>Profile or null if not found</returns>
     Task<Profile?> GetProfileAsync(string name);
+
+    /// <summary>
+    /// Gets the currently active profile.
+    /// </summary>
+    /// <returns>The active profile, or null if not configured</returns>
+    Task<Profile?> GetActiveProfileAsync();
 
     /// <summary>
     /// Saves a profile (creates or updates)
@@ -40,7 +55,7 @@ public interface IConfigurationService
     Task<string> GetActiveProfileNameAsync();
 
     /// <summary>
-    /// Sets the active profile
+    /// Sets the active profile and raises ActiveProfileChanged event
     /// </summary>
     /// <param name="profileName">Profile name to activate</param>
     Task SetActiveProfileAsync(string profileName);
@@ -61,4 +76,20 @@ public interface IConfigurationService
     /// Initializes default profiles if none exist
     /// </summary>
     Task InitializeDefaultProfilesAsync();
+}
+
+/// <summary>
+/// Event arguments for profile change events
+/// </summary>
+public class ProfileChangedEventArgs : EventArgs
+{
+    /// <summary>
+    /// The previous profile name (null if none was set)
+    /// </summary>
+    public string? PreviousProfileName { get; init; }
+
+    /// <summary>
+    /// The new active profile
+    /// </summary>
+    public Profile NewProfile { get; init; } = null!;
 }

@@ -175,49 +175,17 @@
 
     protected override void OnInitialized()
     {
-        // Use hardcoded profiles to avoid async initialization issues
-        _profiles = new List<Profile>
-        {
-            new Profile
-            {
-                Name = "Development",
-                ApiGatewayUrl = "https://localhost:7082",
-                Description = "Local .NET Aspire development environment",
-                IsSystemProfile = true
-            },
-            new Profile
-            {
-                Name = "Docker",
-                ApiGatewayUrl = "http://localhost:8080",
-                Description = "Docker Compose backend services",
-                IsSystemProfile = true
-            }
-        };
-        _selectedProfile = "Development";
+        // Use ProfileDefaults to avoid async initialization issues
+        _profiles = ProfileDefaults.GetDefaultProfiles();
+        _selectedProfile = ProfileDefaults.DefaultActiveProfile;
         _profilesLoaded = true;
     }
 
     private void UseDefaultProfilesAndContinue()
     {
-        // Create default profiles in memory
-        _profiles = new List<Profile>
-        {
-            new Profile
-            {
-                Name = "Development",
-                ApiGatewayUrl = "https://localhost:7082",
-                Description = "Local development environment",
-                IsSystemProfile = true
-            },
-            new Profile
-            {
-                Name = "Docker",
-                ApiGatewayUrl = "http://localhost:8080",
-                Description = "Docker Compose backend",
-                IsSystemProfile = true
-            }
-        };
-        _selectedProfile = "Development";
+        // Use ProfileDefaults for consistent profile definitions
+        _profiles = ProfileDefaults.GetDefaultProfiles();
+        _selectedProfile = ProfileDefaults.DefaultActiveProfile;
         _profilesLoaded = true;
         _errorMessage = "";
 

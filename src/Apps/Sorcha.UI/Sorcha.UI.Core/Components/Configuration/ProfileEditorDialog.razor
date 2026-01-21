@@ -1,0 +1,305 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.UI.Core.Models.Configuration
+@using Sorcha.UI.Core.Services.Configuration
+@inject IConfigurationService ConfigService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Dns" Class="mr-2" />
+            @(IsNew ? "New Profile" : $"Edit Profile: {_editProfile.Name}")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formValid">
+            <!-- Profile Name -->
+            <MudTextField @bind-Value="_editProfile.Name"
+                          Label="Profile Name"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          RequiredError="Profile name is required"
+                          Disabled="@(!IsNew)"
+                          HelperText="Alphanumeric, dashes, and underscores only"
+                          Validation="@(new Func<string, string?>(ValidateProfileName))"
+                          Class="mb-3" />
+
+            <!-- Description -->
+            <MudTextField @bind-Value="_editProfile.Description"
+                          Label="Description"
+                          Variant="Variant.Outlined"
+                          HelperText="Optional description for this profile"
+                          Class="mb-3" />
+
+            <MudDivider Class="my-4" />
+
+            <!-- Base URL Section -->
+            <MudText Typo="Typo.subtitle1" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.Link" Size="Size.Small" Class="mr-1" />
+                Service URLs
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                Set a base URL for all services, or configure individual service URLs for development environments.
+            </MudText>
+
+            <MudTextField @bind-Value="_editProfile.SorchaServiceUrl"
+                          Label="Base Service URL"
+                          Variant="Variant.Outlined"
+                          Placeholder="http://localhost:80 or https://api.sorcha.io"
+                          HelperText="Used for all services unless overridden below"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Public"
+                          Class="mb-3" />
+
+            <!-- Advanced: Per-service overrides -->
+            <MudExpansionPanels Class="mb-3">
+                <MudExpansionPanel Text="Advanced: Service URL Overrides" MaxHeight="500">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                        Override individual service URLs for .NET Aspire development or custom deployments.
+                        Leave empty to derive from the base URL.
+                    </MudText>
+
+                    <MudTextField @bind-Value="_editProfile.TenantServiceUrl"
+                                  Label="Tenant Service URL"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="https://localhost:7110"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Link"
+                                  Class="mb-2" />
+
+                    <MudTextField @bind-Value="_editProfile.RegisterServiceUrl"
+                                  Label="Register Service URL"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="https://localhost:7290"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Link"
+                                  Class="mb-2" />
+
+                    <MudTextField @bind-Value="_editProfile.BlueprintServiceUrl"
+                                  Label="Blueprint Service URL"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="https://localhost:7000"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Link"
+                                  Class="mb-2" />
+
+                    <MudTextField @bind-Value="_editProfile.WalletServiceUrl"
+                                  Label="Wallet Service URL"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="https://localhost:7001"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Link"
+                                  Class="mb-2" />
+
+                    <MudTextField @bind-Value="_editProfile.PeerServiceUrl"
+                                  Label="Peer Service URL"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="https://localhost:7002"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Link"
+                                  Class="mb-2" />
+
+                    <MudTextField @bind-Value="_editProfile.AuthTokenUrl"
+                                  Label="Auth Token URL"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="Leave empty to derive from Tenant Service"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Security"
+                                  Class="mb-2" />
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+
+            <MudDivider Class="my-4" />
+
+            <!-- Additional Settings -->
+            <MudText Typo="Typo.subtitle1" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.Settings" Size="Size.Small" Class="mr-1" />
+                Additional Settings
+            </MudText>
+
+            <MudTextField @bind-Value="_editProfile.DefaultClientId"
+                          Label="Default Client ID"
+                          Variant="Variant.Outlined"
+                          HelperText="OAuth2 client identifier"
+                          Class="mb-3" />
+
+            <MudNumericField @bind-Value="_editProfile.TimeoutSeconds"
+                             Label="Request Timeout (seconds)"
+                             Variant="Variant.Outlined"
+                             Min="1" Max="300"
+                             Class="mb-3" />
+
+            <MudSwitch @bind-Value="_editProfile.VerifySsl"
+                       Label="Verify SSL Certificates"
+                       Color="Color.Primary"
+                       Class="mb-2" />
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                Disable only for local development with self-signed certificates
+            </MudText>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3">@_errorMessage</MudAlert>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="Save"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(!_formValid || _saving)">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @(IsNew ? "Create" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public Profile? Profile { get; set; }
+
+    [Parameter]
+    public bool IsNew { get; set; }
+
+    private MudForm _form = null!;
+    private bool _formValid;
+    private bool _saving;
+    private string? _errorMessage;
+
+    // Mutable copy for editing (since Profile is a record)
+    private ProfileEdit _editProfile = new();
+
+    protected override void OnInitialized()
+    {
+        if (Profile != null)
+        {
+            // Copy values from the immutable record to our mutable edit model
+            _editProfile = new ProfileEdit
+            {
+                Name = Profile.Name,
+                Description = Profile.Description,
+                SorchaServiceUrl = Profile.SorchaServiceUrl,
+                TenantServiceUrl = Profile.TenantServiceUrl,
+                RegisterServiceUrl = Profile.RegisterServiceUrl,
+                BlueprintServiceUrl = Profile.BlueprintServiceUrl,
+                WalletServiceUrl = Profile.WalletServiceUrl,
+                PeerServiceUrl = Profile.PeerServiceUrl,
+                AuthTokenUrl = Profile.AuthTokenUrl,
+                DefaultClientId = Profile.DefaultClientId,
+                VerifySsl = Profile.VerifySsl,
+                TimeoutSeconds = Profile.TimeoutSeconds
+            };
+        }
+        else
+        {
+            // Set defaults for new profile
+            _editProfile = new ProfileEdit
+            {
+                DefaultClientId = "sorcha-ui",
+                VerifySsl = true,
+                TimeoutSeconds = 30
+            };
+        }
+    }
+
+    private string? ValidateProfileName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "Profile name is required";
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(name, @"^[a-zA-Z0-9_-]+$"))
+            return "Only letters, numbers, dashes, and underscores allowed";
+
+        return null;
+    }
+
+    private async Task Save()
+    {
+        _errorMessage = null;
+        _saving = true;
+
+        try
+        {
+            await _form.Validate();
+            if (!_formValid)
+            {
+                _saving = false;
+                return;
+            }
+
+            // Create the immutable Profile record from edit model
+            var profile = new Profile
+            {
+                Name = _editProfile.Name,
+                Description = _editProfile.Description,
+                SorchaServiceUrl = _editProfile.SorchaServiceUrl ?? string.Empty,
+                TenantServiceUrl = string.IsNullOrWhiteSpace(_editProfile.TenantServiceUrl) ? null : _editProfile.TenantServiceUrl,
+                RegisterServiceUrl = string.IsNullOrWhiteSpace(_editProfile.RegisterServiceUrl) ? null : _editProfile.RegisterServiceUrl,
+                BlueprintServiceUrl = string.IsNullOrWhiteSpace(_editProfile.BlueprintServiceUrl) ? null : _editProfile.BlueprintServiceUrl,
+                WalletServiceUrl = string.IsNullOrWhiteSpace(_editProfile.WalletServiceUrl) ? null : _editProfile.WalletServiceUrl,
+                PeerServiceUrl = string.IsNullOrWhiteSpace(_editProfile.PeerServiceUrl) ? null : _editProfile.PeerServiceUrl,
+                AuthTokenUrl = string.IsNullOrWhiteSpace(_editProfile.AuthTokenUrl) ? null : _editProfile.AuthTokenUrl,
+                DefaultClientId = _editProfile.DefaultClientId ?? "sorcha-ui",
+                VerifySsl = _editProfile.VerifySsl,
+                TimeoutSeconds = _editProfile.TimeoutSeconds,
+                IsSystemProfile = Profile?.IsSystemProfile ?? false,
+                CreatedAt = Profile?.CreatedAt ?? DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            // Validate the profile
+            if (!profile.IsValid())
+            {
+                _errorMessage = "Invalid profile configuration. Provide either a base URL or all individual service URLs.";
+                _saving = false;
+                return;
+            }
+
+            await ConfigService.SaveProfileAsync(profile);
+            Snackbar.Add($"Profile '{profile.Name}' {(IsNew ? "created" : "updated")} successfully", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(profile));
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to save profile: {ex.Message}";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    /// <summary>
+    /// Mutable class for editing profile values (since Profile is an immutable record)
+    /// </summary>
+    private class ProfileEdit
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string? SorchaServiceUrl { get; set; }
+        public string? TenantServiceUrl { get; set; }
+        public string? RegisterServiceUrl { get; set; }
+        public string? BlueprintServiceUrl { get; set; }
+        public string? WalletServiceUrl { get; set; }
+        public string? PeerServiceUrl { get; set; }
+        public string? AuthTokenUrl { get; set; }
+        public string? DefaultClientId { get; set; }
+        public bool VerifySsl { get; set; } = true;
+        public int TimeoutSeconds { get; set; } = 30;
+    }
+}

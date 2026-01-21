@@ -49,10 +49,13 @@ public class AuthenticationService : IAuthenticationService
             ["client_id"] = "sorcha-ui-web" // Client identifier for UI
         };
 
-        // Build URL: if ApiGatewayUrl is empty, use relative path (same origin)
-        var tokenUrl = string.IsNullOrEmpty(profile.ApiGatewayUrl)
-            ? "/api/service-auth/token"
-            : $"{profile.ApiGatewayUrl}/api/service-auth/token";
+        // Get the auth token URL from profile (uses override or derives from base URL)
+        var tokenUrl = profile.GetAuthTokenUrl();
+        if (string.IsNullOrEmpty(tokenUrl))
+        {
+            // Fallback to relative path for same-origin requests
+            tokenUrl = "/api/service-auth/token";
+        }
 
         var response = await _httpClient.PostAsync(tokenUrl, new FormUrlEncodedContent(formData));
 
@@ -122,10 +125,13 @@ public class AuthenticationService : IAuthenticationService
                 ["client_id"] = "sorcha-ui-web"
             };
 
-            // Build URL: if ApiGatewayUrl is empty, use relative path (same origin)
-            var tokenUrl = string.IsNullOrEmpty(profile.ApiGatewayUrl)
-                ? "/api/service-auth/token"
-                : $"{profile.ApiGatewayUrl}/api/service-auth/token";
+            // Get the auth token URL from profile (uses override or derives from base URL)
+            var tokenUrl = profile.GetAuthTokenUrl();
+            if (string.IsNullOrEmpty(tokenUrl))
+            {
+                // Fallback to relative path for same-origin requests
+                tokenUrl = "/api/service-auth/token";
+            }
 
             var response = await _httpClient.PostAsync(tokenUrl, new FormUrlEncodedContent(formData));
 

@@ -2,14 +2,14 @@
 
 **Feature Branch**: `ui-consolidation`
 **Created**: 2026-01-21
-**Status**: 77% Complete
+**Status**: 83% Complete
 
 ## Task Summary
 
 | Status | Count |
 |--------|-------|
-| Complete | 27 |
-| Pending | 8 |
+| Complete | 29 |
+| Pending | 6 |
 | **Total** | **35** |
 
 ---
@@ -539,7 +539,7 @@
 ---
 
 ### UC-027: Create Settings Page
-- **Status**: Pending
+- **Status**: Complete
 - **Priority**: P2
 - **Estimate**: 4 hours
 - **Dependencies**: None
@@ -550,11 +550,11 @@
 - `Admin/Pages/Settings.razor`
 
 **Acceptance Criteria**:
-- [ ] Page created with route `/settings`
-- [ ] Added to navigation menu
-- [ ] User preferences section
-- [ ] Theme settings (if applicable)
-- [ ] Profile/environment selection
+- [x] Page created with route `/settings`
+- [x] Added to navigation menu
+- [x] User preferences section (Configuration tab with profile management)
+- [x] Theme settings (if applicable) - About tab with version info
+- [x] Profile/environment selection (hybrid URL pattern with base URL + per-service overrides)
 
 ---
 
@@ -579,20 +579,22 @@
 ---
 
 ### UC-029: Migrate Configuration Service Tests
-- **Status**: Pending
+- **Status**: Complete
 - **Priority**: P2
 - **Estimate**: 2 hours
 - **Dependencies**: None
 
 **Description**: Migrate tests for configuration/profile management.
 
-**Files to Migrate**:
-- `Admin.Tests/Services/ConfigurationServiceTests.cs` → `UI.Core.Tests/Services/`
-- `Admin.Tests/Models/ProfileDefaultsTests.cs` → `UI.Core.Tests/Models/`
+**Files Created**:
+- `UI.Core.Tests/Services/Configuration/ConfigurationServiceTests.cs` (25 tests)
+- `UI.Core.Tests/Models/Configuration/ProfileTests.cs` (17 tests)
+- `UI.Core.Tests/Models/Configuration/ProfileDefaultsTests.cs` (17 tests)
 
 **Acceptance Criteria**:
-- [ ] Test files copied and namespaces updated
-- [ ] All tests pass
+- [x] Test files created with correct namespaces
+- [x] All 59 tests pass
+- [x] Fixed deadlock bug in ConfigurationService (SemaphoreSlim re-entrancy issue)
 
 ---
 

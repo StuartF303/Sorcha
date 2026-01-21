@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
 using System.Text.Json;
 using Microsoft.JSInterop;
 using Sorcha.UI.Core.Models.Configuration;
@@ -5,7 +8,8 @@ using Sorcha.UI.Core.Models.Configuration;
 namespace Sorcha.UI.Core.Services.Configuration;
 
 /// <summary>
-/// Service for managing user profiles and UI configuration
+/// Service for managing user profiles and UI configuration.
+/// Stores configuration in browser LocalStorage.
 /// </summary>
 public class ConfigurationService : IConfigurationService
 {
@@ -15,6 +19,9 @@ public class ConfigurationService : IConfigurationService
 
     private readonly IJSRuntime _jsRuntime;
     private readonly SemaphoreSlim _lock = new(1, 1);
+
+    /// <inheritdoc />
+    public event EventHandler<ProfileChangedEventArgs>? ActiveProfileChanged;
 
     public ConfigurationService(IJSRuntime jsRuntime)
     {
@@ -27,22 +34,30 @@ public class ConfigurationService : IConfigurationService
         await _lock.WaitAsync();
         try
         {
-            var json = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", ProfilesStorageKey);
-
-            if (string.IsNullOrEmpty(json))
-            {
-                // Initialize default profiles directly without re-acquiring lock
-                await InitializeDefaultProfilesInternalAsync();
-                json = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", ProfilesStorageKey);
-            }
-
-            var profiles = JsonSerializer.Deserialize<List<Profile>>(json!) ?? new List<Profile>();
-            return profiles;
+            return await GetProfilesInternalAsync();
         }
         finally
         {
             _lock.Release();
         }
+    }
+
+    /// <summary>
+    /// Internal method to get profiles without acquiring the semaphore lock.
+    /// Used when the lock is already held by the calling method.
+    /// </summary>
+    private async Task<List<Profile>> GetProfilesInternalAsync()
+    {
+        var json = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", ProfilesStorageKey);
+
+        if (string.IsNullOrEmpty(json))
+        {
+            // Initialize default profiles directly without re-acquiring lock
+            await InitializeDefaultProfilesInternalAsync();
+            json = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", ProfilesStorageKey);
+        }
+
+        return JsonSerializer.Deserialize<List<Profile>>(json!) ?? new List<Profile>();
     }
 
     /// <inheritdoc />
@@ -68,7 +83,7 @@ public class ConfigurationService : IConfigurationService
         await _lock.WaitAsync();
         try
         {
-            var profiles = (await GetProfilesAsync()).ToList();
+            var profiles = await GetProfilesInternalAsync();
             var existingIndex = profiles.FindIndex(p => p.Name.Equals(profile.Name, StringComparison.OrdinalIgnoreCase));
 
             if (existingIndex >= 0)
@@ -100,7 +115,7 @@ public class ConfigurationService : IConfigurationService
         await _lock.WaitAsync();
         try
         {
-            var profiles = (await GetProfilesAsync()).ToList();
+            var profiles = await GetProfilesInternalAsync();
             var profile = profiles.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
             if (profile == null)
@@ -130,7 +145,14 @@ public class ConfigurationService : IConfigurationService
     public async Task<string> GetActiveProfileNameAsync()
     {
         var name = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", ActiveProfileKey);
-        return name ?? "Development";
+        return name ?? ProfileDefaults.DefaultActiveProfile;
+    }
+
+    /// <inheritdoc />
+    public async Task<Profile?> GetActiveProfileAsync()
+    {
+        var profileName = await GetActiveProfileNameAsync();
+        return await GetProfileAsync(profileName);
     }
 
     /// <inheritdoc />
@@ -147,7 +169,18 @@ public class ConfigurationService : IConfigurationService
             throw new InvalidOperationException($"Profile '{profileName}' not found");
         }
 
+        // Get previous profile name before changing
+        var previousProfileName = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", ActiveProfileKey);
+
+        // Save the new active profile
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", ActiveProfileKey, profileName);
+
+        // Raise event to notify listeners
+        ActiveProfileChanged?.Invoke(this, new ProfileChangedEventArgs
+        {
+            PreviousProfileName = previousProfileName,
+            NewProfile = profile
+        });
     }
 
     /// <inheritdoc />
@@ -195,29 +228,11 @@ public class ConfigurationService : IConfigurationService
     /// </summary>
     private async Task InitializeDefaultProfilesInternalAsync()
     {
-        var profiles = new List<Profile>
-        {
-            new Profile
-            {
-                Name = "Development",
-                ApiGatewayUrl = "https://localhost:7082",
-                Description = "Local .NET Aspire development environment",
-                IsSystemProfile = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            },
-            new Profile
-            {
-                Name = "Docker",
-                ApiGatewayUrl = "", // Empty = use same origin as UI (relative URLs)
-                Description = "Docker Compose backend services (same origin as UI)",
-                IsSystemProfile = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            }
-        };
-
+        var profiles = ProfileDefaults.GetDefaultProfiles();
         var json = JsonSerializer.Serialize(profiles);
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", ProfilesStorageKey, json);
+
+        // Set the default active profile
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", ActiveProfileKey, ProfileDefaults.DefaultActiveProfile);
     }
 }

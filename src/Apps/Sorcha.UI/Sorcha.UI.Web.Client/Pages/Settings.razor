@@ -1,0 +1,362 @@
+@page "/settings"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@using Sorcha.UI.Core.Models.Configuration
+@using Sorcha.UI.Core.Services
+@using Sorcha.UI.Core.Services.Configuration
+@using Sorcha.UI.Core.Components.Configuration
+@inject IConfigurationService ConfigService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Settings - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.Settings" Class="mr-2" />
+        Settings
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        Configure application settings and connection profiles
+    </MudText>
+
+    <MudPaper Class="pa-4" Elevation="2">
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+            <!-- Configuration Tab -->
+            <MudTabPanel Text="Configuration" Icon="@Icons.Material.Filled.Dns">
+                <MudText Typo="Typo.h6" Class="mb-3">Connection Profiles</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    Manage connection profiles for different Sorcha environments (local, docker, production).
+                </MudText>
+
+                <!-- Active Profile Display -->
+                @if (_activeProfile != null)
+                {
+                    <MudAlert Severity="Severity.Info" Class="mb-4">
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
+                            <div>
+                                <strong>Active Profile:</strong> @_activeProfile.Name
+                                <br />
+                                <MudText Typo="Typo.caption">
+                                    @if (!string.IsNullOrEmpty(_activeProfile.SorchaServiceUrl))
+                                    {
+                                        <span>Base URL: @_activeProfile.SorchaServiceUrl</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Using individual service URLs</span>
+                                    }
+                                </MudText>
+                            </div>
+                        </div>
+                    </MudAlert>
+                }
+
+                <!-- Profile List -->
+                @if (_loading)
+                {
+                    <MudProgressLinear Indeterminate="true" Class="mb-4" />
+                }
+                else if (_profiles.Any())
+                {
+                    <MudTable Items="@_profiles.OrderBy(p => p.Name)" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true" Class="mb-4">
+                        <HeaderContent>
+                            <MudTh>Profile</MudTh>
+                            <MudTh>Base URL</MudTh>
+                            <MudTh>SSL</MudTh>
+                            <MudTh Style="width: 200px;">Actions</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Profile">
+                                <div class="d-flex align-center">
+                                    <MudText>@context.Name</MudText>
+                                    @if (context.Name == _activeProfile?.Name)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Class="ml-2">Active</MudChip>
+                                    }
+                                    @if (context.IsSystemProfile)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="ml-1">System</MudChip>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrEmpty(context.Description))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Base URL">
+                                <MudText Typo="Typo.body2">
+                                    @(string.IsNullOrEmpty(context.SorchaServiceUrl) ? "(individual URLs)" : context.SorchaServiceUrl)
+                                </MudText>
+                            </MudTd>
+                            <MudTd DataLabel="SSL">
+                                <MudIcon Icon="@(context.VerifySsl ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
+                                         Color="@(context.VerifySsl ? Color.Success : Color.Warning)"
+                                         Size="Size.Small" />
+                            </MudTd>
+                            <MudTd DataLabel="Actions">
+                                @if (context.Name != _activeProfile?.Name)
+                                {
+                                    <MudButton Size="Size.Small"
+                                               Variant="Variant.Text"
+                                               Color="Color.Primary"
+                                               OnClick="@(() => ActivateProfile(context.Name))">
+                                        Activate
+                                    </MudButton>
+                                }
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Size="Size.Small"
+                                               OnClick="@(() => EditProfile(context))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Size="Size.Small"
+                                               Color="Color.Error"
+                                               Disabled="@(context.IsSystemProfile || context.Name == _activeProfile?.Name)"
+                                               OnClick="@(() => DeleteProfile(context))" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Class="mb-4">No profiles configured.</MudAlert>
+                }
+
+                <MudButton StartIcon="@Icons.Material.Filled.Add"
+                           Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           OnClick="CreateNewProfile">
+                    New Profile
+                </MudButton>
+            </MudTabPanel>
+
+            <!-- About Tab -->
+            <MudTabPanel Text="About" Icon="@Icons.Material.Filled.Info">
+                <MudText Typo="Typo.h5" Class="mb-2">Sorcha Platform</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    A distributed ledger platform for secure, multi-participant data flow orchestration
+                </MudText>
+
+                <MudDivider Class="my-4" />
+
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudPaper Class="pa-4" Outlined="true">
+                            <MudText Typo="Typo.subtitle1" Class="mb-3">
+                                <MudIcon Icon="@Icons.Material.Filled.Code" Size="Size.Small" Class="mr-1" />
+                                Version Information
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="mb-1">
+                                <strong>Version:</strong> 1.0.0-preview
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="mb-1">
+                                <strong>Build:</strong> @_buildNumber
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="mb-1">
+                                <strong>Framework:</strong> .NET 10.0
+                            </MudText>
+                            <MudText Typo="Typo.body2">
+                                <strong>Platform:</strong> Blazor WebAssembly
+                            </MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudPaper Class="pa-4" Outlined="true">
+                            <MudText Typo="Typo.subtitle1" Class="mb-3">
+                                <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Small" Class="mr-1" />
+                                Security Features
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="mb-1">
+                                <strong>Cryptography:</strong> ED25519, P-256, RSA-4096
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="mb-1">
+                                <strong>HD Wallets:</strong> BIP32/BIP39/BIP44
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="mb-1">
+                                <strong>Authentication:</strong> JWT Bearer
+                            </MudText>
+                            <MudText Typo="Typo.body2">
+                                <strong>Model:</strong> DAD (Disclosure, Alteration, Destruction)
+                            </MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Link" Size="Size.Small" Class="mr-1" />
+                    Resources
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="4">
+                        <MudButton Href="https://github.com/sorcha/platform"
+                                   Target="_blank"
+                                   Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Custom.Brands.GitHub"
+                                   FullWidth="true">
+                            GitHub Repository
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudButton Href="/help"
+                                   Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Filled.Help"
+                                   FullWidth="true">
+                            Help & Documentation
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudButton Href="https://sorcha.io"
+                                   Target="_blank"
+                                   Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Filled.Public"
+                                   FullWidth="true">
+                            Website
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    MIT License - Copyright (c) 2025 Sorcha Contributors
+                </MudText>
+            </MudTabPanel>
+        </MudTabs>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<Profile> _profiles = new();
+    private Profile? _activeProfile;
+    private bool _loading = true;
+    private string _buildNumber = $"{DateTime.Now:yyyyMMdd}.{DateTime.Now:HHmm}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfilesAsync();
+    }
+
+    private async Task LoadProfilesAsync()
+    {
+        _loading = true;
+        try
+        {
+            var profiles = await ConfigService.GetProfilesAsync();
+            _profiles = profiles.ToList();
+            _activeProfile = await ConfigService.GetActiveProfileAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading profiles: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ActivateProfile(string profileName)
+    {
+        try
+        {
+            await ConfigService.SetActiveProfileAsync(profileName);
+
+            // Update ApiConfiguration with the new profile
+            var profile = await ConfigService.GetProfileAsync(profileName);
+            if (profile != null)
+            {
+                ApiConfiguration.ConfigureFromProfile(profile);
+            }
+
+            await LoadProfilesAsync();
+            Snackbar.Add($"Activated profile: {profileName}", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error activating profile: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task EditProfile(Profile profile)
+    {
+        var parameters = new DialogParameters<ProfileEditorDialog>
+        {
+            { x => x.Profile, profile },
+            { x => x.IsNew, false }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ProfileEditorDialog>("Edit Profile", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadProfilesAsync();
+        }
+    }
+
+    private async Task CreateNewProfile()
+    {
+        var parameters = new DialogParameters<ProfileEditorDialog>
+        {
+            { x => x.Profile, null },
+            { x => x.IsNew, true }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ProfileEditorDialog>("New Profile", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadProfilesAsync();
+        }
+    }
+
+    private async Task DeleteProfile(Profile profile)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Delete Profile",
+            $"Are you sure you want to delete the profile '{profile.Name}'?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            try
+            {
+                var deleted = await ConfigService.DeleteProfileAsync(profile.Name);
+                if (deleted)
+                {
+                    await LoadProfilesAsync();
+                    Snackbar.Add($"Deleted profile: {profile.Name}", Severity.Info);
+                }
+                else
+                {
+                    Snackbar.Add("Cannot delete this profile", Severity.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting profile: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}
