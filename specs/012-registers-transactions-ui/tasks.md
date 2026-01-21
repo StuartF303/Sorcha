@@ -63,8 +63,8 @@
 
 ### Tests for User Story 1
 
-- [ ] T015 [P] [US1] Create RegisterCardTests.cs in tests/Sorcha.UI.Core.Tests/Components/Registers/RegisterCardTests.cs
-- [ ] T016 [P] [US1] Create RegisterListTests.cs E2E test in tests/Sorcha.UI.E2E.Tests/Registers/RegisterListTests.cs
+- [x] T015 [P] [US1] Create RegisterCardTests.cs in tests/Sorcha.UI.Core.Tests/Components/Registers/RegisterCardTests.cs
+- [x] T016 [P] [US1] Create RegisterListTests.cs E2E test in tests/Sorcha.UI.E2E.Tests/Registers/RegisterListTests.cs
 
 ### Implementation for User Story 1
 
@@ -86,9 +86,9 @@
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Create TransactionRowTests.cs in tests/Sorcha.UI.Core.Tests/Components/Registers/TransactionRowTests.cs
-- [ ] T023 [P] [US2] Create TransactionListTests.cs in tests/Sorcha.UI.Core.Tests/Components/Registers/TransactionListTests.cs
-- [ ] T024 [P] [US2] Create TransactionViewTests.cs E2E test in tests/Sorcha.UI.E2E.Tests/Registers/TransactionViewTests.cs
+- [x] T022 [P] [US2] Create TransactionRowTests.cs in tests/Sorcha.UI.Core.Tests/Components/Registers/TransactionRowTests.cs
+- [x] T023 [P] [US2] Create TransactionListTests.cs in tests/Sorcha.UI.Core.Tests/Components/Registers/TransactionListTests.cs
+- [x] T024 [P] [US2] Create TransactionViewTests.cs E2E test in tests/Sorcha.UI.E2E.Tests/Registers/TransactionViewTests.cs
 
 ### Implementation for User Story 2
 
@@ -111,7 +111,7 @@
 
 ### Tests for User Story 3
 
-- [ ] T031 [P] [US3] Create RegisterHubConnectionTests.cs in tests/Sorcha.UI.Core.Tests/Services/RegisterHubConnectionTests.cs
+- [x] T031 [P] [US3] Create RegisterHubConnectionTests.cs in tests/Sorcha.UI.Core.Tests/Services/RegisterHubConnectionTests.cs
 
 ### Implementation for User Story 3
 
@@ -134,7 +134,7 @@
 
 ### Tests for User Story 4
 
-- [ ] T038 [P] [US4] Create TransactionDetailTests.cs in tests/Sorcha.UI.Core.Tests/Components/Registers/TransactionDetailTests.cs
+- [x] T038 [P] [US4] Create TransactionDetailTests.cs in tests/Sorcha.UI.Core.Tests/Components/Registers/TransactionDetailTests.cs
 
 ### Implementation for User Story 4
 
@@ -156,8 +156,8 @@
 
 ### Tests for User Story 5
 
-- [ ] T044 [P] [US5] Create CreateRegisterWizardTests.cs in tests/Sorcha.UI.Core.Tests/Components/Registers/CreateRegisterWizardTests.cs
-- [ ] T045 [P] [US5] Create RegisterCreationTests.cs E2E test in tests/Sorcha.UI.E2E.Tests/Registers/RegisterCreationTests.cs
+- [x] T044 [P] [US5] Create CreateRegisterWizardTests.cs in tests/Sorcha.UI.Core.Tests/Components/Registers/CreateRegisterWizardTests.cs
+- [x] T045 [P] [US5] Create RegisterCreationTests.cs E2E test in tests/Sorcha.UI.E2E.Tests/Registers/RegisterCreationTests.cs
 
 ### Implementation for User Story 5
 
