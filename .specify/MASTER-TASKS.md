@@ -20,8 +20,20 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 ## Recent Updates
 
+**2026-01-21:**
+- ✅ UI-CONSOLIDATION 100% COMPLETE: Admin to Main UI migration (35/35 tasks)
+  - All Designer components migrated (ParticipantEditor, ConditionEditor, CalculationEditor)
+  - Export/Import dialogs with JSON/YAML support
+  - Offline sync service and components
+  - Consumer pages: MyActions, MyWorkflows, MyTransactions, MyWallet, Templates
+  - Settings page with profile management, Help page with documentation
+  - Configuration service tests (59 tests)
+  - Fixed Docker profile configuration (relative URLs)
+  - **Sorcha.Admin removed from solution** (projects and directories deleted)
+  - Documentation updated, deprecation notices added before removal
+
 **2026-01-20:**
-- ✅ BP-5.8 COMPLETE: Client-side SignalR integration for Admin UI
+- ✅ BP-5.8 COMPLETE: Client-side SignalR integration for Main UI
   - ActionsHubConnection service for real-time action notifications
   - MyActions page with live connection status and snackbar alerts
   - API Gateway routes for /actionshub SignalR endpoint

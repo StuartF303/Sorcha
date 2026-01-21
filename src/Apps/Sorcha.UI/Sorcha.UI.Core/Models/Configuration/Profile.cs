@@ -193,21 +193,35 @@ public sealed record Profile
 
     /// <summary>
     /// Validates the profile configuration.
-    /// A profile is valid if it has a name and at least one way to reach services
-    /// (either base URL or all individual service URLs).
+    /// A profile is valid if it has a name and at least one way to reach services:
+    /// - Empty base URL with null individual URLs (same-origin relative URLs via gateway)
+    /// - A valid absolute base URL
+    /// - All individual service URLs specified as valid absolute URLs
     /// </summary>
     public bool IsValid()
     {
         if (string.IsNullOrWhiteSpace(Name))
             return false;
 
-        // Must have either a base URL or all individual service URLs
+        // Valid case 1: Empty base URL with null individual URLs = same-origin relative URLs
+        // This is valid for gateway-served UIs where API calls use relative URLs (e.g., /api/tenant)
+        if (string.IsNullOrWhiteSpace(SorchaServiceUrl) &&
+            string.IsNullOrWhiteSpace(TenantServiceUrl) &&
+            string.IsNullOrWhiteSpace(RegisterServiceUrl) &&
+            string.IsNullOrWhiteSpace(BlueprintServiceUrl) &&
+            string.IsNullOrWhiteSpace(WalletServiceUrl) &&
+            string.IsNullOrWhiteSpace(PeerServiceUrl))
+        {
+            return true;
+        }
+
+        // Valid case 2: A valid absolute base URL
         if (!string.IsNullOrWhiteSpace(SorchaServiceUrl))
         {
             return Uri.TryCreate(SorchaServiceUrl, UriKind.Absolute, out _);
         }
 
-        // If no base URL, all individual URLs must be specified and valid
+        // Valid case 3: All individual URLs must be specified and valid
         return IsValidUrl(TenantServiceUrl) &&
                IsValidUrl(RegisterServiceUrl) &&
                IsValidUrl(BlueprintServiceUrl) &&

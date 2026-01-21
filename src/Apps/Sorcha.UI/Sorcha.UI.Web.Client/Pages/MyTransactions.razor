@@ -1,0 +1,207 @@
+@page "/my-transactions"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<PageTitle>My Transactions - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.Receipt" Class="mr-2" />
+        My Transactions
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        View your transaction history on the distributed ledger
+    </MudText>
+
+    <MudGrid>
+        @* Filter toolbar *@
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center">
+                    <MudTextField T="string" @bind-Value="_searchText" Placeholder="Search by ID or workflow..."
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 300px;" />
+                    <MudSelect T="string" @bind-Value="_typeFilter" Label="Type" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Style="min-width: 180px;">
+                        <MudSelectItem Value="@("")">All Types</MudSelectItem>
+                        <MudSelectItem Value="@("Action Executed")">Action Executed</MudSelectItem>
+                        <MudSelectItem Value="@("Data Submitted")">Data Submitted</MudSelectItem>
+                        <MudSelectItem Value="@("Workflow Started")">Workflow Started</MudSelectItem>
+                        <MudSelectItem Value="@("Workflow Completed")">Workflow Completed</MudSelectItem>
+                    </MudSelect>
+                    <MudSelect T="string" @bind-Value="_statusFilter" Label="Status" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Style="min-width: 150px;">
+                        <MudSelectItem Value="@("")">All Status</MudSelectItem>
+                        <MudSelectItem Value="@("Confirmed")">Confirmed</MudSelectItem>
+                        <MudSelectItem Value="@("Pending")">Pending</MudSelectItem>
+                        <MudSelectItem Value="@("Failed")">Failed</MudSelectItem>
+                    </MudSelect>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="RefreshTransactions">
+                        Refresh
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Recent Transactions</MudText>
+
+                <MudTable Items="@FilteredTransactions" Hover="true" Striped="true" Dense="true" Loading="@_loading">
+                    <HeaderContent>
+                        <MudTh><MudTableSortLabel SortBy="new Func<TransactionItem, object>(x => x.Id)">Transaction ID</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<TransactionItem, object>(x => x.Type)">Type</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<TransactionItem, object>(x => x.Workflow)">Workflow</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<TransactionItem, object>(x => x.Timestamp)">Timestamp</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<TransactionItem, object>(x => x.Status)">Status</MudTableSortLabel></MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Transaction ID">
+                            <MudText Typo="Typo.body2" Style="font-family: monospace;">@context.Id</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Type">
+                            <MudChip T="string" Size="Size.Small" Color="@GetTypeColor(context.Type)" Variant="Variant.Text">
+                                @context.Type
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Workflow">@context.Workflow</MudTd>
+                        <MudTd DataLabel="Timestamp">@context.Timestamp.ToString("MMM dd, yyyy HH:mm")</MudTd>
+                        <MudTd DataLabel="Status">
+                            <MudChip T="string" Size="Size.Small" Color="@context.StatusColor">@context.Status</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Actions">
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary"
+                                           OnClick="() => ViewDetails(context)" Title="View Details" />
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" Color="Color.Default"
+                                           OnClick="() => CopyId(context)" Title="Copy ID" />
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }" />
+                    </PagerContent>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Info" Class="mt-4">
+                <MudText Typo="Typo.body2">
+                    This is a placeholder page. Full transaction viewing and verification will be implemented in future versions.
+                </MudText>
+            </MudAlert>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<TransactionItem> _transactions = new();
+    private string _searchText = "";
+    private string _typeFilter = "";
+    private string _statusFilter = "";
+    private bool _loading = false;
+
+    private IEnumerable<TransactionItem> FilteredTransactions
+    {
+        get
+        {
+            var filtered = _transactions.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                filtered = filtered.Where(t =>
+                    t.Id.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                    t.Workflow.Contains(_searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(_typeFilter))
+            {
+                filtered = filtered.Where(t => t.Type == _typeFilter);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_statusFilter))
+            {
+                filtered = filtered.Where(t => t.Status == _statusFilter);
+            }
+
+            return filtered;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        LoadSampleTransactions();
+    }
+
+    private void LoadSampleTransactions()
+    {
+        _transactions = new List<TransactionItem>
+        {
+            new TransactionItem { Id = "0xabc123def456...", Type = "Action Executed", Workflow = "Loan Application #1234", Timestamp = DateTime.Now.AddHours(-2), Status = "Confirmed", StatusColor = Color.Success },
+            new TransactionItem { Id = "0xdef456ghi789...", Type = "Data Submitted", Workflow = "Document Approval #9012", Timestamp = DateTime.Now.AddHours(-5), Status = "Confirmed", StatusColor = Color.Success },
+            new TransactionItem { Id = "0xghi789jkl012...", Type = "Workflow Started", Workflow = "Supply Chain #5678", Timestamp = DateTime.Now.AddDays(-1), Status = "Confirmed", StatusColor = Color.Success },
+            new TransactionItem { Id = "0xjkl012mno345...", Type = "Action Executed", Workflow = "Loan Application #1133", Timestamp = DateTime.Now.AddDays(-3), Status = "Confirmed", StatusColor = Color.Success },
+            new TransactionItem { Id = "0xmno345pqr678...", Type = "Workflow Completed", Workflow = "Supply Chain #4455", Timestamp = DateTime.Now.AddDays(-7), Status = "Confirmed", StatusColor = Color.Success },
+            new TransactionItem { Id = "0xpqr678stu901...", Type = "Data Submitted", Workflow = "Loan Application #1234", Timestamp = DateTime.Now.AddHours(-1), Status = "Pending", StatusColor = Color.Warning },
+            new TransactionItem { Id = "0xstu901vwx234...", Type = "Action Executed", Workflow = "Document Approval #9012", Timestamp = DateTime.Now.AddDays(-2), Status = "Confirmed", StatusColor = Color.Success },
+        };
+    }
+
+    private Color GetTypeColor(string type) => type switch
+    {
+        "Action Executed" => Color.Primary,
+        "Data Submitted" => Color.Info,
+        "Workflow Started" => Color.Success,
+        "Workflow Completed" => Color.Secondary,
+        _ => Color.Default
+    };
+
+    private void ViewDetails(TransactionItem transaction)
+    {
+        Snackbar.Add($"Viewing transaction: {transaction.Id}", Severity.Info);
+        // In production: open a dialog or navigate to details page
+    }
+
+    private async Task CopyId(TransactionItem transaction)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", transaction.Id);
+            Snackbar.Add("Transaction ID copied to clipboard", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy transaction ID", Severity.Error);
+        }
+    }
+
+    private void RefreshTransactions()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        // Simulate loading
+        Task.Delay(500).ContinueWith(_ =>
+        {
+            _loading = false;
+            InvokeAsync(StateHasChanged);
+            Snackbar.Add("Transactions refreshed", Severity.Success);
+        });
+    }
+
+    public class TransactionItem
+    {
+        public string Id { get; set; } = "";
+        public string Type { get; set; } = "";
+        public string Workflow { get; set; } = "";
+        public DateTime Timestamp { get; set; }
+        public string Status { get; set; } = "";
+        public Color StatusColor { get; set; }
+    }
+}

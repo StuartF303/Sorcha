@@ -1,0 +1,184 @@
+@page "/templates"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Blueprint Templates - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h4">
+                <MudIcon Icon="@Icons.Material.Filled.ContentCopy" Class="mr-2" />
+                Blueprint Templates
+            </MudText>
+            <MudText Typo="Typo.body1" Color="Color.Secondary">
+                Quick start templates for common workflows
+            </MudText>
+        </MudStack>
+
+        <MudTextField T="string" @bind-Value="_searchText" Placeholder="Search templates..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 300px;" />
+    </MudStack>
+
+    @* Category filter chips *@
+    <MudStack Row="true" Spacing="2" Class="mb-4">
+        <MudChip T="string" Color="@(string.IsNullOrEmpty(_selectedCategory) ? Color.Primary : Color.Default)"
+                 Variant="@(string.IsNullOrEmpty(_selectedCategory) ? Variant.Filled : Variant.Outlined)"
+                 OnClick="ClearCategoryFilter">All</MudChip>
+        @foreach (var category in _templates.Select(t => t.Category).Distinct())
+        {
+            <MudChip T="string" Color="@(_selectedCategory == category ? Color.Primary : Color.Default)"
+                     Variant="@(_selectedCategory == category ? Variant.Filled : Variant.Outlined)"
+                     OnClick="() => SetCategoryFilter(category)">@category</MudChip>
+        }
+    </MudStack>
+
+    <MudGrid>
+        @foreach (var template in FilteredTemplates)
+        {
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Class="template-card">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@template.Icon" Class="mr-2" />
+                                @template.Name
+                            </MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudChip T="string" Size="Size.Small" Color="@template.CategoryColor">@template.Category</MudChip>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Class="mb-3">@template.Description</MudText>
+                        <MudDivider Class="my-2" />
+                        <MudStack Row="true" Spacing="4">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" /> @template.ParticipantCount participants
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" /> @template.ActionCount actions
+                            </MudText>
+                        </MudStack>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Color="Color.Primary" Variant="Variant.Text" OnClick="() => UseTemplate(template)">
+                            Use Template
+                        </MudButton>
+                        <MudSpacer />
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Default"
+                                       OnClick="() => PreviewTemplate(template)" Title="Preview" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Default"
+                                       OnClick="() => DownloadTemplate(template)" Title="Download JSON" />
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+
+        @if (!FilteredTemplates.Any())
+        {
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Warning" Class="mt-4">
+                    <MudText Typo="Typo.body2">
+                        No templates found matching your criteria. Try adjusting your search or filters.
+                    </MudText>
+                </MudAlert>
+            </MudItem>
+        }
+
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Info" Class="mt-4">
+                <MudText Typo="Typo.body2">
+                    This is a placeholder page. Template management and instantiation will be implemented in future versions.
+                </MudText>
+            </MudAlert>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+<style>
+    .template-card:hover {
+        transform: translateY(-2px);
+        transition: transform 0.2s ease-in-out;
+    }
+</style>
+
+@code {
+    private string _searchText = "";
+    private string _selectedCategory = "";
+
+    private List<TemplateItem> _templates = new()
+    {
+        new TemplateItem { Name = "Loan Application", Description = "Multi-party loan application process with applicant and bank", Category = "Financial", CategoryColor = Color.Success, Icon = Icons.Material.Filled.AttachMoney, ParticipantCount = 2, ActionCount = 3 },
+        new TemplateItem { Name = "Supply Chain Verification", Description = "Track products through the supply chain with verification", Category = "Logistics", CategoryColor = Color.Info, Icon = Icons.Material.Filled.LocalShipping, ParticipantCount = 3, ActionCount = 4 },
+        new TemplateItem { Name = "Document Approval", Description = "Multi-stage document review and approval workflow", Category = "Collaboration", CategoryColor = Color.Primary, Icon = Icons.Material.Filled.Description, ParticipantCount = 2, ActionCount = 3 },
+        new TemplateItem { Name = "Purchase Order", Description = "Buyer and supplier purchase order processing", Category = "Financial", CategoryColor = Color.Success, Icon = Icons.Material.Filled.ShoppingCart, ParticipantCount = 2, ActionCount = 5 },
+        new TemplateItem { Name = "Identity Verification", Description = "KYC identity verification workflow", Category = "Compliance", CategoryColor = Color.Warning, Icon = Icons.Material.Filled.VerifiedUser, ParticipantCount = 2, ActionCount = 2 },
+        new TemplateItem { Name = "Contract Signing", Description = "Multi-party contract review and digital signing", Category = "Legal", CategoryColor = Color.Secondary, Icon = Icons.Material.Filled.Gavel, ParticipantCount = 3, ActionCount = 4 },
+    };
+
+    private IEnumerable<TemplateItem> FilteredTemplates
+    {
+        get
+        {
+            var filtered = _templates.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                filtered = filtered.Where(t =>
+                    t.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                    t.Description.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                    t.Category.Contains(_searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(_selectedCategory))
+            {
+                filtered = filtered.Where(t => t.Category == _selectedCategory);
+            }
+
+            return filtered;
+        }
+    }
+
+    private void ClearCategoryFilter()
+    {
+        _selectedCategory = string.Empty;
+    }
+
+    private void SetCategoryFilter(string category)
+    {
+        _selectedCategory = category;
+    }
+
+    private void UseTemplate(TemplateItem template)
+    {
+        Snackbar.Add($"Opening Designer with template: {template.Name}", Severity.Info);
+        Navigation.NavigateTo("/designer");
+    }
+
+    private void PreviewTemplate(TemplateItem template)
+    {
+        Snackbar.Add($"Preview: {template.Name} - {template.ParticipantCount} participants, {template.ActionCount} actions", Severity.Info);
+    }
+
+    private void DownloadTemplate(TemplateItem template)
+    {
+        Snackbar.Add($"Download will be available in a future version", Severity.Info);
+    }
+
+    public class TemplateItem
+    {
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Category { get; set; } = "";
+        public Color CategoryColor { get; set; }
+        public string Icon { get; set; } = "";
+        public int ParticipantCount { get; set; }
+        public int ActionCount { get; set; }
+    }
+}

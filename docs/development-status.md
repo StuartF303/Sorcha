@@ -1,14 +1,14 @@
 # Sorcha Platform - Development Status Report
 
-**Date:** 2025-12-14
-**Version:** 2.9 (Updated after Peer Service Hub Node Connection and Replication)
+**Date:** 2026-01-21
+**Version:** 3.0 (Updated after UI Consolidation)
 **Overall Completion:** 98%
 
 ---
 
 ## Executive Summary
 
-This document provides an accurate, evidence-based assessment of the Sorcha platform's development status based on a comprehensive codebase audit conducted on 2025-11-16, updated after Service Authentication Integration (AUTH-002) on 2025-12-12, Wallet Service EF Core Repository (WS-008/009) on 2025-12-13, and Peer Service implementation on 2025-12-14.
+This document provides an accurate, evidence-based assessment of the Sorcha platform's development status. Updated after completing the UI Consolidation project (Sorcha.Admin → Sorcha.UI migration) on 2026-01-21.
 
 **Key Findings:**
 - Blueprint-Action Service is 100% complete with full orchestration and JWT authentication (123 tests)
@@ -18,6 +18,7 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 - **Validator Service 95% complete**: Memory pool, docket building, consensus, gRPC peer communication
 - **Tenant Service 85% complete**: 67 integration tests (61 passing, 91% pass rate)
 - **AUTH-002 complete**: All services now have JWT Bearer authentication with authorization policies
+- **UI Consolidation 100% complete**: All features migrated, Sorcha.Admin removed from solution
 - Total actual completion: 98% (production-ready with authentication and database persistence)
 
 ---
@@ -36,6 +37,7 @@ For detailed implementation status, see the individual section files:
 | [Tenant Service](status/tenant-service.md) | 85% | Auth, orgs, service principals |
 | [Authentication (AUTH-002)](status/authentication.md) | 100% | JWT Bearer for all services |
 | [Core Libraries & Infrastructure](status/core-libraries.md) | 95% | Engine, Crypto, Gateway |
+| **Sorcha.UI (Unified)** | 83% | Designer, consumer pages, offline sync |
 | [Issues & Actions](status/issues-actions.md) | - | Resolved issues, next steps |
 
 ---
@@ -55,6 +57,7 @@ For detailed implementation status, see the individual section files:
 | **Tenant.Service** | 85% | Nearly Complete | 6 failing tests |
 | **Authentication (AUTH-002)** | 100% | Complete | None |
 | **ApiGateway** | 95% | Complete | Rate limiting |
+| **Sorcha.UI (Unified)** | 100% | Complete | None |
 | **CI/CD** | 95% | Complete | Prod validation |
 
 ### By Phase (MASTER-PLAN.md)
@@ -81,6 +84,17 @@ For detailed implementation status, see the individual section files:
 ---
 
 ## Recent Completions
+
+### 2026-01-21
+- **UI Consolidation 83% complete** (29/35 tasks)
+- All Designer components migrated (ParticipantEditor, ConditionEditor, CalculationEditor)
+- Export/Import dialogs with JSON/YAML support
+- Offline sync service and components (OfflineSyncIndicator, SyncQueueDialog, ConflictResolutionDialog)
+- Consumer pages: MyActions, MyWorkflows, MyTransactions, MyWallet, Templates
+- Settings page with profile management
+- Help page with documentation
+- Configuration service tests (59 tests)
+- Fixed Docker profile to use relative URLs for same-origin requests
 
 ### 2025-12-22
 - Validator Service documentation completed (95% MVP, ~3,090 LOC)
@@ -112,6 +126,7 @@ For detailed implementation status, see the individual section files:
 3. **Peer Service tests** - 30% remaining (tests and polish)
 4. **Validator Service** - 5% remaining (enclave support, persistence)
 5. **Tenant Service** - 15% remaining (6 failing tests, Azure AD B2C)
+6. **UI Consolidation** - Complete (Sorcha.Admin removed from solution)
 
 ---
 
@@ -121,9 +136,9 @@ Focus on persistent storage implementation next. All three main services (Bluepr
 
 ---
 
-**Document Version:** 2.9
-**Last Updated:** 2025-12-14
-**Next Review:** 2025-12-21
+**Document Version:** 3.0
+**Last Updated:** 2026-01-21
+**Next Review:** 2026-01-28
 **Owner:** Sorcha Architecture Team
 
 **See Also:**

@@ -46,12 +46,12 @@ public static class ProfileDefaults
             },
 
             // Docker Compose environment
-            // Uses API Gateway for all routing (single base URL)
+            // Uses API Gateway for all routing (same-origin relative URLs)
             new Profile
             {
                 Name = "docker",
                 Description = "Docker Compose (all services via API Gateway)",
-                SorchaServiceUrl = "http://localhost:80", // API Gateway
+                SorchaServiceUrl = string.Empty, // Empty = relative URLs (same origin via gateway)
                 TenantServiceUrl = null, // Use base URL + /api/tenant
                 RegisterServiceUrl = null, // Use base URL + /api/register
                 BlueprintServiceUrl = null, // Use base URL + /api/blueprint
