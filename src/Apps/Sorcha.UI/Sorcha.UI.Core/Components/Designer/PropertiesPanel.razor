@@ -1,3 +1,4 @@
+@using MudBlazor
 @using Sorcha.UI.Core.Models.Designer
 @using Sorcha.Blueprint.Models
 @using System.Text.Json.Nodes
@@ -64,65 +65,71 @@
                         <div class="d-flex align-center">
                             <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" Size="Size.Small" />
                             <MudText>Participants</MudText>
-                            @if (editedAction.Participants != null)
+                            @if (Blueprint?.Participants != null)
                             {
-                                <MudChip T="string" Size="Size.Small" Class="ml-2">@editedAction.Participants.Count()</MudChip>
+                                <MudChip T="string" Size="Size.Small" Class="ml-2">@Blueprint.Participants.Count</MudChip>
                             }
                         </div>
                     </TitleContent>
                     <ChildContent>
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
-                            Reference participants from the blueprint's global participant list
+                            Manage blueprint participants with roles, wallet addresses, and metadata
                         </MudText>
+
+                        <div class="d-flex justify-end mb-3">
+                            <MudButton StartIcon="@Icons.Material.Filled.PersonAdd"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       Variant="Variant.Filled"
+                                       OnClick="OpenAddParticipantDialog">
+                                Add Participant
+                            </MudButton>
+                        </div>
 
                         @if (Blueprint != null && Blueprint.Participants.Any())
                         {
-                            <MudText Typo="Typo.subtitle2" Class="mb-2">Available Participants</MudText>
-                            @foreach (var participant in Blueprint.Participants)
-                            {
-                                <MudChip T="string"
-                                         Size="Size.Small"
-                                         Color="Color.Info"
-                                         Class="mb-1 mr-1">
-                                    @participant.Name
-                                </MudChip>
-                            }
-
-                            <MudDivider Class="my-3" />
-
-                            <MudText Typo="Typo.subtitle2" Class="mb-2">Action Participants (Conditions)</MudText>
-                            @if (editedAction.Participants != null && editedAction.Participants.Any())
-                            {
-                                @foreach (var participant in editedAction.Participants.Select((p, i) => new { Participant = p, Index = i }))
+                            <MudList T="Participant" Dense="true" Class="pa-0">
+                                @foreach (var participant in Blueprint.Participants)
                                 {
-                                    <MudPaper Class="pa-3 mb-2" Outlined="true">
-                                        <MudTextField @bind-Value="@participant.Participant.Principal"
-                                                      Label="Principal (Participant ID/Name)"
-                                                      Variant="Variant.Outlined"
-                                                      Class="mb-2"
-                                                      Margin="Margin.Dense"
-                                                      HelperText="Reference a participant from the list above" />
-                                        <MudText Typo="Typo.caption" Class="mb-1">Criteria (JSON Logic)</MudText>
-                                        @foreach (var criteria in participant.Participant.Criteria.Select((c, ci) => new { Criteria = c, Index = ci }))
-                                        {
-                                            <MudTextField Value="@criteria.Criteria"
-                                                          Variant="Variant.Outlined"
-                                                          Class="mb-1"
-                                                          Margin="Margin.Dense"
-                                                          ReadOnly="true" />
-                                        }
-                                    </MudPaper>
+                                    <MudListItem T="Participant" Class="pa-0 mb-1">
+                                        <MudPaper Class="pa-2" Outlined="true" Style="width: 100%;">
+                                            <div class="d-flex align-center justify-space-between">
+                                                <div class="d-flex align-center" style="flex: 1; min-width: 0;">
+                                                    <MudAvatar Color="@GetParticipantRoleColor(participant)" Size="Size.Small" Class="mr-2">
+                                                        <MudIcon Icon="@GetParticipantRoleIcon(participant)" Size="Size.Small" />
+                                                    </MudAvatar>
+                                                    <div style="flex: 1; min-width: 0;">
+                                                        <MudText Typo="Typo.body2" Style="font-weight: 500;">
+                                                            @participant.Name
+                                                        </MudText>
+                                                        @if (!string.IsNullOrWhiteSpace(participant.Organisation))
+                                                        {
+                                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                                @participant.Organisation
+                                                            </MudText>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex align-center gap-1">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Default"
+                                                                   OnClick="@(() => OpenEditParticipantDialog(participant))" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Error"
+                                                                   OnClick="@(() => DeleteParticipant(participant))" />
+                                                </div>
+                                            </div>
+                                        </MudPaper>
+                                    </MudListItem>
                                 }
-                            }
-                            else
-                            {
-                                <MudAlert Severity="Severity.Info" Dense="true">No participant conditions defined for this action</MudAlert>
-                            }
+                            </MudList>
                         }
                         else
                         {
-                            <MudAlert Severity="Severity.Warning" Dense="true">
-                                No participants defined in blueprint. Go to Blueprint Properties -> Participants tab to add participants.
+                            <MudAlert Severity="Severity.Info" Dense="true">
+                                No participants defined. Click "Add Participant" to add participants to this blueprint.
                             </MudAlert>
                         }
                     </ChildContent>
@@ -134,18 +141,41 @@
                         <div class="d-flex align-center">
                             <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" Size="Size.Small" />
                             <MudText>Routing Condition</MudText>
+                            @if (editedAction.Condition != null)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Class="ml-2" />
+                            }
                         </div>
                     </TitleContent>
                     <ChildContent>
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
-                            JSON Logic condition that determines the next action in the workflow
+                            Build routing conditions to determine the next action in the workflow
                         </MudText>
-                        <MudTextField Value="@editedAction.Condition?.ToJsonString()"
-                                      Label="Condition (JSON Logic)"
-                                      Variant="Variant.Outlined"
-                                      Lines="5"
-                                      ReadOnly="true"
-                                      HelperText="Advanced: Edit via code or condition builder (coming soon)" />
+
+                        <div class="d-flex justify-end mb-3">
+                            <MudButton StartIcon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       Variant="Variant.Filled"
+                                       OnClick="OpenConditionEditorDialog">
+                                @(editedAction.Condition != null ? "Edit Condition" : "Add Condition")
+                            </MudButton>
+                        </div>
+
+                        @if (editedAction.Condition != null)
+                        {
+                            <MudTextField Value="@editedAction.Condition.ToJsonString()"
+                                          Label="Current Condition (JSON Logic)"
+                                          Variant="Variant.Outlined"
+                                          Lines="5"
+                                          ReadOnly="true" />
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true">
+                                No routing condition defined. Click "Add Condition" to create workflow routing logic.
+                            </MudAlert>
+                        }
                     </ChildContent>
                 </MudExpansionPanel>
 
@@ -163,26 +193,53 @@
                     </TitleContent>
                     <ChildContent>
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
-                            User-defined calculations performed on submitted data using JSON Logic
+                            Build calculated field expressions using a visual expression builder
                         </MudText>
+
+                        <div class="d-flex justify-end mb-3">
+                            <MudButton StartIcon="@Icons.Material.Filled.Add"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       Variant="Variant.Filled"
+                                       OnClick="OpenAddCalculationDialog">
+                                Add Calculation
+                            </MudButton>
+                        </div>
+
                         @if (editedAction.Calculations != null && editedAction.Calculations.Any())
                         {
                             @foreach (var calc in editedAction.Calculations)
                             {
+                                var calcKey = calc.Key;
+                                var calcValue = calc.Value;
                                 <MudPaper Class="pa-3 mb-2" Outlined="true">
-                                    <MudText Typo="Typo.subtitle2">@calc.Key</MudText>
-                                    <MudTextField Value="@calc.Value.ToJsonString()"
+                                    <div class="d-flex align-center justify-space-between mb-2">
+                                        <MudText Typo="Typo.subtitle2">@calcKey</MudText>
+                                        <div class="d-flex align-center gap-1">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                           Size="Size.Small"
+                                                           Color="Color.Default"
+                                                           OnClick="@(() => OpenEditCalculationDialog(calcKey, calcValue))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                           Size="Size.Small"
+                                                           Color="Color.Error"
+                                                           OnClick="@(() => DeleteCalculation(calcKey))" />
+                                        </div>
+                                    </div>
+                                    <MudTextField Value="@(calcValue?.ToJsonString() ?? "{}")"
                                                   Variant="Variant.Outlined"
-                                                  Lines="3"
+                                                  Lines="2"
                                                   Margin="Margin.Dense"
                                                   ReadOnly="true"
-                                                  Class="mt-1" />
+                                                  Style="font-family: monospace;" />
                                 </MudPaper>
                             }
                         }
                         else
                         {
-                            <MudAlert Severity="Severity.Info" Dense="true">No calculations defined</MudAlert>
+                            <MudAlert Severity="Severity.Info" Dense="true">
+                                No calculations defined. Click "Add Calculation" to create computed fields.
+                            </MudAlert>
                         }
                     </ChildContent>
                 </MudExpansionPanel>
@@ -373,6 +430,12 @@
 </style>
 
 @code {
+    [Inject]
+    private IDialogService DialogService { get; set; } = null!;
+
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = null!;
+
     [Parameter]
     public Blueprint Blueprint { get; set; } = new();
 
@@ -446,4 +509,315 @@
     {
         await OnDiscardChanges.InvokeAsync();
     }
+
+    #region Participant Editor Integration
+
+    private async Task OpenAddParticipantDialog()
+    {
+        var model = new ParticipantModel();
+        var existingNames = Blueprint.Participants.Select(p => p.Name).ToList();
+
+        var parameters = new DialogParameters<ParticipantEditor>
+        {
+            { x => x.Model, model },
+            { x => x.IsEditing, false },
+            { x => x.ExistingParticipantNames, existingNames! }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ParticipantEditor>("Add Participant", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is ParticipantModel savedModel)
+        {
+            var participant = savedModel.ToParticipant();
+            Blueprint.Participants.Add(participant);
+            editedBlueprint.Participants = Blueprint.Participants;
+            Snackbar.Add($"Participant '{participant.Name}' added", Severity.Success);
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenEditParticipantDialog(Participant participant)
+    {
+        var model = ParticipantModel.FromParticipant(participant);
+        var existingNames = Blueprint.Participants
+            .Where(p => p.Id != participant.Id)
+            .Select(p => p.Name)
+            .ToList();
+
+        var parameters = new DialogParameters<ParticipantEditor>
+        {
+            { x => x.Model, model },
+            { x => x.IsEditing, true },
+            { x => x.ExistingParticipantNames, existingNames! }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ParticipantEditor>("Edit Participant", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is ParticipantModel savedModel)
+        {
+            var updatedParticipant = savedModel.ToParticipant();
+            var index = Blueprint.Participants.FindIndex(p => p.Id == participant.Id);
+            if (index >= 0)
+            {
+                Blueprint.Participants[index] = updatedParticipant;
+                editedBlueprint.Participants = Blueprint.Participants;
+                Snackbar.Add($"Participant '{updatedParticipant.Name}' updated", Severity.Success);
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task DeleteParticipant(Participant participant)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Participant",
+            $"Are you sure you want to delete participant '{participant.Name}'? This action cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirm == true)
+        {
+            Blueprint.Participants.Remove(participant);
+            editedBlueprint.Participants = Blueprint.Participants;
+            Snackbar.Add($"Participant '{participant.Name}' deleted", Severity.Warning);
+            StateHasChanged();
+        }
+    }
+
+    private Color GetParticipantRoleColor(Participant participant)
+    {
+        var role = ParseParticipantRole(participant.Organisation);
+        return role switch
+        {
+            ParticipantRole.Initiator => Color.Primary,
+            ParticipantRole.Approver => Color.Success,
+            ParticipantRole.Observer => Color.Info,
+            ParticipantRole.Administrator => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    private string GetParticipantRoleIcon(Participant participant)
+    {
+        var role = ParseParticipantRole(participant.Organisation);
+        return role switch
+        {
+            ParticipantRole.Initiator => Icons.Material.Filled.PlayArrow,
+            ParticipantRole.Approver => Icons.Material.Filled.CheckCircle,
+            ParticipantRole.Observer => Icons.Material.Filled.Visibility,
+            ParticipantRole.Administrator => Icons.Material.Filled.AdminPanelSettings,
+            _ => Icons.Material.Filled.Person
+        };
+    }
+
+    private ParticipantRole ParseParticipantRole(string? organisation)
+    {
+        if (string.IsNullOrEmpty(organisation)) return ParticipantRole.Member;
+        return Enum.TryParse<ParticipantRole>(organisation, ignoreCase: true, out var r) ? r : ParticipantRole.Member;
+    }
+
+    #endregion
+
+    #region Condition Editor Integration
+
+    private async Task OpenConditionEditorDialog()
+    {
+        var model = editedAction.Condition != null
+            ? ConditionModel.FromJsonLogic(editedAction.Condition)
+            : new ConditionModel();
+
+        var availableFields = GetAvailableFieldsForCondition();
+
+        var parameters = new DialogParameters<ConditionEditor>
+        {
+            { x => x.Model, model },
+            { x => x.Participants, Blueprint.Participants },
+            { x => x.AvailableFields, availableFields }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ConditionEditor>("Condition Editor", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is ConditionModel savedModel)
+        {
+            editedAction.Condition = savedModel.ToJsonLogic();
+            Snackbar.Add("Routing condition updated", Severity.Success);
+            StateHasChanged();
+        }
+    }
+
+    private List<string> GetAvailableFieldsForCondition()
+    {
+        // Extract field names from data schemas if available
+        var fields = new List<string>();
+
+        // Add data schema count info (JsonDocument doesn't expose field names easily)
+        if (Blueprint?.DataSchemas != null && Blueprint.DataSchemas.Any())
+        {
+            for (var i = 0; i < Blueprint.DataSchemas.Count; i++)
+            {
+                fields.Add($"data.schema{i}");
+            }
+        }
+
+        // Add common fields as fallback
+        if (!fields.Any())
+        {
+            fields.AddRange([
+                "amount", "status", "approved", "quantity",
+                "total", "balance", "percentage", "rating",
+                "category", "type", "name", "id"
+            ]);
+        }
+
+        return fields;
+    }
+
+    #endregion
+
+    #region Calculation Editor Integration
+
+    private async Task OpenAddCalculationDialog()
+    {
+        var model = new CalculationModel();
+        var availableFields = GetAvailableFieldsForCalculation();
+
+        var parameters = new DialogParameters<CalculationEditor>
+        {
+            { x => x.Model, model },
+            { x => x.AvailableFields, availableFields }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<CalculationEditor>("Add Calculation", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is CalculationModel savedModel)
+        {
+            var jsonLogic = savedModel.ToJsonLogic();
+            if (jsonLogic != null && !string.IsNullOrWhiteSpace(savedModel.TargetFieldPath))
+            {
+                editedAction.Calculations ??= [];
+                editedAction.Calculations[savedModel.TargetFieldPath] = jsonLogic;
+                Snackbar.Add($"Calculation '{savedModel.TargetFieldPath}' added", Severity.Success);
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task OpenEditCalculationDialog(string fieldName, JsonNode existingLogic)
+    {
+        var model = CalculationModel.FromJsonLogic(existingLogic);
+        model.TargetFieldPath = fieldName;
+        var availableFields = GetAvailableFieldsForCalculation();
+
+        var parameters = new DialogParameters<CalculationEditor>
+        {
+            { x => x.Model, model },
+            { x => x.AvailableFields, availableFields }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<CalculationEditor>("Edit Calculation", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is CalculationModel savedModel)
+        {
+            var jsonLogic = savedModel.ToJsonLogic();
+            if (jsonLogic != null && !string.IsNullOrWhiteSpace(savedModel.TargetFieldPath))
+            {
+                // Remove old key if field name changed
+                if (fieldName != savedModel.TargetFieldPath)
+                {
+                    editedAction.Calculations?.Remove(fieldName);
+                }
+
+                editedAction.Calculations ??= [];
+                editedAction.Calculations[savedModel.TargetFieldPath] = jsonLogic;
+                Snackbar.Add($"Calculation '{savedModel.TargetFieldPath}' updated", Severity.Success);
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task DeleteCalculation(string fieldName)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Calculation",
+            $"Are you sure you want to delete the calculation '{fieldName}'? This action cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirm == true && editedAction.Calculations != null)
+        {
+            editedAction.Calculations.Remove(fieldName);
+            Snackbar.Add($"Calculation '{fieldName}' deleted", Severity.Warning);
+            StateHasChanged();
+        }
+    }
+
+    private List<string> GetAvailableFieldsForCalculation()
+    {
+        var fields = new List<string>();
+
+        // Add existing calculation field names as potential references
+        if (editedAction.Calculations != null)
+        {
+            fields.AddRange(editedAction.Calculations.Keys.Select(k => $"calculations.{k}"));
+        }
+
+        // Add data schema count info (JsonDocument doesn't expose field names easily)
+        if (Blueprint?.DataSchemas != null && Blueprint.DataSchemas.Any())
+        {
+            // Add placeholder for schema fields
+            for (var i = 0; i < Blueprint.DataSchemas.Count; i++)
+            {
+                fields.Add($"data.schema{i}");
+            }
+        }
+
+        // Add common numeric fields as fallback
+        if (!fields.Any())
+        {
+            fields.AddRange([
+                "amount", "quantity", "price", "total",
+                "subtotal", "discount", "tax", "balance",
+                "percentage", "rate", "count"
+            ]);
+        }
+
+        return fields;
+    }
+
+    #endregion
 }

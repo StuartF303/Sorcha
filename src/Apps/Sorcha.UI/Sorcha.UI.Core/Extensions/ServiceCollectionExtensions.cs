@@ -1,3 +1,4 @@
+using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -68,6 +69,9 @@ public static class ServiceCollectionExtensions
 
         // Register Services
         services.AddRegisterServices(baseAddress);
+
+        // Blueprint Storage Services
+        services.AddBlueprintStorageServices(baseAddress);
 
         return services;
     }
@@ -184,6 +188,47 @@ public static class ServiceCollectionExtensions
         {
             var logger = sp.GetRequiredService<ILogger<RegisterHubConnection>>();
             return new RegisterHubConnection(baseAddress, logger);
+        });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers blueprint storage and offline sync services.
+    /// </summary>
+    public static IServiceCollection AddBlueprintStorageServices(this IServiceCollection services, string baseAddress)
+    {
+        // Offline Sync Service (must be registered first as BlueprintStorageService depends on it)
+        services.AddScoped<IOfflineSyncService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var localStorage = sp.GetRequiredService<ILocalStorageService>();
+            var logger = sp.GetRequiredService<ILogger<OfflineSyncService>>();
+            return new OfflineSyncService(httpClient, localStorage, logger);
+        });
+
+        // Blueprint Storage Service
+        services.AddScoped<IBlueprintStorageService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var localStorage = sp.GetRequiredService<ILocalStorageService>();
+            var syncService = sp.GetRequiredService<IOfflineSyncService>();
+            var logger = sp.GetRequiredService<ILogger<BlueprintStorageService>>();
+            return new BlueprintStorageService(httpClient, localStorage, syncService, logger);
         });
 
         return services;

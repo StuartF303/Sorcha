@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using Sorcha.Blueprint.Schemas;
 using Sorcha.UI.Core.Extensions;
+using Sorcha.UI.Core.Services;
 using Sorcha.UI.Web.Client;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -29,6 +30,9 @@ builder.Services.AddMudServices(config =>
 
 // Add local storage for WASM pages (blueprints, schemas, user preferences)
 builder.Services.AddBlazoredLocalStorage();
+
+// Add blueprint serialization service for export/import
+builder.Services.AddScoped<BlueprintSerializationService>();
 
 // Add schema library service with caching (for designer and schema library pages)
 builder.Services.AddScoped<ISchemaCacheService, LocalStorageSchemaCacheService>();
