@@ -55,37 +55,38 @@ public class ProfileDefaultsTests
     }
 
     [Fact]
-    public void DockerProfile_UsesBaseUrl()
+    public void DockerProfile_UsesSameOriginRelativeUrls()
     {
         // Act
         var profiles = ProfileDefaults.GetDefaultProfiles();
         var dockerProfile = profiles.First(p => p.Name == "docker");
 
-        // Assert - Docker profile uses base URL with derived service paths
-        dockerProfile.SorchaServiceUrl.Should().Be("http://localhost:80");
-        dockerProfile.TenantServiceUrl.Should().BeNull("should derive from base URL");
-        dockerProfile.RegisterServiceUrl.Should().BeNull("should derive from base URL");
-        dockerProfile.BlueprintServiceUrl.Should().BeNull("should derive from base URL");
-        dockerProfile.WalletServiceUrl.Should().BeNull("should derive from base URL");
-        dockerProfile.PeerServiceUrl.Should().BeNull("should derive from base URL");
-        dockerProfile.AuthTokenUrl.Should().BeNull("should derive from tenant service");
+        // Assert - Docker profile uses empty base URL for same-origin relative URLs via API Gateway
+        dockerProfile.SorchaServiceUrl.Should().BeEmpty("Docker uses same-origin relative URLs via gateway");
+        dockerProfile.TenantServiceUrl.Should().BeNull("should use relative URL via gateway");
+        dockerProfile.RegisterServiceUrl.Should().BeNull("should use relative URL via gateway");
+        dockerProfile.BlueprintServiceUrl.Should().BeNull("should use relative URL via gateway");
+        dockerProfile.WalletServiceUrl.Should().BeNull("should use relative URL via gateway");
+        dockerProfile.PeerServiceUrl.Should().BeNull("should use relative URL via gateway");
+        dockerProfile.AuthTokenUrl.Should().BeNull("should use relative URL via gateway");
         dockerProfile.VerifySsl.Should().BeFalse("local Docker doesn't use SSL");
         dockerProfile.IsSystemProfile.Should().BeTrue();
     }
 
     [Fact]
-    public void DockerProfile_ResolvesUrlsCorrectly()
+    public void DockerProfile_ResolvesUrlsToRelativePaths()
     {
         // Act
         var profiles = ProfileDefaults.GetDefaultProfiles();
         var dockerProfile = profiles.First(p => p.Name == "docker");
 
-        // Assert - Verify URL resolution
-        dockerProfile.GetTenantServiceUrl().Should().Be("http://localhost:80/api/tenant");
-        dockerProfile.GetRegisterServiceUrl().Should().Be("http://localhost:80/api/register");
-        dockerProfile.GetBlueprintServiceUrl().Should().Be("http://localhost:80/api/blueprint");
-        dockerProfile.GetWalletServiceUrl().Should().Be("http://localhost:80/api/wallet");
-        dockerProfile.GetPeerServiceUrl().Should().Be("http://localhost:80/api/peer");
+        // Assert - With empty base URL and null individual URLs, resolved URLs are empty
+        // The HttpClient in ConfigurationService handles this by using relative paths
+        dockerProfile.GetTenantServiceUrl().Should().BeEmpty("empty base + null individual = relative URL");
+        dockerProfile.GetRegisterServiceUrl().Should().BeEmpty("empty base + null individual = relative URL");
+        dockerProfile.GetBlueprintServiceUrl().Should().BeEmpty("empty base + null individual = relative URL");
+        dockerProfile.GetWalletServiceUrl().Should().BeEmpty("empty base + null individual = relative URL");
+        dockerProfile.GetPeerServiceUrl().Should().BeEmpty("empty base + null individual = relative URL");
     }
 
     [Fact]
@@ -199,15 +200,17 @@ public class ProfileDefaultsTests
     }
 
     [Fact]
-    public void DockerProfile_UsesHttp()
+    public void DockerProfile_UsesSameOriginRequests()
     {
         // Act
         var profiles = ProfileDefaults.GetDefaultProfiles();
         var dockerProfile = profiles.First(p => p.Name == "docker");
 
-        // Assert - Docker uses HTTP via API Gateway
-        dockerProfile.SorchaServiceUrl.Should().StartWith("http://");
-        dockerProfile.GetTenantServiceUrl().Should().StartWith("http://");
+        // Assert - Docker uses same-origin relative URLs via API Gateway
+        // Empty base URL + null individual URLs = relative URL pattern (e.g., /api/tenant)
+        dockerProfile.SorchaServiceUrl.Should().BeEmpty("uses same-origin relative URLs");
+        dockerProfile.GetTenantServiceUrl().Should().BeEmpty("resolved URL is empty for relative path handling");
+        dockerProfile.IsValid().Should().BeTrue("empty base + null individuals is valid for same-origin");
     }
 
     [Fact]
