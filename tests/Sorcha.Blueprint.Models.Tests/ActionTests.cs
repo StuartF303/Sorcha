@@ -318,7 +318,9 @@ public class ActionTests
 
         // Assert
         action.Condition.Should().NotBeNull();
-        action.Condition.ToString().Should().Contain(">");
+        // Verify the JSON object has the expected key
+        var jsonObj = action.Condition!.AsObject();
+        jsonObj.ContainsKey(">").Should().BeTrue();
     }
 
     [Fact]

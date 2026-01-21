@@ -130,11 +130,12 @@ public class Blueprint : IEquatable<Blueprint>
     }
 
     /// <summary>
-    /// Returns a hash code for this blueprint based on its Id, Title, Description, Version, Participants, and Actions.
+    /// Returns a hash code for this blueprint based on its identity properties.
+    /// Note: Collections are excluded as their instance hash codes don't reflect content equality.
     /// </summary>
     /// <returns>A hash code for the blueprint.</returns>
     public override int GetHashCode()
     {
-        return HashCode.Combine(Id, Title, Description, Version, Participants, Actions);
+        return HashCode.Combine(Id, Title, Description, Version);
     }
 }

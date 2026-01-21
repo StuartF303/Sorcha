@@ -3,7 +3,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Sorcha.Wallet.Service.IntegrationTests.Fixtures;
 using Sorcha.Wallet.Service.Models;
 using Xunit;
 using Xunit.Abstractions;
@@ -13,17 +13,19 @@ namespace Sorcha.Wallet.Service.IntegrationTests;
 /// <summary>
 /// Performance tests for HD wallet address management endpoints.
 /// Measures throughput, latency, and scalability of the new HD wallet features.
+/// Uses test authentication handler to bypass JWT validation.
 /// </summary>
-public class HDWalletPerformanceTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("WalletService")]
+public class HDWalletPerformanceTests
 {
     private readonly HttpClient _client;
     private readonly ITestOutputHelper _output;
 
     public HDWalletPerformanceTests(
-        WebApplicationFactory<Program> factory,
+        WalletServiceWebApplicationFactory factory,
         ITestOutputHelper output)
     {
-        _client = factory.CreateClient();
+        _client = factory.CreateAuthenticatedClient();
         _output = output;
     }
 

@@ -22,6 +22,7 @@ public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>, I
     private readonly HttpClient _client;
     private readonly HttpClient _adminClient;
     private readonly HttpClient _unauthClient;
+    private readonly HttpClient _serviceClient;
     private readonly TenantServiceWebApplicationFactory _factory;
 
     public AuthApiTests(TenantServiceWebApplicationFactory factory)
@@ -30,6 +31,7 @@ public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>, I
         _unauthClient = _factory.CreateUnauthenticatedClient();
         _client = _factory.CreateAuthenticatedClient();
         _adminClient = _factory.CreateAdminClient();
+        _serviceClient = _factory.CreateServiceClient();
     }
 
     /// <summary>
@@ -364,16 +366,32 @@ public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>, I
     #region Token Introspection Tests
 
     [Fact]
+    public async Task IntrospectToken_ShouldReturnForbidden_ForRegularUser()
+    {
+        // Arrange - Token introspection requires service token
+        var request = new TokenIntrospectionRequest
+        {
+            Token = "any-token"
+        };
+
+        // Act - Regular user should not be able to introspect tokens
+        var response = await _client.PostAsJsonAsync("/api/auth/token/introspect", request);
+
+        // Assert - Should be forbidden for non-service tokens
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task IntrospectToken_ShouldReturnInactive_ForInvalidToken()
     {
-        // Arrange
+        // Arrange - Service client required for introspection
         var request = new TokenIntrospectionRequest
         {
             Token = "invalid-token-format"
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/auth/token/introspect", request);
+        var response = await _serviceClient.PostAsJsonAsync("/api/auth/token/introspect", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -393,8 +411,8 @@ public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>, I
             Token = token
         };
 
-        // Act
-        var response = await _client.PostAsJsonAsync("/api/auth/token/introspect", request);
+        // Act - Service client required for introspection
+        var response = await _serviceClient.PostAsJsonAsync("/api/auth/token/introspect", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);

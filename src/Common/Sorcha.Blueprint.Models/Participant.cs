@@ -40,10 +40,8 @@ public class Participant : IEquatable<Participant>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Organization the participant belongs to
+    /// Organization the participant belongs to (optional)
     /// </summary>
-    [DataAnnotations.Required(ErrorMessage = "Organization is required.")]
-    [DataAnnotations.MinLength(1)]
     [DataAnnotations.MaxLength(200)]
     [JsonPropertyName("organisation")]
     public string Organisation { get; set; } = string.Empty;

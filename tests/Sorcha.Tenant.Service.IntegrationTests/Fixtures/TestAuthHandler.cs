@@ -38,6 +38,8 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
         // Check for test header to determine role
         var isAdmin = Request.Headers.TryGetValue("X-Test-Role", out var roleHeader) &&
                       roleHeader.ToString().Contains("Administrator");
+        var isService = Request.Headers.TryGetValue("X-Test-Role", out var serviceRoleHeader) &&
+                        serviceRoleHeader.ToString().Contains("Service");
 
         // Use provided user ID or generate a new one
         var userId = Request.Headers.TryGetValue("X-Test-User-Id", out var userIdHeader)
@@ -57,11 +59,15 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
             new("sub", userId),
             new("org_id", TestDataSeeder.TestOrganizationId.ToString()),
             new("org_name", TestDataSeeder.TestOrganizationName),
-            new("token_type", "user")
+            new("token_type", isService ? "service" : "user")
         };
 
         // Add appropriate role
-        if (isAdmin)
+        if (isService)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, "Service"));
+        }
+        else if (isAdmin)
         {
             claims.Add(new Claim(ClaimTypes.Role, "Administrator"));
         }

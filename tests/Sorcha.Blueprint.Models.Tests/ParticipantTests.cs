@@ -16,7 +16,7 @@ public class ParticipantTests
         var participant = new Participant();
 
         // Assert
-        participant.Id.Should().BeEmpty();
+        participant.Id.Should().NotBeEmpty("Id is auto-generated as a GUID");
         participant.Name.Should().BeEmpty();
         participant.Organisation.Should().BeEmpty();
         participant.WalletAddress.Should().BeEmpty();
@@ -111,10 +111,10 @@ public class ParticipantTests
     }
 
     [Fact]
-    public void Name_TooShort_ShouldFailValidation()
+    public void Name_Empty_ShouldFailValidation()
     {
-        // Arrange
-        var participant = new Participant { Id = "p1", Name = "ab" };
+        // Arrange - Name requires MinLength(1)
+        var participant = new Participant { Id = "p1", Name = "" };
         var context = new ValidationContext(participant);
         var results = new List<ValidationResult>();
 

@@ -368,8 +368,19 @@ public class TokenService : ITokenService
                 Roles = roles.Length > 0 ? roles : null
             };
         }
+        catch (SecurityTokenMalformedException)
+        {
+            // Token format is invalid (wrong number of segments, etc.)
+            return new TokenIntrospectionResponse { Active = false };
+        }
         catch (SecurityTokenException)
         {
+            // Token validation failed (signature, lifetime, issuer, etc.)
+            return new TokenIntrospectionResponse { Active = false };
+        }
+        catch (ArgumentException)
+        {
+            // Handles other argument-related parsing errors
             return new TokenIntrospectionResponse { Active = false };
         }
     }

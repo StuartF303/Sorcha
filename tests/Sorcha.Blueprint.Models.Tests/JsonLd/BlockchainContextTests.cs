@@ -151,11 +151,10 @@ public class BlockchainContextTests
         var blueprintContext = JsonNode.Parse(@"{""@vocab"": ""https://sorcha.dev/blueprint/v1#""}")!;
 
         // Act
-        var merged = BlockchainContext.MergeWithBlueprintContext(blueprintContext);
+        JsonArray merged = BlockchainContext.MergeWithBlueprintContext(blueprintContext);
 
-        // Assert
+        // Assert - verify behavior rather than exact type (FluentAssertions/STJ compatibility)
         merged.Should().NotBeNull();
-        merged.Should().BeOfType<JsonArray>();
         merged.Count.Should().Be(2);
         merged[1]?.ToString().Should().Be(BlockchainContext.ContextUrl);
     }

@@ -22,10 +22,10 @@ public class Action
     public string? JsonLdType { get; set; }
 
     /// <summary>
-    /// The Action ID (typically matches the transaction ID that contains it)
+    /// The Action ID (sequence number within the blueprint)
     /// </summary>
     [DataAnnotations.Required]
-    [DataAnnotations.MaxLength(64)]
+    [DataAnnotations.Range(0, int.MaxValue)]
     [JsonPropertyName("id")]
     public int Id { get; set; } = 0;
 
@@ -97,9 +97,9 @@ public class Action
     public IEnumerable<string> AdditionalRecipients { get; set; } = [];
 
     /// <summary>
-    /// List of disclosures defining data visibility rules
+    /// List of disclosures defining data visibility rules (optional)
     /// </summary>
-    [DataAnnotations.MinLength(1)]
+    [DataAnnotations.MinLength(0)]
     [JsonPropertyName("disclosures")]
     public IEnumerable<Disclosure> Disclosures { get; set; } = [];
 

@@ -290,6 +290,18 @@ public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
     {
         return CreateClient();
     }
+
+    /// <summary>
+    /// Creates an HttpClient configured for service-to-service authentication.
+    /// Used for testing endpoints that require service tokens (RequireService policy).
+    /// </summary>
+    public HttpClient CreateServiceClient()
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Add("Authorization", "Bearer test-service-token");
+        client.DefaultRequestHeaders.Add("X-Test-Role", "Service");
+        return client;
+    }
 }
 
 /// <summary>

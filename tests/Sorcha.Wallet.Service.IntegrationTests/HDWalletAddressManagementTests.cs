@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Sorcha.Wallet.Service.IntegrationTests.Fixtures;
 using Sorcha.Wallet.Service.Models;
 using Xunit;
 
@@ -10,14 +10,16 @@ namespace Sorcha.Wallet.Service.IntegrationTests;
 /// <summary>
 /// Integration tests demonstrating HD wallet address management with client-side derivation.
 /// This shows the complete flow from wallet creation through address lifecycle management.
+/// Uses test authentication handler to bypass JWT validation.
 /// </summary>
-public class HDWalletAddressManagementTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("WalletService")]
+public class HDWalletAddressManagementTests
 {
     private readonly HttpClient _client;
 
-    public HDWalletAddressManagementTests(WebApplicationFactory<Program> factory)
+    public HDWalletAddressManagementTests(WalletServiceWebApplicationFactory factory)
     {
-        _client = factory.CreateClient();
+        _client = factory.CreateAuthenticatedClient();
     }
 
     [Fact]

@@ -1,28 +1,22 @@
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
+using Sorcha.Wallet.Service.IntegrationTests.Fixtures;
 using Sorcha.Wallet.Service.Models;
 
 namespace Sorcha.Wallet.Service.IntegrationTests;
 
-public class WalletServiceApiTests : IClassFixture<WebApplicationFactory<Program>>
+/// <summary>
+/// Integration tests for Wallet Service API endpoints.
+/// Uses test authentication handler to bypass JWT validation.
+/// </summary>
+[Collection("WalletService")]
+public class WalletServiceApiTests
 {
     private readonly HttpClient _client;
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly WalletServiceWebApplicationFactory _factory;
 
-    public WalletServiceApiTests(WebApplicationFactory<Program> factory)
+    public WalletServiceApiTests(WalletServiceWebApplicationFactory factory)
     {
-        _factory = factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                // Use in-memory implementations for testing
-                // The actual services are already configured in the API project
-            });
-
-            builder.UseEnvironment("Testing");
-        });
-
-        _client = _factory.CreateClient();
+        _factory = factory;
+        _client = _factory.CreateAuthenticatedClient();
     }
 
     #region Wallet CRUD Tests
