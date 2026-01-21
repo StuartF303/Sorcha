@@ -2,14 +2,14 @@
 
 **Feature Branch**: `ui-consolidation`
 **Created**: 2026-01-21
-**Status**: 74% Complete
+**Status**: 77% Complete
 
 ## Task Summary
 
 | Status | Count |
 |--------|-------|
-| Complete | 26 |
-| Pending | 9 |
+| Complete | 27 |
+| Pending | 8 |
 | **Total** | **35** |
 
 ---
@@ -559,7 +559,7 @@
 ---
 
 ### UC-028: Create Help Page
-- **Status**: Pending
+- **Status**: Complete
 - **Priority**: P2
 - **Estimate**: 3 hours
 - **Dependencies**: None
@@ -570,11 +570,11 @@
 - `Admin/Pages/Help.razor`
 
 **Acceptance Criteria**:
-- [ ] Page created with route `/help`
-- [ ] Added to navigation menu
-- [ ] Getting started guide
-- [ ] Keyboard shortcuts
-- [ ] Links to documentation
+- [x] Page created with route `/help`
+- [x] Added to navigation menu
+- [x] Getting started guide
+- [x] Keyboard shortcuts
+- [x] Links to documentation
 
 ---
 
