@@ -90,7 +90,15 @@
           "dataPointers": ["/*"]
         }
       ],
-      "calculations": {}
+      "calculations": {},
+      "routes": [
+        {
+          "id": "to-loan-officer",
+          "description": "Route to Loan Officer for initial review",
+          "isDefault": true,
+          "nextActionIds": [1]
+        }
+      ]
     },
     {
       "id": 1,
@@ -125,13 +133,20 @@
         }
       ],
       "calculations": {},
-      "condition": {
-        "if": [
-          {"==": [{"var": "initialApproval"}, true]},
-          "CreditBureau",
-          "__Complete__"
-        ]
-      }
+      "routes": [
+        {
+          "id": "approved",
+          "description": "Route to Credit Bureau if initial review passed",
+          "condition": {"==": [{"var": "initialApproval"}, true]},
+          "nextActionIds": [2]
+        },
+        {
+          "id": "rejected",
+          "description": "Workflow complete if initial review failed",
+          "isDefault": true,
+          "nextActionIds": []
+        }
+      ]
     },
     {
       "id": 2,
@@ -177,13 +192,20 @@
         }
       ],
       "calculations": {},
-      "condition": {
-        "if": [
-          {">=": [{"var": "creditScore"}, 700]},
-          "LoanOfficer",
-          "Underwriter"
-        ]
-      }
+      "routes": [
+        {
+          "id": "good-credit",
+          "description": "Route to Loan Officer for final approval if credit score >= 700",
+          "condition": {">=": [{"var": "creditScore"}, 700]},
+          "nextActionIds": [3]
+        },
+        {
+          "id": "needs-review",
+          "description": "Route to Underwriter for review if credit score < 700",
+          "isDefault": true,
+          "nextActionIds": [4]
+        }
+      ]
     },
     {
       "id": 3,
@@ -225,7 +247,15 @@
           "dataPointers": ["/*"]
         }
       ],
-      "calculations": {}
+      "calculations": {},
+      "routes": [
+        {
+          "id": "complete",
+          "description": "Workflow complete after standard approval",
+          "isDefault": true,
+          "nextActionIds": []
+        }
+      ]
     },
     {
       "id": 4,
@@ -276,7 +306,15 @@
           "dataPointers": ["/*"]
         }
       ],
-      "calculations": {}
+      "calculations": {},
+      "routes": [
+        {
+          "id": "complete",
+          "description": "Workflow complete after underwriter review",
+          "isDefault": true,
+          "nextActionIds": []
+        }
+      ]
     }
   ]
 }
