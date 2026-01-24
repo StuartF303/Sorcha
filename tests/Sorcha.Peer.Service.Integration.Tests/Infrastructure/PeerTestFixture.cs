@@ -19,7 +19,7 @@ public class PeerTestFixture : IAsyncLifetime
 
     public List<PeerInstance> Peers { get; } = new();
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         // Create 3 peer instances by default
         for (int i = 0; i < 3; i++)
@@ -66,7 +66,7 @@ public class PeerTestFixture : IAsyncLifetime
         return instance;
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         foreach (var channel in _grpcChannels)
         {

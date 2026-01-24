@@ -24,16 +24,16 @@ public class SchemaEndpointsTests : IAsyncLifetime
         _factory = factory;
     }
 
-    public Task InitializeAsync()
+    public ValueTask InitializeAsync()
     {
         _client = _factory.CreateAuthenticatedClient();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _client.Dispose();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

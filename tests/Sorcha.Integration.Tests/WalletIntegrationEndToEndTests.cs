@@ -18,16 +18,16 @@ public class WalletIntegrationEndToEndTests : IAsyncLifetime
     private const string BaseUrl = "http://localhost:5000"; // API Gateway
     private string? _testWalletId;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _client = new HttpClient { BaseAddress = new Uri(BaseUrl) };
         await Task.Delay(1000); // Wait for services
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _client?.Dispose();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     [Fact(Skip = "Requires running services")]

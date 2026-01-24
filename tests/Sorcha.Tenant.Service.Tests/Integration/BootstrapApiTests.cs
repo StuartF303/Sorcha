@@ -22,17 +22,17 @@ public class BootstrapApiTests : IClassFixture<TenantServiceWebApplicationFactor
         _factory = factory;
     }
 
-    public Task InitializeAsync()
+    public ValueTask InitializeAsync()
     {
         // Bootstrap is an unauthenticated endpoint - anyone can call it (should be protected in production)
         _client = _factory.CreateUnauthenticatedClient();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _client?.Dispose();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

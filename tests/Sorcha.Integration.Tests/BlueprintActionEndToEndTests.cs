@@ -21,7 +21,7 @@ public class BlueprintActionEndToEndTests : IAsyncLifetime
     private string? _testWalletAddress;
     private string? _testRegisterAddress;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _client = new HttpClient { BaseAddress = new Uri(BaseUrl) };
         _testWalletAddress = "wallet-test-001";
@@ -31,10 +31,10 @@ public class BlueprintActionEndToEndTests : IAsyncLifetime
         await Task.Delay(1000);
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _client?.Dispose();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     [Fact(Skip = "Requires running services")]

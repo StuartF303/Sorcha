@@ -14,7 +14,7 @@ public class GatewayIntegrationTestBase : IAsyncLifetime
     protected DistributedApplication? App { get; private set; }
     protected HttpClient? GatewayClient { get; private set; }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         // Create the Aspire app host for testing
         var appHost = await DistributedApplicationTestingBuilder
@@ -28,7 +28,7 @@ public class GatewayIntegrationTestBase : IAsyncLifetime
         GatewayClient = App.CreateHttpClient("api-gateway");
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (App != null)
         {

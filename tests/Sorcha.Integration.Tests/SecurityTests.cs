@@ -19,16 +19,16 @@ public class SecurityTests : IAsyncLifetime
     private HttpClient? _client;
     private const string BaseUrl = "http://localhost:5000";
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _client = new HttpClient { BaseAddress = new Uri(BaseUrl) };
         await Task.Delay(1000);
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _client?.Dispose();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     #region A01:2021 – Broken Access Control

@@ -77,17 +77,17 @@ public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
     /// Initializes the test infrastructure (starts PostgreSQL container if needed).
     /// Called automatically by xUnit before any tests run.
     /// </summary>
-    public Task InitializeAsync()
+    public ValueTask InitializeAsync()
     {
         // Container is already started in ConfigureWebHost, nothing more to do
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>
     /// Cleans up test infrastructure (stops PostgreSQL container if needed).
     /// Called automatically by xUnit after all tests complete.
     /// </summary>
-    public new async Task DisposeAsync()
+    public new async ValueTask DisposeAsync()
     {
         if (_postgresContainer != null)
         {

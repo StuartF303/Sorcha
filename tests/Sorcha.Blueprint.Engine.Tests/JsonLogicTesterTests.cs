@@ -7,6 +7,9 @@ using Sorcha.Blueprint.Engine.Implementation;
 using Sorcha.Blueprint.Engine.Testing;
 using Xunit;
 
+// Alias to avoid conflict with xUnit.v3's TestResult
+using TestResult = Sorcha.Blueprint.Engine.Testing.TestResult;
+
 namespace Sorcha.Blueprint.Engine.Tests;
 
 public class JsonLogicTesterTests

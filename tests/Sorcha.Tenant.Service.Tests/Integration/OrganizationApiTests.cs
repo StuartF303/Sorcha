@@ -25,7 +25,7 @@ public class OrganizationApiTests : IClassFixture<TenantServiceWebApplicationFac
         _factory = factory;
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _adminClient = _factory.CreateAdminClient();
         _memberClient = _factory.CreateMemberClient();
@@ -35,12 +35,12 @@ public class OrganizationApiTests : IClassFixture<TenantServiceWebApplicationFac
         await _factory.SeedTestDataAsync();
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _adminClient?.Dispose();
         _memberClient?.Dispose();
         _unauthenticatedClient?.Dispose();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

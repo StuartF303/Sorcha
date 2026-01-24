@@ -37,7 +37,7 @@ public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>, I
     /// <summary>
     /// Initializes test data before any tests run.
     /// </summary>
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         // Ensure test data is seeded before running tests
         await _factory.EnsureSeededAsync();
@@ -46,9 +46,9 @@ public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>, I
     /// <summary>
     /// Cleanup after all tests complete.
     /// </summary>
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     #region Health Check Tests

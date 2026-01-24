@@ -8,7 +8,6 @@ using Sorcha.Storage.Abstractions;
 using Sorcha.Storage.Abstractions.Caching;
 using Sorcha.Storage.InMemory;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sorcha.Storage.Abstractions.Tests;
 
@@ -17,14 +16,12 @@ namespace Sorcha.Storage.Abstractions.Tests;
 /// </summary>
 public class VerifiedCachePerformanceTests
 {
-    private readonly ITestOutputHelper _output;
     private readonly InMemoryCacheStore _cacheStore;
     private readonly InMemoryWormStore<PerformanceTestDocket, ulong> _wormStore;
     private readonly VerifiedCache<PerformanceTestDocket, ulong> _sut;
 
-    public VerifiedCachePerformanceTests(ITestOutputHelper output)
+    public VerifiedCachePerformanceTests()
     {
-        _output = output;
         _cacheStore = new InMemoryCacheStore();
         _wormStore = new InMemoryWormStore<PerformanceTestDocket, ulong>(d => d.Id);
 
@@ -82,9 +79,10 @@ public class VerifiedCachePerformanceTests
         var avgCacheHit = cacheHitTimes.Average();
         var avgWormFetch = wormFetchTimes.Average();
 
-        _output.WriteLine($"Average Cache Hit: {avgCacheHit:F2} µs");
-        _output.WriteLine($"Average WORM Fetch: {avgWormFetch:F2} µs");
-        _output.WriteLine($"Cache Speedup: {avgWormFetch / avgCacheHit:F2}x");
+        // Log results (visible in test output)
+        Console.WriteLine($"Average Cache Hit: {avgCacheHit:F2} µs");
+        Console.WriteLine($"Average WORM Fetch: {avgWormFetch:F2} µs");
+        Console.WriteLine($"Cache Speedup: {avgWormFetch / avgCacheHit:F2}x");
 
         // Cache hits should generally be faster (though in-memory both are fast)
         var stats = await _sut.GetStatisticsAsync();
@@ -105,8 +103,8 @@ public class VerifiedCachePerformanceTests
         }
 
         insertSw.Stop();
-        _output.WriteLine($"Insert {documentCount} documents: {insertSw.ElapsedMilliseconds} ms");
-        _output.WriteLine($"Average insert time: {insertSw.Elapsed.TotalMicroseconds / documentCount:F2} µs/doc");
+        Console.WriteLine($"Insert {documentCount} documents: {insertSw.ElapsedMilliseconds} ms");
+        Console.WriteLine($"Average insert time: {insertSw.Elapsed.TotalMicroseconds / documentCount:F2} µs/doc");
 
         // Act - Read all documents (should hit cache)
         var readSw = Stopwatch.StartNew();
@@ -117,8 +115,8 @@ public class VerifiedCachePerformanceTests
         }
 
         readSw.Stop();
-        _output.WriteLine($"Read {documentCount} documents (cached): {readSw.ElapsedMilliseconds} ms");
-        _output.WriteLine($"Average read time: {readSw.Elapsed.TotalMicroseconds / documentCount:F2} µs/doc");
+        Console.WriteLine($"Read {documentCount} documents (cached): {readSw.ElapsedMilliseconds} ms");
+        Console.WriteLine($"Average read time: {readSw.Elapsed.TotalMicroseconds / documentCount:F2} µs/doc");
 
         // Assert
         var stats = await _sut.GetStatisticsAsync();
@@ -146,14 +144,14 @@ public class VerifiedCachePerformanceTests
         {
             if (p.DocumentsLoaded % 25 == 0)
             {
-                _output.WriteLine($"Warming progress: {p.PercentComplete:F1}%");
+                Console.WriteLine($"Warming progress: {p.PercentComplete:F1}%");
             }
         });
 
         await _sut.WarmCacheAsync((ulong)documentCount, progress);
         warmSw.Stop();
 
-        _output.WriteLine($"Cache warming for {documentCount} documents: {warmSw.ElapsedMilliseconds} ms");
+        Console.WriteLine($"Cache warming for {documentCount} documents: {warmSw.ElapsedMilliseconds} ms");
 
         // Assert - All reads should hit cache now
         for (ulong i = 1; i <= documentCount; i++)
@@ -189,8 +187,8 @@ public class VerifiedCachePerformanceTests
 
         // Assert
         results.Should().HaveCount(documentCount);
-        _output.WriteLine($"GetManyAsync for {documentCount} documents: {sw.ElapsedMilliseconds} ms");
-        _output.WriteLine($"Average per document: {sw.Elapsed.TotalMicroseconds / documentCount:F2} µs");
+        Console.WriteLine($"GetManyAsync for {documentCount} documents: {sw.ElapsedMilliseconds} ms");
+        Console.WriteLine($"Average per document: {sw.Elapsed.TotalMicroseconds / documentCount:F2} µs");
     }
 
     [Fact]
@@ -210,7 +208,7 @@ public class VerifiedCachePerformanceTests
 
         // Assert
         results.Should().HaveCount(51); // 25 to 75 inclusive
-        _output.WriteLine($"GetRangeAsync for 51 documents: {sw.ElapsedMilliseconds} ms");
+        Console.WriteLine($"GetRangeAsync for 51 documents: {sw.ElapsedMilliseconds} ms");
 
         // Verify range is now cached
         for (ulong i = 25; i <= 75; i++)
@@ -247,11 +245,11 @@ public class VerifiedCachePerformanceTests
         // Assert
         var stats = await _sut.GetStatisticsAsync();
 
-        _output.WriteLine($"Cache Hits: {stats.CacheHits}");
-        _output.WriteLine($"Cache Misses: {stats.CacheMisses}");
-        _output.WriteLine($"WORM Fetches: {stats.WormFetches}");
-        _output.WriteLine($"Hit Rate: {stats.HitRate:P2}");
-        _output.WriteLine($"Average Latency: {stats.AverageLatencyMs:F3} ms");
+        Console.WriteLine($"Cache Hits: {stats.CacheHits}");
+        Console.WriteLine($"Cache Misses: {stats.CacheMisses}");
+        Console.WriteLine($"WORM Fetches: {stats.WormFetches}");
+        Console.WriteLine($"Hit Rate: {stats.HitRate:P2}");
+        Console.WriteLine($"Average Latency: {stats.AverageLatencyMs:F3} ms");
 
         stats.CacheHits.Should().Be(10);
         stats.CacheMisses.Should().Be(5);

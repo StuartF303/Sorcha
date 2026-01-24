@@ -17,12 +17,12 @@ namespace Sorcha.Wallet.Service.IntegrationTests.Fixtures;
 /// </summary>
 public class WalletServiceWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    public Task InitializeAsync()
+    public ValueTask InitializeAsync()
     {
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public new async Task DisposeAsync()
+    public new async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
     }

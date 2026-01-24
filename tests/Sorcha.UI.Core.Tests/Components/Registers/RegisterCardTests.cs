@@ -17,7 +17,7 @@ namespace Sorcha.UI.Core.Tests.Components.Registers;
 /// <summary>
 /// Tests for the RegisterCard component.
 /// </summary>
-public class RegisterCardTests : TestContext
+public class RegisterCardTests : BunitContext
 {
     public RegisterCardTests()
     {
@@ -53,7 +53,7 @@ public class RegisterCardTests : TestContext
         var register = CreateTestRegister(name: "My Test Register");
 
         // Act
-        var cut = RenderComponent<RegisterCard>(parameters => parameters
+        var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert
@@ -67,7 +67,7 @@ public class RegisterCardTests : TestContext
         var register = CreateTestRegister();
 
         // Act
-        var cut = RenderComponent<RegisterCard>(parameters => parameters
+        var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert
@@ -81,7 +81,7 @@ public class RegisterCardTests : TestContext
         var register = CreateTestRegister(height: 1234);
 
         // Act
-        var cut = RenderComponent<RegisterCard>(parameters => parameters
+        var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert
@@ -95,7 +95,7 @@ public class RegisterCardTests : TestContext
         var register = CreateTestRegister(height: 1_500_000);
 
         // Act
-        var cut = RenderComponent<RegisterCard>(parameters => parameters
+        var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert
@@ -109,7 +109,7 @@ public class RegisterCardTests : TestContext
         var register = CreateTestRegister(height: 42);
 
         // Act
-        var cut = RenderComponent<RegisterCard>(parameters => parameters
+        var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert
@@ -123,7 +123,7 @@ public class RegisterCardTests : TestContext
         var register = CreateTestRegister(advertise: true);
 
         // Act
-        var cut = RenderComponent<RegisterCard>(parameters => parameters
+        var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert
@@ -137,7 +137,7 @@ public class RegisterCardTests : TestContext
         var register = CreateTestRegister(advertise: false);
 
         // Act
-        var cut = RenderComponent<RegisterCard>(parameters => parameters
+        var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert - "Public" text should not appear in the component
@@ -151,7 +151,7 @@ public class RegisterCardTests : TestContext
         var register = CreateTestRegister(status: RegisterStatus.Online);
 
         // Act
-        var cut = RenderComponent<RegisterCard>(parameters => parameters
+        var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert - The RegisterStatusBadge component should be rendered
@@ -167,7 +167,7 @@ public class RegisterCardTests : TestContext
         RegisterViewModel? clickedRegister = null;
 
         // Act
-        var cut = RenderComponent<RegisterCard>(parameters => parameters
+        var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register)
             .Add(p => p.OnClick, EventCallback.Factory.Create<RegisterViewModel>(
                 this, (r) => clickedRegister = r)));
@@ -187,7 +187,7 @@ public class RegisterCardTests : TestContext
         var register = CreateTestRegister();
 
         // Act
-        var cut = RenderComponent<RegisterCard>(parameters => parameters
+        var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert
@@ -206,7 +206,7 @@ public class RegisterCardTests : TestContext
         var register = CreateTestRegister(status: status);
 
         // Act
-        var cut = RenderComponent<RegisterCard>(parameters => parameters
+        var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert - Should render without errors

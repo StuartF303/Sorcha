@@ -6,7 +6,6 @@ using FluentAssertions;
 using Sorcha.Wallet.Service.IntegrationTests.Fixtures;
 using Sorcha.Wallet.Service.Models;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sorcha.Wallet.Service.IntegrationTests;
 
@@ -19,14 +18,10 @@ namespace Sorcha.Wallet.Service.IntegrationTests;
 public class HDWalletPerformanceTests
 {
     private readonly HttpClient _client;
-    private readonly ITestOutputHelper _output;
 
-    public HDWalletPerformanceTests(
-        WalletServiceWebApplicationFactory factory,
-        ITestOutputHelper output)
+    public HDWalletPerformanceTests(WalletServiceWebApplicationFactory factory)
     {
         _client = factory.CreateAuthenticatedClient();
-        _output = output;
     }
 
     [Fact]
@@ -37,9 +32,9 @@ public class HDWalletPerformanceTests
         var iterations = 100;
         var latencies = new List<double>();
 
-        _output.WriteLine($"=== Address Registration Performance Test ===");
-        _output.WriteLine($"Iterations: {iterations}");
-        _output.WriteLine("");
+        Console.WriteLine($"=== Address Registration Performance Test ===");
+        Console.WriteLine($"Iterations: {iterations}");
+        Console.WriteLine("");
 
         // Act - Measure individual address registration latency
         // Use multiple accounts to avoid BIP44 gap limit (max 20 per account)
@@ -76,17 +71,17 @@ public class HDWalletPerformanceTests
         var throughput = iterations / (latencies.Sum() / 1000.0); // ops/sec
 
         // Output results
-        _output.WriteLine("=== Results ===");
-        _output.WriteLine($"Total Time:        {latencies.Sum():F2} ms");
-        _output.WriteLine($"Throughput:        {throughput:F2} ops/sec");
-        _output.WriteLine("");
-        _output.WriteLine("Latency Statistics:");
-        _output.WriteLine($"  Min:             {minLatency:F2} ms");
-        _output.WriteLine($"  Average:         {avgLatency:F2} ms");
-        _output.WriteLine($"  Max:             {maxLatency:F2} ms");
-        _output.WriteLine($"  P50 (median):    {p50:F2} ms");
-        _output.WriteLine($"  P95:             {p95:F2} ms");
-        _output.WriteLine($"  P99:             {p99:F2} ms");
+        Console.WriteLine("=== Results ===");
+        Console.WriteLine($"Total Time:        {latencies.Sum():F2} ms");
+        Console.WriteLine($"Throughput:        {throughput:F2} ops/sec");
+        Console.WriteLine("");
+        Console.WriteLine("Latency Statistics:");
+        Console.WriteLine($"  Min:             {minLatency:F2} ms");
+        Console.WriteLine($"  Average:         {avgLatency:F2} ms");
+        Console.WriteLine($"  Max:             {maxLatency:F2} ms");
+        Console.WriteLine($"  P50 (median):    {p50:F2} ms");
+        Console.WriteLine($"  P95:             {p95:F2} ms");
+        Console.WriteLine($"  P99:             {p99:F2} ms");
 
         // Assert performance targets (reasonable for in-memory implementation)
         avgLatency.Should().BeLessThan(100, "average latency should be under 100ms");
@@ -100,8 +95,8 @@ public class HDWalletPerformanceTests
         var wallet = await CreateTestWallet();
         var addressCounts = new[] { 10, 50, 100, 200 };
 
-        _output.WriteLine($"=== List Addresses Scalability Test ===");
-        _output.WriteLine("");
+        Console.WriteLine($"=== List Addresses Scalability Test ===");
+        Console.WriteLine("");
 
         foreach (var count in addressCounts)
         {
@@ -132,11 +127,11 @@ public class HDWalletPerformanceTests
             }
 
             var avgLatency = measurements.Average();
-            _output.WriteLine($"Address Count: {count:D3} | Avg Latency: {avgLatency:F2} ms");
+            Console.WriteLine($"Address Count: {count:D3} | Avg Latency: {avgLatency:F2} ms");
         }
 
-        _output.WriteLine("");
-        _output.WriteLine("Note: Latency should scale sub-linearly with address count");
+        Console.WriteLine("");
+        Console.WriteLine("Note: Latency should scale sub-linearly with address count");
     }
 
     [Fact]
@@ -147,11 +142,11 @@ public class HDWalletPerformanceTests
         var accountCount = 5;
         var addressesPerAccount = 50;
 
-        _output.WriteLine($"=== Gap Status Calculation Performance Test ===");
-        _output.WriteLine($"Accounts: {accountCount}");
-        _output.WriteLine($"Addresses per account: {addressesPerAccount}");
-        _output.WriteLine($"Total addresses: {accountCount * addressesPerAccount}");
-        _output.WriteLine("");
+        Console.WriteLine($"=== Gap Status Calculation Performance Test ===");
+        Console.WriteLine($"Accounts: {accountCount}");
+        Console.WriteLine($"Addresses per account: {addressesPerAccount}");
+        Console.WriteLine($"Total addresses: {accountCount * addressesPerAccount}");
+        Console.WriteLine("");
 
         // Register addresses across multiple accounts
         var sw = Stopwatch.StartNew();
@@ -188,11 +183,11 @@ public class HDWalletPerformanceTests
         var avgLatency = measurements.Average();
         var p95 = CalculatePercentile(measurements, 95);
 
-        _output.WriteLine("=== Results ===");
-        _output.WriteLine($"Registration Time: {registrationTime:F2} ms");
-        _output.WriteLine($"Gap Status Avg:    {avgLatency:F2} ms");
-        _output.WriteLine($"Gap Status P95:    {p95:F2} ms");
-        _output.WriteLine("");
+        Console.WriteLine("=== Results ===");
+        Console.WriteLine($"Registration Time: {registrationTime:F2} ms");
+        Console.WriteLine($"Gap Status Avg:    {avgLatency:F2} ms");
+        Console.WriteLine($"Gap Status P95:    {p95:F2} ms");
+        Console.WriteLine("");
 
         // Assert performance target
         avgLatency.Should().BeLessThan(100, "gap status calculation should be fast even with many addresses");
@@ -206,11 +201,11 @@ public class HDWalletPerformanceTests
         var concurrentRequests = 20;
         var requestsPerThread = 10;
 
-        _output.WriteLine($"=== Concurrent Address Registration Test ===");
-        _output.WriteLine($"Concurrent threads: {concurrentRequests}");
-        _output.WriteLine($"Requests per thread: {requestsPerThread}");
-        _output.WriteLine($"Total requests: {concurrentRequests * requestsPerThread}");
-        _output.WriteLine("");
+        Console.WriteLine($"=== Concurrent Address Registration Test ===");
+        Console.WriteLine($"Concurrent threads: {concurrentRequests}");
+        Console.WriteLine($"Requests per thread: {requestsPerThread}");
+        Console.WriteLine($"Total requests: {concurrentRequests * requestsPerThread}");
+        Console.WriteLine("");
 
         var tasks = new List<Task<List<double>>>();
         var sw = Stopwatch.StartNew();
@@ -259,13 +254,13 @@ public class HDWalletPerformanceTests
         var p95 = CalculatePercentile(allLatencies, 95);
         var p99 = CalculatePercentile(allLatencies, 99);
 
-        _output.WriteLine("=== Results ===");
-        _output.WriteLine($"Total Time:        {totalTime:F2} ms");
-        _output.WriteLine($"Successful:        {successCount} / {concurrentRequests * requestsPerThread}");
-        _output.WriteLine($"Throughput:        {throughput:F2} ops/sec");
-        _output.WriteLine($"Avg Latency:       {avgLatency:F2} ms");
-        _output.WriteLine($"P95 Latency:       {p95:F2} ms");
-        _output.WriteLine($"P99 Latency:       {p99:F2} ms");
+        Console.WriteLine("=== Results ===");
+        Console.WriteLine($"Total Time:        {totalTime:F2} ms");
+        Console.WriteLine($"Successful:        {successCount} / {concurrentRequests * requestsPerThread}");
+        Console.WriteLine($"Throughput:        {throughput:F2} ops/sec");
+        Console.WriteLine($"Avg Latency:       {avgLatency:F2} ms");
+        Console.WriteLine($"P95 Latency:       {p95:F2} ms");
+        Console.WriteLine($"P99 Latency:       {p99:F2} ms");
 
         // Assert performance and correctness
         successCount.Should().Be(concurrentRequests * requestsPerThread, "all requests should succeed");
@@ -279,9 +274,9 @@ public class HDWalletPerformanceTests
         var wallet = await CreateTestWallet();
         var totalAddresses = 100;
 
-        _output.WriteLine($"=== Filtered Query Performance Test ===");
-        _output.WriteLine($"Total addresses: {totalAddresses}");
-        _output.WriteLine("");
+        Console.WriteLine($"=== Filtered Query Performance Test ===");
+        Console.WriteLine($"Total addresses: {totalAddresses}");
+        Console.WriteLine("");
 
         // Register addresses with different types and accounts
         for (int i = 0; i < totalAddresses; i++)
@@ -321,7 +316,7 @@ public class HDWalletPerformanceTests
             ["Complex filter"] = "?type=receive&account=0&used=false"
         };
 
-        _output.WriteLine("Query Performance:");
+        Console.WriteLine("Query Performance:");
         foreach (var query in queries)
         {
             var measurements = new List<double>();
@@ -337,11 +332,11 @@ public class HDWalletPerformanceTests
             }
 
             var avgLatency = measurements.Average();
-            _output.WriteLine($"  {query.Key,-20} : {avgLatency:F2} ms");
+            Console.WriteLine($"  {query.Key,-20} : {avgLatency:F2} ms");
         }
 
-        _output.WriteLine("");
-        _output.WriteLine("Note: All queries should have similar performance (in-memory filtering)");
+        Console.WriteLine("");
+        Console.WriteLine("Note: All queries should have similar performance (in-memory filtering)");
     }
 
     [Fact]
@@ -351,9 +346,9 @@ public class HDWalletPerformanceTests
         var wallet = await CreateTestWallet();
         var addressCount = 50;
 
-        _output.WriteLine($"=== Update Operations Performance Test ===");
-        _output.WriteLine($"Addresses: {addressCount}");
-        _output.WriteLine("");
+        Console.WriteLine($"=== Update Operations Performance Test ===");
+        Console.WriteLine($"Addresses: {addressCount}");
+        Console.WriteLine("");
 
         // Register addresses across multiple accounts to avoid BIP44 gap limit
         for (int i = 0; i < addressCount; i++)
@@ -419,14 +414,14 @@ public class HDWalletPerformanceTests
         var markUsedAvg = markUsedMeasurements.Average();
         var markUsedP95 = CalculatePercentile(markUsedMeasurements, 95);
 
-        _output.WriteLine("=== Results ===");
-        _output.WriteLine($"Update Metadata:");
-        _output.WriteLine($"  Avg:     {updateAvg:F2} ms");
-        _output.WriteLine($"  P95:     {updateP95:F2} ms");
-        _output.WriteLine("");
-        _output.WriteLine($"Mark as Used:");
-        _output.WriteLine($"  Avg:     {markUsedAvg:F2} ms");
-        _output.WriteLine($"  P95:     {markUsedP95:F2} ms");
+        Console.WriteLine("=== Results ===");
+        Console.WriteLine($"Update Metadata:");
+        Console.WriteLine($"  Avg:     {updateAvg:F2} ms");
+        Console.WriteLine($"  P95:     {updateP95:F2} ms");
+        Console.WriteLine("");
+        Console.WriteLine($"Mark as Used:");
+        Console.WriteLine($"  Avg:     {markUsedAvg:F2} ms");
+        Console.WriteLine($"  P95:     {markUsedP95:F2} ms");
 
         // Assert performance targets
         updateAvg.Should().BeLessThan(100, "update should be fast");

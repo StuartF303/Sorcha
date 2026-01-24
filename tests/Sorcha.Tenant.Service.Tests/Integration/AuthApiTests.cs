@@ -23,18 +23,18 @@ public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>, I
         _factory = factory;
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _adminClient = _factory.CreateAdminClient();
         _unauthenticatedClient = _factory.CreateUnauthenticatedClient();
         await _factory.SeedTestDataAsync();
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _adminClient?.Dispose();
         _unauthenticatedClient?.Dispose();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     [Fact]
