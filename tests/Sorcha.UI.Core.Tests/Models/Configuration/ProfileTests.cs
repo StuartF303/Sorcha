@@ -171,9 +171,10 @@ public class ProfileTests
     }
 
     [Fact]
-    public void GetAuthTokenUrl_WithoutOverride_DerivesFromTenantService()
+    public void GetAuthTokenUrl_WithoutOverride_UsesDirectGatewayRoute()
     {
-        // Arrange
+        // Arrange - When using gateway (no explicit TenantServiceUrl),
+        // use the direct /api/service-auth/token route
         var profile = new Profile
         {
             Name = "test",
@@ -183,8 +184,27 @@ public class ProfileTests
         // Act
         var url = profile.GetAuthTokenUrl();
 
+        // Assert - Uses gateway's direct route, not tenant prefix
+        url.Should().Be("http://localhost:80/api/service-auth/token");
+    }
+
+    [Fact]
+    public void GetAuthTokenUrl_WithExplicitTenantServiceUrl_DerivesFromTenantService()
+    {
+        // Arrange - When TenantServiceUrl is explicitly set (e.g., Aspire),
+        // derive auth URL from it
+        var profile = new Profile
+        {
+            Name = "test",
+            SorchaServiceUrl = "http://gateway:80",
+            TenantServiceUrl = "https://localhost:7110"
+        };
+
+        // Act
+        var url = profile.GetAuthTokenUrl();
+
         // Assert
-        url.Should().Be("http://localhost:80/api/tenant/api/service-auth/token");
+        url.Should().Be("https://localhost:7110/api/service-auth/token");
     }
 
     [Fact]

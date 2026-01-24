@@ -174,17 +174,25 @@ public sealed record Profile
 
     /// <summary>
     /// Gets the resolved Auth Token endpoint URL.
-    /// Returns the override if specified, otherwise derives from Tenant Service URL.
+    /// Returns the override if specified, otherwise derives from base URL.
+    /// When using the API Gateway, uses the direct /api/service-auth/token route.
+    /// When using explicit TenantServiceUrl, appends /api/service-auth/token to it.
     /// </summary>
     public string GetAuthTokenUrl()
     {
         if (!string.IsNullOrWhiteSpace(AuthTokenUrl))
             return AuthTokenUrl;
 
-        var tenantUrl = GetTenantServiceUrl();
-        return string.IsNullOrWhiteSpace(tenantUrl)
+        // If TenantServiceUrl is explicitly set (e.g., Aspire direct connection),
+        // use it as the base for the auth endpoint
+        if (!string.IsNullOrWhiteSpace(TenantServiceUrl))
+            return $"{TenantServiceUrl.TrimEnd('/')}/api/service-auth/token";
+
+        // Otherwise, use the base URL with the gateway's direct route
+        // The gateway has a direct route for /api/service-auth/* to tenant service
+        return string.IsNullOrWhiteSpace(SorchaServiceUrl)
             ? string.Empty
-            : $"{tenantUrl}/api/service-auth/token";
+            : $"{SorchaServiceUrl.TrimEnd('/')}/api/service-auth/token";
     }
 
     #endregion
