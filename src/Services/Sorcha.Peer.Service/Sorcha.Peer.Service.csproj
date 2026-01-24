@@ -21,7 +21,7 @@
     <PackageReference Include="Google.Protobuf" Version="3.33.4" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.2" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.12.11" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.12.17" />
   </ItemGroup>
 
   <ItemGroup>

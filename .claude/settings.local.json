@@ -231,7 +231,11 @@
       "Skill(speckit.clarify)",
       "Skill(speckit.tasks)",
       "WebFetch(domain:www.schemastore.org)",
-      "Skill(speckit.implement)"
+      "Skill(speckit.implement)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5ZWIyNzViZC00NjJiLTRjZGQtYTMxNy1mOWRlYTljYzgzYzUiLCJqdGkiOiIzMTczYTkyZS1hMWU3LTRjYWYtODkwZi00M2JiNjcwNTJhZWMiLCJjbGllbnRfaWQiOiJzZXJ2aWNlLWRlbW8tc3AiLCJzZXJ2aWNlX25hbWUiOiJkZW1vLXNwIiwidG9rZW5fdHlwZSI6InNlcnZpY2UiLCJzY29wZSI6WyJhZG1pbiIsInBsYXRmb3JtOm1hbmFnZSIsIm9yZ2FuaXphdGlvbnM6bWFuYWdlIiwidXNlcnM6bWFuYWdlIl0sIm5iZiI6MTc2OTI1OTY2NSwiZXhwIjoxNzY5Mjg4NDY1LCJpYXQiOjE3NjkyNTk2NjUsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3QiLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0In0.pOhgs4pZtllm31lIUvnxLDKxGnCGtkyfijg2qoj4A50\")",
+      "Bash(pushd \"C:\\\\Projects\\\\Sorcha\\\\src\\\\Apps\\\\Sorcha.Demo\")",
+      "Bash(popd)",
+      "WebFetch(domain:xunit.net)"
     ],
     "deny": [],
     "ask": []
