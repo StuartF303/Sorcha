@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Net;
 using Refit;
 using Sorcha.Cli.Infrastructure;
@@ -18,10 +19,10 @@ public class PeerCommand : Command
         IConfigurationService configService)
         : base("peer", "Monitor peer network and node health")
     {
-        AddCommand(new PeerListCommand(clientFactory, authService, configService));
-        AddCommand(new PeerGetCommand(clientFactory, authService, configService));
-        AddCommand(new PeerStatsCommand(clientFactory, authService, configService));
-        AddCommand(new PeerHealthCommand(clientFactory, authService, configService));
+        Subcommands.Add(new PeerListCommand(clientFactory, authService, configService));
+        Subcommands.Add(new PeerGetCommand(clientFactory, authService, configService));
+        Subcommands.Add(new PeerStatsCommand(clientFactory, authService, configService));
+        Subcommands.Add(new PeerHealthCommand(clientFactory, authService, configService));
     }
 }
 
@@ -36,7 +37,7 @@ public class PeerListCommand : Command
         IConfigurationService configService)
         : base("list", "List all known peers in the network")
     {
-        this.SetHandler(async () =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
             try
             {
@@ -58,7 +59,7 @@ public class PeerListCommand : Command
                 if (peers == null || peers.Count == 0)
                 {
                     ConsoleHelper.WriteInfo("No peers found in the network.");
-                    return;
+                    return ExitCodes.Success;
                 }
 
                 ConsoleHelper.WriteSuccess($"Found {peers.Count} peer(s) in the network:");
@@ -85,22 +86,24 @@ public class PeerListCommand : Command
                 var degraded = peers.Count(p => p.FailureCount > 0 && p.FailureCount < 3);
                 var unhealthy = peers.Count(p => p.FailureCount >= 3);
                 ConsoleHelper.WriteInfo($"Network Summary: {healthy} healthy, {degraded} degraded, {unhealthy} unhealthy");
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.ServiceUnavailable)
             {
                 ConsoleHelper.WriteError("Peer Service is unavailable. Make sure the service is running.");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (HttpRequestException ex)
             {
                 ConsoleHelper.WriteError($"Failed to connect to Peer Service: {ex.Message}");
                 ConsoleHelper.WriteInfo("Make sure the Peer Service is running and the profile URL is correct.");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to list peers: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
         });
     }
@@ -111,23 +114,26 @@ public class PeerListCommand : Command
 /// </summary>
 public class PeerGetCommand : Command
 {
+    private readonly Option<string> _peerIdOption;
+
     public PeerGetCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("get", "Get detailed information about a specific peer")
     {
-        var peerIdOption = new Option<string>(
-            aliases: new[] { "--id", "-i" },
-            description: "Peer ID")
+        _peerIdOption = new Option<string>("--id", "-i")
         {
-            IsRequired = true
+            Description = "Peer ID",
+            Required = true
         };
 
-        AddOption(peerIdOption);
+        Options.Add(_peerIdOption);
 
-        this.SetHandler(async (peerId) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var peerId = parseResult.GetValue(_peerIdOption)!;
+
             try
             {
                 // Get active profile
@@ -171,23 +177,25 @@ public class PeerGetCommand : Command
                 {
                     ConsoleHelper.WriteError($"Status: Unhealthy - peer has {peer.FailureCount} failures");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Peer '{peerId}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (HttpRequestException ex)
             {
                 ConsoleHelper.WriteError($"Failed to connect to Peer Service: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to get peer details: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, peerIdOption);
+        });
     }
 }
 
@@ -202,7 +210,7 @@ public class PeerStatsCommand : Command
         IConfigurationService configService)
         : base("stats", "Display peer network statistics")
     {
-        this.SetHandler(async () =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
             try
             {
@@ -281,16 +289,18 @@ public class PeerStatsCommand : Command
                 {
                     ConsoleHelper.WriteError($"Network Health: Critical ({healthPercentage:F1}% healthy)");
                 }
+
+                return ExitCodes.Success;
             }
             catch (HttpRequestException ex)
             {
                 ConsoleHelper.WriteError($"Failed to connect to Peer Service: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to get peer statistics: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
         });
     }
@@ -307,7 +317,7 @@ public class PeerHealthCommand : Command
         IConfigurationService configService)
         : base("health", "Check peer network health status")
     {
-        this.SetHandler(async () =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
             try
             {
@@ -359,30 +369,32 @@ public class PeerHealthCommand : Command
                 Console.WriteLine();
                 if (health.HealthPercentage >= 80)
                 {
-                    ConsoleHelper.WriteSuccess("✓ Network is healthy");
+                    ConsoleHelper.WriteSuccess("Network is healthy");
                 }
                 else if (health.HealthPercentage >= 60)
                 {
-                    ConsoleHelper.WriteWarning("⚠ Network health is degraded");
+                    ConsoleHelper.WriteWarning("Network health is degraded");
                 }
                 else if (health.HealthPercentage >= 40)
                 {
-                    ConsoleHelper.WriteError("⚠ Network health is poor");
+                    ConsoleHelper.WriteError("Network health is poor");
                 }
                 else
                 {
-                    ConsoleHelper.WriteError("✗ Network health is critical");
+                    ConsoleHelper.WriteError("Network health is critical");
                 }
+
+                return ExitCodes.Success;
             }
             catch (HttpRequestException ex)
             {
                 ConsoleHelper.WriteError($"Failed to connect to Peer Service: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to get peer health: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
         });
     }

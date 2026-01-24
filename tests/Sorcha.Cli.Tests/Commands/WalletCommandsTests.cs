@@ -65,8 +65,8 @@ public class WalletCommandsTests
     public async Task WalletListCommand_ShouldParseArguments()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new WalletListCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("list");
+        rootCommand.Subcommands.Add(new WalletListCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("list").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -88,15 +88,15 @@ public class WalletCommandsTests
         var command = new WalletGetCommand(_clientFactory, AuthService, ConfigService);
         var addressOption = command.Options.FirstOrDefault(o => o.Name == "address");
         addressOption.Should().NotBeNull();
-        addressOption!.IsRequired.Should().BeTrue();
+        addressOption!.Required.Should().BeTrue();
     }
 
     [Fact]
     public async Task WalletGetCommand_ShouldParseArguments_WithRequiredAddress()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new WalletGetCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("get --address wallet-123");
+        rootCommand.Subcommands.Add(new WalletGetCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("get --address wallet-123").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -118,7 +118,7 @@ public class WalletCommandsTests
         var command = new WalletCreateCommand(_clientFactory, AuthService, ConfigService);
         var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
         nameOption.Should().NotBeNull();
-        nameOption!.IsRequired.Should().BeTrue();
+        nameOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public class WalletCommandsTests
         var command = new WalletCreateCommand(_clientFactory, AuthService, ConfigService);
         var algorithmOption = command.Options.FirstOrDefault(o => o.Name == "algorithm");
         algorithmOption.Should().NotBeNull();
-        algorithmOption!.IsRequired.Should().BeFalse();
+        algorithmOption!.Required.Should().BeFalse();
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public class WalletCommandsTests
         var command = new WalletCreateCommand(_clientFactory, AuthService, ConfigService);
         var wordCountOption = command.Options.FirstOrDefault(o => o.Name == "word-count");
         wordCountOption.Should().NotBeNull();
-        wordCountOption!.IsRequired.Should().BeFalse();
+        wordCountOption!.Required.Should().BeFalse();
     }
 
     [Fact]
@@ -145,15 +145,15 @@ public class WalletCommandsTests
         var command = new WalletCreateCommand(_clientFactory, AuthService, ConfigService);
         var passphraseOption = command.Options.FirstOrDefault(o => o.Name == "passphrase");
         passphraseOption.Should().NotBeNull();
-        passphraseOption!.IsRequired.Should().BeFalse();
+        passphraseOption!.Required.Should().BeFalse();
     }
 
     [Fact]
     public async Task WalletCreateCommand_ShouldParseArguments_WithRequiredName()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new WalletCreateCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("create --name \"My Wallet\"");
+        rootCommand.Subcommands.Add(new WalletCreateCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("create --name \"My Wallet\"").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -161,8 +161,8 @@ public class WalletCommandsTests
     public async Task WalletCreateCommand_ShouldParseArguments_WithAllOptions()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new WalletCreateCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("create --name \"My Wallet\" --algorithm ED25519 --word-count 12 --passphrase secret");
+        rootCommand.Subcommands.Add(new WalletCreateCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("create --name \"My Wallet\" --algorithm ED25519 --word-count 12 --passphrase secret").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -184,7 +184,7 @@ public class WalletCommandsTests
         var command = new WalletRecoverCommand(_clientFactory, AuthService, ConfigService);
         var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
         nameOption.Should().NotBeNull();
-        nameOption!.IsRequired.Should().BeTrue();
+        nameOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public class WalletCommandsTests
         var command = new WalletRecoverCommand(_clientFactory, AuthService, ConfigService);
         var mnemonicOption = command.Options.FirstOrDefault(o => o.Name == "mnemonic");
         mnemonicOption.Should().NotBeNull();
-        mnemonicOption!.IsRequired.Should().BeTrue();
+        mnemonicOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public class WalletCommandsTests
         var command = new WalletRecoverCommand(_clientFactory, AuthService, ConfigService);
         var algorithmOption = command.Options.FirstOrDefault(o => o.Name == "algorithm");
         algorithmOption.Should().NotBeNull();
-        algorithmOption!.IsRequired.Should().BeFalse();
+        algorithmOption!.Required.Should().BeFalse();
     }
 
     [Fact]
@@ -211,15 +211,15 @@ public class WalletCommandsTests
         var command = new WalletRecoverCommand(_clientFactory, AuthService, ConfigService);
         var passphraseOption = command.Options.FirstOrDefault(o => o.Name == "passphrase");
         passphraseOption.Should().NotBeNull();
-        passphraseOption!.IsRequired.Should().BeFalse();
+        passphraseOption!.Required.Should().BeFalse();
     }
 
     [Fact]
     public async Task WalletRecoverCommand_ShouldParseArguments_WithRequiredOptions()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new WalletRecoverCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("recover --name \"Recovered Wallet\" --mnemonic \"word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12\"");
+        rootCommand.Subcommands.Add(new WalletRecoverCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("recover --name \"Recovered Wallet\" --mnemonic \"word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12\"").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -227,8 +227,8 @@ public class WalletCommandsTests
     public async Task WalletRecoverCommand_ShouldParseArguments_WithAllOptions()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new WalletRecoverCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("recover --name \"Recovered Wallet\" --algorithm ED25519 --mnemonic \"word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12\" --passphrase secret");
+        rootCommand.Subcommands.Add(new WalletRecoverCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("recover --name \"Recovered Wallet\" --algorithm ED25519 --mnemonic \"word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12\" --passphrase secret").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -250,7 +250,7 @@ public class WalletCommandsTests
         var command = new WalletDeleteCommand(_clientFactory, AuthService, ConfigService);
         var addressOption = command.Options.FirstOrDefault(o => o.Name == "address");
         addressOption.Should().NotBeNull();
-        addressOption!.IsRequired.Should().BeTrue();
+        addressOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -259,15 +259,15 @@ public class WalletCommandsTests
         var command = new WalletDeleteCommand(_clientFactory, AuthService, ConfigService);
         var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
         yesOption.Should().NotBeNull();
-        yesOption!.IsRequired.Should().BeFalse();
+        yesOption!.Required.Should().BeFalse();
     }
 
     [Fact]
     public async Task WalletDeleteCommand_ShouldParseArguments_WithRequiredAddress()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new WalletDeleteCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("delete --address wallet-123");
+        rootCommand.Subcommands.Add(new WalletDeleteCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("delete --address wallet-123").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -275,8 +275,8 @@ public class WalletCommandsTests
     public async Task WalletDeleteCommand_ShouldParseArguments_WithYesFlag()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new WalletDeleteCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("delete --address wallet-123 --yes");
+        rootCommand.Subcommands.Add(new WalletDeleteCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("delete --address wallet-123 --yes").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -298,7 +298,7 @@ public class WalletCommandsTests
         var command = new WalletSignCommand(_clientFactory, AuthService, ConfigService);
         var addressOption = command.Options.FirstOrDefault(o => o.Name == "address");
         addressOption.Should().NotBeNull();
-        addressOption!.IsRequired.Should().BeTrue();
+        addressOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -307,15 +307,15 @@ public class WalletCommandsTests
         var command = new WalletSignCommand(_clientFactory, AuthService, ConfigService);
         var dataOption = command.Options.FirstOrDefault(o => o.Name == "data");
         dataOption.Should().NotBeNull();
-        dataOption!.IsRequired.Should().BeTrue();
+        dataOption!.Required.Should().BeTrue();
     }
 
     [Fact]
     public async Task WalletSignCommand_ShouldParseArguments_WithRequiredOptions()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new WalletSignCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("sign --address wallet-123 --data dGVzdCBkYXRh");
+        rootCommand.Subcommands.Add(new WalletSignCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("sign --address wallet-123 --data dGVzdCBkYXRh").InvokeAsync();
         exitCode.Should().Be(0);
     }
 

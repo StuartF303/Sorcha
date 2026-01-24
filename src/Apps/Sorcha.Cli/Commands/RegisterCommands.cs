@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Net;
 using Refit;
 using Sorcha.Cli.Infrastructure;
@@ -18,10 +19,10 @@ public class RegisterCommand : Command
         IConfigurationService configService)
         : base("register", "Manage registers (distributed ledgers)")
     {
-        AddCommand(new RegisterListCommand(clientFactory, authService, configService));
-        AddCommand(new RegisterGetCommand(clientFactory, authService, configService));
-        AddCommand(new RegisterCreateCommand(clientFactory, authService, configService));
-        AddCommand(new RegisterDeleteCommand(clientFactory, authService, configService));
+        Subcommands.Add(new RegisterListCommand(clientFactory, authService, configService));
+        Subcommands.Add(new RegisterGetCommand(clientFactory, authService, configService));
+        Subcommands.Add(new RegisterCreateCommand(clientFactory, authService, configService));
+        Subcommands.Add(new RegisterDeleteCommand(clientFactory, authService, configService));
     }
 }
 
@@ -36,7 +37,7 @@ public class RegisterListCommand : Command
         IConfigurationService configService)
         : base("list", "List all registers")
     {
-        this.SetHandler(async () =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
             try
             {
@@ -50,8 +51,7 @@ public class RegisterListCommand : Command
                 {
                     ConsoleHelper.WriteError("You must be authenticated to list registers.");
                     ConsoleHelper.WriteInfo("Run 'sorcha auth login' to authenticate.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Register Service client
@@ -64,7 +64,7 @@ public class RegisterListCommand : Command
                 if (registers == null || registers.Count == 0)
                 {
                     ConsoleHelper.WriteInfo("No registers found.");
-                    return;
+                    return ExitCodes.Success;
                 }
 
                 ConsoleHelper.WriteSuccess($"Found {registers.Count} register(s):");
@@ -79,17 +79,19 @@ public class RegisterListCommand : Command
                     var status = register.IsActive ? "Active" : "Inactive";
                     Console.WriteLine($"{register.Id,-38} {register.Name,-30} {register.OrganizationId,-38} {register.TransactionCount,12} {status,-10} {register.CreatedAt:yyyy-MM-dd}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Your access token may have expired.");
                 ConsoleHelper.WriteInfo("Run 'sorcha auth login' to re-authenticate.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
             {
                 ConsoleHelper.WriteError("You do not have permission to list registers.");
-                Environment.ExitCode = ExitCodes.AuthorizationError;
+                return ExitCodes.AuthorizationError;
             }
             catch (ApiException ex)
             {
@@ -98,12 +100,12 @@ public class RegisterListCommand : Command
                 {
                     ConsoleHelper.WriteError($"Details: {ex.Content}");
                 }
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to list registers: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
         });
     }
@@ -114,23 +116,26 @@ public class RegisterListCommand : Command
 /// </summary>
 public class RegisterGetCommand : Command
 {
+    private readonly Option<string> _idOption;
+
     public RegisterGetCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("get", "Get a register by ID")
     {
-        var idOption = new Option<string>(
-            aliases: new[] { "--id", "-i" },
-            description: "Register ID")
+        _idOption = new Option<string>("--id", "-i")
         {
-            IsRequired = true
+            Description = "Register ID",
+            Required = true
         };
 
-        AddOption(idOption);
+        Options.Add(_idOption);
 
-        this.SetHandler(async (id) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var id = parseResult.GetValue(_idOption)!;
+
             try
             {
                 // Get active profile
@@ -143,8 +148,7 @@ public class RegisterGetCommand : Command
                 {
                     ConsoleHelper.WriteError("You must be authenticated to get a register.");
                     ConsoleHelper.WriteInfo("Run 'sorcha auth login' to authenticate.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Register Service client
@@ -167,22 +171,24 @@ public class RegisterGetCommand : Command
                 {
                     Console.WriteLine($"  Description:     {register.Description}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Register '{id}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Your access token may have expired.");
                 ConsoleHelper.WriteInfo("Run 'sorcha auth login' to re-authenticate.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
             {
                 ConsoleHelper.WriteError("You do not have permission to view this register.");
-                Environment.ExitCode = ExitCodes.AuthorizationError;
+                return ExitCodes.AuthorizationError;
             }
             catch (ApiException ex)
             {
@@ -191,14 +197,14 @@ public class RegisterGetCommand : Command
                 {
                     ConsoleHelper.WriteError($"Details: {ex.Content}");
                 }
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to get register: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, idOption);
+        });
     }
 }
 
@@ -207,36 +213,43 @@ public class RegisterGetCommand : Command
 /// </summary>
 public class RegisterCreateCommand : Command
 {
+    private readonly Option<string> _nameOption;
+    private readonly Option<string> _orgIdOption;
+    private readonly Option<string?> _descriptionOption;
+
     public RegisterCreateCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("create", "Create a new register")
     {
-        var nameOption = new Option<string>(
-            aliases: new[] { "--name", "-n" },
-            description: "Register name")
+        _nameOption = new Option<string>("--name", "-n")
         {
-            IsRequired = true
+            Description = "Register name",
+            Required = true
         };
 
-        var orgIdOption = new Option<string>(
-            aliases: new[] { "--org-id", "-o" },
-            description: "Organization ID")
+        _orgIdOption = new Option<string>("--org-id", "-o")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        var descriptionOption = new Option<string?>(
-            aliases: new[] { "--description", "-d" },
-            description: "Register description");
-
-        AddOption(nameOption);
-        AddOption(orgIdOption);
-        AddOption(descriptionOption);
-
-        this.SetHandler(async (name, orgId, description) =>
+        _descriptionOption = new Option<string?>("--description", "-d")
         {
+            Description = "Register description"
+        };
+
+        Options.Add(_nameOption);
+        Options.Add(_orgIdOption);
+        Options.Add(_descriptionOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var name = parseResult.GetValue(_nameOption)!;
+            var orgId = parseResult.GetValue(_orgIdOption)!;
+            var description = parseResult.GetValue(_descriptionOption);
+
             try
             {
                 // Get active profile
@@ -249,8 +262,7 @@ public class RegisterCreateCommand : Command
                 {
                     ConsoleHelper.WriteError("You must be authenticated to create a register.");
                     ConsoleHelper.WriteInfo("Run 'sorcha auth login' to authenticate.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Register Service client
@@ -283,6 +295,8 @@ public class RegisterCreateCommand : Command
 
                 Console.WriteLine();
                 ConsoleHelper.WriteInfo($"Use 'sorcha register get --id {register.Id}' to view details.");
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
             {
@@ -291,23 +305,23 @@ public class RegisterCreateCommand : Command
                 {
                     ConsoleHelper.WriteError($"Details: {ex.Content}");
                 }
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Your access token may have expired.");
                 ConsoleHelper.WriteInfo("Run 'sorcha auth login' to re-authenticate.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
             {
                 ConsoleHelper.WriteError("You do not have permission to create registers.");
-                Environment.ExitCode = ExitCodes.AuthorizationError;
+                return ExitCodes.AuthorizationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
             {
                 ConsoleHelper.WriteError($"A register with name '{name}' already exists in organization '{orgId}'.");
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex)
             {
@@ -316,14 +330,14 @@ public class RegisterCreateCommand : Command
                 {
                     ConsoleHelper.WriteError($"Details: {ex.Content}");
                 }
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to create register: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, nameOption, orgIdOption, descriptionOption);
+        });
     }
 }
 
@@ -332,28 +346,34 @@ public class RegisterCreateCommand : Command
 /// </summary>
 public class RegisterDeleteCommand : Command
 {
+    private readonly Option<string> _idOption;
+    private readonly Option<bool> _confirmOption;
+
     public RegisterDeleteCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("delete", "Delete a register")
     {
-        var idOption = new Option<string>(
-            aliases: new[] { "--id", "-i" },
-            description: "Register ID")
+        _idOption = new Option<string>("--id", "-i")
         {
-            IsRequired = true
+            Description = "Register ID",
+            Required = true
         };
 
-        var confirmOption = new Option<bool>(
-            aliases: new[] { "--yes", "-y" },
-            description: "Skip confirmation prompt");
-
-        AddOption(idOption);
-        AddOption(confirmOption);
-
-        this.SetHandler(async (id, confirm) =>
+        _confirmOption = new Option<bool>("--yes", "-y")
         {
+            Description = "Skip confirmation prompt"
+        };
+
+        Options.Add(_idOption);
+        Options.Add(_confirmOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var id = parseResult.GetValue(_idOption)!;
+            var confirm = parseResult.GetValue(_confirmOption);
+
             try
             {
                 // Get active profile
@@ -366,8 +386,7 @@ public class RegisterDeleteCommand : Command
                 {
                     ConsoleHelper.WriteError("You must be authenticated to delete a register.");
                     ConsoleHelper.WriteInfo("Run 'sorcha auth login' to authenticate.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Register Service client
@@ -376,14 +395,14 @@ public class RegisterDeleteCommand : Command
                 // Confirm deletion
                 if (!confirm)
                 {
-                    ConsoleHelper.WriteWarning("⚠️  WARNING: This will permanently delete the register and all its transactions.");
+                    ConsoleHelper.WriteWarning("WARNING: This will permanently delete the register and all its transactions.");
                     Console.Write($"Are you sure you want to delete register '{id}'? [y/N]: ");
                     var response = Console.ReadLine()?.Trim().ToLowerInvariant();
 
                     if (response != "y" && response != "yes")
                     {
                         ConsoleHelper.WriteInfo("Deletion cancelled.");
-                        return;
+                        return ExitCodes.Success;
                     }
                 }
 
@@ -392,22 +411,23 @@ public class RegisterDeleteCommand : Command
 
                 // Display results
                 ConsoleHelper.WriteSuccess($"Register '{id}' deleted successfully.");
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Register '{id}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Your access token may have expired.");
                 ConsoleHelper.WriteInfo("Run 'sorcha auth login' to re-authenticate.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
             {
                 ConsoleHelper.WriteError("You do not have permission to delete this register.");
-                Environment.ExitCode = ExitCodes.AuthorizationError;
+                return ExitCodes.AuthorizationError;
             }
             catch (ApiException ex)
             {
@@ -416,13 +436,13 @@ public class RegisterDeleteCommand : Command
                 {
                     ConsoleHelper.WriteError($"Details: {ex.Content}");
                 }
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to delete register: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, idOption, confirmOption);
+        });
     }
 }

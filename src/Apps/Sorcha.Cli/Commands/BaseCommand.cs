@@ -1,5 +1,5 @@
 using System.CommandLine;
-using System.CommandLine.Invocation;
+using System.CommandLine.Parsing;
 
 namespace Sorcha.Cli.Commands;
 
@@ -18,42 +18,42 @@ public abstract class BaseCommand : Command
     protected BaseCommand(string name, string? description = null)
         : base(name, description)
     {
-        this.SetHandler(HandleCommandAsync);
+        this.SetAction(HandleCommandAsync);
     }
 
     /// <summary>
     /// Handles command execution with error handling and output formatting.
     /// </summary>
-    private async Task<int> HandleCommandAsync(InvocationContext context)
+    private async Task<int> HandleCommandAsync(ParseResult parseResult, CancellationToken cancellationToken)
     {
         try
         {
-            var commandContext = BuildCommandContext(context);
+            var commandContext = BuildCommandContext(parseResult);
             return await ExecuteAsync(commandContext);
         }
         catch (UnauthorizedAccessException ex)
         {
-            WriteError(context, "Authentication required. Please login first.", ex);
+            WriteError(parseResult, "Authentication required. Please login first.", ex);
             return ExitCodes.AuthenticationError;
         }
         catch (InvalidOperationException ex)
         {
-            WriteError(context, ex.Message, ex);
+            WriteError(parseResult, ex.Message, ex);
             return ExitCodes.GeneralError;
         }
         catch (ArgumentException ex)
         {
-            WriteError(context, $"Invalid argument: {ex.Message}", ex);
+            WriteError(parseResult, $"Invalid argument: {ex.Message}", ex);
             return ExitCodes.ValidationError;
         }
         catch (HttpRequestException ex)
         {
-            WriteError(context, $"Network error: {ex.Message}", ex);
+            WriteError(parseResult, $"Network error: {ex.Message}", ex);
             return ExitCodes.NetworkError;
         }
         catch (Exception ex)
         {
-            WriteError(context, $"Unexpected error: {ex.Message}", ex);
+            WriteError(parseResult, $"Unexpected error: {ex.Message}", ex);
             return ExitCodes.GeneralError;
         }
     }
@@ -66,20 +66,17 @@ public abstract class BaseCommand : Command
     protected abstract Task<int> ExecuteAsync(CommandContext context);
 
     /// <summary>
-    /// Builds the command context from invocation context.
+    /// Builds the command context from parse result.
     /// Override this method to extract command-specific options.
     /// </summary>
-    protected virtual CommandContext BuildCommandContext(InvocationContext invocationContext)
+    protected virtual CommandContext BuildCommandContext(ParseResult parseResult)
     {
-        // This will be populated with actual services via DI in a future task
-        var parseResult = invocationContext.ParseResult;
-
         return new CommandContext
         {
-            ProfileName = (ProfileOption != null ? parseResult.GetValueForOption(ProfileOption) : null) ?? "dev",
-            OutputFormat = (OutputOption != null ? parseResult.GetValueForOption(OutputOption) : null) ?? "table",
-            Quiet = QuietOption != null && parseResult.GetValueForOption(QuietOption),
-            Verbose = VerboseOption != null && parseResult.GetValueForOption(VerboseOption)
+            ProfileName = (ProfileOption != null ? parseResult.GetValue(ProfileOption) : null) ?? "dev",
+            OutputFormat = (OutputOption != null ? parseResult.GetValue(OutputOption) : null) ?? "table",
+            Quiet = QuietOption != null && parseResult.GetValue(QuietOption),
+            Verbose = VerboseOption != null && parseResult.GetValue(VerboseOption)
         };
     }
 
@@ -145,9 +142,9 @@ public abstract class BaseCommand : Command
     /// <summary>
     /// Writes an error message to stderr.
     /// </summary>
-    protected void WriteError(InvocationContext context, string message, Exception? exception = null)
+    protected void WriteError(ParseResult parseResult, string message, Exception? exception = null)
     {
-        var verbose = VerboseOption != null && context.ParseResult.GetValueForOption(VerboseOption);
+        var verbose = VerboseOption != null && parseResult.GetValue(VerboseOption);
 
         Console.Error.WriteLine($"Error: {message}");
 

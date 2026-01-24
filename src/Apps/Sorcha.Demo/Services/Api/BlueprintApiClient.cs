@@ -80,19 +80,25 @@ public class BlueprintApiClient : ApiClientBase
     public async Task<ActionExecutionResponse?> ExecuteActionAsync(
         string instanceId,
         int actionId,
+        string blueprintId,
         Dictionary<string, object> actionData,
-        string participantId,
-        string walletAddress,
+        string senderWallet,
+        string registerAddress,
+        string? previousTransactionHash = null,
         CancellationToken ct = default)
     {
-        var request = new
+        var request = new ActionSubmissionRequest
         {
-            actionData,
-            participantId,
-            walletAddress
+            BlueprintId = blueprintId,
+            ActionId = actionId.ToString(),
+            InstanceId = instanceId,
+            SenderWallet = senderWallet,
+            RegisterAddress = registerAddress,
+            PayloadData = actionData,
+            PreviousTransactionHash = previousTransactionHash
         };
 
-        return await PostAsync<object, ActionExecutionResponse>(
+        return await PostAsync<ActionSubmissionRequest, ActionExecutionResponse>(
             $"{_baseUrl}/instances/{instanceId}/actions/{actionId}/execute",
             request,
             ct);
@@ -184,4 +190,18 @@ public class ActionExecutionRecord
     public string? TransactionHash { get; set; }
     public DateTime ExecutedAt { get; set; }
     public Dictionary<string, object> ActionData { get; set; } = new();
+}
+
+/// <summary>
+/// Request to submit an action for execution (matches Blueprint.Service model)
+/// </summary>
+public class ActionSubmissionRequest
+{
+    public required string BlueprintId { get; init; }
+    public required string ActionId { get; init; }
+    public string? InstanceId { get; init; }
+    public string? PreviousTransactionHash { get; init; }
+    public required string SenderWallet { get; init; }
+    public required string RegisterAddress { get; init; }
+    public required Dictionary<string, object> PayloadData { get; init; }
 }

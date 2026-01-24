@@ -65,8 +65,8 @@ public class RegisterCommandsTests
     public async Task RegisterListCommand_ShouldExecuteSuccessfully()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new RegisterListCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("list");
+        rootCommand.Subcommands.Add(new RegisterListCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("list").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -88,15 +88,15 @@ public class RegisterCommandsTests
         var command = new RegisterGetCommand(_clientFactory, AuthService, ConfigService);
         var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
         idOption.Should().NotBeNull();
-        idOption!.IsRequired.Should().BeTrue();
+        idOption!.Required.Should().BeTrue();
     }
 
     [Fact]
     public async Task RegisterGetCommand_ShouldExecuteSuccessfully_WithRequiredId()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new RegisterGetCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("get --id test-register-123");
+        rootCommand.Subcommands.Add(new RegisterGetCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("get --id test-register-123").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -118,7 +118,7 @@ public class RegisterCommandsTests
         var command = new RegisterCreateCommand(_clientFactory, AuthService, ConfigService);
         var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
         nameOption.Should().NotBeNull();
-        nameOption!.IsRequired.Should().BeTrue();
+        nameOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public class RegisterCommandsTests
         var command = new RegisterCreateCommand(_clientFactory, AuthService, ConfigService);
         var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
         orgIdOption.Should().NotBeNull();
-        orgIdOption!.IsRequired.Should().BeTrue();
+        orgIdOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -136,15 +136,15 @@ public class RegisterCommandsTests
         var command = new RegisterCreateCommand(_clientFactory, AuthService, ConfigService);
         var descOption = command.Options.FirstOrDefault(o => o.Name == "description");
         descOption.Should().NotBeNull();
-        descOption!.IsRequired.Should().BeFalse();
+        descOption!.Required.Should().BeFalse();
     }
 
     [Fact]
     public async Task RegisterCreateCommand_ShouldExecuteSuccessfully_WithAllOptions()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new RegisterCreateCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("create --name TestReg --org-id org-123 --description \"Test register\"");
+        rootCommand.Subcommands.Add(new RegisterCreateCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("create --name TestReg --org-id org-123 --description \"Test register\"").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -152,8 +152,8 @@ public class RegisterCommandsTests
     public async Task RegisterCreateCommand_ShouldExecuteSuccessfully_WithoutOptionalDescription()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new RegisterCreateCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("create --name TestReg --org-id org-123");
+        rootCommand.Subcommands.Add(new RegisterCreateCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("create --name TestReg --org-id org-123").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -175,7 +175,7 @@ public class RegisterCommandsTests
         var command = new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService);
         var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
         idOption.Should().NotBeNull();
-        idOption!.IsRequired.Should().BeTrue();
+        idOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -184,15 +184,15 @@ public class RegisterCommandsTests
         var command = new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService);
         var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
         yesOption.Should().NotBeNull();
-        yesOption!.IsRequired.Should().BeFalse();
+        yesOption!.Required.Should().BeFalse();
     }
 
     [Fact]
     public async Task RegisterDeleteCommand_ShouldExecuteSuccessfully_WithRequiredId()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("delete --id test-register-123");
+        rootCommand.Subcommands.Add(new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("delete --id test-register-123").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -200,8 +200,8 @@ public class RegisterCommandsTests
     public async Task RegisterDeleteCommand_ShouldExecuteSuccessfully_WithYesFlag()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("delete --id test-register-123 --yes");
+        rootCommand.Subcommands.Add(new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("delete --id test-register-123 --yes").InvokeAsync();
         exitCode.Should().Be(0);
     }
 

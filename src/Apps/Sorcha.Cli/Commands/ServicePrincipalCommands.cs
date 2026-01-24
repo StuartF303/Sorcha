@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Net;
 using Refit;
 using Sorcha.Cli.Infrastructure;
@@ -18,11 +19,11 @@ public class ServicePrincipalCommand : Command
         IConfigurationService configService)
         : base("principal", "Manage service principals within organizations")
     {
-        AddCommand(new PrincipalListCommand(clientFactory, authService, configService));
-        AddCommand(new PrincipalGetCommand(clientFactory, authService, configService));
-        AddCommand(new PrincipalCreateCommand(clientFactory, authService, configService));
-        AddCommand(new PrincipalDeleteCommand(clientFactory, authService, configService));
-        AddCommand(new PrincipalRotateSecretCommand(clientFactory, authService, configService));
+        Subcommands.Add(new PrincipalListCommand(clientFactory, authService, configService));
+        Subcommands.Add(new PrincipalGetCommand(clientFactory, authService, configService));
+        Subcommands.Add(new PrincipalCreateCommand(clientFactory, authService, configService));
+        Subcommands.Add(new PrincipalDeleteCommand(clientFactory, authService, configService));
+        Subcommands.Add(new PrincipalRotateSecretCommand(clientFactory, authService, configService));
     }
 }
 
@@ -31,23 +32,26 @@ public class ServicePrincipalCommand : Command
 /// </summary>
 public class PrincipalListCommand : Command
 {
+    private readonly Option<string> _orgIdOption;
+
     public PrincipalListCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("list", "List all service principals in an organization")
     {
-        var orgIdOption = new Option<string>(
-            aliases: new[] { "--org-id", "-o" },
-            description: "Organization ID")
+        _orgIdOption = new Option<string>("--org-id", "-o")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        AddOption(orgIdOption);
+        Options.Add(_orgIdOption);
 
-        this.SetHandler(async (orgId) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var orgId = parseResult.GetValue(_orgIdOption)!;
+
             try
             {
                 // Get active profile
@@ -59,8 +63,7 @@ public class PrincipalListCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -73,7 +76,7 @@ public class PrincipalListCommand : Command
                 if (principals == null || principals.Count == 0)
                 {
                     ConsoleHelper.WriteInfo("No service principals found.");
-                    return;
+                    return ExitCodes.Success;
                 }
 
                 ConsoleHelper.WriteSuccess($"Found {principals.Count} service principal(s) in organization '{orgId}':");
@@ -86,28 +89,30 @@ public class PrincipalListCommand : Command
                     var active = sp.IsActive ? "Yes" : "No";
                     Console.WriteLine($"{sp.ClientId,-40} {sp.Name,-30} {active,-8} {scopes,-20}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Organization '{orgId}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Token may be expired. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to list service principals: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, orgIdOption);
+        });
     }
 }
 
@@ -116,31 +121,35 @@ public class PrincipalListCommand : Command
 /// </summary>
 public class PrincipalGetCommand : Command
 {
+    private readonly Option<string> _orgIdOption;
+    private readonly Option<string> _clientIdOption;
+
     public PrincipalGetCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("get", "Get a service principal by client ID")
     {
-        var orgIdOption = new Option<string>(
-            aliases: new[] { "--org-id", "-o" },
-            description: "Organization ID")
+        _orgIdOption = new Option<string>("--org-id", "-o")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        var clientIdOption = new Option<string>(
-            aliases: new[] { "--client-id", "-c" },
-            description: "Service principal client ID")
+        _clientIdOption = new Option<string>("--client-id", "-c")
         {
-            IsRequired = true
+            Description = "Service principal client ID",
+            Required = true
         };
 
-        AddOption(orgIdOption);
-        AddOption(clientIdOption);
+        Options.Add(_orgIdOption);
+        Options.Add(_clientIdOption);
 
-        this.SetHandler(async (orgId, clientId) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var orgId = parseResult.GetValue(_orgIdOption)!;
+            var clientId = parseResult.GetValue(_clientIdOption)!;
+
             try
             {
                 // Get active profile
@@ -152,8 +161,7 @@ public class PrincipalGetCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -186,28 +194,30 @@ public class PrincipalGetCommand : Command
                 {
                     Console.WriteLine($"  Secret Rotated:  {sp.SecretRotatedAt:yyyy-MM-dd HH:mm:ss}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Service principal '{clientId}' not found in organization '{orgId}'.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to get service principal: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, orgIdOption, clientIdOption);
+        });
     }
 }
 
@@ -216,41 +226,51 @@ public class PrincipalGetCommand : Command
 /// </summary>
 public class PrincipalCreateCommand : Command
 {
+    private readonly Option<string> _orgIdOption;
+    private readonly Option<string> _nameOption;
+    private readonly Option<string?> _descriptionOption;
+    private readonly Option<string?> _scopesOption;
+
     public PrincipalCreateCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("create", "Create a new service principal in an organization")
     {
-        var orgIdOption = new Option<string>(
-            aliases: new[] { "--org-id", "-o" },
-            description: "Organization ID")
+        _orgIdOption = new Option<string>("--org-id", "-o")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        var nameOption = new Option<string>(
-            aliases: new[] { "--name", "-n" },
-            description: "Service principal name")
+        _nameOption = new Option<string>("--name", "-n")
         {
-            IsRequired = true
+            Description = "Service principal name",
+            Required = true
         };
 
-        var descriptionOption = new Option<string?>(
-            aliases: new[] { "--description", "-d" },
-            description: "Service principal description");
-
-        var scopesOption = new Option<string?>(
-            aliases: new[] { "--scopes", "-s" },
-            description: "Comma-separated list of scopes/permissions (e.g., read,write,admin)");
-
-        AddOption(orgIdOption);
-        AddOption(nameOption);
-        AddOption(descriptionOption);
-        AddOption(scopesOption);
-
-        this.SetHandler(async (orgId, name, description, scopes) =>
+        _descriptionOption = new Option<string?>("--description", "-d")
         {
+            Description = "Service principal description"
+        };
+
+        _scopesOption = new Option<string?>("--scopes", "-s")
+        {
+            Description = "Comma-separated list of scopes/permissions (e.g., read,write,admin)"
+        };
+
+        Options.Add(_orgIdOption);
+        Options.Add(_nameOption);
+        Options.Add(_descriptionOption);
+        Options.Add(_scopesOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var orgId = parseResult.GetValue(_orgIdOption)!;
+            var name = parseResult.GetValue(_nameOption)!;
+            var description = parseResult.GetValue(_descriptionOption);
+            var scopes = parseResult.GetValue(_scopesOption);
+
             try
             {
                 // Get active profile
@@ -262,8 +282,7 @@ public class PrincipalCreateCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -297,43 +316,45 @@ public class PrincipalCreateCommand : Command
                     Console.WriteLine($"  Scopes:          {string.Join(", ", response.ServicePrincipal.Scopes)}");
                 }
                 Console.WriteLine();
-                ConsoleHelper.WriteWarning("⚠️  IMPORTANT: Save these credentials securely!");
+                ConsoleHelper.WriteWarning("IMPORTANT: Save these credentials securely!");
                 Console.WriteLine($"  Client Secret:   {response.ClientSecret}");
                 Console.WriteLine();
                 ConsoleHelper.WriteWarning("The client secret will NEVER be displayed again.");
                 ConsoleHelper.WriteWarning("Store it in a secure location (e.g., Azure Key Vault, AWS Secrets Manager).");
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Organization '{orgId}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
             {
                 ConsoleHelper.WriteError($"Invalid request: {ex.Content}");
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
             {
                 ConsoleHelper.WriteError($"Service principal with that name already exists.");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to create service principal: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, orgIdOption, nameOption, descriptionOption, scopesOption);
+        });
     }
 }
 
@@ -342,36 +363,43 @@ public class PrincipalCreateCommand : Command
 /// </summary>
 public class PrincipalDeleteCommand : Command
 {
+    private readonly Option<string> _orgIdOption;
+    private readonly Option<string> _clientIdOption;
+    private readonly Option<bool> _confirmOption;
+
     public PrincipalDeleteCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("delete", "Delete a service principal")
     {
-        var orgIdOption = new Option<string>(
-            aliases: new[] { "--org-id", "-o" },
-            description: "Organization ID")
+        _orgIdOption = new Option<string>("--org-id", "-o")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        var clientIdOption = new Option<string>(
-            aliases: new[] { "--client-id", "-c" },
-            description: "Service principal client ID")
+        _clientIdOption = new Option<string>("--client-id", "-c")
         {
-            IsRequired = true
+            Description = "Service principal client ID",
+            Required = true
         };
 
-        var confirmOption = new Option<bool>(
-            aliases: new[] { "--yes", "-y" },
-            description: "Skip confirmation prompt");
-
-        AddOption(orgIdOption);
-        AddOption(clientIdOption);
-        AddOption(confirmOption);
-
-        this.SetHandler(async (orgId, clientId, confirm) =>
+        _confirmOption = new Option<bool>("--yes", "-y")
         {
+            Description = "Skip confirmation prompt"
+        };
+
+        Options.Add(_orgIdOption);
+        Options.Add(_clientIdOption);
+        Options.Add(_confirmOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var orgId = parseResult.GetValue(_orgIdOption)!;
+            var clientId = parseResult.GetValue(_clientIdOption)!;
+            var confirm = parseResult.GetValue(_confirmOption);
+
             try
             {
                 // Confirm deletion
@@ -380,7 +408,7 @@ public class PrincipalDeleteCommand : Command
                     if (!ConsoleHelper.Confirm($"Are you sure you want to delete service principal '{clientId}' from organization '{orgId}'?", defaultYes: false))
                     {
                         ConsoleHelper.WriteInfo("Deletion cancelled.");
-                        return;
+                        return ExitCodes.Success;
                     }
                 }
 
@@ -393,8 +421,7 @@ public class PrincipalDeleteCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -405,28 +432,29 @@ public class PrincipalDeleteCommand : Command
 
                 // Display results
                 ConsoleHelper.WriteSuccess($"Service principal '{clientId}' deleted successfully.");
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Service principal '{clientId}' not found in organization '{orgId}'.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to delete service principal: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, orgIdOption, clientIdOption, confirmOption);
+        });
     }
 }
 
@@ -435,39 +463,43 @@ public class PrincipalDeleteCommand : Command
 /// </summary>
 public class PrincipalRotateSecretCommand : Command
 {
+    private readonly Option<string> _orgIdOption;
+    private readonly Option<string> _clientIdOption;
+
     public PrincipalRotateSecretCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("rotate-secret", "Rotate the client secret for a service principal")
     {
-        var orgIdOption = new Option<string>(
-            aliases: new[] { "--org-id", "-o" },
-            description: "Organization ID")
+        _orgIdOption = new Option<string>("--org-id", "-o")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        var clientIdOption = new Option<string>(
-            aliases: new[] { "--client-id", "-c" },
-            description: "Service principal client ID")
+        _clientIdOption = new Option<string>("--client-id", "-c")
         {
-            IsRequired = true
+            Description = "Service principal client ID",
+            Required = true
         };
 
-        AddOption(orgIdOption);
-        AddOption(clientIdOption);
+        Options.Add(_orgIdOption);
+        Options.Add(_clientIdOption);
 
-        this.SetHandler(async (orgId, clientId) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var orgId = parseResult.GetValue(_orgIdOption)!;
+            var clientId = parseResult.GetValue(_clientIdOption)!;
+
             try
             {
                 // Warn about secret rotation
-                ConsoleHelper.WriteWarning("⚠️  WARNING: The old client secret will be immediately invalidated!");
+                ConsoleHelper.WriteWarning("WARNING: The old client secret will be immediately invalidated!");
                 if (!ConsoleHelper.Confirm($"Are you sure you want to rotate the secret for service principal '{clientId}'?", defaultYes: false))
                 {
                     ConsoleHelper.WriteInfo("Secret rotation cancelled.");
-                    return;
+                    return ExitCodes.Success;
                 }
 
                 // Get active profile
@@ -479,8 +511,7 @@ public class PrincipalRotateSecretCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -494,32 +525,34 @@ public class PrincipalRotateSecretCommand : Command
                 Console.WriteLine();
                 Console.WriteLine($"  Rotated At:      {response.RotatedAt:yyyy-MM-dd HH:mm:ss}");
                 Console.WriteLine();
-                ConsoleHelper.WriteWarning("⚠️  IMPORTANT: Save the new client secret securely!");
+                ConsoleHelper.WriteWarning("IMPORTANT: Save the new client secret securely!");
                 Console.WriteLine($"  New Client Secret: {response.ClientSecret}");
                 Console.WriteLine();
                 ConsoleHelper.WriteWarning("The new client secret will NEVER be displayed again.");
                 ConsoleHelper.WriteWarning("Update all applications using this service principal immediately.");
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Service principal '{clientId}' not found in organization '{orgId}'.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to rotate secret: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, orgIdOption, clientIdOption);
+        });
     }
 }

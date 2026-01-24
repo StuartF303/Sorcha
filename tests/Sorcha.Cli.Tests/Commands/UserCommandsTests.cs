@@ -73,7 +73,7 @@ public class UserCommandsTests
 
         var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
         orgIdOption.Should().NotBeNull();
-        orgIdOption!.IsRequired.Should().BeTrue();
+        orgIdOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -88,11 +88,11 @@ public class UserCommandsTests
 
         var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
         orgIdOption.Should().NotBeNull();
-        orgIdOption!.IsRequired.Should().BeTrue();
+        orgIdOption!.Required.Should().BeTrue();
 
         var userIdOption = command.Options.FirstOrDefault(o => o.Name == "user-id");
         userIdOption.Should().NotBeNull();
-        userIdOption!.IsRequired.Should().BeTrue();
+        userIdOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -107,19 +107,19 @@ public class UserCommandsTests
 
         var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
         orgIdOption.Should().NotBeNull();
-        orgIdOption!.IsRequired.Should().BeTrue();
+        orgIdOption!.Required.Should().BeTrue();
 
         var usernameOption = command.Options.FirstOrDefault(o => o.Name == "username");
         usernameOption.Should().NotBeNull();
-        usernameOption!.IsRequired.Should().BeTrue();
+        usernameOption!.Required.Should().BeTrue();
 
         var emailOption = command.Options.FirstOrDefault(o => o.Name == "email");
         emailOption.Should().NotBeNull();
-        emailOption!.IsRequired.Should().BeTrue();
+        emailOption!.Required.Should().BeTrue();
 
         var passwordOption = command.Options.FirstOrDefault(o => o.Name == "password");
         passwordOption.Should().NotBeNull();
-        passwordOption!.IsRequired.Should().BeTrue();
+        passwordOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -131,15 +131,15 @@ public class UserCommandsTests
         // Assert
         var firstNameOption = command.Options.FirstOrDefault(o => o.Name == "first-name");
         firstNameOption.Should().NotBeNull();
-        firstNameOption!.IsRequired.Should().BeFalse();
+        firstNameOption!.Required.Should().BeFalse();
 
         var lastNameOption = command.Options.FirstOrDefault(o => o.Name == "last-name");
         lastNameOption.Should().NotBeNull();
-        lastNameOption!.IsRequired.Should().BeFalse();
+        lastNameOption!.Required.Should().BeFalse();
 
         var rolesOption = command.Options.FirstOrDefault(o => o.Name == "roles");
         rolesOption.Should().NotBeNull();
-        rolesOption!.IsRequired.Should().BeFalse();
+        rolesOption!.Required.Should().BeFalse();
     }
 
     [Fact]
@@ -154,11 +154,11 @@ public class UserCommandsTests
 
         var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
         orgIdOption.Should().NotBeNull();
-        orgIdOption!.IsRequired.Should().BeTrue();
+        orgIdOption!.Required.Should().BeTrue();
 
         var userIdOption = command.Options.FirstOrDefault(o => o.Name == "user-id");
         userIdOption.Should().NotBeNull();
-        userIdOption!.IsRequired.Should().BeTrue();
+        userIdOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -170,19 +170,19 @@ public class UserCommandsTests
         // Assert
         var emailOption = command.Options.FirstOrDefault(o => o.Name == "email");
         emailOption.Should().NotBeNull();
-        emailOption!.IsRequired.Should().BeFalse();
+        emailOption!.Required.Should().BeFalse();
 
         var firstNameOption = command.Options.FirstOrDefault(o => o.Name == "first-name");
         firstNameOption.Should().NotBeNull();
-        firstNameOption!.IsRequired.Should().BeFalse();
+        firstNameOption!.Required.Should().BeFalse();
 
         var lastNameOption = command.Options.FirstOrDefault(o => o.Name == "last-name");
         lastNameOption.Should().NotBeNull();
-        lastNameOption!.IsRequired.Should().BeFalse();
+        lastNameOption!.Required.Should().BeFalse();
 
         var activeOption = command.Options.FirstOrDefault(o => o.Name == "active");
         activeOption.Should().NotBeNull();
-        activeOption!.IsRequired.Should().BeFalse();
+        activeOption!.Required.Should().BeFalse();
     }
 
     [Fact]
@@ -197,11 +197,11 @@ public class UserCommandsTests
 
         var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
         orgIdOption.Should().NotBeNull();
-        orgIdOption!.IsRequired.Should().BeTrue();
+        orgIdOption!.Required.Should().BeTrue();
 
         var userIdOption = command.Options.FirstOrDefault(o => o.Name == "user-id");
         userIdOption.Should().NotBeNull();
-        userIdOption!.IsRequired.Should().BeTrue();
+        userIdOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -213,7 +213,7 @@ public class UserCommandsTests
         // Assert
         var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
         yesOption.Should().NotBeNull();
-        yesOption!.IsRequired.Should().BeFalse();
+        yesOption!.Required.Should().BeFalse();
     }
 
     [Fact]
@@ -221,10 +221,10 @@ public class UserCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new UserListCommand(_clientFactory, AuthService, ConfigService));
+        rootCommand.Subcommands.Add(new UserListCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("list --org-id test-org-123");
+        var exitCode = await rootCommand.Parse("list --org-id test-org-123").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);
@@ -235,10 +235,10 @@ public class UserCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new UserGetCommand(_clientFactory, AuthService, ConfigService));
+        rootCommand.Subcommands.Add(new UserGetCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("get --org-id test-org-123 --user-id user-456");
+        var exitCode = await rootCommand.Parse("get --org-id test-org-123 --user-id user-456").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);
@@ -249,10 +249,10 @@ public class UserCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new UserCreateCommand(_clientFactory, AuthService, ConfigService));
+        rootCommand.Subcommands.Add(new UserCreateCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("create --org-id test-org-123 --username john --email john@test.com --password test123");
+        var exitCode = await rootCommand.Parse("create --org-id test-org-123 --username john --email john@test.com --password test123").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);
@@ -263,10 +263,10 @@ public class UserCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new UserCreateCommand(_clientFactory, AuthService, ConfigService));
+        rootCommand.Subcommands.Add(new UserCreateCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("create --org-id test-org-123 --username john --email john@test.com --password test123 --first-name John --last-name Doe --roles Admin,User");
+        var exitCode = await rootCommand.Parse("create --org-id test-org-123 --username john --email john@test.com --password test123 --first-name John --last-name Doe --roles Admin,User").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);

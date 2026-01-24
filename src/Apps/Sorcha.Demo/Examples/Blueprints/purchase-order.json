@@ -35,6 +35,7 @@
       "title": "Create Purchase Order",
       "description": "Buyer creates a purchase order and sends to supplier",
       "sender": "Buyer",
+      "isStartingAction": true,
       "dataSchemas": [
         {
           "type": "object",

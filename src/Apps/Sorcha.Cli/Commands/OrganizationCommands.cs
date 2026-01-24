@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Net;
 using Refit;
 using Sorcha.Cli.Infrastructure;
@@ -18,11 +19,11 @@ public class OrganizationCommand : Command
         IConfigurationService configService)
         : base("org", "Manage organizations")
     {
-        AddCommand(new OrgListCommand(clientFactory, authService, configService));
-        AddCommand(new OrgGetCommand(clientFactory, authService, configService));
-        AddCommand(new OrgCreateCommand(clientFactory, authService, configService));
-        AddCommand(new OrgUpdateCommand(clientFactory, authService, configService));
-        AddCommand(new OrgDeleteCommand(clientFactory, authService, configService));
+        Subcommands.Add(new OrgListCommand(clientFactory, authService, configService));
+        Subcommands.Add(new OrgGetCommand(clientFactory, authService, configService));
+        Subcommands.Add(new OrgCreateCommand(clientFactory, authService, configService));
+        Subcommands.Add(new OrgUpdateCommand(clientFactory, authService, configService));
+        Subcommands.Add(new OrgDeleteCommand(clientFactory, authService, configService));
     }
 }
 
@@ -37,7 +38,7 @@ public class OrgListCommand : Command
         IConfigurationService configService)
         : base("list", "List all organizations")
     {
-        this.SetHandler(async () =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
             try
             {
@@ -50,8 +51,7 @@ public class OrgListCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -64,7 +64,7 @@ public class OrgListCommand : Command
                 if (response?.Organizations == null || response.Organizations.Count == 0)
                 {
                     ConsoleHelper.WriteInfo("No organizations found.");
-                    return;
+                    return ExitCodes.Success;
                 }
 
                 ConsoleHelper.WriteSuccess($"Found {response.Organizations.Count} organization(s) (Total: {response.TotalCount}):");
@@ -75,21 +75,23 @@ public class OrgListCommand : Command
                 {
                     Console.WriteLine($"{org.Id,-38} {org.Name,-30} {org.Subdomain,-20} {org.Status,-10}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Token may be expired. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to list organizations: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
         });
     }
@@ -100,23 +102,26 @@ public class OrgListCommand : Command
 /// </summary>
 public class OrgGetCommand : Command
 {
+    private readonly Option<string> _idOption;
+
     public OrgGetCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("get", "Get an organization by ID")
     {
-        var idOption = new Option<string>(
-            aliases: new[] { "--id", "-i" },
-            description: "Organization ID")
+        _idOption = new Option<string>("--id", "-i")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        AddOption(idOption);
+        Options.Add(_idOption);
 
-        this.SetHandler(async (id) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var id = parseResult.GetValue(_idOption)!;
+
             try
             {
                 // Get active profile
@@ -128,8 +133,7 @@ public class OrgGetCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -156,28 +160,30 @@ public class OrgGetCommand : Command
                     if (!string.IsNullOrEmpty(org.Branding.CompanyTagline))
                         Console.WriteLine($"    Tagline:   {org.Branding.CompanyTagline}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Organization '{id}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to get organization: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, idOption);
+        });
     }
 }
 
@@ -186,31 +192,35 @@ public class OrgGetCommand : Command
 /// </summary>
 public class OrgCreateCommand : Command
 {
+    private readonly Option<string> _nameOption;
+    private readonly Option<string> _subdomainOption;
+
     public OrgCreateCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("create", "Create a new organization")
     {
-        var nameOption = new Option<string>(
-            aliases: new[] { "--name", "-n" },
-            description: "Organization name")
+        _nameOption = new Option<string>("--name", "-n")
         {
-            IsRequired = true
+            Description = "Organization name",
+            Required = true
         };
 
-        var subdomainOption = new Option<string>(
-            aliases: new[] { "--subdomain", "-s" },
-            description: "Unique subdomain (3-50 alphanumeric characters with hyphens)")
+        _subdomainOption = new Option<string>("--subdomain", "-s")
         {
-            IsRequired = true
+            Description = "Unique subdomain (3-50 alphanumeric characters with hyphens)",
+            Required = true
         };
 
-        AddOption(nameOption);
-        AddOption(subdomainOption);
+        Options.Add(_nameOption);
+        Options.Add(_subdomainOption);
 
-        this.SetHandler(async (name, subdomain) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var name = parseResult.GetValue(_nameOption)!;
+            var subdomain = parseResult.GetValue(_subdomainOption)!;
+
             try
             {
                 // Get active profile
@@ -222,8 +232,7 @@ public class OrgCreateCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -246,33 +255,35 @@ public class OrgCreateCommand : Command
                 Console.WriteLine($"  Name:        {org.Name}");
                 Console.WriteLine($"  Subdomain:   {org.Subdomain}");
                 Console.WriteLine($"  Status:      {org.Status}");
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
             {
                 ConsoleHelper.WriteError($"Invalid request: {ex.Content}");
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
             {
                 ConsoleHelper.WriteError($"Organization with that name or subdomain already exists.");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to create organization: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, nameOption, subdomainOption);
+        });
     }
 }
 
@@ -281,41 +292,49 @@ public class OrgCreateCommand : Command
 /// </summary>
 public class OrgUpdateCommand : Command
 {
+    private readonly Option<string> _idOption;
+    private readonly Option<string?> _nameOption;
+    private readonly Option<OrganizationStatus?> _statusOption;
+
     public OrgUpdateCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("update", "Update an organization")
     {
-        var idOption = new Option<string>(
-            aliases: new[] { "--id", "-i" },
-            description: "Organization ID")
+        _idOption = new Option<string>("--id", "-i")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        var nameOption = new Option<string?>(
-            aliases: new[] { "--name", "-n" },
-            description: "Organization name");
-
-        var statusOption = new Option<OrganizationStatus?>(
-            aliases: new[] { "--status", "-s" },
-            description: "Organization status (Active, Suspended, Inactive)");
-
-        AddOption(idOption);
-        AddOption(nameOption);
-        AddOption(statusOption);
-
-        this.SetHandler(async (id, name, status) =>
+        _nameOption = new Option<string?>("--name", "-n")
         {
+            Description = "Organization name"
+        };
+
+        _statusOption = new Option<OrganizationStatus?>("--status", "-s")
+        {
+            Description = "Organization status (Active, Suspended, Inactive)"
+        };
+
+        Options.Add(_idOption);
+        Options.Add(_nameOption);
+        Options.Add(_statusOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var id = parseResult.GetValue(_idOption)!;
+            var name = parseResult.GetValue(_nameOption);
+            var status = parseResult.GetValue(_statusOption);
+
             try
             {
                 // Validate that at least one field is provided
                 if (string.IsNullOrEmpty(name) && !status.HasValue)
                 {
                     ConsoleHelper.WriteError("At least one field (--name or --status) must be provided.");
-                    Environment.ExitCode = ExitCodes.ValidationError;
-                    return;
+                    return ExitCodes.ValidationError;
                 }
 
                 // Get active profile
@@ -327,8 +346,7 @@ public class OrgUpdateCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -351,33 +369,35 @@ public class OrgUpdateCommand : Command
                 Console.WriteLine($"  Name:        {org.Name}");
                 Console.WriteLine($"  Subdomain:   {org.Subdomain}");
                 Console.WriteLine($"  Status:      {org.Status}");
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Organization '{id}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
             {
                 ConsoleHelper.WriteError($"Invalid request: {ex.Content}");
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to update organization: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, idOption, nameOption, statusOption);
+        });
     }
 }
 
@@ -386,28 +406,34 @@ public class OrgUpdateCommand : Command
 /// </summary>
 public class OrgDeleteCommand : Command
 {
+    private readonly Option<string> _idOption;
+    private readonly Option<bool> _confirmOption;
+
     public OrgDeleteCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("delete", "Delete an organization")
     {
-        var idOption = new Option<string>(
-            aliases: new[] { "--id", "-i" },
-            description: "Organization ID")
+        _idOption = new Option<string>("--id", "-i")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        var confirmOption = new Option<bool>(
-            aliases: new[] { "--yes", "-y" },
-            description: "Skip confirmation prompt");
-
-        AddOption(idOption);
-        AddOption(confirmOption);
-
-        this.SetHandler(async (id, confirm) =>
+        _confirmOption = new Option<bool>("--yes", "-y")
         {
+            Description = "Skip confirmation prompt"
+        };
+
+        Options.Add(_idOption);
+        Options.Add(_confirmOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var id = parseResult.GetValue(_idOption)!;
+            var confirm = parseResult.GetValue(_confirmOption);
+
             try
             {
                 // Confirm deletion
@@ -416,7 +442,7 @@ public class OrgDeleteCommand : Command
                     if (!ConsoleHelper.Confirm($"Are you sure you want to delete organization '{id}'?", defaultYes: false))
                     {
                         ConsoleHelper.WriteInfo("Deletion cancelled.");
-                        return;
+                        return ExitCodes.Success;
                     }
                 }
 
@@ -429,8 +455,7 @@ public class OrgDeleteCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -441,27 +466,28 @@ public class OrgDeleteCommand : Command
 
                 // Display results
                 ConsoleHelper.WriteSuccess($"Organization '{id}' deleted successfully.");
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Organization '{id}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to delete organization: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, idOption, confirmOption);
+        });
     }
 }

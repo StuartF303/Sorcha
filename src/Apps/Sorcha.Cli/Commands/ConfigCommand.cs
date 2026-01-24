@@ -1,5 +1,5 @@
 using System.CommandLine;
-using System.CommandLine.Invocation;
+using System.CommandLine.Parsing;
 using Sorcha.Cli.Models;
 using Sorcha.Cli.Services;
 
@@ -13,9 +13,9 @@ public class ConfigCommand : BaseCommand
     public ConfigCommand()
         : base("config", "Manage CLI configuration and profiles")
     {
-        AddCommand(new ConfigInitCommand());
-        AddCommand(new ProfileListCommand());
-        AddCommand(new ProfileSetActiveCommand());
+        Subcommands.Add(new ConfigInitCommand());
+        Subcommands.Add(new ProfileListCommand());
+        Subcommands.Add(new ProfileSetActiveCommand());
     }
 
     protected override Task<int> ExecuteAsync(CommandContext context)
@@ -62,14 +62,16 @@ public class ProfileSetActiveCommand : Command
     public ProfileSetActiveCommand()
         : base("set-active", "Set the active profile")
     {
-        var profileNameArgument = new Argument<string>(
-            name: "name",
-            description: "Name of the profile to activate");
-
-        AddArgument(profileNameArgument);
-
-        this.SetHandler(async (profileName) =>
+        var profileNameArgument = new Argument<string>("name")
         {
+            Description = "Name of the profile to activate"
+        };
+
+        Arguments.Add(profileNameArgument);
+
+        this.SetAction(async (parseResult, ct) =>
+        {
+            var profileName = parseResult.GetValue(profileNameArgument)!;
             var configService = new ConfigurationService();
 
             try
@@ -87,21 +89,21 @@ public class ProfileSetActiveCommand : Command
                         Console.WriteLine($"  - {p.Name}");
                     }
 
-                    Environment.Exit(ExitCodes.ValidationError);
-                    return;
+                    return ExitCodes.ValidationError;
                 }
 
                 // Set active profile
                 await configService.SetActiveProfileAsync(profileName);
                 Console.WriteLine($"✓ Active profile set to '{profileName}'");
                 Console.WriteLine($"  Tenant Service URL: {profile.TenantServiceUrl}");
+                return ExitCodes.Success;
             }
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error: Failed to set active profile: {ex.Message}");
-                Environment.Exit(ExitCodes.GeneralError);
+                return ExitCodes.GeneralError;
             }
-        }, profileNameArgument);
+        });
     }
 }
 
@@ -111,92 +113,117 @@ public class ProfileSetActiveCommand : Command
 /// </summary>
 public class ConfigInitCommand : Command
 {
+    private readonly Option<string> _profileOption;
+    private readonly Option<string?> _serviceUrlOption;
+    private readonly Option<string?> _tenantUrlOption;
+    private readonly Option<string?> _registerUrlOption;
+    private readonly Option<string?> _walletUrlOption;
+    private readonly Option<string?> _peerUrlOption;
+    private readonly Option<string?> _authUrlOption;
+    private readonly Option<string> _clientIdOption;
+    private readonly Option<bool> _verifySslOption;
+    private readonly Option<int> _timeoutOption;
+    private readonly Option<bool> _checkConnectivityOption;
+    private readonly Option<bool> _setActiveOption;
+
     public ConfigInitCommand()
         : base("init", "Initialize a new configuration profile")
     {
-        var profileOption = new Option<string>(
-            aliases: ["--profile", "-p"],
-            description: "Profile name",
-            getDefaultValue: () => "docker");
+        _profileOption = new Option<string>("--profile", "-p")
+        {
+            Description = "Profile name",
+            DefaultValueFactory = _ => "docker"
+        };
 
-        var serviceUrlOption = new Option<string?>(
-            aliases: ["--service-url", "-s"],
-            description: "Base URL for all services (recommended - e.g., 'http://localhost')");
+        _serviceUrlOption = new Option<string?>("--service-url", "-s")
+        {
+            Description = "Base URL for all services (recommended - e.g., 'http://localhost')"
+        };
 
-        var tenantUrlOption = new Option<string?>(
-            aliases: ["--tenant-url", "-t"],
-            description: "Tenant Service URL (optional override)");
+        _tenantUrlOption = new Option<string?>("--tenant-url", "-t")
+        {
+            Description = "Tenant Service URL (optional override)"
+        };
 
-        var registerUrlOption = new Option<string?>(
-            aliases: ["--register-url", "-r"],
-            description: "Register Service URL (optional override)");
+        _registerUrlOption = new Option<string?>("--register-url", "-r")
+        {
+            Description = "Register Service URL (optional override)"
+        };
 
-        var walletUrlOption = new Option<string?>(
-            aliases: ["--wallet-url", "-w"],
-            description: "Wallet Service URL (optional override)");
+        _walletUrlOption = new Option<string?>("--wallet-url", "-w")
+        {
+            Description = "Wallet Service URL (optional override)"
+        };
 
-        var peerUrlOption = new Option<string?>(
-            aliases: ["--peer-url"],
-            description: "Peer Service URL (optional override)");
+        _peerUrlOption = new Option<string?>("--peer-url")
+        {
+            Description = "Peer Service URL (optional override)"
+        };
 
-        var authUrlOption = new Option<string?>(
-            aliases: ["--auth-url", "-a"],
-            description: "Auth Token URL (optional override)");
+        _authUrlOption = new Option<string?>("--auth-url", "-a")
+        {
+            Description = "Auth Token URL (optional override)"
+        };
 
-        var clientIdOption = new Option<string>(
-            aliases: ["--client-id", "-c"],
-            description: "Default client ID",
-            getDefaultValue: () => "sorcha-cli");
+        _clientIdOption = new Option<string>("--client-id", "-c")
+        {
+            Description = "Default client ID",
+            DefaultValueFactory = _ => "sorcha-cli"
+        };
 
-        var verifySslOption = new Option<bool>(
-            aliases: ["--verify-ssl"],
-            description: "Verify SSL certificates",
-            getDefaultValue: () => false);
+        _verifySslOption = new Option<bool>("--verify-ssl")
+        {
+            Description = "Verify SSL certificates",
+            DefaultValueFactory = _ => false
+        };
 
-        var timeoutOption = new Option<int>(
-            aliases: ["--timeout"],
-            description: "Request timeout in seconds",
-            getDefaultValue: () => 30);
+        _timeoutOption = new Option<int>("--timeout")
+        {
+            Description = "Request timeout in seconds",
+            DefaultValueFactory = _ => 30
+        };
 
-        var checkConnectivityOption = new Option<bool>(
-            aliases: ["--check-connectivity"],
-            description: "Verify connectivity to service URLs",
-            getDefaultValue: () => true);
+        _checkConnectivityOption = new Option<bool>("--check-connectivity")
+        {
+            Description = "Verify connectivity to service URLs",
+            DefaultValueFactory = _ => true
+        };
 
-        var setActiveOption = new Option<bool>(
-            aliases: ["--set-active"],
-            description: "Set as active profile",
-            getDefaultValue: () => true);
+        _setActiveOption = new Option<bool>("--set-active")
+        {
+            Description = "Set as active profile",
+            DefaultValueFactory = _ => true
+        };
 
-        AddOption(profileOption);
-        AddOption(serviceUrlOption);
-        AddOption(tenantUrlOption);
-        AddOption(registerUrlOption);
-        AddOption(walletUrlOption);
-        AddOption(peerUrlOption);
-        AddOption(authUrlOption);
-        AddOption(clientIdOption);
-        AddOption(verifySslOption);
-        AddOption(timeoutOption);
-        AddOption(checkConnectivityOption);
-        AddOption(setActiveOption);
+        Options.Add(_profileOption);
+        Options.Add(_serviceUrlOption);
+        Options.Add(_tenantUrlOption);
+        Options.Add(_registerUrlOption);
+        Options.Add(_walletUrlOption);
+        Options.Add(_peerUrlOption);
+        Options.Add(_authUrlOption);
+        Options.Add(_clientIdOption);
+        Options.Add(_verifySslOption);
+        Options.Add(_timeoutOption);
+        Options.Add(_checkConnectivityOption);
+        Options.Add(_setActiveOption);
 
-        this.SetHandler(async (InvocationContext context) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
             try
             {
-                var profileName = context.ParseResult.GetValueForOption(profileOption)!;
-                var serviceUrl = context.ParseResult.GetValueForOption(serviceUrlOption);
-                var tenantUrl = context.ParseResult.GetValueForOption(tenantUrlOption);
-                var registerUrl = context.ParseResult.GetValueForOption(registerUrlOption);
-                var walletUrl = context.ParseResult.GetValueForOption(walletUrlOption);
-                var peerUrl = context.ParseResult.GetValueForOption(peerUrlOption);
-                var authUrl = context.ParseResult.GetValueForOption(authUrlOption);
-                var clientId = context.ParseResult.GetValueForOption(clientIdOption)!;
-                var verifySsl = context.ParseResult.GetValueForOption(verifySslOption);
-                var timeout = context.ParseResult.GetValueForOption(timeoutOption);
-                var checkConnectivity = context.ParseResult.GetValueForOption(checkConnectivityOption);
-                var setActive = context.ParseResult.GetValueForOption(setActiveOption);
+                var profileName = parseResult.GetValue(_profileOption)!;
+                var serviceUrl = parseResult.GetValue(_serviceUrlOption);
+                var tenantUrl = parseResult.GetValue(_tenantUrlOption);
+                var registerUrl = parseResult.GetValue(_registerUrlOption);
+                var walletUrl = parseResult.GetValue(_walletUrlOption);
+                var peerUrl = parseResult.GetValue(_peerUrlOption);
+                var authUrl = parseResult.GetValue(_authUrlOption);
+                var clientId = parseResult.GetValue(_clientIdOption)!;
+                var verifySsl = parseResult.GetValue(_verifySslOption);
+                var timeout = parseResult.GetValue(_timeoutOption);
+                var checkConnectivity = parseResult.GetValue(_checkConnectivityOption);
+                var setActive = parseResult.GetValue(_setActiveOption);
 
                 var configService = new ConfigurationService();
 
@@ -208,8 +235,7 @@ public class ConfigInitCommand : Command
                     string.IsNullOrWhiteSpace(peerUrl))
                 {
                     Console.Error.WriteLine("Error: Either --service-url or at least one specific service URL must be provided.");
-                    Environment.Exit(ExitCodes.ValidationError);
-                    return;
+                    return ExitCodes.ValidationError;
                 }
 
                 // Create profile
@@ -267,11 +293,12 @@ public class ConfigInitCommand : Command
                     Console.WriteLine($"  Active profile:   {profileName}");
                 }
                 Console.WriteLine($"  Config file:      {configService.GetConfigFilePath()}");
+                return ExitCodes.Success;
             }
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error: Failed to initialize configuration: {ex.Message}");
-                Environment.Exit(ExitCodes.GeneralError);
+                return ExitCodes.GeneralError;
             }
         });
     }

@@ -68,8 +68,8 @@ public class PeerCommandsTests
         // This test verifies the command structure parses correctly
         // Actual execution requires integration tests with real services
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerListCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("list");
+        rootCommand.Subcommands.Add(new PeerListCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("list").InvokeAsync();
         // Exit code 0 means parsing succeeded; handler errors are caught internally
         exitCode.Should().Be(0);
     }
@@ -92,15 +92,15 @@ public class PeerCommandsTests
         var command = new PeerGetCommand(_clientFactory, AuthService, ConfigService);
         var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
         idOption.Should().NotBeNull();
-        idOption!.IsRequired.Should().BeTrue();
+        idOption!.Required.Should().BeTrue();
     }
 
     [Fact]
     public async Task PeerGetCommand_ShouldParseArguments_WithRequiredId()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerGetCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("get --id peer-123");
+        rootCommand.Subcommands.Add(new PeerGetCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("get --id peer-123").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -120,8 +120,8 @@ public class PeerCommandsTests
     public async Task PeerStatsCommand_ShouldParseArguments()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerStatsCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("stats");
+        rootCommand.Subcommands.Add(new PeerStatsCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("stats").InvokeAsync();
         exitCode.Should().Be(0);
     }
 
@@ -141,8 +141,8 @@ public class PeerCommandsTests
     public async Task PeerHealthCommand_ShouldParseArguments()
     {
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PeerHealthCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.InvokeAsync("health");
+        rootCommand.Subcommands.Add(new PeerHealthCommand(_clientFactory, AuthService, ConfigService));
+        var exitCode = await rootCommand.Parse("health").InvokeAsync();
         exitCode.Should().Be(0);
     }
 

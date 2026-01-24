@@ -109,27 +109,27 @@ public class AuthCommandsTests : IDisposable
         // Assert - All options should be optional (interactive mode is default)
         var usernameOption = command.Options.FirstOrDefault(o => o.Name == "username");
         usernameOption.Should().NotBeNull();
-        usernameOption!.IsRequired.Should().BeFalse();
+        usernameOption!.Required.Should().BeFalse();
 
         var passwordOption = command.Options.FirstOrDefault(o => o.Name == "password");
         passwordOption.Should().NotBeNull();
-        passwordOption!.IsRequired.Should().BeFalse();
+        passwordOption!.Required.Should().BeFalse();
 
         var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "client-id");
         clientIdOption.Should().NotBeNull();
-        clientIdOption!.IsRequired.Should().BeFalse();
+        clientIdOption!.Required.Should().BeFalse();
 
         var clientSecretOption = command.Options.FirstOrDefault(o => o.Name == "client-secret");
         clientSecretOption.Should().NotBeNull();
-        clientSecretOption!.IsRequired.Should().BeFalse();
+        clientSecretOption!.Required.Should().BeFalse();
 
         var interactiveOption = command.Options.FirstOrDefault(o => o.Name == "interactive");
         interactiveOption.Should().NotBeNull();
-        interactiveOption!.IsRequired.Should().BeFalse();
+        interactiveOption!.Required.Should().BeFalse();
 
         var profileOption = command.Options.FirstOrDefault(o => o.Name == "profile");
         profileOption.Should().NotBeNull();
-        profileOption!.IsRequired.Should().BeFalse();
+        profileOption!.Required.Should().BeFalse();
     }
 
     [Fact]
@@ -152,11 +152,11 @@ public class AuthCommandsTests : IDisposable
         // Assert
         var allOption = command.Options.FirstOrDefault(o => o.Name == "all");
         allOption.Should().NotBeNull();
-        allOption!.IsRequired.Should().BeFalse();
+        allOption!.Required.Should().BeFalse();
 
         var profileOption = command.Options.FirstOrDefault(o => o.Name == "profile");
         profileOption.Should().NotBeNull();
-        profileOption!.IsRequired.Should().BeFalse();
+        profileOption!.Required.Should().BeFalse();
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class AuthCommandsTests : IDisposable
         // Assert
         var profileOption = command.Options.FirstOrDefault(o => o.Name == "profile");
         profileOption.Should().NotBeNull();
-        profileOption!.IsRequired.Should().BeFalse();
+        profileOption!.Required.Should().BeFalse();
     }
 
     #endregion
@@ -203,10 +203,10 @@ public class AuthCommandsTests : IDisposable
         await _tokenCache.SetAsync("dev", cacheEntry);
 
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new AuthLogoutCommand(_authService, _configService));
+        rootCommand.Subcommands.Add(new AuthLogoutCommand(_authService, _configService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("logout");
+        var exitCode = await rootCommand.Parse("logout").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);
@@ -236,7 +236,7 @@ public class AuthCommandsTests : IDisposable
         });
 
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new AuthLogoutCommand(_authService, _configService));
+        rootCommand.Subcommands.Add(new AuthLogoutCommand(_authService, _configService));
 
         // Act - Note: This will prompt for confirmation, so we redirect stdin
         // For now, we test the command structure only
@@ -259,10 +259,10 @@ public class AuthCommandsTests : IDisposable
         await _configService.EnsureConfigDirectoryAsync();
 
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new AuthStatusCommand(_authService, _configService));
+        rootCommand.Subcommands.Add(new AuthStatusCommand(_authService, _configService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("status");
+        var exitCode = await rootCommand.Parse("status").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);
@@ -287,10 +287,10 @@ public class AuthCommandsTests : IDisposable
         await _tokenCache.SetAsync("dev", cacheEntry);
 
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new AuthStatusCommand(_authService, _configService));
+        rootCommand.Subcommands.Add(new AuthStatusCommand(_authService, _configService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("status");
+        var exitCode = await rootCommand.Parse("status").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);
@@ -314,10 +314,10 @@ public class AuthCommandsTests : IDisposable
         await _tokenCache.SetAsync("dev", cacheEntry);
 
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new AuthStatusCommand(_authService, _configService));
+        rootCommand.Subcommands.Add(new AuthStatusCommand(_authService, _configService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("status");
+        var exitCode = await rootCommand.Parse("status").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);

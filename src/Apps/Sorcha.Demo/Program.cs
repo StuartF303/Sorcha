@@ -31,24 +31,27 @@ class Program
         // Parse command-line arguments
         var rootCommand = new RootCommand("Sorcha Demo - Blueprint Workflow Execution");
 
-        var automatedOption = new Option<bool>(
-            new[] { "--automated", "-a" },
-            () => false,
-            "Run in automated mode without pauses");
-
-        var blueprintOption = new Option<string?>(
-            new[] { "--blueprint", "-b" },
-            "Blueprint to run (expense-approval, purchase-order, loan-application)");
-
-        rootCommand.AddOption(automatedOption);
-        rootCommand.AddOption(blueprintOption);
-
-        rootCommand.SetHandler(async (automated, blueprint) =>
+        var automatedOption = new Option<bool>("--automated", "-a")
         {
-            await RunDemoAsync(configuration, automated, blueprint);
-        }, automatedOption, blueprintOption);
+            Description = "Run in automated mode without pauses"
+        };
 
-        return await rootCommand.InvokeAsync(args);
+        var blueprintOption = new Option<string?>("--blueprint", "-b")
+        {
+            Description = "Blueprint to run (expense-approval, purchase-order, loan-application)"
+        };
+
+        rootCommand.Options.Add(automatedOption);
+        rootCommand.Options.Add(blueprintOption);
+
+        rootCommand.SetAction(async (parseResult, cancellationToken) =>
+        {
+            var automated = parseResult.GetValue(automatedOption);
+            var blueprint = parseResult.GetValue(blueprintOption);
+            await RunDemoAsync(configuration, automated, blueprint);
+        });
+
+        return await rootCommand.Parse(args).InvokeAsync();
     }
 
     static async Task RunDemoAsync(IConfiguration configuration, bool automated, string? blueprint)

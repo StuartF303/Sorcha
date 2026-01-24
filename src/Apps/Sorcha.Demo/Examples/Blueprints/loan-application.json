@@ -35,6 +35,7 @@
       "title": "Submit Loan Application",
       "description": "Applicant submits loan application with personal and financial details",
       "sender": "Applicant",
+      "isStartingAction": true,
       "dataSchemas": [
         {
           "type": "object",

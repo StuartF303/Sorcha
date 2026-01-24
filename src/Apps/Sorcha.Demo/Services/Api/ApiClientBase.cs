@@ -16,6 +16,16 @@ public abstract class ApiClientBase
     protected readonly ILogger Logger;
     protected readonly JsonSerializerOptions JsonOptions;
 
+    /// <summary>
+    /// JWT Bearer token for authentication
+    /// </summary>
+    public string? AuthToken { get; set; }
+
+    /// <summary>
+    /// Delegation token for orchestration endpoints
+    /// </summary>
+    public string? DelegationToken { get; set; }
+
     protected ApiClientBase(HttpClient httpClient, ILogger logger)
     {
         HttpClient = httpClient;
@@ -28,12 +38,30 @@ public abstract class ApiClientBase
         };
     }
 
+    /// <summary>
+    /// Adds authentication headers to request message
+    /// </summary>
+    protected void AddAuthHeaders(HttpRequestMessage request)
+    {
+        if (!string.IsNullOrEmpty(AuthToken))
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", AuthToken);
+        }
+
+        if (!string.IsNullOrEmpty(DelegationToken))
+        {
+            request.Headers.Add("X-Delegation-Token", DelegationToken);
+        }
+    }
+
     protected async Task<T?> GetAsync<T>(string url, CancellationToken ct = default)
     {
         try
         {
             Logger.LogInformation("GET {Url}", url);
-            var response = await HttpClient.GetAsync(url, ct);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            AddAuthHeaders(request);
+            var response = await HttpClient.SendAsync(request, ct);
             response.EnsureSuccessStatusCode();
             var result = await response.Content.ReadFromJsonAsync<T>(JsonOptions, ct);
             Logger.LogDebug("GET {Url} -> Success", url);
@@ -48,13 +76,16 @@ public abstract class ApiClientBase
 
     protected async Task<TResponse?> PostAsync<TRequest, TResponse>(
         string url,
-        TRequest request,
+        TRequest requestBody,
         CancellationToken ct = default)
     {
         try
         {
             Logger.LogInformation("POST {Url}", url);
-            var response = await HttpClient.PostAsJsonAsync(url, request, JsonOptions, ct);
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            AddAuthHeaders(request);
+            request.Content = JsonContent.Create(requestBody, options: JsonOptions);
+            var response = await HttpClient.SendAsync(request, ct);
             response.EnsureSuccessStatusCode();
             var result = await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions, ct);
             Logger.LogDebug("POST {Url} -> Success", url);
@@ -69,23 +100,28 @@ public abstract class ApiClientBase
 
     protected async Task<HttpResponseMessage> PostAsync<TRequest>(
         string url,
-        TRequest request,
+        TRequest requestBody,
         CancellationToken ct = default)
     {
         Logger.LogInformation("POST {Url}", url);
-        var response = await HttpClient.PostAsJsonAsync(url, request, JsonOptions, ct);
-        return response;
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        AddAuthHeaders(request);
+        request.Content = JsonContent.Create(requestBody, options: JsonOptions);
+        return await HttpClient.SendAsync(request, ct);
     }
 
     protected async Task<TResponse?> PutAsync<TRequest, TResponse>(
         string url,
-        TRequest request,
+        TRequest requestBody,
         CancellationToken ct = default)
     {
         try
         {
             Logger.LogInformation("PUT {Url}", url);
-            var response = await HttpClient.PutAsJsonAsync(url, request, JsonOptions, ct);
+            using var request = new HttpRequestMessage(HttpMethod.Put, url);
+            AddAuthHeaders(request);
+            request.Content = JsonContent.Create(requestBody, options: JsonOptions);
+            var response = await HttpClient.SendAsync(request, ct);
             response.EnsureSuccessStatusCode();
             var result = await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions, ct);
             Logger.LogDebug("PUT {Url} -> Success", url);
@@ -101,7 +137,9 @@ public abstract class ApiClientBase
     protected async Task<HttpResponseMessage> DeleteAsync(string url, CancellationToken ct = default)
     {
         Logger.LogInformation("DELETE {Url}", url);
-        return await HttpClient.DeleteAsync(url, ct);
+        using var request = new HttpRequestMessage(HttpMethod.Delete, url);
+        AddAuthHeaders(request);
+        return await HttpClient.SendAsync(request, ct);
     }
 
     protected async Task<bool> CheckHealthAsync(string url, CancellationToken ct = default)

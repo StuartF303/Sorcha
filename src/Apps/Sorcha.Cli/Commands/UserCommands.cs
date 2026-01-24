@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Net;
 using Refit;
 using Sorcha.Cli.Infrastructure;
@@ -18,11 +19,11 @@ public class UserCommand : Command
         IConfigurationService configService)
         : base("user", "Manage users within organizations")
     {
-        AddCommand(new UserListCommand(clientFactory, authService, configService));
-        AddCommand(new UserGetCommand(clientFactory, authService, configService));
-        AddCommand(new UserCreateCommand(clientFactory, authService, configService));
-        AddCommand(new UserUpdateCommand(clientFactory, authService, configService));
-        AddCommand(new UserDeleteCommand(clientFactory, authService, configService));
+        Subcommands.Add(new UserListCommand(clientFactory, authService, configService));
+        Subcommands.Add(new UserGetCommand(clientFactory, authService, configService));
+        Subcommands.Add(new UserCreateCommand(clientFactory, authService, configService));
+        Subcommands.Add(new UserUpdateCommand(clientFactory, authService, configService));
+        Subcommands.Add(new UserDeleteCommand(clientFactory, authService, configService));
     }
 }
 
@@ -31,23 +32,26 @@ public class UserCommand : Command
 /// </summary>
 public class UserListCommand : Command
 {
+    private readonly Option<string> _orgIdOption;
+
     public UserListCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("list", "List all users in an organization")
     {
-        var orgIdOption = new Option<string>(
-            aliases: new[] { "--org-id", "-o" },
-            description: "Organization ID")
+        _orgIdOption = new Option<string>("--org-id", "-o")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        AddOption(orgIdOption);
+        Options.Add(_orgIdOption);
 
-        this.SetHandler(async (orgId) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var orgId = parseResult.GetValue(_orgIdOption)!;
+
             try
             {
                 // Get active profile
@@ -59,8 +63,7 @@ public class UserListCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -73,7 +76,7 @@ public class UserListCommand : Command
                 if (users == null || users.Count == 0)
                 {
                     ConsoleHelper.WriteInfo("No users found.");
-                    return;
+                    return ExitCodes.Success;
                 }
 
                 ConsoleHelper.WriteSuccess($"Found {users.Count} user(s) in organization '{orgId}':");
@@ -86,28 +89,30 @@ public class UserListCommand : Command
                     var active = user.IsActive ? "Yes" : "No";
                     Console.WriteLine($"{user.Id,-30} {user.Username,-20} {user.Email,-30} {active,-8} {roles,-20}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Organization '{orgId}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Token may be expired. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to list users: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, orgIdOption);
+        });
     }
 }
 
@@ -116,31 +121,35 @@ public class UserListCommand : Command
 /// </summary>
 public class UserGetCommand : Command
 {
+    private readonly Option<string> _orgIdOption;
+    private readonly Option<string> _userIdOption;
+
     public UserGetCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("get", "Get a user by ID")
     {
-        var orgIdOption = new Option<string>(
-            aliases: new[] { "--org-id", "-o" },
-            description: "Organization ID")
+        _orgIdOption = new Option<string>("--org-id", "-o")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        var userIdOption = new Option<string>(
-            aliases: new[] { "--user-id", "-u" },
-            description: "User ID")
+        _userIdOption = new Option<string>("--user-id", "-u")
         {
-            IsRequired = true
+            Description = "User ID",
+            Required = true
         };
 
-        AddOption(orgIdOption);
-        AddOption(userIdOption);
+        Options.Add(_orgIdOption);
+        Options.Add(_userIdOption);
 
-        this.SetHandler(async (orgId, userId) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var orgId = parseResult.GetValue(_orgIdOption)!;
+            var userId = parseResult.GetValue(_userIdOption)!;
+
             try
             {
                 // Get active profile
@@ -152,8 +161,7 @@ public class UserGetCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -184,28 +192,30 @@ public class UserGetCommand : Command
                 {
                     Console.WriteLine($"  Updated:         {user.UpdatedAt:yyyy-MM-dd HH:mm:ss}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"User '{userId}' not found in organization '{orgId}'.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to get user: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, orgIdOption, userIdOption);
+        });
     }
 }
 
@@ -214,62 +224,77 @@ public class UserGetCommand : Command
 /// </summary>
 public class UserCreateCommand : Command
 {
+    private readonly Option<string> _orgIdOption;
+    private readonly Option<string> _usernameOption;
+    private readonly Option<string> _emailOption;
+    private readonly Option<string> _passwordOption;
+    private readonly Option<string?> _firstNameOption;
+    private readonly Option<string?> _lastNameOption;
+    private readonly Option<string?> _rolesOption;
+
     public UserCreateCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("create", "Create a new user in an organization")
     {
-        var orgIdOption = new Option<string>(
-            aliases: new[] { "--org-id", "-o" },
-            description: "Organization ID")
+        _orgIdOption = new Option<string>("--org-id", "-o")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        var usernameOption = new Option<string>(
-            aliases: new[] { "--username", "-u" },
-            description: "Username")
+        _usernameOption = new Option<string>("--username", "-u")
         {
-            IsRequired = true
+            Description = "Username",
+            Required = true
         };
 
-        var emailOption = new Option<string>(
-            aliases: new[] { "--email", "-e" },
-            description: "Email address")
+        _emailOption = new Option<string>("--email", "-e")
         {
-            IsRequired = true
+            Description = "Email address",
+            Required = true
         };
 
-        var passwordOption = new Option<string>(
-            aliases: new[] { "--password", "-p" },
-            description: "Password")
+        _passwordOption = new Option<string>("--password", "-p")
         {
-            IsRequired = true
+            Description = "Password",
+            Required = true
         };
 
-        var firstNameOption = new Option<string?>(
-            aliases: new[] { "--first-name", "-f" },
-            description: "First name");
-
-        var lastNameOption = new Option<string?>(
-            aliases: new[] { "--last-name", "-l" },
-            description: "Last name");
-
-        var rolesOption = new Option<string?>(
-            aliases: new[] { "--roles", "-r" },
-            description: "Comma-separated list of roles (e.g., Admin,User)");
-
-        AddOption(orgIdOption);
-        AddOption(usernameOption);
-        AddOption(emailOption);
-        AddOption(passwordOption);
-        AddOption(firstNameOption);
-        AddOption(lastNameOption);
-        AddOption(rolesOption);
-
-        this.SetHandler(async (orgId, username, email, password, firstName, lastName, roles) =>
+        _firstNameOption = new Option<string?>("--first-name", "-f")
         {
+            Description = "First name"
+        };
+
+        _lastNameOption = new Option<string?>("--last-name", "-l")
+        {
+            Description = "Last name"
+        };
+
+        _rolesOption = new Option<string?>("--roles", "-r")
+        {
+            Description = "Comma-separated list of roles (e.g., Admin,User)"
+        };
+
+        Options.Add(_orgIdOption);
+        Options.Add(_usernameOption);
+        Options.Add(_emailOption);
+        Options.Add(_passwordOption);
+        Options.Add(_firstNameOption);
+        Options.Add(_lastNameOption);
+        Options.Add(_rolesOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var orgId = parseResult.GetValue(_orgIdOption)!;
+            var username = parseResult.GetValue(_usernameOption)!;
+            var email = parseResult.GetValue(_emailOption)!;
+            var password = parseResult.GetValue(_passwordOption)!;
+            var firstName = parseResult.GetValue(_firstNameOption);
+            var lastName = parseResult.GetValue(_lastNameOption);
+            var roles = parseResult.GetValue(_rolesOption);
+
             try
             {
                 // Get active profile
@@ -281,8 +306,7 @@ public class UserCreateCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -320,38 +344,40 @@ public class UserCreateCommand : Command
                 {
                     Console.WriteLine($"  Roles:           {string.Join(", ", user.Roles)}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Organization '{orgId}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
             {
                 ConsoleHelper.WriteError($"Invalid request: {ex.Content}");
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
             {
                 ConsoleHelper.WriteError($"User with that username or email already exists.");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to create user: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, orgIdOption, usernameOption, emailOption, passwordOption, firstNameOption, lastNameOption, rolesOption);
+        });
     }
 }
 
@@ -360,56 +386,75 @@ public class UserCreateCommand : Command
 /// </summary>
 public class UserUpdateCommand : Command
 {
+    private readonly Option<string> _orgIdOption;
+    private readonly Option<string> _userIdOption;
+    private readonly Option<string?> _emailOption;
+    private readonly Option<string?> _firstNameOption;
+    private readonly Option<string?> _lastNameOption;
+    private readonly Option<bool?> _isActiveOption;
+    private readonly Option<string?> _rolesOption;
+
     public UserUpdateCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("update", "Update a user")
     {
-        var orgIdOption = new Option<string>(
-            aliases: new[] { "--org-id", "-o" },
-            description: "Organization ID")
+        _orgIdOption = new Option<string>("--org-id", "-o")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        var userIdOption = new Option<string>(
-            aliases: new[] { "--user-id", "-u" },
-            description: "User ID")
+        _userIdOption = new Option<string>("--user-id", "-u")
         {
-            IsRequired = true
+            Description = "User ID",
+            Required = true
         };
 
-        var emailOption = new Option<string?>(
-            aliases: new[] { "--email", "-e" },
-            description: "New email address");
-
-        var firstNameOption = new Option<string?>(
-            aliases: new[] { "--first-name", "-f" },
-            description: "New first name");
-
-        var lastNameOption = new Option<string?>(
-            aliases: new[] { "--last-name", "-l" },
-            description: "New last name");
-
-        var isActiveOption = new Option<bool?>(
-            aliases: new[] { "--active", "-a" },
-            description: "Set active status (true/false)");
-
-        var rolesOption = new Option<string?>(
-            aliases: new[] { "--roles", "-r" },
-            description: "Comma-separated list of roles (replaces existing roles)");
-
-        AddOption(orgIdOption);
-        AddOption(userIdOption);
-        AddOption(emailOption);
-        AddOption(firstNameOption);
-        AddOption(lastNameOption);
-        AddOption(isActiveOption);
-        AddOption(rolesOption);
-
-        this.SetHandler(async (orgId, userId, email, firstName, lastName, isActive, roles) =>
+        _emailOption = new Option<string?>("--email", "-e")
         {
+            Description = "New email address"
+        };
+
+        _firstNameOption = new Option<string?>("--first-name", "-f")
+        {
+            Description = "New first name"
+        };
+
+        _lastNameOption = new Option<string?>("--last-name", "-l")
+        {
+            Description = "New last name"
+        };
+
+        _isActiveOption = new Option<bool?>("--active", "-a")
+        {
+            Description = "Set active status (true/false)"
+        };
+
+        _rolesOption = new Option<string?>("--roles", "-r")
+        {
+            Description = "Comma-separated list of roles (replaces existing roles)"
+        };
+
+        Options.Add(_orgIdOption);
+        Options.Add(_userIdOption);
+        Options.Add(_emailOption);
+        Options.Add(_firstNameOption);
+        Options.Add(_lastNameOption);
+        Options.Add(_isActiveOption);
+        Options.Add(_rolesOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var orgId = parseResult.GetValue(_orgIdOption)!;
+            var userId = parseResult.GetValue(_userIdOption)!;
+            var email = parseResult.GetValue(_emailOption);
+            var firstName = parseResult.GetValue(_firstNameOption);
+            var lastName = parseResult.GetValue(_lastNameOption);
+            var isActive = parseResult.GetValue(_isActiveOption);
+            var roles = parseResult.GetValue(_rolesOption);
+
             try
             {
                 // Validate that at least one field is provided
@@ -417,8 +462,7 @@ public class UserUpdateCommand : Command
                     string.IsNullOrEmpty(lastName) && !isActive.HasValue && string.IsNullOrEmpty(roles))
                 {
                     ConsoleHelper.WriteError("At least one field (--email, --first-name, --last-name, --active, or --roles) must be provided.");
-                    Environment.ExitCode = ExitCodes.ValidationError;
-                    return;
+                    return ExitCodes.ValidationError;
                 }
 
                 // Get active profile
@@ -430,8 +474,7 @@ public class UserUpdateCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -468,33 +511,35 @@ public class UserUpdateCommand : Command
                 {
                     Console.WriteLine($"  Roles:    {string.Join(", ", user.Roles)}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"User '{userId}' not found in organization '{orgId}'.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
             {
                 ConsoleHelper.WriteError($"Invalid request: {ex.Content}");
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to update user: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, orgIdOption, userIdOption, emailOption, firstNameOption, lastNameOption, isActiveOption, rolesOption);
+        });
     }
 }
 
@@ -503,36 +548,43 @@ public class UserUpdateCommand : Command
 /// </summary>
 public class UserDeleteCommand : Command
 {
+    private readonly Option<string> _orgIdOption;
+    private readonly Option<string> _userIdOption;
+    private readonly Option<bool> _confirmOption;
+
     public UserDeleteCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("delete", "Delete a user")
     {
-        var orgIdOption = new Option<string>(
-            aliases: new[] { "--org-id", "-o" },
-            description: "Organization ID")
+        _orgIdOption = new Option<string>("--org-id", "-o")
         {
-            IsRequired = true
+            Description = "Organization ID",
+            Required = true
         };
 
-        var userIdOption = new Option<string>(
-            aliases: new[] { "--user-id", "-u" },
-            description: "User ID")
+        _userIdOption = new Option<string>("--user-id", "-u")
         {
-            IsRequired = true
+            Description = "User ID",
+            Required = true
         };
 
-        var confirmOption = new Option<bool>(
-            aliases: new[] { "--yes", "-y" },
-            description: "Skip confirmation prompt");
-
-        AddOption(orgIdOption);
-        AddOption(userIdOption);
-        AddOption(confirmOption);
-
-        this.SetHandler(async (orgId, userId, confirm) =>
+        _confirmOption = new Option<bool>("--yes", "-y")
         {
+            Description = "Skip confirmation prompt"
+        };
+
+        Options.Add(_orgIdOption);
+        Options.Add(_userIdOption);
+        Options.Add(_confirmOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var orgId = parseResult.GetValue(_orgIdOption)!;
+            var userId = parseResult.GetValue(_userIdOption)!;
+            var confirm = parseResult.GetValue(_confirmOption);
+
             try
             {
                 // Confirm deletion
@@ -541,7 +593,7 @@ public class UserDeleteCommand : Command
                     if (!ConsoleHelper.Confirm($"Are you sure you want to delete user '{userId}' from organization '{orgId}'?", defaultYes: false))
                     {
                         ConsoleHelper.WriteInfo("Deletion cancelled.");
-                        return;
+                        return ExitCodes.Success;
                     }
                 }
 
@@ -554,8 +606,7 @@ public class UserDeleteCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Tenant Service client
@@ -566,27 +617,28 @@ public class UserDeleteCommand : Command
 
                 // Display results
                 ConsoleHelper.WriteSuccess($"User '{userId}' deleted successfully.");
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"User '{userId}' not found in organization '{orgId}'.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to delete user: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, orgIdOption, userIdOption, confirmOption);
+        });
     }
 }

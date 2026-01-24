@@ -73,7 +73,7 @@ public class ServicePrincipalCommandsTests
 
         var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
         orgIdOption.Should().NotBeNull();
-        orgIdOption!.IsRequired.Should().BeTrue();
+        orgIdOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -88,11 +88,11 @@ public class ServicePrincipalCommandsTests
 
         var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
         orgIdOption.Should().NotBeNull();
-        orgIdOption!.IsRequired.Should().BeTrue();
+        orgIdOption!.Required.Should().BeTrue();
 
         var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "client-id");
         clientIdOption.Should().NotBeNull();
-        clientIdOption!.IsRequired.Should().BeTrue();
+        clientIdOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -107,11 +107,11 @@ public class ServicePrincipalCommandsTests
 
         var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
         orgIdOption.Should().NotBeNull();
-        orgIdOption!.IsRequired.Should().BeTrue();
+        orgIdOption!.Required.Should().BeTrue();
 
         var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
         nameOption.Should().NotBeNull();
-        nameOption!.IsRequired.Should().BeTrue();
+        nameOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -123,11 +123,11 @@ public class ServicePrincipalCommandsTests
         // Assert
         var descriptionOption = command.Options.FirstOrDefault(o => o.Name == "description");
         descriptionOption.Should().NotBeNull();
-        descriptionOption!.IsRequired.Should().BeFalse();
+        descriptionOption!.Required.Should().BeFalse();
 
         var scopesOption = command.Options.FirstOrDefault(o => o.Name == "scopes");
         scopesOption.Should().NotBeNull();
-        scopesOption!.IsRequired.Should().BeFalse();
+        scopesOption!.Required.Should().BeFalse();
     }
 
     [Fact]
@@ -142,11 +142,11 @@ public class ServicePrincipalCommandsTests
 
         var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
         orgIdOption.Should().NotBeNull();
-        orgIdOption!.IsRequired.Should().BeTrue();
+        orgIdOption!.Required.Should().BeTrue();
 
         var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "client-id");
         clientIdOption.Should().NotBeNull();
-        clientIdOption!.IsRequired.Should().BeTrue();
+        clientIdOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public class ServicePrincipalCommandsTests
         // Assert
         var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
         yesOption.Should().NotBeNull();
-        yesOption!.IsRequired.Should().BeFalse();
+        yesOption!.Required.Should().BeFalse();
     }
 
     [Fact]
@@ -173,11 +173,11 @@ public class ServicePrincipalCommandsTests
 
         var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
         orgIdOption.Should().NotBeNull();
-        orgIdOption!.IsRequired.Should().BeTrue();
+        orgIdOption!.Required.Should().BeTrue();
 
         var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "client-id");
         clientIdOption.Should().NotBeNull();
-        clientIdOption!.IsRequired.Should().BeTrue();
+        clientIdOption!.Required.Should().BeTrue();
     }
 
     [Fact]
@@ -185,10 +185,10 @@ public class ServicePrincipalCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalListCommand(_clientFactory, AuthService, ConfigService));
+        rootCommand.Subcommands.Add(new PrincipalListCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("list --org-id test-org-123");
+        var exitCode = await rootCommand.Parse("list --org-id test-org-123").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);
@@ -199,10 +199,10 @@ public class ServicePrincipalCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalGetCommand(_clientFactory, AuthService, ConfigService));
+        rootCommand.Subcommands.Add(new PrincipalGetCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("get --org-id test-org-123 --client-id client-456");
+        var exitCode = await rootCommand.Parse("get --org-id test-org-123 --client-id client-456").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);
@@ -213,10 +213,10 @@ public class ServicePrincipalCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalCreateCommand(_clientFactory, AuthService, ConfigService));
+        rootCommand.Subcommands.Add(new PrincipalCreateCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("create --org-id test-org-123 --name \"API Service\"");
+        var exitCode = await rootCommand.Parse("create --org-id test-org-123 --name \"API Service\"").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);
@@ -227,10 +227,10 @@ public class ServicePrincipalCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalCreateCommand(_clientFactory, AuthService, ConfigService));
+        rootCommand.Subcommands.Add(new PrincipalCreateCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("create --org-id test-org-123 --name \"API Service\" --description \"Backend API\" --scopes read,write");
+        var exitCode = await rootCommand.Parse("create --org-id test-org-123 --name \"API Service\" --description \"Backend API\" --scopes read,write").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);
@@ -241,10 +241,10 @@ public class ServicePrincipalCommandsTests
     {
         // Arrange
         var rootCommand = new RootCommand();
-        rootCommand.AddCommand(new PrincipalRotateSecretCommand(_clientFactory, AuthService, ConfigService));
+        rootCommand.Subcommands.Add(new PrincipalRotateSecretCommand(_clientFactory, AuthService, ConfigService));
 
         // Act
-        var exitCode = await rootCommand.InvokeAsync("rotate-secret --org-id test-org-123 --client-id client-456");
+        var exitCode = await rootCommand.Parse("rotate-secret --org-id test-org-123 --client-id client-456").InvokeAsync();
 
         // Assert
         exitCode.Should().Be(0);

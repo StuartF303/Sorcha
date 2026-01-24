@@ -236,9 +236,11 @@ public class BlueprintFlowExecutor
             var response = await _blueprintClient.ExecuteActionAsync(
                 instanceId: instanceId,
                 actionId: actionIndex,
+                blueprintId: context.CurrentBlueprint?.Id ?? "",
                 actionData: inputData,
-                participantId: participant.ParticipantId,
-                walletAddress: participant.WalletAddress,
+                senderWallet: participant.WalletAddress,
+                registerAddress: context.RegisterId,
+                previousTransactionHash: context.ExecutionHistory.LastOrDefault()?.TransactionHash,
                 ct: ct);
 
             if (response == null)

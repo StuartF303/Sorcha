@@ -31,7 +31,7 @@ internal class Program
             var rootCommand = BuildRootCommand(serviceProvider);
 
             // Invoke the command
-            return await rootCommand.InvokeAsync(args);
+            return await rootCommand.Parse(args).InvokeAsync();
         }
         catch (Exception ex)
         {
@@ -105,34 +105,35 @@ internal class Program
     /// </summary>
     private static RootCommand BuildRootCommand(ServiceProvider serviceProvider)
     {
-        var rootCommand = new RootCommand("Sorcha CLI - Administrative tool for managing Sorcha distributed ledger platform")
-        {
-            Name = "sorcha"
-        };
+        var rootCommand = new RootCommand("Sorcha CLI - Administrative tool for managing Sorcha distributed ledger platform");
 
         // Global options
-        var profileOption = new Option<string>(
-            aliases: new[] { "--profile", "-p" },
-            getDefaultValue: () => "dev",
-            description: "Configuration profile to use (dev, local, docker, staging, production)");
+        var profileOption = new Option<string>("--profile", "-p")
+        {
+            Description = "Configuration profile to use (dev, local, docker, staging, production)",
+            DefaultValueFactory = _ => "dev"
+        };
 
-        var outputOption = new Option<string>(
-            aliases: new[] { "--output", "-o" },
-            getDefaultValue: () => "table",
-            description: "Output format (table, json, csv)");
+        var outputOption = new Option<string>("--output", "-o")
+        {
+            Description = "Output format (table, json, csv)",
+            DefaultValueFactory = _ => "table"
+        };
 
-        var quietOption = new Option<bool>(
-            aliases: new[] { "--quiet", "-q" },
-            description: "Suppress non-essential output");
+        var quietOption = new Option<bool>("--quiet", "-q")
+        {
+            Description = "Suppress non-essential output"
+        };
 
-        var verboseOption = new Option<bool>(
-            aliases: new[] { "--verbose", "-v" },
-            description: "Enable verbose logging");
+        var verboseOption = new Option<bool>("--verbose", "-v")
+        {
+            Description = "Enable verbose logging"
+        };
 
-        rootCommand.AddGlobalOption(profileOption);
-        rootCommand.AddGlobalOption(outputOption);
-        rootCommand.AddGlobalOption(quietOption);
-        rootCommand.AddGlobalOption(verboseOption);
+        rootCommand.Options.Add(profileOption);
+        rootCommand.Options.Add(outputOption);
+        rootCommand.Options.Add(quietOption);
+        rootCommand.Options.Add(verboseOption);
 
         // Set global options for BaseCommand
         BaseCommand.ProfileOption = profileOption;
@@ -147,28 +148,28 @@ internal class Program
 
         // Subcommands with dependency injection
         // Bootstrap command (Sprint 5)
-        rootCommand.AddCommand(new BootstrapCommand(clientFactory, configService));
+        rootCommand.Subcommands.Add(new BootstrapCommand(clientFactory, configService));
 
         // Sprint 2: Tenant Service commands
-        rootCommand.AddCommand(new OrganizationCommand(clientFactory, authService, configService));
-        rootCommand.AddCommand(new UserCommand(clientFactory, authService, configService));
-        rootCommand.AddCommand(new ServicePrincipalCommand(clientFactory, authService, configService));
-        rootCommand.AddCommand(new AuthCommand(authService, configService));
+        rootCommand.Subcommands.Add(new OrganizationCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new UserCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new ServicePrincipalCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new AuthCommand(authService, configService));
 
         // Sprint 3: Register, Transaction & Wallet commands
-        rootCommand.AddCommand(new RegisterCommand(clientFactory, authService, configService));
-        rootCommand.AddCommand(new TransactionCommand(clientFactory, authService, configService));
-        rootCommand.AddCommand(new WalletCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new RegisterCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new TransactionCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new WalletCommand(clientFactory, authService, configService));
 
         // Sprint 4: Peer Service commands
-        rootCommand.AddCommand(new PeerCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new PeerCommand(clientFactory, authService, configService));
 
         // Configuration management commands
-        rootCommand.AddCommand(new ConfigCommand());
+        rootCommand.Subcommands.Add(new ConfigCommand());
 
         // Version command
         var versionCommand = new Command("version", "Display CLI version information");
-        versionCommand.SetHandler(() =>
+        versionCommand.SetAction((parseResult, ct) =>
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
             var version = assembly.GetName().Version;
@@ -181,8 +182,9 @@ internal class Program
             Console.WriteLine($".NET Runtime: {Environment.Version}");
             Console.WriteLine($"OS: {Environment.OSVersion}");
             Console.WriteLine($"Platform: {System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier}");
+            return Task.FromResult(0);
         });
-        rootCommand.AddCommand(versionCommand);
+        rootCommand.Subcommands.Add(versionCommand);
 
         return rootCommand;
     }

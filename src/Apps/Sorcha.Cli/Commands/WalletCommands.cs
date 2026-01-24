@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Net;
 using Refit;
 using Sorcha.Cli.Infrastructure;
@@ -18,12 +19,12 @@ public class WalletCommand : Command
         IConfigurationService configService)
         : base("wallet", "Manage cryptographic wallets")
     {
-        AddCommand(new WalletListCommand(clientFactory, authService, configService));
-        AddCommand(new WalletGetCommand(clientFactory, authService, configService));
-        AddCommand(new WalletCreateCommand(clientFactory, authService, configService));
-        AddCommand(new WalletRecoverCommand(clientFactory, authService, configService));
-        AddCommand(new WalletDeleteCommand(clientFactory, authService, configService));
-        AddCommand(new WalletSignCommand(clientFactory, authService, configService));
+        Subcommands.Add(new WalletListCommand(clientFactory, authService, configService));
+        Subcommands.Add(new WalletGetCommand(clientFactory, authService, configService));
+        Subcommands.Add(new WalletCreateCommand(clientFactory, authService, configService));
+        Subcommands.Add(new WalletRecoverCommand(clientFactory, authService, configService));
+        Subcommands.Add(new WalletDeleteCommand(clientFactory, authService, configService));
+        Subcommands.Add(new WalletSignCommand(clientFactory, authService, configService));
     }
 }
 
@@ -38,7 +39,7 @@ public class WalletListCommand : Command
         IConfigurationService configService)
         : base("list", "List all wallets")
     {
-        this.SetHandler(async () =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
             try
             {
@@ -51,8 +52,7 @@ public class WalletListCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Wallet Service client
@@ -65,7 +65,7 @@ public class WalletListCommand : Command
                 if (wallets == null || wallets.Count == 0)
                 {
                     ConsoleHelper.WriteInfo("No wallets found.");
-                    return;
+                    return ExitCodes.Success;
                 }
 
                 ConsoleHelper.WriteSuccess($"Found {wallets.Count} wallet(s):");
@@ -76,21 +76,23 @@ public class WalletListCommand : Command
                 {
                     Console.WriteLine($"{wallet.Address,-45} {wallet.Name,-25} {wallet.Algorithm,-12} {wallet.Status,-10}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Token may be expired. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to list wallets: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
         });
     }
@@ -101,23 +103,26 @@ public class WalletListCommand : Command
 /// </summary>
 public class WalletGetCommand : Command
 {
+    private readonly Option<string> _addressOption;
+
     public WalletGetCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("get", "Get a wallet by address")
     {
-        var addressOption = new Option<string>(
-            aliases: new[] { "--address", "-a" },
-            description: "Wallet address")
+        _addressOption = new Option<string>("--address", "-a")
         {
-            IsRequired = true
+            Description = "Wallet address",
+            Required = true
         };
 
-        AddOption(addressOption);
+        Options.Add(_addressOption);
 
-        this.SetHandler(async (address) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var address = parseResult.GetValue(_addressOption)!;
+
             try
             {
                 // Get active profile
@@ -129,8 +134,7 @@ public class WalletGetCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Wallet Service client
@@ -160,28 +164,30 @@ public class WalletGetCommand : Command
                         Console.WriteLine($"    {key}: {value}");
                     }
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Wallet '{address}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to get wallet: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, addressOption);
+        });
     }
 }
 
@@ -190,40 +196,52 @@ public class WalletGetCommand : Command
 /// </summary>
 public class WalletCreateCommand : Command
 {
+    private readonly Option<string> _nameOption;
+    private readonly Option<string> _algorithmOption;
+    private readonly Option<int> _wordCountOption;
+    private readonly Option<string?> _passphraseOption;
+
     public WalletCreateCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("create", "Create a new wallet")
     {
-        var nameOption = new Option<string>(
-            aliases: new[] { "--name", "-n" },
-            description: "Wallet name")
+        _nameOption = new Option<string>("--name", "-n")
         {
-            IsRequired = true
+            Description = "Wallet name",
+            Required = true
         };
 
-        var algorithmOption = new Option<string>(
-            aliases: new[] { "--algorithm", "-a" },
-            getDefaultValue: () => "ED25519",
-            description: "Cryptographic algorithm (ED25519, NISTP256, RSA4096)");
-
-        var wordCountOption = new Option<int>(
-            aliases: new[] { "--word-count", "-w" },
-            getDefaultValue: () => 12,
-            description: "Number of words in mnemonic (12, 15, 18, 21, or 24)");
-
-        var passphraseOption = new Option<string?>(
-            aliases: new[] { "--passphrase", "-p" },
-            description: "Optional passphrase for additional security");
-
-        AddOption(nameOption);
-        AddOption(algorithmOption);
-        AddOption(wordCountOption);
-        AddOption(passphraseOption);
-
-        this.SetHandler(async (name, algorithm, wordCount, passphrase) =>
+        _algorithmOption = new Option<string>("--algorithm", "-a")
         {
+            Description = "Cryptographic algorithm (ED25519, NISTP256, RSA4096)",
+            DefaultValueFactory = _ => "ED25519"
+        };
+
+        _wordCountOption = new Option<int>("--word-count", "-w")
+        {
+            Description = "Number of words in mnemonic (12, 15, 18, 21, or 24)",
+            DefaultValueFactory = _ => 12
+        };
+
+        _passphraseOption = new Option<string?>("--passphrase", "-p")
+        {
+            Description = "Optional passphrase for additional security"
+        };
+
+        Options.Add(_nameOption);
+        Options.Add(_algorithmOption);
+        Options.Add(_wordCountOption);
+        Options.Add(_passphraseOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var name = parseResult.GetValue(_nameOption)!;
+            var algorithm = parseResult.GetValue(_algorithmOption)!;
+            var wordCount = parseResult.GetValue(_wordCountOption);
+            var passphrase = parseResult.GetValue(_passphraseOption);
+
             try
             {
                 // Get active profile
@@ -235,8 +253,7 @@ public class WalletCreateCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Wallet Service client
@@ -262,34 +279,36 @@ public class WalletCreateCommand : Command
                 Console.WriteLine($"  Algorithm:   {response.Wallet?.Algorithm}");
                 Console.WriteLine($"  Public Key:  {response.Wallet?.PublicKey}");
                 Console.WriteLine();
-                ConsoleHelper.WriteWarning("⚠️  CRITICAL: Save your mnemonic phrase securely!");
+                ConsoleHelper.WriteWarning("CRITICAL: Save your mnemonic phrase securely!");
                 Console.WriteLine($"  Mnemonic:    {string.Join(" ", response.MnemonicWords)}");
                 Console.WriteLine();
                 ConsoleHelper.WriteWarning("The mnemonic phrase will NEVER be displayed again.");
                 ConsoleHelper.WriteWarning("Write it down on paper and store it in a secure location.");
                 ConsoleHelper.WriteWarning("Anyone with this phrase can access your wallet!");
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
             {
                 ConsoleHelper.WriteError($"Invalid request: {ex.Content}");
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to create wallet: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, nameOption, algorithmOption, wordCountOption, passphraseOption);
+        });
     }
 }
 
@@ -298,42 +317,52 @@ public class WalletCreateCommand : Command
 /// </summary>
 public class WalletRecoverCommand : Command
 {
+    private readonly Option<string> _nameOption;
+    private readonly Option<string> _algorithmOption;
+    private readonly Option<string> _mnemonicOption;
+    private readonly Option<string?> _passphraseOption;
+
     public WalletRecoverCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("recover", "Recover a wallet from mnemonic phrase")
     {
-        var nameOption = new Option<string>(
-            aliases: new[] { "--name", "-n" },
-            description: "Wallet name")
+        _nameOption = new Option<string>("--name", "-n")
         {
-            IsRequired = true
+            Description = "Wallet name",
+            Required = true
         };
 
-        var algorithmOption = new Option<string>(
-            aliases: new[] { "--algorithm", "-a" },
-            getDefaultValue: () => "ED25519",
-            description: "Cryptographic algorithm (ED25519, NISTP256, RSA4096)");
-
-        var mnemonicOption = new Option<string>(
-            aliases: new[] { "--mnemonic", "-m" },
-            description: "Mnemonic phrase (space-separated words)")
+        _algorithmOption = new Option<string>("--algorithm", "-a")
         {
-            IsRequired = true
+            Description = "Cryptographic algorithm (ED25519, NISTP256, RSA4096)",
+            DefaultValueFactory = _ => "ED25519"
         };
 
-        var passphraseOption = new Option<string?>(
-            aliases: new[] { "--passphrase", "-p" },
-            description: "Optional passphrase if one was used during creation");
-
-        AddOption(nameOption);
-        AddOption(algorithmOption);
-        AddOption(mnemonicOption);
-        AddOption(passphraseOption);
-
-        this.SetHandler(async (name, algorithm, mnemonic, passphrase) =>
+        _mnemonicOption = new Option<string>("--mnemonic", "-m")
         {
+            Description = "Mnemonic phrase (space-separated words)",
+            Required = true
+        };
+
+        _passphraseOption = new Option<string?>("--passphrase", "-p")
+        {
+            Description = "Optional passphrase if one was used during creation"
+        };
+
+        Options.Add(_nameOption);
+        Options.Add(_algorithmOption);
+        Options.Add(_mnemonicOption);
+        Options.Add(_passphraseOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var name = parseResult.GetValue(_nameOption)!;
+            var algorithm = parseResult.GetValue(_algorithmOption)!;
+            var mnemonic = parseResult.GetValue(_mnemonicOption)!;
+            var passphrase = parseResult.GetValue(_passphraseOption);
+
             try
             {
                 // Get active profile
@@ -345,8 +374,7 @@ public class WalletRecoverCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Wallet Service client
@@ -373,28 +401,30 @@ public class WalletRecoverCommand : Command
                 Console.WriteLine($"  Algorithm:   {wallet.Algorithm}");
                 Console.WriteLine($"  Public Key:  {wallet.PublicKey}");
                 Console.WriteLine($"  Status:      {wallet.Status}");
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
             {
                 ConsoleHelper.WriteError($"Invalid mnemonic phrase or parameters: {ex.Content}");
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to recover wallet: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, nameOption, algorithmOption, mnemonicOption, passphraseOption);
+        });
     }
 }
 
@@ -403,38 +433,44 @@ public class WalletRecoverCommand : Command
 /// </summary>
 public class WalletDeleteCommand : Command
 {
+    private readonly Option<string> _addressOption;
+    private readonly Option<bool> _confirmOption;
+
     public WalletDeleteCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("delete", "Delete a wallet")
     {
-        var addressOption = new Option<string>(
-            aliases: new[] { "--address", "-a" },
-            description: "Wallet address")
+        _addressOption = new Option<string>("--address", "-a")
         {
-            IsRequired = true
+            Description = "Wallet address",
+            Required = true
         };
 
-        var confirmOption = new Option<bool>(
-            aliases: new[] { "--yes", "-y" },
-            description: "Skip confirmation prompt");
-
-        AddOption(addressOption);
-        AddOption(confirmOption);
-
-        this.SetHandler(async (address, confirm) =>
+        _confirmOption = new Option<bool>("--yes", "-y")
         {
+            Description = "Skip confirmation prompt"
+        };
+
+        Options.Add(_addressOption);
+        Options.Add(_confirmOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var address = parseResult.GetValue(_addressOption)!;
+            var confirm = parseResult.GetValue(_confirmOption);
+
             try
             {
                 // Confirm deletion
                 if (!confirm)
                 {
-                    ConsoleHelper.WriteWarning("⚠️  WARNING: This will soft-delete the wallet.");
+                    ConsoleHelper.WriteWarning("WARNING: This will soft-delete the wallet.");
                     if (!ConsoleHelper.Confirm($"Are you sure you want to delete wallet '{address}'?", defaultYes: false))
                     {
                         ConsoleHelper.WriteInfo("Deletion cancelled.");
-                        return;
+                        return ExitCodes.Success;
                     }
                 }
 
@@ -447,8 +483,7 @@ public class WalletDeleteCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Wallet Service client
@@ -460,28 +495,30 @@ public class WalletDeleteCommand : Command
                 // Display results
                 ConsoleHelper.WriteSuccess($"Wallet '{address}' deleted successfully.");
                 ConsoleHelper.WriteInfo("Note: This is a soft delete. Contact support to recover if needed.");
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Wallet '{address}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to delete wallet: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, addressOption, confirmOption);
+        });
     }
 }
 
@@ -490,31 +527,35 @@ public class WalletDeleteCommand : Command
 /// </summary>
 public class WalletSignCommand : Command
 {
+    private readonly Option<string> _addressOption;
+    private readonly Option<string> _dataOption;
+
     public WalletSignCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("sign", "Sign data with a wallet's private key")
     {
-        var addressOption = new Option<string>(
-            aliases: new[] { "--address", "-a" },
-            description: "Wallet address")
+        _addressOption = new Option<string>("--address", "-a")
         {
-            IsRequired = true
+            Description = "Wallet address",
+            Required = true
         };
 
-        var dataOption = new Option<string>(
-            aliases: new[] { "--data", "-d" },
-            description: "Data to sign (base64 encoded)")
+        _dataOption = new Option<string>("--data", "-d")
         {
-            IsRequired = true
+            Description = "Data to sign (base64 encoded)",
+            Required = true
         };
 
-        AddOption(addressOption);
-        AddOption(dataOption);
+        Options.Add(_addressOption);
+        Options.Add(_dataOption);
 
-        this.SetHandler(async (address, data) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var address = parseResult.GetValue(_addressOption)!;
+            var data = parseResult.GetValue(_dataOption)!;
+
             try
             {
                 // Get active profile
@@ -526,8 +567,7 @@ public class WalletSignCommand : Command
                 if (string.IsNullOrEmpty(token))
                 {
                     ConsoleHelper.WriteError("Not authenticated. Run 'sorcha auth login' first.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Wallet Service client
@@ -548,32 +588,34 @@ public class WalletSignCommand : Command
                 Console.WriteLine($"  Signature:   {response.Signature}");
                 Console.WriteLine($"  Signed By:   {response.SignedBy}");
                 Console.WriteLine($"  Signed At:   {response.SignedAt:yyyy-MM-dd HH:mm:ss}");
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Wallet '{address}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
             {
                 ConsoleHelper.WriteError($"Invalid data or parameters: {ex.Content}");
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Run 'sorcha auth login'.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex)
             {
                 ConsoleHelper.WriteError($"API error ({ex.StatusCode}): {ex.Content}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to sign data: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, addressOption, dataOption);
+        });
     }
 }

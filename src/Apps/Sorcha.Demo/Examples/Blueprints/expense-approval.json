@@ -35,6 +35,7 @@
       "title": "Submit Expense Report",
       "description": "Employee submits an expense report for approval",
       "sender": "Employee",
+      "isStartingAction": true,
       "dataSchemas": [
         {
           "type": "object",

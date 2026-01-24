@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Net;
 using Refit;
 using Sorcha.Cli.Infrastructure;
@@ -18,10 +19,10 @@ public class TransactionCommand : Command
         IConfigurationService configService)
         : base("tx", "Manage transactions in registers")
     {
-        AddCommand(new TxListCommand(clientFactory, authService, configService));
-        AddCommand(new TxGetCommand(clientFactory, authService, configService));
-        AddCommand(new TxSubmitCommand(clientFactory, authService, configService));
-        AddCommand(new TxStatusCommand(clientFactory, authService, configService));
+        Subcommands.Add(new TxListCommand(clientFactory, authService, configService));
+        Subcommands.Add(new TxGetCommand(clientFactory, authService, configService));
+        Subcommands.Add(new TxSubmitCommand(clientFactory, authService, configService));
+        Subcommands.Add(new TxStatusCommand(clientFactory, authService, configService));
     }
 }
 
@@ -30,33 +31,42 @@ public class TransactionCommand : Command
 /// </summary>
 public class TxListCommand : Command
 {
+    private readonly Option<string> _registerIdOption;
+    private readonly Option<int?> _skipOption;
+    private readonly Option<int?> _takeOption;
+
     public TxListCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("list", "List transactions in a register")
     {
-        var registerIdOption = new Option<string>(
-            aliases: new[] { "--register-id", "-r" },
-            description: "Register ID")
+        _registerIdOption = new Option<string>("--register-id", "-r")
         {
-            IsRequired = true
+            Description = "Register ID",
+            Required = true
         };
 
-        var skipOption = new Option<int?>(
-            aliases: new[] { "--skip", "-s" },
-            description: "Number of transactions to skip (for pagination)");
-
-        var takeOption = new Option<int?>(
-            aliases: new[] { "--take", "-t" },
-            description: "Number of transactions to retrieve (default: 100)");
-
-        AddOption(registerIdOption);
-        AddOption(skipOption);
-        AddOption(takeOption);
-
-        this.SetHandler(async (registerId, skip, take) =>
+        _skipOption = new Option<int?>("--skip", "-s")
         {
+            Description = "Number of transactions to skip (for pagination)"
+        };
+
+        _takeOption = new Option<int?>("--take", "-t")
+        {
+            Description = "Number of transactions to retrieve (default: 100)"
+        };
+
+        Options.Add(_registerIdOption);
+        Options.Add(_skipOption);
+        Options.Add(_takeOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var registerId = parseResult.GetValue(_registerIdOption)!;
+            var skip = parseResult.GetValue(_skipOption);
+            var take = parseResult.GetValue(_takeOption);
+
             try
             {
                 // Get active profile
@@ -69,8 +79,7 @@ public class TxListCommand : Command
                 {
                     ConsoleHelper.WriteError("You must be authenticated to list transactions.");
                     ConsoleHelper.WriteInfo("Run 'sorcha auth login' to authenticate.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Register Service client
@@ -83,7 +92,7 @@ public class TxListCommand : Command
                 if (transactions == null || transactions.Count == 0)
                 {
                     ConsoleHelper.WriteInfo("No transactions found.");
-                    return;
+                    return ExitCodes.Success;
                 }
 
                 ConsoleHelper.WriteSuccess($"Found {transactions.Count} transaction(s) in register '{registerId}':");
@@ -105,22 +114,24 @@ public class TxListCommand : Command
                     Console.WriteLine();
                     ConsoleHelper.WriteInfo($"Showing {transactions.Count} transaction(s) (skip: {skip ?? 0}, take: {take ?? 100})");
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Register '{registerId}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Your access token may have expired.");
                 ConsoleHelper.WriteInfo("Run 'sorcha auth login' to re-authenticate.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
             {
                 ConsoleHelper.WriteError("You do not have permission to view transactions in this register.");
-                Environment.ExitCode = ExitCodes.AuthorizationError;
+                return ExitCodes.AuthorizationError;
             }
             catch (ApiException ex)
             {
@@ -129,14 +140,14 @@ public class TxListCommand : Command
                 {
                     ConsoleHelper.WriteError($"Details: {ex.Content}");
                 }
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to list transactions: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, registerIdOption, skipOption, takeOption);
+        });
     }
 }
 
@@ -145,31 +156,35 @@ public class TxListCommand : Command
 /// </summary>
 public class TxGetCommand : Command
 {
+    private readonly Option<string> _registerIdOption;
+    private readonly Option<string> _txIdOption;
+
     public TxGetCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("get", "Get a transaction by ID")
     {
-        var registerIdOption = new Option<string>(
-            aliases: new[] { "--register-id", "-r" },
-            description: "Register ID")
+        _registerIdOption = new Option<string>("--register-id", "-r")
         {
-            IsRequired = true
+            Description = "Register ID",
+            Required = true
         };
 
-        var txIdOption = new Option<string>(
-            aliases: new[] { "--tx-id", "-t" },
-            description: "Transaction ID")
+        _txIdOption = new Option<string>("--tx-id", "-t")
         {
-            IsRequired = true
+            Description = "Transaction ID",
+            Required = true
         };
 
-        AddOption(registerIdOption);
-        AddOption(txIdOption);
+        Options.Add(_registerIdOption);
+        Options.Add(_txIdOption);
 
-        this.SetHandler(async (registerId, txId) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var registerId = parseResult.GetValue(_registerIdOption)!;
+            var txId = parseResult.GetValue(_txIdOption)!;
+
             try
             {
                 // Get active profile
@@ -182,8 +197,7 @@ public class TxGetCommand : Command
                 {
                     ConsoleHelper.WriteError("You must be authenticated to get a transaction.");
                     ConsoleHelper.WriteInfo("Run 'sorcha auth login' to authenticate.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Register Service client
@@ -214,22 +228,24 @@ public class TxGetCommand : Command
                 Console.WriteLine();
                 Console.WriteLine("  Signature:");
                 Console.WriteLine($"  {tx.Signature}");
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Transaction '{txId}' not found in register '{registerId}'.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Your access token may have expired.");
                 ConsoleHelper.WriteInfo("Run 'sorcha auth login' to re-authenticate.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
             {
                 ConsoleHelper.WriteError("You do not have permission to view this transaction.");
-                Environment.ExitCode = ExitCodes.AuthorizationError;
+                return ExitCodes.AuthorizationError;
             }
             catch (ApiException ex)
             {
@@ -238,14 +254,14 @@ public class TxGetCommand : Command
                 {
                     ConsoleHelper.WriteError($"Details: {ex.Content}");
                 }
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to get transaction: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, registerIdOption, txIdOption);
+        });
     }
 }
 
@@ -254,60 +270,70 @@ public class TxGetCommand : Command
 /// </summary>
 public class TxSubmitCommand : Command
 {
+    private readonly Option<string> _registerIdOption;
+    private readonly Option<string> _txTypeOption;
+    private readonly Option<string> _walletOption;
+    private readonly Option<string> _payloadOption;
+    private readonly Option<string> _signatureOption;
+    private readonly Option<string?> _previousTxOption;
+
     public TxSubmitCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("submit", "Submit a new transaction to a register")
     {
-        var registerIdOption = new Option<string>(
-            aliases: new[] { "--register-id", "-r" },
-            description: "Register ID")
+        _registerIdOption = new Option<string>("--register-id", "-r")
         {
-            IsRequired = true
+            Description = "Register ID",
+            Required = true
         };
 
-        var txTypeOption = new Option<string>(
-            aliases: new[] { "--type", "-t" },
-            description: "Transaction type")
+        _txTypeOption = new Option<string>("--type", "-t")
         {
-            IsRequired = true
+            Description = "Transaction type",
+            Required = true
         };
 
-        var walletOption = new Option<string>(
-            aliases: new[] { "--wallet", "-w" },
-            description: "Sender wallet address")
+        _walletOption = new Option<string>("--wallet", "-w")
         {
-            IsRequired = true
+            Description = "Sender wallet address",
+            Required = true
         };
 
-        var payloadOption = new Option<string>(
-            aliases: new[] { "--payload", "-p" },
-            description: "Transaction payload (JSON)")
+        _payloadOption = new Option<string>("--payload", "-p")
         {
-            IsRequired = true
+            Description = "Transaction payload (JSON)",
+            Required = true
         };
 
-        var signatureOption = new Option<string>(
-            aliases: new[] { "--signature", "-s" },
-            description: "Transaction signature")
+        _signatureOption = new Option<string>("--signature", "-s")
         {
-            IsRequired = true
+            Description = "Transaction signature",
+            Required = true
         };
 
-        var previousTxOption = new Option<string?>(
-            aliases: new[] { "--previous-tx", "-x" },
-            description: "Previous transaction ID (for chaining)");
-
-        AddOption(registerIdOption);
-        AddOption(txTypeOption);
-        AddOption(walletOption);
-        AddOption(payloadOption);
-        AddOption(signatureOption);
-        AddOption(previousTxOption);
-
-        this.SetHandler(async (registerId, txType, wallet, payload, signature, previousTx) =>
+        _previousTxOption = new Option<string?>("--previous-tx", "-x")
         {
+            Description = "Previous transaction ID (for chaining)"
+        };
+
+        Options.Add(_registerIdOption);
+        Options.Add(_txTypeOption);
+        Options.Add(_walletOption);
+        Options.Add(_payloadOption);
+        Options.Add(_signatureOption);
+        Options.Add(_previousTxOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var registerId = parseResult.GetValue(_registerIdOption)!;
+            var txType = parseResult.GetValue(_txTypeOption)!;
+            var wallet = parseResult.GetValue(_walletOption)!;
+            var payload = parseResult.GetValue(_payloadOption)!;
+            var signature = parseResult.GetValue(_signatureOption)!;
+            var previousTx = parseResult.GetValue(_previousTxOption);
+
             try
             {
                 // Get active profile
@@ -320,8 +346,7 @@ public class TxSubmitCommand : Command
                 {
                     ConsoleHelper.WriteError("You must be authenticated to submit a transaction.");
                     ConsoleHelper.WriteInfo("Run 'sorcha auth login' to authenticate.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Register Service client
@@ -350,6 +375,7 @@ public class TxSubmitCommand : Command
                     Console.WriteLine($"  Status:          {response.Status}");
                     Console.WriteLine();
                     ConsoleHelper.WriteInfo($"Use 'sorcha tx status --register-id {registerId} --tx-id {response.TransactionId}' to check status.");
+                    return ExitCodes.Success;
                 }
                 else
                 {
@@ -360,7 +386,7 @@ public class TxSubmitCommand : Command
                     {
                         Console.WriteLine($"  Error:           {response.Error}");
                     }
-                    Environment.ExitCode = ExitCodes.GeneralError;
+                    return ExitCodes.GeneralError;
                 }
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
@@ -370,23 +396,23 @@ public class TxSubmitCommand : Command
                 {
                     ConsoleHelper.WriteError($"Details: {ex.Content}");
                 }
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Register '{registerId}' not found.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Your access token may have expired.");
                 ConsoleHelper.WriteInfo("Run 'sorcha auth login' to re-authenticate.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
             {
                 ConsoleHelper.WriteError("You do not have permission to submit transactions to this register.");
-                Environment.ExitCode = ExitCodes.AuthorizationError;
+                return ExitCodes.AuthorizationError;
             }
             catch (ApiException ex)
             {
@@ -395,14 +421,14 @@ public class TxSubmitCommand : Command
                 {
                     ConsoleHelper.WriteError($"Details: {ex.Content}");
                 }
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to submit transaction: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, registerIdOption, txTypeOption, walletOption, payloadOption, signatureOption, previousTxOption);
+        });
     }
 }
 
@@ -411,31 +437,35 @@ public class TxSubmitCommand : Command
 /// </summary>
 public class TxStatusCommand : Command
 {
+    private readonly Option<string> _registerIdOption;
+    private readonly Option<string> _txIdOption;
+
     public TxStatusCommand(
         HttpClientFactory clientFactory,
         IAuthenticationService authService,
         IConfigurationService configService)
         : base("status", "Get the status of a transaction")
     {
-        var registerIdOption = new Option<string>(
-            aliases: new[] { "--register-id", "-r" },
-            description: "Register ID")
+        _registerIdOption = new Option<string>("--register-id", "-r")
         {
-            IsRequired = true
+            Description = "Register ID",
+            Required = true
         };
 
-        var txIdOption = new Option<string>(
-            aliases: new[] { "--tx-id", "-t" },
-            description: "Transaction ID")
+        _txIdOption = new Option<string>("--tx-id", "-t")
         {
-            IsRequired = true
+            Description = "Transaction ID",
+            Required = true
         };
 
-        AddOption(registerIdOption);
-        AddOption(txIdOption);
+        Options.Add(_registerIdOption);
+        Options.Add(_txIdOption);
 
-        this.SetHandler(async (registerId, txId) =>
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
+            var registerId = parseResult.GetValue(_registerIdOption)!;
+            var txId = parseResult.GetValue(_txIdOption)!;
+
             try
             {
                 // Get active profile
@@ -448,8 +478,7 @@ public class TxStatusCommand : Command
                 {
                     ConsoleHelper.WriteError("You must be authenticated to check transaction status.");
                     ConsoleHelper.WriteInfo("Run 'sorcha auth login' to authenticate.");
-                    Environment.ExitCode = ExitCodes.AuthenticationError;
-                    return;
+                    return ExitCodes.AuthenticationError;
                 }
 
                 // Create Register Service client
@@ -489,22 +518,24 @@ public class TxStatusCommand : Command
                         ConsoleHelper.WriteWarning($"Unknown status: {response.Status}");
                         break;
                 }
+
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 ConsoleHelper.WriteError($"Transaction '{txId}' not found in register '{registerId}'.");
-                Environment.ExitCode = ExitCodes.NotFound;
+                return ExitCodes.NotFound;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 ConsoleHelper.WriteError("Authentication failed. Your access token may have expired.");
                 ConsoleHelper.WriteInfo("Run 'sorcha auth login' to re-authenticate.");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
             {
                 ConsoleHelper.WriteError("You do not have permission to view transaction status.");
-                Environment.ExitCode = ExitCodes.AuthorizationError;
+                return ExitCodes.AuthorizationError;
             }
             catch (ApiException ex)
             {
@@ -513,13 +544,13 @@ public class TxStatusCommand : Command
                 {
                     ConsoleHelper.WriteError($"Details: {ex.Content}");
                 }
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to get transaction status: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, registerIdOption, txIdOption);
+        });
     }
 }

@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using Sorcha.Cli.Infrastructure;
 using Sorcha.Cli.Models;
 using Sorcha.Cli.Services;
@@ -15,9 +16,9 @@ public class AuthCommand : Command
         IConfigurationService configService)
         : base("auth", "Manage authentication and login sessions")
     {
-        AddCommand(new AuthLoginCommand(authService, configService));
-        AddCommand(new AuthLogoutCommand(authService, configService));
-        AddCommand(new AuthStatusCommand(authService, configService));
+        Subcommands.Add(new AuthLoginCommand(authService, configService));
+        Subcommands.Add(new AuthLogoutCommand(authService, configService));
+        Subcommands.Add(new AuthStatusCommand(authService, configService));
     }
 }
 
@@ -29,6 +30,13 @@ public class AuthLoginCommand : Command
     private readonly IAuthenticationService _authService;
     private readonly IConfigurationService _configService;
 
+    private readonly Option<string?> _usernameOption;
+    private readonly Option<string?> _passwordOption;
+    private readonly Option<string?> _clientIdOption;
+    private readonly Option<string?> _clientSecretOption;
+    private readonly Option<bool> _interactiveOption;
+    private readonly Option<string?> _profileOption;
+
     public AuthLoginCommand(
         IAuthenticationService authService,
         IConfigurationService configService)
@@ -37,40 +45,53 @@ public class AuthLoginCommand : Command
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
 
-        var usernameOption = new Option<string?>(
-            aliases: new[] { "--username", "-u" },
-            description: "Username for user authentication");
-
-        var passwordOption = new Option<string?>(
-            aliases: new[] { "--password", "-p" },
-            description: "Password for user authentication (INSECURE - use interactive mode instead)");
-
-        var clientIdOption = new Option<string?>(
-            aliases: new[] { "--client-id", "-c" },
-            description: "Client ID for service principal authentication");
-
-        var clientSecretOption = new Option<string?>(
-            aliases: new[] { "--client-secret", "-s" },
-            description: "Client secret for service principal authentication (INSECURE - use interactive mode instead)");
-
-        var interactiveOption = new Option<bool>(
-            aliases: new[] { "--interactive", "-i" },
-            getDefaultValue: () => true,
-            description: "Use interactive login (prompts for credentials securely)");
-
-        var profileOption = new Option<string?>(
-            aliases: new[] { "--profile" },
-            description: "Profile to authenticate with (defaults to active profile)");
-
-        AddOption(usernameOption);
-        AddOption(passwordOption);
-        AddOption(clientIdOption);
-        AddOption(clientSecretOption);
-        AddOption(interactiveOption);
-        AddOption(profileOption);
-
-        this.SetHandler(async (username, password, clientId, clientSecret, interactive, profileName) =>
+        _usernameOption = new Option<string?>("--username", "-u")
         {
+            Description = "Username for user authentication"
+        };
+
+        _passwordOption = new Option<string?>("--password", "-p")
+        {
+            Description = "Password for user authentication (INSECURE - use interactive mode instead)"
+        };
+
+        _clientIdOption = new Option<string?>("--client-id", "-c")
+        {
+            Description = "Client ID for service principal authentication"
+        };
+
+        _clientSecretOption = new Option<string?>("--client-secret", "-s")
+        {
+            Description = "Client secret for service principal authentication (INSECURE - use interactive mode instead)"
+        };
+
+        _interactiveOption = new Option<bool>("--interactive", "-i")
+        {
+            Description = "Use interactive login (prompts for credentials securely)",
+            DefaultValueFactory = _ => true
+        };
+
+        _profileOption = new Option<string?>("--profile")
+        {
+            Description = "Profile to authenticate with (defaults to active profile)"
+        };
+
+        Options.Add(_usernameOption);
+        Options.Add(_passwordOption);
+        Options.Add(_clientIdOption);
+        Options.Add(_clientSecretOption);
+        Options.Add(_interactiveOption);
+        Options.Add(_profileOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var username = parseResult.GetValue(_usernameOption);
+            var password = parseResult.GetValue(_passwordOption);
+            var clientId = parseResult.GetValue(_clientIdOption);
+            var clientSecret = parseResult.GetValue(_clientSecretOption);
+            var interactive = parseResult.GetValue(_interactiveOption);
+            var profileName = parseResult.GetValue(_profileOption);
+
             try
             {
                 // Determine profile
@@ -93,13 +114,15 @@ public class AuthLoginCommand : Command
                 {
                     await LoginUserAsync(username, password, interactive, profileName);
                 }
+
+                return ExitCodes.Success;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Authentication failed: {ex.Message}");
-                Environment.ExitCode = ExitCodes.AuthenticationError;
+                return ExitCodes.AuthenticationError;
             }
-        }, usernameOption, passwordOption, clientIdOption, clientSecretOption, interactiveOption, profileOption);
+        });
     }
 
     private async Task LoginUserAsync(string? username, string? password, bool interactive, string profileName)
@@ -120,7 +143,7 @@ public class AuthLoginCommand : Command
         {
             if (!string.IsNullOrEmpty(password))
             {
-                ConsoleHelper.WriteWarning("⚠ Password provided as command-line argument is INSECURE!");
+                ConsoleHelper.WriteWarning("Warning: Password provided as command-line argument is INSECURE!");
                 ConsoleHelper.WriteWarning("  Use interactive mode to avoid exposing credentials in process list.");
             }
             password = ConsoleHelper.ReadPassword("Password: ");
@@ -168,7 +191,7 @@ public class AuthLoginCommand : Command
         {
             if (!string.IsNullOrEmpty(clientSecret))
             {
-                ConsoleHelper.WriteWarning("⚠ Client secret provided as command-line argument is INSECURE!");
+                ConsoleHelper.WriteWarning("Warning: Client secret provided as command-line argument is INSECURE!");
                 ConsoleHelper.WriteWarning("  Use interactive mode to avoid exposing credentials in process list.");
             }
             clientSecret = ConsoleHelper.ReadPassword("Client Secret: ");
@@ -202,6 +225,9 @@ public class AuthLogoutCommand : Command
     private readonly IAuthenticationService _authService;
     private readonly IConfigurationService _configService;
 
+    private readonly Option<bool> _allOption;
+    private readonly Option<string?> _profileOption;
+
     public AuthLogoutCommand(
         IAuthenticationService authService,
         IConfigurationService configService)
@@ -210,19 +236,24 @@ public class AuthLogoutCommand : Command
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
 
-        var allOption = new Option<bool>(
-            aliases: new[] { "--all", "-a" },
-            description: "Clear tokens for all profiles (default: current profile only)");
-
-        var profileOption = new Option<string?>(
-            aliases: new[] { "--profile" },
-            description: "Profile to logout from (defaults to active profile)");
-
-        AddOption(allOption);
-        AddOption(profileOption);
-
-        this.SetHandler(async (all, profileName) =>
+        _allOption = new Option<bool>("--all", "-a")
         {
+            Description = "Clear tokens for all profiles (default: current profile only)"
+        };
+
+        _profileOption = new Option<string?>("--profile")
+        {
+            Description = "Profile to logout from (defaults to active profile)"
+        };
+
+        Options.Add(_allOption);
+        Options.Add(_profileOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var all = parseResult.GetValue(_allOption);
+            var profileName = parseResult.GetValue(_profileOption);
+
             try
             {
                 if (all)
@@ -249,13 +280,15 @@ public class AuthLogoutCommand : Command
                     await _authService.LogoutAsync(profileName);
                     ConsoleHelper.WriteSuccess($"Logged out from profile: {profileName}");
                 }
+
+                return ExitCodes.Success;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Logout failed: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, allOption, profileOption);
+        });
     }
 }
 
@@ -267,6 +300,8 @@ public class AuthStatusCommand : Command
     private readonly IAuthenticationService _authService;
     private readonly IConfigurationService _configService;
 
+    private readonly Option<string?> _profileOption;
+
     public AuthStatusCommand(
         IAuthenticationService authService,
         IConfigurationService configService)
@@ -275,14 +310,17 @@ public class AuthStatusCommand : Command
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
 
-        var profileOption = new Option<string?>(
-            aliases: new[] { "--profile" },
-            description: "Profile to check status for (defaults to active profile)");
-
-        AddOption(profileOption);
-
-        this.SetHandler(async (profileName) =>
+        _profileOption = new Option<string?>("--profile")
         {
+            Description = "Profile to check status for (defaults to active profile)"
+        };
+
+        Options.Add(_profileOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var profileName = parseResult.GetValue(_profileOption);
+
             try
             {
                 // Determine profile
@@ -297,7 +335,7 @@ public class AuthStatusCommand : Command
 
                 Console.WriteLine();
                 Console.WriteLine($"Profile: {profileName}");
-                Console.WriteLine($"Status: {(isAuthenticated ? "Authenticated ✓" : "Not authenticated ✗")}");
+                Console.WriteLine($"Status: {(isAuthenticated ? "Authenticated" : "Not authenticated")}");
 
                 if (isAuthenticated && !string.IsNullOrEmpty(token))
                 {
@@ -347,13 +385,14 @@ public class AuthStatusCommand : Command
                 }
 
                 Console.WriteLine();
+                return ExitCodes.Success;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to check status: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
-        }, profileOption);
+        });
     }
 
     private static string PadBase64(string base64)

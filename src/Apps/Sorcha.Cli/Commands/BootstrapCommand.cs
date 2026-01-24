@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Net;
 using Refit;
 using Sorcha.Cli.Infrastructure;
@@ -13,77 +14,96 @@ namespace Sorcha.Cli.Commands;
 /// </summary>
 public class BootstrapCommand : Command
 {
+    private readonly Option<string?> _orgNameOption;
+    private readonly Option<string?> _subdomainOption;
+    private readonly Option<string?> _descriptionOption;
+    private readonly Option<string?> _adminEmailOption;
+    private readonly Option<string?> _adminNameOption;
+    private readonly Option<string?> _adminPasswordOption;
+    private readonly Option<bool> _createSpOption;
+    private readonly Option<string?> _spNameOption;
+    private readonly Option<bool> _nonInteractiveOption;
+
     public BootstrapCommand(
         HttpClientFactory clientFactory,
         IConfigurationService configService)
         : base("bootstrap", "Bootstrap a fresh Sorcha installation")
     {
         // Options
-        var orgNameOption = new Option<string?>(
-            aliases: new[] { "--org-name", "-n" },
-            description: "Organization name");
-
-        var subdomainOption = new Option<string?>(
-            aliases: new[] { "--subdomain", "-s" },
-            description: "Organization subdomain");
-
-        var descriptionOption = new Option<string?>(
-            aliases: new[] { "--description", "-d" },
-            description: "Organization description");
-
-        var adminEmailOption = new Option<string?>(
-            aliases: new[] { "--admin-email", "-e" },
-            description: "Administrator email address");
-
-        var adminNameOption = new Option<string?>(
-            aliases: new[] { "--admin-name", "-a" },
-            description: "Administrator display name");
-
-        var adminPasswordOption = new Option<string?>(
-            aliases: new[] { "--admin-password", "-p" },
-            description: "Administrator password (prompted if not provided)");
-
-        var createSpOption = new Option<bool>(
-            aliases: new[] { "--create-sp" },
-            getDefaultValue: () => false,
-            description: "Create service principal for automation");
-
-        var spNameOption = new Option<string?>(
-            aliases: new[] { "--sp-name" },
-            description: "Service principal name");
-
-        var nonInteractiveOption = new Option<bool>(
-            aliases: new[] { "--non-interactive", "-y" },
-            getDefaultValue: () => false,
-            description: "Non-interactive mode (all options must be provided)");
-
-        AddOption(orgNameOption);
-        AddOption(subdomainOption);
-        AddOption(descriptionOption);
-        AddOption(adminEmailOption);
-        AddOption(adminNameOption);
-        AddOption(adminPasswordOption);
-        AddOption(createSpOption);
-        AddOption(spNameOption);
-        AddOption(nonInteractiveOption);
-
-        this.SetHandler(async (context) =>
+        _orgNameOption = new Option<string?>("--org-name", "-n")
         {
-            var orgName = context.ParseResult.GetValueForOption(orgNameOption);
-            var subdomain = context.ParseResult.GetValueForOption(subdomainOption);
-            var description = context.ParseResult.GetValueForOption(descriptionOption);
-            var adminEmail = context.ParseResult.GetValueForOption(adminEmailOption);
-            var adminName = context.ParseResult.GetValueForOption(adminNameOption);
-            var adminPassword = context.ParseResult.GetValueForOption(adminPasswordOption);
-            var createSp = context.ParseResult.GetValueForOption(createSpOption);
-            var spName = context.ParseResult.GetValueForOption(spNameOption);
-            var nonInteractive = context.ParseResult.GetValueForOption(nonInteractiveOption);
+            Description = "Organization name"
+        };
+
+        _subdomainOption = new Option<string?>("--subdomain", "-s")
+        {
+            Description = "Organization subdomain"
+        };
+
+        _descriptionOption = new Option<string?>("--description", "-d")
+        {
+            Description = "Organization description"
+        };
+
+        _adminEmailOption = new Option<string?>("--admin-email", "-e")
+        {
+            Description = "Administrator email address"
+        };
+
+        _adminNameOption = new Option<string?>("--admin-name", "-a")
+        {
+            Description = "Administrator display name"
+        };
+
+        _adminPasswordOption = new Option<string?>("--admin-password", "-p")
+        {
+            Description = "Administrator password (prompted if not provided)"
+        };
+
+        _createSpOption = new Option<bool>("--create-sp")
+        {
+            Description = "Create service principal for automation",
+            DefaultValueFactory = _ => false
+        };
+
+        _spNameOption = new Option<string?>("--sp-name")
+        {
+            Description = "Service principal name"
+        };
+
+        _nonInteractiveOption = new Option<bool>("--non-interactive", "-y")
+        {
+            Description = "Non-interactive mode (all options must be provided)",
+            DefaultValueFactory = _ => false
+        };
+
+        Options.Add(_orgNameOption);
+        Options.Add(_subdomainOption);
+        Options.Add(_descriptionOption);
+        Options.Add(_adminEmailOption);
+        Options.Add(_adminNameOption);
+        Options.Add(_adminPasswordOption);
+        Options.Add(_createSpOption);
+        Options.Add(_spNameOption);
+        Options.Add(_nonInteractiveOption);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
+        {
+            var orgName = parseResult.GetValue(_orgNameOption);
+            var subdomain = parseResult.GetValue(_subdomainOption);
+            var description = parseResult.GetValue(_descriptionOption);
+            var adminEmail = parseResult.GetValue(_adminEmailOption);
+            var adminName = parseResult.GetValue(_adminNameOption);
+            var adminPassword = parseResult.GetValue(_adminPasswordOption);
+            var createSp = parseResult.GetValue(_createSpOption);
+            var spName = parseResult.GetValue(_spNameOption);
+            var nonInteractive = parseResult.GetValue(_nonInteractiveOption);
 
             try
             {
                 // Get profile name from global --profile option or use active profile
                 var profileName = BaseCommand.ProfileOption != null
-                    ? context.ParseResult.GetValueForOption(BaseCommand.ProfileOption)
+                    ? parseResult.GetValue(BaseCommand.ProfileOption)
                     : null;
 
                 if (string.IsNullOrEmpty(profileName))
@@ -157,8 +177,7 @@ public class BootstrapCommand : Command
                     string.IsNullOrEmpty(adminPassword))
                 {
                     ConsoleHelper.WriteError("All required fields must be provided in non-interactive mode.");
-                    Environment.ExitCode = ExitCodes.ValidationError;
-                    return;
+                    return ExitCodes.ValidationError;
                 }
 
                 // Create bootstrap request
@@ -225,7 +244,7 @@ public class BootstrapCommand : Command
                         AnsiConsole.Write(panel);
                     });
 
-                Environment.ExitCode = ExitCodes.Success;
+                return ExitCodes.Success;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
             {
@@ -234,7 +253,7 @@ public class BootstrapCommand : Command
                 {
                     AnsiConsole.MarkupLine($"[red]{ex.Content.EscapeMarkup()}[/]");
                 }
-                Environment.ExitCode = ExitCodes.ValidationError;
+                return ExitCodes.ValidationError;
             }
             catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
             {
@@ -243,7 +262,7 @@ public class BootstrapCommand : Command
                 {
                     AnsiConsole.MarkupLine($"[red]{ex.Content.EscapeMarkup()}[/]");
                 }
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (ApiException ex)
             {
@@ -252,12 +271,12 @@ public class BootstrapCommand : Command
                 {
                     AnsiConsole.MarkupLine($"[red]Details: {ex.Content}[/]");
                 }
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Bootstrap failed: {ex.Message}");
-                Environment.ExitCode = ExitCodes.GeneralError;
+                return ExitCodes.GeneralError;
             }
         });
     }
