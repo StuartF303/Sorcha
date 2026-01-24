@@ -1,0 +1,138 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Participants
+@using Sorcha.UI.Core.Services.Participants
+
+<MudTable Items="@_participants" Loading="@_loading" Hover="true" Dense="true"
+          ServerData="LoadServerData" @ref="_table">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Participants</MudText>
+        <MudSpacer />
+        <MudTextField T="string" Placeholder="Search..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"
+                      ValueChanged="@OnSearch" Immediate="true" DebounceInterval="300" />
+        @if (ShowCreateButton)
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" Class="ml-3"
+                       OnClick="@OnCreateClick">
+                Add Participant
+            </MudButton>
+        }
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Display Name</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Wallet</MudTh>
+        <MudTh>Created</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Display Name">@context.DisplayName</MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="Status">
+            <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">
+                @context.Status
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Wallet">
+            @if (context.HasLinkedWallet)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.RadioButtonUnchecked" Color="Color.Default" Size="Size.Small" />
+            }
+        </MudTd>
+        <MudTd DataLabel="Created">@context.CreatedAt.LocalDateTime.ToShortDateString()</MudTd>
+        <MudTd DataLabel="Actions">
+            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small"
+                           OnClick="@(() => OnViewClick.InvokeAsync(context))" Title="View Details" />
+            @if (ShowEditButton)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               OnClick="@(() => OnEditClick.InvokeAsync(context))" Title="Edit" />
+            }
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No participants found.</MudText>
+    </NoRecordsContent>
+    <LoadingContent>
+        <MudText>Loading...</MudText>
+    </LoadingContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[] { 10, 20, 50 }" />
+    </PagerContent>
+</MudTable>
+
+@code {
+    [Inject] private IParticipantApiService ParticipantService { get; set; } = default!;
+
+    [Parameter] public Guid OrganizationId { get; set; }
+    [Parameter] public bool ShowCreateButton { get; set; } = true;
+    [Parameter] public bool ShowEditButton { get; set; } = true;
+    [Parameter] public EventCallback OnCreateClick { get; set; }
+    [Parameter] public EventCallback<ParticipantListItemViewModel> OnViewClick { get; set; }
+    [Parameter] public EventCallback<ParticipantListItemViewModel> OnEditClick { get; set; }
+
+    private MudTable<ParticipantListItemViewModel>? _table;
+    private List<ParticipantListItemViewModel> _participants = new();
+    private bool _loading = true;
+    private string? _searchQuery;
+
+    private async Task<TableData<ParticipantListItemViewModel>> LoadServerData(TableState state, CancellationToken ct)
+    {
+        _loading = true;
+        try
+        {
+            var result = await ParticipantService.ListParticipantsAsync(
+                OrganizationId,
+                state.Page + 1,
+                state.PageSize,
+                ct: ct);
+
+            _participants = result.Participants;
+
+            return new TableData<ParticipantListItemViewModel>
+            {
+                Items = _participants,
+                TotalItems = result.TotalCount
+            };
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnSearch(string? query)
+    {
+        _searchQuery = query;
+        if (_table != null)
+        {
+            await _table.ReloadServerData();
+        }
+    }
+
+    private static Color GetStatusColor(string status)
+    {
+        return status.ToLowerInvariant() switch
+        {
+            "active" => Color.Success,
+            "suspended" => Color.Warning,
+            "inactive" => Color.Default,
+            _ => Color.Default
+        };
+    }
+
+    public async Task RefreshAsync()
+    {
+        if (_table != null)
+        {
+            await _table.ReloadServerData();
+        }
+    }
+}

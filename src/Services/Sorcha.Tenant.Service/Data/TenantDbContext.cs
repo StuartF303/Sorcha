@@ -35,6 +35,12 @@ public class TenantDbContext : DbContext
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<OrganizationPermissionConfiguration> OrganizationPermissionConfigurations => Set<OrganizationPermissionConfiguration>();
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
+    public DbSet<ParticipantIdentity> ParticipantIdentities => Set<ParticipantIdentity>();
+    public DbSet<ParticipantAuditEntry> ParticipantAuditEntries => Set<ParticipantAuditEntry>();
+
+    // Public schema entities for participant wallet linking (platform-wide uniqueness)
+    public DbSet<LinkedWalletAddress> LinkedWalletAddresses => Set<LinkedWalletAddress>();
+    public DbSet<WalletLinkChallenge> WalletLinkChallenges => Set<WalletLinkChallenge>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,6 +74,18 @@ public class TenantDbContext : DbContext
 
         // Configure AuditLogEntry entity (per-org schema)
         ConfigureAuditLogEntry(modelBuilder);
+
+        // Configure ParticipantIdentity entity (per-org schema)
+        ConfigureParticipantIdentity(modelBuilder);
+
+        // Configure ParticipantAuditEntry entity (per-org schema)
+        ConfigureParticipantAuditEntry(modelBuilder);
+
+        // Configure LinkedWalletAddress entity (public schema)
+        ConfigureLinkedWalletAddress(modelBuilder);
+
+        // Configure WalletLinkChallenge entity (public schema)
+        ConfigureWalletLinkChallenge(modelBuilder);
     }
 
     private void ConfigureOrganization(ModelBuilder modelBuilder)
@@ -328,6 +346,203 @@ public class TenantDbContext : DbContext
             entity.HasIndex(e => e.EventType);
             entity.HasIndex(e => e.IdentityId);
             entity.HasIndex(e => e.OrganizationId);
+        });
+    }
+
+    private void ConfigureParticipantIdentity(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ParticipantIdentity>(entity =>
+        {
+            entity.ToTable("ParticipantIdentities");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.DisplayName)
+                .IsRequired()
+                .HasMaxLength(256);
+
+            entity.Property(e => e.Email)
+                .IsRequired()
+                .HasMaxLength(256);
+
+            entity.Property(e => e.Status)
+                .HasConversion<string>()
+                .IsRequired()
+                .HasMaxLength(20);
+
+            // Unique constraint: one participant identity per user per organization
+            entity.HasIndex(e => new { e.UserId, e.OrganizationId })
+                .IsUnique()
+                .HasDatabaseName("UQ_Participant_User_Org");
+
+            // Index for org-based queries with status filter
+            entity.HasIndex(e => new { e.OrganizationId, e.Status })
+                .HasDatabaseName("IX_Participant_Org_Status");
+
+            entity.HasIndex(e => e.UserId);
+
+            // Relationships (navigation properties configured, cascade delete disabled for audit trail)
+            entity.HasMany(e => e.LinkedWalletAddresses)
+                .WithOne(e => e.Participant)
+                .HasForeignKey(e => e.ParticipantId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(e => e.AuditEntries)
+                .WithOne(e => e.Participant)
+                .HasForeignKey(e => e.ParticipantId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(e => e.WalletLinkChallenges)
+                .WithOne(e => e.Participant)
+                .HasForeignKey(e => e.ParticipantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private void ConfigureParticipantAuditEntry(ModelBuilder modelBuilder)
+    {
+        var isInMemory = Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+        modelBuilder.Entity<ParticipantAuditEntry>(entity =>
+        {
+            entity.ToTable("ParticipantAuditEntries");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Action)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            entity.Property(e => e.ActorId)
+                .IsRequired()
+                .HasMaxLength(256);
+
+            entity.Property(e => e.ActorType)
+                .IsRequired()
+                .HasMaxLength(20);
+
+            entity.Property(e => e.IpAddress)
+                .HasMaxLength(45); // IPv6 max length
+
+            // JSON columns for old/new values
+            if (isInMemory)
+            {
+                // InMemory provider needs value converters for JsonDocument
+                entity.Property(e => e.OldValues)
+                    .HasConversion(
+                        v => v == null ? null : v.RootElement.GetRawText(),
+                        v => v == null ? null : System.Text.Json.JsonDocument.Parse(v));
+
+                entity.Property(e => e.NewValues)
+                    .HasConversion(
+                        v => v == null ? null : v.RootElement.GetRawText(),
+                        v => v == null ? null : System.Text.Json.JsonDocument.Parse(v));
+            }
+            else
+            {
+                entity.Property(e => e.OldValues)
+                    .HasColumnType("jsonb");
+
+                entity.Property(e => e.NewValues)
+                    .HasColumnType("jsonb");
+            }
+
+            // Index for participant-based queries sorted by time
+            entity.HasIndex(e => new { e.ParticipantId, e.Timestamp })
+                .IsDescending(false, true)
+                .HasDatabaseName("IX_Audit_Participant_Time");
+
+            // Index for actor-based queries sorted by time
+            entity.HasIndex(e => new { e.ActorId, e.Timestamp })
+                .IsDescending(false, true)
+                .HasDatabaseName("IX_Audit_Actor_Time");
+        });
+    }
+
+    private void ConfigureLinkedWalletAddress(ModelBuilder modelBuilder)
+    {
+        var isInMemory = Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+        modelBuilder.Entity<LinkedWalletAddress>(entity =>
+        {
+            if (isInMemory)
+                entity.ToTable("LinkedWalletAddresses");
+            else
+                entity.ToTable("LinkedWalletAddresses", "public");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.WalletAddress)
+                .IsRequired()
+                .HasMaxLength(256);
+
+            entity.Property(e => e.PublicKey)
+                .IsRequired();
+
+            entity.Property(e => e.Algorithm)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            entity.Property(e => e.Status)
+                .HasConversion<string>()
+                .IsRequired()
+                .HasMaxLength(20);
+
+            // Partial unique index: only one active link per wallet address platform-wide
+            if (isInMemory)
+            {
+                // InMemory doesn't support filtered indexes, use regular unique index
+                entity.HasIndex(e => e.WalletAddress)
+                    .HasDatabaseName("IX_WalletLink_Address");
+            }
+            else
+            {
+                entity.HasIndex(e => e.WalletAddress)
+                    .IsUnique()
+                    .HasFilter("\"Status\" = 'Active'")
+                    .HasDatabaseName("UQ_Active_WalletAddress");
+
+                // Additional non-unique index for lookups
+                entity.HasIndex(e => e.WalletAddress)
+                    .HasDatabaseName("IX_WalletLink_Address");
+            }
+
+            entity.HasIndex(e => e.ParticipantId)
+                .HasDatabaseName("IX_WalletLink_Participant");
+        });
+    }
+
+    private void ConfigureWalletLinkChallenge(ModelBuilder modelBuilder)
+    {
+        var isInMemory = Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+        modelBuilder.Entity<WalletLinkChallenge>(entity =>
+        {
+            if (isInMemory)
+                entity.ToTable("WalletLinkChallenges");
+            else
+                entity.ToTable("WalletLinkChallenges", "public");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.WalletAddress)
+                .IsRequired()
+                .HasMaxLength(256);
+
+            entity.Property(e => e.Challenge)
+                .IsRequired()
+                .HasMaxLength(1024);
+
+            entity.Property(e => e.Status)
+                .HasConversion<string>()
+                .IsRequired()
+                .HasMaxLength(20);
+
+            // Index for participant + status queries
+            entity.HasIndex(e => new { e.ParticipantId, e.Status })
+                .HasDatabaseName("IX_Challenge_Participant_Status");
+
+            // Index for address + status queries
+            entity.HasIndex(e => new { e.WalletAddress, e.Status })
+                .HasDatabaseName("IX_Challenge_Address_Status");
         });
     }
 }

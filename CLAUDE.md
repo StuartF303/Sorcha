@@ -68,10 +68,48 @@ dotnet restore && dotnet build && dotnet test
 | Blueprint | 100% | 5000 / 7000 | Workflow management, SignalR |
 | Register | 100% | 5290 / 7290 | Distributed ledger, OData |
 | Wallet | 95% | internal / 7001 | Crypto operations, HD wallets |
-| Tenant | 85% | 5110 / 7110 | Multi-tenant auth, JWT issuer |
+| Tenant | 90% | 5110 / 7110 | Multi-tenant auth, JWT issuer, Participant Identity |
 | Validator | 95% | internal / 7004 | Consensus, chain integrity |
 | Peer | 70% | 5002 / 7002 | P2P network, gRPC |
 | API Gateway | 95% | 80 / 7082 | YARP reverse proxy |
+
+---
+
+## Participant Identity API
+
+The Participant Identity Registry bridges Tenant Service users with Blueprint workflow participants and their Wallet signing keys.
+
+### Endpoints (via API Gateway /api/*)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/organizations/{orgId}/participants` | Register participant (admin) |
+| GET | `/organizations/{orgId}/participants` | List org participants |
+| GET | `/organizations/{orgId}/participants/{id}` | Get participant details |
+| PUT | `/organizations/{orgId}/participants/{id}` | Update participant |
+| DELETE | `/organizations/{orgId}/participants/{id}` | Deactivate participant |
+| POST | `/participants/search` | Search across accessible orgs |
+| GET | `/participants/by-wallet/{address}` | Lookup by wallet address |
+| POST | `/participants/{id}/wallet-links` | Initiate wallet link challenge |
+| POST | `/participants/{id}/wallet-links/{challengeId}/verify` | Verify wallet signature |
+| GET | `/participants/{id}/wallet-links` | List linked wallet addresses |
+| DELETE | `/participants/{id}/wallet-links/{linkId}` | Revoke wallet link |
+| POST | `/me/register-participant` | Self-register as participant |
+| GET | `/me/participant-profiles` | Get all user's participant profiles |
+
+### Key Models
+
+- **ParticipantIdentity**: User + Organization + Status + DisplayName
+- **LinkedWalletAddress**: WalletAddress + VerifiedAt + Status (max 10 per participant)
+- **WalletLinkChallenge**: Nonce + Expiration (5 min) for signature verification
+
+### Service Client
+
+```csharp
+// Use IParticipantServiceClient from Sorcha.ServiceClients
+var participant = await participantClient.GetByIdAsync(orgId, participantId);
+var canSign = await participantClient.ValidateSigningCapabilityAsync(orgId, participantId);
+```
 
 ---
 
@@ -335,7 +373,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 
 ---
 
-**Version:** 2.4 | **Updated:** 2026-01-18 | Built with .NET 10 and .NET Aspire
+**Version:** 2.5 | **Updated:** 2026-01-24 | Built with .NET 10 and .NET Aspire
 
 
 ## Skill Usage Guide

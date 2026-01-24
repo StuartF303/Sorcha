@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Microsoft.EntityFrameworkCore;
 using Sorcha.Tenant.Service.Data;
 using Sorcha.Tenant.Service.Models;
 
@@ -21,10 +22,16 @@ public static class TestDataSeeder
     public static readonly Guid AuditorUserId = new("00000000-0000-0000-0001-000000000003");
 
     /// <summary>
-    /// Seeds test data into the database context.
+    /// Seeds test data into the database context (idempotent - safe to call multiple times).
     /// </summary>
     public static async Task SeedAsync(TenantDbContext context)
     {
+        // Check if data already exists (idempotent seeding)
+        if (await context.Organizations.AnyAsync(o => o.Id == TestOrganizationId))
+        {
+            return; // Data already seeded
+        }
+
         // Create test organization
         var testOrg = new Organization
         {

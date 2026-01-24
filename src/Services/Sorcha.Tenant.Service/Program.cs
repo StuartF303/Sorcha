@@ -274,6 +274,7 @@ try
     // Map API endpoint groups
     app.MapBootstrapEndpoints();
     app.MapOrganizationEndpoints();
+    app.MapParticipantEndpoints();
     app.MapAuthEndpoints();
     app.MapServiceAuthEndpoints();
 

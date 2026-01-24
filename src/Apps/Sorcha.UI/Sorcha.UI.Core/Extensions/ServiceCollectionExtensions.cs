@@ -9,6 +9,7 @@ using Sorcha.UI.Core.Services.Authentication;
 using Sorcha.UI.Core.Services.Configuration;
 using Sorcha.UI.Core.Services.Encryption;
 using Sorcha.UI.Core.Services.Http;
+using Sorcha.UI.Core.Services.Participants;
 using Sorcha.UI.Core.Services.Wallet;
 
 namespace Sorcha.UI.Core.Extensions;
@@ -62,6 +63,20 @@ public static class ServiceCollectionExtensions
             };
 
             return new WalletApiService(httpClient);
+        });
+
+        // Participant API Service with authenticated HttpClient
+        services.AddScoped<IParticipantApiService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            return new ParticipantApiService(httpClient);
         });
 
         // Admin Services

@@ -98,9 +98,12 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IIdentityRepository, IdentityRepository>();
+        services.AddScoped<IParticipantRepository, ParticipantRepository>();
 
         // Add application services
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<IParticipantService, ParticipantService>();
+        services.AddScoped<IWalletVerificationService, WalletVerificationService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IServiceAuthService, ServiceAuthService>();
 
