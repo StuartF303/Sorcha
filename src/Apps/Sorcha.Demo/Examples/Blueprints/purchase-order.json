@@ -89,7 +89,15 @@
         "totalPrice": {
           "*": [{"var": "quantity"}, {"var": "unitPrice"}]
         }
-      }
+      },
+      "routes": [
+        {
+          "id": "to-supplier",
+          "description": "Route to Supplier for confirmation",
+          "isDefault": true,
+          "nextActionIds": [1]
+        }
+      ]
     },
     {
       "id": 1,
@@ -130,13 +138,20 @@
         }
       ],
       "calculations": {},
-      "condition": {
-        "if": [
-          {"==": [{"var": "confirmed"}, true]},
-          "Shipping",
-          "__Complete__"
-        ]
-      }
+      "routes": [
+        {
+          "id": "confirmed",
+          "description": "Route to Shipping if order confirmed",
+          "condition": {"==": [{"var": "confirmed"}, true]},
+          "nextActionIds": [2]
+        },
+        {
+          "id": "not-confirmed",
+          "description": "Workflow complete if not confirmed",
+          "isDefault": true,
+          "nextActionIds": []
+        }
+      ]
     },
     {
       "id": 2,
@@ -181,13 +196,20 @@
         }
       ],
       "calculations": {},
-      "condition": {
-        "if": [
-          {"==": [{"var": "deliveryStatus"}, "delivered"]},
-          "Finance",
-          "__Complete__"
-        ]
-      }
+      "routes": [
+        {
+          "id": "delivered",
+          "description": "Route to Finance if delivered",
+          "condition": {"==": [{"var": "deliveryStatus"}, "delivered"]},
+          "nextActionIds": [3]
+        },
+        {
+          "id": "not-delivered",
+          "description": "Workflow complete if not delivered (e.g., delayed, in transit)",
+          "isDefault": true,
+          "nextActionIds": []
+        }
+      ]
     },
     {
       "id": 3,
@@ -230,7 +252,15 @@
           "dataPointers": ["/*"]
         }
       ],
-      "calculations": {}
+      "calculations": {},
+      "routes": [
+        {
+          "id": "complete",
+          "description": "Workflow complete after Finance processing",
+          "isDefault": true,
+          "nextActionIds": []
+        }
+      ]
     }
   ]
 }
