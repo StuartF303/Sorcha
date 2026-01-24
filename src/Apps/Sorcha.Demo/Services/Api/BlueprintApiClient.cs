@@ -167,16 +167,35 @@ public class BlueprintInstanceResponse
 /// </summary>
 public class ActionExecutionResponse
 {
-    public bool Success { get; set; }
-    public string? TransactionHash { get; set; }
+    // Core fields from Blueprint Service
+    public string? TransactionId { get; set; }
+    public string? TransactionHash => TransactionId;
+    public string? InstanceId { get; set; }
+    public List<NextActionResponse> NextActions { get; set; } = [];
+    public bool IsComplete { get; set; }
+    public Dictionary<string, object>? Calculations { get; set; }
+    public List<string>? Warnings { get; set; }
+
+    // Computed properties for Demo compatibility
+    public bool Success => !string.IsNullOrEmpty(TransactionId);
     public string? RegisterId { get; set; }
-    public int CurrentActionIndex { get; set; }
-    public int? NextActionIndex { get; set; }
-    public string? NextParticipant { get; set; }
+    public int? NextActionIndex => NextActions.FirstOrDefault()?.ActionId;
+    public string? NextParticipant => NextActions.FirstOrDefault()?.ParticipantId;
     public Dictionary<string, object> ActionResult { get; set; } = new();
     public Dictionary<string, object> WorkflowState { get; set; } = new();
-    public bool WorkflowComplete { get; set; }
+    public bool WorkflowComplete => IsComplete;
     public string? ErrorMessage { get; set; }
+}
+
+/// <summary>
+/// Information about the next action from Blueprint Service
+/// </summary>
+public class NextActionResponse
+{
+    public int ActionId { get; set; }
+    public string ActionTitle { get; set; } = string.Empty;
+    public string ParticipantId { get; set; } = string.Empty;
+    public string? BranchId { get; set; }
 }
 
 /// <summary>

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Sorcha.Demo.Configuration;
 using Sorcha.Demo.Models;
 using Sorcha.Demo.Services.Api;
+using Sorcha.Demo.Services.Auth;
 using Sorcha.Demo.Services.Blueprints;
 using Sorcha.Demo.Services.Execution;
 using Sorcha.Demo.Services.Storage;
@@ -64,6 +65,7 @@ class Program
         // Get services
         var renderer = serviceProvider.GetRequiredService<DemoRenderer>();
         var context = serviceProvider.GetRequiredService<DemoContext>();
+        var authService = serviceProvider.GetRequiredService<DemoAuthService>();
 
         // Set mode from command-line
         if (automated)
@@ -73,6 +75,39 @@ class Program
 
         // Show welcome
         renderer.ShowWelcomeBanner();
+
+        // Authenticate if credentials are configured
+        if (authService.IsConfigured)
+        {
+            var token = await authService.GetAccessTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                // Set token on all API clients
+                var walletClient = serviceProvider.GetRequiredService<WalletApiClient>();
+                var blueprintClient = serviceProvider.GetRequiredService<BlueprintApiClient>();
+                var registerClient = serviceProvider.GetRequiredService<RegisterApiClient>();
+
+                walletClient.AuthToken = token;
+                blueprintClient.AuthToken = token;
+                registerClient.AuthToken = token;
+
+                // Set delegation token for Blueprint Service orchestration
+                // The delegation token grants the Blueprint Service permission to perform
+                // cryptographic operations on behalf of the authenticated participant.
+                // For demo purposes, we use the service principal token as the delegation token.
+                blueprintClient.DelegationToken = token;
+
+                AnsiConsole.MarkupLine("[green]Authenticated successfully[/]");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[yellow]Warning: Authentication failed - some operations may fail[/]");
+            }
+        }
+        else
+        {
+            AnsiConsole.MarkupLine("[dim]No authentication configured - using anonymous access[/]");
+        }
 
         // If blueprint specified on command line, run it directly
         if (!string.IsNullOrEmpty(blueprint))
@@ -145,7 +180,17 @@ class Program
         // HTTP Client
         services.AddHttpClient();
 
-        // API Clients
+        // Authentication Service
+        services.AddSingleton<DemoAuthService>(sp =>
+        {
+            var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient();
+            var logger = sp.GetRequiredService<ILogger<DemoAuthService>>();
+            var config = sp.GetRequiredService<SorchaApiConfiguration>();
+            httpClient.Timeout = TimeSpan.FromSeconds(config.TimeoutSeconds);
+            return new DemoAuthService(httpClient, logger, config);
+        });
+
+        // API Clients (with auth token injection)
         services.AddSingleton<WalletApiClient>(sp =>
         {
             var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient();

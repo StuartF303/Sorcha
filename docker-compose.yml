@@ -117,6 +117,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
+      # Service client configuration for inter-service communication
+      ServiceClients__RegisterService__Address: http://register-service:8080
+      ServiceClients__WalletService__Address: http://wallet-service:8080
+      ServiceClients__ValidatorService__Address: http://validator-service:8080
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:

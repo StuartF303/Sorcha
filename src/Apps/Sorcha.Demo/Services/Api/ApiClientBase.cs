@@ -86,7 +86,15 @@ public abstract class ApiClientBase
             AddAuthHeaders(request);
             request.Content = JsonContent.Create(requestBody, options: JsonOptions);
             var response = await HttpClient.SendAsync(request, ct);
-            response.EnsureSuccessStatusCode();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync(ct);
+                Logger.LogError("POST {Url} failed with {StatusCode}: {ErrorBody}",
+                    url, response.StatusCode, errorBody);
+                response.EnsureSuccessStatusCode(); // Will throw with proper status code
+            }
+
             var result = await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions, ct);
             Logger.LogDebug("POST {Url} -> Success", url);
             return result;

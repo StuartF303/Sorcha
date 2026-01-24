@@ -90,13 +90,20 @@
         }
       ],
       "calculations": {},
-      "condition": {
-        "if": [
-          {">=": [{"var": "amount"}, 5000]},
-          "CFO",
-          "Manager"
-        ]
-      }
+      "routes": [
+        {
+          "id": "high-value",
+          "description": "Route to CFO for expenses >= $5,000",
+          "condition": {">=": [{"var": "amount"}, 5000]},
+          "nextActionIds": [2]
+        },
+        {
+          "id": "standard",
+          "description": "Route to Manager for expenses < $5,000",
+          "isDefault": true,
+          "nextActionIds": [1]
+        }
+      ]
     },
     {
       "id": 1,
@@ -131,13 +138,20 @@
         }
       ],
       "calculations": {},
-      "condition": {
-        "if": [
-          {"==": [{"var": "approved"}, true]},
-          "Finance",
-          "__Complete__"
-        ]
-      }
+      "routes": [
+        {
+          "id": "approved",
+          "description": "Route to Finance if approved",
+          "condition": {"==": [{"var": "approved"}, true]},
+          "nextActionIds": [3]
+        },
+        {
+          "id": "rejected",
+          "description": "Workflow complete if rejected",
+          "isDefault": true,
+          "nextActionIds": []
+        }
+      ]
     },
     {
       "id": 2,
@@ -172,13 +186,20 @@
         }
       ],
       "calculations": {},
-      "condition": {
-        "if": [
-          {"==": [{"var": "approved"}, true]},
-          "Finance",
-          "__Complete__"
-        ]
-      }
+      "routes": [
+        {
+          "id": "cfo-approved",
+          "description": "Route to Finance if CFO approved",
+          "condition": {"==": [{"var": "approved"}, true]},
+          "nextActionIds": [3]
+        },
+        {
+          "id": "cfo-rejected",
+          "description": "Workflow complete if CFO rejected",
+          "isDefault": true,
+          "nextActionIds": []
+        }
+      ]
     },
     {
       "id": 3,
@@ -212,7 +233,15 @@
           "dataPointers": ["/processed", "/paymentMethod", "/transactionId"]
         }
       ],
-      "calculations": {}
+      "calculations": {},
+      "routes": [
+        {
+          "id": "complete",
+          "description": "Workflow complete after Finance processing",
+          "isDefault": true,
+          "nextActionIds": []
+        }
+      ]
     }
   ]
 }

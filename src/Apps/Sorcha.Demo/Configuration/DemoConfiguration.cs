@@ -16,6 +16,22 @@ public class SorchaApiConfiguration
     public int TimeoutSeconds { get; set; } = 30;
 
     /// <summary>
+    /// Service principal client ID for authentication
+    /// </summary>
+    public string? ClientId { get; set; }
+
+    /// <summary>
+    /// Service principal client secret for authentication
+    /// </summary>
+    public string? ClientSecret { get; set; }
+
+    /// <summary>
+    /// Gets the auth token endpoint URL
+    /// </summary>
+    public string GetAuthTokenUrl() =>
+        $"{BaseUrl.TrimEnd('/')}/api/service-auth/token";
+
+    /// <summary>
     /// Gets the effective Wallet Service URL (specific or via gateway)
     /// </summary>
     public string GetWalletServiceUrl() =>
