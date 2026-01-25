@@ -1,0 +1,135 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Participants
+@using Sorcha.UI.Core.Services.Participants
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_formIsValid">
+            @if (IsEditMode)
+            {
+                <MudTextField T="string" Label="Display Name" @bind-Value="_displayName"
+                              Required="true" RequiredError="Display name is required" />
+            }
+            else
+            {
+                <MudTextField T="Guid?" Label="User ID" @bind-Value="_userId"
+                              Required="true" RequiredError="User ID is required"
+                              Disabled="@(UserId.HasValue)" />
+                <MudTextField T="string" Label="Display Name" @bind-Value="_displayName"
+                              HelperText="Optional - defaults to user's display name" />
+            }
+        </MudForm>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3">@_errorMessage</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="Submit" Disabled="@(!_formIsValid || _submitting)">
+            @if (_submitting)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+            }
+            @(IsEditMode ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Inject] private IParticipantApiService ParticipantService { get; set; } = default!;
+
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public Guid OrganizationId { get; set; }
+    [Parameter] public Guid? ParticipantId { get; set; }
+    [Parameter] public Guid? UserId { get; set; }
+    [Parameter] public ParticipantDetailViewModel? ExistingParticipant { get; set; }
+
+    private MudForm? _form;
+    private bool _formIsValid;
+    private bool _submitting;
+    private string? _errorMessage;
+
+    private Guid? _userId;
+    private string? _displayName;
+
+    private bool IsEditMode => ExistingParticipant != null;
+
+    protected override void OnParametersSet()
+    {
+        if (ExistingParticipant != null)
+        {
+            _displayName = ExistingParticipant.DisplayName;
+        }
+        else if (UserId.HasValue)
+        {
+            _userId = UserId.Value;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        if (_form == null) return;
+
+        await _form.Validate();
+        if (!_formIsValid) return;
+
+        _submitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            if (IsEditMode && ParticipantId.HasValue)
+            {
+                var updateRequest = new UpdateParticipantViewModel
+                {
+                    DisplayName = _displayName
+                };
+
+                var result = await ParticipantService.UpdateParticipantAsync(
+                    OrganizationId, ParticipantId.Value, updateRequest);
+
+                if (result != null)
+                {
+                    MudDialog.Close(DialogResult.Ok(result));
+                }
+                else
+                {
+                    _errorMessage = "Failed to update participant";
+                }
+            }
+            else
+            {
+                if (!_userId.HasValue)
+                {
+                    _errorMessage = "User ID is required";
+                    return;
+                }
+
+                var createRequest = new CreateParticipantViewModel
+                {
+                    UserId = _userId.Value,
+                    DisplayName = _displayName
+                };
+
+                var result = await ParticipantService.CreateParticipantAsync(OrganizationId, createRequest);
+                MudDialog.Close(DialogResult.Ok(result));
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}

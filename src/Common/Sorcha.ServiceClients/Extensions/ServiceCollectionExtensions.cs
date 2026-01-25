@@ -7,6 +7,7 @@ using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Register;
 using Sorcha.ServiceClients.Blueprint;
 using Sorcha.ServiceClients.Peer;
+using Sorcha.ServiceClients.Participant;
 using Sorcha.ServiceClients.Validator;
 
 namespace Sorcha.ServiceClients.Extensions;
@@ -28,6 +29,7 @@ public static class ServiceCollectionExtensions
     /// - IRegisterServiceClient
     /// - IBlueprintServiceClient
     /// - IPeerServiceClient
+    /// - IParticipantServiceClient
     ///
     /// Configuration:
     /// <code>
@@ -36,7 +38,8 @@ public static class ServiceCollectionExtensions
     ///     "WalletService": { "Address": "https://localhost:7001", "UseGrpc": false },
     ///     "RegisterService": { "Address": "https://localhost:7002", "UseGrpc": false },
     ///     "BlueprintService": { "Address": "https://localhost:7003", "UseGrpc": false },
-    ///     "PeerService": { "Address": "https://localhost:7004", "UseGrpc": true }
+    ///     "PeerService": { "Address": "https://localhost:7004", "UseGrpc": true },
+    ///     "TenantService": { "Address": "https://localhost:7110" }
     ///   }
     /// }
     /// </code>
@@ -51,9 +54,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBlueprintServiceClient, BlueprintServiceClient>();
         services.AddScoped<IPeerServiceClient, PeerServiceClient>();
         services.AddScoped<IValidatorServiceClient, ValidatorServiceClient>();
+        services.AddScoped<IParticipantServiceClient, ParticipantServiceClient>();
 
-        // Register HttpClient for ValidatorServiceClient
+        // Register HttpClient for clients that need it
         services.AddHttpClient<ValidatorServiceClient>();
+        services.AddHttpClient<ParticipantServiceClient>();
 
         return services;
     }
@@ -111,6 +116,21 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         services.AddScoped<IPeerServiceClient, PeerServiceClient>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers participant service client
+    /// </summary>
+    /// <param name="services">Service collection</param>
+    /// <param name="configuration">Configuration</param>
+    /// <returns>Service collection for chaining</returns>
+    public static IServiceCollection AddParticipantServiceClient(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddHttpClient<ParticipantServiceClient>();
+        services.AddScoped<IParticipantServiceClient, ParticipantServiceClient>();
         return services;
     }
 }

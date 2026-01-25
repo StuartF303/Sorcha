@@ -1,0 +1,158 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Participants
+@using Sorcha.UI.Core.Services.Participants
+
+<MudPaper Class="pa-4">
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudTextField T="string" Label="Search" @bind-Value="_searchQuery"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true" DebounceInterval="300" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudSelect T="string" Label="Status" @bind-Value="_statusFilter" Clearable="true">
+                <MudSelectItem Value="@("Active")">Active</MudSelectItem>
+                <MudSelectItem Value="@("Suspended")">Suspended</MudSelectItem>
+                <MudSelectItem Value="@("Inactive")">Inactive</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudSelect T="bool?" Label="Wallet Linked" @bind-Value="_hasLinkedWallet" Clearable="true">
+                <MudSelectItem Value="@((bool?)true)">Has Wallet</MudSelectItem>
+                <MudSelectItem Value="@((bool?)false)">No Wallet</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="2" Class="d-flex align-center">
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Search"
+                       Disabled="@_loading" FullWidth="true">
+                @if (_loading)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                }
+                Search
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_hasSearched)
+{
+    <MudTable Items="@_results" Loading="@_loading" Hover="true" Dense="true" Class="mt-4">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Search Results</MudText>
+            <MudSpacer />
+            <MudText Typo="Typo.body2">@_totalCount results found</MudText>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Display Name</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>Organization</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Wallet</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Display Name">@context.DisplayName</MudTd>
+            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="Organization">
+                <MudTooltip Text="@context.OrganizationId.ToString()">
+                    <code>@TruncateGuid(context.OrganizationId)</code>
+                </MudTooltip>
+            </MudTd>
+            <MudTd DataLabel="Status">
+                <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">
+                    @context.Status
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Wallet">
+                @if (context.HasLinkedWallet)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.RadioButtonUnchecked" Color="Color.Default" Size="Size.Small" />
+                }
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small"
+                               OnClick="@(() => OnViewClick.InvokeAsync(context))" Title="View Details" />
+                @if (ShowSelectButton)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small"
+                                   Color="Color.Primary"
+                                   OnClick="@(() => OnSelectClick.InvokeAsync(context))" Title="Select" />
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No participants found matching your criteria.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 10, 20, 50 }" />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    [Inject] private IParticipantApiService ParticipantService { get; set; } = default!;
+
+    [Parameter] public Guid? OrganizationId { get; set; }
+    [Parameter] public bool ShowSelectButton { get; set; }
+    [Parameter] public EventCallback<ParticipantListItemViewModel> OnViewClick { get; set; }
+    [Parameter] public EventCallback<ParticipantListItemViewModel> OnSelectClick { get; set; }
+
+    private bool _loading;
+    private bool _hasSearched;
+    private string? _searchQuery;
+    private string? _statusFilter;
+    private bool? _hasLinkedWallet;
+    private List<ParticipantListItemViewModel> _results = new();
+    private int _totalCount;
+
+    private async Task Search()
+    {
+        _loading = true;
+        _hasSearched = true;
+
+        try
+        {
+            var request = new ParticipantSearchViewModel
+            {
+                Query = _searchQuery,
+                OrganizationId = OrganizationId,
+                Status = _statusFilter,
+                HasLinkedWallet = _hasLinkedWallet,
+                Page = 1,
+                PageSize = 20
+            };
+
+            var result = await ParticipantService.SearchParticipantsAsync(request);
+            _results = result.Results;
+            _totalCount = result.TotalCount;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static Color GetStatusColor(string status)
+    {
+        return status.ToLowerInvariant() switch
+        {
+            "active" => Color.Success,
+            "suspended" => Color.Warning,
+            "inactive" => Color.Default,
+            _ => Color.Default
+        };
+    }
+
+    private static string TruncateGuid(Guid guid)
+    {
+        var str = guid.ToString();
+        return $"{str[..8]}...";
+    }
+}

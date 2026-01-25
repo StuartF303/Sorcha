@@ -13,6 +13,7 @@ using Microsoft.Extensions.Hosting;
 using Moq;
 using Serilog;
 using Serilog.Events;
+using Sorcha.ServiceClients.Wallet;
 using Sorcha.Tenant.Service.Data;
 using Sorcha.Tenant.Service.Services;
 using StackExchange.Redis;
@@ -25,6 +26,9 @@ namespace Sorcha.Tenant.Service.Tests.Infrastructure;
 /// </summary>
 public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
 {
+    // Unique database name per factory instance to ensure test isolation
+    private readonly string _databaseName = $"TenantServiceTests_{Guid.NewGuid():N}";
+
     /// <summary>
     /// Configure test services to use in-memory database and mock Redis.
     /// </summary>
@@ -39,20 +43,29 @@ public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
-            // Remove PostgreSQL DbContext and replace with InMemory
-            var dbContextDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<TenantDbContext>));
-            if (dbContextDescriptor != null)
+            // Remove all EF Core related services to prevent provider conflicts
+            var descriptorsToRemove = services
+                .Where(d => d.ServiceType == typeof(DbContextOptions<TenantDbContext>)
+                         || d.ServiceType == typeof(DbContextOptions)
+                         || d.ServiceType.FullName?.Contains("EntityFrameworkCore") == true
+                         || d.ServiceType.FullName?.Contains("Npgsql") == true
+                         || d.ImplementationType?.FullName?.Contains("Npgsql") == true)
+                .ToList();
+
+            foreach (var descriptor in descriptorsToRemove)
             {
-                services.Remove(dbContextDescriptor);
+                services.Remove(descriptor);
             }
 
             // Remove the existing DbContext
             services.RemoveAll<TenantDbContext>();
+            services.RemoveAll<DbContextOptions<TenantDbContext>>();
 
-            // Add InMemory DbContext
+            // Add InMemory DbContext with unique database name for test isolation
+            var databaseName = _databaseName;
             services.AddDbContext<TenantDbContext>(options =>
             {
-                options.UseInMemoryDatabase("TenantServiceTests");
+                options.UseInMemoryDatabase(databaseName);
                 options.EnableSensitiveDataLogging();
             });
 
@@ -86,6 +99,33 @@ public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
                 .ReturnsAsync(RedisValue.Null);
 
             services.AddSingleton(mockRedis.Object);
+
+            // Remove any existing wallet service client
+            services.RemoveAll<IWalletServiceClient>();
+
+            // Mock Wallet Service Client
+            var mockWalletClient = new Mock<IWalletServiceClient>();
+            mockWalletClient
+                .Setup(w => w.GetWalletAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new WalletInfo
+                {
+                    Address = "sorcha1test123",
+                    Name = "Test Wallet",
+                    PublicKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    Algorithm = "ED25519",
+                    Status = "Active",
+                    Owner = "test@test.com",
+                    Tenant = "default"
+                });
+            mockWalletClient
+                .Setup(w => w.VerifySignatureAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            services.AddSingleton(mockWalletClient.Object);
 
             // Remove database initializer (we'll seed manually in tests)
             services.RemoveAll<IHostedService>();

@@ -1,0 +1,178 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@page "/participants"
+@using Sorcha.UI.Core.Components.Participants
+@using Sorcha.UI.Core.Models.Participants
+@using Sorcha.UI.Core.Services.Participants
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+<PageTitle>Participants</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudBreadcrumbs Items="_breadcrumbs" />
+
+    <MudText Typo="Typo.h4" Class="mb-4">Participant Management</MudText>
+
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="mt-4">
+        <MudTabPanel Text="Organization Participants" Icon="@Icons.Material.Filled.People">
+            @if (_organizationId == Guid.Empty)
+            {
+                <MudAlert Severity="Severity.Warning" Class="my-4">
+                    No organization selected. Please select an organization to manage participants.
+                </MudAlert>
+            }
+            else
+            {
+                <ParticipantList @ref="_participantList"
+                                 OrganizationId="_organizationId"
+                                 OnCreateClick="ShowCreateDialog"
+                                 OnViewClick="NavigateToDetail"
+                                 OnEditClick="ShowEditDialog" />
+            }
+        </MudTabPanel>
+        <MudTabPanel Text="Search All" Icon="@Icons.Material.Filled.Search">
+            <ParticipantSearch OnViewClick="NavigateToDetail" />
+        </MudTabPanel>
+        <MudTabPanel Text="My Profiles" Icon="@Icons.Material.Filled.Person">
+            @if (_myProfiles == null)
+            {
+                <MudProgressCircular Indeterminate="true" />
+            }
+            else if (_myProfiles.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Class="my-4">
+                    You don't have any participant profiles yet.
+                </MudAlert>
+            }
+            else
+            {
+                <MudGrid Class="mt-4">
+                    @foreach (var profile in _myProfiles)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudCard>
+                                <MudCardHeader>
+                                    <CardHeaderContent>
+                                        <MudText Typo="Typo.h6">@profile.DisplayName</MudText>
+                                        <MudChip T="string" Color="@GetStatusColor(profile.Status)" Size="Size.Small">
+                                            @profile.Status
+                                        </MudChip>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    <MudText><strong>Email:</strong> @profile.Email</MudText>
+                                    <MudText><strong>Organization:</strong> @profile.OrganizationId</MudText>
+                                    <MudText><strong>Wallets:</strong> @profile.LinkedWallets.Count linked</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Color="Color.Primary" Variant="Variant.Text"
+                                               OnClick="@(() => NavigateToDetail(new ParticipantListItemViewModel { Id = profile.Id, OrganizationId = profile.OrganizationId }))">
+                                        View Details
+                                    </MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@code {
+    [Inject] private IParticipantApiService ParticipantService { get; set; } = default!;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private ParticipantList? _participantList;
+    private List<ParticipantDetailViewModel>? _myProfiles;
+
+    // TODO: Get from user context or configuration
+    private Guid _organizationId = Guid.Empty;
+
+    private List<BreadcrumbItem> _breadcrumbs = new()
+    {
+        new BreadcrumbItem("Home", href: "/"),
+        new BreadcrumbItem("Participants", href: null, disabled: true)
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMyProfilesAsync();
+    }
+
+    private async Task LoadMyProfilesAsync()
+    {
+        try
+        {
+            _myProfiles = await ParticipantService.GetMyProfilesAsync();
+
+            // If user has profiles, use the first organization
+            if (_myProfiles.Count > 0)
+            {
+                _organizationId = _myProfiles[0].OrganizationId;
+            }
+        }
+        catch
+        {
+            _myProfiles = new();
+        }
+    }
+
+    private async Task ShowCreateDialog()
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(ParticipantForm.OrganizationId), _organizationId }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ParticipantForm>("Create Participant", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled && _participantList != null)
+        {
+            await _participantList.RefreshAsync();
+        }
+    }
+
+    private async Task ShowEditDialog(ParticipantListItemViewModel participant)
+    {
+        var detail = await ParticipantService.GetParticipantAsync(_organizationId, participant.Id);
+        if (detail == null) return;
+
+        var parameters = new DialogParameters
+        {
+            { nameof(ParticipantForm.OrganizationId), _organizationId },
+            { nameof(ParticipantForm.ParticipantId), participant.Id },
+            { nameof(ParticipantForm.ExistingParticipant), detail }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ParticipantForm>("Edit Participant", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled && _participantList != null)
+        {
+            await _participantList.RefreshAsync();
+        }
+    }
+
+    private void NavigateToDetail(ParticipantListItemViewModel participant)
+    {
+        Navigation.NavigateTo($"/participants/{participant.OrganizationId}/{participant.Id}");
+    }
+
+    private static Color GetStatusColor(string status)
+    {
+        return status.ToLowerInvariant() switch
+        {
+            "active" => Color.Success,
+            "suspended" => Color.Warning,
+            "inactive" => Color.Default,
+            _ => Color.Default
+        };
+    }
+}

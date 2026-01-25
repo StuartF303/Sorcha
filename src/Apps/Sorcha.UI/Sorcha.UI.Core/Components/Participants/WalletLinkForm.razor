@@ -1,0 +1,174 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Participants
+@using Sorcha.UI.Core.Services.Participants
+@using Sorcha.UI.Core.Services.Wallet
+
+<MudDialog>
+    <DialogContent>
+        @if (_step == Step.InitiateLink)
+        {
+            <MudForm @ref="_form" @bind-IsValid="@_formIsValid">
+                <MudTextField T="string" Label="Wallet Address" @bind-Value="_walletAddress"
+                              Required="true" RequiredError="Wallet address is required"
+                              HelperText="Enter the wallet address to link" />
+                <MudSelect T="string" Label="Algorithm" @bind-Value="_algorithm" Required="true">
+                    <MudSelectItem Value="@("ED25519")">ED25519 (Default)</MudSelectItem>
+                    <MudSelectItem Value="@("NIST-P256")">NIST-P256</MudSelectItem>
+                    <MudSelectItem Value="@("RSA-4096")">RSA-4096</MudSelectItem>
+                </MudSelect>
+            </MudForm>
+        }
+        else if (_step == Step.SignChallenge)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-3">
+                Sign the challenge message below with your wallet to verify ownership.
+            </MudAlert>
+
+            <MudText Typo="Typo.subtitle2">Challenge Message</MudText>
+            <MudPaper Class="pa-3 mb-3" Outlined="true">
+                <code style="word-break: break-all;">@_challenge?.Challenge</code>
+            </MudPaper>
+
+            <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-2">
+                Expires: @_challenge?.ExpiresAt.LocalDateTime
+            </MudText>
+
+            <MudTextField T="string" Label="Signature" @bind-Value="_signature"
+                          Required="true" RequiredError="Signature is required"
+                          HelperText="Paste the signed message here"
+                          Lines="3" />
+        }
+        else if (_step == Step.Success)
+        {
+            <MudAlert Severity="Severity.Success">
+                Wallet successfully linked!
+            </MudAlert>
+            <MudText Class="mt-3">
+                <strong>Address:</strong> @_linkedWallet?.WalletAddress
+            </MudText>
+            <MudText>
+                <strong>Algorithm:</strong> @_linkedWallet?.Algorithm
+            </MudText>
+        }
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3">@_errorMessage</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (_step == Step.Success)
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Close">
+                Done
+            </MudButton>
+        }
+        else
+        {
+            <MudButton OnClick="Cancel">Cancel</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                       OnClick="Submit" Disabled="@(!_formIsValid || _submitting)">
+                @if (_submitting)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                }
+                @GetSubmitButtonText()
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Inject] private IParticipantApiService ParticipantService { get; set; } = default!;
+
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public Guid OrganizationId { get; set; }
+    [Parameter] public Guid ParticipantId { get; set; }
+
+    private MudForm? _form;
+    private bool _formIsValid;
+    private bool _submitting;
+    private string? _errorMessage;
+
+    private string _walletAddress = string.Empty;
+    private string _algorithm = "ED25519";
+    private string _signature = string.Empty;
+
+    private WalletLinkChallengeViewModel? _challenge;
+    private LinkedWalletViewModel? _linkedWallet;
+
+    private Step _step = Step.InitiateLink;
+
+    private enum Step
+    {
+        InitiateLink,
+        SignChallenge,
+        Success
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(_linkedWallet));
+
+    private string GetSubmitButtonText()
+    {
+        return _step switch
+        {
+            Step.InitiateLink => "Get Challenge",
+            Step.SignChallenge => "Verify Signature",
+            _ => "Submit"
+        };
+    }
+
+    private async Task Submit()
+    {
+        if (_form == null) return;
+
+        await _form.Validate();
+        if (!_formIsValid) return;
+
+        _submitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            if (_step == Step.InitiateLink)
+            {
+                var request = new InitiateWalletLinkViewModel
+                {
+                    WalletAddress = _walletAddress,
+                    Algorithm = _algorithm
+                };
+
+                _challenge = await ParticipantService.InitiateWalletLinkAsync(
+                    OrganizationId, ParticipantId, request);
+
+                _step = Step.SignChallenge;
+                _formIsValid = false; // Reset for next step
+            }
+            else if (_step == Step.SignChallenge && _challenge != null)
+            {
+                var request = new VerifyWalletLinkViewModel
+                {
+                    Signature = _signature
+                };
+
+                _linkedWallet = await ParticipantService.VerifyWalletLinkAsync(
+                    OrganizationId, ParticipantId, _challenge.ChallengeId, request);
+
+                _step = Step.Success;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}
