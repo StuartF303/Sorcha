@@ -1,111 +1,275 @@
 # Validator Service - Requirements Document
 
 **Created:** 2025-11-19
-**Status:** Requirements Gathering
-**Purpose:** Define requirements for Sorcha.Validator.Service rebuild
+**Updated:** 2026-01-26
+**Status:** Requirements Refined
+**Purpose:** Define requirements for Sorcha.Validator.Service as a decentralized consensus participant
 
 ---
 
 ## Executive Summary
 
-The Validator Service validates transactions from the memory pool against Blueprint rules before they are promoted to in-memory storage for docket building. It acts as a gatekeeper ensuring only valid transactions are processed into the register.
+The Validator Service is a dual-purpose component in Sorcha's decentralized ledger network. It validates transactions against Blueprint rules and participates in multi-validator consensus to build and sign dockets before committing them to the register.
 
 ### Key Requirements
 
-1. **Transaction Source:** Transactions arrive as **messages from Peer Service** and are queued in Redis memory pool
-2. **Validation Failures:** Invalid transactions are sent back to **original sender as exceptions** via Peer Service
-3. **Single Blueprint:** Transactions **cannot** reference multiple blueprints
-4. **Chain-Based Instances:** Workflow instances tracked via **transaction chain** (previousId), not separate instance IDs
-5. **Instance Isolation:** Each chain branch from Blueprint = separate instance, action transactions are instance data
-6. **Memory Management:** Verified transactions stored in **configurable in-memory queue** with size limits
-7. **Docket Building:** Dockets built from verified in-memory transactions only
-8. **Chain Validation:** Validator must validate transaction chain continuity via previousId references
+1. **Dual-Role Architecture:** Validators act as both **initiators** (build dockets, collect signatures) and **confirmers** (validate and co-sign dockets from other validators)
+2. **Leader-Based Docket Building:** A single **elected leader** initiates docket builds to manage sequencing; other validators act as confirmers
+3. **Decentralized Consensus:** Dockets require signatures from multiple validators before commitment, with thresholds defined in the genesis blueprint
+4. **Consensus Failure Handling:** If threshold not met by timeout, docket is **abandoned** and transactions return to unverified pool for retry
+5. **Genesis Blueprint Governance:** Register configuration (thresholds, timeouts, validator rules) is defined in a control blueprint embedded in the genesis block
+6. **Control Blueprint Versioning:** The control blueprint can be updated via control dockets to add/remove organizations, change register properties, etc.
+7. **Multi-Blueprint Registers:** Registers CAN contain multiple blueprints; each blueprint's `previousId` chains to genesis or prior version
+8. **Chain-Based Instances:** Workflow instances tracked via transaction chain (`previousId`), not separate instance IDs
+9. **Blueprint Versioning:** New blueprint versions reference prior version's transaction ID as `previousId`
+10. **Configurable Signatures:** Minimum threshold to commit, maximum cap to prevent bloat - both configurable per register
+11. **gRPC Communication:** Validator-to-validator communication via Peer Service using gRPC
 
 ---
 
 ## Architecture Overview
 
+### Dual-Role Validator
+
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Validator Service                         │
-│                                                              │
-│  ┌──────────────┐      ┌─────────────┐      ┌────────────┐ │
-│  │   Poller     │─────>│  Validator  │─────>│  Promoter  │ │
-│  │  (Redis)     │      │   Engine    │      │ (In-Memory)│ │
-│  └──────────────┘      └─────────────┘      └────────────┘ │
-│         │                     │  │                  │        │
-│         v                     │  │ INVALID          v        │
-│   ┌──────────┐         ┌─────v──v───────┐   ┌──────────┐   │
-│   │  Memory  │<────────│   Exception    │   │ Verified │   │
-│   │   Pool   │         │   Response     │   │   Queue  │   │
-│   │ (Redis)  │         │ (Peer Service) │   │(In-Memory)│  │
-│   └──────────┘         └────────────────┘   └──────────┘   │
-│         ^                     ^                     │        │
-│         │              ┌──────────┐          ┌──────v─────┐ │
-│    ┌────┴─────┐        │Blueprint │          │  Docket    │ │
-│    │  Peer    │        │ Service  │          │  Builder   │ │
-│    │ Service  │        │  (HTTP)  │          └────────────┘ │
-│    │(Messages)│        └──────────┘                         │
-│    └──────────┘                                             │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              VALIDATOR SERVICE                               │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                      INITIATOR ROLE                                     │ │
+│  │  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌───────────────────┐   │ │
+│  │  │  Poller  │──▶│ Validate │──▶│  Docket  │──▶│ Sign + Broadcast  │   │ │
+│  │  │ (Redis)  │   │  Engine  │   │ Builder  │   │  to Confirmers    │   │ │
+│  │  └──────────┘   └──────────┘   └──────────┘   └───────────────────┘   │ │
+│  │                                                         │              │ │
+│  │                      ┌──────────────────────────────────┘              │ │
+│  │                      ▼                                                 │ │
+│  │  ┌─────────────────────────────────┐   ┌────────────────────────────┐ │ │
+│  │  │ Signature Collector             │──▶│ Commit to Register +       │ │ │
+│  │  │ (wait for threshold/timeout)    │   │ Distribute via Peer Svc    │ │ │
+│  │  └─────────────────────────────────┘   └────────────────────────────┘ │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                      CONFIRMER ROLE                                     │ │
+│  │  ┌──────────────────┐   ┌──────────────┐   ┌────────────────────────┐ │ │
+│  │  │ Receive Docket   │──▶│ Validate All │──▶│ Sign + Return to       │ │ │
+│  │  │ from Peer Svc    │   │ Transactions │   │ Initiator              │ │ │
+│  │  └──────────────────┘   └──────────────┘   └────────────────────────┘ │ │
+│  │                                │                                       │ │
+│  │                                ▼ (if invalid)                          │ │
+│  │                    ┌────────────────────────┐                          │ │
+│  │                    │ Reject + Log for       │                          │ │
+│  │                    │ Bad Actor Detection    │                          │ │
+│  │                    └────────────────────────┘                          │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                      SHARED COMPONENTS                                  │ │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                 │ │
+│  │  │  Validation  │  │  Blueprint   │  │   Genesis    │                 │ │
+│  │  │    Engine    │  │    Cache     │  │ Config Cache │                 │ │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘                 │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Network Topology
+
+```
+                    ┌─────────────────┐
+                    │  Peer Network   │
+                    │     (gRPC)      │
+                    └────────┬────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│  Validator 1  │◀──▶│  Validator 2  │◀──▶│  Validator 3  │
+│   (LEADER)    │    │  (Confirmer)  │    │  (Confirmer)  │
+│  Builds Dockets    │  Signs Dockets │    │  Signs Dockets │
+└───────┬───────┘    └───────────────┘    └───────────────┘
+        │
+        ▼
+┌───────────────┐
+│   Register    │
+│   Service     │
+└───────────────┘
+```
+
+### Leader Election
+
+Only one validator (the **leader**) initiates docket builds at any time. This ensures:
+- **Sequencing:** Docket sequence numbers are assigned without conflicts
+- **Ordering:** Transaction ordering is deterministic
+- **Efficiency:** No competing docket builds
+
+**Election Mechanisms (configurable per register):**
+
+| Mechanism | Description | Use Case |
+|-----------|-------------|----------|
+| **Rotating** | Round-robin based on validator order | Simple, predictable |
+| **Raft-style** | Heartbeat-based leader election | Fault-tolerant |
+| **Stake-weighted** | Higher stake = higher election probability | Incentive-aligned |
+
+**Leader Responsibilities:**
+- Poll transaction pool and build dockets
+- Assign docket sequence numbers
+- Broadcast dockets for confirmation
+- Collect signatures and commit
+
+**Leader Failure:**
+- Confirmers detect leader timeout (no heartbeat/docket)
+- New leader elected per configured mechanism
+- Pending docket abandoned, transactions return to pool
 
 ---
 
 ## Data Flow
 
-### 1. Transaction Lifecycle
+### 1. Initiator Flow (Building Dockets)
 
 ```
-Peer Service (Messages)
+Transactions arrive via Peer Service
          │
-         v
-Unverified Transaction (Redis MemoryPool)
+         ▼
+Redis Memory Pool (unverified)
          │
-         v
-    Validation Process
-    - Fetch Blueprint JSON
-    - Validate against DataSchemas
-    - Check JSON Logic conditions
-    - Verify Disclosure rules
-    - Check Participant authorization
+         ▼
+┌─────────────────────────────────────┐
+│        VALIDATION PROCESS           │
+│  1. Fetch Blueprint JSON (cached)   │
+│  2. Validate chain (previousId)     │
+│  3. Validate schemas (DataSchemas)  │
+│  4. Evaluate conditions (JsonLogic) │
+│  5. Check disclosures               │
+│  6. Verify participant auth         │
+└─────────────────────────────────────┘
          │
     ┌────┴────┐
     │         │
-    v         v
-VALID      INVALID
+  VALID    INVALID
     │         │
-    v         v
+    ▼         ▼
 In-Memory   Exception Response
-Verified    │
-Queue       v
-    │       Send to Peer Service
-    v       │
-Docket      v
-Builder     Return to Original Sender
-    │       (Transaction Rejection)
-    v
-Register Block
+Verified    → Peer Service
+Queue       → Original Sender
+    │
+    ▼
+┌─────────────────────────────────────┐
+│         DOCKET BUILDING             │
+│  1. Read genesis config             │
+│     - signatureThreshold            │
+│     - docketTimeout                 │
+│     - maxSignatures                 │
+│  2. Build docket from verified txs  │
+│  3. Compute Merkle root             │
+│  4. Sign docket (initiator sig)     │
+└─────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│      CONSENSUS COLLECTION           │
+│  1. Broadcast to confirming         │
+│     validators via Peer Service     │
+│  2. Collect signatures              │
+│  3. Wait until:                     │
+│     - min threshold reached, OR     │
+│     - timeout expires               │
+│  4. Cap at maxSignatures            │
+└─────────────────────────────────────┘
+         │
+         ▼ (threshold met)
+┌─────────────────────────────────────┐
+│           COMMITMENT                │
+│  1. Submit to Register Service      │
+│  2. Distribute via Peer Service     │
+└─────────────────────────────────────┘
 ```
 
-**Transaction Source:**
-- Transactions arrive as **messages from Peer Service**
-- Peer Service receives transactions from network participants
-- Messages are queued in Redis memory pool for validation
+### 2. Confirmer Flow (Validating Dockets)
 
-**Validation Failure Handling:**
-- Failed transactions are sent back to **original sender as exceptions**
-- Exception sent via **Peer Service** (reverse channel)
-- Transaction is **not** added to verified queue
-- Detailed validation errors included in exception response
+```
+Receive Docket from Peer Service
+         │
+         ▼
+┌─────────────────────────────────────┐
+│       DOCKET VALIDATION             │
+│  1. Verify initiator signature      │
+│  2. Validate ALL transactions       │
+│     (same validation as initiator)  │
+│  3. Verify Merkle root              │
+│  4. Check docket structure          │
+└─────────────────────────────────────┘
+         │
+    ┌────┴────┐
+    │         │
+  VALID    INVALID
+    │         │
+    ▼         ▼
+Sign &     Reject
+Return     (log for bad actor detection)
+to         (do not sign)
+Initiator
+```
 
-### 2. Storage Layers
+### 3. Storage Layers
 
 | Layer | Storage | Purpose | Persistence |
 |-------|---------|---------|-------------|
-| **Unverified Pool** | Redis | Pending transactions awaiting validation | Persistent, TTL-based |
+| **Unverified Pool** | Redis | Pending transactions from Peer Service | Persistent, TTL-based |
 | **Verified Queue** | In-Memory | Validated transactions ready for docket | Volatile, size-limited |
-| **Docket** | Register | Sealed block of transactions | Permanent |
+| **Pending Dockets** | In-Memory | Dockets awaiting signature threshold | Volatile, timeout-based |
+| **Committed Docket** | Register | Sealed, signed docket | Permanent |
+
+---
+
+## Transaction Chain Model
+
+### Multi-Blueprint Register with Versioning
+
+```
+Genesis Block (txid0)
+│
+├── Contains: Register Control Blueprint
+│   ├── signatureThreshold: { min: 3, max: 10 }
+│   ├── docketTimeout: "PT30S"
+│   ├── validatorRegistration: "public" | "consent"
+│   └── maxSignaturesPerDocket: 10
+│
+├── Blueprint A v1 (previousId = txid0)
+│   │
+│   ├── Instance A1 Action 1 (previousId = Blueprint A v1 txid)
+│   │   └── Instance A1 Action 2 (previousId = A1 Action 1 txid)
+│   │
+│   └── Instance A2 Action 1 (previousId = Blueprint A v1 txid)
+│
+├── Blueprint A v2 (previousId = Blueprint A v1 txid)  ← VERSION UPDATE
+│   │
+│   └── Instance A3 Action 1 (previousId = Blueprint A v2 txid)
+│
+└── Blueprint B v1 (previousId = txid0)  ← DIFFERENT BLUEPRINT
+    │
+    └── Instance B1 Action 1 (previousId = Blueprint B v1 txid)
+```
+
+### Transaction Chain Rules
+
+| Transaction Type | previousId Value |
+|-----------------|------------------|
+| Genesis Block | null (root) |
+| New Blueprint (v1) | Genesis block txid |
+| Blueprint Update (v2+) | Prior blueprint version txid |
+| First Action (Action 0) | Blueprint publication txid |
+| Subsequent Actions | Prior action in same instance |
+
+### Blueprint Versioning
+
+- **New Blueprint:** `previousId` = genesis block transaction ID
+- **Updated Blueprint:** `previousId` = prior version's transaction ID
+- **Instance Actions:** Always reference the blueprint version they were instantiated from
+- **Version Lookup:** Follow `previousId` chain to find all versions of a blueprint
 
 ---
 
@@ -120,7 +284,7 @@ Register Block
 {
   "TransactionPool": {
     "RedisConnectionString": "localhost:6379",
-    "PoolKey": "sorcha:transactions:unverified",
+    "PoolKey": "sorcha:transactions:unverified:{registerId}",
     "PollIntervalMs": 1000,
     "BatchSize": 100,
     "MaxRetries": 3
@@ -142,114 +306,108 @@ Register Block
 - `Sorcha.Blueprint.Engine.Interfaces.ISchemaValidator`
 - `Sorcha.Blueprint.Engine.Interfaces.IJsonLogicEvaluator`
 - `Sorcha.Blueprint.Engine.Interfaces.IDisclosureProcessor`
-- `Sorcha.Blueprint.Models.Blueprint` (JSON deserialization)
+- `Sorcha.Validator.Core` (enclave-safe validation library)
 
 **Validation Steps:**
 
 ```csharp
-public class ValidationResult
+public async Task<ValidationResult> ValidateTransactionAsync(Transaction transaction)
 {
-    public bool IsValid { get; set; }
-    public List<ValidationError> Errors { get; set; }
-    public Transaction ValidatedTransaction { get; set; }
-}
-
-public async Task<ValidationResult> ValidateAsync(Transaction transaction)
-{
-    // 1. Fetch Blueprint JSON
-    var blueprint = await FetchBlueprintAsync(transaction.BlueprintId);
+    // 1. Fetch Blueprint (from cache or Blueprint Service)
+    var blueprint = await _blueprintCache.GetAsync(transaction.BlueprintId);
 
     // 2. Identify target action
     var action = blueprint.Actions.FirstOrDefault(a => a.Id == transaction.ActionId);
+    if (action == null)
+        return ValidationResult.Failed(ValidationErrorType.ActionNotFound);
 
     // 3. Chain validation (previousId)
-    var chainValid = await ValidateChainAsync(transaction);
-    if (!chainValid.IsValid)
-    {
-        return chainValid;
-    }
+    var chainResult = await ValidateChainAsync(transaction, blueprint);
+    if (!chainResult.IsValid)
+        return chainResult;
 
     // 4. Previous data validation
-    var previousTx = await FetchTransactionAsync(transaction.PreviousId);
-    if (transaction.PreviousData != null &&
-        !ValidatePreviousData(transaction.PreviousData, previousTx.Data))
+    if (transaction.PreviousData != null)
     {
-        return new ValidationResult
-        {
-            IsValid = false,
-            Errors = new List<ValidationError>
-            {
-                new ValidationError { Type = ValidationErrorType.PreviousDataMismatch }
-            }
-        };
+        var previousTx = await _transactionCache.GetAsync(transaction.PreviousId);
+        if (!ValidatePreviousData(transaction.PreviousData, previousTx.Data))
+            return ValidationResult.Failed(ValidationErrorType.PreviousDataMismatch);
     }
 
-    // 5. Schema validation (DataSchemas)
+    // 5. Schema validation
     var schemaResult = await _schemaValidator.ValidateAsync(
-        transaction.Data,
-        action.DataSchemas
-    );
+        transaction.Data, action.DataSchemas);
+    if (!schemaResult.IsValid)
+        return schemaResult;
 
-    // 6. JSON Logic condition evaluation (if applicable)
+    // 6. JSON Logic condition evaluation
     if (action.Condition != null)
     {
         var conditionResult = _jsonLogicEvaluator.Evaluate(
-            action.Condition,
-            transaction.Data
-        );
+            action.Condition, transaction.Data);
+        if (!conditionResult.IsValid)
+            return conditionResult;
     }
 
     // 7. Disclosure rules validation
     var disclosureResult = _disclosureProcessor.ValidateDisclosures(
-        transaction.Data,
-        action.Disclosures,
-        transaction.Sender
-    );
+        transaction.Data, action.Disclosures, transaction.Sender);
+    if (!disclosureResult.IsValid)
+        return disclosureResult;
 
     // 8. Participant authorization
-    var participantValid = blueprint.Participants.Any(
-        p => p.Id == transaction.Sender
-    );
+    if (!blueprint.Participants.Any(p => p.Id == transaction.Sender))
+        return ValidationResult.Failed(ValidationErrorType.UnauthorizedSender);
 
-    return new ValidationResult
-    {
-        IsValid = schemaResult.IsValid && participantValid,
-        Errors = CollectErrors(...)
-    };
+    // 9. Signature verification
+    var signatureValid = await _cryptoService.VerifySignatureAsync(
+        transaction.Signature, transaction.Sender);
+    if (!signatureValid)
+        return ValidationResult.Failed(ValidationErrorType.SignatureVerificationFailed);
+
+    return ValidationResult.Success(transaction);
 }
 
-private async Task<ValidationResult> ValidateChainAsync(Transaction tx)
+private async Task<ValidationResult> ValidateChainAsync(
+    Transaction tx, Blueprint blueprint)
 {
-    // Verify previousId references valid transaction
-    var previousTx = await FetchTransactionAsync(tx.PreviousId);
-    if (previousTx == null)
+    // Genesis/Blueprint publication: previousId should be genesis or prior version
+    if (tx.Type == TransactionType.BlueprintPublication)
     {
-        return new ValidationResult
-        {
-            IsValid = false,
-            Errors = new List<ValidationError>
-            {
-                new ValidationError { Type = ValidationErrorType.InvalidPreviousId }
-            }
-        };
+        // New blueprint: previousId = genesis
+        // Updated blueprint: previousId = prior version
+        var previousTx = await _transactionCache.GetAsync(tx.PreviousId);
+        if (previousTx == null)
+            return ValidationResult.Failed(ValidationErrorType.InvalidPreviousId);
+
+        // If updating, verify it's the same blueprint being versioned
+        if (previousTx.Type == TransactionType.BlueprintPublication &&
+            previousTx.BlueprintId != tx.BlueprintId)
+            return ValidationResult.Failed(ValidationErrorType.InvalidBlueprintVersion);
+
+        return ValidationResult.Success();
     }
 
-    // Verify chain continuity
-    // Action 0 should reference Blueprint publication transaction
-    // Action N should reference previous action in same instance
-    if (tx.ActionId == 0 && previousTx.BlueprintId != tx.BlueprintId)
+    // Action transaction: previousId must reference valid prior tx
+    var previous = await _transactionCache.GetAsync(tx.PreviousId);
+    if (previous == null)
+        return ValidationResult.Failed(ValidationErrorType.InvalidPreviousId);
+
+    // First action (Action 0): previousId = blueprint publication tx
+    if (tx.ActionId == 0)
     {
-        return new ValidationResult
-        {
-            IsValid = false,
-            Errors = new List<ValidationError>
-            {
-                new ValidationError { Type = ValidationErrorType.BrokenChain }
-            }
-        };
+        if (previous.Type != TransactionType.BlueprintPublication ||
+            previous.BlueprintId != tx.BlueprintId)
+            return ValidationResult.Failed(ValidationErrorType.BrokenChain);
+    }
+    // Subsequent actions: previousId = prior action in same instance
+    else
+    {
+        if (previous.BlueprintId != tx.BlueprintId)
+            return ValidationResult.Failed(ValidationErrorType.BrokenChain);
     }
 
-    return new ValidationResult { IsValid = true };
+    return ValidationResult.Success();
 }
 ```
 
@@ -270,13 +428,30 @@ private async Task<ValidationResult> ValidateChainAsync(Transaction tx)
 }
 ```
 
-**Behavior:**
-- Fetch Blueprint from Blueprint.Service on cache miss
-- Store in Redis with TTL
-- Invalidate on Blueprint updates (webhook/event)
-- LRU eviction when cache full
+### 4. Genesis Config Cache
 
-### 4. Verified Transaction Queue (In-Memory)
+**Responsibility:** Cache register governance configuration from genesis blueprint
+
+**Configuration:**
+```json
+{
+  "GenesisConfigCache": {
+    "Provider": "Redis",
+    "CacheKeyPrefix": "sorcha:genesis:",
+    "DefaultTTLSeconds": 600,
+    "RefreshOnUpdate": true
+  }
+}
+```
+
+**Cached Properties:**
+- `signatureThreshold` (min/max)
+- `docketTimeout`
+- `maxSignaturesPerDocket`
+- `validatorRegistration` (public/consent)
+- Registered validators list
+
+### 5. Verified Transaction Queue (In-Memory)
 
 **Responsibility:** Hold validated transactions ready for docket building
 
@@ -284,51 +459,261 @@ private async Task<ValidationResult> ValidateChainAsync(Transaction tx)
 ```json
 {
   "VerifiedQueue": {
-    "MaxSizeBytes": 104857600,        // 100 MB
+    "MaxSizeBytes": 104857600,
     "MaxTransactionCount": 10000,
-    "EvictionPolicy": "FIFO",         // FIFO, LRU, Priority
-    "PersistenceBackup": "Redis",     // Optional backup to Redis
+    "EvictionPolicy": "FIFO",
+    "PersistenceBackup": "Redis",
     "BackupIntervalSeconds": 60
   }
 }
 ```
 
-**Features:**
-- **Size Limits:**
-  - Maximum bytes (configurable)
-  - Maximum transaction count (configurable)
-- **Eviction Policies:**
-  - FIFO: First-in, first-out
-  - LRU: Least recently used
-  - Priority: Based on transaction priority/fee
-- **Optional Backup:**
-  - Periodically backup to Redis
-  - Restore on service restart
+### 6. Docket Builder
 
-### 5. Docket Builder
-
-**Responsibility:** Build dockets from verified transactions
+**Responsibility:** Build dockets from verified transactions and initiate consensus
 
 **Configuration:**
 ```json
 {
   "DocketBuilder": {
-    "MaxDocketSize": 1000,            // Max transactions per docket
-    "BuildIntervalSeconds": 30,       // Build docket every N seconds
-    "MinTransactionsForBuild": 10,    // Minimum txs before building
+    "MaxDocketSize": 1000,
+    "BuildIntervalSeconds": 30,
+    "MinTransactionsForBuild": 10,
     "SealingAlgorithm": "MerkleRoot"
   }
 }
 ```
 
 **Behavior:**
-- Triggered by:
-  - Timer (every N seconds)
-  - Transaction count threshold
-  - Manual trigger (API endpoint)
-- Seal docket with Merkle root
-- Submit to Register.Service
-- Clear in-memory queue after successful submission
+1. Triggered by timer, transaction count threshold, or manual trigger
+2. Read genesis config for signature requirements
+3. Build docket with Merkle root
+4. Sign with validator's key (first signature)
+5. Broadcast to confirming validators via Peer Service
+6. Await signature collection
+
+### 7. Signature Collector
+
+**Responsibility:** Collect signatures from confirming validators
+
+**Behavior:**
+```csharp
+public async Task<SignatureCollectionResult> CollectSignaturesAsync(
+    Docket docket, GenesisConfig config, CancellationToken ct)
+{
+    var signatures = new List<ValidatorSignature> { docket.InitiatorSignature };
+    var timeout = config.DocketTimeout;
+    var minThreshold = config.SignatureThreshold.Min;
+    var maxSignatures = config.MaxSignaturesPerDocket;
+
+    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+    cts.CancelAfter(timeout);
+
+    try
+    {
+        await foreach (var signature in _peerService.ReceiveSignaturesAsync(
+            docket.Id, cts.Token))
+        {
+            // Verify signature is from registered validator
+            if (!await _validatorRegistry.IsRegisteredAsync(signature.ValidatorId))
+                continue;
+
+            signatures.Add(signature);
+
+            // Check if we've reached max
+            if (signatures.Count >= maxSignatures)
+                break;
+        }
+    }
+    catch (OperationCanceledException)
+    {
+        // Timeout - check if we have enough
+    }
+
+    return new SignatureCollectionResult
+    {
+        Signatures = signatures,
+        ThresholdMet = signatures.Count >= minThreshold,
+        TimedOut = cts.IsCancellationRequested
+    };
+}
+```
+
+### Consensus Failure Handling
+
+**When signature threshold is NOT met by timeout:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   CONSENSUS FAILURE FLOW                     │
+│                                                              │
+│  Docket Build Complete                                       │
+│         │                                                    │
+│         ▼                                                    │
+│  Broadcast to Confirmers ──────────────────┐                │
+│         │                                   │                │
+│         ▼                                   ▼                │
+│  Wait for Signatures              Timeout Expires            │
+│         │                              │                     │
+│    ┌────┴────┐                         │                     │
+│    │         │                         │                     │
+│ Threshold  Threshold                   │                     │
+│   MET      NOT MET ◀───────────────────┘                    │
+│    │         │                                               │
+│    ▼         ▼                                               │
+│ COMMIT    ABANDON                                            │
+│    │         │                                               │
+│    │         ├── Log failure reason                          │
+│    │         ├── Return transactions to unverified pool      │
+│    │         ├── Clear pending docket                        │
+│    │         └── Transactions eligible for next docket       │
+│    │                                                         │
+│    ▼                                                         │
+│ Submit to Register + Distribute                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Implementation:**
+```csharp
+public async Task HandleConsensusResultAsync(
+    Docket docket, SignatureCollectionResult result)
+{
+    if (result.ThresholdMet)
+    {
+        // SUCCESS: Commit docket
+        docket.Signatures = result.Signatures;
+        await _registerService.SubmitDocketAsync(docket);
+        await _peerService.DistributeDocketAsync(docket);
+        _metrics.DocketsCommitted.Inc();
+    }
+    else
+    {
+        // FAILURE: Abandon and retry
+        _logger.LogWarning(
+            "Consensus failed for docket {DocketId}: {Signatures}/{Required} signatures",
+            docket.Id, result.Signatures.Count, config.SignatureThreshold.Min);
+
+        // Return transactions to unverified pool
+        foreach (var tx in docket.Transactions)
+        {
+            await _transactionPool.ReturnToUnverifiedAsync(tx);
+        }
+
+        // Clear pending docket
+        await _pendingDocketStore.RemoveAsync(docket.Id);
+
+        _metrics.DocketsAbandoned.Inc();
+    }
+}
+```
+
+**Retry Behavior:**
+- Abandoned transactions return to unverified pool
+- Transactions are eligible for the next docket build cycle
+- No special retry counter (transactions may be included in future dockets)
+- Persistent failures may indicate network issues or bad actors
+
+### 8. Docket Confirmer
+
+**Responsibility:** Validate and sign dockets received from other validators
+
+**Behavior:**
+```csharp
+public async Task<ConfirmationResult> ConfirmDocketAsync(Docket docket)
+{
+    // 1. Verify initiator signature
+    if (!await _cryptoService.VerifySignatureAsync(
+        docket.InitiatorSignature, docket.InitiatorId))
+    {
+        return ConfirmationResult.Rejected(RejectionReason.InvalidInitiatorSignature);
+    }
+
+    // 2. Validate all transactions
+    foreach (var tx in docket.Transactions)
+    {
+        var result = await _validationEngine.ValidateTransactionAsync(tx);
+        if (!result.IsValid)
+        {
+            _badActorDetector.LogRejection(docket.InitiatorId, result);
+            return ConfirmationResult.Rejected(RejectionReason.InvalidTransaction);
+        }
+    }
+
+    // 3. Verify Merkle root
+    var computedRoot = MerkleTree.ComputeRoot(docket.Transactions);
+    if (computedRoot != docket.MerkleRoot)
+    {
+        return ConfirmationResult.Rejected(RejectionReason.InvalidMerkleRoot);
+    }
+
+    // 4. Sign and return
+    var signature = await _cryptoService.SignAsync(docket.Id, _validatorKey);
+    return ConfirmationResult.Confirmed(signature);
+}
+```
+
+### 9. Exception Response Handler
+
+**Responsibility:** Send validation failures back to original sender via Peer Service
+
+**Behavior:**
+- Create detailed error response
+- Route via Peer Service to original sender
+- Log for analytics
+
+---
+
+## Docket Structure
+
+```json
+{
+  "id": "docket-uuid",
+  "registerId": "register-uuid",
+  "previousDocketId": "prev-docket-uuid",
+  "sequenceNumber": 42,
+  "transactions": [
+    {
+      "id": "tx-uuid-1",
+      "blueprintId": "blueprint-uuid",
+      "actionId": 1,
+      "previousId": "tx-uuid-0",
+      "sender": "participant-id",
+      "data": { },
+      "signature": "...",
+      "timestamp": "2026-01-26T10:00:00Z"
+    }
+  ],
+  "merkleRoot": "0x...",
+  "createdAt": "2026-01-26T10:00:00Z",
+  "initiatorId": "validator-1-address",
+  "signatures": [
+    {
+      "validatorId": "validator-1-address",
+      "signature": "0x...",
+      "timestamp": "2026-01-26T10:00:01Z",
+      "isInitiator": true
+    },
+    {
+      "validatorId": "validator-2-address",
+      "signature": "0x...",
+      "timestamp": "2026-01-26T10:00:02Z",
+      "isInitiator": false
+    },
+    {
+      "validatorId": "validator-3-address",
+      "signature": "0x...",
+      "timestamp": "2026-01-26T10:00:03Z",
+      "isInitiator": false
+    }
+  ],
+  "consensusMetadata": {
+    "thresholdRequired": 3,
+    "signaturesCollected": 3,
+    "timeoutMs": 30000,
+    "completedAt": "2026-01-26T10:00:03Z"
+  }
+}
+```
 
 ---
 
@@ -337,97 +722,57 @@ private async Task<ValidationResult> ValidateChainAsync(Transaction tx)
 ```json
 {
   "id": "txid3",
+  "type": "Action",
   "blueprintId": "blueprint-uuid",
   "actionId": 1,
   "previousId": "txid2",
   "sender": "participant-id",
   "data": {
-    // Action-specific data (validated against DataSchemas)
   },
   "previousData": {
-    // Data from previous action (if applicable)
   },
-  "timestamp": "2025-11-19T10:00:00Z",
-  "signature": "...",  // Cryptographic signature
+  "timestamp": "2026-01-26T10:00:00Z",
+  "signature": "...",
   "nonce": 12345
 }
 ```
 
-**Transaction Chain Model:**
-
-The transaction chain itself provides instance tracking through `previousId` - no separate instance ID needed.
-
-**Example: Two workflow instances from same Blueprint:**
-
-```
-Genesis Block
-  txid0
-    ↓
-Blueprint v1 Published
-  txid1 (previousId = txid0)
-    ├────────────────┬────────────────┐
-    │                │                │
-Instance 1       Instance 2      Instance 3
-Action 1         Action 1        Action 1
-  txid2            txid4           txid6
-  (prev=txid1)     (prev=txid1)    (prev=txid1)
-    ↓
-Instance 1
-Action 2
-  txid3
-  (prev=txid2)
-```
-
-**Blueprint Execution Model:**
-- **Single Blueprint Per Transaction:** Transactions **cannot** reference multiple blueprints
-- **Chain-Based Instance Tracking:** Workflow instance is determined by the transaction chain via `previousId`
-- **Multiple Concurrent Instances:** Multiple executions of same Blueprint = multiple chains branching from the published Blueprint transaction
-- **Instance Isolation:** Each chain represents a separate workflow instance with its own state
-
-**Instance Data:**
-- Instance tracking is **implicit in the transaction chain**
-- `previousId` links transactions in the same workflow instance
-- Action transactions are **instance data** of a particular blueprint flow execution
-- Example workflow chains:
-  - **Instance 1:** txid1 → txid2 → txid3 (employee Alice's expense approval)
-  - **Instance 2:** txid1 → txid4 (employee Bob's expense approval)
-
-**Data Isolation:**
-- Instance data is scoped by the transaction chain (following `previousId`)
-- `previousData` references the transaction in the same chain
-- Cross-instance data access is not supported
-- Each branch from the Blueprint transaction = new instance
+**Transaction Types:**
+- `Genesis` - Register initialization with control blueprint
+- `BlueprintPublication` - New blueprint or version update
+- `Action` - Workflow action execution
 
 ---
 
 ## Integration Points
 
-### 1. Peer Service (Message Source)
-**Purpose:** Receive transactions from network participants
-**Integration:**
-- **Inbound:** Peer Service sends transaction messages to Redis memory pool
-- **Outbound:** Validator sends exception responses back to Peer Service for failed validations
-**Message Format:**
-```json
+### 1. Peer Service (Bidirectional)
+
+**Inbound:**
+- Receive unverified transactions (queue to Redis)
+- Receive dockets for confirmation (confirmer role)
+- Receive signatures from confirmers (initiator role)
+
+**Outbound:**
+- Send exception responses for failed validations
+- Broadcast dockets for confirmation
+- Return signatures to initiators
+- Distribute committed dockets
+
+**Message Types:**
+```csharp
+public enum PeerMessageType
 {
-  "messageId": "msg-uuid",
-  "transactionId": "tx-uuid",
-  "sender": "participant-id",
-  "transaction": { ... },
-  "routingInfo": {
-    "sourceNode": "peer-node-123",
-    "returnPath": "peer-service/responses/{messageId}"
-  }
-}
-```
-**Exception Response:**
-```json
-{
-  "messageId": "msg-uuid",
-  "transactionId": "tx-uuid",
-  "status": "rejected",
-  "validationErrors": [ ... ],
-  "timestamp": "2025-11-19T10:00:00Z"
+    // Inbound
+    TransactionSubmission,
+    DocketForConfirmation,
+    SignatureResponse,
+
+    // Outbound
+    ValidationException,
+    DocketBroadcast,
+    SignatureProvided,
+    DocketCommitted
 }
 ```
 
@@ -438,43 +783,97 @@ Action 2
 
 ### 3. Register Service
 **Endpoint:** `POST /api/registers/{id}/dockets`
-**Purpose:** Submit sealed docket
-**Payload:** Docket with verified transactions
+**Purpose:** Submit committed docket with signatures
+**Payload:** Docket with all collected signatures
 
-### 4. Transaction Pool (Redis)
-**Keys:**
-- `sorcha:transactions:unverified` - Queue of pending transactions from Peer Service
-- `sorcha:transactions:invalid` - Dead letter queue
-- `sorcha:transactions:processing` - Currently validating
-- `sorcha:transactions:responses` - Exception responses to send back via Peer Service
+### 4. Redis Keys
 
-### 5. Event Bus (Optional)
-**Events:**
-- `TransactionValidated` - Transaction passed validation
-- `TransactionRejected` - Transaction failed validation (sent to sender)
-- `DocketBuilt` - New docket created
-- `DocketSealed` - Docket submitted to register
+| Key Pattern | Purpose |
+|-------------|---------|
+| `sorcha:tx:unverified:{registerId}` | Pending transactions from Peer Service |
+| `sorcha:tx:processing:{registerId}` | Currently validating |
+| `sorcha:tx:invalid:{registerId}` | Dead letter queue |
+| `sorcha:blueprint:{id}` | Cached blueprints |
+| `sorcha:genesis:{registerId}` | Cached genesis config |
+| `sorcha:docket:pending:{docketId}` | Dockets awaiting signatures |
+| `sorcha:validators:{registerId}` | Registered validators for register |
+
+---
+
+## Validator Registration
+
+### Public Registers
+- Validators can volunteer to confirm dockets
+- Registration via Peer Service announcement
+- May require stake or reputation threshold (future)
+
+### Private Registers (Consent-Based)
+- Register owners must approve validators
+- Approval recorded in control docket
+- Revocation supported via control actions
+
+**Registration Model:**
+```json
+{
+  "validatorId": "validator-address",
+  "registerId": "register-uuid",
+  "registrationType": "public" | "consent",
+  "registeredAt": "2026-01-26T10:00:00Z",
+  "status": "active" | "suspended" | "revoked",
+  "metadata": {
+    "endpoint": "https://validator.example.com",
+    "publicKey": "0x..."
+  }
+}
+```
 
 ---
 
 ## Configuration Requirements
 
-### 1. Memory Management
+### 1. Consensus Settings (from Genesis Blueprint)
+
+These are read from the genesis block's control blueprint, not local config:
 
 ```json
 {
-  "MemoryLimits": {
-    "VerifiedQueueMaxBytes": 104857600,     // 100 MB
-    "BlueprintCacheMaxBytes": 52428800,     // 50 MB
-    "WorkingMemoryMaxBytes": 52428800,      // 50 MB
-    "TotalMaxBytes": 209715200,             // 200 MB
-    "GarbageCollectionMode": "Server",
-    "LargeObjectHeapCompactionMode": "Always"
+  "signatureThreshold": {
+    "min": 3,
+    "max": 10
+  },
+  "docketTimeout": "PT30S",
+  "maxSignaturesPerDocket": 10,
+  "validatorRegistration": "public"
+}
+```
+
+### 2. Local Validator Configuration
+
+```json
+{
+  "Validator": {
+    "ValidatorId": "validator-1-address",
+    "PrivateKeyPath": "/secrets/validator.key",
+    "Roles": ["initiator", "confirmer"],
+    "RegisterIds": ["register-1", "register-2"]
   }
 }
 ```
 
-### 2. Performance Tuning
+### 3. Memory Management
+
+```json
+{
+  "MemoryLimits": {
+    "VerifiedQueueMaxBytes": 104857600,
+    "BlueprintCacheMaxBytes": 52428800,
+    "PendingDocketsMaxBytes": 26214400,
+    "TotalMaxBytes": 209715200
+  }
+}
+```
+
+### 4. Performance Tuning
 
 ```json
 {
@@ -488,40 +887,6 @@ Action 2
 }
 ```
 
-### 3. Resilience
-
-```json
-{
-  "Resilience": {
-    "MaxRetries": 3,
-    "RetryDelayMs": 1000,
-    "CircuitBreakerThreshold": 5,
-    "CircuitBreakerDurationSeconds": 60,
-    "EnableDeadLetterQueue": true,
-    "DeadLetterQueueKey": "sorcha:transactions:dlq"
-  }
-}
-```
-
-### 4. Monitoring
-
-```json
-{
-  "Monitoring": {
-    "EnableMetrics": true,
-    "MetricsPort": 9090,
-    "HealthCheckEndpoint": "/health",
-    "MetricsToTrack": [
-      "transactions_validated_total",
-      "transactions_rejected_total",
-      "validation_duration_seconds",
-      "verified_queue_size_bytes",
-      "dockets_built_total"
-    ]
-  }
-}
-```
-
 ---
 
 ## Validation Rules
@@ -530,40 +895,29 @@ Action 2
 - Transaction data must conform to `Action.DataSchemas`
 - Required fields must be present
 - Data types must match
-- String patterns/formats validated
-- Numeric ranges enforced
 
 ### 2. JSON Logic Conditions
 - Evaluate `Action.Condition` against transaction data
 - Condition must evaluate to valid next action ID or boolean
-- Variables in condition must reference fields in transaction data
-- Invalid condition syntax rejects transaction
 
 ### 3. Disclosure Rules
 - Transaction sender must be authorized to submit this action
-- `Action.Sender` must match transaction sender
 - Disclosure recipients must be valid participants
-- Data pointers must reference valid fields
 
 ### 4. Participant Authorization
 - Transaction sender must exist in `Blueprint.Participants`
 - Wallet signature must match participant's wallet address
-- Stealth address validation if enabled
 
-### 5. Workflow Integrity & Chain Validation
-- Transaction must reference valid Blueprint
-- Action ID must exist in Blueprint
-- **previousId must reference valid transaction:**
-  - For Action 0: `previousId` should reference the Blueprint publication transaction
-  - For Action N: `previousId` should reference previous action in the same instance
-  - Chain continuity validated (no broken chains)
-- **Previous action data validation:**
-  - `previousData` must match data from transaction referenced by `previousId`
-  - Previous action must be from same Blueprint instance (same chain)
-- **Instance chain validation:**
-  - Validate transaction is on correct chain branch
-  - Detect invalid chain merges
-  - Ensure action sequence follows Blueprint workflow
+### 5. Chain Validation
+- `previousId` must reference valid transaction
+- Chain continuity validated per transaction type rules
+- Blueprint versioning chain validated
+
+### 6. Docket Validation (Confirmer)
+- All transactions individually valid
+- Merkle root matches computed value
+- Initiator signature valid
+- Docket structure valid
 
 ---
 
@@ -597,8 +951,13 @@ public enum ValidationErrorType
     InvalidPreviousId,
     BrokenChain,
     PreviousDataMismatch,
-    InvalidChainBranch,
-    ChainMergeDetected,
+    InvalidBlueprintVersion,
+
+    // Consensus Errors
+    InvalidInitiatorSignature,
+    InvalidMerkleRoot,
+    ThresholdNotMet,
+    DocketTimeout,
 
     // System Errors
     ValidationTimeout,
@@ -606,226 +965,81 @@ public enum ValidationErrorType
 }
 ```
 
-### Error Response
-
-**Validation failures are sent back to the original sender as exceptions via Peer Service:**
-
-```json
-{
-  "messageId": "original-msg-uuid",
-  "transactionId": "tx-uuid",
-  "status": "rejected",
-  "isValid": false,
-  "errors": [
-    {
-      "type": "SchemaMismatch",
-      "field": "data.amount",
-      "message": "Expected number, got string",
-      "schemaPath": "#/properties/amount/type"
-    }
-  ],
-  "timestamp": "2025-11-19T10:00:00Z",
-  "returnPath": "via-peer-service"
-}
-```
-
-**Exception Response Flow:**
-1. Validation fails for transaction
-2. Validator creates exception response with detailed errors
-3. Exception sent to Peer Service response queue
-4. Peer Service routes exception back to original sender
-5. Transaction is **not** added to verified queue or docket
-
 ---
 
-## API Endpoints (Validator.Service)
+## API Endpoints
 
 ### Health & Monitoring
-
 ```http
 GET /health
 GET /metrics
 GET /ready
 ```
 
-### Transaction Pool Management
-
+### Transaction Pool
 ```http
-GET /api/pool/stats
-GET /api/pool/unverified/count
-GET /api/pool/verified/count
+GET  /api/pool/stats
+GET  /api/pool/unverified/count
+GET  /api/pool/verified/count
+POST /api/validate/{transactionId}
 ```
 
-### Manual Operations
-
+### Docket Management
 ```http
-POST /api/validate/{transactionId}  # Force validation of specific transaction
-POST /api/docket/build              # Manually trigger docket build
-DELETE /api/pool/clear              # Clear in-memory verified queue (admin)
+GET  /api/dockets/pending
+POST /api/dockets/build
+GET  /api/dockets/{id}/signatures
 ```
 
-### Configuration
-
+### Validator Registration
 ```http
-GET /api/config                     # Get current configuration
-PUT /api/config/memory-limits       # Update memory limits
-PUT /api/config/validation-rules    # Update validation rules
+GET  /api/validators
+POST /api/validators/register
+GET  /api/validators/{id}/status
 ```
 
 ---
 
 ## Performance Targets
 
-| Metric | Target | Notes |
-|--------|--------|-------|
-| Validation throughput | 1000 tx/sec | Single instance |
-| Validation latency (P50) | < 50ms | Including Blueprint fetch |
-| Validation latency (P99) | < 200ms | Including Blueprint fetch |
-| Memory usage | < 200 MB | Verified queue + cache |
-| CPU usage | < 50% | 4-core system |
-| Blueprint cache hit rate | > 95% | After warmup |
-
----
-
-## Dependencies
-
-### NuGet Packages
-- `Aspire.StackExchange.Redis` (13.0.0+)
-- `Sorcha.ServiceDefaults`
-- `Sorcha.Blueprint.Engine`
-- `Sorcha.Blueprint.Models`
-- `Sorcha.Register.Models`
-- `Microsoft.Extensions.Caching.Memory`
-- `Microsoft.Extensions.Caching.StackExchangeRedis`
-
-### External Services
-- Redis (transaction pool, Blueprint cache)
-- Blueprint.Service (HTTP client)
-- Register.Service (HTTP client for docket submission)
+| Metric | Target |
+|--------|--------|
+| Validation throughput | 1000 tx/sec |
+| Validation latency (P50) | < 50ms |
+| Validation latency (P99) | < 200ms |
+| Signature collection (P50) | < 5s |
+| Memory usage | < 200 MB |
+| Blueprint cache hit rate | > 95% |
 
 ---
 
 ## Security Considerations
 
-1. **Transaction Signature Verification**
-   - Verify cryptographic signature matches sender wallet
-   - Prevent transaction replay attacks (nonce validation)
-
-2. **Blueprint Integrity**
-   - Verify Blueprint hasn't been tampered with
-   - Consider Blueprint version tracking
-
-3. **Rate Limiting**
-   - Limit validation requests per participant
-   - Prevent DoS via malformed transactions
-
-4. **Data Privacy**
-   - Never log full transaction data (may contain PII)
-   - Respect disclosure rules in logging
-
----
-
-## Testing Requirements
-
-### Unit Tests
-- Schema validation edge cases
-- JSON Logic condition evaluation
-- Disclosure rule validation
-- Memory limit enforcement
-- Cache eviction policies
-
-### Integration Tests
-- Full validation workflow (Redis → Validate → In-Memory)
-- Blueprint.Service integration
-- Register.Service docket submission
-- Redis connection failure handling
-
-### Performance Tests
-- 1000 tx/sec throughput validation
-- Memory usage under load
-- Blueprint cache performance
-- Concurrent validation stress test
+1. **Transaction Signature Verification** - Verify cryptographic signature matches sender wallet
+2. **Validator Signature Verification** - Verify all docket signatures from registered validators
+3. **Replay Protection** - Nonce validation, transaction ID uniqueness
+4. **Rate Limiting** - Limit validation requests per participant
+5. **Bad Actor Detection** - Track rejection patterns (future: throttle/remove)
+6. **Data Privacy** - Never log full transaction data (may contain PII)
 
 ---
 
 ## Future Enhancements
 
-1. **Priority Queues**
-   - Fee-based transaction prioritization
-   - Express validation lane
-
-2. **Advanced Caching**
-   - Predictive Blueprint pre-fetching
-   - Multi-level cache (L1: Memory, L2: Redis)
-
-3. **Analytics**
-   - Validation success/failure metrics
-   - Transaction pattern analysis
-   - Blueprint usage statistics
-
-4. **Horizontal Scaling**
-   - Multiple validator instances
-   - Distributed locking for docket building
-   - Shared Redis for coordination
+1. **Bad Actor Management** - Throttling, reputation scores, removal from network
+2. **Priority Queues** - Fee-based transaction prioritization
+3. **Horizontal Scaling** - Multiple validator instances with distributed coordination
+4. **Validator Incentives** - Reward mechanisms for honest validation
 
 ---
 
-## Implementation Phases
+## Related Documents
 
-### Phase 1: Core Validation (MVP)
-- Basic transaction validation
-- Schema validation
-- Redis transaction pool integration
-- In-memory verified queue
-
-### Phase 2: Docket Building
-- Docket builder implementation
-- Register.Service integration
-- Merkle tree sealing
-
-### Phase 3: Advanced Features
-- Blueprint caching
-- Performance optimization
-- Monitoring & metrics
-
-### Phase 4: Production Hardening
-- Error handling & resilience
-- Security hardening
-- Load testing & optimization
+- [GENESIS-BLUEPRINT-SPEC.md](GENESIS-BLUEPRINT-SPEC.md) - Genesis block and control blueprint specification
+- [MASTER-TASKS.md](MASTER-TASKS.md) - Sprint 9 implementation tasks
+- [constitution.md](constitution.md) - Project standards and principles
 
 ---
 
-## Open Questions
-
-1. **Blueprint Updates:**
-   - How to handle Blueprint version changes during active workflow instances?
-   - Should in-flight transactions validate against old Blueprint versions?
-   - Blueprint versioning strategy via transaction chain?
-
-2. **Docket Finality:**
-   - What happens if Register.Service rejects a docket?
-   - Retry logic? Rollback verified transactions?
-   - How to handle partial docket acceptance?
-
-3. **Chain Validation:**
-   - How far back should chain validation traverse (performance vs security)?
-   - Should validator cache previous transactions for chain validation?
-   - How to handle orphaned chains (previousId references missing transaction)?
-
-4. **Exception Response Delivery:**
-   - Does Peer Service guarantee exception delivery to original sender?
-   - What if the original sender is offline?
-   - Retry policy for exception responses?
-
-5. **Blueprint Publication:**
-   - How is a Blueprint published to the chain (becomes txid1)?
-   - Who can publish Blueprints?
-   - Blueprint update/versioning process?
-
----
-
-**Next Steps:**
-1. Review and approve requirements
-2. Design detailed implementation plan
-3. Create validation engine interface contracts
-4. Implement MVP (Phase 1)
+**Last Updated:** 2026-01-26
+**Document Owner:** Sorcha Architecture Team

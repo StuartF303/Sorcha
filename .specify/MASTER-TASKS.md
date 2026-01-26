@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 3.8 - UPDATED
-**Last Updated:** 2025-12-12
-**Status:** Active - Sprint 10 Complete, AUTH-002 Complete (Service Authentication Integration)
+**Version:** 3.9 - UPDATED
+**Last Updated:** 2026-01-26
+**Status:** Active - Validator Service Requirements Refined (Decentralized Consensus)
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -11,14 +11,37 @@
 
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
-**Total Tasks:** 234 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 136 (58%)
+**Total Tasks:** 270 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
+**Completed:** 136 (50%)
 **In Progress:** 0 (0%)
-**Not Started:** 98 (42%)
+**Not Started:** 134 (50%)
 
 ---
 
 ## Recent Updates
+
+**2026-01-26:**
+- 📋 VALIDATOR-SERVICE-REQUIREMENTS.md UPDATED: Decentralized consensus architecture
+  - **Leader election** for docket building (rotating/Raft mechanisms)
+  - Dual-role validator (leader/initiator + confirmer)
+  - Multi-validator consensus with configurable thresholds
+  - **Consensus failure handling** (abandon docket, retry transactions)
+  - Genesis blueprint integration for register governance
+  - Blueprint versioning via transaction chain
+  - Multi-blueprint registers (corrected from single-blueprint)
+  - **gRPC communication** via Peer Service
+- 📋 GENESIS-BLUEPRINT-SPEC.md CREATED: Genesis block and control blueprint specification
+  - Register Control Blueprint schema
+  - **Leader election configuration** (mechanism, heartbeat, timeout)
+  - Validator registration models (public/consent)
+  - Control actions for register governance
+  - **Control blueprint versioning** for governance updates
+  - Docket structure with multi-signature support
+- 📋 Sprint 9 EXPANDED: 14 tasks → 50 tasks (560 hours estimated)
+  - Split into 7 sub-sprints (9A-9G) for better tracking
+  - Added leader election tasks (9C)
+  - Added consensus failure handling, gRPC integration
+  - Added control blueprint version resolver
 
 **2026-01-21:**
 - ✅ UI-CONSOLIDATION 100% COMPLETE: Admin to Main UI migration (35/35 tasks)
@@ -70,23 +93,25 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete | Details |
 |-------|-------------|----------|-------------|-------------|------------|---------|
-| **Phase 1: Blueprint-Action** | 82 | 78 | 0 | 4 | **95%** ✅ | [View Tasks](tasks/phase1-blueprint-service.md) |
+| **Phase 1: Blueprint-Action** | 118 | 64 | 0 | 54 | **54%** | [View Tasks](tasks/phase1-blueprint-service.md) |
 | **Phase 2: Wallet Service** | 34 | 34 | 0 | 0 | **100%** ✅ | [View Tasks](tasks/phase2-wallet-service.md) |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ | [View Tasks](tasks/phase3-register-service.md) |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% | [View Tasks](tasks/phase4-enhancements.md) |
 | **Production Readiness** | 10 | 0 | 0 | 10 | 0% ⚠️ | [View Tasks](tasks/production-readiness.md) |
 | **CLI Admin Tool** | 60 | 0 | 0 | 60 | 0% | [View Tasks](tasks/cli-admin-tool.md) |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% | [View Tasks](tasks/deferred-tasks.md) |
-| **TOTAL** | **234** | **124** | **0** | **110** | **53%** | |
+| **TOTAL** | **270** | **112** | **0** | **158** | **41%** | |
 
 ### By Priority
 
 | Priority | Total | Complete | In Progress | Not Started |
 |----------|-------|----------|-------------|-------------|
-| **P0 - Critical (MVD Blocker)** | 7 | 3 | 0 | 4 ⚠️ |
-| **P1 - High (Production Ready)** | 21 | 0 | 0 | 21 ⚠️ |
+| **P0 - Critical (MVD Blocker)** | 40 | 3 | 0 | 37 ⚠️ |
+| **P1 - High (Production Ready)** | 32 | 0 | 0 | 32 ⚠️ |
 | **P2 - Medium (Enhancements)** | 65 | 58 | 0 | 7 |
 | **P3 - Low (Post-MVD)** | 66 | 42 | 0 | 24 |
+
+**Note:** Sprint 9 (Validator Service) expanded significantly for decentralized consensus architecture.
 
 ---
 
@@ -110,7 +135,7 @@ Enhancement tasks that can be deferred until after MVD is complete.
 
 | Phase | Description | Link |
 |-------|-------------|------|
-| [Phase 1: Blueprint-Action Service](tasks/phase1-blueprint-service.md) | Core execution engine, Sprints 1-11 | 82 tasks |
+| [Phase 1: Blueprint-Action Service](tasks/phase1-blueprint-service.md) | Core execution engine, Sprints 1-11 | 118 tasks |
 | [Phase 2: Wallet Service](tasks/phase2-wallet-service.md) | REST API, EF Core, integration | 34 tasks |
 | [Phase 3: Register Service](tasks/phase3-register-service.md) | Transaction storage, OData | 15 tasks |
 | [Phase 4: Post-MVD Enhancements](tasks/phase4-enhancements.md) | Quality, performance, advanced features | 25 tasks |
@@ -118,22 +143,39 @@ Enhancement tasks that can be deferred until after MVD is complete.
 | [CLI Admin Tool](tasks/cli-admin-tool.md) | Cross-platform CLI, 5 sprints | 60 tasks |
 | [Deferred Tasks](tasks/deferred-tasks.md) | Post-launch features | 10 tasks |
 
+**Key Specifications:**
+| Document | Description |
+|----------|-------------|
+| [VALIDATOR-SERVICE-REQUIREMENTS.md](VALIDATOR-SERVICE-REQUIREMENTS.md) | Decentralized consensus validator |
+| [GENESIS-BLUEPRINT-SPEC.md](GENESIS-BLUEPRINT-SPEC.md) | Genesis block and control blueprint |
+
 ---
 
 ## Critical Path (MVD Blocking)
 
 ```
-BP-3.x (Service Layer) → BP-4.x (Action APIs) → BP-5.5 (SignalR)
+BP-3.x (Service Layer) → BP-4.x (Action APIs) → BP-5.5 (SignalR) ✅
     ↓
-WS-025 → WS-026.x (Wallet API)
+WS-025 → WS-026.x (Wallet API) ✅
     ↓
-WS-INT-x (Integration)
+WS-INT-x (Integration) ✅
     ↓
-REG-001 → REG-005/006/007 (Register API)
+REG-001 → REG-005/006/007 (Register API) ✅
     ↓
-REG-INT-x (Full Integration)
+REG-INT-x (Full Integration) ✅
     ↓
-BP-7.1 (E2E Tests)
+BP-7.1 (E2E Tests) ✅
+    ↓
+VAL-9.x (Validator Service - Decentralized Consensus) ⚠️ CURRENT BLOCKER
+    ├── VAL-9A: Core Infrastructure
+    ├── VAL-9B: Validation Engine
+    ├── VAL-9C: Initiator Role (Docket Building)
+    ├── VAL-9D: Confirmer Role
+    ├── VAL-9E: Service Integration (Peer, Register, Blueprint)
+    ├── VAL-9F: Validator Registration & Genesis
+    └── VAL-9G: Configuration & Testing
+    ↓
+BP-11.x (Production Readiness)
 ```
 
 ---

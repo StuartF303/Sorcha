@@ -50,7 +50,7 @@ public class DocketBuilderTests
         _validatorConfig = new ValidatorConfiguration
         {
             ValidatorId = "validator-1",
-            SystemWalletId = "system-wallet-1"
+            SystemWalletAddress = "system-wallet-1"
         };
 
         _buildConfig = new DocketBuildConfiguration
@@ -328,15 +328,15 @@ public class DocketBuilderTests
         result.Should().NotBeNull();
 
         _mockWalletClient.Verify(
-            w => w.SignDataAsync(_validatorConfig.SystemWalletId!, It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            w => w.SignDataAsync(_validatorConfig.SystemWalletAddress!, It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Once);
 
-        result!.ProposerSignature.PublicKey.Should().BeEquivalentTo(System.Text.Encoding.UTF8.GetBytes(_validatorConfig.SystemWalletId!));
+        result!.ProposerSignature.PublicKey.Should().BeEquivalentTo(System.Text.Encoding.UTF8.GetBytes(_validatorConfig.SystemWalletAddress!));
         result.ProposerSignature.SignatureValue.Should().BeEquivalentTo(System.Text.Encoding.UTF8.GetBytes(expectedSignature));
     }
 
     [Fact]
-    public async Task BuildDocketAsync_WithNullSystemWalletId_CreatesSystemWallet()
+    public async Task BuildDocketAsync_WithEmptySystemWalletAddress_CreatesSystemWallet()
     {
         // Arrange
         var registerId = "register-1";
@@ -344,7 +344,7 @@ public class DocketBuilderTests
         var previousDocket = CreateTestDocket(0, null);
         var createdWalletId = "newly-created-wallet";
 
-        _validatorConfig.SystemWalletId = null;
+        _validatorConfig.SystemWalletAddress = "";
 
         SetupNormalDocketBuild(registerId, transactions, previousDocket, "merkle-root", "docket-hash", "signature");
 

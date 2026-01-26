@@ -172,29 +172,130 @@
 
 ---
 
-## Sprint 9: Validator Service 📋 NOT STARTED
+## Sprint 9: Validator Service (Decentralized Consensus) 📋 NOT STARTED
 
-**Goal:** Rebuild Sorcha.Validator.Service to validate transactions from memory pool against Blueprint rules
+**Goal:** Rebuild Sorcha.Validator.Service as a dual-role decentralized consensus participant (initiator + confirmer)
+
+**Updated:** 2026-01-26 - Expanded for decentralized architecture with multi-validator consensus
+
+### Sprint 9A: Core Infrastructure
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| VAL-9.1 | Design Validator Service architecture | P0 | 8h | 📋 Not Started | - |
-| VAL-9.2 | Implement Transaction Pool Poller (Redis) | P0 | 12h | 📋 Not Started | - |
-| VAL-9.3 | Implement Validation Engine core | P0 | 24h | 📋 Not Started | - |
-| VAL-9.4 | Implement Chain Validation logic | P0 | 16h | 📋 Not Started | - |
-| VAL-9.5 | Implement Blueprint Cache (Redis) | P0 | 8h | 📋 Not Started | - |
-| VAL-9.6 | Implement Verified Transaction Queue (in-memory) | P0 | 12h | 📋 Not Started | - |
-| VAL-9.7 | Implement Exception Response Handler | P0 | 10h | 📋 Not Started | - |
-| VAL-9.8 | Implement Docket Builder | P0 | 16h | 📋 Not Started | - |
-| VAL-9.9 | Peer Service integration (message source) | P0 | 12h | 📋 Not Started | - |
-| VAL-9.10 | Register Service integration (docket submission) | P0 | 8h | 📋 Not Started | - |
-| VAL-9.11 | Configuration system (memory limits, performance) | P1 | 8h | 📋 Not Started | - |
-| VAL-9.12 | Validator Service unit tests | P0 | 20h | 📋 Not Started | - |
-| VAL-9.13 | Validator Service integration tests | P1 | 16h | 📋 Not Started | - |
-| VAL-9.14 | Performance testing (validation throughput) | P1 | 12h | 📋 Not Started | - |
+| VAL-9.1 | Design dual-role Validator Service architecture | P0 | 12h | ✅ Complete | 2026-01-26 |
+| VAL-9.2 | Define Validator Service interfaces and contracts | P0 | 8h | ✅ Complete | 2026-01-26 |
+| VAL-9.3 | Implement Transaction Pool Poller (Redis) | P0 | 12h | ✅ Complete | 2026-01-26 |
+| VAL-9.4 | Implement Blueprint Cache (Redis) | P0 | 8h | ✅ Complete | 2026-01-26 |
+| VAL-9.5 | Implement Genesis Config Cache | P0 | 8h | ✅ Complete | 2026-01-26 |
+| VAL-9.6 | Implement Verified Transaction Queue (in-memory) | P0 | 12h | ✅ Complete | 2026-01-26 |
 
-**Sprint 9 Status:** 📋 **NOT STARTED** (0/14 tasks, 182 hours)
-**Reference:** [VALIDATOR-SERVICE-REQUIREMENTS.md](../VALIDATOR-SERVICE-REQUIREMENTS.md)
+**Sprint 9A Status:** ✅ **COMPLETE** (6/6 tasks, 60 hours)
+
+### Sprint 9B: Validation Engine
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| VAL-9.7 | Implement Validation Engine core | P0 | 24h | ✅ Complete | 2026-01-26 |
+| VAL-9.8 | Implement Chain Validation logic (multi-blueprint, versioning) | P0 | 20h | ✅ Complete | 2026-01-26 |
+| VAL-9.9 | Implement Blueprint Version Resolution | P0 | 12h | ✅ Complete | 2026-01-26 |
+| VAL-9.10 | Implement Exception Response Handler | P0 | 10h | ✅ Complete | 2026-01-26 |
+| VAL-9.11 | Validation Engine unit tests | P0 | 16h | ✅ Complete | 2026-01-26 |
+
+**Sprint 9B Status:** ✅ **COMPLETE** (5/5 tasks, 82 hours)
+
+### Sprint 9C: Leader Election & Initiator Role
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| VAL-9.12 | Design Leader Election interface | P0 | 4h | ✅ Complete | 2026-01-26 |
+| VAL-9.13 | Implement Rotating Leader Election | P0 | 12h | ✅ Complete | 2026-01-26 |
+| VAL-9.14 | Implement Leader Heartbeat mechanism | P0 | 8h | ✅ Complete | 2026-01-26 |
+| VAL-9.15 | Implement Leader Failure Detection | P0 | 8h | ✅ Complete | 2026-01-26 |
+| VAL-9.16 | Implement Docket Builder (leader only) | P0 | 16h | ✅ Complete | 2026-01-26 |
+| VAL-9.17 | Implement Merkle Tree computation | P0 | 8h | ✅ Complete | 2026-01-26 |
+| VAL-9.18 | Implement Docket Signing (initiator) | P0 | 8h | ✅ Complete | 2026-01-26 |
+| VAL-9.19 | Implement Signature Collector | P0 | 16h | ✅ Complete | 2026-01-26 |
+| VAL-9.20 | Implement Consensus Failure Handler (abandon/retry) | P0 | 12h | ✅ Complete | 2026-01-26 |
+| VAL-9.21 | Implement Pending Docket Store (in-memory) | P0 | 8h | ✅ Complete | 2026-01-26 |
+| VAL-9.22 | Leader election unit tests | P0 | 12h | ✅ Complete | 2026-01-26 |
+| VAL-9.23 | Initiator role unit tests | P0 | 12h | ✅ Complete | 2026-01-26 |
+
+**Sprint 9C Status:** ✅ **COMPLETE** (12/12 tasks, 124 hours)
+
+### Sprint 9D: Confirmer Role
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| VAL-9.24 | Implement Docket Confirmer | P0 | 16h | 📋 Not Started | - |
+| VAL-9.25 | Implement Docket Validation (all transactions) | P0 | 12h | 📋 Not Started | - |
+| VAL-9.26 | Implement Merkle Root Verification | P0 | 4h | 📋 Not Started | - |
+| VAL-9.27 | Implement Initiator Signature Verification | P0 | 4h | 📋 Not Started | - |
+| VAL-9.28 | Implement Confirmation Response Handler | P0 | 8h | 📋 Not Started | - |
+| VAL-9.29 | Implement Bad Actor Detection (logging) | P1 | 8h | 📋 Not Started | - |
+| VAL-9.30 | Confirmer role unit tests | P0 | 12h | 📋 Not Started | - |
+
+**Sprint 9D Status:** 📋 **NOT STARTED** (0/7 tasks, 64 hours)
+
+### Sprint 9E: Service Integration
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| VAL-9.31 | Peer Service integration - receive transactions (gRPC) | P0 | 12h | 📋 Not Started | - |
+| VAL-9.32 | Peer Service integration - broadcast dockets (gRPC) | P0 | 12h | 📋 Not Started | - |
+| VAL-9.33 | Peer Service integration - signature exchange (gRPC) | P0 | 12h | 📋 Not Started | - |
+| VAL-9.34 | Peer Service integration - docket distribution (gRPC) | P0 | 8h | 📋 Not Started | - |
+| VAL-9.35 | Register Service integration - docket submission | P0 | 8h | 📋 Not Started | - |
+| VAL-9.36 | Blueprint Service integration - fetch blueprints | P0 | 6h | 📋 Not Started | - |
+
+**Sprint 9E Status:** 📋 **NOT STARTED** (0/6 tasks, 58 hours)
+
+### Sprint 9F: Validator Registration & Genesis
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| VAL-9.37 | Implement Validator Registry (active validators) | P0 | 12h | 📋 Not Started | - |
+| VAL-9.38 | Implement Validator Registration flow (public mode) | P0 | 12h | 📋 Not Started | - |
+| VAL-9.39 | Implement Validator Approval flow (consent mode) | P1 | 12h | 📋 Not Started | - |
+| VAL-9.40 | Implement Genesis Config Reader | P0 | 8h | 📋 Not Started | - |
+| VAL-9.41 | Implement Control Docket Processor | P1 | 16h | 📋 Not Started | - |
+| VAL-9.42 | Implement Control Blueprint Version Resolver | P0 | 8h | 📋 Not Started | - |
+| VAL-9.43 | Validator registration API endpoints | P0 | 8h | 📋 Not Started | - |
+
+**Sprint 9F Status:** 📋 **NOT STARTED** (0/7 tasks, 76 hours)
+
+### Sprint 9G: Configuration & Testing
+
+| ID | Task | Priority | Effort | Status | Assignee |
+|----|------|----------|--------|--------|----------|
+| VAL-9.44 | Configuration system (memory limits, performance) | P1 | 8h | 📋 Not Started | - |
+| VAL-9.45 | API endpoints (health, metrics, pool stats) | P1 | 8h | 📋 Not Started | - |
+| VAL-9.46 | Validator Service integration tests | P0 | 24h | 📋 Not Started | - |
+| VAL-9.47 | Multi-validator consensus integration tests | P0 | 20h | 📋 Not Started | - |
+| VAL-9.48 | Leader election integration tests | P0 | 12h | 📋 Not Started | - |
+| VAL-9.49 | Performance testing (validation throughput) | P1 | 12h | 📋 Not Started | - |
+| VAL-9.50 | Performance testing (consensus latency) | P1 | 12h | 📋 Not Started | - |
+
+**Sprint 9G Status:** 📋 **NOT STARTED** (0/7 tasks, 96 hours)
+
+---
+
+**Sprint 9 Total:** 🚧 **IN PROGRESS** (7/50 tasks, 560 hours)
+
+**References:**
+- [VALIDATOR-SERVICE-REQUIREMENTS.md](../VALIDATOR-SERVICE-REQUIREMENTS.md) - Updated with decentralized consensus
+- [GENESIS-BLUEPRINT-SPEC.md](../GENESIS-BLUEPRINT-SPEC.md) - Genesis block and control blueprint specification
+
+**Key Deliverables:**
+- **Leader election** with rotating mechanism (Raft-style future option)
+- **Dual-role validator** (leader/initiator + confirmer)
+- **Multi-validator consensus** with configurable thresholds
+- **Consensus failure handling** (abandon and retry)
+- **Genesis blueprint integration** for register governance
+- **Control blueprint versioning** for governance updates
+- **Blueprint versioning** via transaction chain
+- **Validator registration** (public + consent modes)
+- **gRPC communication** via Peer Service
+- Bad actor detection logging (future: throttling/removal)
 
 ---
 

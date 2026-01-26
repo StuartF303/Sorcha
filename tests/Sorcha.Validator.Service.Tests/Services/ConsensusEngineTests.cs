@@ -48,7 +48,7 @@ public class ConsensusEngineTests
         _validatorConfig = new ValidatorConfiguration
         {
             ValidatorId = "validator-self",
-            SystemWalletId = "system-wallet-self"
+            SystemWalletAddress = "system-wallet-self"
         };
 
         _engine = new ConsensusEngine(
@@ -687,7 +687,7 @@ public class ConsensusEngineTests
     {
         _mockWalletClient
             .Setup(w => w.CreateOrRetrieveSystemWalletAsync(_validatorConfig.ValidatorId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(_validatorConfig.SystemWalletId!);
+            .ReturnsAsync(_validatorConfig.SystemWalletAddress!);
 
         _mockWalletClient
             .Setup(w => w.SignDataAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
