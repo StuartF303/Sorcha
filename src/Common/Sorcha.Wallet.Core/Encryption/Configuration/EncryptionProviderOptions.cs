@@ -116,6 +116,25 @@ public sealed class LinuxSecretServiceOptions
     /// Docker: /var/lib/sorcha/wallet-keys or /app/keys
     /// </remarks>
     public string FallbackKeyStorePath { get; set; } = "/var/lib/sorcha/wallet-keys";
+
+    /// <summary>
+    /// Stable key material for machine key derivation (overrides /etc/machine-id)
+    /// </summary>
+    /// <remarks>
+    /// In Docker, /etc/machine-id is regenerated on every container rebuild, which
+    /// causes the KEK (Key Encryption Key) to change and makes stored DEKs
+    /// undecryptable (AuthenticationTagMismatchException).
+    ///
+    /// Set this to a stable value in Docker environments to ensure the KEK remains
+    /// consistent across container rebuilds.
+    ///
+    /// Example (docker-compose.yml):
+    ///   environment:
+    ///     EncryptionProvider__LinuxSecretService__MachineKeyMaterial: "my-stable-key-material"
+    ///
+    /// When null/empty, falls back to /etc/machine-id (original behavior).
+    /// </remarks>
+    public string? MachineKeyMaterial { get; set; }
 }
 
 /// <summary>

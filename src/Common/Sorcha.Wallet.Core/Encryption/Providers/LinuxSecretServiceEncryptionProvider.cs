@@ -49,6 +49,7 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     private readonly string _fallbackKeyPath;
     private readonly string _serviceName;
     private readonly string _defaultKeyId;
+    private readonly string? _machineKeyMaterial;
     private readonly bool _secretServiceAvailable;
     private readonly ConcurrentDictionary<string, byte[]> _keyCache;
     private readonly EncryptionAuditLogger _auditLogger;
@@ -68,11 +69,13 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     /// <param name="fallbackKeyPath">Directory path for fallback file-based DEK storage</param>
     /// <param name="defaultKeyId">Default key identifier for new encryptions</param>
     /// <param name="logger">Logger for diagnostics and audit trail</param>
+    /// <param name="machineKeyMaterial">Optional stable key material for Docker environments (overrides /etc/machine-id)</param>
     /// <exception cref="PlatformNotSupportedException">Thrown if not running on Linux</exception>
     public LinuxSecretServiceEncryptionProvider(
         string fallbackKeyPath,
         string defaultKeyId,
-        ILogger<LinuxSecretServiceEncryptionProvider> logger)
+        ILogger<LinuxSecretServiceEncryptionProvider> logger,
+        string? machineKeyMaterial = null)
     {
         if (!IsAvailable)
         {
@@ -83,6 +86,7 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
         _fallbackKeyPath = fallbackKeyPath ?? throw new ArgumentNullException(nameof(fallbackKeyPath));
         _defaultKeyId = defaultKeyId ?? throw new ArgumentNullException(nameof(defaultKeyId));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _machineKeyMaterial = machineKeyMaterial;
         _serviceName = ServiceName;
         _keyCache = new ConcurrentDictionary<string, byte[]>();
         _auditLogger = new EncryptionAuditLogger(logger, "LinuxSecretService");
@@ -97,9 +101,10 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
         }
         else
         {
+            var keySource = string.IsNullOrWhiteSpace(_machineKeyMaterial) ? "machine-id" : "configured";
             _logger.LogWarning(
-                "Linux Secret Service not available, using file-based fallback: {FallbackPath}",
-                _fallbackKeyPath);
+                "Linux Secret Service not available, using file-based fallback: {FallbackPath} (KEK source: {KeySource})",
+                _fallbackKeyPath, keySource);
 
             // Ensure fallback directory exists and is writable
             EnsureFallbackDirectoryIsWritable();
@@ -108,7 +113,7 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
             LoadKeysFromFallbackStorage();
 
             _auditLogger.LogProviderInitialized(
-                $"Mode=Fallback, FallbackPath={_fallbackKeyPath}, DefaultKeyId={_defaultKeyId}");
+                $"Mode=Fallback, FallbackPath={_fallbackKeyPath}, DefaultKeyId={_defaultKeyId}, KekSource={keySource}");
         }
     }
 
@@ -355,7 +360,9 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     }
 
     /// <summary>
-    /// Gets or creates encryption key (DEK)
+    /// Gets or creates encryption key (DEK).
+    /// Handles stale key recovery when the KEK has changed (e.g., Docker container rebuild
+    /// changed /etc/machine-id, making stored DEKs undecryptable).
     /// </summary>
     private async Task<byte[]> GetOrCreateKeyAsync(string keyId, CancellationToken cancellationToken)
     {
@@ -377,7 +384,34 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
             var keyFilePath = GetFallbackKeyFilePath(keyId);
             if (File.Exists(keyFilePath))
             {
-                dek = await RetrieveDekFromFallbackStorage(keyId, cancellationToken);
+                try
+                {
+                    dek = await RetrieveDekFromFallbackStorage(keyId, cancellationToken);
+                }
+                catch (AuthenticationTagMismatchException)
+                {
+                    // KEK has changed (e.g., /etc/machine-id regenerated after Docker rebuild).
+                    // The stored DEK is encrypted with the old KEK and cannot be recovered.
+                    // Delete the stale file and regenerate a new DEK.
+                    _logger.LogWarning(
+                        "Stale encryption key detected for '{KeyId}': the machine key (KEK) has changed, " +
+                        "likely due to a Docker container rebuild. Deleting stale key file and regenerating. " +
+                        "Any wallets encrypted with the old key will need to be re-created. " +
+                        "To prevent this, set EncryptionProvider__LinuxSecretService__MachineKeyMaterial " +
+                        "to a stable value in docker-compose.yml.",
+                        keyId);
+
+                    try
+                    {
+                        File.Delete(keyFilePath);
+                    }
+                    catch (Exception deleteEx)
+                    {
+                        _logger.LogError(deleteEx, "Failed to delete stale key file: {KeyFile}", keyFilePath);
+                    }
+
+                    // dek remains null, will be created below
+                }
             }
         }
 
@@ -600,6 +634,16 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
                 _keyCache[keyId] = dek;
                 loadedCount++;
             }
+            catch (AuthenticationTagMismatchException)
+            {
+                _logger.LogWarning(
+                    "Stale encryption key file detected: {KeyFile}. " +
+                    "The machine key (KEK) has changed since this DEK was stored " +
+                    "(likely due to Docker container rebuild changing /etc/machine-id). " +
+                    "The key will be regenerated on next use. " +
+                    "Set EncryptionProvider__LinuxSecretService__MachineKeyMaterial to prevent this.",
+                    keyFile);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(
@@ -613,15 +657,29 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     }
 
     /// <summary>
-    /// Derives machine-specific encryption key for fallback mode
+    /// Derives machine-specific encryption key for fallback mode.
+    /// When MachineKeyMaterial is configured, uses that stable value instead of
+    /// /etc/machine-id (which changes on every Docker container rebuild).
     /// </summary>
     private byte[] DeriveMachineKey()
     {
-        var username = Environment.UserName;
-        var homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var machineId = GetMachineId();
+        string keyMaterial;
 
-        var keyMaterial = $"{username}:{homePath}:{machineId}:sorcha-wallet-v1";
+        if (!string.IsNullOrWhiteSpace(_machineKeyMaterial))
+        {
+            // Use configured stable key material (Docker environments)
+            var username = Environment.UserName;
+            var homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            keyMaterial = $"{username}:{homePath}:{_machineKeyMaterial}:sorcha-wallet-v1";
+        }
+        else
+        {
+            // Original behavior: derive from machine-id (native Linux)
+            var username = Environment.UserName;
+            var homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var machineId = GetMachineId();
+            keyMaterial = $"{username}:{homePath}:{machineId}:sorcha-wallet-v1";
+        }
 
         return Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(keyMaterial),

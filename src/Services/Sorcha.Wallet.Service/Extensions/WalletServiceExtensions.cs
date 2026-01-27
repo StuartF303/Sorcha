@@ -274,14 +274,16 @@ public static class WalletServiceExtensions
 
         var logger = loggerFactory.CreateLogger<LinuxSecretServiceEncryptionProvider>();
         logger.LogInformation(
-            "Initializing Linux Secret Service encryption provider. FallbackPath: {FallbackPath}, DefaultKeyId: {DefaultKeyId}",
+            "Initializing Linux Secret Service encryption provider. FallbackPath: {FallbackPath}, DefaultKeyId: {DefaultKeyId}, MachineKeyMaterial: {HasMachineKeyMaterial}",
             linuxOptions.FallbackKeyStorePath,
-            options.DefaultKeyId);
+            options.DefaultKeyId,
+            !string.IsNullOrWhiteSpace(linuxOptions.MachineKeyMaterial) ? "configured" : "not set (using /etc/machine-id)");
 
         return new LinuxSecretServiceEncryptionProvider(
             fallbackKeyPath: linuxOptions.FallbackKeyStorePath,
             defaultKeyId: options.DefaultKeyId,
-            logger: logger);
+            logger: logger,
+            machineKeyMaterial: linuxOptions.MachineKeyMaterial);
     }
 
     /// <summary>

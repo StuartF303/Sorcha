@@ -154,6 +154,8 @@ services:
       EncryptionProvider__DefaultKeyId: wallet-master-key-2025
       EncryptionProvider__LinuxSecretService__ServiceName: sorcha-wallet-service
       EncryptionProvider__LinuxSecretService__FallbackKeyStorePath: /var/lib/sorcha/wallet-keys
+      # Stable key material prevents KEK changes when /etc/machine-id is regenerated on container rebuild
+      EncryptionProvider__LinuxSecretService__MachineKeyMaterial: sorcha-docker-wallet-stable-key-v1
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
       - wallet-encryption-keys:/var/lib/sorcha/wallet-keys
