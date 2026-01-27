@@ -38,6 +38,32 @@ public interface ISignatureCollector
         Docket docket,
         long term,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Add an incoming signature from a peer validator during signature exchange.
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="docketId">Docket ID</param>
+    /// <param name="vote">The consensus vote with signature</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>True if the signature was accepted</returns>
+    Task<bool> AddSignatureAsync(
+        string registerId,
+        string docketId,
+        ConsensusVote vote,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the local validator's vote for a docket, if one exists.
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="docketId">Docket ID</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>The local vote, or null if not voted</returns>
+    Task<ConsensusVote?> GetLocalVoteAsync(
+        string registerId,
+        string docketId,
+        CancellationToken ct = default);
 }
 
 /// <summary>

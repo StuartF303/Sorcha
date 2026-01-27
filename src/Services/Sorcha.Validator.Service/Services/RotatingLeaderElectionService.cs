@@ -558,6 +558,26 @@ public class RotatingLeaderElectionService : ILeaderElectionService, IDisposable
         return _cachedConfig?.TermDuration ?? _electionConfig.DefaultTermDuration;
     }
 
+    /// <inheritdoc/>
+    public string? GetLeaderForTerm(long term)
+    {
+        // For rotating leader election, we can calculate who should be leader for a given term
+        // based on the validator order list
+        if (_cachedValidatorOrder == null || _cachedValidatorOrder.Count == 0)
+        {
+            // If we don't have the validator order cached, we can only return
+            // the current leader if the term matches
+            if (term == _currentTerm)
+                return _currentLeaderId;
+
+            return null;
+        }
+
+        // Term 0 is always the first validator
+        var validatorIndex = (int)(term % _cachedValidatorOrder.Count);
+        return _cachedValidatorOrder[validatorIndex];
+    }
+
     #endregion
 
     #region IDisposable

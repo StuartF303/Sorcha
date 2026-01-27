@@ -4,8 +4,11 @@
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
+using Microsoft.Extensions.Options;
 using Sorcha.Validator.Grpc.V1;
+using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Services;
+using Sorcha.Validator.Service.Services.Interfaces;
 using Sorcha.Validator.Service.Models;
 
 namespace Sorcha.Validator.Service.GrpcServices;
@@ -20,19 +23,37 @@ namespace Sorcha.Validator.Service.GrpcServices;
 ///   <item>RequestVote: Validates proposed dockets and returns signed votes</item>
 ///   <item>ValidateDocket: Validates confirmed dockets from peers before persistence</item>
 ///   <item>GetHealthStatus: Reports validator health and status</item>
+///   <item>ReceiveTransaction: Receives transactions from peer network</item>
+///   <item>ExchangeSignature: Exchanges signatures during consensus</item>
+///   <item>ReceiveConfirmedDocket: Receives confirmed dockets for persistence</item>
 /// </list>
 /// </remarks>
 public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.ValidatorServiceBase
 {
     private readonly IConsensusEngine _consensusEngine;
+    private readonly ITransactionReceiver? _transactionReceiver;
+    private readonly IDocketDistributor? _docketDistributor;
+    private readonly IDocketConfirmer? _docketConfirmer;
+    private readonly ISignatureCollector? _signatureCollector;
+    private readonly ValidatorConfiguration _validatorConfig;
     private readonly ILogger<ValidatorGrpcService> _logger;
 
     public ValidatorGrpcService(
         IConsensusEngine consensusEngine,
-        ILogger<ValidatorGrpcService> logger)
+        IOptions<ValidatorConfiguration> validatorConfig,
+        ILogger<ValidatorGrpcService> logger,
+        ITransactionReceiver? transactionReceiver = null,
+        IDocketDistributor? docketDistributor = null,
+        IDocketConfirmer? docketConfirmer = null,
+        ISignatureCollector? signatureCollector = null)
     {
         _consensusEngine = consensusEngine ?? throw new ArgumentNullException(nameof(consensusEngine));
+        _validatorConfig = validatorConfig?.Value ?? throw new ArgumentNullException(nameof(validatorConfig));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _transactionReceiver = transactionReceiver;
+        _docketDistributor = docketDistributor;
+        _docketConfirmer = docketConfirmer;
+        _signatureCollector = signatureCollector;
     }
 
     /// <summary>
@@ -151,17 +172,218 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
     {
         _logger.LogDebug("Health status check received");
 
-        // TODO: Implement proper health checks (US7 - System Wallet Management)
-        // For now, return healthy status
         var response = new HealthStatusResponse
         {
             Status = Grpc.V1.HealthStatus.Healthy,
-            ValidatorId = "validator-001", // TODO: Get from configuration
+            ValidatorId = _validatorConfig.ValidatorId,
             ActiveRegisters = 0, // TODO: Get from ValidatorOrchestrator
             LastHeartbeat = Timestamp.FromDateTime(DateTime.UtcNow)
         };
 
         return Task.FromResult(response);
+    }
+
+    /// <summary>
+    /// ReceiveTransaction RPC: Receives a transaction notification from the peer network
+    /// </summary>
+    /// <remarks>
+    /// This method is called by the Peer Service when a transaction is gossiped.
+    /// The validator validates and adds the transaction to its memory pool.
+    ///
+    /// <para><b>User Story:</b> US4 - Transaction Reception (P2)</para>
+    /// <para><b>Acceptance Criteria:</b> AS1 - Receive transactions from peer network</para>
+    /// </remarks>
+    public override async Task<ReceiveTransactionResponse> ReceiveTransaction(
+        ReceiveTransactionRequest request,
+        ServerCallContext context)
+    {
+        _logger.LogDebug(
+            "Received transaction {TransactionHash} from peer {PeerId}",
+            request.TransactionHash, request.SenderPeerId);
+
+        if (_transactionReceiver == null)
+        {
+            _logger.LogWarning("TransactionReceiver not configured, rejecting transaction");
+            return new ReceiveTransactionResponse
+            {
+                Accepted = false,
+                ValidationErrors = { "Transaction receiver not configured" }
+            };
+        }
+
+        try
+        {
+            var result = await _transactionReceiver.ReceiveTransactionAsync(
+                request.TransactionHash,
+                request.TransactionData.ToByteArray(),
+                request.SenderPeerId,
+                context.CancellationToken);
+
+            var response = new ReceiveTransactionResponse
+            {
+                Accepted = result.Accepted,
+                AlreadyKnown = result.AlreadyKnown,
+                TransactionId = result.TransactionId ?? string.Empty
+            };
+
+            foreach (var error in result.ValidationErrors)
+            {
+                response.ValidationErrors.Add(error);
+            }
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error receiving transaction {TransactionHash}", request.TransactionHash);
+            throw new RpcException(new Status(StatusCode.Internal, $"Transaction reception failed: {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// ExchangeSignature RPC: Exchanges signatures during consensus
+    /// </summary>
+    /// <remarks>
+    /// This method is called by peer validators to exchange consensus signatures.
+    ///
+    /// <para><b>User Story:</b> US3 - Distributed Consensus Achievement (P1)</para>
+    /// <para><b>Acceptance Criteria:</b> AS2 - Exchange signatures with peers</para>
+    /// </remarks>
+    public override async Task<SignatureExchangeResponse> ExchangeSignature(
+        SignatureExchangeRequest request,
+        ServerCallContext context)
+    {
+        _logger.LogDebug(
+            "Received signature exchange for docket {DocketNumber} on register {RegisterId}",
+            request.DocketNumber, request.RegisterId);
+
+        if (_signatureCollector == null)
+        {
+            _logger.LogWarning("SignatureCollector not configured, rejecting signature exchange");
+            return new SignatureExchangeResponse
+            {
+                Accepted = false,
+                RejectionReason = "Signature collector not configured"
+            };
+        }
+
+        try
+        {
+            // Convert incoming vote to domain model
+            var incomingVote = MapProtoToConsensusVote(request.Vote);
+
+            // Add the incoming signature to our collector
+            var added = await _signatureCollector.AddSignatureAsync(
+                request.RegisterId,
+                request.DocketId,
+                incomingVote,
+                context.CancellationToken);
+
+            if (!added)
+            {
+                return new SignatureExchangeResponse
+                {
+                    Accepted = false,
+                    RejectionReason = "Signature not accepted (duplicate or invalid)"
+                };
+            }
+
+            // Return our local vote for this docket if we have one
+            var localVote = await _signatureCollector.GetLocalVoteAsync(
+                request.RegisterId,
+                request.DocketId,
+                context.CancellationToken);
+
+            var response = new SignatureExchangeResponse
+            {
+                Accepted = true
+            };
+
+            if (localVote != null)
+            {
+                response.LocalVote = MapConsensusVoteToProto(localVote);
+            }
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exchanging signature for docket {DocketId}", request.DocketId);
+            throw new RpcException(new Status(StatusCode.Internal, $"Signature exchange failed: {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// ReceiveConfirmedDocket RPC: Receives a confirmed docket for persistence
+    /// </summary>
+    /// <remarks>
+    /// This method is called when a peer broadcasts a confirmed docket.
+    /// The validator validates and persists it to the Register Service.
+    ///
+    /// <para><b>User Story:</b> US5 - Peer Docket Validation (P2)</para>
+    /// <para><b>Acceptance Criteria:</b> AS2 - Persist valid confirmed dockets</para>
+    /// </remarks>
+    public override async Task<ReceiveConfirmedDocketResponse> ReceiveConfirmedDocket(
+        ReceiveConfirmedDocketRequest request,
+        ServerCallContext context)
+    {
+        _logger.LogInformation(
+            "Received confirmed docket {DocketNumber} from peer {PeerId}",
+            request.DocketNumber, request.SenderPeerId);
+
+        try
+        {
+            // Convert to domain model
+            var docket = MapProtoToDocket(request);
+
+            // Validate the docket using DocketConfirmer if available
+            if (_docketConfirmer != null)
+            {
+                var confirmResult = await _docketConfirmer.ConfirmDocketAsync(
+                    docket,
+                    docket.ProposerSignature,
+                    0, // Term from leader election (not used for peer-received dockets)
+                    context.CancellationToken);
+
+                if (!confirmResult.Confirmed)
+                {
+                    var reason = confirmResult.RejectionReason?.ToString() ?? "Validation failed";
+                    _logger.LogWarning(
+                        "Confirmed docket {DocketNumber} failed validation: {Reason}",
+                        request.DocketNumber, reason);
+
+                    return new ReceiveConfirmedDocketResponse
+                    {
+                        Accepted = false,
+                        ValidationErrors = { reason }
+                    };
+                }
+            }
+
+            // Submit to Register Service if DocketDistributor is available
+            var persisted = false;
+            if (_docketDistributor != null)
+            {
+                persisted = await _docketDistributor.SubmitToRegisterServiceAsync(
+                    docket,
+                    context.CancellationToken);
+            }
+
+            _logger.LogInformation(
+                "Confirmed docket {DocketNumber} accepted, persisted: {Persisted}",
+                request.DocketNumber, persisted);
+
+            return new ReceiveConfirmedDocketResponse
+            {
+                Accepted = true,
+                Persisted = persisted
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error receiving confirmed docket {DocketNumber}", request.DocketNumber);
+            throw new RpcException(new Status(StatusCode.Internal, $"Docket reception failed: {ex.Message}"));
+        }
     }
 
     /// <summary>
@@ -291,6 +513,62 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
                 SignedAt = protoVote.VotedAt.ToDateTimeOffset()
             },
             DocketHash = protoVote.DocketHash
+        };
+    }
+
+    /// <summary>
+    /// Maps domain ConsensusVote to gRPC ConsensusVote
+    /// </summary>
+    private static Grpc.V1.ConsensusVote MapConsensusVoteToProto(Models.ConsensusVote vote)
+    {
+        return new Grpc.V1.ConsensusVote
+        {
+            VoteId = vote.VoteId,
+            DocketId = vote.DocketId,
+            ValidatorId = vote.ValidatorId,
+            Decision = vote.Decision == Models.VoteDecision.Approve
+                ? Grpc.V1.VoteDecision.Approve
+                : Grpc.V1.VoteDecision.Reject,
+            RejectionReason = vote.RejectionReason ?? string.Empty,
+            VotedAt = Timestamp.FromDateTimeOffset(vote.VotedAt),
+            ValidatorSignature = new Grpc.V1.Signature
+            {
+                PublicKey = Convert.ToBase64String(vote.ValidatorSignature.PublicKey),
+                SignatureValue = Convert.ToBase64String(vote.ValidatorSignature.SignatureValue),
+                Algorithm = vote.ValidatorSignature.Algorithm
+            },
+            DocketHash = vote.DocketHash
+        };
+    }
+
+    /// <summary>
+    /// Maps gRPC ReceiveConfirmedDocketRequest to domain Docket model
+    /// </summary>
+    private static Models.Docket MapProtoToDocket(ReceiveConfirmedDocketRequest request)
+    {
+        var transactions = request.Transactions.Select(MapProtoToTransaction).ToList();
+        var consensusVotes = request.Votes.Select(MapProtoToConsensusVote).ToList();
+
+        return new Models.Docket
+        {
+            DocketId = request.DocketId,
+            RegisterId = request.RegisterId,
+            DocketNumber = request.DocketNumber,
+            DocketHash = request.DocketHash,
+            PreviousHash = string.IsNullOrEmpty(request.PreviousHash) ? null : request.PreviousHash,
+            CreatedAt = request.CreatedAt.ToDateTimeOffset(),
+            Transactions = transactions,
+            Status = Models.DocketStatus.Confirmed,
+            ProposerValidatorId = request.ProposerValidatorId,
+            ProposerSignature = new Models.Signature
+            {
+                PublicKey = Convert.FromBase64String(request.ProposerSignature.PublicKey),
+                SignatureValue = Convert.FromBase64String(request.ProposerSignature.SignatureValue),
+                Algorithm = request.ProposerSignature.Algorithm,
+                SignedAt = DateTimeOffset.UtcNow
+            },
+            MerkleRoot = request.MerkleRoot,
+            Votes = consensusVotes
         };
     }
 }

@@ -26,6 +26,15 @@ service ValidatorService {
 
   // Health Check: Validator instance health and status
   rpc GetHealthStatus(google.protobuf.Empty) returns (HealthStatusResponse);
+
+  // Transaction Reception: Receive a transaction notification from peer network
+  rpc ReceiveTransaction(ReceiveTransactionRequest) returns (ReceiveTransactionResponse);
+
+  // Signature Exchange: Exchange signatures during consensus
+  rpc ExchangeSignature(SignatureExchangeRequest) returns (SignatureExchangeResponse);
+
+  // Confirmed Docket: Receive a confirmed docket for persistence
+  rpc ReceiveConfirmedDocket(ReceiveConfirmedDocketRequest) returns (ReceiveConfirmedDocketResponse);
 }
 
 // AdminService: Administrative and monitoring operations
@@ -255,4 +264,66 @@ message DocketBuildConfig {
   int32 size_threshold = 2;
   int32 max_transactions_per_docket = 3;
   bool allow_empty_dockets = 4;
+}
+
+// ============================================================================
+// Messages - Transaction Reception
+// ============================================================================
+
+message ReceiveTransactionRequest {
+  string transaction_hash = 1;
+  bytes transaction_data = 2;
+  string sender_peer_id = 3;
+  google.protobuf.Timestamp sent_at = 4;
+}
+
+message ReceiveTransactionResponse {
+  bool accepted = 1;
+  bool already_known = 2;
+  repeated string validation_errors = 3;
+  string transaction_id = 4;
+}
+
+// ============================================================================
+// Messages - Signature Exchange
+// ============================================================================
+
+message SignatureExchangeRequest {
+  string docket_id = 1;
+  string register_id = 2;
+  int64 docket_number = 3;
+  string docket_hash = 4;
+  ConsensusVote vote = 5;
+}
+
+message SignatureExchangeResponse {
+  bool accepted = 1;
+  string rejection_reason = 2;
+  ConsensusVote local_vote = 3;  // Validator's own vote (if approved exchange)
+}
+
+// ============================================================================
+// Messages - Confirmed Docket Reception
+// ============================================================================
+
+message ReceiveConfirmedDocketRequest {
+  string docket_id = 1;
+  string register_id = 2;
+  int64 docket_number = 3;
+  string docket_hash = 4;
+  string previous_hash = 5;
+  repeated Transaction transactions = 6;
+  google.protobuf.Timestamp created_at = 7;
+  repeated ConsensusVote votes = 8;
+  string proposer_validator_id = 9;
+  Signature proposer_signature = 10;
+  string merkle_root = 11;
+  string sender_peer_id = 12;
+}
+
+message ReceiveConfirmedDocketResponse {
+  bool accepted = 1;
+  bool already_known = 2;
+  repeated string validation_errors = 3;
+  bool persisted = 4;
 }

@@ -78,6 +78,13 @@ public interface ILeaderElectionService
     /// <param name="currentLeaderId">Current leader ID</param>
     /// <returns>Next leader ID in rotation</returns>
     Task<string?> GetNextLeaderAsync(string? currentLeaderId);
+
+    /// <summary>
+    /// Get the leader for a specific term (for validation purposes)
+    /// </summary>
+    /// <param name="term">The term number</param>
+    /// <returns>Leader ID for the term, or null if unknown</returns>
+    string? GetLeaderForTerm(long term);
 }
 
 /// <summary>

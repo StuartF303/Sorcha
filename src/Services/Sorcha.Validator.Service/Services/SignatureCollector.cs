@@ -21,10 +21,17 @@ public class SignatureCollector : ISignatureCollector
     private readonly ILeaderElectionService _leaderElection;
     private readonly ILogger<SignatureCollector> _logger;
 
+    // Storage for incoming signatures by docket (registerId:docketId -> signatures)
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConsensusVote>> _incomingSignatures = new();
+
+    // Storage for local votes by docket (registerId:docketId -> vote)
+    private readonly ConcurrentDictionary<string, ConsensusVote> _localVotes = new();
+
     // Statistics
     private long _totalCollections;
     private long _successfulCollections;
     private long _failedCollections;
+    private long _incomingSignaturesReceived;
 
     public SignatureCollector(
         IOptions<ValidatorConfiguration> validatorConfig,
@@ -262,6 +269,114 @@ public class SignatureCollector : ISignatureCollector
                 validator.ValidatorId);
             return null;
         }
+    }
+
+    /// <inheritdoc/>
+    public Task<bool> AddSignatureAsync(
+        string registerId,
+        string docketId,
+        ConsensusVote vote,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registerId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(docketId);
+        ArgumentNullException.ThrowIfNull(vote);
+
+        var key = $"{registerId}:{docketId}";
+
+        _logger.LogDebug(
+            "Adding incoming signature from {ValidatorId} for docket {DocketId}",
+            vote.ValidatorId, docketId);
+
+        // Get or create the signatures dictionary for this docket
+        var docketSignatures = _incomingSignatures.GetOrAdd(key, _ => new ConcurrentDictionary<string, ConsensusVote>());
+
+        // Try to add the signature (only one per validator)
+        var added = docketSignatures.TryAdd(vote.ValidatorId, vote);
+
+        if (added)
+        {
+            Interlocked.Increment(ref _incomingSignaturesReceived);
+            _logger.LogInformation(
+                "Received signature from {ValidatorId} for docket {DocketId} ({Decision})",
+                vote.ValidatorId, docketId, vote.Decision);
+        }
+        else
+        {
+            _logger.LogDebug(
+                "Duplicate signature from {ValidatorId} for docket {DocketId}, ignoring",
+                vote.ValidatorId, docketId);
+        }
+
+        return Task.FromResult(added);
+    }
+
+    /// <inheritdoc/>
+    public Task<ConsensusVote?> GetLocalVoteAsync(
+        string registerId,
+        string docketId,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registerId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(docketId);
+
+        var key = $"{registerId}:{docketId}";
+
+        _localVotes.TryGetValue(key, out var vote);
+
+        return Task.FromResult(vote);
+    }
+
+    /// <summary>
+    /// Store a local vote for later retrieval during signature exchange.
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="docketId">Docket ID</param>
+    /// <param name="vote">The local vote</param>
+    public void StoreLocalVote(string registerId, string docketId, ConsensusVote vote)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registerId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(docketId);
+        ArgumentNullException.ThrowIfNull(vote);
+
+        var key = $"{registerId}:{docketId}";
+        _localVotes[key] = vote;
+
+        _logger.LogDebug(
+            "Stored local vote for docket {DocketId} ({Decision})",
+            docketId, vote.Decision);
+    }
+
+    /// <summary>
+    /// Get all collected signatures for a docket.
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="docketId">Docket ID</param>
+    /// <returns>List of collected signatures</returns>
+    public IReadOnlyList<ConsensusVote> GetCollectedSignatures(string registerId, string docketId)
+    {
+        var key = $"{registerId}:{docketId}";
+
+        if (_incomingSignatures.TryGetValue(key, out var signatures))
+        {
+            return signatures.Values.ToList();
+        }
+
+        return [];
+    }
+
+    /// <summary>
+    /// Clear signatures for a docket (after consensus is complete).
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="docketId">Docket ID</param>
+    public void ClearDocketSignatures(string registerId, string docketId)
+    {
+        var key = $"{registerId}:{docketId}";
+        _incomingSignatures.TryRemove(key, out _);
+        _localVotes.TryRemove(key, out _);
+
+        _logger.LogDebug("Cleared signatures for docket {DocketId}", docketId);
     }
 
     private static SignatureCollectionResult CreateResult(
