@@ -25,7 +25,7 @@
             }
             else
             {
-                <ParticipantList @ref="_participantList"
+                <Sorcha.UI.Core.Components.Participants.ParticipantList @ref="_participantList"
                                  OrganizationId="_organizationId"
                                  OnCreateClick="ShowCreateDialog"
                                  OnViewClick="NavigateToDetail"
@@ -86,7 +86,7 @@
     [Inject] private IDialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
-    private ParticipantList? _participantList;
+    private Sorcha.UI.Core.Components.Participants.ParticipantList? _participantList;
     private List<ParticipantDetailViewModel>? _myProfiles;
 
     // TODO: Get from user context or configuration
