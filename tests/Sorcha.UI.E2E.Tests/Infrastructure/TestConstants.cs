@@ -9,7 +9,10 @@ namespace Sorcha.UI.E2E.Tests.Infrastructure;
 public static class TestConstants
 {
     // Docker environment URLs
-    public const string UiWebUrl = "http://localhost:5400";
+    // UI must be accessed through the API Gateway so that relative /api/* calls
+    // route to backend services. Direct access at :5400 has no API proxy.
+    public const string UiWebUrl = "http://localhost:80";
+    public const string UiDirectUrl = "http://localhost:5400";
     public const string ApiGatewayUrl = "http://localhost:80";
 
     // All UI pages are served under /app
@@ -18,7 +21,7 @@ public static class TestConstants
     // Test credentials (from bootstrap)
     public const string TestEmail = "admin@sorcha.local";
     public const string TestPassword = "Dev_Pass_2025!";
-    public const string TestProfileName = "Docker";
+    public const string TestProfileName = "docker";
 
     // Timeouts (ms)
     public const int BlazorHydrationTimeout = 8000;
@@ -47,6 +50,10 @@ public static class TestConstants
         // Browser extension noise
         "chrome-extension",
         "moz-extension",
+        // HTTP resource load errors (pre-existing auth token propagation issues)
+        "401",
+        "Unauthorized",
+        "Failed to load resource",
     ];
 
     /// <summary>

@@ -83,7 +83,7 @@ public abstract class AuthenticatedDockerTestBase : DockerTestBase
                     try
                     {
                         await profileSelector.First.SelectOptionAsync(
-                            new SelectOptionValue { Label = TestConstants.TestProfileName });
+                            new SelectOptionValue { Value = TestConstants.TestProfileName });
                     }
                     catch
                     {

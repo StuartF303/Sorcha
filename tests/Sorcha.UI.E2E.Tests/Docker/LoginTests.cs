@@ -84,8 +84,8 @@ public class LoginTests : DockerTestBase
 
         var profiles = await _loginPage.GetProfileOptionsAsync();
         Assert.That(profiles, Is.Not.Empty, "Profile selector should have options");
-        Assert.That(profiles, Has.Some.Contain("Development").Or.Some.Contain("Docker"),
-            "Should have Development or Docker profile");
+        Assert.That(profiles, Has.Some.Contain("docker").Or.Some.Contain("local"),
+            "Should have docker or local profile");
     }
 
     [Test]
@@ -149,7 +149,22 @@ public class LoginTests : DockerTestBase
         if (!await _loginPage.WaitForFormAsync()) return;
 
         await _loginPage.LoginWithTestCredentialsAsync();
-        await Page.WaitForTimeoutAsync(TestConstants.BlazorHydrationTimeout);
+
+        // Wait for navigation away from login page (Blazor WASM nav + state propagation)
+        try
+        {
+            await Page.WaitForURLAsync(
+                url => !url.Contains("/auth/login"),
+                new() { Timeout = TestConstants.PageLoadTimeout * 2 });
+        }
+        catch (TimeoutException)
+        {
+            // Check if there's an error message on the login page
+            var error = await _loginPage.GetErrorMessageAsync();
+            Assert.Fail(
+                $"Login did not navigate away from login page within timeout. " +
+                $"URL: {Page.Url}. Error: {error ?? "none"}");
+        }
 
         Assert.That(Page.Url, Does.Not.Contain("/auth/login"),
             "Should navigate away from login page after successful login");

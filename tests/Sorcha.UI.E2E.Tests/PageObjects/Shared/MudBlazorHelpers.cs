@@ -77,15 +77,19 @@ public static class MudBlazorHelpers
             issues.Add("MudBlazor .mud-main-content not found - main content area missing");
 
         // Check for elements with 0x0 dimensions (invisible/broken components)
+        // MudBlazor has many legitimately zero-size elements (collapsed nav groups,
+        // hidden tooltips, overlay containers, popover anchors), so we only flag
+        // primary content elements that are zero-size.
         var brokenElements = await page.EvaluateAsync<int>("""
             (() => {
-                const mudElements = document.querySelectorAll('[class*="mud-"]');
+                const contentSelectors = '.mud-card, .mud-table, .mud-alert, .mud-paper, .mud-grid';
+                const mudElements = document.querySelectorAll(contentSelectors);
                 let broken = 0;
                 for (const el of mudElements) {
                     const rect = el.getBoundingClientRect();
-                    // Only flag elements that should be visible but have no dimensions
                     const style = window.getComputedStyle(el);
                     if (style.display !== 'none' && style.visibility !== 'hidden' &&
+                        style.position !== 'absolute' && style.position !== 'fixed' &&
                         rect.width === 0 && rect.height === 0 &&
                         el.children.length > 0) {
                         broken++;
@@ -96,7 +100,7 @@ public static class MudBlazorHelpers
             """);
 
         if (brokenElements > 0)
-            issues.Add($"{brokenElements} MudBlazor element(s) with 0x0 dimensions detected (possible CSS failure)");
+            issues.Add($"{brokenElements} MudBlazor content element(s) with 0x0 dimensions detected (possible CSS failure)");
 
         return issues;
     }

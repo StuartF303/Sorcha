@@ -94,7 +94,7 @@ public class LoginPage
         {
             try
             {
-                await ProfileSelector.SelectOptionAsync(new SelectOptionValue { Label = profileName });
+                await ProfileSelector.SelectOptionAsync(new SelectOptionValue { Value = profileName });
             }
             catch
             {

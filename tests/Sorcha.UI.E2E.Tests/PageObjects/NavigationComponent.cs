@@ -80,14 +80,16 @@ public class NavigationComponent
 
     /// <summary>
     /// Expands a nav group if it's collapsed.
+    /// MudBlazor nav groups use a toggle element (.mud-nav-link) as the clickable header.
     /// </summary>
     public async Task ExpandNavGroupAsync(ILocator navGroup)
     {
-        var groupClass = await navGroup.GetAttributeAsync("class") ?? "";
-        if (!groupClass.Contains("mud-expanded"))
+        // MudNavGroup renders the toggle header as a .mud-nav-link inside the group
+        var toggle = navGroup.Locator("button, .mud-nav-link").First;
+        if (await toggle.CountAsync() > 0)
         {
-            await navGroup.Locator(".mud-nav-group-text").ClickAsync();
-            await _page.WaitForTimeoutAsync(300);
+            await toggle.ClickAsync();
+            await _page.WaitForTimeoutAsync(500);
         }
     }
 
