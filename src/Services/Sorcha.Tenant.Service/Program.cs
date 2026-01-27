@@ -7,6 +7,7 @@ using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
 using Sorcha.Tenant.Service.Endpoints;
+using Sorcha.ServiceClients.Extensions;
 using Sorcha.Tenant.Service.Extensions;
 
 // Configure Serilog first (before building the application)
@@ -184,6 +185,9 @@ try
                   .AllowAnyMethod();
         });
     });
+
+    // Add consolidated service clients (Wallet, Register, Blueprint, etc.)
+    builder.Services.AddServiceClients(builder.Configuration);
 
     // Add Tenant Service dependencies (database, repositories, Redis, token revocation)
     builder.Services.AddTenantServices(builder.Configuration);

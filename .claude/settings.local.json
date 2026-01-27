@@ -241,7 +241,12 @@
       "Bash(Sort-Object)",
       "Bash(Group-Object)",
       "Bash(Sort-Object Count -Descending)",
-      "Bash(Select-Object Count,Name -First 15)"
+      "Bash(Select-Object Count,Name -First 15)",
+      "Bash(Select-String -Path /tmp/build-output.txt -Pattern \"warning \\([\\\\w]+\\)\")",
+      "Bash(ForEach-Object { $_Matches[0].Groups[1].Value })",
+      "Bash(Format-Table Count, Name -AutoSize)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs"
     ],
     "deny": [],
     "ask": []
