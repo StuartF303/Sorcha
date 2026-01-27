@@ -13,7 +13,7 @@
                                Color="Color.Default"
                                Size="Size.Small"
                                OnClick="Cancel"
-                               Title="Close" />
+                               title="Close" />
             </div>
         </div>
     </TitleContent>
@@ -24,7 +24,7 @@
 
         @if (Blueprints != null && Blueprints.Any())
         {
-            <MudList T="string" Clickable="true" @bind-SelectedValue="selectedBlueprintId">
+            <MudList T="string" @bind-SelectedValue="selectedBlueprintId">
                 @foreach (var blueprint in Blueprints)
                 {
                     <MudListItem Value="@blueprint.Id" OnClick="@(() => SelectBlueprint(blueprint.Id))">

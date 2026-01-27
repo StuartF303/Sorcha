@@ -107,7 +107,7 @@ public class DockerAuthenticationTests : PageTest
         await Page.WaitForTimeoutAsync(2000);
 
         // Should show error or validation message, or stay on login page
-        var pageContent = await Page.TextContentAsync("body");
+        var pageContent = await Page.TextContentAsync("body") ?? "";
         var currentUrl = Page.Url;
 
         // Test passes if we see an error message OR we're still on login page (validation prevented submit)
@@ -157,7 +157,7 @@ public class DockerAuthenticationTests : PageTest
         await Page.WaitForTimeoutAsync(5000);
 
         // Should show error message OR stay on login page
-        var pageContent = await Page.TextContentAsync("body");
+        var pageContent = await Page.TextContentAsync("body") ?? "";
         var currentUrl = Page.Url;
 
         Assert.That(
@@ -222,7 +222,7 @@ public class DockerAuthenticationTests : PageTest
 
         // Check result
         var currentUrl = Page.Url;
-        var pageContent = await Page.TextContentAsync("body");
+        var pageContent = await Page.TextContentAsync("body") ?? "";
 
         // Test passes if:
         // 1. Redirected away from login (login succeeded)
@@ -251,7 +251,7 @@ public class DockerAuthenticationTests : PageTest
 
         // Should redirect to login or show unauthorized content
         var currentUrl = Page.Url;
-        var pageContent = await Page.TextContentAsync("body");
+        var pageContent = await Page.TextContentAsync("body") ?? "";
 
         var isOnLoginPage = currentUrl.Contains("/app/auth/login");
         var showsUnauthorized = pageContent.Contains("Sign In", StringComparison.OrdinalIgnoreCase)
@@ -279,7 +279,7 @@ public class DockerAuthenticationTests : PageTest
         string pageContent;
         try
         {
-            pageContent = await Page.TextContentAsync("body", new() { Timeout = 15000 });
+            pageContent = await Page.TextContentAsync("body", new() { Timeout = 15000 }) ?? "";
         }
         catch (TimeoutException)
         {
@@ -489,7 +489,7 @@ public class DockerAuthenticationTests : PageTest
 
         // Should redirect to login or show sign in
         var currentUrl = Page.Url;
-        var pageContent = await Page.TextContentAsync("body");
+        var pageContent = await Page.TextContentAsync("body") ?? "";
 
         var requiresAuth = currentUrl.Contains("/app/auth/login")
             || pageContent.Contains("Sign In", StringComparison.OrdinalIgnoreCase)
@@ -509,7 +509,7 @@ public class DockerAuthenticationTests : PageTest
 
         // Should redirect to login or show sign in
         var currentUrl = Page.Url;
-        var pageContent = await Page.TextContentAsync("body");
+        var pageContent = await Page.TextContentAsync("body") ?? "";
 
         var requiresAuth = currentUrl.Contains("/app/auth/login")
             || pageContent.Contains("Sign In", StringComparison.OrdinalIgnoreCase)
@@ -529,7 +529,7 @@ public class DockerAuthenticationTests : PageTest
 
         // Should redirect to login or show sign in
         var currentUrl = Page.Url;
-        var pageContent = await Page.TextContentAsync("body");
+        var pageContent = await Page.TextContentAsync("body") ?? "";
 
         var requiresAuth = currentUrl.Contains("/app/auth/login")
             || pageContent.Contains("Sign In", StringComparison.OrdinalIgnoreCase)
@@ -728,7 +728,7 @@ public class DockerAuthenticationTests : PageTest
         await Page.WaitForTimeoutAsync(8000);
 
         // Check for system schemas
-        var pageContent = await Page.TextContentAsync("body");
+        var pageContent = await Page.TextContentAsync("body") ?? "";
         var htmlContent = await Page.ContentAsync();
 
         // Look for system schema names or categories
@@ -754,7 +754,7 @@ public class DockerAuthenticationTests : PageTest
 
         // Should redirect to login or show sign in
         var currentUrl = Page.Url;
-        var pageContent = await Page.TextContentAsync("body");
+        var pageContent = await Page.TextContentAsync("body") ?? "";
 
         var requiresAuth = currentUrl.Contains("/app/auth/login")
             || pageContent.Contains("Sign In", StringComparison.OrdinalIgnoreCase)

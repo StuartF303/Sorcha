@@ -78,12 +78,12 @@
             </MudTd>
             <MudTd DataLabel="Actions">
                 <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small"
-                               OnClick="@(() => OnViewClick.InvokeAsync(context))" Title="View Details" />
+                               OnClick="@(() => OnViewClick.InvokeAsync(context))" title="View Details" />
                 @if (ShowSelectButton)
                 {
                     <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small"
                                    Color="Color.Primary"
-                                   OnClick="@(() => OnSelectClick.InvokeAsync(context))" Title="Select" />
+                                   OnClick="@(() => OnSelectClick.InvokeAsync(context))" title="Select" />
                 }
             </MudTd>
         </RowTemplate>

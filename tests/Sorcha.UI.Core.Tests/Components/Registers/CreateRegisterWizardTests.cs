@@ -404,7 +404,7 @@ public class CreateRegisterWizardTests
     {
         // This tests the same validation logic used by the wizard
         var error = ValidateName(name);
-        error.Should().Contain("required");
+        error.Should().Contain(expectedError);
     }
 
     [Theory]

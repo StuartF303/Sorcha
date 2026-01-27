@@ -162,7 +162,7 @@
                                          @bind-Value="_constantValue"
                                          Label="Value"
                                          Variant="Variant.Outlined"
-                                         Dense="true" />
+                                         Margin="Margin.Dense" />
                         <MudButton OnClick="AddConstant"
                                    Color="Color.Primary"
                                    Variant="Variant.Outlined"
@@ -207,7 +207,7 @@
                                     <MudNumericField T="decimal"
                                                      Label="@field"
                                                      Variant="Variant.Outlined"
-                                                     Dense="true"
+                                                     Margin="Margin.Dense"
                                                      Value="@GetTestValue(field)"
                                                      ValueChanged="@(v => SetTestValue(field, v))" />
                                 </MudItem>

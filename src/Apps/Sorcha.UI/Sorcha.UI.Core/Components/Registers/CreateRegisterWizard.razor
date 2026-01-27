@@ -16,8 +16,7 @@
     <DialogContent>
         @* Step indicator *@
         <MudStepper @bind-ActiveIndex="_activeStep"
-                    Linear="true"
-                    Color="Color.Primary"
+                    CurrentStepColor="Color.Primary"
                     Class="mb-4">
             <MudStep Title="Name">
                 <MudText Typo="Typo.body2">Enter a name for your register</MudText>
@@ -62,7 +61,7 @@
                                           Counter="38"
                                           MaxLength="38"
                                           Immediate="true"
-                                          Validation="@ValidateName"
+                                          Validation="@(new Func<string, string?>(ValidateName))"
                                           HelperText="A unique name to identify your register"
                                           data-testid="register-name-input" />
 

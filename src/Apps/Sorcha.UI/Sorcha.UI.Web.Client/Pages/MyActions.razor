@@ -134,7 +134,7 @@
     private List<ActionItem> _actions = new();
     private List<ActionAvailableNotification> _recentNotifications = new();
     private ConnectionState _connectionState = new();
-    private ActionsHubConnection? _actionsHub;
+    private ActionsHubConnection? _actionsHub = null;
 
     // Sample wallet address for demo - in production this would come from authentication
     private const string DemoWalletAddress = "0x1234567890abcdef1234567890abcdef12345678";
