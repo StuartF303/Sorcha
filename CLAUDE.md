@@ -403,3 +403,4 @@ When working on tasks involving these technologies, invoke the corresponding ski
 | docker | Manages Docker containerization and docker-compose orchestration |
 | playwright | Develops end-to-end UI tests with Playwright for Blazor applications |
 | frontend-design | Styles Blazor WASM components with CSS and responsive design patterns |
+| sorcha-ui | Builds Sorcha.UI Blazor WASM pages with accompanying Playwright E2E tests using the Docker test infrastructure |
