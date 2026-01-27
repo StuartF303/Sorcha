@@ -129,14 +129,9 @@ public class DocketBuilder : IDocketBuilder
             // Sign docket with system wallet
             var systemWalletAddress = _validatorConfig.SystemWalletAddress;
 
-            var signature = await _walletClient.SignDataAsync(systemWalletAddress, docketHash, cancellationToken);
+            var signResult = await _walletClient.SignDataAsync(systemWalletAddress, docketHash, cancellationToken);
 
-            // TODO: Replace with proper wallet integration using IWalletIntegrationService
-            // For now, convert string representations to byte arrays
-            var publicKeyBytes = System.Text.Encoding.UTF8.GetBytes(systemWalletAddress);
-            var signatureBytes = System.Text.Encoding.UTF8.GetBytes(signature);
-
-            // Create docket
+            // Create docket with real cryptographic signature
             var docket = new Docket
             {
                 DocketId = docketHash,
@@ -150,9 +145,9 @@ public class DocketBuilder : IDocketBuilder
                 ProposerValidatorId = _validatorConfig.ValidatorId,
                 ProposerSignature = new Signature
                 {
-                    PublicKey = publicKeyBytes,
-                    SignatureValue = signatureBytes,
-                    Algorithm = "ED25519", // TODO: Get from wallet service
+                    PublicKey = signResult.PublicKey,
+                    SignatureValue = signResult.Signature,
+                    Algorithm = signResult.Algorithm,
                     SignedAt = createdAt
                 },
                 MerkleRoot = merkleRoot

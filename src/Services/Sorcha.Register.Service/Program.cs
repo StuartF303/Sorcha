@@ -425,37 +425,9 @@ var registersGroup = app.MapGroup("/api/registers")
     .WithTags("Registers")
     .RequireAuthorization("CanManageRegisters");
 
-/// <summary>
-/// Create a new register
-/// </summary>
-registersGroup.MapPost("/", async (
-    RegisterManager manager,
-    IHubContext<RegisterHub, IRegisterHubClient> hubContext,
-    CreateRegisterRequest request) =>
-{
-    try
-    {
-        var register = await manager.CreateRegisterAsync(
-            request.Name,
-            request.TenantId,
-            request.Advertise,
-            request.IsFullReplica);
-
-        // Notify via SignalR
-        await hubContext.Clients
-            .Group($"tenant:{register.TenantId}")
-            .RegisterCreated(register.Id, register.Name);
-
-        return Results.Created($"/api/registers/{register.Id}", register);
-    }
-    catch (ArgumentException ex)
-    {
-        return Results.BadRequest(new { error = ex.Message });
-    }
-})
-.WithName("CreateRegister")
-.WithSummary("Create a new register")
-.WithDescription("Creates a new distributed ledger register with a unique ID.");
+// NOTE: POST /api/registers/ (simple CRUD creation) has been removed.
+// All register creation must go through the two-phase initiate/finalize flow.
+// See register creation endpoints below (POST /api/registers/initiate and POST /api/registers/finalize).
 
 /// <summary>
 /// Get all registers

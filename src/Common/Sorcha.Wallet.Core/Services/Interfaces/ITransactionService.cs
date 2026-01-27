@@ -11,11 +11,13 @@ public interface ITransactionService
     /// <param name="transactionData">Data to sign</param>
     /// <param name="privateKey">Private key for signing</param>
     /// <param name="algorithm">Cryptographic algorithm</param>
+    /// <param name="isPreHashed">When true, data is already hashed and should be signed directly without additional SHA-256</param>
     /// <returns>Signature bytes</returns>
     Task<byte[]> SignTransactionAsync(
         byte[] transactionData,
         byte[] privateKey,
-        string algorithm);
+        string algorithm,
+        bool isPreHashed = false);
 
     /// <summary>
     /// Verifies a transaction signature
@@ -24,12 +26,14 @@ public interface ITransactionService
     /// <param name="signature">Signature to verify</param>
     /// <param name="publicKey">Public key for verification</param>
     /// <param name="algorithm">Cryptographic algorithm</param>
+    /// <param name="isPreHashed">When true, data is already hashed and should be verified directly without additional SHA-256</param>
     /// <returns>True if signature is valid</returns>
     Task<bool> VerifySignatureAsync(
         byte[] transactionData,
         byte[] signature,
         byte[] publicKey,
-        string algorithm);
+        string algorithm,
+        bool isPreHashed = false);
 
     /// <summary>
     /// Decrypts a transaction payload

@@ -192,10 +192,12 @@ public class AttestationToSign
     public AttestationSigningData AttestationData { get; set; } = new();
 
     /// <summary>
-    /// SHA-256 hash of the attestation data (hex-encoded)
+    /// Hex-encoded SHA-256 hash of the canonical JSON attestation data
     /// </summary>
     /// <remarks>
-    /// This is the hash that should be signed by the wallet at walletId.
+    /// This is the SHA-256 hash that should be signed by the wallet at walletId.
+    /// The value is a lowercase hex string (64 characters) representing the hash bytes.
+    /// Callers should convert this hex string to bytes and sign with isPreHashed=true.
     /// </remarks>
     [JsonPropertyName("dataToSign")]
     public string DataToSign { get; set; } = string.Empty;
@@ -390,6 +392,16 @@ public class PendingRegistration
     /// Nonce for replay protection
     /// </summary>
     public string Nonce { get; set; } = string.Empty;
+
+    /// <summary>
+    /// SHA-256 hash bytes for each attestation, keyed by "{role}:{subject}"
+    /// </summary>
+    /// <remarks>
+    /// Stored at initiate, consumed at finalize for signature verification.
+    /// Using stored hashes eliminates the need to re-serialize and re-hash
+    /// attestation data during finalization, avoiding canonicalization fragility.
+    /// </remarks>
+    public Dictionary<string, byte[]> AttestationHashes { get; set; } = new();
 
     /// <summary>
     /// Checks if this pending registration has expired

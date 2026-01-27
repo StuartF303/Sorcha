@@ -246,7 +246,8 @@
       "Bash(ForEach-Object { $_Matches[0].Groups[1].Value })",
       "Bash(Format-Table Count, Name -AutoSize)",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__query-docs"
+      "mcp__context7__query-docs",
+      "Bash(Select-String -Pattern \"ncrypt|allback|ecret|KEK|machine|wallet-master|AuthenticationTag|Healthy|Unhealthy|warn\" -SimpleMatch)"
     ],
     "deny": [],
     "ask": []

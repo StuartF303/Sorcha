@@ -21,4 +21,11 @@ public class SignTransactionRequest
     /// If not specified, the wallet's default signing key is used.
     /// </remarks>
     public string? DerivationPath { get; set; }
+
+    /// <summary>
+    /// When true, TransactionData contains a pre-computed hash (e.g., SHA-256) that should
+    /// be signed directly without additional hashing by the wallet.
+    /// When false (default), the wallet applies SHA-256 to the data before signing.
+    /// </summary>
+    public bool IsPreHashed { get; set; }
 }

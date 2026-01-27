@@ -451,15 +451,10 @@ public class ConsensusEngine : IConsensusEngine
             _validatorConfig.ValidatorId,
             cancellationToken);
 
-        var signature = await _walletClient.SignDataAsync(
+        var signResult = await _walletClient.SignDataAsync(
             systemWalletId,
             docket.DocketHash,
             cancellationToken);
-
-        // TODO: Replace with proper wallet integration using IWalletIntegrationService
-        // For now, convert string representations to byte arrays
-        var publicKeyBytes = System.Text.Encoding.UTF8.GetBytes(systemWalletId);
-        var signatureBytes = System.Text.Encoding.UTF8.GetBytes(signature);
 
         return new Models.ConsensusVote
         {
@@ -470,9 +465,9 @@ public class ConsensusEngine : IConsensusEngine
             VotedAt = votedAt,
             ValidatorSignature = new Models.Signature
             {
-                PublicKey = publicKeyBytes,
-                SignatureValue = signatureBytes,
-                Algorithm = "ED25519", // TODO: Get from wallet service
+                PublicKey = signResult.PublicKey,
+                SignatureValue = signResult.Signature,
+                Algorithm = signResult.Algorithm,
                 SignedAt = votedAt
             },
             DocketHash = docket.DocketHash
@@ -493,15 +488,10 @@ public class ConsensusEngine : IConsensusEngine
             _validatorConfig.ValidatorId,
             cancellationToken);
 
-        var signature = await _walletClient.SignDataAsync(
+        var signResult = await _walletClient.SignDataAsync(
             systemWalletId,
             docket.DocketHash,
             cancellationToken);
-
-        // TODO: Replace with proper wallet integration using IWalletIntegrationService
-        // For now, convert string representations to byte arrays
-        var publicKeyBytes = System.Text.Encoding.UTF8.GetBytes(systemWalletId);
-        var signatureBytes = System.Text.Encoding.UTF8.GetBytes(signature);
 
         return new Models.ConsensusVote
         {
@@ -513,9 +503,9 @@ public class ConsensusEngine : IConsensusEngine
             VotedAt = votedAt,
             ValidatorSignature = new Models.Signature
             {
-                PublicKey = publicKeyBytes,
-                SignatureValue = signatureBytes,
-                Algorithm = "ED25519", // TODO: Get from wallet service
+                PublicKey = signResult.PublicKey,
+                SignatureValue = signResult.Signature,
+                Algorithm = signResult.Algorithm,
                 SignedAt = votedAt
             },
             DocketHash = docket.DocketHash
