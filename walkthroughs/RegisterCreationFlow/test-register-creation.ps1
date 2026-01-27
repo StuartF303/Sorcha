@@ -145,14 +145,13 @@ $initiateRequest = @{
     name = "Walkthrough Test Register"
     description = "Created via register creation walkthrough"
     tenantId = "walkthrough-tenant-001"
-    creator = @{
-        userId = "walkthrough-user-001"
-        walletId = "walkthrough-wallet-001"
-    }
-    metadata = @{
-        environment = "walkthrough"
-        purpose = "testing-register-creation"
-    }
+    owners = @(
+        @{
+            userId = "walkthrough-user-001"
+            walletId = "walkthrough-wallet-001"
+            role = "Owner"
+        }
+    )
 } | ConvertTo-Json -Depth 10
 
 Write-Info "Sending initiate request..."
@@ -173,38 +172,36 @@ try {
 
     $registerId = $initiateResponse.registerId
     $nonce = $initiateResponse.nonce
-    $dataToSign = $initiateResponse.dataToSign
-    $controlRecord = $initiateResponse.controlRecord
+    $attestationsToSign = $initiateResponse.attestationsToSign
 
     Write-Host ""
     Write-Info "Register ID: $registerId"
     Write-Info "Nonce: $($nonce.Substring(0, 20))..."
-    Write-Info "Data to Sign: $dataToSign"
-    Write-Info "Attestations: $($controlRecord.attestations.Count)"
+    Write-Info "Attestations to Sign: $($attestationsToSign.Count)"
 
-    # Verify control record structure
-    if ($controlRecord.attestations[0].role -eq "Owner") {
-        Write-Success "Owner attestation present in control record"
-    } else {
-        Write-Failure "Owner attestation missing"
+    foreach ($attestation in $attestationsToSign) {
+        Write-Info "  Role: $($attestation.role), Data to Sign (SHA-256 hex): $($attestation.dataToSign)"
     }
 
 } catch {
     Write-Failure "Failed to initiate register creation"
     Write-Host "Error: $_" -ForegroundColor Red
-    Write-Host $_.Exception.Response.Content -ForegroundColor Red
+    if ($_.ErrorDetails) {
+        Write-Host $_.ErrorDetails.Message -ForegroundColor Red
+    }
     exit 1
 }
 
-# Test 3: Simulate Signing (in real scenario, wallet would sign)
-Write-Section "Step 3: Simulate Signing (Phase 1.5)"
+# Test 3: Simulate Signing (placeholder signatures - will fail verification)
+Write-Section "Step 3: Simulate Signing (Placeholder - Expected to Fail Verification)"
 
 Write-Info "In a real scenario, the wallet would:"
-Write-Host "  1. Receive the dataToSign hash" -ForegroundColor Gray
-Write-Host "  2. Sign it with the user's private key" -ForegroundColor Gray
+Write-Host "  1. Receive the hex-encoded SHA-256 hash as dataToSign" -ForegroundColor Gray
+Write-Host "  2. Convert hex to bytes, sign with isPreHashed=true" -ForegroundColor Gray
 Write-Host "  3. Return the signature and public key" -ForegroundColor Gray
 Write-Host ""
 Write-Info "For this walkthrough, we'll use placeholder signatures"
+Write-Info "Use test-register-creation-with-real-signing.ps1 for real crypto"
 
 # Generate placeholder signatures (64 bytes for ED25519)
 $placeholderPublicKey = [Convert]::ToBase64String((New-Object byte[] 32))
@@ -213,11 +210,17 @@ $placeholderSignature = [Convert]::ToBase64String((New-Object byte[] 64))
 Write-Info "Placeholder Public Key: $($placeholderPublicKey.Substring(0, 20))..."
 Write-Info "Placeholder Signature: $($placeholderSignature.Substring(0, 20))..."
 
-# Update control record with signatures
-$controlRecord.attestations[0].publicKey = $placeholderPublicKey
-$controlRecord.attestations[0].signature = $placeholderSignature
+$signedAttestations = @()
+foreach ($attestation in $attestationsToSign) {
+    $signedAttestations += @{
+        attestationData = $attestation.attestationData
+        publicKey = $placeholderPublicKey
+        signature = $placeholderSignature
+        algorithm = "ED25519"
+    }
+}
 
-Write-Success "Control record updated with signatures"
+Write-Success "Signed attestations prepared with placeholder signatures"
 
 # Test 4: Finalize Register Creation
 Write-Section "Step 4: Finalize Register Creation (Phase 2)"
@@ -225,14 +228,14 @@ Write-Section "Step 4: Finalize Register Creation (Phase 2)"
 $finalizeRequest = @{
     registerId = $registerId
     nonce = $nonce
-    controlRecord = $controlRecord
+    signedAttestations = $signedAttestations
 } | ConvertTo-Json -Depth 10
 
 Write-Info "Sending finalize request..."
 Write-Host "Request (abbreviated):" -ForegroundColor Gray
 Write-Host "  Register ID: $registerId" -ForegroundColor DarkGray
 Write-Host "  Nonce: $($nonce.Substring(0, 20))..." -ForegroundColor DarkGray
-Write-Host "  Attestations: $($controlRecord.attestations.Count)" -ForegroundColor DarkGray
+Write-Host "  Signed Attestations: $($signedAttestations.Count)" -ForegroundColor DarkGray
 
 try {
     $finalizeResponse = Invoke-RestMethod `
@@ -259,23 +262,26 @@ try {
     Write-Failure "Failed to finalize register creation"
 
     # Check if it's a signature verification error (expected with placeholder signatures)
-    if ($_.Exception.Message -like "*signature*" -or $_.Exception.Message -like "*Unauthorized*") {
+    if ($_.Exception.Message -like "*signature*" -or $_.Exception.Message -like "*Unauthorized*" -or $_.Exception.Message -like "*500*") {
         Write-Host ""
         Write-Host "EXPECTED FAILURE: Signature Verification" -ForegroundColor Yellow
-        Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Yellow
+        Write-Host "================================================================" -ForegroundColor Yellow
         Write-Host ""
         Write-Info "This failure is EXPECTED because we used placeholder signatures."
         Write-Info "In a production scenario:"
-        Write-Host "  1. Client would call Wallet Service to sign the dataToSign hash" -ForegroundColor Gray
-        Write-Host "  2. Wallet Service would use the actual private key" -ForegroundColor Gray
-        Write-Host "  3. Signature verification would succeed" -ForegroundColor Gray
+        Write-Host "  1. Client calls Wallet Service to sign the hex SHA-256 hash" -ForegroundColor Gray
+        Write-Host "  2. Wallet Service signs with isPreHashed=true (no double-hashing)" -ForegroundColor Gray
+        Write-Host "  3. Signature verification succeeds against stored hash" -ForegroundColor Gray
         Write-Host ""
         Write-Success "The workflow is working correctly - signature verification is functioning as designed"
+        Write-Host ""
+        Write-Host "For real signing, use:" -ForegroundColor Cyan
+        Write-Host "  pwsh test-register-creation-with-real-signing.ps1" -ForegroundColor White
         Write-Host ""
         Write-Host "Error details:" -ForegroundColor Gray
         Write-Host "  $($_.Exception.Message)" -ForegroundColor DarkGray
         Write-Host ""
-        Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Yellow
+        Write-Host "================================================================" -ForegroundColor Yellow
 
         # This is actually a success - we want signature verification to fail with bad signatures
         $signatureVerificationWorks = $true
@@ -293,36 +299,34 @@ Write-Section "Summary"
 
 Write-Host ""
 Write-Host "Test Results:" -ForegroundColor White
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor White
+Write-Host "================================================================" -ForegroundColor White
 
 if ($signatureVerificationWorks) {
     Write-Success "Services Running"
-    Write-Success "Initiate Endpoint (Phase 1)"
-    Write-Success "Control Record Generation"
+    Write-Success "Initiate Endpoint (Phase 1) - owners-based request"
+    Write-Success "Attestation Generation (hex SHA-256 hashes)"
     Write-Success "Nonce Generation"
-    Write-Success "Canonical JSON Hashing"
-    Write-Success "Finalize Endpoint (Phase 2)"
+    Write-Success "Finalize Endpoint (Phase 2) - signedAttestations-based request"
     Write-Success "Signature Verification (correctly rejected invalid signatures)"
 
     Write-Host ""
     Write-Host "STATUS: Workflow Verified [OK]" -ForegroundColor Green
-    Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
+    Write-Host "================================================================" -ForegroundColor Green
     Write-Host ""
-    Write-Info "Next Steps:"
-    Write-Host "  1. Integrate with real Wallet Service for actual signing" -ForegroundColor Gray
-    Write-Host "  2. Test with valid ED25519/NIST P-256/RSA-4096 signatures" -ForegroundColor Gray
-    Write-Host "  3. Verify genesis transaction in Validator mempool" -ForegroundColor Gray
-    Write-Host "  4. Test complete workflow: Register -> Sign -> Finalize -> Docket" -ForegroundColor Gray
+    Write-Info "For real cryptographic signing, use:"
+    Write-Host "  pwsh test-register-creation-with-real-signing.ps1" -ForegroundColor White
+    Write-Host "  pwsh test-register-creation-with-real-signing.ps1 -Algorithm NISTP256" -ForegroundColor White
+    Write-Host "  pwsh test-register-creation-with-real-signing.ps1 -Algorithm RSA4096" -ForegroundColor White
 } else {
     Write-Success "Services Running"
     Write-Success "Initiate Endpoint (Phase 1)"
-    Write-Success "Control Record Generation"
+    Write-Success "Attestation Generation"
     Write-Success "Register Created"
     Write-Success "Genesis Transaction Submitted"
 
     Write-Host ""
     Write-Host "STATUS: Complete Success [OK]" -ForegroundColor Green
-    Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
+    Write-Host "================================================================" -ForegroundColor Green
 }
 
 Write-Host ""

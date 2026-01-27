@@ -44,8 +44,8 @@ public interface IWalletServiceClient
     /// <param name="walletId">Wallet ID or address</param>
     /// <param name="dataToSign">Data to sign (hex string)</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Signature (base64-encoded)</returns>
-    Task<string> SignDataAsync(
+    /// <returns>Signing result with signature, public key, and algorithm</returns>
+    Task<WalletSignResult> SignDataAsync(
         string walletId,
         string dataToSign,
         CancellationToken cancellationToken = default);
@@ -56,12 +56,14 @@ public interface IWalletServiceClient
     /// <param name="walletAddress">Wallet address to use for signing</param>
     /// <param name="transactionData">Transaction data to sign</param>
     /// <param name="derivationPath">Optional key derivation path (BIP44 or Sorcha system path like "sorcha:register-attestation")</param>
+    /// <param name="isPreHashed">When true, transactionData contains a pre-computed hash that should be signed directly without additional hashing</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Digital signature (base64-encoded string)</returns>
-    Task<string> SignTransactionAsync(
+    /// <returns>Signing result with signature, public key, and algorithm</returns>
+    Task<WalletSignResult> SignTransactionAsync(
         string walletAddress,
         byte[] transactionData,
         string? derivationPath = null,
+        bool isPreHashed = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -155,6 +157,32 @@ public interface IWalletServiceClient
         string owner,
         string tenant,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Result of a wallet signing operation
+/// </summary>
+public record WalletSignResult
+{
+    /// <summary>
+    /// Raw signature bytes
+    /// </summary>
+    public required byte[] Signature { get; init; }
+
+    /// <summary>
+    /// Derived public key bytes
+    /// </summary>
+    public required byte[] PublicKey { get; init; }
+
+    /// <summary>
+    /// Wallet address that performed the signing
+    /// </summary>
+    public required string SignedBy { get; init; }
+
+    /// <summary>
+    /// Cryptographic algorithm used (ED25519, NISTP256, RSA4096)
+    /// </summary>
+    public required string Algorithm { get; init; }
 }
 
 /// <summary>

@@ -223,23 +223,27 @@ foreach ($attestation in $attestationsToSign) {
     Write-Host "  Wallet: $($attestation.walletId)" -ForegroundColor Gray
     Write-Host "  Role: $($attestation.role)" -ForegroundColor Gray
 
-    # The dataToSign is now canonical JSON (not a hash)
-    # The wallet's TransactionService will hash it before signing
-    $canonicalJson = $attestation.dataToSign
-    Write-Host "  Canonical JSON: $canonicalJson" -ForegroundColor Gray
+    # The dataToSign is a hex-encoded SHA-256 hash (64 hex chars)
+    # We convert hex to bytes and pass isPreHashed=true so wallet signs directly without re-hashing
+    $hexHash = $attestation.dataToSign
+    Write-Host "  SHA-256 Hash (hex): $hexHash" -ForegroundColor Gray
 
-    # Convert canonical JSON string to UTF-8 bytes, then to base64 for wallet service
-    $dataBytes = [System.Text.Encoding]::UTF8.GetBytes($canonicalJson)
-    $dataToSignBase64 = [Convert]::ToBase64String($dataBytes)
+    # Convert hex hash string to bytes, then to base64 for wallet service
+    $hashBytes = [byte[]]::new($hexHash.Length / 2)
+    for ($i = 0; $i -lt $hashBytes.Length; $i++) {
+        $hashBytes[$i] = [Convert]::ToByte($hexHash.Substring($i * 2, 2), 16)
+    }
+    $dataToSignBase64 = [Convert]::ToBase64String($hashBytes)
 
-    # NEW: Include derivation path for attestation signing
+    # Include derivation path and isPreHashed flag for attestation signing
     $signBody = @{
         transactionData = $dataToSignBase64
         derivationPath = "sorcha:register-attestation"
+        isPreHashed = $true
     } | ConvertTo-Json
 
     try {
-        Write-Info "Sending sign request with derivation path 'sorcha:register-attestation'..."
+        Write-Info "Sending sign request with derivation path 'sorcha:register-attestation' (isPreHashed=true)..."
 
         $signResponse = Invoke-RestMethod `
             -Uri "$WalletServiceUrl/$($attestation.walletId)/sign" `
@@ -457,7 +461,7 @@ Write-Host ""
 Write-Host "What was tested:" -ForegroundColor Yellow
 Write-Host "  - Tenant Service: Admin authentication via service-auth/token" -ForegroundColor Gray
 Write-Host "  - Wallet Service: Create HD wallet with $Algorithm" -ForegroundColor Gray
-Write-Host "  - Wallet Service: Sign attestations with derivation path (sorcha:register-attestation)" -ForegroundColor Gray
+Write-Host "  - Wallet Service: Sign pre-hashed attestations with derivation path (sorcha:register-attestation, isPreHashed)" -ForegroundColor Gray
 Write-Host "  - Register Service: Initiate register creation (generate individual attestations)" -ForegroundColor Gray
 Write-Host "  - Register Service: Verify individual attestation signatures" -ForegroundColor Gray
 Write-Host "  - Register Service: Construct control record from verified attestations" -ForegroundColor Gray
@@ -469,7 +473,7 @@ Write-Host "Architectural Improvements:" -ForegroundColor Yellow
 Write-Host "  - Multi-owner support: Each owner signs individual attestation" -ForegroundColor Cyan
 Write-Host "  - Derivation paths: Uses Sorcha system paths for role-based signing" -ForegroundColor Cyan
 Write-Host "  - Two-phase signing: Owner attestations + system wallet control record" -ForegroundColor Cyan
-Write-Host "  - Prevents tampering: RegisterName included in attestation prevents changes" -ForegroundColor Cyan
+Write-Host "  - Hash-based signing: Hex SHA-256 hash signed with isPreHashed (no double-hashing)" -ForegroundColor Cyan
 Write-Host ""
 
 Write-Host "Next Steps:" -ForegroundColor Yellow

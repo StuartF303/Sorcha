@@ -1,35 +1,52 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Sorcha.ServiceClients.Auth;
 
 namespace Sorcha.ServiceClients.Wallet;
 
 /// <summary>
-/// gRPC/HTTP client for Wallet Service operations
+/// HTTP client for Wallet Service operations
 /// </summary>
 public class WalletServiceClient : IWalletServiceClient
 {
+    private readonly HttpClient _httpClient;
+    private readonly IServiceAuthClient _serviceAuth;
     private readonly ILogger<WalletServiceClient> _logger;
     private readonly string _serviceAddress;
-    private readonly bool _useGrpc;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     public WalletServiceClient(
+        HttpClient httpClient,
+        IServiceAuthClient serviceAuth,
         IConfiguration configuration,
         ILogger<WalletServiceClient> logger)
     {
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _serviceAuth = serviceAuth ?? throw new ArgumentNullException(nameof(serviceAuth));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         _serviceAddress = configuration["ServiceClients:WalletService:Address"]
             ?? configuration["GrpcClients:WalletService:Address"]
-            ?? throw new InvalidOperationException("Wallet Service address not configured");
+            ?? "http://wallet-service";
 
-        _useGrpc = configuration.GetValue<bool>("ServiceClients:WalletService:UseGrpc", false);
+        if (_httpClient.BaseAddress is null)
+        {
+            _httpClient.BaseAddress = new Uri(_serviceAddress);
+        }
 
         _logger.LogInformation(
-            "WalletServiceClient initialized (Address: {Address}, Protocol: {Protocol})",
-            _serviceAddress, _useGrpc ? "gRPC" : "HTTP");
+            "WalletServiceClient initialized (Address: {Address})", _serviceAddress);
     }
 
     // =========================================================================
@@ -44,12 +61,15 @@ public class WalletServiceClient : IWalletServiceClient
         {
             _logger.LogDebug("Creating or retrieving system wallet for validator {ValidatorId}", validatorId);
 
-            // TODO: Implement gRPC/HTTP call to Wallet Service
-            // For MVP, return a deterministic placeholder wallet ID
-            _logger.LogWarning("Wallet Service integration not yet implemented - using placeholder");
+            await SetAuthHeaderAsync(cancellationToken);
 
-            var walletId = $"system-wallet-{validatorId}";
-            return await Task.FromResult(walletId);
+            var request = new { validatorId };
+            var response = await _httpClient.PostAsJsonAsync(
+                "/api/v1/wallets/system", request, JsonOptions, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<SystemWalletResponse>(cancellationToken);
+            return result?.Address ?? throw new InvalidOperationException("System wallet response missing address");
         }
         catch (Exception ex)
         {
@@ -62,7 +82,7 @@ public class WalletServiceClient : IWalletServiceClient
     // Signing Operations
     // =========================================================================
 
-    public async Task<string> SignDataAsync(
+    public async Task<WalletSignResult> SignDataAsync(
         string walletId,
         string dataToSign,
         CancellationToken cancellationToken = default)
@@ -71,13 +91,9 @@ public class WalletServiceClient : IWalletServiceClient
         {
             _logger.LogDebug("Signing data with wallet {WalletId}", walletId);
 
-            // TODO: Implement gRPC/HTTP call to Wallet Service
-            _logger.LogWarning("Wallet Service signing not yet implemented - returning placeholder");
-
-            var signature = Convert.ToBase64String(
-                System.Text.Encoding.UTF8.GetBytes($"signature-{walletId}-{DateTimeOffset.UtcNow.Ticks}"));
-
-            return await Task.FromResult(signature);
+            // Convert hex data to bytes and sign as pre-hashed
+            var dataBytes = Convert.FromHexString(dataToSign);
+            return await SignTransactionAsync(walletId, dataBytes, isPreHashed: true, cancellationToken: cancellationToken);
         }
         catch (Exception ex)
         {
@@ -86,35 +102,58 @@ public class WalletServiceClient : IWalletServiceClient
         }
     }
 
-    public async Task<string> SignTransactionAsync(
+    public async Task<WalletSignResult> SignTransactionAsync(
         string walletAddress,
         byte[] transactionData,
         string? derivationPath = null,
+        bool isPreHashed = false,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(derivationPath))
+            _logger.LogDebug(
+                "Signing transaction with wallet {WalletAddress} (preHashed: {IsPreHashed}, path: {DerivationPath})",
+                walletAddress, isPreHashed, derivationPath ?? "default");
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var requestBody = new SignRequest
             {
-                _logger.LogDebug("Signing transaction with wallet {WalletAddress}", walletAddress);
-            }
-            else
+                TransactionData = Convert.ToBase64String(transactionData),
+                DerivationPath = derivationPath,
+                IsPreHashed = isPreHashed
+            };
+
+            var response = await _httpClient.PostAsJsonAsync(
+                $"/api/v1/wallets/{walletAddress}/sign", requestBody, JsonOptions, cancellationToken);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                _logger.LogDebug(
-                    "Signing transaction with wallet {WalletAddress} using derivation path {DerivationPath}",
-                    walletAddress, derivationPath);
+                throw new InvalidOperationException($"Wallet {walletAddress} not found");
             }
 
-            // TODO: Implement gRPC/HTTP call to Wallet Service
-            _logger.LogWarning("Wallet Service transaction signing not yet implemented - returning placeholder");
+            response.EnsureSuccessStatusCode();
 
-            var signatureBytes = System.Text.Encoding.UTF8.GetBytes(
-                $"tx-signature-{walletAddress}-{derivationPath ?? "default"}-{DateTimeOffset.UtcNow.Ticks}");
+            var signResponse = await response.Content.ReadFromJsonAsync<SignResponse>(cancellationToken);
+            if (signResponse is null)
+            {
+                throw new InvalidOperationException("Sign response was null");
+            }
 
-            var signatureBase64 = Convert.ToBase64String(signatureBytes);
-            return await Task.FromResult(signatureBase64);
+            return new WalletSignResult
+            {
+                Signature = Convert.FromBase64String(signResponse.Signature),
+                PublicKey = Convert.FromBase64String(signResponse.PublicKey),
+                SignedBy = signResponse.SignedBy,
+                Algorithm = signResponse.Algorithm ?? "ED25519"
+            };
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _logger.LogError(ex, "Authentication failed when signing with wallet {WalletAddress}", walletAddress);
+            throw new InvalidOperationException($"Authentication failed for wallet signing: {ex.Message}", ex);
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
         {
             _logger.LogError(ex, "Failed to sign transaction with wallet {WalletAddress}", walletAddress);
             throw;
@@ -130,12 +169,17 @@ public class WalletServiceClient : IWalletServiceClient
     {
         try
         {
-            _logger.LogDebug("Verifying signature with public key {PublicKey}", publicKey);
+            _logger.LogDebug("Verifying signature with public key");
 
-            // TODO: Implement gRPC/HTTP call to Wallet Service
-            _logger.LogWarning("Wallet Service signature verification not yet implemented - assuming valid");
+            await SetAuthHeaderAsync(cancellationToken);
 
-            return await Task.FromResult(true);
+            var requestBody = new { publicKey, data, signature, algorithm };
+            var response = await _httpClient.PostAsJsonAsync(
+                "/api/v1/wallets/verify", requestBody, JsonOptions, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<VerifyResponse>(cancellationToken);
+            return result?.IsValid ?? false;
         }
         catch (Exception ex)
         {
@@ -157,13 +201,16 @@ public class WalletServiceClient : IWalletServiceClient
         {
             _logger.LogDebug("Encrypting payload for wallet {WalletAddress}", recipientWalletAddress);
 
-            // TODO: Implement gRPC/HTTP call to Wallet Service
-            _logger.LogWarning("Wallet Service encryption not yet implemented - returning placeholder");
+            await SetAuthHeaderAsync(cancellationToken);
 
-            var encrypted = System.Text.Encoding.UTF8.GetBytes(
-                $"encrypted-{recipientWalletAddress}-{Convert.ToBase64String(payload)}");
+            var requestBody = new { payload = Convert.ToBase64String(payload) };
+            var response = await _httpClient.PostAsJsonAsync(
+                $"/api/v1/wallets/{recipientWalletAddress}/encrypt", requestBody, JsonOptions, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-            return await Task.FromResult(encrypted);
+            var result = await response.Content.ReadFromJsonAsync<EncryptResponse>(cancellationToken);
+            return Convert.FromBase64String(result?.EncryptedPayload
+                ?? throw new InvalidOperationException("Encrypt response missing payload"));
         }
         catch (Exception ex)
         {
@@ -181,11 +228,16 @@ public class WalletServiceClient : IWalletServiceClient
         {
             _logger.LogDebug("Decrypting payload with wallet {WalletAddress}", walletAddress);
 
-            // TODO: Implement gRPC/HTTP call to Wallet Service
-            _logger.LogWarning("Wallet Service decryption not yet implemented - returning placeholder");
+            await SetAuthHeaderAsync(cancellationToken);
 
-            var decrypted = System.Text.Encoding.UTF8.GetBytes($"decrypted-{walletAddress}");
-            return await Task.FromResult(decrypted);
+            var requestBody = new { encryptedPayload = Convert.ToBase64String(encryptedPayload) };
+            var response = await _httpClient.PostAsJsonAsync(
+                $"/api/v1/wallets/{walletAddress}/decrypt", requestBody, JsonOptions, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<DecryptResponse>(cancellationToken);
+            return Convert.FromBase64String(result?.DecryptedPayload
+                ?? throw new InvalidOperationException("Decrypt response missing payload"));
         }
         catch (Exception ex)
         {
@@ -202,22 +254,26 @@ public class WalletServiceClient : IWalletServiceClient
     {
         try
         {
-            _logger.LogDebug(
-                "Decrypting payload with delegation for wallet {WalletAddress}",
-                walletAddress);
+            _logger.LogDebug("Decrypting payload with delegation for wallet {WalletAddress}", walletAddress);
 
-            // TODO: Implement gRPC/HTTP call to Wallet Service
-            _logger.LogWarning("Wallet Service delegated decryption not yet implemented - returning placeholder");
+            await SetAuthHeaderAsync(cancellationToken);
 
-            var decrypted = System.Text.Encoding.UTF8.GetBytes($"delegated-decrypt-{walletAddress}");
-            return await Task.FromResult(decrypted);
+            var requestBody = new
+            {
+                encryptedPayload = Convert.ToBase64String(encryptedPayload),
+                delegationToken
+            };
+            var response = await _httpClient.PostAsJsonAsync(
+                $"/api/v1/wallets/{walletAddress}/decrypt", requestBody, JsonOptions, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<DecryptResponse>(cancellationToken);
+            return Convert.FromBase64String(result?.DecryptedPayload
+                ?? throw new InvalidOperationException("Decrypt response missing payload"));
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Failed to decrypt payload with delegation for wallet {WalletAddress}",
-                walletAddress);
+            _logger.LogError(ex, "Failed to decrypt payload with delegation for wallet {WalletAddress}", walletAddress);
             throw;
         }
     }
@@ -234,23 +290,18 @@ public class WalletServiceClient : IWalletServiceClient
         {
             _logger.LogDebug("Getting wallet info for {WalletAddress}", walletAddress);
 
-            // TODO: Implement gRPC/HTTP call to Wallet Service
-            _logger.LogWarning("Wallet Service wallet query not yet implemented - returning placeholder");
+            await SetAuthHeaderAsync(cancellationToken);
 
-            var wallet = new WalletInfo
+            var response = await _httpClient.GetAsync(
+                $"/api/v1/wallets/{walletAddress}", cancellationToken);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                Address = walletAddress,
-                Name = $"Wallet {walletAddress}",
-                PublicKey = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"pubkey-{walletAddress}")),
-                Algorithm = "ED25519",
-                Status = "Active",
-                Owner = "system",
-                Tenant = "default",
-                CreatedAt = DateTime.UtcNow.AddDays(-30),
-                UpdatedAt = DateTime.UtcNow
-            };
+                return null;
+            }
 
-            return await Task.FromResult(wallet);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<WalletInfo>(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -270,28 +321,96 @@ public class WalletServiceClient : IWalletServiceClient
         {
             _logger.LogDebug("Creating wallet {Name} with algorithm {Algorithm}", name, algorithm);
 
-            // TODO: Implement gRPC/HTTP call to Wallet Service
-            _logger.LogWarning("Wallet Service wallet creation not yet implemented - returning placeholder");
+            await SetAuthHeaderAsync(cancellationToken);
 
-            var wallet = new WalletInfo
-            {
-                Address = Guid.NewGuid().ToString("N"),
-                Name = name,
-                PublicKey = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"pubkey-{name}")),
-                Algorithm = algorithm,
-                Status = "Active",
-                Owner = owner,
-                Tenant = tenant,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+            var requestBody = new { name, algorithm, owner, tenant };
+            var response = await _httpClient.PostAsJsonAsync(
+                "/api/v1/wallets", requestBody, JsonOptions, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-            return await Task.FromResult(wallet);
+            return await response.Content.ReadFromJsonAsync<WalletInfo>(cancellationToken)
+                ?? throw new InvalidOperationException("Create wallet response was null");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create wallet {Name}", name);
             throw;
         }
+    }
+
+    // =========================================================================
+    // Private Helpers
+    // =========================================================================
+
+    private async Task SetAuthHeaderAsync(CancellationToken cancellationToken)
+    {
+        var token = await _serviceAuth.GetTokenAsync(cancellationToken);
+        if (token is not null)
+        {
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+        else
+        {
+            _logger.LogWarning("No auth token available for Wallet Service call");
+        }
+    }
+
+    // =========================================================================
+    // Response DTOs
+    // =========================================================================
+
+    private sealed class SystemWalletResponse
+    {
+        [JsonPropertyName("address")]
+        public string? Address { get; set; }
+    }
+
+    private sealed class SignRequest
+    {
+        [JsonPropertyName("transactionData")]
+        public string TransactionData { get; set; } = string.Empty;
+
+        [JsonPropertyName("derivationPath")]
+        public string? DerivationPath { get; set; }
+
+        [JsonPropertyName("isPreHashed")]
+        public bool IsPreHashed { get; set; }
+    }
+
+    private sealed class SignResponse
+    {
+        [JsonPropertyName("signature")]
+        public string Signature { get; set; } = string.Empty;
+
+        [JsonPropertyName("signedBy")]
+        public string SignedBy { get; set; } = string.Empty;
+
+        [JsonPropertyName("signedAt")]
+        public DateTime SignedAt { get; set; }
+
+        [JsonPropertyName("publicKey")]
+        public string PublicKey { get; set; } = string.Empty;
+
+        [JsonPropertyName("algorithm")]
+        public string? Algorithm { get; set; }
+    }
+
+    private sealed class VerifyResponse
+    {
+        [JsonPropertyName("isValid")]
+        public bool IsValid { get; set; }
+    }
+
+    private sealed class EncryptResponse
+    {
+        [JsonPropertyName("encryptedPayload")]
+        public string? EncryptedPayload { get; set; }
+    }
+
+    private sealed class DecryptResponse
+    {
+        [JsonPropertyName("decryptedPayload")]
+        public string? DecryptedPayload { get; set; }
     }
 }

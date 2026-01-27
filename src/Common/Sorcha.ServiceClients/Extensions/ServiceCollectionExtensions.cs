@@ -3,6 +3,7 @@
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Sorcha.ServiceClients.Auth;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Register;
 using Sorcha.ServiceClients.Blueprint;
@@ -48,7 +49,12 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Register service auth client (singleton - caches tokens across requests)
+        services.AddHttpClient<ServiceAuthClient>();
+        services.AddSingleton<IServiceAuthClient, ServiceAuthClient>();
+
         // Register all service clients as scoped (one per request)
+        services.AddHttpClient<WalletServiceClient>();
         services.AddScoped<IWalletServiceClient, WalletServiceClient>();
         services.AddScoped<IRegisterServiceClient, RegisterServiceClient>();
         services.AddScoped<IBlueprintServiceClient, BlueprintServiceClient>();

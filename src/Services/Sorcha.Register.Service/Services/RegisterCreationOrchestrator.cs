@@ -82,6 +82,9 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             registerId,
             request.Owners?.Count ?? 0);
 
+        // Attestation hashes to store for verification during finalization
+        var attestationHashes = new Dictionary<string, byte[]>();
+
         // Generate attestation data for each owner
         foreach (var owner in request.Owners ?? new List<OwnerInfo>())
         {
@@ -94,23 +97,20 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
                 GrantedAt = createdAt
             };
 
-            // Serialize to canonical JSON
-            // NOTE: We send the canonical JSON itself, not the hash.
-            // The wallet's TransactionService will hash it before signing.
+            // Serialize to canonical JSON and compute SHA-256 hash
             var canonicalJson = JsonSerializer.Serialize(attestationData, _canonicalJsonOptions);
-
-            // Compute hash for logging purposes
             var hashBytes = _hashProvider.ComputeHash(
                 Encoding.UTF8.GetBytes(canonicalJson),
                 Sorcha.Cryptography.Enums.HashType.SHA256);
-            var attestationHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+            var hashHex = Convert.ToHexString(hashBytes).ToLowerInvariant();
 
-            _logger.LogInformation(
-                "Created attestation for {Subject} ({Role}): hash={Hash}, json={Json}",
-                attestationData.Subject,
-                attestationData.Role,
-                attestationHash,
-                canonicalJson);
+            // Store hash for verification during finalization
+            var hashKey = $"{attestationData.Role}:{attestationData.Subject}";
+            attestationHashes[hashKey] = hashBytes;
+
+            _logger.LogDebug(
+                "Created attestation for owner {UserId}: key={Key}, hash={Hash}",
+                owner.UserId, hashKey, hashHex);
 
             attestationsToSign.Add(new AttestationToSign
             {
@@ -118,13 +118,8 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
                 WalletId = owner.WalletId,
                 Role = RegisterRole.Owner,
                 AttestationData = attestationData,
-                DataToSign = canonicalJson  // Send canonical JSON, not hash
+                DataToSign = hashHex  // Hex-encoded SHA-256 hash
             });
-
-            _logger.LogDebug(
-                "Created attestation for owner {UserId}, hash: {Hash}",
-                owner.UserId,
-                attestationHash);
         }
 
         // Generate attestation data for additional administrators
@@ -141,16 +136,20 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
                     GrantedAt = createdAt
                 };
 
-                // Serialize to canonical JSON
-                // NOTE: We send the canonical JSON itself, not the hash.
-                // The wallet's TransactionService will hash it before signing.
+                // Serialize to canonical JSON and compute SHA-256 hash
                 var canonicalJson = JsonSerializer.Serialize(attestationData, _canonicalJsonOptions);
-
-                // Compute hash for logging purposes
                 var hashBytes = _hashProvider.ComputeHash(
                     Encoding.UTF8.GetBytes(canonicalJson),
                     Sorcha.Cryptography.Enums.HashType.SHA256);
-                var attestationHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                var hashHex = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+                // Store hash for verification during finalization
+                var hashKey = $"{attestationData.Role}:{attestationData.Subject}";
+                attestationHashes[hashKey] = hashBytes;
+
+                _logger.LogDebug(
+                    "Created attestation for admin {UserId}: key={Key}, hash={Hash}",
+                    admin.UserId, hashKey, hashHex);
 
                 attestationsToSign.Add(new AttestationToSign
                 {
@@ -158,17 +157,12 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
                     WalletId = admin.WalletId,
                     Role = admin.Role,
                     AttestationData = attestationData,
-                    DataToSign = canonicalJson  // Send canonical JSON, not hash
+                    DataToSign = hashHex  // Hex-encoded SHA-256 hash
                 });
-
-                _logger.LogDebug(
-                    "Created attestation for admin {UserId}, hash: {Hash}",
-                    admin.UserId,
-                    attestationHash);
             }
         }
 
-        // Store pending registration with register metadata
+        // Store pending registration with register metadata and attestation hashes
         var pending = new PendingRegistration
         {
             RegisterId = registerId,
@@ -182,10 +176,11 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
                 Metadata = request.Metadata,
                 Attestations = new List<RegisterAttestation>() // Will be filled during finalization
             },
-            ControlRecordHash = string.Empty, // Not computed yet - will be computed after attestations collected
+            ControlRecordHash = string.Empty,
             CreatedAt = createdAt,
             ExpiresAt = expiresAt,
-            Nonce = nonce
+            Nonce = nonce,
+            AttestationHashes = attestationHashes
         };
 
         _pendingStore.Add(registerId, pending);
@@ -245,8 +240,8 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             throw new InvalidOperationException($"Pending registration expired for register ID {request.RegisterId}");
         }
 
-        // Verify all attestation signatures against individual attestation data
-        await VerifyAttestationsAsync(request.SignedAttestations, request.RegisterId, cancellationToken);
+        // Verify all attestation signatures against stored hashes from initiation
+        await VerifyAttestationsAsync(request.SignedAttestations, pending, cancellationToken);
 
         // Construct control record from verified attestations
         var controlRecord = new RegisterControlRecord
@@ -283,30 +278,20 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             "Control record constructed successfully with {AttestationCount} verified attestations",
             controlRecord.Attestations.Count);
 
-        // Create register in database
-        var register = await _registerManager.CreateRegisterAsync(
-            controlRecord.Name,
-            controlRecord.TenantId,
-            advertise: false, // Default to private
-            isFullReplica: true,
-            cancellationToken);
-
-        _logger.LogInformation("Created register {RegisterId} in database", register.Id);
-
-        // Create genesis transaction with control record payload
-        var genesisTransaction = CreateGenesisTransaction(register.Id, controlRecord);
+        // Create genesis transaction with control record payload (includes real PayloadHash)
+        var genesisTransaction = CreateGenesisTransaction(pending.RegisterId, controlRecord);
 
         _logger.LogInformation(
             "Created genesis transaction {TransactionId} for register {RegisterId}",
             genesisTransaction.TxId,
-            register.Id);
+            pending.RegisterId);
 
-        // Submit genesis transaction to Validator Service mempool
+        // Submit genesis transaction to Validator Service BEFORE persisting register (atomic guarantee)
         var controlRecordJson = JsonSerializer.Serialize(controlRecord, _canonicalJsonOptions);
         var submissionRequest = new GenesisTransactionSubmission
         {
             TransactionId = genesisTransaction.TxId,
-            RegisterId = register.Id,
+            RegisterId = pending.RegisterId,
             ControlRecordPayload = JsonDocument.Parse(controlRecordJson).RootElement,
             PayloadHash = genesisTransaction.Payloads[0].Hash,
             Signatures = controlRecord.Attestations.Select(a => new GenesisSignature
@@ -324,20 +309,27 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
 
         if (!submitted)
         {
-            _logger.LogWarning(
-                "Failed to submit genesis transaction {TransactionId} to Validator Service",
-                genesisTransaction.TxId);
-            // Note: Register is already created in database, but genesis transaction submission failed
-            // This is a recoverable state - the genesis transaction can be resubmitted
-        }
-        else
-        {
-            _logger.LogInformation(
-                "Genesis transaction {TransactionId} submitted to Validator Service successfully",
-                genesisTransaction.TxId);
+            _logger.LogError(
+                "Failed to submit genesis transaction {TransactionId} to Validator Service for register {RegisterId}",
+                genesisTransaction.TxId, pending.RegisterId);
+            throw new InvalidOperationException(
+                $"Genesis transaction submission failed for register {pending.RegisterId}. " +
+                "The register was NOT created. Retry the full initiate/finalize flow.");
         }
 
-        // Note: Pending registration already removed from store at the start of this method
+        _logger.LogInformation(
+            "Genesis transaction {TransactionId} submitted to Validator Service successfully",
+            genesisTransaction.TxId);
+
+        // Only persist register AFTER genesis succeeds (atomic guarantee)
+        var register = await _registerManager.CreateRegisterAsync(
+            controlRecord.Name,
+            controlRecord.TenantId,
+            advertise: false,
+            isFullReplica: true,
+            cancellationToken);
+
+        _logger.LogInformation("Created register {RegisterId} in database after genesis success", register.Id);
 
         return new FinalizeRegisterCreationResponse
         {
@@ -394,72 +386,57 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     }
 
     /// <summary>
-    /// Verifies all attestation signatures against individual attestation data hashes
+    /// Verifies all attestation signatures against stored hashes from initiation.
+    /// Uses stored hash bytes instead of re-serializing attestation data,
+    /// eliminating JSON canonicalization fragility.
     /// </summary>
     private async Task VerifyAttestationsAsync(
         List<SignedAttestation> signedAttestations,
-        string registerId,
+        PendingRegistration pending,
         CancellationToken cancellationToken)
     {
         _logger.LogDebug(
-            "Verifying {Count} signed attestations for register {RegisterId}",
+            "Verifying {Count} signed attestations for register {RegisterId} using stored hashes",
             signedAttestations.Count,
-            registerId);
+            pending.RegisterId);
 
         foreach (var signedAttestation in signedAttestations)
         {
             try
             {
-                // Reconstruct the canonical JSON of the attestation data
-                var canonicalJson = JsonSerializer.Serialize(
-                    signedAttestation.AttestationData,
-                    _canonicalJsonOptions);
+                // Look up stored hash by role:subject key
+                var hashKey = $"{signedAttestation.AttestationData.Role}:{signedAttestation.AttestationData.Subject}";
 
-                // Compute SHA-256 hash of attestation data
-                var hashBytes = _hashProvider.ComputeHash(
-                    Encoding.UTF8.GetBytes(canonicalJson),
-                    Sorcha.Cryptography.Enums.HashType.SHA256);
+                if (!pending.AttestationHashes.TryGetValue(hashKey, out var storedHashBytes))
+                {
+                    _logger.LogWarning(
+                        "No stored hash found for attestation key {HashKey} in register {RegisterId}",
+                        hashKey, pending.RegisterId);
+                    throw new ArgumentException(
+                        $"Unknown attestation: {signedAttestation.AttestationData.Subject} ({signedAttestation.AttestationData.Role})");
+                }
 
-                var attestationHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
-
-                _logger.LogInformation(
-                    "Verifying attestation: subject={Subject}, role={Role}, hash={Hash}, json={Json}",
-                    signedAttestation.AttestationData.Subject,
-                    signedAttestation.AttestationData.Role,
-                    attestationHash,
-                    canonicalJson);
+                _logger.LogDebug(
+                    "Verifying attestation: key={Key}, storedHashLen={HashLen}",
+                    hashKey, storedHashBytes.Length);
 
                 // Convert base64 public key and signature to bytes
                 var publicKeyBytes = Convert.FromBase64String(signedAttestation.PublicKey);
                 var signatureBytes = Convert.FromBase64String(signedAttestation.Signature);
 
-                _logger.LogInformation(
-                    "Verifying: sigLen={SigLen}, hashLen={HashLen}, pubKeyLen={PubKeyLen}, algo={Algo}",
-                    signatureBytes.Length,
-                    hashBytes.Length,
-                    publicKeyBytes.Length,
-                    signedAttestation.Algorithm);
-
-                // Verify signature using Sorcha.Cryptography
+                // Verify signature against stored hash using Sorcha.Cryptography
                 var verifyResult = await _cryptoModule.VerifyAsync(
                     signatureBytes,
-                    hashBytes,
+                    storedHashBytes,
                     MapAlgorithm(signedAttestation.Algorithm),
                     publicKeyBytes,
                     cancellationToken);
 
-                _logger.LogInformation(
-                    "Verification result: {Result} for {Subject}",
-                    verifyResult,
-                    signedAttestation.AttestationData.Subject);
-
                 if (verifyResult != Sorcha.Cryptography.Enums.CryptoStatus.Success)
                 {
                     _logger.LogWarning(
-                        "Signature verification failed for attestation: subject={Subject}, role={Role}, hash={Hash}",
-                        signedAttestation.AttestationData.Subject,
-                        signedAttestation.AttestationData.Role,
-                        attestationHash);
+                        "Signature verification failed for attestation: key={Key}, result={Result}",
+                        hashKey, verifyResult);
                     throw new UnauthorizedAccessException(
                         $"Invalid signature for attestation: {signedAttestation.AttestationData.Subject} ({signedAttestation.AttestationData.Role})");
                 }
@@ -484,16 +461,20 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         _logger.LogInformation(
             "All {Count} attestations verified successfully for register {RegisterId}",
             signedAttestations.Count,
-            registerId);
+            pending.RegisterId);
     }
 
     /// <summary>
-    /// Creates a genesis transaction with control record payload
+    /// Creates a genesis transaction with control record payload and computed PayloadHash
     /// </summary>
     private TransactionModel CreateGenesisTransaction(string registerId, RegisterControlRecord controlRecord)
     {
         var controlRecordJson = JsonSerializer.Serialize(controlRecord, _canonicalJsonOptions);
         var controlRecordBytes = Encoding.UTF8.GetBytes(controlRecordJson);
+
+        // Compute actual SHA-256 hash of the serialized control record payload
+        var payloadHash = _hashProvider.ComputeHash(controlRecordBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
+        var payloadHashHex = Convert.ToHexString(payloadHash).ToLowerInvariant();
 
         return new TransactionModel
         {
@@ -508,7 +489,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
                 {
                     Data = Convert.ToBase64String(controlRecordBytes),
                     WalletAccess = controlRecord.Attestations.Select(a => a.Subject).ToArray(),
-                    Hash = string.Empty // Will be computed later
+                    Hash = payloadHashHex
                 }
             },
             MetaData = new TransactionMetaData
@@ -517,7 +498,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
                 TransactionType = TransactionType.Genesis
             },
             Version = 1,
-            Signature = string.Empty // Will be signed later
+            Signature = string.Empty // Signed by Validator Service system wallet
         };
     }
 

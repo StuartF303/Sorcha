@@ -353,6 +353,7 @@ public static class WalletEndpoints
                 address,
                 transactionData,
                 request.DerivationPath,
+                request.IsPreHashed,
                 cancellationToken);
 
             var response = new SignTransactionResponse

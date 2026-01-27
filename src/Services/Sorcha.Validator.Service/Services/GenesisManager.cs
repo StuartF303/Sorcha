@@ -81,17 +81,16 @@ public class GenesisManager : IGenesisManager
                 merkleRoot,
                 createdAt);
 
-            // Sign docket with system wallet
+            // Sign docket hash with system wallet using the docket-signing derivation path
             var systemWalletAddress = _config.SystemWalletAddress;
 
-            var signature = await _walletClient.SignDataAsync(systemWalletAddress, docketHash, cancellationToken);
+            var signResult = await _walletClient.SignDataAsync(systemWalletAddress, docketHash, cancellationToken);
 
-            // TODO: Replace with proper wallet integration using IWalletIntegrationService
-            // For now, convert string representations to byte arrays
-            var publicKeyBytes = System.Text.Encoding.UTF8.GetBytes(systemWalletAddress);
-            var signatureBytes = System.Text.Encoding.UTF8.GetBytes(signature);
+            _logger.LogDebug(
+                "Docket signed by system wallet {WalletAddress} using {Algorithm}",
+                systemWalletAddress, signResult.Algorithm);
 
-            // Create genesis docket
+            // Create genesis docket with real cryptographic signature
             var genesisDocket = new Docket
             {
                 DocketId = docketHash,
@@ -105,9 +104,9 @@ public class GenesisManager : IGenesisManager
                 ProposerValidatorId = _config.ValidatorId,
                 ProposerSignature = new Signature
                 {
-                    PublicKey = publicKeyBytes,
-                    SignatureValue = signatureBytes,
-                    Algorithm = "ED25519", // TODO: Get from wallet service
+                    PublicKey = signResult.PublicKey,
+                    SignatureValue = signResult.Signature,
+                    Algorithm = signResult.Algorithm,
                     SignedAt = createdAt
                 },
                 MerkleRoot = merkleRoot

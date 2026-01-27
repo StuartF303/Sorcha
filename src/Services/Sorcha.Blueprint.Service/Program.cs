@@ -620,10 +620,10 @@ actionsGroup.MapPost("/", async (
         var txHash = await hashProvider.ComputeHashAsync(txHashStream);
         var txHashHex = BitConverter.ToString(txHash).Replace("-", "").ToLowerInvariant();
 
-        // 7. Sign the transaction with Wallet Service (returns base64-encoded signature)
+        // 7. Sign the transaction with Wallet Service
         var transactionBytes = System.Text.Encoding.UTF8.GetBytes(
             System.Text.Json.JsonSerializer.Serialize(transaction));
-        var signature = await walletClient.SignTransactionAsync(
+        var signResult = await walletClient.SignTransactionAsync(
             request.SenderWallet,
             transactionBytes,
             derivationPath: null); // Use wallet's default signing key
@@ -644,8 +644,8 @@ actionsGroup.MapPost("/", async (
                 WalletAccess = new[] { kvp.Key }
             }).ToArray(),
             PayloadCount = (ulong)encryptedPayloads.Count,
-            // Signature is already Base64 encoded from wallet service
-            Signature = signature
+            // Convert raw signature bytes to base64
+            Signature = Convert.ToBase64String(signResult.Signature)
         };
 
         // Submit to Register Service

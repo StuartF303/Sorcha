@@ -200,6 +200,10 @@ services:
       ServiceClients__WalletService__UseGrpc: "false"
       ServiceClients__ValidatorService__Address: http://sorcha-validator-service:8080
       ServiceClients__ValidatorService__UseGrpc: "false"
+      # Service-to-service auth for Wallet Service calls
+      ServiceAuth__ClientId: register-service
+      ServiceAuth__ClientSecret: register-service-secret
+      ServiceClients__TenantService__Address: http://tenant-service:8080
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
@@ -338,6 +342,12 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__Redis: redis:6379
+      # Service-to-service auth for Wallet Service calls
+      ServiceAuth__ClientId: validator-service
+      ServiceAuth__ClientSecret: validator-service-secret
+      # Service client configuration for inter-service communication
+      ServiceClients__WalletService__Address: http://wallet-service:8080
+      ServiceClients__TenantService__Address: http://tenant-service:8080
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:

@@ -35,7 +35,8 @@ public class TransactionService : ITransactionService
     public async Task<byte[]> SignTransactionAsync(
         byte[] transactionData,
         byte[] privateKey,
-        string algorithm)
+        string algorithm,
+        bool isPreHashed = false)
     {
         if (transactionData == null || transactionData.Length == 0)
             throw new ArgumentException("Transaction data cannot be empty", nameof(transactionData));
@@ -46,12 +47,14 @@ public class TransactionService : ITransactionService
 
         try
         {
-            // Hash the transaction data first
-            var hash = _hashProvider.ComputeHash(transactionData, HashType.SHA256);
+            // When isPreHashed is true, data is already a hash - sign directly without additional hashing
+            var dataToSign = isPreHashed
+                ? transactionData
+                : _hashProvider.ComputeHash(transactionData, HashType.SHA256);
 
             var network = ParseAlgorithm(algorithm);
             var signResult = await _cryptoModule.SignAsync(
-                hash,
+                dataToSign,
                 (byte)network,
                 privateKey);
 
@@ -60,7 +63,9 @@ public class TransactionService : ITransactionService
                 throw new InvalidOperationException($"Failed to sign transaction: {signResult.Status}");
             }
 
-            _logger.LogDebug("Signed transaction data using {Algorithm} algorithm", algorithm);
+            _logger.LogDebug(
+                "Signed transaction data using {Algorithm} algorithm (preHashed: {IsPreHashed})",
+                algorithm, isPreHashed);
             return signResult.Value;
         }
         catch (Exception ex)
@@ -75,7 +80,8 @@ public class TransactionService : ITransactionService
         byte[] transactionData,
         byte[] signature,
         byte[] publicKey,
-        string algorithm)
+        string algorithm,
+        bool isPreHashed = false)
     {
         if (transactionData == null || transactionData.Length == 0)
             throw new ArgumentException("Transaction data cannot be empty", nameof(transactionData));
@@ -88,18 +94,22 @@ public class TransactionService : ITransactionService
 
         try
         {
-            // Hash the transaction data
-            var hash = _hashProvider.ComputeHash(transactionData, HashType.SHA256);
+            // When isPreHashed is true, data is already a hash - verify directly without additional hashing
+            var dataToVerify = isPreHashed
+                ? transactionData
+                : _hashProvider.ComputeHash(transactionData, HashType.SHA256);
 
             var network = ParseAlgorithm(algorithm);
             var verifyStatus = await _cryptoModule.VerifyAsync(
                 signature,
-                hash,
+                dataToVerify,
                 (byte)network,
                 publicKey);
 
             var isValid = verifyStatus == CryptoStatus.Success;
-            _logger.LogDebug("Verified signature using {Algorithm} algorithm: {IsValid}", algorithm, isValid);
+            _logger.LogDebug(
+                "Verified signature using {Algorithm} algorithm (preHashed: {IsPreHashed}): {IsValid}",
+                algorithm, isPreHashed, isValid);
             return isValid;
         }
         catch (Exception ex)

@@ -7,22 +7,27 @@ This walkthrough demonstrates the complete two-phase register creation workflow 
 ## What This Tests
 
 1. **Phase 1 - Initiate**: POST to `/api/registers/initiate`
-   - Generates unsigned control record with attestation templates
-   - Returns registerId, nonce, and data to sign
-   - Control record stored in pending state (5-minute expiration)
+   - Accepts `owners` array (userId, walletId, role)
+   - Computes SHA-256 hash of canonical JSON attestation data
+   - Returns registerId, nonce, and `attestationsToSign` with hex-encoded hashes as `dataToSign`
+   - Hash bytes stored in pending state (5-minute expiration) for deterministic verification
 
 2. **Signing Phase** (Client-side):
-   - Client signs the control record hash with wallet private key
-   - In this demo, we use placeholder signatures for testing
+   - Client converts hex hash to bytes
+   - Base64-encodes for Wallet Service API
+   - Signs with `isPreHashed=true` (prevents double-hashing)
+   - Wallet Service returns signature + derived public key
 
 3. **Phase 2 - Finalize**: POST to `/api/registers/finalize`
    - Validates nonce (replay protection)
-   - Verifies all attestation signatures
-   - Creates register in database
-   - Submits genesis transaction to Validator Service mempool
+   - Verifies each attestation signature against stored hash bytes (no re-serialization)
+   - Submits genesis transaction to Validator Service (atomic: genesis BEFORE register persist)
+   - Creates register in database only if genesis succeeds
 
 4. **Genesis Transaction Processing**:
    - Validator Service receives genesis transaction
+   - Signs control record with system wallet via real Wallet Service call (`isPreHashed=true`)
+   - Computes actual PayloadHash (SHA-256 of serialized control record)
    - Sets high priority (genesis transactions processed first)
    - Stores in mempool awaiting docket creation
 
@@ -40,17 +45,17 @@ This walkthrough demonstrates the complete two-phase register creation workflow 
 │  ┌────────────────────────────────┐    │
 │  │ RegisterCreationOrchestrator   │    │
 │  │  - Generate registerId         │    │
-│  │  - Create control record       │    │
-│  │  - Compute canonical JSON hash │    │
-│  │  - Store in pending state      │    │
+│  │  - Create attestation data     │    │
+│  │  - Compute SHA-256 hash        │    │
+│  │  - Store hash bytes + pending  │    │
 │  └────────────────────────────────┘    │
 └────────┬────────────────────────────────┘
          │
-         │ 2. Returns: registerId, nonce, dataToSign
+         │ 2. Returns: registerId, nonce, attestationsToSign (hex hashes)
          ▼
 ┌─────────────────┐
 │   Client/CLI    │
-│  [Sign data]    │  ◄── Wallet signs hash with private key
+│  [Sign hash]    │  ◄── Wallet signs hex hash with isPreHashed=true
 └────────┬────────┘
          │
          │ 3. POST /api/registers/finalize (with signatures)
@@ -60,9 +65,9 @@ This walkthrough demonstrates the complete two-phase register creation workflow 
 │  ┌────────────────────────────────┐    │
 │  │ RegisterCreationOrchestrator   │    │
 │  │  - Verify nonce                │    │
-│  │  - Verify signatures           │    │
+│  │  - Verify sigs (stored hashes) │    │
+│  │  - Submit genesis (atomic)     │    │
 │  │  - Create register in DB       │    │
-│  │  - Build genesis transaction   │    │
 │  └────────┬───────────────────────┘    │
 └───────────┼────────────────────────────┘
             │
@@ -231,9 +236,11 @@ pwsh walkthroughs/RegisterCreationFlow/test-register-creation-docker.ps1
 ## Security Features
 
 1. **Nonce-based Replay Protection**: Each initiate generates unique nonce
-2. **Signature Verification**: All attestations verified using Sorcha.Cryptography
+2. **Signature Verification**: All attestations verified against stored hash bytes using Sorcha.Cryptography
 3. **Expiration**: Pending registrations expire after 5 minutes
-4. **Canonical JSON**: RFC 8785 compliant hashing for signature consistency
+4. **Hash-based Signing**: SHA-256 hash of canonical JSON stored at initiate time, eliminating re-serialization issues
+5. **Pre-hashed Signing**: `isPreHashed=true` prevents double-hashing in wallet signing pipeline
+6. **Atomic Creation**: Genesis transaction submitted before register persist (no orphaned registers)
 
 ## Files in This Walkthrough
 
@@ -255,9 +262,9 @@ pwsh walkthroughs/RegisterCreationFlow/test-register-creation-docker.ps1
 
 ## Real Wallet Signing Integration (test-register-creation-with-real-signing.ps1)
 
-**Status**: 4 of 5 steps working (80% functional)
+**Status**: Fully Functional (6 of 6 steps working)
 
-This enhanced walkthrough integrates real cryptographic signing via the Wallet Service:
+This enhanced walkthrough performs real end-to-end cryptographic signing via the Wallet Service:
 
 ```powershell
 # Test with ED25519 (default)
@@ -271,175 +278,59 @@ pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.
 
 # Direct service access for debugging
 pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.ps1 -Profile direct
+
+# Show full JSON structures (control record, genesis transaction, signed docket)
+pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.ps1 -ShowJson
 ```
 
 ### Workflow Steps
 
-1. ✅ **Admin Authentication** (Tenant Service)
+1. **Admin Authentication** (Tenant Service)
    - Authenticates via `/api/service-auth/token`
    - Obtains bearer token for subsequent requests
-   - Status: **WORKING**
 
-2. ✅ **Wallet Creation** (Wallet Service)
+2. **Wallet Creation** (Wallet Service)
    - Creates HD wallet with specified algorithm (ED25519/NISTP256/RSA4096)
    - Generates mnemonic (BIP39), derives keys (BIP32/BIP44)
    - Returns wallet address and public key
-   - Status: **WORKING**
 
-3. ✅ **Register Initiation** (Register Service)
-   - POST to `/api/registers/initiate`
-   - Generates canonical JSON hash of control record
-   - Returns registerId, nonce, and hash to sign
-   - Status: **WORKING**
+3. **Register Initiation** (Register Service)
+   - POST to `/api/registers/initiate` with `owners` array
+   - Computes SHA-256 hash of canonical JSON attestation data
+   - Returns hex-encoded hash as `dataToSign` (not canonical JSON)
+   - Stores hash bytes in `PendingRegistration.AttestationHashes`
 
-4. ✅ **Data Signing** (Wallet Service)
-   - Signs SHA-256 hash with wallet private key
-   - POST to `/api/v1/wallets/{address}/sign`
-   - Returns Base64-encoded signature
-   - Status: **WORKING**
+4. **Attestation Signing** (Wallet Service)
+   - Converts hex hash to bytes, Base64-encodes for wallet API
+   - Signs with `isPreHashed=true` (wallet skips internal SHA-256)
+   - Uses derivation path `sorcha:register-attestation`
+   - Returns Base64-encoded signature + derived public key
 
-5. ❌ **Signature Verification** (Register Service)
-   - POST to `/api/registers/finalize` with signed control record
-   - Verifies signature using `Sorcha.Cryptography.ICryptoModule.VerifyAsync()`
-   - Status: **FAILING** (HTTP 401 Unauthorized)
+5. **Register Finalization** (Register Service)
+   - POST to `/api/registers/finalize` with `signedAttestations` array
+   - Verifies each signature against stored hash bytes (no re-serialization)
+   - Submits genesis to Validator (atomic: genesis before persist)
+   - Creates register in MongoDB only if genesis succeeds
 
-### Known Issues
+6. **Genesis Verification** (Validator Service)
+   - Genesis transaction in mempool with HIGH priority
+   - Signed by system wallet with real cryptographic signature
+   - Real PayloadHash (SHA-256 of control record)
 
-#### Issue: Signature Verification Failure
+### Key Design Decisions
 
-**Symptom**: Finalize endpoint returns HTTP 401 with log message:
-```
-Signature verification failed for attestation: subject=did:sorcha:admin, role=Owner
-```
-
-**Investigation Findings**:
-- ✅ Signature byte length correct for ED25519 (64 bytes)
-- ✅ Public key byte length correct (32 bytes)
-- ✅ Hash byte length correct (32 bytes for SHA-256)
-- ✅ Base64 encoding/decoding working correctly
-- ✅ Wallet signing operation succeeds
-- ❌ Cryptographic verification fails
-
-**Root Cause Identified: Double-Hashing Bug**:
-
-The signature verification fails due to a **double-hashing bug** in the Wallet Service's `TransactionService`:
-
-**The Problem**:
-```csharp
-// src/Common/Sorcha.Wallet.Core/Services/Implementation/TransactionService.cs:50
-public async Task<byte[]> SignTransactionAsync(byte[] transactionData, ...)
-{
-    // BUG: Hashes the data AGAIN before signing
-    var hash = _hashProvider.ComputeHash(transactionData, HashType.SHA256);
-    var signResult = await _cryptoModule.SignAsync(hash, ...);
-}
-```
-
-**What Happens**:
-1. Register Service: Computes `SHA-256(controlRecordJSON)` → Hash A (32 bytes)
-2. Client: Sends Hash A to Wallet Service
-3. Wallet Service: Computes `SHA-256(Hash A)` → Hash B, signs Hash B ❌
-4. Register Service: Tries to verify signature against Hash A ❌ MISMATCH
-
-**The Workflow**:
-```
-RegisterCreationOrchestrator.InitiateAsync():
-  controlRecordJson = Serialize(controlRecord)
-  hashA = SHA-256(controlRecordJson)  // 32 bytes
-  Store hashA in pending registration
-
-Client Script:
-  Receives hashA (hex format)
-  Converts to base64: hashA_base64
-  POST /api/v1/wallets/{address}/sign { transactionData: hashA_base64 }
-
-WalletManager.SignTransactionAsync():
-  data = FromBase64(hashA_base64)  // Gets hashA as bytes
-  Calls TransactionService.SignTransactionAsync(data, ...)
-
-TransactionService.SignTransactionAsync():
-  hashB = SHA-256(hashA)  // ❌ DOUBLE HASH!
-  signature = Sign(hashB)  // Signs hashB, not hashA
-
-RegisterCreationOrchestrator.FinalizeAsync():
-  Verify(signature, hashA, publicKey)  // ❌ FAILS - signature is for hashB
-```
-
-**The Fix**:
-
-Option 1: Add `/api/v1/wallets/{address}/sign-hash` endpoint that signs pre-computed hashes directly
-```csharp
-public async Task<byte[]> SignHashAsync(byte[] hash, byte[] privateKey, byte network)
-{
-    // Sign the hash directly without additional hashing
-    var signResult = await _cryptoModule.SignAsync(hash, network, privateKey);
-    return signResult.Value;
-}
-```
-
-Option 2: Modify `TransactionService` to detect if data is already a hash (32 bytes for SHA-256)
-```csharp
-public async Task<byte[]> SignTransactionAsync(byte[] transactionData, ...)
-{
-    // If data is already 32 bytes (SHA-256 hash size), skip hashing
-    var hash = transactionData.Length == 32
-        ? transactionData
-        : _hashProvider.ComputeHash(transactionData, HashType.SHA256);
-
-    var signResult = await _cryptoModule.SignAsync(hash, ...);
-}
-```
-
-Option 3 (Preferred): Pass a flag indicating whether data is pre-hashed
-```csharp
-public async Task<byte[]> SignAsync(
-    byte[] data,
-    byte[] privateKey,
-    string algorithm,
-    bool isPreHashed = false)
-{
-    var hash = isPreHashed ? data : _hashProvider.ComputeHash(data, HashType.SHA256);
-    var signResult = await _cryptoModule.SignAsync(hash, ...);
-}
-```
-
-**Code References**:
-- Double-hashing bug: `Sorcha.Wallet.Core/Services/Implementation/TransactionService.cs` line 50
-- Register hash computation: `RegisterCreationOrchestrator.cs` lines 117-121
-- Register verification: `RegisterCreationOrchestrator.cs` lines 317-370
-- Wallet signing flow: `WalletManager.cs` lines 550-593
-
-**Next Steps**:
-1. Add detailed logging of canonical JSON in both initiate and finalize
-2. Compare hex dumps of data signed vs data verified
-3. Verify Sorcha.Cryptography test coverage for ED25519 verification
-4. Consider adding debug endpoint to return signed data for comparison
-
-### Technical Fixes Applied
-
-**Fix #1: Wallet Response Structure** (Commit: 6d80caf)
-- Wallet API returns nested `{ wallet: {...}, mnemonicWords: [...] }` structure
-- Updated scripts to access `$response.wallet.address` instead of `$response.address`
-
-**Fix #2: Pending Registration State Loss** (Commit: 6d80caf)
-- Created `IPendingRegistrationStore` singleton service
-- Implemented `PendingRegistrationStore` with `ConcurrentDictionary`
-- Prevents state loss between initiate and finalize requests
-- DI: Orchestrator (scoped) injects store (singleton)
-
-**Fix #3: Control Record Request Structure** (Commit: 6d80caf)
-- Finalize endpoint expects full control record with attestations
-- Updated request to include: registerId, name, description, tenantId, metadata, attestations
-- Attestations include: role, subject, publicKey (Base64), signature (Base64), algorithm
+- **Hash-based `dataToSign`**: Returns hex SHA-256 hash instead of canonical JSON, eliminating JSON re-serialization determinism issues
+- **`isPreHashed` flag**: Prevents double-hashing by telling TransactionService to skip its internal SHA-256 step
+- **Stored attestation hashes**: `PendingRegistration.AttestationHashes` dictionary (keyed by `"{role}:{subject}"`) eliminates need to re-serialize at verification time
+- **Atomic register+genesis**: FinalizeAsync submits genesis BEFORE persisting register, preventing orphaned registers
 
 ## Next Steps
 
 After this walkthrough:
-1. ~~Integrate real wallet signing (Wallet Service)~~ ✅ **COMPLETED**
-2. **Resolve signature verification issue** (current blocker)
-3. Test with multiple attestations (owner + admins)
-4. Test with different signature algorithms (NISTP256, RSA4096)
-5. Verify docket creation from genesis transaction
+1. Test with multiple attestations (owner + admins)
+2. Test with different signature algorithms (NISTP256, RSA4096)
+3. Verify docket creation from genesis transaction
+4. Implement Redis-backed pending registration storage
 
 ## References
 

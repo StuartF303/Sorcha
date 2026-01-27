@@ -114,11 +114,13 @@ public interface IWalletService
     /// <param name="walletAddress">Wallet address</param>
     /// <param name="transactionData">Transaction data to sign</param>
     /// <param name="derivationPath">Optional BIP44 derivation path or Sorcha system path (e.g., "sorcha:register-attestation")</param>
+    /// <param name="isPreHashed">When true, transactionData is already hashed and should be signed directly without additional SHA-256</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Tuple containing the signature and the public key used for signing (derived or master)</returns>
     Task<(byte[] Signature, byte[] PublicKey)> SignTransactionAsync(
         string walletAddress,
         byte[] transactionData,
         string? derivationPath = null,
+        bool isPreHashed = false,
         CancellationToken cancellationToken = default);
 }

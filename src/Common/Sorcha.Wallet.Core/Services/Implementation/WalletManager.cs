@@ -551,6 +551,7 @@ public class WalletManager : IWalletService
         string walletAddress,
         byte[] transactionData,
         string? derivationPath = null,
+        bool isPreHashed = false,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(walletAddress))
@@ -607,7 +608,7 @@ public class WalletManager : IWalletService
 
             // Sign transaction
             var signature = await _transactionService.SignTransactionAsync(
-                transactionData, signingKey, wallet.Algorithm);
+                transactionData, signingKey, wallet.Algorithm, isPreHashed);
 
             // Publish event
             await _eventPublisher.PublishAsync(new TransactionSignedEvent

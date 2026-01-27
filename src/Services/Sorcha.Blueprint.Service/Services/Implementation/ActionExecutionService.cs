@@ -131,14 +131,15 @@ public class ActionExecutionService : IActionExecutionService
             cancellationToken);
 
         // 11. Sign transaction (using default signing key, no derivation path)
-        var signatureBase64 = await _walletClient.SignTransactionAsync(
+        var signResult = await _walletClient.SignTransactionAsync(
             request.SenderWallet,
             transaction.TransactionData,
             derivationPath: null, // Use wallet's default signing key
+            isPreHashed: false,
             cancellationToken);
 
-        // Convert base64 signature to bytes for transaction model
-        transaction.Signature = Convert.FromBase64String(signatureBase64);
+        // Use raw signature bytes from wallet sign result
+        transaction.Signature = signResult.Signature;
 
         // 12. Submit to Register
         var submittedTx = await _registerClient.SubmitTransactionAsync(

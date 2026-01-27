@@ -7,6 +7,7 @@ using Sorcha.Validator.Service.Models;
 using Sorcha.Validator.Service.Services;
 using Sorcha.Validator.Core.Validators;
 using Sorcha.Cryptography.Interfaces;
+using Sorcha.ServiceClients.Wallet;
 
 namespace Sorcha.Validator.Service.Endpoints;
 
@@ -197,18 +198,35 @@ public static class ValidationEndpoints
                 request.RegisterId,
                 controlRecordHashHex);
 
-            // Sign control record with system wallet using the register-control derivation path
+            // Sign control record hash with system wallet using the register-control derivation path
             var systemWalletAddress = validatorConfig.Value.SystemWalletAddress;
-            var systemWalletSignature = await walletClient.SignTransactionAsync(
-                systemWalletAddress,
-                controlRecordBytes,
-                "sorcha:register-control", // Use system derivation path for control record signing
-                cancellationToken);
+
+            WalletSignResult systemSignResult;
+            try
+            {
+                systemSignResult = await walletClient.SignTransactionAsync(
+                    systemWalletAddress,
+                    controlRecordHash,
+                    "sorcha:register-control",
+                    isPreHashed: true,
+                    cancellationToken);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+            {
+                logger.LogError(
+                    "System wallet {WalletAddress} not found - platform bootstrap incomplete",
+                    systemWalletAddress);
+                return Results.Problem(
+                    title: "Platform bootstrap incomplete",
+                    detail: "System wallet not available. Run bootstrap to create the system wallet.",
+                    statusCode: 503);
+            }
 
             logger.LogInformation(
-                "Control record signed by system wallet {WalletAddress} for register {RegisterId}",
+                "Control record signed by system wallet {WalletAddress} for register {RegisterId} using {Algorithm}",
                 systemWalletAddress,
-                request.RegisterId);
+                request.RegisterId,
+                systemSignResult.Algorithm);
 
             // Convert attestation signatures from request
             var signatures = request.Signatures.Select(s => new Signature
@@ -219,13 +237,12 @@ public static class ValidationEndpoints
                 SignedAt = request.CreatedAt
             }).ToList();
 
-            // Add system wallet signature
-            // TODO: Get public key from wallet service
+            // Add system wallet signature with real public key and signature bytes
             signatures.Add(new Signature
             {
-                PublicKey = System.Text.Encoding.UTF8.GetBytes(systemWalletAddress), // Placeholder
-                SignatureValue = Convert.FromBase64String(systemWalletSignature),
-                Algorithm = "ED25519", // TODO: Get from wallet
+                PublicKey = systemSignResult.PublicKey,
+                SignatureValue = systemSignResult.Signature,
+                Algorithm = systemSignResult.Algorithm,
                 SignedAt = DateTimeOffset.UtcNow
             });
 
@@ -245,7 +262,7 @@ public static class ValidationEndpoints
                 CreatedAt = request.CreatedAt,
                 ExpiresAt = null, // Genesis transactions don't expire
                 Signatures = signatures,
-                PayloadHash = request.PayloadHash,
+                PayloadHash = controlRecordHashHex,
                 Priority = TransactionPriority.High, // Genesis has highest priority
                 Metadata = new Dictionary<string, string>
                 {
