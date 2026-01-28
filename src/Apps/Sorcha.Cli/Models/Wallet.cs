@@ -96,6 +96,18 @@ public class SignTransactionRequest
 {
     [JsonPropertyName("transactionData")]
     public string TransactionData { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the transaction data is already pre-hashed (e.g., SHA-256 hash for attestation signing)
+    /// </summary>
+    [JsonPropertyName("isPreHashed")]
+    public bool IsPreHashed { get; set; }
+
+    /// <summary>
+    /// Optional derivation path for HD wallets (BIP44 format)
+    /// </summary>
+    [JsonPropertyName("derivationPath")]
+    public string? DerivationPath { get; set; }
 }
 
 /// <summary>
@@ -111,6 +123,18 @@ public class SignTransactionResponse
 
     [JsonPropertyName("signedAt")]
     public DateTimeOffset SignedAt { get; set; }
+
+    /// <summary>
+    /// Public key used for signing (Base64 encoded)
+    /// </summary>
+    [JsonPropertyName("publicKey")]
+    public string PublicKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Algorithm used for signing (Ed25519, EcdsaP256, etc.)
+    /// </summary>
+    [JsonPropertyName("algorithm")]
+    public string Algorithm { get; set; } = string.Empty;
 }
 
 /// <summary>

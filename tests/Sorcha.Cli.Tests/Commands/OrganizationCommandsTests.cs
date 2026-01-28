@@ -82,7 +82,7 @@ public class OrganizationCommandsTests
         command.Name.Should().Be("get");
         command.Description.Should().Be("Get an organization by ID");
 
-        var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
+        var idOption = command.Options.FirstOrDefault(o => o.Name == "--id");
         idOption.Should().NotBeNull();
         idOption!.Required.Should().BeTrue();
     }
@@ -97,7 +97,7 @@ public class OrganizationCommandsTests
         command.Name.Should().Be("create");
         command.Description.Should().Be("Create a new organization");
 
-        var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
+        var nameOption = command.Options.FirstOrDefault(o => o.Name == "--name");
         nameOption.Should().NotBeNull();
         nameOption!.Required.Should().BeTrue();
     }
@@ -109,7 +109,7 @@ public class OrganizationCommandsTests
         var command = new OrgCreateCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
-        var subdomainOption = command.Options.FirstOrDefault(o => o.Name == "subdomain");
+        var subdomainOption = command.Options.FirstOrDefault(o => o.Name == "--subdomain");
         subdomainOption.Should().NotBeNull();
         subdomainOption!.Required.Should().BeTrue();
     }
@@ -124,7 +124,7 @@ public class OrganizationCommandsTests
         command.Name.Should().Be("update");
         command.Description.Should().Be("Update an organization");
 
-        var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
+        var idOption = command.Options.FirstOrDefault(o => o.Name == "--id");
         idOption.Should().NotBeNull();
         idOption!.Required.Should().BeTrue();
     }
@@ -136,11 +136,11 @@ public class OrganizationCommandsTests
         var command = new OrgUpdateCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
-        var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
+        var nameOption = command.Options.FirstOrDefault(o => o.Name == "--name");
         nameOption.Should().NotBeNull();
         nameOption!.Required.Should().BeFalse();
 
-        var statusOption = command.Options.FirstOrDefault(o => o.Name == "status");
+        var statusOption = command.Options.FirstOrDefault(o => o.Name == "--status");
         statusOption.Should().NotBeNull();
         statusOption!.Required.Should().BeFalse();
     }
@@ -155,7 +155,7 @@ public class OrganizationCommandsTests
         command.Name.Should().Be("delete");
         command.Description.Should().Be("Delete an organization");
 
-        var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
+        var idOption = command.Options.FirstOrDefault(o => o.Name == "--id");
         idOption.Should().NotBeNull();
         idOption!.Required.Should().BeTrue();
     }
@@ -167,7 +167,7 @@ public class OrganizationCommandsTests
         var command = new OrgDeleteCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
-        var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
+        var yesOption = command.Options.FirstOrDefault(o => o.Name == "--yes");
         yesOption.Should().NotBeNull();
         yesOption!.Required.Should().BeFalse();
     }

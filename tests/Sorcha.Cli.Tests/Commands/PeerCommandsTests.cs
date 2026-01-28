@@ -90,7 +90,7 @@ public class PeerCommandsTests
     public void PeerGetCommand_ShouldHaveRequiredIdOption()
     {
         var command = new PeerGetCommand(_clientFactory, AuthService, ConfigService);
-        var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
+        var idOption = command.Options.FirstOrDefault(o => o.Name == "--id");
         idOption.Should().NotBeNull();
         idOption!.Required.Should().BeTrue();
     }

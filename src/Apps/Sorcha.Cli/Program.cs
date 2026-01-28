@@ -161,6 +161,10 @@ internal class Program
         rootCommand.Subcommands.Add(new TransactionCommand(clientFactory, authService, configService));
         rootCommand.Subcommands.Add(new WalletCommand(clientFactory, authService, configService));
 
+        // Docket and Query commands
+        rootCommand.Subcommands.Add(new DocketCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new QueryCommand(clientFactory, authService, configService));
+
         // Sprint 4: Peer Service commands
         rootCommand.Subcommands.Add(new PeerCommand(clientFactory, authService, configService));
 

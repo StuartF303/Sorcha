@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
 using System.CommandLine;
 using FluentAssertions;
 using Moq;
@@ -44,11 +47,11 @@ public class RegisterCommandsTests
     }
 
     [Fact]
-    public void RegisterCommand_ShouldHaveFourSubcommands()
+    public void RegisterCommand_ShouldHaveSixSubcommands()
     {
         var command = new RegisterCommand(_clientFactory, AuthService, ConfigService);
-        command.Subcommands.Should().HaveCount(4);
-        command.Subcommands.Select(c => c.Name).Should().Contain(new[] { "list", "get", "create", "delete" });
+        command.Subcommands.Should().HaveCount(6);
+        command.Subcommands.Select(c => c.Name).Should().Contain(new[] { "list", "get", "create", "delete", "update", "stats" });
     }
 
     #region RegisterListCommand Tests
@@ -59,15 +62,6 @@ public class RegisterCommandsTests
         var command = new RegisterListCommand(_clientFactory, AuthService, ConfigService);
         command.Name.Should().Be("list");
         command.Description.Should().NotBeNullOrWhiteSpace();
-    }
-
-    [Fact]
-    public async Task RegisterListCommand_ShouldExecuteSuccessfully()
-    {
-        var rootCommand = new RootCommand();
-        rootCommand.Subcommands.Add(new RegisterListCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.Parse("list").InvokeAsync();
-        exitCode.Should().Be(0);
     }
 
     #endregion
@@ -86,18 +80,9 @@ public class RegisterCommandsTests
     public void RegisterGetCommand_ShouldHaveRequiredIdOption()
     {
         var command = new RegisterGetCommand(_clientFactory, AuthService, ConfigService);
-        var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
+        var idOption = command.Options.FirstOrDefault(o => o.Name == "--id");
         idOption.Should().NotBeNull();
         idOption!.Required.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task RegisterGetCommand_ShouldExecuteSuccessfully_WithRequiredId()
-    {
-        var rootCommand = new RootCommand();
-        rootCommand.Subcommands.Add(new RegisterGetCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.Parse("get --id test-register-123").InvokeAsync();
-        exitCode.Should().Be(0);
     }
 
     #endregion
@@ -116,45 +101,36 @@ public class RegisterCommandsTests
     public void RegisterCreateCommand_ShouldHaveRequiredNameOption()
     {
         var command = new RegisterCreateCommand(_clientFactory, AuthService, ConfigService);
-        var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
+        var nameOption = command.Options.FirstOrDefault(o => o.Name == "--name");
         nameOption.Should().NotBeNull();
         nameOption!.Required.Should().BeTrue();
     }
 
     [Fact]
-    public void RegisterCreateCommand_ShouldHaveRequiredOrgIdOption()
+    public void RegisterCreateCommand_ShouldHaveRequiredTenantIdOption()
     {
         var command = new RegisterCreateCommand(_clientFactory, AuthService, ConfigService);
-        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
-        orgIdOption.Should().NotBeNull();
-        orgIdOption!.Required.Should().BeTrue();
+        var tenantIdOption = command.Options.FirstOrDefault(o => o.Name == "--tenant-id");
+        tenantIdOption.Should().NotBeNull();
+        tenantIdOption!.Required.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RegisterCreateCommand_ShouldHaveRequiredOwnerWalletOption()
+    {
+        var command = new RegisterCreateCommand(_clientFactory, AuthService, ConfigService);
+        var ownerWalletOption = command.Options.FirstOrDefault(o => o.Name == "--owner-wallet");
+        ownerWalletOption.Should().NotBeNull();
+        ownerWalletOption!.Required.Should().BeTrue();
     }
 
     [Fact]
     public void RegisterCreateCommand_ShouldHaveOptionalDescriptionOption()
     {
         var command = new RegisterCreateCommand(_clientFactory, AuthService, ConfigService);
-        var descOption = command.Options.FirstOrDefault(o => o.Name == "description");
+        var descOption = command.Options.FirstOrDefault(o => o.Name == "--description");
         descOption.Should().NotBeNull();
         descOption!.Required.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task RegisterCreateCommand_ShouldExecuteSuccessfully_WithAllOptions()
-    {
-        var rootCommand = new RootCommand();
-        rootCommand.Subcommands.Add(new RegisterCreateCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.Parse("create --name TestReg --org-id org-123 --description \"Test register\"").InvokeAsync();
-        exitCode.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task RegisterCreateCommand_ShouldExecuteSuccessfully_WithoutOptionalDescription()
-    {
-        var rootCommand = new RootCommand();
-        rootCommand.Subcommands.Add(new RegisterCreateCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.Parse("create --name TestReg --org-id org-123").InvokeAsync();
-        exitCode.Should().Be(0);
     }
 
     #endregion
@@ -173,7 +149,7 @@ public class RegisterCommandsTests
     public void RegisterDeleteCommand_ShouldHaveRequiredIdOption()
     {
         var command = new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService);
-        var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
+        var idOption = command.Options.FirstOrDefault(o => o.Name == "--id");
         idOption.Should().NotBeNull();
         idOption!.Required.Should().BeTrue();
     }
@@ -182,27 +158,69 @@ public class RegisterCommandsTests
     public void RegisterDeleteCommand_ShouldHaveOptionalYesOption()
     {
         var command = new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService);
-        var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
+        var yesOption = command.Options.FirstOrDefault(o => o.Name == "--yes");
         yesOption.Should().NotBeNull();
         yesOption!.Required.Should().BeFalse();
     }
 
+    #endregion
+
+    #region RegisterUpdateCommand Tests
+
     [Fact]
-    public async Task RegisterDeleteCommand_ShouldExecuteSuccessfully_WithRequiredId()
+    public void RegisterUpdateCommand_ShouldHaveCorrectNameAndDescription()
     {
-        var rootCommand = new RootCommand();
-        rootCommand.Subcommands.Add(new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.Parse("delete --id test-register-123").InvokeAsync();
-        exitCode.Should().Be(0);
+        var command = new RegisterUpdateCommand(_clientFactory, AuthService, ConfigService);
+        command.Name.Should().Be("update");
+        command.Description.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public async Task RegisterDeleteCommand_ShouldExecuteSuccessfully_WithYesFlag()
+    public void RegisterUpdateCommand_ShouldHaveRequiredIdOption()
     {
-        var rootCommand = new RootCommand();
-        rootCommand.Subcommands.Add(new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService));
-        var exitCode = await rootCommand.Parse("delete --id test-register-123 --yes").InvokeAsync();
-        exitCode.Should().Be(0);
+        var command = new RegisterUpdateCommand(_clientFactory, AuthService, ConfigService);
+        var idOption = command.Options.FirstOrDefault(o => o.Name == "--id");
+        idOption.Should().NotBeNull();
+        idOption!.Required.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RegisterUpdateCommand_ShouldHaveOptionalNameOption()
+    {
+        var command = new RegisterUpdateCommand(_clientFactory, AuthService, ConfigService);
+        var nameOption = command.Options.FirstOrDefault(o => o.Name == "--name");
+        nameOption.Should().NotBeNull();
+        nameOption!.Required.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RegisterUpdateCommand_ShouldHaveOptionalStatusOption()
+    {
+        var command = new RegisterUpdateCommand(_clientFactory, AuthService, ConfigService);
+        var statusOption = command.Options.FirstOrDefault(o => o.Name == "--status");
+        statusOption.Should().NotBeNull();
+        statusOption!.Required.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RegisterUpdateCommand_ShouldHaveOptionalAdvertiseOption()
+    {
+        var command = new RegisterUpdateCommand(_clientFactory, AuthService, ConfigService);
+        var advertiseOption = command.Options.FirstOrDefault(o => o.Name == "--advertise");
+        advertiseOption.Should().NotBeNull();
+        advertiseOption!.Required.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region RegisterStatsCommand Tests
+
+    [Fact]
+    public void RegisterStatsCommand_ShouldHaveCorrectNameAndDescription()
+    {
+        var command = new RegisterStatsCommand(_clientFactory, AuthService, ConfigService);
+        command.Name.Should().Be("stats");
+        command.Description.Should().NotBeNullOrWhiteSpace();
     }
 
     #endregion

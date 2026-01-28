@@ -86,7 +86,7 @@ public class WalletCommandsTests
     public void WalletGetCommand_ShouldHaveRequiredAddressOption()
     {
         var command = new WalletGetCommand(_clientFactory, AuthService, ConfigService);
-        var addressOption = command.Options.FirstOrDefault(o => o.Name == "address");
+        var addressOption = command.Options.FirstOrDefault(o => o.Name == "--address");
         addressOption.Should().NotBeNull();
         addressOption!.Required.Should().BeTrue();
     }
@@ -116,7 +116,7 @@ public class WalletCommandsTests
     public void WalletCreateCommand_ShouldHaveRequiredNameOption()
     {
         var command = new WalletCreateCommand(_clientFactory, AuthService, ConfigService);
-        var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
+        var nameOption = command.Options.FirstOrDefault(o => o.Name == "--name");
         nameOption.Should().NotBeNull();
         nameOption!.Required.Should().BeTrue();
     }
@@ -125,7 +125,7 @@ public class WalletCommandsTests
     public void WalletCreateCommand_ShouldHaveOptionalAlgorithmOption()
     {
         var command = new WalletCreateCommand(_clientFactory, AuthService, ConfigService);
-        var algorithmOption = command.Options.FirstOrDefault(o => o.Name == "algorithm");
+        var algorithmOption = command.Options.FirstOrDefault(o => o.Name == "--algorithm");
         algorithmOption.Should().NotBeNull();
         algorithmOption!.Required.Should().BeFalse();
     }
@@ -134,7 +134,7 @@ public class WalletCommandsTests
     public void WalletCreateCommand_ShouldHaveOptionalWordCountOption()
     {
         var command = new WalletCreateCommand(_clientFactory, AuthService, ConfigService);
-        var wordCountOption = command.Options.FirstOrDefault(o => o.Name == "word-count");
+        var wordCountOption = command.Options.FirstOrDefault(o => o.Name == "--word-count");
         wordCountOption.Should().NotBeNull();
         wordCountOption!.Required.Should().BeFalse();
     }
@@ -143,7 +143,7 @@ public class WalletCommandsTests
     public void WalletCreateCommand_ShouldHaveOptionalPassphraseOption()
     {
         var command = new WalletCreateCommand(_clientFactory, AuthService, ConfigService);
-        var passphraseOption = command.Options.FirstOrDefault(o => o.Name == "passphrase");
+        var passphraseOption = command.Options.FirstOrDefault(o => o.Name == "--passphrase");
         passphraseOption.Should().NotBeNull();
         passphraseOption!.Required.Should().BeFalse();
     }
@@ -182,7 +182,7 @@ public class WalletCommandsTests
     public void WalletRecoverCommand_ShouldHaveRequiredNameOption()
     {
         var command = new WalletRecoverCommand(_clientFactory, AuthService, ConfigService);
-        var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
+        var nameOption = command.Options.FirstOrDefault(o => o.Name == "--name");
         nameOption.Should().NotBeNull();
         nameOption!.Required.Should().BeTrue();
     }
@@ -191,7 +191,7 @@ public class WalletCommandsTests
     public void WalletRecoverCommand_ShouldHaveRequiredMnemonicOption()
     {
         var command = new WalletRecoverCommand(_clientFactory, AuthService, ConfigService);
-        var mnemonicOption = command.Options.FirstOrDefault(o => o.Name == "mnemonic");
+        var mnemonicOption = command.Options.FirstOrDefault(o => o.Name == "--mnemonic");
         mnemonicOption.Should().NotBeNull();
         mnemonicOption!.Required.Should().BeTrue();
     }
@@ -200,7 +200,7 @@ public class WalletCommandsTests
     public void WalletRecoverCommand_ShouldHaveOptionalAlgorithmOption()
     {
         var command = new WalletRecoverCommand(_clientFactory, AuthService, ConfigService);
-        var algorithmOption = command.Options.FirstOrDefault(o => o.Name == "algorithm");
+        var algorithmOption = command.Options.FirstOrDefault(o => o.Name == "--algorithm");
         algorithmOption.Should().NotBeNull();
         algorithmOption!.Required.Should().BeFalse();
     }
@@ -209,7 +209,7 @@ public class WalletCommandsTests
     public void WalletRecoverCommand_ShouldHaveOptionalPassphraseOption()
     {
         var command = new WalletRecoverCommand(_clientFactory, AuthService, ConfigService);
-        var passphraseOption = command.Options.FirstOrDefault(o => o.Name == "passphrase");
+        var passphraseOption = command.Options.FirstOrDefault(o => o.Name == "--passphrase");
         passphraseOption.Should().NotBeNull();
         passphraseOption!.Required.Should().BeFalse();
     }
@@ -248,7 +248,7 @@ public class WalletCommandsTests
     public void WalletDeleteCommand_ShouldHaveRequiredAddressOption()
     {
         var command = new WalletDeleteCommand(_clientFactory, AuthService, ConfigService);
-        var addressOption = command.Options.FirstOrDefault(o => o.Name == "address");
+        var addressOption = command.Options.FirstOrDefault(o => o.Name == "--address");
         addressOption.Should().NotBeNull();
         addressOption!.Required.Should().BeTrue();
     }
@@ -257,7 +257,7 @@ public class WalletCommandsTests
     public void WalletDeleteCommand_ShouldHaveOptionalYesOption()
     {
         var command = new WalletDeleteCommand(_clientFactory, AuthService, ConfigService);
-        var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
+        var yesOption = command.Options.FirstOrDefault(o => o.Name == "--yes");
         yesOption.Should().NotBeNull();
         yesOption!.Required.Should().BeFalse();
     }
@@ -296,7 +296,7 @@ public class WalletCommandsTests
     public void WalletSignCommand_ShouldHaveRequiredAddressOption()
     {
         var command = new WalletSignCommand(_clientFactory, AuthService, ConfigService);
-        var addressOption = command.Options.FirstOrDefault(o => o.Name == "address");
+        var addressOption = command.Options.FirstOrDefault(o => o.Name == "--address");
         addressOption.Should().NotBeNull();
         addressOption!.Required.Should().BeTrue();
     }
@@ -305,7 +305,7 @@ public class WalletCommandsTests
     public void WalletSignCommand_ShouldHaveRequiredDataOption()
     {
         var command = new WalletSignCommand(_clientFactory, AuthService, ConfigService);
-        var dataOption = command.Options.FirstOrDefault(o => o.Name == "data");
+        var dataOption = command.Options.FirstOrDefault(o => o.Name == "--data");
         dataOption.Should().NotBeNull();
         dataOption!.Required.Should().BeTrue();
     }
