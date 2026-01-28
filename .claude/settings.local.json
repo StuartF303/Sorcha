@@ -247,7 +247,12 @@
       "Bash(Format-Table Count, Name -AutoSize)",
       "mcp__context7__resolve-library-id",
       "mcp__context7__query-docs",
-      "Bash(Select-String -Pattern \"ncrypt|allback|ecret|KEK|machine|wallet-master|AuthenticationTag|Healthy|Unhealthy|warn\" -SimpleMatch)"
+      "Bash(Select-String -Pattern \"ncrypt|allback|ecret|KEK|machine|wallet-master|AuthenticationTag|Healthy|Unhealthy|warn\" -SimpleMatch)",
+      "Bash(sorcha wallet create:*)",
+      "Bash(sorcha register create --help:*)",
+      "Bash(./src/Apps/Sorcha.Cli/bin/Release/net10.0/sorcha register create:*)",
+      "Bash(C:/Projects/Sorcha/src/Apps/Sorcha.Cli/bin/Release/net10.0/Sorcha.Cli.exe register create:*)",
+      "Bash(where:*)"
     ],
     "deny": [],
     "ask": []

@@ -11,32 +11,37 @@ A modern .NET 10 blueprint execution engine and designer for data flow orchestra
 | Core Libraries | Production Ready | 97% |
 | **⭐ Execution Engine (Portable)** | **✅ COMPLETE** | **100%** |
 | **⭐ Blueprint Service** | **✅ COMPLETE** | **100%** |
-| **⭐ Wallet Service** | **✅ Core Complete** | **90%** |
+| **⭐ Wallet Service** | **✅ COMPLETE** | **95%** |
 | **⭐ Register Service** | **✅ COMPLETE** | **100%** |
+| **⭐ Peer Service** | **Functional** | **70%** |
+| **⭐ Validator Service** | **✅ Nearly Complete** | **95%** |
+| **⭐ Sorcha.UI (Unified)** | **✅ COMPLETE** | **100%** |
 | Services & APIs | Enhanced | 97% |
 | Testing & CI/CD | Production Ready | 95% |
 
 > **⚠️ Production Readiness: 30%** - Core functionality and authentication complete. Database persistence and security hardening are pending. See [MASTER-PLAN.md](.specify/MASTER-PLAN.md) for details.
 
-**Recent Updates (2025-12-12):**
-- ✅ **Service Authentication Integration (AUTH-002) complete** - JWT Bearer auth across Blueprint, Wallet, and Register services
-- ✅ **Authorization policies implemented** - Role-based access control for all protected endpoints
-- ✅ **Authentication documentation complete** - Comprehensive setup guide and troubleshooting
+**Recent Updates (2026-01-28):**
+- ✅ **UI Register Management 100% complete** - Register list, details, creation wizard with wallet selection, transaction query
+- ✅ **CLI Register Commands complete** - `sorcha register create/list/dockets/query` with two-phase creation
+- ✅ **Enhanced CreateRegisterWizard** - 4-step flow with wallet selection for signing transactions
+- ✅ **TransactionQueryForm** - Cross-register wallet address search with results display
 
-**Previous Updates (2025-12-07):**
-- ✅ **Blueprint Service Orchestration (Sprint 10) complete** - Delegation tokens, state reconstruction, instance management
-- ✅ **Project cleanup and rationalization** - Archived superseded documents, removed orphaned files
+**Previous Updates (2026-01-21):**
+- ✅ **UI Consolidation 100% complete** - All Admin features migrated to Main UI
+- ✅ **Sorcha.Admin removed** - Single unified UI application (Sorcha.UI)
+- ✅ **Consumer pages added** - MyActions, MyWorkflows, MyTransactions, MyWallet, Templates
+- ✅ **Client-side SignalR integration** - Real-time action notifications in Main UI
 
-**Previous Updates (2025-11-18):**
-- ✅ **Performance baseline established** - Mean latency 1.16ms, P99 5.08ms, 55+ RPS sustained
-- ✅ **Performance test infrastructure fixed** - Resolved HttpClient disposal bug, NBomber 6.1.2 compatible
-- ✅ **Blueprint Validation Test Plan created** - 10 test categories, ~70 test cases, graph cycle detection
-- ✅ **Wallet Service integration complete** - Real cryptographic operations in Blueprint Service
-- ✅ **Transaction signing implemented** - All actions cryptographically signed via Wallet Service
-- ✅ **Wallet Service comprehensive status report** - 90% feature complete, 111 tests, 14 REST endpoints ([View Status](docs/wallet-service-status.md))
-- ✅ **Register Service 100% complete with comprehensive testing** (112 tests, ~2,459 LOC)
-- ✅ Blueprint-Action Service Sprints 3-7 completed (96% Phase 1 complete)
-- ✅ SignalR real-time notifications with Redis backplane operational
+**Previous Updates (2026-01-01):**
+- ✅ **Tenant Service Bootstrap API** - `/api/bootstrap/initialize` endpoint for system initialization
+- ✅ **Bootstrap scripts** - PowerShell and Bash automation for dev/MVD deployment
+- ✅ **System Schema Store** - Complete with standard schemas (invoice, purchase-order, employee-expense)
+
+**Previous Updates (2025-12-12):**
+- ✅ **Service Authentication Integration (AUTH-002)** - JWT Bearer auth across all services
+- ✅ **Wallet Service EF Core** - PostgreSQL persistence with migrations
+- ✅ **Peer Service Phase 1-3** - Central node connection, system register replication, heartbeat monitoring
 
 **Key Milestones:**
 - ✅ Blueprint modeling and fluent API
@@ -46,13 +51,17 @@ A modern .NET 10 blueprint execution engine and designer for data flow orchestra
 - ✅ Portable execution engine complete (client + server side)
 - ✅ Comprehensive unit and integration test coverage (102+ tests for engine alone)
 - ✅ **Unified Blueprint-Action service with SignalR**
-- ✅ **Wallet Service core implementation and API endpoints**
+- ✅ **Wallet Service core implementation with EF Core persistence**
 - ✅ **Execution helper endpoints for client-side validation**
 - ✅ **Register Service full implementation with comprehensive testing (100%)**
 - ✅ **Register Service Phase 5 API with 20 REST endpoints, OData, and SignalR**
-- 🚧 End-to-end integration (Blueprint → Wallet → Register flow)
-- 🚧 Wallet Service EF Core repository and production deployment
-- 🚧 Transaction processing in P2P service
+- ✅ **UI Consolidation complete** - Single unified Sorcha.UI application
+- ✅ **UI Register Management** - Wallet selection wizard, transaction query
+- ✅ **CLI Register Commands** - Two-phase creation, dockets, queries
+- ✅ **Peer Service Phase 1-3** - Hub connection, replication, heartbeat
+- ✅ **Validator Service 95%** - Memory pool, docket building, consensus
+- 🚧 Validator Service decentralized consensus (leader election, multi-validator)
+- 🚧 Production deployment (Azure Key Vault, MongoDB persistence)
 
 See the [detailed development status](docs/development-status.md) for complete information on modules, testing coverage, and infrastructure.
 
@@ -102,17 +111,16 @@ All specifications are designed to provide context for AI-assisted development. 
   - ✅ Integration with Register Service (blockchain transactions) (Sprint 3)
   - ✅ JWT Bearer authentication with authorization policies (AUTH-002 COMPLETE)
 
-- **✅ Wallet Service** (Core 90% COMPLETE): Secure cryptographic wallet management ([View Detailed Status](docs/wallet-service-status.md))
+- **✅ Wallet Service** (95% COMPLETE): Secure cryptographic wallet management ([View Detailed Status](docs/wallet-service-status.md))
   - ✅ HD wallet support with BIP32/BIP39/BIP44 standards (NBitcoin)
   - ✅ Multi-algorithm support (ED25519, NISTP256, RSA-4096)
   - ✅ Transaction signing and verification
   - ✅ Payload encryption/decryption
   - ✅ Access delegation and control (Owner/ReadWrite/ReadOnly)
   - ✅ 14 REST API endpoints with comprehensive OpenAPI docs
-  - ✅ 111 unit tests (~75-80% coverage)
-  - ✅ In-memory repository implementation
+  - ✅ 80+ unit tests, 20+ integration tests (~85% coverage)
+  - ✅ EF Core repository with PostgreSQL persistence (AUTH-003 COMPLETE)
   - ✅ JWT Bearer authentication with authorization policies (AUTH-002 COMPLETE)
-  - 🚧 EF Core repository (pending - P1)
   - 🚧 Azure Key Vault integration (pending - P1)
   - 🚧 HD address generation (not implemented - design needed)
 
@@ -128,7 +136,7 @@ All specifications are designed to provide context for AI-assisted development. 
   - ✅ JWT Bearer authentication with authorization policies (AUTH-002 COMPLETE)
   - 🚧 MongoDB repository (InMemory implementation complete)
 
-- **✅ Tenant Service** (Specification 100% COMPLETE): Multi-tenant authentication and authorization ([View Specification](.specify/specs/sorcha-tenant-service.md))
+- **✅ Tenant Service** (85% COMPLETE): Multi-tenant authentication and authorization ([View Specification](.specify/specs/sorcha-tenant-service.md))
   - ✅ User authentication with JWT tokens (60 min lifetime)
   - ✅ Service-to-service authentication (OAuth2 client credentials, 8 hour tokens)
   - ✅ Delegation tokens for services acting on behalf of users
@@ -138,11 +146,11 @@ All specifications are designed to provide context for AI-assisted development. 
   - ✅ Multi-tenant organization management with subdomain routing
   - ✅ Role-based access control (9 authorization policies)
   - ✅ 30+ REST API endpoints fully documented
-  - ✅ Stateless horizontal scaling (2-3 instances MVD, 3-10 production)
-  - ✅ 99.5% SLA target with degraded operation mode
-  - ✅ Bootstrap seed scripts for development/MVD deployment
-  - 🚧 Implementation (80% complete - core features implemented)
-  - 🚧 PostgreSQL repository (pending)
+  - ✅ Bootstrap API endpoint for system initialization
+  - ✅ 67 integration tests (91% pass rate)
+  - ✅ Participant Identity API with wallet linking
+  - 🚧 PostgreSQL repository (partially implemented)
+  - 🚧 6 failing tests to resolve
   - 🚧 Production deployment with Azure AD/B2C (pending)
 
 - **Blueprint Designer**: Visual designer for creating and managing workflows
@@ -920,14 +928,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [x] Core blueprint execution engine (100% - Portable, client + server)
 - [x] Blueprint validation and testing framework (100%)
 - [x] Unified Blueprint-Action Service with SignalR (100%)
-- [x] Wallet Service core implementation (90% - Features complete, production infra pending)
+- [x] Wallet Service with EF Core persistence (95%)
 - [x] Register Service with distributed ledger (100%)
-- [ ] Wallet Service production readiness (40% - Auth, storage, key mgmt needed)
-- [ ] End-to-end integration (Blueprint → Wallet → Register)
-- [ ] Visual blueprint designer (85% - functional, needs polish)
-- [ ] Production storage (EF Core repositories for Wallet/Register)
+- [x] Peer Service hub connection and replication (70%)
+- [x] Validator Service memory pool and consensus (95%)
+- [x] UI Consolidation - Single unified Sorcha.UI (100%)
+- [x] UI Register Management with wallet selection (100%)
+- [x] CLI Register Commands (100%)
+- [ ] Validator Service decentralized consensus (leader election)
+- [ ] MongoDB persistence for Register Service
+- [ ] Azure Key Vault integration for Wallet Service
 - [ ] Plugin system for custom actions
-- [ ] Multi-tenant support
+- [ ] Multi-tenant support (Tenant Service 85%)
 - [ ] Cloud deployment templates (Azure, AWS, GCP)
 - [ ] Advanced consensus mechanisms
 - [ ] Real-time monitoring dashboard
