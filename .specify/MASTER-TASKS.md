@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 3.9 - UPDATED
-**Last Updated:** 2026-01-26
-**Status:** Active - Validator Service Requirements Refined (Decentralized Consensus)
+**Version:** 4.0 - UPDATED
+**Last Updated:** 2026-01-28
+**Status:** Active - UI Register Management & CLI Complete
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -19,6 +19,18 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ---
 
 ## Recent Updates
+
+**2026-01-28:**
+- ✅ UI-REGISTER-MANAGEMENT 100% COMPLETE: Register list, details, creation, query (70/70 tasks)
+  - Enhanced CreateRegisterWizard with 4-step flow including wallet selection
+  - Added RegisterSearchBar component for client-side filtering
+  - Created TransactionQueryForm and Query page for cross-register wallet search
+  - Added clipboard.js interop with snackbar confirmation
+  - Full data-testid attributes for E2E testing
+- ✅ CLI-REGISTER-COMMANDS 100% COMPLETE: Two-phase creation, dockets, queries
+  - `sorcha register create/list/dockets/query` commands
+  - System.CommandLine 2.0.2 with proper option naming conventions
+  - Refit HTTP clients for API integration
 
 **2026-01-26:**
 - 📋 VALIDATOR-SERVICE-REQUIREMENTS.md UPDATED: Decentralized consensus architecture
@@ -211,6 +223,6 @@ BP-11.x (Production Readiness)
 
 ---
 
-**Last Updated:** 2025-12-12
+**Last Updated:** 2026-01-28
 **Next Review:** Weekly
 **Document Owner:** Sorcha Architecture Team

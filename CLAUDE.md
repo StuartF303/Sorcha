@@ -18,8 +18,11 @@ docker-compose up -d
 
 # Access points:
 # - API Gateway:      http://localhost:80
-# - Admin UI:         http://localhost/admin
+# - Main UI:          http://localhost/app
 # - Aspire Dashboard: http://localhost:18888
+
+# CLI tool (after build):
+# dotnet run --project src/Apps/Sorcha.Cli -- --help
 
 # Alternative: Run with Aspire (debugging with breakpoints)
 dotnet run --project src/Apps/Sorcha.AppHost
@@ -50,7 +53,7 @@ dotnet restore && dotnet build && dotnet test
 
 ```
 ┌─────────────┐     ┌─────────────────┐     ┌──────────────────┐
-│  Admin UI   │────▶│   API Gateway   │────▶│  Blueprint Svc   │
+│  Sorcha UI  │────▶│   API Gateway   │────▶│  Blueprint Svc   │
 │  (Blazor)   │     │    (YARP)       │     │  (Workflows)     │
 └─────────────┘     └─────────────────┘     └────────┬─────────┘
                             │                         │

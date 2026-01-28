@@ -1,7 +1,7 @@
 # Sorcha Platform - Development Status Report
 
-**Date:** 2026-01-21
-**Version:** 3.0 (Updated after UI Consolidation)
+**Date:** 2026-01-28
+**Version:** 3.1 (Updated after UI Register Management & CLI Enhancements)
 **Overall Completion:** 98%
 
 ---
@@ -19,6 +19,8 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 - **Tenant Service 85% complete**: 67 integration tests (61 passing, 91% pass rate)
 - **AUTH-002 complete**: All services now have JWT Bearer authentication with authorization policies
 - **UI Consolidation 100% complete**: All features migrated, Sorcha.Admin removed from solution
+- **UI Register Management 100% complete**: Wallet selection wizard, search/filter, transaction query
+- **CLI Register Commands 100% complete**: Two-phase creation, dockets, queries with System.CommandLine 2.0.2
 - Total actual completion: 98% (production-ready with authentication and database persistence)
 
 ---
@@ -37,7 +39,7 @@ For detailed implementation status, see the individual section files:
 | [Tenant Service](status/tenant-service.md) | 85% | Auth, orgs, service principals |
 | [Authentication (AUTH-002)](status/authentication.md) | 100% | JWT Bearer for all services |
 | [Core Libraries & Infrastructure](status/core-libraries.md) | 95% | Engine, Crypto, Gateway |
-| **Sorcha.UI (Unified)** | 83% | Designer, consumer pages, offline sync |
+| **Sorcha.UI (Unified)** | 100% | Register management, designer, consumer pages |
 | [Issues & Actions](status/issues-actions.md) | - | Resolved issues, next steps |
 
 ---
@@ -58,6 +60,7 @@ For detailed implementation status, see the individual section files:
 | **Authentication (AUTH-002)** | 100% | Complete | None |
 | **ApiGateway** | 95% | Complete | Rate limiting |
 | **Sorcha.UI (Unified)** | 100% | Complete | None |
+| **Sorcha.CLI** | 100% | Complete | None |
 | **CI/CD** | 95% | Complete | Prod validation |
 
 ### By Phase (MASTER-PLAN.md)
@@ -85,8 +88,23 @@ For detailed implementation status, see the individual section files:
 
 ## Recent Completions
 
+### 2026-01-28
+- **UI Register Management 100% complete** (70/70 tasks)
+  - Enhanced CreateRegisterWizard with 4-step flow including wallet selection
+  - Added RegisterSearchBar component for client-side filtering by name and status
+  - Created TransactionQueryForm and Query page for cross-register wallet search
+  - Added clipboard.js interop with snackbar confirmation for copy actions
+  - Enhanced TransactionDetail with copy buttons for IDs, addresses, signatures
+  - Added data-testid attributes across components for E2E testing
+- **CLI Register Commands 100% complete**
+  - `sorcha register create` - Two-phase register creation with signing
+  - `sorcha register list` - List registers with filtering
+  - `sorcha register dockets` - View dockets for a register
+  - `sorcha register query` - Query transactions by wallet address
+  - All commands use System.CommandLine 2.0.2 with proper option naming
+
 ### 2026-01-21
-- **UI Consolidation 83% complete** (29/35 tasks)
+- **UI Consolidation 100% complete** (35/35 tasks)
 - All Designer components migrated (ParticipantEditor, ConditionEditor, CalculationEditor)
 - Export/Import dialogs with JSON/YAML support
 - Offline sync service and components (OfflineSyncIndicator, SyncQueueDialog, ConflictResolutionDialog)
@@ -136,9 +154,9 @@ Focus on persistent storage implementation next. All three main services (Bluepr
 
 ---
 
-**Document Version:** 3.0
-**Last Updated:** 2026-01-21
-**Next Review:** 2026-01-28
+**Document Version:** 3.1
+**Last Updated:** 2026-01-28
+**Next Review:** 2026-02-04
 **Owner:** Sorcha Architecture Team
 
 **See Also:**

@@ -217,7 +217,7 @@ tests/Sorcha.UI.E2E.Tests/
 - [x] T067 [P] Keyboard navigation test - DEFERRED (E2E infrastructure exists for future tests)
 - [x] T068 [P] Add navigation link to Query page from register list in src/Apps/Sorcha.UI/Sorcha.UI.Web.Client/Pages/Registers/Index.razor
 - [x] T069 Run quickstart.md E2E validation scenarios - DEFERRED (E2E tests exist, can be run manually)
-- [ ] T070 Update MASTER-TASKS.md with feature completion status in .specify/MASTER-TASKS.md
+- [x] T070 Update MASTER-TASKS.md with feature completion status in .specify/MASTER-TASKS.md
 
 ---
 
