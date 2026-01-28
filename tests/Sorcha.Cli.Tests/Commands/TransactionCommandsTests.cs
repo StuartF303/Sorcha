@@ -68,7 +68,7 @@ public class TransactionCommandsTests
     public void TxListCommand_ShouldHaveRequiredRegisterIdOption()
     {
         var command = new TxListCommand(_clientFactory, AuthService, ConfigService);
-        var registerIdOption = command.Options.FirstOrDefault(o => o.Name == "register-id");
+        var registerIdOption = command.Options.FirstOrDefault(o => o.Name == "--register-id");
         registerIdOption.Should().NotBeNull();
         registerIdOption!.Required.Should().BeTrue();
     }
@@ -77,7 +77,7 @@ public class TransactionCommandsTests
     public void TxListCommand_ShouldHaveOptionalPageOption()
     {
         var command = new TxListCommand(_clientFactory, AuthService, ConfigService);
-        var pageOption = command.Options.FirstOrDefault(o => o.Name == "page");
+        var pageOption = command.Options.FirstOrDefault(o => o.Name == "--page");
         pageOption.Should().NotBeNull();
         pageOption!.Required.Should().BeFalse();
     }
@@ -86,7 +86,7 @@ public class TransactionCommandsTests
     public void TxListCommand_ShouldHaveOptionalPageSizeOption()
     {
         var command = new TxListCommand(_clientFactory, AuthService, ConfigService);
-        var pageSizeOption = command.Options.FirstOrDefault(o => o.Name == "page-size");
+        var pageSizeOption = command.Options.FirstOrDefault(o => o.Name == "--page-size");
         pageSizeOption.Should().NotBeNull();
         pageSizeOption!.Required.Should().BeFalse();
     }
@@ -107,7 +107,7 @@ public class TransactionCommandsTests
     public void TxGetCommand_ShouldHaveRequiredRegisterIdOption()
     {
         var command = new TxGetCommand(_clientFactory, AuthService, ConfigService);
-        var registerIdOption = command.Options.FirstOrDefault(o => o.Name == "register-id");
+        var registerIdOption = command.Options.FirstOrDefault(o => o.Name == "--register-id");
         registerIdOption.Should().NotBeNull();
         registerIdOption!.Required.Should().BeTrue();
     }
@@ -116,7 +116,7 @@ public class TransactionCommandsTests
     public void TxGetCommand_ShouldHaveRequiredTxIdOption()
     {
         var command = new TxGetCommand(_clientFactory, AuthService, ConfigService);
-        var txIdOption = command.Options.FirstOrDefault(o => o.Name == "tx-id");
+        var txIdOption = command.Options.FirstOrDefault(o => o.Name == "--tx-id");
         txIdOption.Should().NotBeNull();
         txIdOption!.Required.Should().BeTrue();
     }
@@ -137,7 +137,7 @@ public class TransactionCommandsTests
     public void TxSubmitCommand_ShouldHaveRequiredRegisterIdOption()
     {
         var command = new TxSubmitCommand(_clientFactory, AuthService, ConfigService);
-        var registerIdOption = command.Options.FirstOrDefault(o => o.Name == "register-id");
+        var registerIdOption = command.Options.FirstOrDefault(o => o.Name == "--register-id");
         registerIdOption.Should().NotBeNull();
         registerIdOption!.Required.Should().BeTrue();
     }
@@ -146,7 +146,7 @@ public class TransactionCommandsTests
     public void TxSubmitCommand_ShouldHaveRequiredTypeOption()
     {
         var command = new TxSubmitCommand(_clientFactory, AuthService, ConfigService);
-        var typeOption = command.Options.FirstOrDefault(o => o.Name == "type");
+        var typeOption = command.Options.FirstOrDefault(o => o.Name == "--type");
         typeOption.Should().NotBeNull();
         typeOption!.Required.Should().BeTrue();
     }
@@ -155,7 +155,7 @@ public class TransactionCommandsTests
     public void TxSubmitCommand_ShouldHaveRequiredWalletOption()
     {
         var command = new TxSubmitCommand(_clientFactory, AuthService, ConfigService);
-        var walletOption = command.Options.FirstOrDefault(o => o.Name == "wallet");
+        var walletOption = command.Options.FirstOrDefault(o => o.Name == "--wallet");
         walletOption.Should().NotBeNull();
         walletOption!.Required.Should().BeTrue();
     }
@@ -164,7 +164,7 @@ public class TransactionCommandsTests
     public void TxSubmitCommand_ShouldHaveRequiredPayloadOption()
     {
         var command = new TxSubmitCommand(_clientFactory, AuthService, ConfigService);
-        var payloadOption = command.Options.FirstOrDefault(o => o.Name == "payload");
+        var payloadOption = command.Options.FirstOrDefault(o => o.Name == "--payload");
         payloadOption.Should().NotBeNull();
         payloadOption!.Required.Should().BeTrue();
     }
@@ -173,7 +173,7 @@ public class TransactionCommandsTests
     public void TxSubmitCommand_ShouldHaveRequiredSignatureOption()
     {
         var command = new TxSubmitCommand(_clientFactory, AuthService, ConfigService);
-        var signatureOption = command.Options.FirstOrDefault(o => o.Name == "signature");
+        var signatureOption = command.Options.FirstOrDefault(o => o.Name == "--signature");
         signatureOption.Should().NotBeNull();
         signatureOption!.Required.Should().BeTrue();
     }
@@ -182,7 +182,7 @@ public class TransactionCommandsTests
     public void TxSubmitCommand_ShouldHaveOptionalPreviousTxOption()
     {
         var command = new TxSubmitCommand(_clientFactory, AuthService, ConfigService);
-        var previousTxOption = command.Options.FirstOrDefault(o => o.Name == "previous-tx");
+        var previousTxOption = command.Options.FirstOrDefault(o => o.Name == "--previous-tx");
         previousTxOption.Should().NotBeNull();
         previousTxOption!.Required.Should().BeFalse();
     }
@@ -203,7 +203,7 @@ public class TransactionCommandsTests
     public void TxStatusCommand_ShouldHaveRequiredRegisterIdOption()
     {
         var command = new TxStatusCommand(_clientFactory, AuthService, ConfigService);
-        var registerIdOption = command.Options.FirstOrDefault(o => o.Name == "register-id");
+        var registerIdOption = command.Options.FirstOrDefault(o => o.Name == "--register-id");
         registerIdOption.Should().NotBeNull();
         registerIdOption!.Required.Should().BeTrue();
     }
@@ -212,7 +212,7 @@ public class TransactionCommandsTests
     public void TxStatusCommand_ShouldHaveRequiredTxIdOption()
     {
         var command = new TxStatusCommand(_clientFactory, AuthService, ConfigService);
-        var txIdOption = command.Options.FirstOrDefault(o => o.Name == "tx-id");
+        var txIdOption = command.Options.FirstOrDefault(o => o.Name == "--tx-id");
         txIdOption.Should().NotBeNull();
         txIdOption!.Required.Should().BeTrue();
     }

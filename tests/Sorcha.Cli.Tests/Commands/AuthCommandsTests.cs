@@ -107,27 +107,27 @@ public class AuthCommandsTests : IDisposable
         var command = new AuthLoginCommand(_authService, _configService);
 
         // Assert - All options should be optional (interactive mode is default)
-        var usernameOption = command.Options.FirstOrDefault(o => o.Name == "username");
+        var usernameOption = command.Options.FirstOrDefault(o => o.Name == "--username");
         usernameOption.Should().NotBeNull();
         usernameOption!.Required.Should().BeFalse();
 
-        var passwordOption = command.Options.FirstOrDefault(o => o.Name == "password");
+        var passwordOption = command.Options.FirstOrDefault(o => o.Name == "--password");
         passwordOption.Should().NotBeNull();
         passwordOption!.Required.Should().BeFalse();
 
-        var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "client-id");
+        var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "--client-id");
         clientIdOption.Should().NotBeNull();
         clientIdOption!.Required.Should().BeFalse();
 
-        var clientSecretOption = command.Options.FirstOrDefault(o => o.Name == "client-secret");
+        var clientSecretOption = command.Options.FirstOrDefault(o => o.Name == "--client-secret");
         clientSecretOption.Should().NotBeNull();
         clientSecretOption!.Required.Should().BeFalse();
 
-        var interactiveOption = command.Options.FirstOrDefault(o => o.Name == "interactive");
+        var interactiveOption = command.Options.FirstOrDefault(o => o.Name == "--interactive");
         interactiveOption.Should().NotBeNull();
         interactiveOption!.Required.Should().BeFalse();
 
-        var profileOption = command.Options.FirstOrDefault(o => o.Name == "profile");
+        var profileOption = command.Options.FirstOrDefault(o => o.Name == "--profile");
         profileOption.Should().NotBeNull();
         profileOption!.Required.Should().BeFalse();
     }
@@ -150,11 +150,11 @@ public class AuthCommandsTests : IDisposable
         var command = new AuthLogoutCommand(_authService, _configService);
 
         // Assert
-        var allOption = command.Options.FirstOrDefault(o => o.Name == "all");
+        var allOption = command.Options.FirstOrDefault(o => o.Name == "--all");
         allOption.Should().NotBeNull();
         allOption!.Required.Should().BeFalse();
 
-        var profileOption = command.Options.FirstOrDefault(o => o.Name == "profile");
+        var profileOption = command.Options.FirstOrDefault(o => o.Name == "--profile");
         profileOption.Should().NotBeNull();
         profileOption!.Required.Should().BeFalse();
     }
@@ -177,7 +177,7 @@ public class AuthCommandsTests : IDisposable
         var command = new AuthStatusCommand(_authService, _configService);
 
         // Assert
-        var profileOption = command.Options.FirstOrDefault(o => o.Name == "profile");
+        var profileOption = command.Options.FirstOrDefault(o => o.Name == "--profile");
         profileOption.Should().NotBeNull();
         profileOption!.Required.Should().BeFalse();
     }
@@ -244,7 +244,7 @@ public class AuthCommandsTests : IDisposable
 
         // Assert - Command should have the --all option
         var command = new AuthLogoutCommand(_authService, _configService);
-        var allOption = command.Options.FirstOrDefault(o => o.Name == "all");
+        var allOption = command.Options.FirstOrDefault(o => o.Name == "--all");
         allOption.Should().NotBeNull();
     }
 

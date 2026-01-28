@@ -71,7 +71,7 @@ public class UserCommandsTests
         command.Name.Should().Be("list");
         command.Description.Should().Be("List all users in an organization");
 
-        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
+        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "--org-id");
         orgIdOption.Should().NotBeNull();
         orgIdOption!.Required.Should().BeTrue();
     }
@@ -86,11 +86,11 @@ public class UserCommandsTests
         command.Name.Should().Be("get");
         command.Description.Should().Be("Get a user by ID");
 
-        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
+        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "--org-id");
         orgIdOption.Should().NotBeNull();
         orgIdOption!.Required.Should().BeTrue();
 
-        var userIdOption = command.Options.FirstOrDefault(o => o.Name == "user-id");
+        var userIdOption = command.Options.FirstOrDefault(o => o.Name == "--user-id");
         userIdOption.Should().NotBeNull();
         userIdOption!.Required.Should().BeTrue();
     }
@@ -105,19 +105,19 @@ public class UserCommandsTests
         command.Name.Should().Be("create");
         command.Description.Should().Be("Create a new user in an organization");
 
-        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
+        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "--org-id");
         orgIdOption.Should().NotBeNull();
         orgIdOption!.Required.Should().BeTrue();
 
-        var usernameOption = command.Options.FirstOrDefault(o => o.Name == "username");
+        var usernameOption = command.Options.FirstOrDefault(o => o.Name == "--username");
         usernameOption.Should().NotBeNull();
         usernameOption!.Required.Should().BeTrue();
 
-        var emailOption = command.Options.FirstOrDefault(o => o.Name == "email");
+        var emailOption = command.Options.FirstOrDefault(o => o.Name == "--email");
         emailOption.Should().NotBeNull();
         emailOption!.Required.Should().BeTrue();
 
-        var passwordOption = command.Options.FirstOrDefault(o => o.Name == "password");
+        var passwordOption = command.Options.FirstOrDefault(o => o.Name == "--password");
         passwordOption.Should().NotBeNull();
         passwordOption!.Required.Should().BeTrue();
     }
@@ -129,15 +129,15 @@ public class UserCommandsTests
         var command = new UserCreateCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
-        var firstNameOption = command.Options.FirstOrDefault(o => o.Name == "first-name");
+        var firstNameOption = command.Options.FirstOrDefault(o => o.Name == "--first-name");
         firstNameOption.Should().NotBeNull();
         firstNameOption!.Required.Should().BeFalse();
 
-        var lastNameOption = command.Options.FirstOrDefault(o => o.Name == "last-name");
+        var lastNameOption = command.Options.FirstOrDefault(o => o.Name == "--last-name");
         lastNameOption.Should().NotBeNull();
         lastNameOption!.Required.Should().BeFalse();
 
-        var rolesOption = command.Options.FirstOrDefault(o => o.Name == "roles");
+        var rolesOption = command.Options.FirstOrDefault(o => o.Name == "--roles");
         rolesOption.Should().NotBeNull();
         rolesOption!.Required.Should().BeFalse();
     }
@@ -152,11 +152,11 @@ public class UserCommandsTests
         command.Name.Should().Be("update");
         command.Description.Should().Be("Update a user");
 
-        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
+        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "--org-id");
         orgIdOption.Should().NotBeNull();
         orgIdOption!.Required.Should().BeTrue();
 
-        var userIdOption = command.Options.FirstOrDefault(o => o.Name == "user-id");
+        var userIdOption = command.Options.FirstOrDefault(o => o.Name == "--user-id");
         userIdOption.Should().NotBeNull();
         userIdOption!.Required.Should().BeTrue();
     }
@@ -168,19 +168,19 @@ public class UserCommandsTests
         var command = new UserUpdateCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
-        var emailOption = command.Options.FirstOrDefault(o => o.Name == "email");
+        var emailOption = command.Options.FirstOrDefault(o => o.Name == "--email");
         emailOption.Should().NotBeNull();
         emailOption!.Required.Should().BeFalse();
 
-        var firstNameOption = command.Options.FirstOrDefault(o => o.Name == "first-name");
+        var firstNameOption = command.Options.FirstOrDefault(o => o.Name == "--first-name");
         firstNameOption.Should().NotBeNull();
         firstNameOption!.Required.Should().BeFalse();
 
-        var lastNameOption = command.Options.FirstOrDefault(o => o.Name == "last-name");
+        var lastNameOption = command.Options.FirstOrDefault(o => o.Name == "--last-name");
         lastNameOption.Should().NotBeNull();
         lastNameOption!.Required.Should().BeFalse();
 
-        var activeOption = command.Options.FirstOrDefault(o => o.Name == "active");
+        var activeOption = command.Options.FirstOrDefault(o => o.Name == "--active");
         activeOption.Should().NotBeNull();
         activeOption!.Required.Should().BeFalse();
     }
@@ -195,11 +195,11 @@ public class UserCommandsTests
         command.Name.Should().Be("delete");
         command.Description.Should().Be("Delete a user");
 
-        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
+        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "--org-id");
         orgIdOption.Should().NotBeNull();
         orgIdOption!.Required.Should().BeTrue();
 
-        var userIdOption = command.Options.FirstOrDefault(o => o.Name == "user-id");
+        var userIdOption = command.Options.FirstOrDefault(o => o.Name == "--user-id");
         userIdOption.Should().NotBeNull();
         userIdOption!.Required.Should().BeTrue();
     }
@@ -211,7 +211,7 @@ public class UserCommandsTests
         var command = new UserDeleteCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
-        var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
+        var yesOption = command.Options.FirstOrDefault(o => o.Name == "--yes");
         yesOption.Should().NotBeNull();
         yesOption!.Required.Should().BeFalse();
     }

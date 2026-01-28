@@ -71,7 +71,7 @@ public class ServicePrincipalCommandsTests
         command.Name.Should().Be("list");
         command.Description.Should().Be("List all service principals in an organization");
 
-        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
+        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "--org-id");
         orgIdOption.Should().NotBeNull();
         orgIdOption!.Required.Should().BeTrue();
     }
@@ -86,11 +86,11 @@ public class ServicePrincipalCommandsTests
         command.Name.Should().Be("get");
         command.Description.Should().Be("Get a service principal by client ID");
 
-        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
+        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "--org-id");
         orgIdOption.Should().NotBeNull();
         orgIdOption!.Required.Should().BeTrue();
 
-        var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "client-id");
+        var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "--client-id");
         clientIdOption.Should().NotBeNull();
         clientIdOption!.Required.Should().BeTrue();
     }
@@ -105,11 +105,11 @@ public class ServicePrincipalCommandsTests
         command.Name.Should().Be("create");
         command.Description.Should().Be("Create a new service principal in an organization");
 
-        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
+        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "--org-id");
         orgIdOption.Should().NotBeNull();
         orgIdOption!.Required.Should().BeTrue();
 
-        var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
+        var nameOption = command.Options.FirstOrDefault(o => o.Name == "--name");
         nameOption.Should().NotBeNull();
         nameOption!.Required.Should().BeTrue();
     }
@@ -121,11 +121,11 @@ public class ServicePrincipalCommandsTests
         var command = new PrincipalCreateCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
-        var descriptionOption = command.Options.FirstOrDefault(o => o.Name == "description");
+        var descriptionOption = command.Options.FirstOrDefault(o => o.Name == "--description");
         descriptionOption.Should().NotBeNull();
         descriptionOption!.Required.Should().BeFalse();
 
-        var scopesOption = command.Options.FirstOrDefault(o => o.Name == "scopes");
+        var scopesOption = command.Options.FirstOrDefault(o => o.Name == "--scopes");
         scopesOption.Should().NotBeNull();
         scopesOption!.Required.Should().BeFalse();
     }
@@ -140,11 +140,11 @@ public class ServicePrincipalCommandsTests
         command.Name.Should().Be("delete");
         command.Description.Should().Be("Delete a service principal");
 
-        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
+        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "--org-id");
         orgIdOption.Should().NotBeNull();
         orgIdOption!.Required.Should().BeTrue();
 
-        var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "client-id");
+        var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "--client-id");
         clientIdOption.Should().NotBeNull();
         clientIdOption!.Required.Should().BeTrue();
     }
@@ -156,7 +156,7 @@ public class ServicePrincipalCommandsTests
         var command = new PrincipalDeleteCommand(_clientFactory, AuthService, ConfigService);
 
         // Assert
-        var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
+        var yesOption = command.Options.FirstOrDefault(o => o.Name == "--yes");
         yesOption.Should().NotBeNull();
         yesOption!.Required.Should().BeFalse();
     }
@@ -171,11 +171,11 @@ public class ServicePrincipalCommandsTests
         command.Name.Should().Be("rotate-secret");
         command.Description.Should().Be("Rotate the client secret for a service principal");
 
-        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "org-id");
+        var orgIdOption = command.Options.FirstOrDefault(o => o.Name == "--org-id");
         orgIdOption.Should().NotBeNull();
         orgIdOption!.Required.Should().BeTrue();
 
-        var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "client-id");
+        var clientIdOption = command.Options.FirstOrDefault(o => o.Name == "--client-id");
         clientIdOption.Should().NotBeNull();
         clientIdOption!.Required.Should().BeTrue();
     }

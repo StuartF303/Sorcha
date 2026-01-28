@@ -80,7 +80,7 @@ public class RegisterCommandsTests
     public void RegisterGetCommand_ShouldHaveRequiredIdOption()
     {
         var command = new RegisterGetCommand(_clientFactory, AuthService, ConfigService);
-        var idOption = command.Options.FirstOrDefault(o => o.Aliases.Contains("--id"));
+        var idOption = command.Options.FirstOrDefault(o => o.Name == "--id");
         idOption.Should().NotBeNull();
         idOption!.Required.Should().BeTrue();
     }
@@ -101,7 +101,7 @@ public class RegisterCommandsTests
     public void RegisterCreateCommand_ShouldHaveRequiredNameOption()
     {
         var command = new RegisterCreateCommand(_clientFactory, AuthService, ConfigService);
-        var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
+        var nameOption = command.Options.FirstOrDefault(o => o.Name == "--name");
         nameOption.Should().NotBeNull();
         nameOption!.Required.Should().BeTrue();
     }
@@ -110,7 +110,7 @@ public class RegisterCommandsTests
     public void RegisterCreateCommand_ShouldHaveRequiredTenantIdOption()
     {
         var command = new RegisterCreateCommand(_clientFactory, AuthService, ConfigService);
-        var tenantIdOption = command.Options.FirstOrDefault(o => o.Name == "tenant-id");
+        var tenantIdOption = command.Options.FirstOrDefault(o => o.Name == "--tenant-id");
         tenantIdOption.Should().NotBeNull();
         tenantIdOption!.Required.Should().BeTrue();
     }
@@ -119,7 +119,7 @@ public class RegisterCommandsTests
     public void RegisterCreateCommand_ShouldHaveRequiredOwnerWalletOption()
     {
         var command = new RegisterCreateCommand(_clientFactory, AuthService, ConfigService);
-        var ownerWalletOption = command.Options.FirstOrDefault(o => o.Name == "owner-wallet");
+        var ownerWalletOption = command.Options.FirstOrDefault(o => o.Name == "--owner-wallet");
         ownerWalletOption.Should().NotBeNull();
         ownerWalletOption!.Required.Should().BeTrue();
     }
@@ -128,7 +128,7 @@ public class RegisterCommandsTests
     public void RegisterCreateCommand_ShouldHaveOptionalDescriptionOption()
     {
         var command = new RegisterCreateCommand(_clientFactory, AuthService, ConfigService);
-        var descOption = command.Options.FirstOrDefault(o => o.Name == "description");
+        var descOption = command.Options.FirstOrDefault(o => o.Name == "--description");
         descOption.Should().NotBeNull();
         descOption!.Required.Should().BeFalse();
     }
@@ -149,7 +149,7 @@ public class RegisterCommandsTests
     public void RegisterDeleteCommand_ShouldHaveRequiredIdOption()
     {
         var command = new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService);
-        var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
+        var idOption = command.Options.FirstOrDefault(o => o.Name == "--id");
         idOption.Should().NotBeNull();
         idOption!.Required.Should().BeTrue();
     }
@@ -158,7 +158,7 @@ public class RegisterCommandsTests
     public void RegisterDeleteCommand_ShouldHaveOptionalYesOption()
     {
         var command = new RegisterDeleteCommand(_clientFactory, AuthService, ConfigService);
-        var yesOption = command.Options.FirstOrDefault(o => o.Name == "yes");
+        var yesOption = command.Options.FirstOrDefault(o => o.Name == "--yes");
         yesOption.Should().NotBeNull();
         yesOption!.Required.Should().BeFalse();
     }
@@ -179,7 +179,7 @@ public class RegisterCommandsTests
     public void RegisterUpdateCommand_ShouldHaveRequiredIdOption()
     {
         var command = new RegisterUpdateCommand(_clientFactory, AuthService, ConfigService);
-        var idOption = command.Options.FirstOrDefault(o => o.Name == "id");
+        var idOption = command.Options.FirstOrDefault(o => o.Name == "--id");
         idOption.Should().NotBeNull();
         idOption!.Required.Should().BeTrue();
     }
@@ -188,7 +188,7 @@ public class RegisterCommandsTests
     public void RegisterUpdateCommand_ShouldHaveOptionalNameOption()
     {
         var command = new RegisterUpdateCommand(_clientFactory, AuthService, ConfigService);
-        var nameOption = command.Options.FirstOrDefault(o => o.Name == "name");
+        var nameOption = command.Options.FirstOrDefault(o => o.Name == "--name");
         nameOption.Should().NotBeNull();
         nameOption!.Required.Should().BeFalse();
     }
@@ -197,7 +197,7 @@ public class RegisterCommandsTests
     public void RegisterUpdateCommand_ShouldHaveOptionalStatusOption()
     {
         var command = new RegisterUpdateCommand(_clientFactory, AuthService, ConfigService);
-        var statusOption = command.Options.FirstOrDefault(o => o.Name == "status");
+        var statusOption = command.Options.FirstOrDefault(o => o.Name == "--status");
         statusOption.Should().NotBeNull();
         statusOption!.Required.Should().BeFalse();
     }
@@ -206,7 +206,7 @@ public class RegisterCommandsTests
     public void RegisterUpdateCommand_ShouldHaveOptionalAdvertiseOption()
     {
         var command = new RegisterUpdateCommand(_clientFactory, AuthService, ConfigService);
-        var advertiseOption = command.Options.FirstOrDefault(o => o.Name == "advertise");
+        var advertiseOption = command.Options.FirstOrDefault(o => o.Name == "--advertise");
         advertiseOption.Should().NotBeNull();
         advertiseOption!.Required.Should().BeFalse();
     }

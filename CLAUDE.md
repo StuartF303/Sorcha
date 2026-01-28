@@ -403,4 +403,5 @@ When working on tasks involving these technologies, invoke the corresponding ski
 | docker | Manages Docker containerization and docker-compose orchestration |
 | playwright | Develops end-to-end UI tests with Playwright for Blazor applications |
 | frontend-design | Styles Blazor WASM components with CSS and responsive design patterns |
+| sorcha-cli | Builds and maintains the Sorcha CLI tool using System.CommandLine 2.0.2, Refit HTTP clients, and Spectre.Console. Use when creating CLI commands, adding options/arguments, implementing Refit service clients, writing CLI tests, or fixing command structure issues |
 | sorcha-ui | Builds Sorcha.UI Blazor WASM pages with accompanying Playwright E2E tests using the Docker test infrastructure |
