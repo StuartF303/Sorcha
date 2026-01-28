@@ -67,6 +67,11 @@ public record CreateRegisterRequest
     public required string TenantId { get; init; }
 
     /// <summary>
+    /// Wallet address for signing the control record
+    /// </summary>
+    public string? WalletAddress { get; init; }
+
+    /// <summary>
     /// Whether to advertise register to network peers
     /// </summary>
     public bool Advertise { get; init; }

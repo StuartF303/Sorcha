@@ -1,0 +1,119 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.Register.Models.Enums
+@using Sorcha.UI.Core.Models.Registers
+
+<MudPaper Elevation="0" Class="pa-3 mb-4" data-testid="register-search-bar">
+    <MudStack Spacing="2">
+        @* Search input *@
+        <MudTextField @bind-Value="_searchText"
+                      Placeholder="Search registers by name..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      AdornmentColor="Color.Secondary"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Immediate="true"
+                      DebounceInterval="300"
+                      OnDebounceIntervalElapsed="OnSearchChanged"
+                      data-testid="search-input" />
+
+        @* Status filter chips *@
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-wrap">
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mr-2">Status:</MudText>
+            <MudChipSet T="RegisterStatus"
+                        SelectionMode="SelectionMode.MultiSelection"
+                        @bind-SelectedValues="_selectedStatuses"
+                        CheckMark="true"
+                        data-testid="status-filter-chips">
+                @foreach (var status in _availableStatuses)
+                {
+                    <MudChip T="RegisterStatus"
+                             Value="status"
+                             Color="@GetStatusColor(status)"
+                             Variant="Variant.Outlined"
+                             Size="Size.Small"
+                             data-testid="@($"status-chip-{status.ToString().ToLower()}")">
+                        @status
+                    </MudChip>
+                }
+            </MudChipSet>
+
+            @if (HasActiveFilters)
+            {
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Secondary"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Clear"
+                           OnClick="ClearFilters"
+                           data-testid="clear-filters-button">
+                    Clear
+                </MudButton>
+            }
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+@code {
+    /// <summary>
+    /// Current filter state
+    /// </summary>
+    [Parameter]
+    public RegisterFilterState FilterState { get; set; } = new();
+
+    /// <summary>
+    /// Callback when filter state changes
+    /// </summary>
+    [Parameter]
+    public EventCallback<RegisterFilterState> FilterStateChanged { get; set; }
+
+    private string _searchText = string.Empty;
+    private IReadOnlyCollection<RegisterStatus> _selectedStatuses = [];
+    private readonly RegisterStatus[] _availableStatuses =
+    [
+        RegisterStatus.Online,
+        RegisterStatus.Offline,
+        RegisterStatus.Checking,
+        RegisterStatus.Recovery
+    ];
+
+    protected override void OnParametersSet()
+    {
+        _searchText = FilterState.SearchText;
+        _selectedStatuses = FilterState.SelectedStatuses.ToArray();
+    }
+
+    private bool HasActiveFilters => FilterState.HasActiveFilters;
+
+    private Color GetStatusColor(RegisterStatus status) => status switch
+    {
+        RegisterStatus.Online => Color.Success,
+        RegisterStatus.Offline => Color.Error,
+        RegisterStatus.Checking => Color.Warning,
+        RegisterStatus.Recovery => Color.Info,
+        _ => Color.Default
+    };
+
+    private async Task OnSearchChanged(string value)
+    {
+        var newState = FilterState.WithSearchText(value);
+        await FilterStateChanged.InvokeAsync(newState);
+    }
+
+    private async Task OnStatusSelectionChanged()
+    {
+        var newState = FilterState with
+        {
+            SelectedStatuses = _selectedStatuses.ToHashSet()
+        };
+        await FilterStateChanged.InvokeAsync(newState);
+    }
+
+    private async Task ClearFilters()
+    {
+        _searchText = string.Empty;
+        _selectedStatuses = [];
+        await FilterStateChanged.InvokeAsync(FilterState.Clear());
+    }
+}

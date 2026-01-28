@@ -14,13 +14,14 @@
 
 <PageTitle>@(_register?.Name ?? "Register") - Sorcha</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4" data-testid="register-detail-page">
     @* Header with back navigation *@
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-4">
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
                        Color="Color.Default"
                        OnClick="NavigateBack"
-                       aria-label="Back to registers" />
+                       aria-label="Back to registers"
+                       data-testid="back-button" />
         @if (_isLoadingRegister)
         {
             <MudSkeleton Width="200px" Height="32px" />
@@ -29,11 +30,11 @@
         {
             <MudStack Spacing="0" Style="flex: 1">
                 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-                    <MudText Typo="Typo.h5">@_register.Name</MudText>
+                    <MudText Typo="Typo.h5" data-testid="register-name">@_register.Name</MudText>
                     <RegisterStatusBadge Status="@_register.Status" />
                     <RealTimeIndicator ConnectionState="@_connectionState" />
                 </MudStack>
-                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                <MudText Typo="Typo.caption" Color="Color.Secondary" data-testid="register-id">
                     @_register.Id
                 </MudText>
             </MudStack>
@@ -77,30 +78,30 @@
     else if (_register is not null)
     {
         @* Register info summary *@
-        <MudPaper Elevation="1" Class="pa-4 mb-4">
+        <MudPaper Elevation="1" Class="pa-4 mb-4" data-testid="register-metadata">
             <MudGrid Spacing="3">
                 <MudItem xs="6" sm="3">
                     <MudStack Spacing="0">
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Height</MudText>
-                        <MudText Typo="Typo.h6">@_register.HeightFormatted</MudText>
+                        <MudText Typo="Typo.h6" data-testid="register-height">@_register.HeightFormatted</MudText>
                     </MudStack>
                 </MudItem>
                 <MudItem xs="6" sm="3">
                     <MudStack Spacing="0">
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Transactions</MudText>
-                        <MudText Typo="Typo.h6">@_totalTransactions</MudText>
+                        <MudText Typo="Typo.h6" data-testid="transaction-count">@_totalTransactions</MudText>
                     </MudStack>
                 </MudItem>
                 <MudItem xs="6" sm="3">
                     <MudStack Spacing="0">
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Last Updated</MudText>
-                        <MudText Typo="Typo.body1">@_register.LastUpdateFormatted</MudText>
+                        <MudText Typo="Typo.body1" data-testid="last-updated">@_register.LastUpdateFormatted</MudText>
                     </MudStack>
                 </MudItem>
                 <MudItem xs="6" sm="3">
                     <MudStack Spacing="0">
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Visibility</MudText>
-                        <MudText Typo="Typo.body1">
+                        <MudText Typo="Typo.body1" data-testid="visibility">
                             @(_register.Advertise ? "Public" : "Private")
                         </MudText>
                     </MudStack>
@@ -112,7 +113,7 @@
         <MudGrid Spacing="3">
             @* Transaction list (takes full width when no selection, or 60% when selected) *@
             <MudItem xs="12" md="@(_selectedTransaction is not null ? 7 : 12)">
-                <MudPaper Elevation="1" Class="transaction-list-paper">
+                <MudPaper Elevation="1" Class="transaction-list-paper" data-testid="transaction-list">
                     <MudStack Row="true"
                               Justify="Justify.SpaceBetween"
                               AlignItems="AlignItems.Center"

@@ -2,9 +2,12 @@
 @* Copyright (c) 2025 Sorcha Contributors *@
 
 @using Sorcha.UI.Core.Models.Registers
+@using Sorcha.UI.Core.Models.Wallet
 @using Sorcha.UI.Core.Services
+@using Sorcha.UI.Core.Services.Wallet
 
 @inject IRegisterService RegisterService
+@inject IWalletApiService WalletService
 
 <MudDialog>
     <TitleContent>
@@ -17,14 +20,18 @@
         @* Step indicator *@
         <MudStepper @bind-ActiveIndex="_activeStep"
                     CurrentStepColor="Color.Primary"
-                    Class="mb-4">
-            <MudStep Title="Name">
+                    Class="mb-4"
+                    data-testid="wizard-stepper">
+            <MudStep Title="Name" data-testid="step-name">
                 <MudText Typo="Typo.body2">Enter a name for your register</MudText>
             </MudStep>
-            <MudStep Title="Options">
+            <MudStep Title="Wallet" data-testid="step-wallet">
+                <MudText Typo="Typo.body2">Select signing wallet</MudText>
+            </MudStep>
+            <MudStep Title="Options" data-testid="step-options">
                 <MudText Typo="Typo.body2">Configure register settings</MudText>
             </MudStep>
-            <MudStep Title="Create">
+            <MudStep Title="Create" data-testid="step-create">
                 <MudText Typo="Typo.body2">Review and create</MudText>
             </MudStep>
         </MudStepper>
@@ -42,8 +49,17 @@
             }
             else if (_state.ErrorMessage is not null)
             {
-                <MudAlert Severity="Severity.Error" Class="mb-4">
-                    @_state.ErrorMessage
+                <MudAlert Severity="Severity.Error" Class="mb-4" data-testid="error-alert">
+                    <MudStack Spacing="2">
+                        <MudText>@_state.ErrorMessage</MudText>
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Error"
+                                   Size="Size.Small"
+                                   OnClick="RetryCreation"
+                                   data-testid="retry-button">
+                            Try Again
+                        </MudButton>
+                    </MudStack>
                 </MudAlert>
             }
             else
@@ -52,7 +68,7 @@
                 {
                     case 0:
                         @* Step 1: Enter register name *@
-                        <MudStack Spacing="4">
+                        <MudStack Spacing="4" data-testid="wizard-step-1">
                             <MudTextField @bind-Value="_name"
                                           Label="Register Name"
                                           Placeholder="Enter a name (1-38 characters)"
@@ -75,8 +91,70 @@
                         break;
 
                     case 1:
-                        @* Step 2: Configure options *@
-                        <MudStack Spacing="4">
+                        @* Step 2: Select signing wallet *@
+                        <MudStack Spacing="4" data-testid="wizard-step-2">
+                            @if (_state.IsLoadingWallets)
+                            {
+                                <MudStack AlignItems="AlignItems.Center" Spacing="2" Class="py-4">
+                                    <MudProgressCircular Indeterminate="true" Size="Size.Medium" Color="Color.Primary" />
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Loading wallets...</MudText>
+                                </MudStack>
+                            }
+                            else if (_wallets.Count == 0)
+                            {
+                                <MudAlert Severity="Severity.Warning" data-testid="no-wallets-warning">
+                                    <MudText Typo="Typo.body1">No Wallets Available</MudText>
+                                    <MudText Typo="Typo.body2" Class="mt-2">
+                                        You need at least one active wallet to create a register.
+                                        Please create a wallet first using the Wallet section.
+                                    </MudText>
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body1" Class="mb-2">Select a wallet to sign the register creation:</MudText>
+
+                                <MudSelect T="string"
+                                           @bind-Value="_selectedWalletAddress"
+                                           Label="Signing Wallet"
+                                           Placeholder="Choose a wallet"
+                                           Required="true"
+                                           RequiredError="Please select a wallet"
+                                           Variant="Variant.Outlined"
+                                           AnchorOrigin="Origin.BottomCenter"
+                                           data-testid="wallet-select">
+                                    @foreach (var wallet in _wallets)
+                                    {
+                                        <MudSelectItem Value="@wallet.Address" data-testid="wallet-option">
+                                            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                                <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Size="Size.Small" />
+                                                <MudStack Spacing="0">
+                                                    <MudText Typo="Typo.body2">@wallet.Name</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="monospace-text">
+                                                        @wallet.AddressTruncated
+                                                    </MudText>
+                                                </MudStack>
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Default">
+                                                    @wallet.Algorithm
+                                                </MudChip>
+                                            </MudStack>
+                                        </MudSelectItem>
+                                    }
+                                </MudSelect>
+
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                    <MudText Typo="Typo.body2">
+                                        This wallet will sign the register's control record, establishing you as the register owner.
+                                        All future administrative actions will require this wallet's signature.
+                                    </MudText>
+                                </MudAlert>
+                            }
+                        </MudStack>
+                        break;
+
+                    case 2:
+                        @* Step 3: Configure options *@
+                        <MudStack Spacing="4" data-testid="wizard-step-3">
                             <MudPaper Elevation="0" Class="pa-3 mud-theme-secondary" Style="border-radius: 8px;">
                                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                                     <MudStack Spacing="0">
@@ -120,23 +198,34 @@
                         </MudStack>
                         break;
 
-                    case 2:
-                        @* Step 3: Review and create *@
-                        <MudStack Spacing="4">
+                    case 3:
+                        @* Step 4: Review and create *@
+                        <MudStack Spacing="4" data-testid="wizard-step-4">
                             <MudText Typo="Typo.h6">Review Your Register</MudText>
 
                             <MudPaper Elevation="1" Class="pa-4">
                                 <MudStack Spacing="3">
                                     <MudStack Row="true" Justify="Justify.SpaceBetween">
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">Name</MudText>
-                                        <MudText Typo="Typo.body1">@_name</MudText>
+                                        <MudText Typo="Typo.body1" data-testid="review-name">@_name</MudText>
+                                    </MudStack>
+                                    <MudDivider />
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Signing Wallet</MudText>
+                                        <MudStack Spacing="0" AlignItems="AlignItems.End">
+                                            <MudText Typo="Typo.body2" data-testid="review-wallet-name">@GetSelectedWalletName()</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="monospace-text">
+                                                @GetSelectedWalletTruncated()
+                                            </MudText>
+                                        </MudStack>
                                     </MudStack>
                                     <MudDivider />
                                     <MudStack Row="true" Justify="Justify.SpaceBetween">
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">Visibility</MudText>
                                         <MudChip T="string"
                                                  Size="Size.Small"
-                                                 Color="@(_advertise ? Color.Success : Color.Default)">
+                                                 Color="@(_advertise ? Color.Success : Color.Default)"
+                                                 data-testid="review-visibility">
                                             @(_advertise ? "Public" : "Private")
                                         </MudChip>
                                     </MudStack>
@@ -145,7 +234,8 @@
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">Storage Mode</MudText>
                                         <MudChip T="string"
                                                  Size="Size.Small"
-                                                 Color="@(_isFullReplica ? Color.Primary : Color.Secondary)">
+                                                 Color="@(_isFullReplica ? Color.Primary : Color.Secondary)"
+                                                 data-testid="review-storage">
                                             @(_isFullReplica ? "Full Replica" : "Lightweight")
                                         </MudChip>
                                     </MudStack>
@@ -154,7 +244,7 @@
 
                             <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
                                 <MudText Typo="Typo.body2">
-                                    Creating a register will require signing with your wallet credentials.
+                                    Creating a register will sign the control record with your selected wallet.
                                     This action cannot be undone.
                                 </MudText>
                             </MudAlert>
@@ -166,23 +256,26 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel"
-                   Disabled="@_state.IsProcessing">
+                   Disabled="@_state.IsProcessing"
+                   data-testid="wizard-cancel">
             Cancel
         </MudButton>
         @if (_activeStep > 0)
         {
             <MudButton OnClick="PreviousStep"
                        Disabled="@_state.IsProcessing"
-                       Variant="Variant.Outlined">
+                       Variant="Variant.Outlined"
+                       data-testid="wizard-back">
                 Back
             </MudButton>
         }
-        @if (_activeStep < 2)
+        @if (_activeStep < 3)
         {
             <MudButton OnClick="NextStep"
                        Variant="Variant.Filled"
                        Color="Color.Primary"
-                       Disabled="@(!CanProceed())">
+                       Disabled="@(!CanProceed())"
+                       data-testid="wizard-next">
                 Next
             </MudButton>
         }
@@ -191,8 +284,8 @@
             <MudButton OnClick="CreateRegisterAsync"
                        Variant="Variant.Filled"
                        Color="Color.Primary"
-                       Disabled="@_state.IsProcessing"
-                       data-testid="create-register-button">
+                       Disabled="@(_state.IsProcessing || !HasValidWallet())"
+                       data-testid="wizard-create">
                 Create Register
             </MudButton>
         }
@@ -217,9 +310,51 @@
 
     private int _activeStep = 0;
     private string _name = string.Empty;
+    private string? _selectedWalletAddress;
     private bool _advertise;
     private bool _isFullReplica = true;
     private RegisterCreationState _state = new();
+    private List<WalletViewModel> _wallets = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWalletsAsync();
+    }
+
+    private async Task LoadWalletsAsync()
+    {
+        _state = _state with { IsLoadingWallets = true };
+
+        try
+        {
+            var walletDtos = await WalletService.GetWalletsAsync();
+            _wallets = walletDtos
+                .Where(w => w.Status == "Active")
+                .Select(w => new WalletViewModel
+                {
+                    Address = w.Address,
+                    Name = w.Name,
+                    Algorithm = w.Algorithm,
+                    Status = w.Status ?? "Active"
+                })
+                .ToList();
+
+            // Auto-select first wallet if only one available
+            if (_wallets.Count == 1)
+            {
+                _selectedWalletAddress = _wallets[0].Address;
+            }
+        }
+        catch
+        {
+            // Failed to load wallets - will show empty state
+            _wallets = [];
+        }
+        finally
+        {
+            _state = _state with { IsLoadingWallets = false };
+        }
+    }
 
     private string? ValidateName(string value)
     {
@@ -238,21 +373,37 @@
     private bool CanProceed() => _activeStep switch
     {
         0 => !string.IsNullOrWhiteSpace(_name) && _name.Length >= 1 && _name.Length <= 38,
-        1 => true,
+        1 => HasValidWallet(),
         2 => true,
+        3 => true,
         _ => false
     };
+
+    private bool HasValidWallet() => !string.IsNullOrEmpty(_selectedWalletAddress);
+
+    private string GetSelectedWalletName()
+    {
+        var wallet = _wallets.FirstOrDefault(w => w.Address == _selectedWalletAddress);
+        return wallet?.Name ?? "Unknown";
+    }
+
+    private string GetSelectedWalletTruncated()
+    {
+        var wallet = _wallets.FirstOrDefault(w => w.Address == _selectedWalletAddress);
+        return wallet?.AddressTruncated ?? _selectedWalletAddress ?? "";
+    }
 
     private string GetProcessingMessage() => _state.CurrentStep switch
     {
         2 => "Initiating register creation...",
-        3 => "Finalizing register creation...",
+        3 => "Signing control record...",
+        4 => "Finalizing register creation...",
         _ => "Processing..."
     };
 
     private void NextStep()
     {
-        if (CanProceed() && _activeStep < 2)
+        if (CanProceed() && _activeStep < 3)
         {
             _activeStep++;
         }
@@ -266,6 +417,11 @@
         }
     }
 
+    private void RetryCreation()
+    {
+        _state = _state with { ErrorMessage = null };
+    }
+
     private void Cancel()
     {
         MudDialog?.Cancel();
@@ -273,6 +429,12 @@
 
     private async Task CreateRegisterAsync()
     {
+        if (!HasValidWallet())
+        {
+            _state = _state with { ErrorMessage = "Please select a wallet to sign the register creation." };
+            return;
+        }
+
         _state = _state with
         {
             IsProcessing = true,
@@ -288,7 +450,8 @@
                 Name = _name,
                 TenantId = TenantId,
                 Advertise = _advertise,
-                IsFullReplica = _isFullReplica
+                IsFullReplica = _isFullReplica,
+                WalletAddress = _selectedWalletAddress
             };
 
             var initiateResponse = await RegisterService.InitiateRegisterAsync(request);
@@ -310,12 +473,33 @@
                 CurrentStep = 3
             };
 
-            // For now, we auto-sign (in production, this would involve wallet interaction)
-            // The backend handles signing for the authenticated user
+            // Step 2: Sign the control record with selected wallet
+            var signRequest = new SignTransactionRequest
+            {
+                TransactionData = initiateResponse.UnsignedControlRecord,
+                DerivationPath = "sorcha:register-attestation"
+            };
+            var signResponse = await WalletService.SignDataAsync(
+                _selectedWalletAddress!,
+                signRequest);
+
+            if (signResponse is null || string.IsNullOrEmpty(signResponse.Signature))
+            {
+                _state = _state with
+                {
+                    IsProcessing = false,
+                    ErrorMessage = "Failed to sign the control record. Please try again."
+                };
+                return;
+            }
+
+            _state = _state with { CurrentStep = 4 };
+
+            // Step 3: Finalize register creation with signed data
             var finalizeRequest = new FinalizeRegisterRequest
             {
                 RegisterId = initiateResponse.RegisterId,
-                SignedControlRecord = initiateResponse.UnsignedControlRecord // Backend handles signing
+                SignedControlRecord = signResponse.Signature
             };
 
             var register = await RegisterService.FinalizeRegisterAsync(finalizeRequest);
@@ -344,3 +528,10 @@
         }
     }
 }
+
+<style>
+    .monospace-text {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 0.85rem;
+    }
+</style>

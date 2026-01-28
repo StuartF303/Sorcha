@@ -1,0 +1,262 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@page "/registers/query"
+@using Sorcha.UI.Core.Components.Registers
+@using Sorcha.UI.Core.Models.Registers
+@using Sorcha.UI.Core.Services
+
+@inject ITransactionService TransactionService
+@inject NavigationManager Navigation
+
+<PageTitle>Query Transactions - Sorcha</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4" data-testid="transaction-query-page">
+    @* Header *@
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                       Color="Color.Default"
+                       OnClick="NavigateBack"
+                       aria-label="Back to registers"
+                       data-testid="back-button" />
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h4">Query Transactions</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Search transactions by wallet address across all registers
+            </MudText>
+        </MudStack>
+    </MudStack>
+
+    @* Query Form *@
+    <TransactionQueryForm IsLoading="@_state.IsLoading"
+                          OnSearch="ExecuteQueryAsync" />
+
+    @* Results Section *@
+    @if (_state.ErrorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4" data-testid="error-alert">
+            @_state.ErrorMessage
+            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small"
+                       OnClick="() => _state = _state.ClearError()" Class="ml-2">
+                Dismiss
+            </MudButton>
+        </MudAlert>
+    }
+    else if (_state.Results is not null)
+    {
+        <MudPaper Elevation="1" Class="pa-4 mt-4" data-testid="query-results">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                <MudText Typo="Typo.h6">
+                    Results
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="ml-2">
+                        @_state.Total transactions
+                    </MudChip>
+                </MudText>
+                @if (_state.Results.Count > 0)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Page @_state.Page of @((_state.Total + 19) / 20)
+                    </MudText>
+                }
+            </MudStack>
+
+            @if (_state.Results.Count == 0)
+            {
+                <MudPaper Elevation="0" Class="pa-6 text-center" data-testid="empty-results">
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff"
+                             Color="Color.Secondary"
+                             Size="Size.Large"
+                             Class="mb-4" />
+                    <MudText Typo="Typo.h6" Color="Color.Secondary">No Transactions Found</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        No transactions found for this wallet address in registers you have access to.
+                    </MudText>
+                </MudPaper>
+            }
+            else
+            {
+                <MudSimpleTable Hover="true" Dense="true" data-testid="results-table">
+                    <thead>
+                        <tr>
+                            <th>Transaction ID</th>
+                            <th>Register</th>
+                            <th>Type</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in _state.Results)
+                        {
+                            <tr class="cursor-pointer" @onclick="() => NavigateToTransaction(item)" data-testid="result-row">
+                                <td>
+                                    <MudText Typo="Typo.body2" Class="monospace-text">
+                                        @item.Transaction.TxIdTruncated
+                                    </MudText>
+                                </td>
+                                <td>
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body2">@item.RegisterName</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="monospace-text">
+                                            @TruncateId(item.RegisterId)
+                                        </MudText>
+                                    </MudStack>
+                                </td>
+                                <td>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetTypeColor(item.Transaction.TransactionType)">
+                                        @item.Transaction.TransactionType
+                                    </MudChip>
+                                </td>
+                                <td>
+                                    <MudText Typo="Typo.caption">@item.Transaction.TimeStampFormatted</MudText>
+                                </td>
+                                <td>
+                                    @if (item.Transaction.BlockNumber.HasValue)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">
+                                            Block @item.Transaction.BlockNumber
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Schedule">
+                                            Pending
+                                        </MudChip>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+
+                @* Pagination *@
+                @if (_state.Total > 20)
+                {
+                    <MudStack Row="true" Justify="Justify.Center" Class="mt-4" data-testid="pagination">
+                        <MudButton Variant="Variant.Outlined"
+                                   Disabled="@(_state.Page <= 1 || _state.IsLoading)"
+                                   OnClick="PreviousPage">
+                            Previous
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined"
+                                   Disabled="@(!HasMorePages || _state.IsLoading)"
+                                   OnClick="NextPage">
+                            Next
+                        </MudButton>
+                    </MudStack>
+                }
+            }
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private TransactionQueryState _state = new();
+    private string? _lastQuery;
+
+    private bool HasMorePages => _state.Page * 20 < _state.Total;
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/registers");
+    }
+
+    private async Task ExecuteQueryAsync(string walletAddress)
+    {
+        _lastQuery = walletAddress;
+        _state = _state.StartLoading(walletAddress);
+
+        try
+        {
+            var response = await TransactionService.QueryByWalletAsync(walletAddress, 1, 20);
+
+            _state = _state.WithResults(
+                response.Items.Select(i => new TransactionQueryResult
+                {
+                    Transaction = i.Transaction,
+                    RegisterId = i.RegisterId,
+                    RegisterName = i.RegisterName
+                }).ToList(),
+                response.TotalCount);
+        }
+        catch (Exception ex)
+        {
+            _state = _state.WithError($"Query failed: {ex.Message}");
+        }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (_state.Page > 1 && _lastQuery is not null)
+        {
+            _state = _state.WithPage(_state.Page - 1);
+            await LoadPageAsync();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (HasMorePages && _lastQuery is not null)
+        {
+            _state = _state.WithPage(_state.Page + 1);
+            await LoadPageAsync();
+        }
+    }
+
+    private async Task LoadPageAsync()
+    {
+        if (_lastQuery is null) return;
+
+        _state = _state with { IsLoading = true };
+
+        try
+        {
+            var response = await TransactionService.QueryByWalletAsync(_lastQuery, _state.Page, 20);
+
+            _state = _state with
+            {
+                IsLoading = false,
+                Results = response.Items.Select(i => new TransactionQueryResult
+                {
+                    Transaction = i.Transaction,
+                    RegisterId = i.RegisterId,
+                    RegisterName = i.RegisterName
+                }).ToList()
+            };
+        }
+        catch (Exception ex)
+        {
+            _state = _state.WithError($"Failed to load page: {ex.Message}");
+        }
+    }
+
+    private void NavigateToTransaction(TransactionQueryResult item)
+    {
+        Navigation.NavigateTo($"/registers/{item.RegisterId}?tx={item.Transaction.TxId}");
+    }
+
+    private static string TruncateId(string id) =>
+        id.Length > 16 ? $"{id[..8]}..." : id;
+
+    private static Color GetTypeColor(string transactionType) => transactionType switch
+    {
+        "Action" => Color.Primary,
+        "Blueprint" => Color.Secondary,
+        _ => Color.Default
+    };
+}
+
+<style>
+    .monospace-text {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 0.85rem;
+    }
+
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    .cursor-pointer:hover {
+        background-color: var(--mud-palette-action-default-hover);
+    }
+</style>

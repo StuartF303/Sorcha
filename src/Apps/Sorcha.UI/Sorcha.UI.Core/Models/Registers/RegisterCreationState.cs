@@ -34,6 +34,31 @@ public record RegisterCreationState
     public string TenantId { get; init; } = string.Empty;
 
     /// <summary>
+    /// Selected wallet address for signing
+    /// </summary>
+    public string? SelectedWalletAddress { get; init; }
+
+    /// <summary>
+    /// Selected wallet display name
+    /// </summary>
+    public string? SelectedWalletName { get; init; }
+
+    /// <summary>
+    /// Available wallets for selection
+    /// </summary>
+    public IReadOnlyList<WalletViewModel> AvailableWallets { get; init; } = [];
+
+    /// <summary>
+    /// Whether wallets are loading
+    /// </summary>
+    public bool IsLoadingWallets { get; init; }
+
+    /// <summary>
+    /// Whether a wallet is selected and can sign
+    /// </summary>
+    public bool HasValidWallet => !string.IsNullOrEmpty(SelectedWalletAddress);
+
+    /// <summary>
     /// Register ID returned from initiate step
     /// </summary>
     public string? RegisterId { get; init; }
@@ -71,8 +96,9 @@ public record RegisterCreationState
     public bool CanProceed => CurrentStep switch
     {
         1 => IsNameValid,
-        2 => true, // Options step always valid
-        3 => !string.IsNullOrEmpty(SignedControlRecord),
+        2 => HasValidWallet, // Wallet selection step requires valid wallet
+        3 => true, // Options step always valid
+        4 => !string.IsNullOrEmpty(SignedControlRecord),
         _ => false
     };
 
