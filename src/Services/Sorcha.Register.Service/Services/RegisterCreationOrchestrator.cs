@@ -322,11 +322,13 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             genesisTransaction.TxId);
 
         // Only persist register AFTER genesis succeeds (atomic guarantee)
+        // Use the register ID from the pending registration (established during initiation)
         var register = await _registerManager.CreateRegisterAsync(
             controlRecord.Name,
             controlRecord.TenantId,
             advertise: false,
             isFullReplica: true,
+            registerId: pending.RegisterId,
             cancellationToken);
 
         _logger.LogInformation("Created register {RegisterId} in database after genesis success", register.Id);

@@ -1,6 +1,36 @@
 #!/usr/bin/env pwsh
-# Test script for Register Creation Flow walkthrough
-# Supports multiple profiles: gateway (default), direct, docker
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Sorcha Contributors
+
+<#
+.SYNOPSIS
+    Register Creation Flow - REST API Walkthrough (Advanced/Debugging)
+
+.DESCRIPTION
+    Tests the two-phase register creation flow using direct REST API calls.
+    Use this script for debugging or understanding the raw API flow.
+
+    For normal usage, prefer the CLI-based walkthrough:
+        pwsh test-register-creation-cli.ps1
+
+    This script uses PLACEHOLDER SIGNATURES which will fail verification.
+    For real cryptographic signing, use:
+        pwsh test-register-creation-with-real-signing.ps1
+
+.PARAMETER Profile
+    Connection profile:
+    - gateway (default): Routes through API Gateway (production-like)
+    - direct: Direct service access (debugging)
+    - docker: Docker internal network (use test-register-creation-docker.ps1)
+
+.EXAMPLE
+    # Test via API Gateway (recommended for REST testing)
+    pwsh test-register-creation-rest.ps1 -Profile gateway
+
+.EXAMPLE
+    # Test with direct service access (debugging)
+    pwsh test-register-creation-rest.ps1 -Profile direct
+#>
 
 param(
     [Parameter(Position=0)]
@@ -11,7 +41,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "  Register Creation Flow Walkthrough" -ForegroundColor Cyan
+Write-Host "  Register Creation Flow - REST API Walkthrough" -ForegroundColor Cyan
+Write-Host "  (For CLI-based workflow, use test-register-creation-cli.ps1)" -ForegroundColor DarkCyan
 Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host ""
 
@@ -313,7 +344,10 @@ if ($signatureVerificationWorks) {
     Write-Host "STATUS: Workflow Verified [OK]" -ForegroundColor Green
     Write-Host "================================================================" -ForegroundColor Green
     Write-Host ""
-    Write-Info "For real cryptographic signing, use:"
+    Write-Info "For the full end-to-end workflow, use the CLI:"
+    Write-Host "  pwsh test-register-creation-cli.ps1" -ForegroundColor White
+    Write-Host ""
+    Write-Info "For real cryptographic signing (REST API), use:"
     Write-Host "  pwsh test-register-creation-with-real-signing.ps1" -ForegroundColor White
     Write-Host "  pwsh test-register-creation-with-real-signing.ps1 -Algorithm NISTP256" -ForegroundColor White
     Write-Host "  pwsh test-register-creation-with-real-signing.ps1 -Algorithm RSA4096" -ForegroundColor White

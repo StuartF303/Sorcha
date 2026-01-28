@@ -26,11 +26,18 @@ public class RegisterManager
     /// <summary>
     /// Creates a new register
     /// </summary>
+    /// <param name="name">Register name</param>
+    /// <param name="tenantId">Tenant identifier</param>
+    /// <param name="advertise">Whether to advertise this register to peers</param>
+    /// <param name="isFullReplica">Whether this is a full replica</param>
+    /// <param name="registerId">Optional pre-generated register ID (used by two-phase creation flow)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     public async Task<Models.Register> CreateRegisterAsync(
         string name,
         string tenantId,
         bool advertise = false,
         bool isFullReplica = true,
+        string? registerId = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -43,7 +50,7 @@ public class RegisterManager
 
         var register = new Models.Register
         {
-            Id = Guid.NewGuid().ToString("N"), // GUID without hyphens
+            Id = registerId ?? Guid.NewGuid().ToString("N"), // Use provided ID or generate new one
             Name = name,
             Height = 0,
             Status = RegisterStatus.Offline,

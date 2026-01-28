@@ -4,41 +4,123 @@
 
 This walkthrough demonstrates the complete two-phase register creation workflow with cryptographic attestations and genesis transaction processing.
 
-## What This Tests
+**Recommended Method:** Use the Sorcha CLI (`sorcha register create`) which handles the entire two-phase flow internally.
 
-1. **Phase 1 - Initiate**: POST to `/api/registers/initiate`
-   - Accepts `owners` array (userId, walletId, role)
-   - Computes SHA-256 hash of canonical JSON attestation data
-   - Returns registerId, nonce, and `attestationsToSign` with hex-encoded hashes as `dataToSign`
-   - Hash bytes stored in pending state (5-minute expiration) for deterministic verification
+## Quick Start (CLI)
 
-2. **Signing Phase** (Client-side):
-   - Client converts hex hash to bytes
-   - Base64-encodes for Wallet Service API
-   - Signs with `isPreHashed=true` (prevents double-hashing)
-   - Wallet Service returns signature + derived public key
+```powershell
+# Prerequisites: Docker services running, CLI built
+docker-compose up -d
+dotnet build src/Apps/Sorcha.Cli
 
-3. **Phase 2 - Finalize**: POST to `/api/registers/finalize`
-   - Validates nonce (replay protection)
-   - Verifies each attestation signature against stored hash bytes (no re-serialization)
-   - Submits genesis transaction to Validator Service (atomic: genesis BEFORE register persist)
-   - Creates register in database only if genesis succeeds
+# Run the CLI-based walkthrough (recommended)
+pwsh walkthroughs/RegisterCreationFlow/test-register-creation-cli.ps1
 
-4. **Genesis Transaction Processing**:
-   - Validator Service receives genesis transaction
-   - Signs control record with system wallet via real Wallet Service call (`isPreHashed=true`)
-   - Computes actual PayloadHash (SHA-256 of serialized control record)
-   - Sets high priority (genesis transactions processed first)
-   - Stores in mempool awaiting docket creation
+# With different cryptographic algorithm
+pwsh walkthroughs/RegisterCreationFlow/test-register-creation-cli.ps1 -Algorithm NISTP256
+
+# Show full JSON output
+pwsh walkthroughs/RegisterCreationFlow/test-register-creation-cli.ps1 -ShowJson
+```
+
+## CLI Commands Reference
+
+### Register Management
+
+```bash
+# Create a register (handles two-phase flow internally)
+sorcha register create \
+  --name "My Register" \
+  --tenant-id "tenant-001" \
+  --owner-wallet "wallet-address" \
+  --description "Optional description"
+
+# List all registers
+sorcha register list
+
+# Get register details
+sorcha register get --id <register-id>
+
+# Update register metadata
+sorcha register update --id <register-id> --name "New Name" --status Online
+
+# Delete a register
+sorcha register delete --id <register-id>
+```
+
+### Docket Inspection
+
+```bash
+# List dockets (sealed blocks) in a register
+sorcha docket list --register-id <register-id>
+
+# Get specific docket details
+sorcha docket get --register-id <register-id> --docket-id 0
+
+# List transactions in a docket
+sorcha docket transactions --register-id <register-id> --docket-id 0
+```
+
+### Transaction Queries
+
+```bash
+# Query by wallet address
+sorcha query wallet --address <address>
+
+# Query by sender address
+sorcha query sender --address <address>
+
+# Query by blueprint ID
+sorcha query blueprint --id <blueprint-id>
+
+# Get query statistics
+sorcha query stats
+
+# OData queries
+sorcha query odata --resource transactions --filter "status eq 'confirmed'"
+```
+
+## Two-Phase Register Creation Flow
+
+The CLI handles this flow internally, but understanding it helps with debugging:
+
+### Phase 1: Initiate
+
+```
+POST /api/registers/initiate
+```
+
+- Accepts `owners` array (userId, walletId)
+- Computes SHA-256 hash of canonical JSON attestation data
+- Returns registerId, nonce, and `attestationsToSign` with hex-encoded hashes
+- Hash bytes stored in pending state (5-minute expiration)
+
+### Phase 2: Sign (Client-side)
+
+- CLI converts hex hash to bytes
+- Base64-encodes for Wallet Service API
+- Signs with `isPreHashed=true` (prevents double-hashing)
+- Wallet Service returns signature + derived public key
+
+### Phase 3: Finalize
+
+```
+POST /api/registers/finalize
+```
+
+- Validates nonce (replay protection)
+- Verifies signatures against stored hash bytes (no re-serialization)
+- Submits genesis transaction to Validator Service (atomic)
+- Creates register in database only if genesis succeeds
 
 ## Architecture Flow
 
 ```
 ┌─────────────────┐
-│   Client/CLI    │
+│   Sorcha CLI    │  sorcha register create --name "..." --owner-wallet "..."
 └────────┬────────┘
          │
-         │ 1. POST /api/registers/initiate
+         │ Phase 1: POST /api/registers/initiate
          ▼
 ┌─────────────────────────────────────────┐
 │     Register Service                    │
@@ -51,14 +133,14 @@ This walkthrough demonstrates the complete two-phase register creation workflow 
 │  └────────────────────────────────┘    │
 └────────┬────────────────────────────────┘
          │
-         │ 2. Returns: registerId, nonce, attestationsToSign (hex hashes)
+         │ Returns: registerId, nonce, attestationsToSign (hex hashes)
          ▼
 ┌─────────────────┐
-│   Client/CLI    │
-│  [Sign hash]    │  ◄── Wallet signs hex hash with isPreHashed=true
+│   Sorcha CLI    │
+│  [Sign hash]    │  Phase 2: Wallet signs with isPreHashed=true
 └────────┬────────┘
          │
-         │ 3. POST /api/registers/finalize (with signatures)
+         │ Phase 3: POST /api/registers/finalize (with signatures)
          ▼
 ┌─────────────────────────────────────────┐
 │     Register Service                    │
@@ -71,7 +153,7 @@ This walkthrough demonstrates the complete two-phase register creation workflow 
 │  └────────┬───────────────────────┘    │
 └───────────┼────────────────────────────┘
             │
-            │ 4. POST /api/validator/genesis
+            │ POST /api/validator/genesis
             ▼
 ┌─────────────────────────────────────────┐
 │    Validator Service                    │
@@ -86,117 +168,84 @@ This walkthrough demonstrates the complete two-phase register creation workflow 
 
 ## Prerequisites
 
-**Docker-Compose (Recommended - Production-like Environment):**
-- Docker and Docker Compose installed
-- All Sorcha services running via `docker-compose up -d`
-- API Gateway exposed on port 80
-- PostgreSQL, MongoDB, Redis containers running
-
-**OR**
-
-**.NET Aspire AppHost (Alternative - Debugging):**
-- .NET Aspire AppHost running (all services)
-- PostgreSQL container running (Register Service database)
-- Redis container running (Validator Service mempool)
-
-## Running the Walkthrough
-
-The test script supports multiple profiles via the `-Profile` parameter:
-
-### Profile: `gateway` (Default - Recommended)
-
-Routes all requests through the API Gateway using YARP, simulating production traffic flow:
-
-```powershell
-# Start services with Docker Compose
+**Docker-Compose (Recommended):**
+```bash
+# Start all services
 docker-compose up -d
 
 # Verify services are running
 docker-compose ps
 
-# Run the walkthrough via API Gateway (default)
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation.ps1
-
-# Or explicitly specify gateway profile
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation.ps1 -Profile gateway
+# Build CLI
+dotnet build src/Apps/Sorcha.Cli
 ```
 
-**Architecture:**
-```
-Client (localhost) → API Gateway (port 80)
-  → YARP routes /api/registers/* to Register Service (internal)
-  → YARP routes /api/validator/* to Validator Service (internal)
-  → Services communicate via Docker network
+**OR .NET Aspire AppHost (Debugging):**
+```bash
+# Start all services with Aspire
+dotnet run --project src/Apps/Sorcha.AppHost
 ```
 
-**When to use:**
-- ✅ Testing production-like routing behavior (RECOMMENDED)
-- ✅ Verifying API Gateway configuration
-- ✅ Integration testing across services
-- ✅ Demonstrating end-to-end flow to stakeholders
+## Walkthrough Scripts
 
-### Profile: `direct` (Debugging)
+| Script | Purpose | Usage |
+|--------|---------|-------|
+| `test-register-creation-cli.ps1` | **Recommended** - Full CLI workflow | `pwsh test-register-creation-cli.ps1` |
+| `test-register-creation-rest.ps1` | REST API workflow (debugging) | `pwsh test-register-creation-rest.ps1` |
+| `test-register-creation-with-real-signing.ps1` | Advanced real crypto testing | `pwsh test-register-creation-with-real-signing.ps1` |
+| `test-register-creation-docker.ps1` | Docker internal network testing | `pwsh test-register-creation-docker.ps1` |
 
-Directly accesses services on exposed ports, bypassing the API Gateway:
+### CLI Walkthrough Options
 
 ```powershell
-# Start services with Docker Compose
-docker-compose up -d
+# Basic usage (ED25519, docker profile)
+pwsh test-register-creation-cli.ps1
 
-# Run the walkthrough with direct service access
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation.ps1 -Profile direct
+# With NIST P-256 algorithm
+pwsh test-register-creation-cli.ps1 -Algorithm NISTP256
+
+# With RSA-4096 algorithm
+pwsh test-register-creation-cli.ps1 -Algorithm RSA4096
+
+# Skip authentication (use existing session)
+pwsh test-register-creation-cli.ps1 -SkipAuth
+
+# Show full JSON output
+pwsh test-register-creation-cli.ps1 -ShowJson
+
+# Auto-cleanup created resources
+pwsh test-register-creation-cli.ps1 -Cleanup
 ```
 
-**Architecture:**
-```
-Client (localhost) → Register Service (port 5290) - DIRECT
-                  → Validator Service (port 5100) - DIRECT
-```
+### REST API Walkthrough (Advanced)
 
-**When to use:**
-- 🔧 Debugging service-specific issues
-- 🔧 Testing service endpoints in isolation
-- 🔧 Verifying service health without gateway
-- 🔧 Development troubleshooting
-
-### Profile: `docker` (Advanced - Docker Internal Network)
-
-For testing container-to-container communication without localhost exposure:
+For debugging or understanding the raw API flow:
 
 ```powershell
-# Run the Docker-internal test script
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation-docker.ps1
-```
+# Via API Gateway (recommended)
+pwsh test-register-creation-rest.ps1 -Profile gateway
 
-**When to use:**
-- Advanced debugging of Docker networking
-- Testing DNS resolution between containers
-- Simulating internal service communication
-
-## Usage Examples
-
-```powershell
-# Default: Via API Gateway (recommended)
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation.ps1
-
-# Explicit gateway profile
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation.ps1 -Profile gateway
-
-# Direct access for debugging
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation.ps1 -Profile direct
-
-# Docker internal network (advanced)
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation-docker.ps1
+# Direct to services (debugging)
+pwsh test-register-creation-rest.ps1 -Profile direct
 ```
 
 ## Expected Results
 
-1. ✅ Initiate returns registerId, control record, and nonce
-2. ✅ Control record contains owner attestation template
-3. ✅ Finalize accepts signed control record
-4. ✅ Register created in database
-5. ✅ Genesis transaction submitted to Validator
-6. ✅ Genesis transaction appears in mempool with HIGH priority
+**CLI Walkthrough:**
+1. CLI installation verified
+2. Authentication successful
+3. Wallet created (with mnemonic - save securely!)
+4. Register created via two-phase flow
+5. Genesis transaction submitted to Validator
+6. Register and dockets verified
+
+**REST API Walkthrough:**
+1. Services accessible (via gateway or direct)
+2. Initiate returns registerId, nonce, attestationsToSign
+3. Hash-based `dataToSign` (64-char hex SHA-256)
+4. Finalize accepts signed attestations
+5. Register created in database
+6. Genesis transaction in mempool with HIGH priority
 
 ## Key Components
 
@@ -236,104 +285,81 @@ pwsh walkthroughs/RegisterCreationFlow/test-register-creation-docker.ps1
 ## Security Features
 
 1. **Nonce-based Replay Protection**: Each initiate generates unique nonce
-2. **Signature Verification**: All attestations verified against stored hash bytes using Sorcha.Cryptography
+2. **Signature Verification**: All attestations verified against stored hash bytes
 3. **Expiration**: Pending registrations expire after 5 minutes
-4. **Hash-based Signing**: SHA-256 hash of canonical JSON stored at initiate time, eliminating re-serialization issues
-5. **Pre-hashed Signing**: `isPreHashed=true` prevents double-hashing in wallet signing pipeline
-6. **Atomic Creation**: Genesis transaction submitted before register persist (no orphaned registers)
-
-## Files in This Walkthrough
-
-- `README.md` - This file
-- `test-register-creation.ps1` - PowerShell test script
-- `test-register-creation.sh` - Bash test script (Linux/macOS)
-- `RESULTS.md` - Test execution results and findings
+4. **Hash-based Signing**: SHA-256 hash stored at initiate, eliminates re-serialization issues
+5. **Pre-hashed Signing**: `isPreHashed=true` prevents double-hashing
+6. **Atomic Creation**: Genesis transaction submitted before register persist
 
 ## Troubleshooting
 
-**Issue**: 404 Not Found on /api/registers/initiate
-- **Solution**: Ensure Register Service is running on correct port (check AppHost dashboard)
+### CLI Issues
 
-**Issue**: 401 Unauthorized on finalize
-- **Solution**: Check nonce matches between initiate and finalize
+**"Sorcha CLI not found"**
+```bash
+# Build the CLI
+dotnet build src/Apps/Sorcha.Cli
 
-**Issue**: Signature verification failure
-- **Solution**: Use valid signatures (in demo, we use placeholders - this will fail real verification)
-
-## Real Wallet Signing Integration (test-register-creation-with-real-signing.ps1)
-
-**Status**: Fully Functional (6 of 6 steps working)
-
-This enhanced walkthrough performs real end-to-end cryptographic signing via the Wallet Service:
-
-```powershell
-# Test with ED25519 (default)
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.ps1
-
-# Test with NIST P-256
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.ps1 -Algorithm NISTP256
-
-# Test with RSA-4096
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.ps1 -Algorithm RSA4096
-
-# Direct service access for debugging
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.ps1 -Profile direct
-
-# Show full JSON structures (control record, genesis transaction, signed docket)
-pwsh walkthroughs/RegisterCreationFlow/test-register-creation-with-real-signing.ps1 -ShowJson
+# Add to PATH or run from bin directory
+./src/Apps/Sorcha.Cli/bin/Debug/net10.0/sorcha --version
 ```
 
-### Workflow Steps
+**"Not authenticated"**
+```bash
+# Login with interactive mode
+sorcha auth login --interactive
 
-1. **Admin Authentication** (Tenant Service)
-   - Authenticates via `/api/service-auth/token`
-   - Obtains bearer token for subsequent requests
+# Or with service credentials
+sorcha auth login --client-id <id> --client-secret <secret>
+```
 
-2. **Wallet Creation** (Wallet Service)
-   - Creates HD wallet with specified algorithm (ED25519/NISTP256/RSA4096)
-   - Generates mnemonic (BIP39), derives keys (BIP32/BIP44)
-   - Returns wallet address and public key
+**"Wallet not found"**
+```bash
+# List your wallets
+sorcha wallet list
 
-3. **Register Initiation** (Register Service)
-   - POST to `/api/registers/initiate` with `owners` array
-   - Computes SHA-256 hash of canonical JSON attestation data
-   - Returns hex-encoded hash as `dataToSign` (not canonical JSON)
-   - Stores hash bytes in `PendingRegistration.AttestationHashes`
+# Create a new wallet if needed
+sorcha wallet create --name "my-wallet" --algorithm ED25519
+```
 
-4. **Attestation Signing** (Wallet Service)
-   - Converts hex hash to bytes, Base64-encodes for wallet API
-   - Signs with `isPreHashed=true` (wallet skips internal SHA-256)
-   - Uses derivation path `sorcha:register-attestation`
-   - Returns Base64-encoded signature + derived public key
+### REST API Issues
 
-5. **Register Finalization** (Register Service)
-   - POST to `/api/registers/finalize` with `signedAttestations` array
-   - Verifies each signature against stored hash bytes (no re-serialization)
-   - Submits genesis to Validator (atomic: genesis before persist)
-   - Creates register in MongoDB only if genesis succeeds
+**404 Not Found on /api/registers/initiate**
+- Ensure Register Service is running
+- Check API Gateway routing configuration
 
-6. **Genesis Verification** (Validator Service)
-   - Genesis transaction in mempool with HIGH priority
-   - Signed by system wallet with real cryptographic signature
-   - Real PayloadHash (SHA-256 of control record)
+**401 Unauthorized on finalize**
+- Check nonce matches between initiate and finalize
+- Verify JWT token is still valid (not expired)
 
-### Key Design Decisions
+**Signature verification failure**
+- Ensure using `isPreHashed=true` when signing
+- Verify the hex hash was correctly converted to bytes
 
-- **Hash-based `dataToSign`**: Returns hex SHA-256 hash instead of canonical JSON, eliminating JSON re-serialization determinism issues
-- **`isPreHashed` flag**: Prevents double-hashing by telling TransactionService to skip its internal SHA-256 step
-- **Stored attestation hashes**: `PendingRegistration.AttestationHashes` dictionary (keyed by `"{role}:{subject}"`) eliminates need to re-serialize at verification time
-- **Atomic register+genesis**: FinalizeAsync submits genesis BEFORE persisting register, preventing orphaned registers
+## Files in This Walkthrough
+
+| File | Purpose |
+|------|---------|
+| `README.md` | This documentation |
+| `test-register-creation-cli.ps1` | CLI-based walkthrough (recommended) |
+| `test-register-creation-rest.ps1` | REST API walkthrough (legacy/debugging) |
+| `test-register-creation-with-real-signing.ps1` | Advanced real crypto testing |
+| `test-register-creation-docker.ps1` | Docker internal network testing |
+| `WALKTHROUGH-RESULTS.md` | Implementation results and findings |
 
 ## Next Steps
 
-After this walkthrough:
-1. Test with multiple attestations (owner + admins)
-2. Test with different signature algorithms (NISTP256, RSA4096)
-3. Verify docket creation from genesis transaction
-4. Implement Redis-backed pending registration storage
+After completing this walkthrough:
+
+1. **Try different algorithms**: Test with NISTP256 and RSA4096
+2. **Multi-owner registers**: Add additional admins with roles
+3. **Docket verification**: Inspect genesis docket and chain
+4. **Transaction queries**: Use OData for advanced queries
+5. **Production setup**: Configure Redis-backed pending storage
 
 ## References
 
+- [Sorcha CLI Documentation](../../docs/CLI.md)
 - [Register Service Spec](../../.specify/specs/sorcha-register-service.md)
 - [RegisterCreationOrchestrator.cs](../../src/Services/Sorcha.Register.Service/Services/RegisterCreationOrchestrator.cs)
-- [Genesis Transaction Endpoint](../../src/Services/Sorcha.Validator.Service/Endpoints/ValidationEndpoints.cs)
+- [RegisterCommands.cs](../../src/Apps/Sorcha.Cli/Commands/RegisterCommands.cs)

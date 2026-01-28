@@ -299,6 +299,63 @@ foreach (var item in results)
 | Spectre.Console | 0.54.0 | Rich console output |
 | System.IdentityModel.Tokens.Jwt | 8.3.0 | JWT token handling |
 
+## Tool Version Management
+
+The Sorcha CLI can be installed as a .NET global tool or run from local build. When working on the CLI, check for version mismatches.
+
+### Check for Global Tool Installation
+
+```bash
+# Check if sorcha is installed as a global tool
+dotnet tool list --global | grep -i sorcha
+
+# Find where the current 'sorcha' command is located
+which sorcha  # Linux/macOS
+where sorcha  # Windows
+```
+
+### Uninstall Global Tool (for local development)
+
+If a global tool is installed, it may conflict with local development builds:
+
+```bash
+# Uninstall global tool to use local build
+dotnet tool uninstall --global sorcha.cli
+```
+
+### Local Build Paths
+
+After building with `dotnet build src/Apps/Sorcha.Cli`, the executable is at:
+
+- **Release:** `src/Apps/Sorcha.Cli/bin/Release/net10.0/Sorcha.Cli.exe`
+- **Debug:** `src/Apps/Sorcha.Cli/bin/Debug/net10.0/Sorcha.Cli.exe`
+
+### Walkthrough Scripts
+
+When writing walkthrough scripts that use the CLI, prefer finding the local build:
+
+```powershell
+# PowerShell pattern for finding CLI
+$RepoRoot = (Get-Item $PSScriptRoot).Parent.Parent.FullName
+$LocalCliPath = Join-Path $RepoRoot "src/Apps/Sorcha.Cli/bin/Release/net10.0/Sorcha.Cli.exe"
+$DebugCliPath = Join-Path $RepoRoot "src/Apps/Sorcha.Cli/bin/Debug/net10.0/Sorcha.Cli.exe"
+
+if (Test-Path $LocalCliPath) {
+    $SorchaCliPath = $LocalCliPath
+} elseif (Test-Path $DebugCliPath) {
+    $SorchaCliPath = $DebugCliPath
+} else {
+    $SorchaCliPath = "sorcha"  # Fall back to global tool
+}
+```
+
+### Version Mismatch Symptoms
+
+If you see unexpected command options or missing features:
+1. Check if global tool version differs from source code
+2. Rebuild with `dotnet build src/Apps/Sorcha.Cli -c Release`
+3. Verify using `sorcha --version` vs `./Sorcha.Cli.exe --version`
+
 ## Documentation Resources
 
 > Fetch latest System.CommandLine documentation with Context7.
