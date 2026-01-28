@@ -58,6 +58,15 @@
 
     <!-- Cryptography for Token Cache -->
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.2" />
+
+    <!-- JWT Token Handling -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shared Model Libraries -->
+    <ProjectReference Include="..\..\Common\Sorcha.Register.Models\Sorcha.Register.Models.csproj" />
+    <ProjectReference Include="..\..\Common\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,10 +1,14 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Net;
+using System.Text.Json;
 using Refit;
 using Sorcha.Cli.Infrastructure;
-using Sorcha.Cli.Models;
 using Sorcha.Cli.Services;
+using Sorcha.Register.Models;
 
 namespace Sorcha.Cli.Commands;
 
@@ -32,8 +36,8 @@ public class TransactionCommand : Command
 public class TxListCommand : Command
 {
     private readonly Option<string> _registerIdOption;
-    private readonly Option<int?> _skipOption;
-    private readonly Option<int?> _takeOption;
+    private readonly Option<int?> _pageOption;
+    private readonly Option<int?> _pageSizeOption;
 
     public TxListCommand(
         HttpClientFactory clientFactory,
@@ -47,25 +51,25 @@ public class TxListCommand : Command
             Required = true
         };
 
-        _skipOption = new Option<int?>("--skip", "-s")
+        _pageOption = new Option<int?>("--page", "-p")
         {
-            Description = "Number of transactions to skip (for pagination)"
+            Description = "Page number (default: 1)"
         };
 
-        _takeOption = new Option<int?>("--take", "-t")
+        _pageSizeOption = new Option<int?>("--page-size", "-s")
         {
-            Description = "Number of transactions to retrieve (default: 100)"
+            Description = "Number of transactions per page (default: 50)"
         };
 
         Options.Add(_registerIdOption);
-        Options.Add(_skipOption);
-        Options.Add(_takeOption);
+        Options.Add(_pageOption);
+        Options.Add(_pageSizeOption);
 
         this.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
             var registerId = parseResult.GetValue(_registerIdOption)!;
-            var skip = parseResult.GetValue(_skipOption);
-            var take = parseResult.GetValue(_takeOption);
+            var page = parseResult.GetValue(_pageOption);
+            var pageSize = parseResult.GetValue(_pageSizeOption);
 
             try
             {
@@ -86,7 +90,15 @@ public class TxListCommand : Command
                 var client = await clientFactory.CreateRegisterServiceClientAsync(profileName);
 
                 // Call API
-                var transactions = await client.ListTransactionsAsync(registerId, skip, take, $"Bearer {token}");
+                var transactions = await client.ListTransactionsAsync(registerId, page, pageSize, $"Bearer {token}");
+
+                // Check output format
+                var outputFormat = parseResult.GetValue(BaseCommand.OutputOption) ?? "table";
+                if (outputFormat.Equals("json", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true }));
+                    return ExitCodes.Success;
+                }
 
                 // Display results
                 if (transactions == null || transactions.Count == 0)
@@ -98,21 +110,22 @@ public class TxListCommand : Command
                 ConsoleHelper.WriteSuccess($"Found {transactions.Count} transaction(s) in register '{registerId}':");
                 Console.WriteLine();
 
-                // Display as table
-                Console.WriteLine($"{"TX ID",-38} {"Type",-20} {"Sender",-40} {"Status",-12} {"Timestamp"}");
-                Console.WriteLine(new string('-', 140));
+                // Display as table with TransactionModel fields
+                Console.WriteLine($"{"TX ID",-66} {"Sender",-40} {"Block",8} {"Payloads",8} {"Timestamp"}");
+                Console.WriteLine(new string('-', 145));
 
                 foreach (var tx in transactions)
                 {
-                    var timestamp = tx.Timestamp.ToString("yyyy-MM-dd HH:mm:ss");
-                    Console.WriteLine($"{tx.Id,-38} {tx.TxType,-20} {tx.SenderWallet,-40} {tx.Status,-12} {timestamp}");
+                    var timestamp = tx.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss");
+                    var block = tx.BlockNumber?.ToString() ?? "-";
+                    Console.WriteLine($"{tx.TxId,-66} {tx.SenderWallet,-40} {block,8} {tx.PayloadCount,8} {timestamp}");
                 }
 
                 // Show pagination info
-                if (skip.HasValue || take.HasValue)
+                if (page.HasValue || pageSize.HasValue)
                 {
                     Console.WriteLine();
-                    ConsoleHelper.WriteInfo($"Showing {transactions.Count} transaction(s) (skip: {skip ?? 0}, take: {take ?? 100})");
+                    ConsoleHelper.WriteInfo($"Showing page {page ?? 1}, {pageSize ?? 50} per page");
                 }
 
                 return ExitCodes.Success;
@@ -206,24 +219,57 @@ public class TxGetCommand : Command
                 // Call API
                 var tx = await client.GetTransactionAsync(registerId, txId, $"Bearer {token}");
 
-                // Display results
+                // Check output format
+                var outputFormat = parseResult.GetValue(BaseCommand.OutputOption) ?? "table";
+                if (outputFormat.Equals("json", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(tx, new JsonSerializerOptions { WriteIndented = true }));
+                    return ExitCodes.Success;
+                }
+
+                // Display results with TransactionModel fields
                 ConsoleHelper.WriteSuccess("Transaction details:");
                 Console.WriteLine();
-                Console.WriteLine($"  Transaction ID:  {tx.Id}");
+                Console.WriteLine($"  Transaction ID:  {tx.TxId}");
                 Console.WriteLine($"  Register ID:     {tx.RegisterId}");
-                Console.WriteLine($"  Type:            {tx.TxType}");
+                Console.WriteLine($"  Block Number:    {tx.BlockNumber?.ToString() ?? "Pending"}");
+                Console.WriteLine($"  Version:         {tx.Version}");
                 Console.WriteLine($"  Sender Wallet:   {tx.SenderWallet}");
-                Console.WriteLine($"  Status:          {tx.Status}");
-                Console.WriteLine($"  Timestamp:       {tx.Timestamp:yyyy-MM-dd HH:mm:ss}");
+                Console.WriteLine($"  Timestamp:       {tx.TimeStamp:yyyy-MM-dd HH:mm:ss}");
 
-                if (!string.IsNullOrEmpty(tx.PreviousTxId))
+                if (!string.IsNullOrEmpty(tx.PrevTxId) && tx.PrevTxId != new string('0', 64))
                 {
-                    Console.WriteLine($"  Previous TX:     {tx.PreviousTxId}");
+                    Console.WriteLine($"  Previous TX:     {tx.PrevTxId}");
+                }
+
+                if (tx.RecipientsWallets.Any())
+                {
+                    Console.WriteLine($"  Recipients:      {string.Join(", ", tx.RecipientsWallets)}");
+                }
+
+                if (tx.MetaData != null)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine("  Metadata:");
+                    if (!string.IsNullOrEmpty(tx.MetaData.BlueprintId))
+                        Console.WriteLine($"    Blueprint ID:    {tx.MetaData.BlueprintId}");
+                    if (tx.MetaData.ActionId.HasValue)
+                        Console.WriteLine($"    Action ID:       {tx.MetaData.ActionId}");
+                    if (!string.IsNullOrEmpty(tx.MetaData.InstanceId))
+                        Console.WriteLine($"    Instance ID:     {tx.MetaData.InstanceId}");
                 }
 
                 Console.WriteLine();
-                Console.WriteLine("  Payload:");
-                Console.WriteLine($"  {tx.Payload}");
+                Console.WriteLine($"  Payload Count:   {tx.PayloadCount}");
+                if (tx.Payloads.Length > 0)
+                {
+                    Console.WriteLine("  Payloads:");
+                    for (int i = 0; i < tx.Payloads.Length; i++)
+                    {
+                        var payload = tx.Payloads[i];
+                        Console.WriteLine($"    [{i}] Hash: {payload.Hash[..16]}..., Size: {payload.PayloadSize} bytes");
+                    }
+                }
 
                 Console.WriteLine();
                 Console.WriteLine("  Signature:");
@@ -366,6 +412,14 @@ public class TxSubmitCommand : Command
                 // Call API
                 var response = await client.SubmitTransactionAsync(registerId, request, $"Bearer {token}");
 
+                // Check output format
+                var outputFormat = parseResult.GetValue(BaseCommand.OutputOption) ?? "table";
+                if (outputFormat.Equals("json", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true }));
+                    return ExitCodes.Success;
+                }
+
                 // Display results
                 if (response.Status == "Pending" || response.Status == "Confirmed")
                 {
@@ -486,6 +540,14 @@ public class TxStatusCommand : Command
 
                 // Call API
                 var response = await client.GetTransactionStatusAsync(registerId, txId, $"Bearer {token}");
+
+                // Check output format
+                var outputFormat = parseResult.GetValue(BaseCommand.OutputOption) ?? "table";
+                if (outputFormat.Equals("json", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true }));
+                    return ExitCodes.Success;
+                }
 
                 // Display results
                 ConsoleHelper.WriteSuccess("Transaction status:");
