@@ -5,6 +5,7 @@
 @using Microsoft.JSInterop
 
 @inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
 
 <MudPaper Elevation="1" Class="pa-4" data-testid="transaction-detail">
     <MudStack Row="true"
@@ -15,7 +16,8 @@
         <MudIconButton Icon="@Icons.Material.Filled.Close"
                        Size="Size.Small"
                        OnClick="OnCloseClicked"
-                       aria-label="Close details" />
+                       aria-label="Close details"
+                       data-testid="close-detail" />
     </MudStack>
 
     <MudDivider Class="mb-4" />
@@ -25,13 +27,14 @@
         <MudStack Spacing="0">
             <MudText Typo="Typo.caption" Color="Color.Secondary">Transaction ID</MudText>
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                <MudText Typo="Typo.body2" Class="monospace-text" Style="word-break: break-all;">
+                <MudText Typo="Typo.body2" Class="monospace-text" Style="word-break: break-all;" data-testid="tx-id">
                     @Transaction.TxId
                 </MudText>
                 <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                                Size="Size.Small"
                                OnClick="CopyTxId"
-                               aria-label="Copy transaction ID" />
+                               aria-label="Copy transaction ID"
+                               data-testid="copy-tx-id" />
             </MudStack>
         </MudStack>
 
@@ -97,13 +100,14 @@
         <MudStack Spacing="0">
             <MudText Typo="Typo.caption" Color="Color.Secondary">Sender Wallet</MudText>
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                <MudText Typo="Typo.body2" Class="monospace-text" Style="word-break: break-all;">
+                <MudText Typo="Typo.body2" Class="monospace-text" Style="word-break: break-all;" data-testid="sender-wallet">
                     @Transaction.SenderWallet
                 </MudText>
                 <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                                Size="Size.Small"
                                OnClick="CopySenderWallet"
-                               aria-label="Copy sender wallet" />
+                               aria-label="Copy sender wallet"
+                               data-testid="copy-sender-wallet" />
             </MudStack>
         </MudStack>
 
@@ -117,13 +121,14 @@
                 @foreach (var recipient in Transaction.RecipientsWallets)
                 {
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                        <MudText Typo="Typo.body2" Class="monospace-text" Style="word-break: break-all;">
+                        <MudText Typo="Typo.body2" Class="monospace-text" Style="word-break: break-all;" data-testid="recipient-wallet">
                             @recipient
                         </MudText>
                         <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                                        Size="Size.Small"
                                        OnClick="@(() => CopyRecipientWallet(recipient))"
-                                       aria-label="Copy recipient wallet" />
+                                       aria-label="Copy recipient wallet"
+                                       data-testid="copy-recipient-wallet" />
                     </MudStack>
                 }
             </MudStack>
@@ -134,13 +139,14 @@
         @* Signature Information *@
         <MudStack Spacing="0">
             <MudText Typo="Typo.caption" Color="Color.Secondary">Signature</MudText>
-            <MudText Typo="Typo.body2" Class="monospace-text signature-text">
+            <MudText Typo="Typo.body2" Class="monospace-text signature-text" data-testid="signature">
                 @Transaction.Signature
             </MudText>
             <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                            Size="Size.Small"
                            OnClick="CopySignature"
-                           aria-label="Copy signature" />
+                           aria-label="Copy signature"
+                           data-testid="copy-signature" />
         </MudStack>
 
         @* Payload Information *@
@@ -212,12 +218,36 @@
     {
         try
         {
-            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            var success = await JSRuntime.InvokeAsync<bool>("clipboardInterop.copyText", text);
+            if (success)
+            {
+                Snackbar.Add("Copied to clipboard", Severity.Success, config =>
+                {
+                    config.VisibleStateDuration = 1500;
+                    config.ShowCloseIcon = false;
+                });
+            }
+            else
+            {
+                Snackbar.Add("Failed to copy to clipboard", Severity.Error);
+            }
         }
         catch
         {
-            // Clipboard API might not be available in all contexts
-            // Fail silently
+            // Fallback to navigator.clipboard for compatibility
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+                Snackbar.Add("Copied to clipboard", Severity.Success, config =>
+                {
+                    config.VisibleStateDuration = 1500;
+                    config.ShowCloseIcon = false;
+                });
+            }
+            catch
+            {
+                Snackbar.Add("Failed to copy to clipboard", Severity.Error);
+            }
         }
     }
 }

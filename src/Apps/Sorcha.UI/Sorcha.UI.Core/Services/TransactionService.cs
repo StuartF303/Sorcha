@@ -108,6 +108,54 @@ public class TransactionService : ITransactionService
         }
     }
 
+    /// <inheritdoc />
+    public async Task<TransactionQueryResponse> QueryByWalletAsync(
+        string walletAddress,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var url = $"/api/transactions/query?wallet={Uri.EscapeDataString(walletAddress)}&page={page}&pageSize={pageSize}";
+
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to query transactions by wallet {WalletAddress}: {StatusCode}",
+                    walletAddress, response.StatusCode);
+                return new TransactionQueryResponse();
+            }
+
+            var apiResponse = await response.Content.ReadFromJsonAsync<ApiTransactionQueryResponse>(
+                JsonOptions, cancellationToken);
+
+            if (apiResponse == null)
+            {
+                return new TransactionQueryResponse();
+            }
+
+            return new TransactionQueryResponse
+            {
+                Page = apiResponse.Page,
+                PageSize = apiResponse.PageSize,
+                TotalCount = apiResponse.TotalCount,
+                Items = apiResponse.Items?.Select(item => new TransactionQueryResultItem
+                {
+                    Transaction = MapToViewModel(item.Transaction),
+                    RegisterId = item.RegisterId,
+                    RegisterName = item.RegisterName
+                }).ToList() ?? []
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error querying transactions by wallet {WalletAddress}", walletAddress);
+            return new TransactionQueryResponse();
+        }
+    }
+
     private static TransactionViewModel MapToViewModel(TransactionModel transaction)
     {
         return new TransactionViewModel
@@ -137,5 +185,26 @@ public class TransactionService : ITransactionService
         public int PageSize { get; init; }
         public int Total { get; init; }
         public List<TransactionModel>? Transactions { get; init; }
+    }
+
+    /// <summary>
+    /// API response model for transaction query endpoint
+    /// </summary>
+    private record ApiTransactionQueryResponse
+    {
+        public int Page { get; init; }
+        public int PageSize { get; init; }
+        public int TotalCount { get; init; }
+        public List<ApiTransactionQueryItem>? Items { get; init; }
+    }
+
+    /// <summary>
+    /// API item in query response
+    /// </summary>
+    private record ApiTransactionQueryItem
+    {
+        public required TransactionModel Transaction { get; init; }
+        public required string RegisterId { get; init; }
+        public required string RegisterName { get; init; }
     }
 }
