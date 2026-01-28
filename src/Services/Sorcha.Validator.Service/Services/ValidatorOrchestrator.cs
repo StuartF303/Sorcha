@@ -225,9 +225,8 @@ public class ValidatorOrchestrator : IValidatorOrchestrator
                 "Writing confirmed docket {DocketNumber} to Register Service",
                 docket.DocketNumber);
 
-            // TODO: Convert Validator.Service.Models.Docket to ServiceClients.Register.DocketModel
-            // For now, just log success
-            var written = true; // await _registerClient.WriteDocketAsync(docketModel, cancellationToken);
+            var docketModel = DocketSerializer.ToRegisterModel(docket);
+            var written = await _registerClient.WriteDocketAsync(docketModel, cancellationToken);
 
             if (!written)
             {
@@ -252,11 +251,11 @@ public class ValidatorOrchestrator : IValidatorOrchestrator
 
             // Stage 6: Broadcast confirmed docket to peer network
             _logger.LogInformation("Broadcasting confirmed docket {DocketNumber} to peer network", docket.DocketNumber);
-            // TODO: Serialize docket properly
+            var confirmedDocketData = DocketSerializer.SerializeToBytes(docket);
             await _peerClient.BroadcastConfirmedDocketAsync(
                 registerId,
                 docket.DocketId,
-                Array.Empty<byte>(),
+                confirmedDocketData,
                 cancellationToken);
 
             stopwatch.Stop();

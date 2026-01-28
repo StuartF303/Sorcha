@@ -53,18 +53,24 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<ServiceAuthClient>();
         services.AddSingleton<IServiceAuthClient, ServiceAuthClient>();
 
-        // Register all service clients as scoped (one per request)
+        // Register all service clients with HttpClient factories
         services.AddHttpClient<WalletServiceClient>();
         services.AddScoped<IWalletServiceClient, WalletServiceClient>();
-        services.AddScoped<IRegisterServiceClient, RegisterServiceClient>();
-        services.AddScoped<IBlueprintServiceClient, BlueprintServiceClient>();
-        services.AddScoped<IPeerServiceClient, PeerServiceClient>();
-        services.AddScoped<IValidatorServiceClient, ValidatorServiceClient>();
-        services.AddScoped<IParticipantServiceClient, ParticipantServiceClient>();
 
-        // Register HttpClient for clients that need it
+        services.AddHttpClient<RegisterServiceClient>();
+        services.AddScoped<IRegisterServiceClient, RegisterServiceClient>();
+
+        services.AddHttpClient<BlueprintServiceClient>();
+        services.AddScoped<IBlueprintServiceClient, BlueprintServiceClient>();
+
+        // Peer Service uses gRPC, registered as singleton for channel reuse
+        services.AddSingleton<IPeerServiceClient, PeerServiceClient>();
+
         services.AddHttpClient<ValidatorServiceClient>();
+        services.AddScoped<IValidatorServiceClient, ValidatorServiceClient>();
+
         services.AddHttpClient<ParticipantServiceClient>();
+        services.AddScoped<IParticipantServiceClient, ParticipantServiceClient>();
 
         return services;
     }
@@ -84,7 +90,7 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers individual service client
+    /// Registers Register Service client with HttpClient factory
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="configuration">Configuration</param>
@@ -93,12 +99,13 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddHttpClient<RegisterServiceClient>();
         services.AddScoped<IRegisterServiceClient, RegisterServiceClient>();
         return services;
     }
 
     /// <summary>
-    /// Registers individual service client
+    /// Registers Blueprint Service client with HttpClient factory
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="configuration">Configuration</param>
@@ -107,12 +114,13 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddHttpClient<BlueprintServiceClient>();
         services.AddScoped<IBlueprintServiceClient, BlueprintServiceClient>();
         return services;
     }
 
     /// <summary>
-    /// Registers individual service client
+    /// Registers Peer Service gRPC client as singleton for channel reuse
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="configuration">Configuration</param>
@@ -121,7 +129,7 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddScoped<IPeerServiceClient, PeerServiceClient>();
+        services.AddSingleton<IPeerServiceClient, PeerServiceClient>();
         return services;
     }
 

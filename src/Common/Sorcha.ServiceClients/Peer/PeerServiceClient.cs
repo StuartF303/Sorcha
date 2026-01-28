@@ -1,18 +1,26 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Grpc.Core;
+using Grpc.Net.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Sorcha.Peer.Service.Protos;
 
 namespace Sorcha.ServiceClients.Peer;
 
 /// <summary>
 /// gRPC client for Peer Service operations
 /// </summary>
-public class PeerServiceClient : IPeerServiceClient
+public class PeerServiceClient : IPeerServiceClient, IDisposable
 {
     private readonly ILogger<PeerServiceClient> _logger;
     private readonly string _serviceAddress;
+    private readonly GrpcChannel _channel;
+    private readonly PeerDiscovery.PeerDiscoveryClient _discoveryClient;
+    private readonly PeerCommunication.PeerCommunicationClient _communicationClient;
+    private readonly string _localPeerId;
+    private bool _disposed;
 
     public PeerServiceClient(
         IConfiguration configuration,
@@ -24,7 +32,16 @@ public class PeerServiceClient : IPeerServiceClient
             ?? configuration["GrpcClients:PeerService:Address"]
             ?? throw new InvalidOperationException("Peer Service address not configured");
 
-        _logger.LogInformation("PeerServiceClient initialized (Address: {Address})", _serviceAddress);
+        _localPeerId = configuration["Validator:ValidatorId"]
+            ?? configuration["ServiceClients:PeerId"]
+            ?? Environment.MachineName;
+
+        // Create gRPC channel
+        _channel = GrpcChannel.ForAddress(_serviceAddress);
+        _discoveryClient = new PeerDiscovery.PeerDiscoveryClient(_channel);
+        _communicationClient = new PeerCommunication.PeerCommunicationClient(_channel);
+
+        _logger.LogInformation("PeerServiceClient initialized (Address: {Address}, PeerId: {PeerId})", _serviceAddress, _localPeerId);
     }
 
     public async Task<List<ValidatorInfo>> QueryValidatorsAsync(
@@ -35,15 +52,39 @@ public class PeerServiceClient : IPeerServiceClient
         {
             _logger.LogDebug("Querying validators for register {RegisterId}", registerId);
 
-            // TODO: Implement gRPC call to Peer Service
-            _logger.LogWarning("Peer Service validator query not yet implemented - returning empty list");
+            var request = new PeerListRequest
+            {
+                RequestingPeerId = _localPeerId,
+                MaxPeers = 100
+            };
 
-            return await Task.FromResult(new List<ValidatorInfo>());
+            var response = await _discoveryClient.GetPeerListAsync(
+                request,
+                cancellationToken: cancellationToken);
+
+            var validators = response.Peers
+                .Where(p => p.Capabilities?.SupportsTransactionDistribution == true)
+                .Select(p => new ValidatorInfo
+                {
+                    ValidatorId = p.PeerId,
+                    GrpcEndpoint = $"{p.Address}:{p.Port}",
+                    IsActive = true,
+                    ReputationScore = 1.0
+                })
+                .ToList();
+
+            _logger.LogDebug("Found {Count} validators for register {RegisterId}", validators.Count, registerId);
+            return validators;
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable)
+        {
+            _logger.LogWarning("Peer Service unavailable - returning empty validator list");
+            return [];
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to query validators for register {RegisterId}", registerId);
-            return new List<ValidatorInfo>();
+            return [];
         }
     }
 
@@ -56,13 +97,40 @@ public class PeerServiceClient : IPeerServiceClient
         try
         {
             _logger.LogDebug(
-                "Publishing proposed docket {DocketId} for register {RegisterId}",
-                docketId, registerId);
+                "Publishing proposed docket {DocketId} for register {RegisterId} ({DataLength} bytes)",
+                docketId, registerId, docketData.Length);
 
-            // TODO: Implement gRPC call to Peer Service
-            _logger.LogWarning("Peer Service docket publishing not yet implemented");
+            var message = new PeerMessage
+            {
+                SenderPeerId = _localPeerId,
+                RecipientPeerId = "*", // Broadcast to all
+                MessageType = MessageType.TransactionNotification,
+                Payload = Google.Protobuf.ByteString.CopyFrom(docketData),
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
 
-            await Task.CompletedTask;
+            var response = await _communicationClient.SendMessageAsync(
+                message,
+                cancellationToken: cancellationToken);
+
+            if (response.Received)
+            {
+                _logger.LogInformation(
+                    "Successfully published proposed docket {DocketId} for register {RegisterId}",
+                    docketId, registerId);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Proposed docket {DocketId} publish not acknowledged for register {RegisterId}",
+                    docketId, registerId);
+            }
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable)
+        {
+            _logger.LogWarning(
+                "Peer Service unavailable - cannot publish proposed docket {DocketId}",
+                docketId);
         }
         catch (Exception ex)
         {
@@ -83,13 +151,40 @@ public class PeerServiceClient : IPeerServiceClient
         try
         {
             _logger.LogDebug(
-                "Broadcasting confirmed docket {DocketId} for register {RegisterId}",
-                docketId, registerId);
+                "Broadcasting confirmed docket {DocketId} for register {RegisterId} ({DataLength} bytes)",
+                docketId, registerId, docketData.Length);
 
-            // TODO: Implement gRPC call to Peer Service
-            _logger.LogWarning("Peer Service docket broadcasting not yet implemented");
+            var message = new PeerMessage
+            {
+                SenderPeerId = _localPeerId,
+                RecipientPeerId = "*", // Broadcast to all
+                MessageType = MessageType.TransactionResponse, // Using TransactionResponse for confirmed dockets
+                Payload = Google.Protobuf.ByteString.CopyFrom(docketData),
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
 
-            await Task.CompletedTask;
+            var response = await _communicationClient.SendMessageAsync(
+                message,
+                cancellationToken: cancellationToken);
+
+            if (response.Received)
+            {
+                _logger.LogInformation(
+                    "Successfully broadcast confirmed docket {DocketId} for register {RegisterId}",
+                    docketId, registerId);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Confirmed docket {DocketId} broadcast not acknowledged for register {RegisterId}",
+                    docketId, registerId);
+            }
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable)
+        {
+            _logger.LogWarning(
+                "Peer Service unavailable - cannot broadcast confirmed docket {DocketId}",
+                docketId);
         }
         catch (Exception ex)
         {
@@ -110,13 +205,45 @@ public class PeerServiceClient : IPeerServiceClient
         try
         {
             _logger.LogDebug(
-                "Reporting behavior '{Behavior}' for validator {ValidatorId}",
-                behavior, validatorId);
+                "Reporting behavior '{Behavior}' for validator {ValidatorId}: {Details}",
+                behavior, validatorId, details);
 
-            // TODO: Implement gRPC call to Peer Service
-            _logger.LogWarning("Peer Service behavior reporting not yet implemented");
+            // Use PeerStatusUpdate message type to report behavior
+            var behaviorReport = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                Type = "ValidatorBehaviorReport",
+                ValidatorId = validatorId,
+                Behavior = behavior,
+                Details = details,
+                ReportedBy = _localPeerId,
+                Timestamp = DateTimeOffset.UtcNow
+            });
 
-            await Task.CompletedTask;
+            var message = new PeerMessage
+            {
+                SenderPeerId = _localPeerId,
+                RecipientPeerId = "*", // Broadcast to all for decentralized reputation
+                MessageType = MessageType.PeerStatusUpdate,
+                Payload = Google.Protobuf.ByteString.CopyFrom(behaviorReport),
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+
+            var response = await _communicationClient.SendMessageAsync(
+                message,
+                cancellationToken: cancellationToken);
+
+            if (response.Received)
+            {
+                _logger.LogInformation(
+                    "Reported behavior '{Behavior}' for validator {ValidatorId}",
+                    behavior, validatorId);
+            }
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable)
+        {
+            _logger.LogWarning(
+                "Peer Service unavailable - cannot report validator {ValidatorId} behavior",
+                validatorId);
         }
         catch (Exception ex)
         {
@@ -125,6 +252,15 @@ public class PeerServiceClient : IPeerServiceClient
                 "Failed to report behavior for validator {ValidatorId}",
                 validatorId);
             throw;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _channel.Dispose();
+            _disposed = true;
         }
     }
 }

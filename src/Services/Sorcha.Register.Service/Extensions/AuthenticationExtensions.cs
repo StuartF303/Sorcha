@@ -38,6 +38,10 @@ public static class AuthenticationExtensions
             options.AddPolicy("CanReadTransactions", policy =>
                 policy.RequireAuthenticatedUser());
 
+            // Docket writing (Validator Service only)
+            options.AddPolicy("CanWriteDockets", policy =>
+                policy.RequireClaim("token_type", "service"));
+
             // Service-to-service operations (notifications, etc.)
             options.AddPolicy("RequireService", policy =>
                 policy.RequireClaim("token_type", "service"));

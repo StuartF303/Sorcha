@@ -60,8 +60,8 @@ public class ConsensusEngine : IConsensusEngine
         try
         {
             // Step 1: Publish docket to peer network
-            // TODO: Serialize docket properly - for now use empty byte array as placeholder
-            await _peerClient.PublishProposedDocketAsync(docket.RegisterId, docket.DocketId, Array.Empty<byte>(), cancellationToken);
+            var docketData = DocketSerializer.SerializeToBytes(docket);
+            await _peerClient.PublishProposedDocketAsync(docket.RegisterId, docket.DocketId, docketData, cancellationToken);
             _logger.LogDebug("Published docket {DocketNumber} to peer network", docket.DocketNumber);
 
             // Step 2: Query for active validators

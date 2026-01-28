@@ -899,6 +899,76 @@ docketsGroup.MapGet("/{docketId}/transactions", async (
 .WithSummary("Get docket transactions")
 .WithDescription("Retrieves all transactions sealed in a specific docket.");
 
+/// <summary>
+/// Get the latest docket for a register
+/// </summary>
+docketsGroup.MapGet("/latest", async (
+    IRegisterRepository repository,
+    string registerId) =>
+{
+    var register = await repository.GetRegisterAsync(registerId);
+    if (register == null)
+    {
+        return Results.NotFound(new { error = "Register not found" });
+    }
+
+    if (register.Height == 0)
+    {
+        return Results.Ok<Docket?>(null);
+    }
+
+    var docket = await repository.GetDocketAsync(registerId, register.Height);
+    return docket is not null ? Results.Ok(docket) : Results.NotFound();
+})
+.WithName("GetLatestDocket")
+.WithSummary("Get latest docket")
+.WithDescription("Retrieves the most recent docket (block) for a register.");
+
+/// <summary>
+/// Write a confirmed docket to the register (Validator Service only)
+/// </summary>
+docketsGroup.MapPost("/", async (
+    IRegisterRepository repository,
+    string registerId,
+    WriteDocketRequest request) =>
+{
+    // Validate register exists
+    var register = await repository.GetRegisterAsync(registerId);
+    if (register == null)
+    {
+        return Results.NotFound(new { error = "Register not found" });
+    }
+
+    // Create docket from request
+    var docket = new Docket
+    {
+        Id = (ulong)request.DocketNumber,
+        RegisterId = registerId,
+        PreviousHash = request.PreviousHash ?? string.Empty,
+        Hash = request.DocketHash,
+        TransactionIds = request.TransactionIds,
+        TimeStamp = request.CreatedAt.UtcDateTime,
+        State = DocketState.Sealed,
+        MetaData = new TransactionMetaData
+        {
+            RegisterId = registerId
+        },
+        Votes = request.ProposerValidatorId
+    };
+
+    // Insert docket
+    var inserted = await repository.InsertDocketAsync(docket);
+
+    // Update register height
+    await repository.UpdateRegisterHeightAsync(registerId, (uint)request.DocketNumber);
+
+    return Results.Created($"/api/registers/{registerId}/dockets/{inserted.Id}", inserted);
+})
+.WithName("WriteDocket")
+.WithSummary("Write a confirmed docket")
+.WithDescription("Writes a consensus-confirmed docket to the register. Used by Validator Service.")
+.RequireAuthorization("CanWriteDockets");
+
 app.Run();
 
 // ===========================
@@ -915,3 +985,13 @@ record UpdateRegisterRequest(
     string? Name = null,
     RegisterStatus? Status = null,
     bool? Advertise = null);
+
+record WriteDocketRequest(
+    string DocketId,
+    long DocketNumber,
+    string? PreviousHash,
+    string DocketHash,
+    DateTimeOffset CreatedAt,
+    List<string> TransactionIds,
+    string ProposerValidatorId,
+    string MerkleRoot);
