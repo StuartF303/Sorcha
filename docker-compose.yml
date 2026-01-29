@@ -430,6 +430,38 @@ services:
     networks:
       - sorcha-network
 
+  # ===========================
+  # Developer Tools
+  # ===========================
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: src/Apps/Sorcha.McpServer/Dockerfile
+    image: sorcha/mcp-server:latest
+    container_name: sorcha-mcp-server
+    profiles:
+      - tools  # Only starts with --profile tools or docker-compose run
+    environment:
+      <<: *otel-env
+      OTEL_SERVICE_NAME: mcp-server
+      DOTNET_ENVIRONMENT: Development
+      # Service client configuration for backend communication
+      ServiceClients__BlueprintService__Address: http://blueprint-service:8080
+      ServiceClients__WalletService__Address: http://wallet-service:8080
+      ServiceClients__RegisterService__Address: http://register-service:8080
+      ServiceClients__TenantService__Address: http://tenant-service:8080
+      ServiceClients__ValidatorService__Address: http://validator-service:8080
+      # JWT token can be provided via SORCHA_JWT_TOKEN environment variable or --jwt-token argument
+      # Example: docker-compose run mcp-server --jwt-token <your-token>
+    depends_on:
+      - api-gateway
+      - aspire-dashboard
+    networks:
+      - sorcha-network
+    stdin_open: true  # Enable interactive stdin for MCP stdio transport
+    tty: true         # Allocate a pseudo-TTY
+
 networks:
   # Bridge network for all services
   # All containers communicate via Docker DNS (e.g., http://wallet-service:8080)

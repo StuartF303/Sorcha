@@ -74,6 +74,30 @@ walkthroughs/
 - Admin UI: http://localhost/admin
 - Credentials: stuart.mackintosh@sorcha.dev / SorchaDev2025!
 
+### [McpServerBasics](./McpServerBasics/)
+**Status:** ✅ Complete
+**Date:** 2026-01-29
+**Purpose:** Authenticate with Sorcha and use the MCP Server to interact with the platform via AI assistant tools
+
+**What you'll learn:**
+- Starting Sorcha services with Docker Compose
+- JWT authentication with Tenant Service
+- Running the MCP Server with JWT token
+- Role-based tool access (admin, designer, participant)
+- Using MCP tools for platform health, blueprints, wallets, and ledger
+- Integrating with Claude Desktop
+
+**Key files:**
+- `get-token-and-run-mcp.ps1` - PowerShell script (Windows)
+- `get-token-and-run-mcp.sh` - Bash script (Linux/Mac)
+- `test-mcp-server.ps1` - Quick verification tests
+- `RESULTS.md` - Complete test results and findings
+
+**Access:**
+- MCP Server: `docker-compose run mcp-server --jwt-token <token>`
+- Credentials: admin@sorcha.local / Admin123!
+- Available Tools: 36 tools across 3 role categories
+
 ### [UserWalletCreation](./UserWalletCreation/)
 **Status:** 🚧 Planning Phase
 **Date:** 2026-01-04

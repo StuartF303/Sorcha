@@ -126,6 +126,7 @@ src/
 │   │   └── Sorcha.Admin.Client/     # Admin UI client components
 │   ├── Sorcha.Cli/                  # Administrative CLI tool
 │   ├── Sorcha.Demo/                 # Demo application
+│   ├── Sorcha.McpServer/            # MCP Server for AI assistants (Claude Desktop, etc.)
 │   └── Sorcha.UI/                   # Main UI application
 │       ├── Sorcha.UI.Core/          # Shared UI components
 │       ├── Sorcha.UI.Web/           # Web host
@@ -171,7 +172,7 @@ tests/                               # 30 test projects
 └── Sorcha.UI.E2E.Tests/             # End-to-end Playwright tests
 ```
 
-**Project Count:** 38 source projects, 30 test projects
+**Project Count:** 39 source projects, 30 test projects
 
 ---
 
@@ -320,6 +321,11 @@ public class WalletService
 docker-compose up -d                              # Start services
 docker-compose logs -f <service>                  # View logs
 docker-compose build <service> && docker-compose up -d --force-recreate <service>  # Rebuild
+
+# MCP Server (for AI assistants)
+docker-compose run mcp-server --jwt-token <token> # Run MCP server with JWT auth
+# Or use environment variable:
+# SORCHA_JWT_TOKEN=<token> docker-compose run mcp-server
 
 # .NET Aspire
 dotnet run --project src/Apps/Sorcha.AppHost      # Start with Aspire
