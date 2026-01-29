@@ -112,6 +112,9 @@ builder.Services.AddGenesisConfigService(builder.Configuration);
 // Add validator registry (Sprint 9F)
 builder.Services.AddValidatorRegistry(builder.Configuration);
 
+// Add control blueprint version resolver (Sprint 9F - VAL-9.42)
+builder.Services.AddControlBlueprintVersionResolver();
+
 // Add gRPC services
 builder.Services.AddGrpc();
 
