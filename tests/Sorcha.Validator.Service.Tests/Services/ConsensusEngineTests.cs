@@ -691,7 +691,13 @@ public class ConsensusEngineTests
 
         _mockWalletClient
             .Setup(w => w.SignDataAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("test-signature");
+            .ReturnsAsync(new WalletSignResult
+            {
+                Signature = Convert.FromBase64String("dGVzdC1zaWduYXR1cmU="),
+                PublicKey = new byte[] { 0x01, 0x02, 0x03 },
+                SignedBy = "test-wallet-address",
+                Algorithm = "ED25519"
+            });
     }
 
     /// <summary>

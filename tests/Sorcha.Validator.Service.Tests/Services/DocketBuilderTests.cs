@@ -669,7 +669,13 @@ public class DocketBuilderTests
         // we only need to mock the wallet client for signing
         _mockWalletClient
             .Setup(w => w.SignDataAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(signature);
+            .ReturnsAsync((string walletAddress, string data, CancellationToken ct) => new WalletSignResult
+            {
+                Signature = System.Text.Encoding.UTF8.GetBytes(signature),
+                PublicKey = System.Text.Encoding.UTF8.GetBytes(string.IsNullOrEmpty(walletAddress) ? "test-wallet-address" : walletAddress),
+                SignedBy = string.IsNullOrEmpty(walletAddress) ? "test-wallet-address" : walletAddress,
+                Algorithm = "ED25519"
+            });
     }
 
     #endregion

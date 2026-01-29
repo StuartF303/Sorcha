@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using StackExchange.Redis;
+using Sorcha.ServiceClients.Register;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Services;
 using Sorcha.Validator.Service.Services.Interfaces;
@@ -17,6 +18,7 @@ public class GenesisConfigServiceTests
 {
     private readonly Mock<IConnectionMultiplexer> _redisMock;
     private readonly Mock<IDatabase> _databaseMock;
+    private readonly Mock<IRegisterServiceClient> _registerClientMock;
     private readonly Mock<ILogger<GenesisConfigService>> _loggerMock;
     private readonly GenesisConfigCacheConfiguration _config;
     private readonly GenesisConfigService _service;
@@ -26,6 +28,7 @@ public class GenesisConfigServiceTests
     {
         _redisMock = new Mock<IConnectionMultiplexer>();
         _databaseMock = new Mock<IDatabase>();
+        _registerClientMock = new Mock<IRegisterServiceClient>();
         _loggerMock = new Mock<ILogger<GenesisConfigService>>();
 
         _config = new GenesisConfigCacheConfiguration
@@ -49,6 +52,7 @@ public class GenesisConfigServiceTests
 
         _service = new GenesisConfigService(
             _redisMock.Object,
+            _registerClientMock.Object,
             Options.Create(_config),
             _loggerMock.Object);
     }
@@ -59,6 +63,7 @@ public class GenesisConfigServiceTests
         // Act
         var act = () => new GenesisConfigService(
             null!,
+            _registerClientMock.Object,
             Options.Create(_config),
             _loggerMock.Object);
 
@@ -68,11 +73,27 @@ public class GenesisConfigServiceTests
     }
 
     [Fact]
+    public void Constructor_WithNullRegisterClient_ThrowsArgumentNullException()
+    {
+        // Act
+        var act = () => new GenesisConfigService(
+            _redisMock.Object,
+            null!,
+            Options.Create(_config),
+            _loggerMock.Object);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("registerClient");
+    }
+
+    [Fact]
     public void Constructor_WithNullConfig_ThrowsArgumentNullException()
     {
         // Act
         var act = () => new GenesisConfigService(
             _redisMock.Object,
+            _registerClientMock.Object,
             null!,
             _loggerMock.Object);
 
@@ -87,6 +108,7 @@ public class GenesisConfigServiceTests
         // Act
         var act = () => new GenesisConfigService(
             _redisMock.Object,
+            _registerClientMock.Object,
             Options.Create(_config),
             null!);
 

@@ -7,6 +7,8 @@ using Microsoft.Extensions.Options;
 using Polly;
 using Polly.CircuitBreaker;
 using StackExchange.Redis;
+using Sorcha.Register.Models;
+using Sorcha.ServiceClients.Register;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Services.Interfaces;
 
@@ -20,6 +22,7 @@ public class GenesisConfigService : IGenesisConfigService
 {
     private readonly IConnectionMultiplexer _redis;
     private readonly IDatabase _database;
+    private readonly IRegisterServiceClient _registerClient;
     private readonly GenesisConfigCacheConfiguration _config;
     private readonly ILogger<GenesisConfigService> _logger;
     private readonly ResiliencePipeline _pipeline;
@@ -36,10 +39,12 @@ public class GenesisConfigService : IGenesisConfigService
 
     public GenesisConfigService(
         IConnectionMultiplexer redis,
+        IRegisterServiceClient registerClient,
         IOptions<GenesisConfigCacheConfiguration> config,
         ILogger<GenesisConfigService> logger)
     {
         _redis = redis ?? throw new ArgumentNullException(nameof(redis));
+        _registerClient = registerClient ?? throw new ArgumentNullException(nameof(registerClient));
         _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -139,6 +144,9 @@ public class GenesisConfigService : IGenesisConfigService
                 {
                     SetInLocalCache(registerId, config);
                 }
+
+                // Track version for change detection
+                _versionCache[registerId] = config.ControlBlueprintVersionId;
 
                 return config;
             }
@@ -288,25 +296,281 @@ public class GenesisConfigService : IGenesisConfigService
         string registerId,
         CancellationToken ct)
     {
-        // In production, this would:
-        // 1. Query Register Service for genesis transaction
-        // 2. Extract control blueprint from genesis
-        // 3. Parse configuration from blueprint data
-
-        // For now, return default configuration
-        // TODO: Implement actual genesis fetch from Register Service
-
         _logger.LogDebug(
-            "Fetching genesis config from source for register {RegisterId}",
+            "Fetching genesis config from Register Service for register {RegisterId}",
             registerId);
 
-        var config = CreateDefaultConfiguration(registerId);
+        try
+        {
+            // Step 1: Verify register exists
+            var register = await _registerClient.GetRegisterAsync(registerId, ct);
+            if (register == null)
+            {
+                _logger.LogWarning("Register {RegisterId} not found, using default config", registerId);
+                return await CreateAndCacheDefaultConfigAsync(registerId, ct);
+            }
 
-        // Cache the configuration
+            // Step 2: Try to read genesis docket (docket 0)
+            var genesisDocket = await _registerClient.ReadDocketAsync(registerId, 0, ct);
+            if (genesisDocket == null || genesisDocket.Transactions.Count == 0)
+            {
+                _logger.LogDebug(
+                    "No genesis docket found for register {RegisterId}, using default config",
+                    registerId);
+                return await CreateAndCacheDefaultConfigAsync(registerId, ct);
+            }
+
+            // Step 3: Get the first transaction (genesis transaction)
+            var genesisTransaction = genesisDocket.Transactions.FirstOrDefault();
+            if (genesisTransaction == null)
+            {
+                _logger.LogDebug(
+                    "No genesis transaction in docket for register {RegisterId}, using default config",
+                    registerId);
+                return await CreateAndCacheDefaultConfigAsync(registerId, ct);
+            }
+
+            // Step 4: Parse control blueprint from transaction payload
+            var config = ParseGenesisConfiguration(registerId, genesisTransaction, genesisDocket);
+
+            // Step 5: Cache the configuration
+            await CacheConfigAsync(config, ct);
+
+            _logger.LogInformation(
+                "Loaded genesis config for register {RegisterId} from transaction {TxId}",
+                registerId, genesisTransaction.TxId ?? genesisTransaction.Id);
+
+            return config;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to fetch genesis config from Register Service for {RegisterId}, using default",
+                registerId);
+            return await CreateAndCacheDefaultConfigAsync(registerId, ct);
+        }
+    }
+
+    private async Task<GenesisConfiguration> CreateAndCacheDefaultConfigAsync(
+        string registerId,
+        CancellationToken ct)
+    {
+        var config = CreateDefaultConfiguration(registerId);
         await CacheConfigAsync(config, ct);
+        return config;
+    }
+
+    private GenesisConfiguration ParseGenesisConfiguration(
+        string registerId,
+        TransactionModel genesisTransaction,
+        DocketModel genesisDocket)
+    {
+        // Try to parse control blueprint from transaction payloads
+        try
+        {
+            // Check if transaction has any payloads
+            if (genesisTransaction.Payloads != null && genesisTransaction.Payloads.Length > 0)
+            {
+                // Get the first payload (typically the control record)
+                var firstPayload = genesisTransaction.Payloads[0];
+
+                if (!string.IsNullOrEmpty(firstPayload.Data))
+                {
+                    var payloadData = JsonSerializer.Deserialize<JsonElement>(firstPayload.Data, _jsonOptions);
+
+                    // Look for control blueprint configuration in payload
+                    if (payloadData.TryGetProperty("controlBlueprint", out var controlBlueprint) ||
+                        payloadData.TryGetProperty("configuration", out controlBlueprint))
+                    {
+                        return ParseControlBlueprint(registerId, genesisTransaction, genesisDocket, controlBlueprint);
+                    }
+
+                    // Check if the payload itself is the control record
+                    if (payloadData.TryGetProperty("consensus", out _))
+                    {
+                        return ParseControlBlueprint(registerId, genesisTransaction, genesisDocket, payloadData);
+                    }
+                }
+            }
+
+            // Also check MetaData for configuration (alternative location)
+            if (genesisTransaction.MetaData != null)
+            {
+                _logger.LogDebug(
+                    "Genesis transaction has metadata, checking for control config in register {RegisterId}",
+                    registerId);
+            }
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex,
+                "Failed to parse genesis payload for register {RegisterId}, using defaults",
+                registerId);
+        }
+
+        // Fallback to default configuration with genesis transaction reference
+        _logger.LogDebug(
+            "Using default config for register {RegisterId} (no control blueprint in genesis)",
+            registerId);
+
+        return new GenesisConfiguration
+        {
+            RegisterId = registerId,
+            GenesisTransactionId = genesisTransaction.TxId ?? genesisTransaction.Id ?? $"genesis-{registerId}",
+            ControlBlueprintVersionId = $"control-v1-{registerId}",
+            Consensus = CreateDefaultConsensusConfig(),
+            Validators = CreateDefaultValidatorConfig(),
+            LeaderElection = CreateDefaultLeaderElectionConfig(),
+            LoadedAt = DateTimeOffset.UtcNow,
+            CacheTtl = TimeSpan.FromMinutes(30)
+        };
+    }
+
+    private GenesisConfiguration ParseControlBlueprint(
+        string registerId,
+        TransactionModel genesisTransaction,
+        DocketModel genesisDocket,
+        JsonElement config)
+    {
+        var consensusConfig = CreateDefaultConsensusConfig();
+        var validatorConfig = CreateDefaultValidatorConfig();
+        var leaderElectionConfig = CreateDefaultLeaderElectionConfig();
+
+        // Parse consensus configuration
+        if (config.TryGetProperty("consensus", out var consensus))
+        {
+            consensusConfig = ParseConsensusConfig(consensus);
+        }
+
+        // Parse validator configuration
+        if (config.TryGetProperty("validators", out var validators))
+        {
+            validatorConfig = ParseValidatorConfig(validators);
+        }
+
+        // Parse leader election configuration
+        if (config.TryGetProperty("leaderElection", out var leaderElection))
+        {
+            leaderElectionConfig = ParseLeaderElectionConfig(leaderElection);
+        }
+
+        return new GenesisConfiguration
+        {
+            RegisterId = registerId,
+            GenesisTransactionId = genesisTransaction.TxId ?? genesisTransaction.Id ?? $"genesis-{registerId}",
+            ControlBlueprintVersionId = genesisDocket.DocketId,
+            Consensus = consensusConfig,
+            Validators = validatorConfig,
+            LeaderElection = leaderElectionConfig,
+            LoadedAt = DateTimeOffset.UtcNow,
+            CacheTtl = TimeSpan.FromMinutes(30)
+        };
+    }
+
+    private ConsensusConfig ParseConsensusConfig(JsonElement element)
+    {
+        var config = CreateDefaultConsensusConfig();
+
+        if (element.TryGetProperty("signatureThreshold", out var threshold))
+        {
+            if (threshold.TryGetProperty("min", out var min) && min.TryGetInt32(out var minVal))
+                config = config with { SignatureThresholdMin = minVal };
+            if (threshold.TryGetProperty("max", out var max) && max.TryGetInt32(out var maxVal))
+                config = config with { SignatureThresholdMax = maxVal };
+        }
+
+        if (element.TryGetProperty("docketTimeout", out var timeout))
+            config = config with { DocketTimeout = ParseDuration(timeout.GetString()) ?? config.DocketTimeout };
+
+        if (element.TryGetProperty("maxSignaturesPerDocket", out var maxSigs) && maxSigs.TryGetInt32(out var maxSigsVal))
+            config = config with { MaxSignaturesPerDocket = maxSigsVal };
+
+        if (element.TryGetProperty("maxTransactionsPerDocket", out var maxTx) && maxTx.TryGetInt32(out var maxTxVal))
+            config = config with { MaxTransactionsPerDocket = maxTxVal };
+
+        if (element.TryGetProperty("docketBuildInterval", out var interval))
+            config = config with { DocketBuildInterval = ParseDuration(interval.GetString()) ?? config.DocketBuildInterval };
 
         return config;
     }
+
+    private ValidatorConfig ParseValidatorConfig(JsonElement element)
+    {
+        var config = CreateDefaultValidatorConfig();
+
+        if (element.TryGetProperty("registrationMode", out var mode))
+            config = config with { RegistrationMode = mode.GetString() ?? "public" };
+
+        if (element.TryGetProperty("minValidators", out var min) && min.TryGetInt32(out var minVal))
+            config = config with { MinValidators = minVal };
+
+        if (element.TryGetProperty("maxValidators", out var max) && max.TryGetInt32(out var maxVal))
+            config = config with { MaxValidators = maxVal };
+
+        if (element.TryGetProperty("requireStake", out var stake))
+            config = config with { RequireStake = stake.GetBoolean() };
+
+        return config;
+    }
+
+    private LeaderElectionConfig ParseLeaderElectionConfig(JsonElement element)
+    {
+        var config = CreateDefaultLeaderElectionConfig();
+
+        if (element.TryGetProperty("mechanism", out var mechanism))
+            config = config with { Mechanism = mechanism.GetString() ?? "rotating" };
+
+        if (element.TryGetProperty("heartbeatInterval", out var heartbeat))
+            config = config with { HeartbeatInterval = ParseDuration(heartbeat.GetString()) ?? config.HeartbeatInterval };
+
+        if (element.TryGetProperty("leaderTimeout", out var timeout))
+            config = config with { LeaderTimeout = ParseDuration(timeout.GetString()) ?? config.LeaderTimeout };
+
+        return config;
+    }
+
+    private static TimeSpan? ParseDuration(string? iso8601)
+    {
+        if (string.IsNullOrEmpty(iso8601))
+            return null;
+
+        try
+        {
+            // Parse ISO 8601 duration (e.g., "PT30S", "PT5M", "PT1H")
+            return System.Xml.XmlConvert.ToTimeSpan(iso8601);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static ConsensusConfig CreateDefaultConsensusConfig() => new()
+    {
+        SignatureThresholdMin = 2,
+        SignatureThresholdMax = 10,
+        DocketTimeout = TimeSpan.FromSeconds(30),
+        MaxSignaturesPerDocket = 100,
+        MaxTransactionsPerDocket = 1000,
+        DocketBuildInterval = TimeSpan.FromMilliseconds(100)
+    };
+
+    private static ValidatorConfig CreateDefaultValidatorConfig() => new()
+    {
+        RegistrationMode = "public",
+        MinValidators = 1,
+        MaxValidators = 100,
+        RequireStake = false,
+        StakeAmount = null
+    };
+
+    private static LeaderElectionConfig CreateDefaultLeaderElectionConfig() => new()
+    {
+        Mechanism = "rotating",
+        HeartbeatInterval = TimeSpan.FromSeconds(1),
+        LeaderTimeout = TimeSpan.FromSeconds(5),
+        TermDuration = TimeSpan.FromMinutes(1)
+    };
 
     private async Task CacheConfigAsync(
         GenesisConfiguration config,
@@ -358,30 +622,9 @@ public class GenesisConfigService : IGenesisConfigService
             RegisterId = registerId,
             GenesisTransactionId = $"genesis-{registerId}",
             ControlBlueprintVersionId = $"control-v1-{registerId}",
-            Consensus = new ConsensusConfig
-            {
-                SignatureThresholdMin = 2,
-                SignatureThresholdMax = 10,
-                DocketTimeout = TimeSpan.FromSeconds(30),
-                MaxSignaturesPerDocket = 100,
-                MaxTransactionsPerDocket = 1000,
-                DocketBuildInterval = TimeSpan.FromMilliseconds(100)
-            },
-            Validators = new ValidatorConfig
-            {
-                RegistrationMode = "public",
-                MinValidators = 1,
-                MaxValidators = 100,
-                RequireStake = false,
-                StakeAmount = null
-            },
-            LeaderElection = new LeaderElectionConfig
-            {
-                Mechanism = "rotating",
-                HeartbeatInterval = TimeSpan.FromSeconds(1),
-                LeaderTimeout = TimeSpan.FromSeconds(5),
-                TermDuration = TimeSpan.FromMinutes(1)
-            },
+            Consensus = CreateDefaultConsensusConfig(),
+            Validators = CreateDefaultValidatorConfig(),
+            LeaderElection = CreateDefaultLeaderElectionConfig(),
             LoadedAt = DateTimeOffset.UtcNow,
             CacheTtl = TimeSpan.FromMinutes(30)
         };

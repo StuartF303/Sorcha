@@ -26,8 +26,9 @@ public static class GenesisConfigServiceExtensions
         services.Configure<GenesisConfigCacheConfiguration>(
             configuration.GetSection(GenesisConfigCacheConfiguration.SectionName));
 
-        // Register the service as singleton (maintains L1 cache state)
-        services.AddSingleton<IGenesisConfigService, GenesisConfigService>();
+        // Register as scoped (depends on scoped IRegisterServiceClient)
+        // L1 cache state is still maintained per-request, L2 cache is in Redis
+        services.AddScoped<IGenesisConfigService, GenesisConfigService>();
 
         return services;
     }

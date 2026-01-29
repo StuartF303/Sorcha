@@ -28,8 +28,9 @@ public static class ValidatorRegistryExtensions
         services.Configure<ValidatorRegistryConfiguration>(
             configuration.GetSection(ValidatorRegistryConfiguration.SectionName));
 
-        // Register the service as singleton (manages shared state across requests)
-        services.AddSingleton<IValidatorRegistry, ValidatorRegistry>();
+        // Register the service as scoped (depends on scoped IRegisterServiceClient)
+        // State is maintained in Redis, not in-memory, so scoped lifetime is appropriate
+        services.AddScoped<IValidatorRegistry, ValidatorRegistry>();
 
         return services;
     }
