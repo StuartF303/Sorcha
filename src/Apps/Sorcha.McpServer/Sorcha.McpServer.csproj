@@ -26,6 +26,12 @@
 
     <!-- Rate Limiting -->
     <PackageReference Include="System.Threading.RateLimiting" Version="10.0.2" />
+
+    <!-- Schema and Logic Processing -->
+    <PackageReference Include="JsonSchema.Net" Version="7.3.4" />
+    <PackageReference Include="JsonLogic.Net" Version="1.1.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
 
   <ItemGroup>

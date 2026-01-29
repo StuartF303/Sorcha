@@ -40,7 +40,7 @@ public sealed class McpAuthorizationService : IMcpAuthorizationService
             "sorcha_blueprint_update",
             "sorcha_blueprint_validate",
             "sorcha_blueprint_simulate",
-            "sorcha_disclosure_analyze",
+            "sorcha_disclosure_analysis",
             "sorcha_blueprint_diff",
             "sorcha_blueprint_export",
             "sorcha_schema_validate",

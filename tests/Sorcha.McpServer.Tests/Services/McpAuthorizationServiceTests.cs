@@ -87,7 +87,7 @@ public class McpAuthorizationServiceTests
     [InlineData("sorcha_blueprint_update")]
     [InlineData("sorcha_blueprint_validate")]
     [InlineData("sorcha_blueprint_simulate")]
-    [InlineData("sorcha_disclosure_analyze")]
+    [InlineData("sorcha_disclosure_analysis")]
     [InlineData("sorcha_blueprint_diff")]
     [InlineData("sorcha_blueprint_export")]
     [InlineData("sorcha_schema_validate")]
