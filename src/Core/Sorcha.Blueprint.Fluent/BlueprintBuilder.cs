@@ -189,6 +189,26 @@ public class BlueprintBuilder
         if (_blueprint.Actions.Count < 1)
             throw new InvalidOperationException("Blueprint must have at least 1 action");
 
+        // Auto-set JSON-LD types only when JSON-LD mode is enabled
+        if (_blueprint.JsonLdContext != null)
+        {
+            foreach (var participant in _blueprint.Participants)
+            {
+                if (string.IsNullOrEmpty(participant.JsonLdType))
+                {
+                    participant.JsonLdType = JsonLdTypeHelper.GetParticipantType(participant.Organisation);
+                }
+            }
+
+            foreach (var action in _blueprint.Actions)
+            {
+                if (string.IsNullOrEmpty(action.JsonLdType) && !string.IsNullOrEmpty(action.Title))
+                {
+                    action.JsonLdType = JsonLdTypeHelper.GetActionType(action.Title);
+                }
+            }
+        }
+
         _blueprint.UpdatedAt = DateTimeOffset.UtcNow;
 
         return _blueprint;

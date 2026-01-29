@@ -294,7 +294,7 @@ public static class AuthEndpoints
                 ?? user.FindFirst("sub")?.Value,
             Email = user.FindFirst(ClaimTypes.Email)?.Value
                 ?? user.FindFirst("email")?.Value,
-            Name = user.FindFirst(ClaimTypes.Name)?.Value
+            DisplayName = user.FindFirst(ClaimTypes.Name)?.Value
                 ?? user.FindFirst("name")?.Value,
             OrganizationId = user.FindFirst("org_id")?.Value,
             OrganizationName = user.FindFirst("org_name")?.Value,
@@ -326,55 +326,4 @@ public static class AuthEndpoints
             Message = "Logged out successfully"
         });
     }
-}
-
-/// <summary>
-/// Response containing current user information.
-/// </summary>
-public record CurrentUserResponse
-{
-    /// <summary>
-    /// User ID from token claims.
-    /// </summary>
-    public string? UserId { get; init; }
-
-    /// <summary>
-    /// User email.
-    /// </summary>
-    public string? Email { get; init; }
-
-    /// <summary>
-    /// User display name.
-    /// </summary>
-    public string? Name { get; init; }
-
-    /// <summary>
-    /// Organization ID (for org users).
-    /// </summary>
-    public string? OrganizationId { get; init; }
-
-    /// <summary>
-    /// Organization name.
-    /// </summary>
-    public string? OrganizationName { get; init; }
-
-    /// <summary>
-    /// Token type (user or service).
-    /// </summary>
-    public string TokenType { get; init; } = "user";
-
-    /// <summary>
-    /// User roles.
-    /// </summary>
-    public string[] Roles { get; init; } = [];
-
-    /// <summary>
-    /// Token scopes.
-    /// </summary>
-    public string[] Scopes { get; init; } = [];
-
-    /// <summary>
-    /// Authentication method (passkey, oidc, etc.).
-    /// </summary>
-    public string? AuthMethod { get; init; }
 }

@@ -196,29 +196,29 @@ public record RevokeOrganizationTokensRequest
 }
 
 /// <summary>
-/// Current authenticated user information.
+/// Current authenticated user information extracted from JWT claims.
 /// </summary>
 public record CurrentUserResponse
 {
     /// <summary>
-    /// User ID.
+    /// User ID from token claims.
     /// </summary>
-    public required Guid UserId { get; init; }
+    public string? UserId { get; init; }
 
     /// <summary>
     /// User email.
     /// </summary>
-    public required string Email { get; init; }
+    public string? Email { get; init; }
 
     /// <summary>
     /// User display name.
     /// </summary>
-    public required string DisplayName { get; init; }
+    public string? DisplayName { get; init; }
 
     /// <summary>
-    /// Organization ID.
+    /// Organization ID (for org users).
     /// </summary>
-    public Guid? OrganizationId { get; init; }
+    public string? OrganizationId { get; init; }
 
     /// <summary>
     /// Organization name.
@@ -228,12 +228,22 @@ public record CurrentUserResponse
     /// <summary>
     /// User roles.
     /// </summary>
-    public string[] Roles { get; init; } = Array.Empty<string>();
+    public string[] Roles { get; init; } = [];
 
     /// <summary>
     /// Token type (user, service, etc.).
     /// </summary>
-    public string? TokenType { get; init; }
+    public string TokenType { get; init; } = "user";
+
+    /// <summary>
+    /// Token scopes.
+    /// </summary>
+    public string[] Scopes { get; init; } = [];
+
+    /// <summary>
+    /// Authentication method (passkey, oidc, etc.).
+    /// </summary>
+    public string? AuthMethod { get; init; }
 }
 
 /// <summary>

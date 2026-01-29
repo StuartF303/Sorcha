@@ -284,9 +284,21 @@ public class TokenService : ITokenService
                 ExpiresIn = _config.AccessTokenLifetimeMinutes * 60
             };
         }
+        catch (SecurityTokenMalformedException ex)
+        {
+            // Token format is invalid (wrong number of segments, etc.)
+            _logger.LogWarning(ex, "Malformed refresh token");
+            return null;
+        }
         catch (SecurityTokenException ex)
         {
             _logger.LogWarning(ex, "Invalid refresh token");
+            return null;
+        }
+        catch (ArgumentException ex)
+        {
+            // Handles other argument-related parsing errors
+            _logger.LogWarning(ex, "Argument error parsing refresh token");
             return null;
         }
     }

@@ -319,7 +319,7 @@ public class ExecutionEngineTests
         // Assert
         result.Should().NotBeNull();
         result.NextParticipantId.Should().Be("participant2");
-        result.NextActionId.Should().Be("action2");
+        result.NextActionId.Should().Be("2"); // Action ID is 2
         result.IsWorkflowComplete.Should().BeFalse();
     }
 
@@ -340,7 +340,7 @@ public class ExecutionEngineTests
         // Assert
         result.Should().NotBeNull();
         result.NextParticipantId.Should().Be("participant2");
-        result.NextActionId.Should().Be("action2");
+        result.NextActionId.Should().Be("2"); // Action ID is 2
     }
 
     [Fact]
@@ -470,6 +470,7 @@ public class ExecutionEngineTests
                 {
                     Id = 1,
                     Title = "Action 1",
+                    Sender = "participant1",
                     Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""
@@ -482,12 +483,18 @@ public class ExecutionEngineTests
                             "required": ["name", "age"]
                         }
                         """)
+                    },
+                    // Add routing condition to route to participant2
+                    Participants = new List<BpModels.Condition>
+                    {
+                        new("participant2", true) // Always route to participant2
                     }
                 },
                 new()
                 {
                     Id = 2,
-                    Title = "Action 2"
+                    Title = "Action 2",
+                    Sender = "participant2"
                 }
             },
             Participants = new List<BpModels.Participant>
@@ -541,8 +548,13 @@ public class ExecutionEngineTests
     {
         var blueprint = CreateSimpleBlueprint();
 
-        // Note: Conditions are part of Action.Participants, not Participant itself
-        // The routing logic is defined in the Action, not the Participant model
+        // Update first action to have conditional routing based on age
+        var firstAction = blueprint.Actions.First();
+        firstAction.Participants = new List<BpModels.Condition>
+        {
+            // Route to participant2 if age >= 18
+            new("participant2", new List<string> { """{">=": [{"var": "age"}, 18]}""" })
+        };
 
         return blueprint;
     }

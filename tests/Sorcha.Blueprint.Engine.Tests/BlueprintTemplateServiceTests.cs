@@ -328,24 +328,17 @@ public class BlueprintTemplateServiceTests
             Description = "A simple test template",
             Version = 1,
             Template = JsonNode.Parse(@"{
-                ""$eval"": ""blueprint"",
-                ""context"": {
-                    ""blueprint"": {
-                        ""id"": { ""$eval"": ""blueprintId"" },
-                        ""title"": { ""$eval"": ""blueprintTitle"" },
-                        ""description"": ""Test blueprint"",
-                        ""version"": 1,
-                        ""participants"": [
-                            { ""id"": ""participant1"", ""name"": ""Participant 1"" },
-                            { ""id"": ""participant2"", ""name"": ""Participant 2"" }
-                        ],
-                        ""actions"": [
-                            { ""id"": 0, ""title"": ""Action 1"", ""sender"": ""participant1"" }
-                        ]
-                    },
-                    ""blueprintId"": { ""$eval"": ""blueprintId"" },
-                    ""blueprintTitle"": { ""$eval"": ""blueprintTitle"" }
-                }
+                ""id"": { ""$eval"": ""blueprintId"" },
+                ""title"": { ""$eval"": ""blueprintTitle"" },
+                ""description"": ""Test blueprint"",
+                ""version"": 1,
+                ""participants"": [
+                    { ""id"": ""participant1"", ""name"": ""Participant 1"" },
+                    { ""id"": ""participant2"", ""name"": ""Participant 2"" }
+                ],
+                ""actions"": [
+                    { ""id"": 0, ""title"": ""Action 1"", ""sender"": ""participant1"" }
+                ]
             }")!,
             Published = false
         };
@@ -471,30 +464,17 @@ public class BlueprintTemplateServiceTests
             Description = "Template with multiple parameters",
             Version = 1,
             Template = JsonNode.Parse(@"{
-                ""$eval"": ""blueprint"",
-                ""context"": {
-                    ""blueprint"": {
-                        ""id"": { ""$eval"": ""blueprintId"" },
-                        ""title"": { ""$eval"": ""title"" },
-                        ""description"": { ""$eval"": ""description"" },
-                        ""version"": { ""$eval"": ""version"" },
-                        ""participants"": [
-                            { ""id"": { ""$eval"": ""participantId1"" }, ""name"": { ""$eval"": ""participantName1"" } },
-                            { ""id"": { ""$eval"": ""participantId2"" }, ""name"": { ""$eval"": ""participantName2"" } }
-                        ],
-                        ""actions"": [
-                            { ""id"": 0, ""title"": ""Action"", ""sender"": { ""$eval"": ""participantId1"" } }
-                        ]
-                    },
-                    ""blueprintId"": { ""$eval"": ""blueprintId"" },
-                    ""title"": { ""$eval"": ""title"" },
-                    ""description"": { ""$eval"": ""description"" },
-                    ""version"": { ""$eval"": ""version"" },
-                    ""participantId1"": { ""$eval"": ""participantId1"" },
-                    ""participantName1"": { ""$eval"": ""participantName1"" },
-                    ""participantId2"": { ""$eval"": ""participantId2"" },
-                    ""participantName2"": { ""$eval"": ""participantName2"" }
-                }
+                ""id"": { ""$eval"": ""blueprintId"" },
+                ""title"": { ""$eval"": ""title"" },
+                ""description"": { ""$eval"": ""description"" },
+                ""version"": { ""$eval"": ""version"" },
+                ""participants"": [
+                    { ""id"": { ""$eval"": ""participantId1"" }, ""name"": { ""$eval"": ""participantName1"" } },
+                    { ""id"": { ""$eval"": ""participantId2"" }, ""name"": { ""$eval"": ""participantName2"" } }
+                ],
+                ""actions"": [
+                    { ""id"": 0, ""title"": ""Action"", ""sender"": { ""$eval"": ""participantId1"" } }
+                ]
             }")!,
             Published = true
         };
