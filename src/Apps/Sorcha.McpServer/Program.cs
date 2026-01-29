@@ -1,0 +1,121 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Server;
+using Sorcha.McpServer.Infrastructure;
+using Sorcha.McpServer.Services;
+using Sorcha.ServiceClients.Extensions;
+
+var builder = Host.CreateApplicationBuilder(args);
+
+// Configure logging to stderr (stdout is reserved for MCP communication)
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(options =>
+{
+    options.LogToStandardErrorThreshold = LogLevel.Trace;
+});
+
+// Load configuration
+builder.Configuration
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+    .AddEnvironmentVariables("SORCHA_");
+
+// Parse command-line arguments for JWT token
+var jwtToken = GetJwtToken(args, builder.Configuration);
+if (string.IsNullOrEmpty(jwtToken))
+{
+    Console.Error.WriteLine("Error: JWT token is required. Provide via --jwt-token argument or SORCHA_JWT_TOKEN environment variable.");
+    return 1;
+}
+
+// Register configuration options
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection("RateLimiting"));
+
+// Register JWT validation handler
+builder.Services.AddSingleton<IJwtValidationHandler, JwtValidationHandler>();
+
+// Register MCP session service - initialized with JWT token
+builder.Services.AddSingleton<IMcpSessionService>(sp =>
+{
+    var jwtHandler = sp.GetRequiredService<IJwtValidationHandler>();
+    var logger = sp.GetRequiredService<ILogger<McpSessionService>>();
+    var session = new McpSessionService(jwtHandler, logger);
+    session.InitializeFromToken(jwtToken);
+    return session;
+});
+
+// Register MCP infrastructure services
+builder.Services.AddSingleton<IMcpAuthorizationService, McpAuthorizationService>();
+builder.Services.AddSingleton<IRateLimitService, RateLimitService>();
+builder.Services.AddSingleton<IToolAuditService, ToolAuditService>();
+builder.Services.AddSingleton<IMcpErrorHandler, McpErrorHandler>();
+builder.Services.AddSingleton<IServiceAvailabilityTracker, ServiceAvailabilityTracker>();
+
+// Register Sorcha service clients for backend communication
+builder.Services.AddServiceClients(builder.Configuration);
+
+// Configure MCP server with stdio transport and auto-discovery
+builder.Services
+    .AddMcpServer(options =>
+    {
+        options.ServerInfo = new()
+        {
+            Name = "Sorcha MCP Server",
+            Version = "1.0.0"
+        };
+        options.ServerInstructions = """
+            Sorcha MCP Server - A Model Context Protocol server for the Sorcha distributed ledger platform.
+
+            Available tool categories based on your role:
+            - Administrator (sorcha:admin): Platform health, logs, metrics, tenant/user management
+            - Designer (sorcha:designer): Blueprint creation, validation, simulation, versioning
+            - Participant (sorcha:participant): Inbox, actions, transactions, wallet operations
+
+            Use the appropriate tools based on your assigned role.
+            """;
+    })
+    .WithStdioServerTransport()
+    .WithToolsFromAssembly();
+
+var app = builder.Build();
+
+// Log startup information
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+var session = app.Services.GetRequiredService<IMcpSessionService>();
+var authService = app.Services.GetRequiredService<IMcpAuthorizationService>();
+
+logger.LogInformation("Starting Sorcha MCP Server for user {UserId} with roles: {Roles}",
+    session.CurrentSession?.UserId ?? "unknown",
+    string.Join(", ", session.CurrentSession?.Roles ?? []));
+
+logger.LogInformation("Available tools for this session: {ToolCount} tools",
+    authService.GetAuthorizedTools().Count);
+
+await app.RunAsync();
+
+return 0;
+
+/// <summary>
+/// Extracts JWT token from command-line arguments or environment variables.
+/// </summary>
+static string? GetJwtToken(string[] args, IConfiguration configuration)
+{
+    // First check command-line arguments
+    for (var i = 0; i < args.Length - 1; i++)
+    {
+        if (args[i] == "--jwt-token")
+        {
+            return args[i + 1];
+        }
+    }
+
+    // Then check environment variable
+    return configuration["JWT_TOKEN"];
+}

@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sorcha MCP Server Resources",
+  "description": "MCP resource definitions for read-only context access",
+  "version": "1.0.0",
+  "resources": {
+    "sorcha://blueprints": {
+      "uri": "sorcha://blueprints",
+      "name": "Blueprint List",
+      "description": "List of all blueprints the user has permission to view",
+      "requiredRoles": ["sorcha:designer", "sorcha:admin"],
+      "mimeType": "application/json",
+      "schema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/BlueprintSummary"
+        }
+      }
+    },
+    "sorcha://blueprints/{id}": {
+      "uriTemplate": "sorcha://blueprints/{id}",
+      "name": "Blueprint Definition",
+      "description": "Full blueprint definition by ID",
+      "requiredRoles": ["sorcha:designer", "sorcha:admin"],
+      "mimeType": "application/json",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Blueprint identifier"
+        }
+      },
+      "schema": {
+        "$ref": "#/definitions/Blueprint"
+      }
+    },
+    "sorcha://inbox": {
+      "uri": "sorcha://inbox",
+      "name": "Participant Inbox",
+      "description": "Pending actions awaiting the user's response",
+      "requiredRoles": ["sorcha:participant"],
+      "mimeType": "application/json",
+      "schema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/PendingAction"
+        }
+      }
+    },
+    "sorcha://workflows/{id}": {
+      "uriTemplate": "sorcha://workflows/{id}",
+      "name": "Workflow Status",
+      "description": "Current state of a workflow instance",
+      "requiredRoles": ["sorcha:participant", "sorcha:designer", "sorcha:admin"],
+      "mimeType": "application/json",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Workflow instance identifier"
+        }
+      },
+      "schema": {
+        "$ref": "#/definitions/WorkflowStatus"
+      }
+    },
+    "sorcha://registers/{id}": {
+      "uriTemplate": "sorcha://registers/{id}",
+      "name": "Register Data",
+      "description": "Register data filtered by user's disclosure permissions",
+      "requiredRoles": ["sorcha:participant"],
+      "mimeType": "application/json",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Register identifier"
+        }
+      },
+      "schema": {
+        "$ref": "#/definitions/RegisterView"
+      }
+    },
+    "sorcha://schemas/{name}": {
+      "uriTemplate": "sorcha://schemas/{name}",
+      "name": "JSON Schema",
+      "description": "Reusable JSON Schema definition",
+      "requiredRoles": ["sorcha:designer"],
+      "mimeType": "application/schema+json",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Schema name"
+        }
+      },
+      "schema": {
+        "type": "object",
+        "description": "JSON Schema document"
+      }
+    }
+  },
+  "definitions": {
+    "BlueprintSummary": {
+      "type": "object",
+      "properties": {
+        "blueprintId": { "type": "string" },
+        "title": { "type": "string" },
+        "version": { "type": "integer" },
+        "status": { "type": "string", "enum": ["Draft", "Published", "Archived"] },
+        "participantCount": { "type": "integer" },
+        "actionCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["blueprintId", "title", "version", "status"]
+    },
+    "Blueprint": {
+      "type": "object",
+      "description": "Full blueprint definition - see Sorcha.Blueprint.Models for complete schema"
+    },
+    "PendingAction": {
+      "type": "object",
+      "properties": {
+        "actionId": { "type": "string" },
+        "workflowId": { "type": "string" },
+        "workflowTitle": { "type": "string" },
+        "actionTitle": { "type": "string" },
+        "senderName": { "type": "string" },
+        "receivedAt": { "type": "string", "format": "date-time" },
+        "dueDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["actionId", "workflowId", "actionTitle", "receivedAt"]
+    },
+    "WorkflowStatus": {
+      "type": "object",
+      "properties": {
+        "workflowId": { "type": "string" },
+        "blueprintId": { "type": "string" },
+        "blueprintTitle": { "type": "string" },
+        "status": { "type": "string", "enum": ["Created", "InProgress", "Completed", "Cancelled", "Failed"] },
+        "currentActionId": { "type": "integer" },
+        "currentActionTitle": { "type": "string" },
+        "pendingParticipants": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "completedActions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "actionId": { "type": "integer" },
+              "title": { "type": "string" },
+              "completedBy": { "type": "string" },
+              "completedAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workflowId", "blueprintId", "status"]
+    },
+    "RegisterView": {
+      "type": "object",
+      "properties": {
+        "registerId": { "type": "string" },
+        "name": { "type": "string" },
+        "blueprintId": { "type": "string" },
+        "height": { "type": "integer", "description": "Latest docket number" },
+        "transactionCount": { "type": "integer" },
+        "disclosedTransactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "transactionId": { "type": "string" },
+              "actionTitle": { "type": "string" },
+              "disclosedData": { "type": "object" },
+              "timestamp": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "required": ["registerId", "name"]
+    }
+  }
+}

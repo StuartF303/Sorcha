@@ -1,0 +1,510 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sorcha MCP Server Tools",
+  "description": "MCP tool definitions for the Sorcha distributed ledger platform",
+  "version": "1.0.0",
+  "tools": {
+    "admin": {
+      "sorcha_health_check": {
+        "name": "sorcha_health_check",
+        "description": "Check health status of all Sorcha microservices (Blueprint, Register, Wallet, Tenant, Validator, Peer, API Gateway)",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "$ref": "#/definitions/HealthCheckOutput"
+        }
+      },
+      "sorcha_log_query": {
+        "name": "sorcha_log_query",
+        "description": "Query service logs with filters for troubleshooting",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "service": { "type": "string", "description": "Filter by service name" },
+            "level": { "type": "string", "enum": ["Debug", "Info", "Warning", "Error"] },
+            "startTime": { "type": "string", "format": "date-time" },
+            "endTime": { "type": "string", "format": "date-time" },
+            "correlationId": { "type": "string" },
+            "maxResults": { "type": "integer", "default": 100, "maximum": 1000 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "sorcha_metrics": {
+        "name": "sorcha_metrics",
+        "description": "Get performance metrics (latency, throughput, error rates)",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "service": { "type": "string" },
+            "metric": { "type": "string", "enum": ["latency", "throughput", "errors", "all"] },
+            "period": { "type": "string", "enum": ["1h", "6h", "24h", "7d"], "default": "1h" }
+          }
+        }
+      },
+      "sorcha_tenant_list": {
+        "name": "sorcha_tenant_list",
+        "description": "List all tenants/organizations",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["Active", "Suspended", "All"] },
+            "page": { "type": "integer", "default": 1 },
+            "pageSize": { "type": "integer", "default": 20 }
+          }
+        }
+      },
+      "sorcha_tenant_create": {
+        "name": "sorcha_tenant_create",
+        "description": "Create a new tenant",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string", "minLength": 3, "maxLength": 100 }
+          },
+          "required": ["name"]
+        }
+      },
+      "sorcha_tenant_update": {
+        "name": "sorcha_tenant_update",
+        "description": "Update tenant status",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "tenantId": { "type": "string", "format": "uuid" },
+            "status": { "type": "string", "enum": ["Active", "Suspended"] }
+          },
+          "required": ["tenantId", "status"]
+        }
+      },
+      "sorcha_user_list": {
+        "name": "sorcha_user_list",
+        "description": "List users for a tenant",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "tenantId": { "type": "string", "format": "uuid" },
+            "page": { "type": "integer", "default": 1 },
+            "pageSize": { "type": "integer", "default": 20 }
+          },
+          "required": ["tenantId"]
+        }
+      },
+      "sorcha_user_manage": {
+        "name": "sorcha_user_manage",
+        "description": "Manage user roles and permissions",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "userId": { "type": "string", "format": "uuid" },
+            "action": { "type": "string", "enum": ["addRole", "removeRole", "suspend", "activate"] },
+            "role": { "type": "string" }
+          },
+          "required": ["userId", "action"]
+        }
+      },
+      "sorcha_peer_status": {
+        "name": "sorcha_peer_status",
+        "description": "View peer network status and replication state",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      "sorcha_validator_status": {
+        "name": "sorcha_validator_status",
+        "description": "Check validator consensus status and chain integrity",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "registerId": { "type": "string" }
+          }
+        }
+      },
+      "sorcha_register_stats": {
+        "name": "sorcha_register_stats",
+        "description": "Query register statistics and storage usage",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "registerId": { "type": "string" }
+          }
+        }
+      },
+      "sorcha_audit_query": {
+        "name": "sorcha_audit_query",
+        "description": "Query audit logs for security events",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "eventType": { "type": "string", "enum": ["Authentication", "Authorization", "DataAccess", "AdminAction", "All"] },
+            "userId": { "type": "string", "format": "uuid" },
+            "startTime": { "type": "string", "format": "date-time" },
+            "endTime": { "type": "string", "format": "date-time" },
+            "maxResults": { "type": "integer", "default": 100 }
+          }
+        }
+      },
+      "sorcha_token_revoke": {
+        "name": "sorcha_token_revoke",
+        "description": "Revoke JWT tokens for security incident response",
+        "requiredRole": "sorcha:admin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "userId": { "type": "string", "format": "uuid" },
+            "reason": { "type": "string" }
+          },
+          "required": ["userId", "reason"]
+        }
+      }
+    },
+    "designer": {
+      "sorcha_blueprint_list": {
+        "name": "sorcha_blueprint_list",
+        "description": "List blueprints with filtering",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["Draft", "Published", "Archived", "All"] },
+            "titleContains": { "type": "string" },
+            "createdAfter": { "type": "string", "format": "date-time" },
+            "page": { "type": "integer", "default": 1 },
+            "pageSize": { "type": "integer", "default": 20, "maximum": 100 }
+          }
+        }
+      },
+      "sorcha_blueprint_get": {
+        "name": "sorcha_blueprint_get",
+        "description": "Get full blueprint definition by ID",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "blueprintId": { "type": "string" },
+            "version": { "type": "integer" }
+          },
+          "required": ["blueprintId"]
+        }
+      },
+      "sorcha_blueprint_create": {
+        "name": "sorcha_blueprint_create",
+        "description": "Create a new blueprint from JSON or YAML",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "definition": { "type": "string", "description": "Blueprint definition in JSON or YAML" },
+            "format": { "type": "string", "enum": ["json", "yaml"], "default": "json" }
+          },
+          "required": ["definition"]
+        }
+      },
+      "sorcha_blueprint_update": {
+        "name": "sorcha_blueprint_update",
+        "description": "Update a blueprint (creates new version)",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "blueprintId": { "type": "string" },
+            "definition": { "type": "string" },
+            "format": { "type": "string", "enum": ["json", "yaml"], "default": "json" }
+          },
+          "required": ["blueprintId", "definition"]
+        }
+      },
+      "sorcha_blueprint_validate": {
+        "name": "sorcha_blueprint_validate",
+        "description": "Validate blueprint syntax and semantics",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "blueprintId": { "type": "string" },
+            "definition": { "type": "string" },
+            "format": { "type": "string", "enum": ["json", "yaml"], "default": "json" }
+          }
+        }
+      },
+      "sorcha_blueprint_simulate": {
+        "name": "sorcha_blueprint_simulate",
+        "description": "Simulate blueprint execution with mock data",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "blueprintId": { "type": "string" },
+            "actionId": { "type": "integer" },
+            "mockData": { "type": "object" },
+            "participantId": { "type": "string" }
+          },
+          "required": ["blueprintId", "actionId", "mockData"]
+        }
+      },
+      "sorcha_disclosure_analyze": {
+        "name": "sorcha_disclosure_analyze",
+        "description": "Analyze disclosure rules - show what each participant can see",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "blueprintId": { "type": "string" }
+          },
+          "required": ["blueprintId"]
+        }
+      },
+      "sorcha_blueprint_diff": {
+        "name": "sorcha_blueprint_diff",
+        "description": "Compare two blueprint versions",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "blueprintId": { "type": "string" },
+            "version1": { "type": "integer" },
+            "version2": { "type": "integer" }
+          },
+          "required": ["blueprintId", "version1", "version2"]
+        }
+      },
+      "sorcha_blueprint_export": {
+        "name": "sorcha_blueprint_export",
+        "description": "Export blueprint in various formats",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "blueprintId": { "type": "string" },
+            "format": { "type": "string", "enum": ["json", "yaml", "markdown"] }
+          },
+          "required": ["blueprintId", "format"]
+        }
+      },
+      "sorcha_schema_validate": {
+        "name": "sorcha_schema_validate",
+        "description": "Validate a JSON Schema definition",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "schema": { "type": "string", "description": "JSON Schema to validate" }
+          },
+          "required": ["schema"]
+        }
+      },
+      "sorcha_schema_generate": {
+        "name": "sorcha_schema_generate",
+        "description": "Generate JSON Schema from sample data",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sampleData": { "type": "object" },
+            "options": {
+              "type": "object",
+              "properties": {
+                "requiredAll": { "type": "boolean", "default": false },
+                "inferFormats": { "type": "boolean", "default": true }
+              }
+            }
+          },
+          "required": ["sampleData"]
+        }
+      },
+      "sorcha_jsonlogic_test": {
+        "name": "sorcha_jsonlogic_test",
+        "description": "Test JSON Logic expressions with sample data",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "expression": { "type": "object", "description": "JSON Logic expression" },
+            "data": { "type": "object", "description": "Data to evaluate against" }
+          },
+          "required": ["expression", "data"]
+        }
+      },
+      "sorcha_workflow_instances": {
+        "name": "sorcha_workflow_instances",
+        "description": "List active workflow instances of a blueprint",
+        "requiredRole": "sorcha:designer",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "blueprintId": { "type": "string" },
+            "status": { "type": "string", "enum": ["Active", "Completed", "Failed", "All"] },
+            "page": { "type": "integer", "default": 1 },
+            "pageSize": { "type": "integer", "default": 20 }
+          },
+          "required": ["blueprintId"]
+        }
+      }
+    },
+    "participant": {
+      "sorcha_inbox_list": {
+        "name": "sorcha_inbox_list",
+        "description": "List pending actions awaiting your response",
+        "requiredRole": "sorcha:participant",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["Pending", "All"] },
+            "workflowId": { "type": "string" },
+            "page": { "type": "integer", "default": 1 },
+            "pageSize": { "type": "integer", "default": 20 }
+          }
+        }
+      },
+      "sorcha_action_details": {
+        "name": "sorcha_action_details",
+        "description": "Get details of a pending action including disclosed data",
+        "requiredRole": "sorcha:participant",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "actionId": { "type": "string" }
+          },
+          "required": ["actionId"]
+        }
+      },
+      "sorcha_action_submit": {
+        "name": "sorcha_action_submit",
+        "description": "Submit response data for an action",
+        "requiredRole": "sorcha:participant",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "actionId": { "type": "string" },
+            "data": { "type": "object" }
+          },
+          "required": ["actionId", "data"]
+        }
+      },
+      "sorcha_action_validate": {
+        "name": "sorcha_action_validate",
+        "description": "Validate action data before submission (dry-run)",
+        "requiredRole": "sorcha:participant",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "actionId": { "type": "string" },
+            "data": { "type": "object" }
+          },
+          "required": ["actionId", "data"]
+        }
+      },
+      "sorcha_transaction_history": {
+        "name": "sorcha_transaction_history",
+        "description": "View your transaction history",
+        "requiredRole": "sorcha:participant",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "registerId": { "type": "string" },
+            "page": { "type": "integer", "default": 1 },
+            "pageSize": { "type": "integer", "default": 20 }
+          }
+        }
+      },
+      "sorcha_workflow_status": {
+        "name": "sorcha_workflow_status",
+        "description": "Check status of a workflow you participate in",
+        "requiredRole": "sorcha:participant",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "workflowId": { "type": "string" }
+          },
+          "required": ["workflowId"]
+        }
+      },
+      "sorcha_disclosed_data": {
+        "name": "sorcha_disclosed_data",
+        "description": "View data that has been disclosed to you",
+        "requiredRole": "sorcha:participant",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "transactionId": { "type": "string" }
+          },
+          "required": ["transactionId"]
+        }
+      },
+      "sorcha_wallet_info": {
+        "name": "sorcha_wallet_info",
+        "description": "Get your wallet address and linked identities",
+        "requiredRole": "sorcha:participant",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      "sorcha_wallet_sign": {
+        "name": "sorcha_wallet_sign",
+        "description": "Sign a message with your wallet key",
+        "requiredRole": "sorcha:participant",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "message": { "type": "string" },
+            "encoding": { "type": "string", "enum": ["utf8", "base64"], "default": "utf8" }
+          },
+          "required": ["message"]
+        }
+      },
+      "sorcha_register_query": {
+        "name": "sorcha_register_query",
+        "description": "Query registers you have access to",
+        "requiredRole": "sorcha:participant",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "registerId": { "type": "string" },
+            "query": { "type": "string", "description": "OData query string" }
+          },
+          "required": ["registerId"]
+        }
+      }
+    }
+  },
+  "definitions": {
+    "HealthCheckOutput": {
+      "type": "object",
+      "properties": {
+        "overallStatus": { "type": "string", "enum": ["Healthy", "Degraded", "Unhealthy"] },
+        "services": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ServiceHealth" }
+        },
+        "checkedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ServiceHealth": {
+      "type": "object",
+      "properties": {
+        "serviceName": { "type": "string" },
+        "status": { "type": "string" },
+        "responseTimeMs": { "type": "integer" },
+        "errorMessage": { "type": "string" },
+        "endpoint": { "type": "string" }
+      }
+    }
+  }
+}
