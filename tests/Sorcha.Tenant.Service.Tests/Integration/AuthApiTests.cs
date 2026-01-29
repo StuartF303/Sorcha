@@ -209,7 +209,7 @@ public class AuthApiTests : IClassFixture<TenantServiceWebApplicationFactory>, I
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var userInfo = await response.Content.ReadFromJsonAsync<CurrentUserResponse>();
         userInfo.Should().NotBeNull();
-        userInfo!.UserId.Should().Be(TestDataSeeder.AdminUserId);
+        userInfo!.UserId.Should().Be(TestDataSeeder.AdminUserId.ToString());
     }
 
     [Fact]
