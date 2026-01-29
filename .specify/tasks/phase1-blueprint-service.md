@@ -243,28 +243,42 @@
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| VAL-9.31 | Peer Service integration - receive transactions (gRPC) | P0 | 12h | 📋 Not Started | - |
-| VAL-9.32 | Peer Service integration - broadcast dockets (gRPC) | P0 | 12h | 📋 Not Started | - |
-| VAL-9.33 | Peer Service integration - signature exchange (gRPC) | P0 | 12h | 📋 Not Started | - |
-| VAL-9.34 | Peer Service integration - docket distribution (gRPC) | P0 | 8h | 📋 Not Started | - |
-| VAL-9.35 | Register Service integration - docket submission | P0 | 8h | 📋 Not Started | - |
-| VAL-9.36 | Blueprint Service integration - fetch blueprints | P0 | 6h | 📋 Not Started | - |
+| VAL-9.31 | Peer Service integration - receive transactions (gRPC) | P0 | 12h | ✅ Complete | 2026-01-29 |
+| VAL-9.32 | Peer Service integration - broadcast dockets (gRPC) | P0 | 12h | ✅ Complete | 2026-01-29 |
+| VAL-9.33 | Peer Service integration - signature exchange (gRPC) | P0 | 12h | ✅ Complete | 2026-01-29 |
+| VAL-9.34 | Peer Service integration - docket distribution (gRPC) | P0 | 8h | ✅ Complete | 2026-01-29 |
+| VAL-9.35 | Register Service integration - docket submission | P0 | 8h | ✅ Complete | 2026-01-29 |
+| VAL-9.36 | Blueprint Service integration - fetch blueprints | P0 | 6h | ✅ Complete | 2026-01-29 |
 
-**Sprint 9E Status:** 📋 **NOT STARTED** (0/6 tasks, 58 hours)
+**Sprint 9E Status:** ✅ **COMPLETE** (6/6 tasks, 58 hours)
+
+**Deliverables:**
+- ✅ PeerServiceClient - gRPC client using peer_communication and peer_discovery protos
+- ✅ RegisterServiceClient - Full HTTP client for docket read/write, transactions, registers
+- ✅ BlueprintServiceClient - HTTP client for GetBlueprintAsync and ValidatePayloadAsync
+- ✅ Register Service endpoints for docket write (POST /dockets) and latest (GET /dockets/latest)
+- ✅ ConsensusEngine/ValidatorOrchestrator use DocketSerializer for proper serialization
+- ✅ ServiceCollectionExtensions updated with HttpClient factories
 
 ### Sprint 9F: Validator Registration & Genesis
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| VAL-9.37 | Implement Validator Registry (active validators) | P0 | 12h | 📋 Not Started | - |
-| VAL-9.38 | Implement Validator Registration flow (public mode) | P0 | 12h | 📋 Not Started | - |
+| VAL-9.37 | Implement Validator Registry (active validators) | P0 | 12h | ✅ Complete | 2026-01-29 |
+| VAL-9.38 | Implement Validator Registration flow (public mode) | P0 | 12h | ✅ Complete | 2026-01-29 |
 | VAL-9.39 | Implement Validator Approval flow (consent mode) | P1 | 12h | 📋 Not Started | - |
-| VAL-9.40 | Implement Genesis Config Reader | P0 | 8h | 📋 Not Started | - |
+| VAL-9.40 | Implement Genesis Config Reader | P0 | 8h | ✅ Complete | 2026-01-26 |
 | VAL-9.41 | Implement Control Docket Processor | P1 | 16h | 📋 Not Started | - |
 | VAL-9.42 | Implement Control Blueprint Version Resolver | P0 | 8h | 📋 Not Started | - |
-| VAL-9.43 | Validator registration API endpoints | P0 | 8h | 📋 Not Started | - |
+| VAL-9.43 | Validator registration API endpoints | P0 | 8h | ✅ Complete | 2026-01-29 |
 
-**Sprint 9F Status:** 📋 **NOT STARTED** (0/7 tasks, 76 hours)
+**Sprint 9F Status:** 🚧 **IN PROGRESS** (4/7 tasks, 76 hours)
+
+**Deliverables:**
+- ✅ ValidatorRegistry - Redis-backed registry with L1 cache, ordering, events
+- ✅ ValidatorRegistryConfiguration - Configuration class for registry settings
+- ✅ ValidatorRegistrationEndpoints - REST API for registration and queries
+- ✅ GenesisConfigService - Already complete from 9A (default config, needs Register integration)
 
 ### Sprint 9G: Configuration & Testing
 
@@ -282,7 +296,7 @@
 
 ---
 
-**Sprint 9 Total:** 🚧 **IN PROGRESS** (30/50 tasks, 560 hours)
+**Sprint 9 Total:** 🚧 **IN PROGRESS** (40/50 tasks, 560 hours)
 
 **References:**
 - [VALIDATOR-SERVICE-REQUIREMENTS.md](../VALIDATOR-SERVICE-REQUIREMENTS.md) - Updated with decentralized consensus

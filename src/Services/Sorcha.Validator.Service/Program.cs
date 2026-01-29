@@ -6,6 +6,7 @@ using Grpc.Net.Client;
 using Scalar.AspNetCore;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Endpoints;
+using Sorcha.Validator.Service.Extensions;
 using Sorcha.Validator.Service.Services;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.Cryptography.Core;
@@ -105,6 +106,12 @@ builder.Services.AddSingleton<IWalletIntegrationService, WalletIntegrationServic
 // Add background services
 builder.Services.AddHostedService<Sorcha.Validator.Service.Services.MemPoolCleanupService>();
 
+// Add genesis configuration service (Sprint 9F)
+builder.Services.AddGenesisConfigService(builder.Configuration);
+
+// Add validator registry (Sprint 9F)
+builder.Services.AddValidatorRegistry(builder.Configuration);
+
 // Add gRPC services
 builder.Services.AddGrpc();
 
@@ -141,5 +148,10 @@ app.MapGroup("/api/validator")
 
 // Map admin endpoints
 app.MapAdminEndpoints();
+
+// Map validator registration endpoints (Sprint 9F)
+app.MapGroup("/api/validators")
+    .WithTags("Validators")
+    .MapValidatorRegistrationEndpoints();
 
 app.Run();
