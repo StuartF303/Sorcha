@@ -1,0 +1,184 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.Extensions.Logging;
+using Sorcha.McpServer.Infrastructure;
+
+namespace Sorcha.McpServer.Services;
+
+/// <summary>
+/// Manages the current MCP session context derived from JWT authentication.
+/// </summary>
+public sealed class McpSessionService : IMcpSessionService
+{
+    private readonly IJwtValidationHandler _jwtHandler;
+    private readonly ILogger<McpSessionService> _logger;
+    private McpSession? _currentSession;
+    private string? _rawToken;
+
+    public McpSessionService(
+        IJwtValidationHandler jwtHandler,
+        ILogger<McpSessionService> logger)
+    {
+        _jwtHandler = jwtHandler;
+        _logger = logger;
+    }
+
+    /// <inheritdoc />
+    public McpSession? CurrentSession => _currentSession;
+
+    /// <inheritdoc />
+    public void InitializeFromToken(string jwtToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(jwtToken);
+
+        _rawToken = jwtToken;
+
+        var validationResult = _jwtHandler.ValidateToken(jwtToken);
+
+        if (!validationResult.IsValid)
+        {
+            _logger.LogError("JWT validation failed: {ErrorCode} - {ErrorMessage}",
+                validationResult.ErrorCode, validationResult.ErrorMessage);
+            throw new InvalidOperationException(
+                $"Invalid JWT token: {validationResult.ErrorMessage}");
+        }
+
+        var jwt = validationResult.Token!;
+        var principal = validationResult.Principal!;
+
+        // Extract user identifier (sub claim)
+        var userId = GetClaimValue(principal, JwtRegisteredClaimNames.Sub)
+            ?? GetClaimValue(principal, ClaimTypes.NameIdentifier)
+            ?? throw new InvalidOperationException("JWT missing user identifier claim (sub)");
+
+        // Extract organization/tenant ID
+        var tenantId = GetClaimValue(principal, "org_id")
+            ?? GetClaimValue(principal, "tenant_id")
+            ?? GetClaimValue(principal, "tid")
+            ?? "default";
+
+        // Extract organization name
+        var organizationName = GetClaimValue(principal, "org_name");
+
+        // Extract roles - Sorcha uses both ClaimTypes.Role and custom role claims
+        var roles = principal.Claims
+            .Where(c => c.Type == ClaimTypes.Role ||
+                        c.Type == "role" ||
+                        c.Type == "roles" ||
+                        c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+            .Select(c => c.Value)
+            .Distinct()
+            .ToList();
+
+        // Map standard roles to Sorcha MCP roles if needed
+        roles = MapToMcpRoles(roles);
+
+        // Extract optional claims
+        var walletAddress = GetClaimValue(principal, "wallet_address");
+        var email = GetClaimValue(principal, JwtRegisteredClaimNames.Email)
+            ?? GetClaimValue(principal, ClaimTypes.Email);
+        var displayName = GetClaimValue(principal, "name")
+            ?? GetClaimValue(principal, ClaimTypes.Name);
+
+        // Token type (user or service)
+        var tokenType = GetClaimValue(principal, "token_type") ?? "user";
+
+        // Service-specific claims
+        var clientId = GetClaimValue(principal, "client_id");
+        var serviceName = GetClaimValue(principal, "service_name");
+
+        // Extract scopes for service tokens
+        var scopes = principal.Claims
+            .Where(c => c.Type == "scope")
+            .Select(c => c.Value)
+            .ToList();
+
+        _currentSession = new McpSession
+        {
+            UserId = userId,
+            TenantId = tenantId,
+            OrganizationName = organizationName,
+            Roles = roles,
+            WalletAddress = walletAddress,
+            Email = email,
+            DisplayName = displayName,
+            TokenType = tokenType,
+            ClientId = clientId,
+            ServiceName = serviceName,
+            Scopes = scopes,
+            ExpiresAt = jwt.ValidTo,
+            IssuedAt = jwt.IssuedAt,
+            TokenId = GetClaimValue(principal, JwtRegisteredClaimNames.Jti)
+        };
+
+        _logger.LogInformation(
+            "Session initialized for {TokenType} {UserId} in tenant {TenantId} with roles [{Roles}], expires at {ExpiresAt}",
+            tokenType,
+            userId,
+            tenantId,
+            string.Join(", ", roles),
+            jwt.ValidTo);
+    }
+
+    /// <inheritdoc />
+    public bool IsTokenExpired()
+    {
+        if (_currentSession is null)
+        {
+            return true;
+        }
+
+        var isExpired = DateTimeOffset.UtcNow >= _currentSession.ExpiresAt;
+
+        if (isExpired)
+        {
+            _logger.LogWarning("Session token has expired for user {UserId}", _currentSession.UserId);
+        }
+
+        return isExpired;
+    }
+
+    /// <summary>
+    /// Gets the raw JWT token for forwarding to backend services.
+    /// </summary>
+    public string? GetRawToken() => _rawToken;
+
+    private static string? GetClaimValue(ClaimsPrincipal principal, string claimType)
+    {
+        return principal.FindFirst(claimType)?.Value;
+    }
+
+    /// <summary>
+    /// Maps standard role names to Sorcha MCP role format.
+    /// </summary>
+    private static List<string> MapToMcpRoles(List<string> roles)
+    {
+        var mappedRoles = new List<string>();
+
+        foreach (var role in roles)
+        {
+            // Already in sorcha:xxx format
+            if (role.StartsWith("sorcha:", StringComparison.OrdinalIgnoreCase))
+            {
+                mappedRoles.Add(role.ToLowerInvariant());
+                continue;
+            }
+
+            // Map common role names
+            var mappedRole = role.ToLowerInvariant() switch
+            {
+                "admin" or "administrator" or "systemadmin" => "sorcha:admin",
+                "designer" or "workflowdesigner" or "blueprintdesigner" => "sorcha:designer",
+                "participant" or "user" or "member" => "sorcha:participant",
+                _ => role // Keep unknown roles as-is
+            };
+
+            mappedRoles.Add(mappedRole);
+        }
+
+        return mappedRoles.Distinct().ToList();
+    }
+}
