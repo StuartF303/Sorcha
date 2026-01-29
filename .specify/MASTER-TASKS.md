@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
 **Version:** 4.0 - UPDATED
-**Last Updated:** 2026-01-28
-**Status:** Active - UI Register Management & CLI Complete
+**Last Updated:** 2026-01-29
+**Status:** Active - Validator Service Integration Tests Complete
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -19,6 +19,17 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ---
 
 ## Recent Updates
+
+**2026-01-29:**
+- ✅ VAL-024/025 COMPLETE: Validator Service integration tests (133 tests)
+  - ValidationEngineIntegrationTests: Transaction validation, batch processing, payload hash verification
+  - ConsensusEngineIntegrationTests: Multi-validator consensus, docket publishing, failure handling
+  - GenesisConfigServiceIntegrationTests: Genesis transaction, control record validation
+  - DocketBuilderIntegrationTests: Docket construction, merkle tree, transaction ordering
+  - MemPoolIntegrationTests: Transaction pool, expiration, priority, concurrency
+  - ServiceClientIntegrationTests: Register, Blueprint, Peer, Wallet client integration
+  - BlueprintCacheIntegrationTests: Caching, version resolution, invalidation
+  - LeaderElectionIntegrationTests: Leader status, rotating election, failure handling
 
 **2026-01-28:**
 - ✅ UI-REGISTER-MANAGEMENT 100% COMPLETE: Register list, details, creation, query (70/70 tasks)

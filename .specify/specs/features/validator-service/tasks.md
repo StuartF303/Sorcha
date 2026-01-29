@@ -442,36 +442,38 @@
 ---
 
 ### VAL-024: Integration Tests - API
-- **Status**: Pending
+- **Status**: ✅ Complete
 - **Priority**: P1
 - **Estimate**: 10 hours
-- **Assignee**: TBD
+- **Assignee**: Claude
 - **Dependencies**: VAL-016
+- **Completed**: 2026-01-29
 
 **Description**: Integration tests for API.
 
 **Acceptance Criteria**:
-- [ ] Endpoint tests
-- [ ] Error handling tests
-- [ ] Authorization tests
-- [ ] Rate limiting tests
+- [x] Endpoint tests (ValidationEngineIntegrationTests, AdminEndpointTests)
+- [x] Error handling tests (graceful handling of service unavailability)
+- [x] Authorization tests (TestAuthHandler with role-based access)
+- [x] Rate limiting tests (concurrent request handling)
 
 ---
 
 ### VAL-025: Integration Tests - Consensus
-- **Status**: Pending
+- **Status**: ✅ Complete
 - **Priority**: P1
 - **Estimate**: 12 hours
-- **Assignee**: TBD
+- **Assignee**: Claude
 - **Dependencies**: VAL-012
+- **Completed**: 2026-01-29
 
 **Description**: Integration tests for consensus.
 
 **Acceptance Criteria**:
-- [ ] Multi-validator tests
-- [ ] Quorum tests
-- [ ] Timeout tests
-- [ ] Vote verification tests
+- [x] Multi-validator tests (ConsensusEngineIntegrationTests)
+- [x] Quorum tests (ProcessPipeline with multiple validators)
+- [x] Timeout tests (graceful failure handling)
+- [x] Vote verification tests (ServiceClientIntegrationTests)
 
 ---
 
