@@ -235,12 +235,6 @@ public class ActionBuilder
             _action.Calculations = _calculations;
         }
 
-        // Auto-set JSON-LD type if not explicitly set and title exists
-        if (string.IsNullOrEmpty(_action.JsonLdType) && !string.IsNullOrEmpty(_action.Title))
-        {
-            _action.JsonLdType = JsonLdTypeHelper.GetActionType(_action.Title);
-        }
-
         return _action;
     }
 }

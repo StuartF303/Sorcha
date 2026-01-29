@@ -124,12 +124,6 @@ public class ParticipantBuilder
 
     internal Participant Build()
     {
-        // Auto-set JSON-LD type if not explicitly set
-        if (string.IsNullOrEmpty(_participant.JsonLdType))
-        {
-            _participant.JsonLdType = JsonLdTypeHelper.GetParticipantType(_participant.Organisation);
-        }
-
         return _participant;
     }
 }

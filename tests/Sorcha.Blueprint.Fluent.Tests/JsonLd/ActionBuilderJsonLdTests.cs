@@ -95,10 +95,11 @@ public class ActionBuilderJsonLdTests
     [InlineData("Review Document", "as:Activity")]
     public void Build_WithoutExplicitType_ShouldAutoSetType(string title, string expectedType)
     {
-        // Arrange & Act
+        // Arrange & Act - JSON-LD mode must be enabled for auto-setting to occur
         var blueprint = BlueprintBuilder.Create()
             .WithTitle("Test Blueprint")
             .WithDescription("Test Description")
+            .WithJsonLd()
             .AddParticipant("p1", p => p.Named("Alice").FromOrganisation("Acme"))
             .AddParticipant("p2", p => p.Named("Bob").FromOrganisation("Beta"))
             .AddAction(0, a => a

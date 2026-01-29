@@ -74,10 +74,11 @@ public class ParticipantBuilderJsonLdTests
     [InlineData("Global Bank", "schema:Organization")]
     public void Build_WithoutExplicitType_ShouldAutoSetType(string organisation, string expectedType)
     {
-        // Arrange & Act
+        // Arrange & Act - JSON-LD mode must be enabled for auto-setting to occur
         var blueprint = BlueprintBuilder.Create()
             .WithTitle("Test Blueprint")
             .WithDescription("Test Description")
+            .WithJsonLd()
             .AddParticipant("p1", p => p
                 .Named("Test")
                 .FromOrganisation(organisation))

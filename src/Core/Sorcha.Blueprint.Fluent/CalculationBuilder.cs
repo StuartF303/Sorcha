@@ -117,6 +117,15 @@ public class CalculationBuilder
     }
 
     /// <summary>
+    /// Multiply two constants: a * b
+    /// </summary>
+    public CalculationBuilder Multiply(double a, double b)
+    {
+        _expression = Multiply(Constant(a), Constant(b));
+        return this;
+    }
+
+    /// <summary>
     /// Add two variables: var1 + var2
     /// </summary>
     public CalculationBuilder Add(string var1, string var2)
