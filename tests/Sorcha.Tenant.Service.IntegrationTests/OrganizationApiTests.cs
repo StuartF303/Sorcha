@@ -643,10 +643,10 @@ public class OrganizationApiTests : IClassFixture<TenantServiceWebApplicationFac
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        // Verify user is deactivated
+        // Verify user is deactivated (soft delete sets status to Suspended)
         var getResponse = await _client.GetAsync($"/api/organizations/{org.Id}/users/{user.Id}");
         var deactivatedUser = await getResponse.Content.ReadFromJsonAsync<UserResponse>();
-        deactivatedUser!.Status.Should().Be(Models.IdentityStatus.Deleted);
+        deactivatedUser!.Status.Should().Be(Models.IdentityStatus.Suspended);
     }
 
     #endregion

@@ -130,6 +130,10 @@ public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
                 ["JwtSettings:ValidateLifetime"] = "false"
             };
 
+            // Clear Redis connection string to prevent health check failure (we use a mock)
+            // Use empty string, not null, to properly override appsettings.json values
+            testConfig["Redis:ConnectionString"] = "";
+
             if (TestConfiguration.UsePostgreSQL)
             {
                 // Use PostgreSQL Testcontainer connection string
@@ -138,7 +142,8 @@ public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
             else
             {
                 // Clear connection string to force InMemory database usage
-                testConfig["ConnectionStrings:TenantDatabase"] = null!;
+                // Use empty string, not null, to properly override appsettings.json values
+                testConfig["ConnectionStrings:TenantDatabase"] = "";
             }
 
             config.AddInMemoryCollection(testConfig);
@@ -193,6 +198,27 @@ public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
 
                 Console.WriteLine($"[TEST] Configured DbContext with connection string: {_connectionString}");
             }
+
+            // Remove the DatabaseInitializerHostedService to prevent default seed data
+            // that conflicts with our test data (e.g., "Sorcha Local" org vs "Test Organization")
+            var databaseInitializerDescriptor = services.SingleOrDefault(d =>
+                d.ImplementationType == typeof(DatabaseInitializerHostedService));
+            if (databaseInitializerDescriptor != null)
+                services.Remove(databaseInitializerDescriptor);
+
+            // Also remove the DatabaseInitializer itself
+            services.RemoveAll<DatabaseInitializer>();
+
+            // Reconfigure health checks to use simple checks instead of PostgreSQL/Redis
+            // Remove any existing health check registrations and add a simple "always healthy" check
+            var healthCheckBuilderDescriptors = services.Where(d =>
+                d.ServiceType.FullName?.Contains("HealthCheck") == true).ToList();
+            foreach (var descriptor in healthCheckBuilderDescriptors)
+                services.Remove(descriptor);
+
+            // Add simple health checks that always pass
+            services.AddHealthChecks()
+                .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), ["live"]);
 
             // Remove Redis connection and use a mock for testing
             services.RemoveAll<IConnectionMultiplexer>();
