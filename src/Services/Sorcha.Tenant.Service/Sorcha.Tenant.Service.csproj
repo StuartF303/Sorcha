@@ -30,7 +30,7 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
     <PackageReference Include="OpenTelemetry.Exporter.Zipkin" Version="1.15.0" />
     <PackageReference Include="Polly" Version="8.6.5" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.12.17" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.12.24" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />

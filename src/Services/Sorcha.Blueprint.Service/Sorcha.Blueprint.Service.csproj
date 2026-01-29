@@ -11,7 +11,7 @@
     <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="13.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.12.17" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.12.24" />
   </ItemGroup>
 
   <ItemGroup>
