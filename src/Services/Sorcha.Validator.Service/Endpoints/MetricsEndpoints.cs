@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Services;
@@ -70,13 +71,13 @@ public static class MetricsEndpoints
     /// Get aggregated metrics from all subsystems
     /// </summary>
     private static async Task<IResult> GetAggregatedMetrics(
-        IValidationEngine validationEngine,
-        IVerifiedTransactionQueue verifiedQueue,
-        IBlueprintCache blueprintCache,
-        IDocketDistributor docketDistributor,
-        IConsensusFailureHandler failureHandler,
-        IPendingDocketStore pendingDocketStore,
-        IExceptionResponseHandler exceptionHandler,
+        [FromServices] IValidationEngine validationEngine,
+        [FromServices] IVerifiedTransactionQueue verifiedQueue,
+        [FromServices] IBlueprintCache blueprintCache,
+        [FromServices] IDocketDistributor docketDistributor,
+        [FromServices] IConsensusFailureHandler failureHandler,
+        [FromServices] IPendingDocketStore pendingDocketStore,
+        [FromServices] IExceptionResponseHandler exceptionHandler,
         CancellationToken cancellationToken)
     {
         var validationStats = validationEngine.GetStats();
@@ -149,7 +150,7 @@ public static class MetricsEndpoints
     /// <summary>
     /// Get validation engine specific metrics
     /// </summary>
-    private static IResult GetValidationMetrics(IValidationEngine validationEngine)
+    private static IResult GetValidationMetrics([FromServices] IValidationEngine validationEngine)
     {
         var stats = validationEngine.GetStats();
 
@@ -173,9 +174,9 @@ public static class MetricsEndpoints
     /// Get consensus-related metrics
     /// </summary>
     private static IResult GetConsensusMetrics(
-        IDocketDistributor docketDistributor,
-        IConsensusFailureHandler failureHandler,
-        IPendingDocketStore pendingDocketStore)
+        [FromServices] IDocketDistributor docketDistributor,
+        [FromServices] IConsensusFailureHandler failureHandler,
+        [FromServices] IPendingDocketStore pendingDocketStore)
     {
         var distributorStats = docketDistributor.GetStats();
         var failureStats = failureHandler.GetStats();
@@ -220,7 +221,7 @@ public static class MetricsEndpoints
     /// <summary>
     /// Get memory pool metrics
     /// </summary>
-    private static IResult GetPoolMetrics(IVerifiedTransactionQueue verifiedQueue)
+    private static IResult GetPoolMetrics([FromServices] IVerifiedTransactionQueue verifiedQueue)
     {
         var stats = verifiedQueue.GetStats();
 
@@ -247,7 +248,7 @@ public static class MetricsEndpoints
     /// Get cache metrics
     /// </summary>
     private static async Task<IResult> GetCacheMetrics(
-        IBlueprintCache blueprintCache,
+        [FromServices] IBlueprintCache blueprintCache,
         CancellationToken cancellationToken)
     {
         var cacheStats = await blueprintCache.GetStatsAsync(cancellationToken);
@@ -275,11 +276,11 @@ public static class MetricsEndpoints
     /// Get current configuration (redacted sensitive values)
     /// </summary>
     private static IResult GetCurrentConfiguration(
-        IOptions<ValidatorConfiguration> validatorConfig,
-        IOptions<ConsensusConfiguration> consensusConfig,
-        IOptions<MemPoolConfiguration> memPoolConfig,
-        IOptions<DocketBuildConfiguration> docketBuildConfig,
-        IOptions<ValidationEngineConfiguration> validationEngineConfig)
+        [FromServices] IOptions<ValidatorConfiguration> validatorConfig,
+        [FromServices] IOptions<ConsensusConfiguration> consensusConfig,
+        [FromServices] IOptions<MemPoolConfiguration> memPoolConfig,
+        [FromServices] IOptions<DocketBuildConfiguration> docketBuildConfig,
+        [FromServices] IOptions<ValidationEngineConfiguration> validationEngineConfig)
     {
         var response = new ConfigurationResponse
         {

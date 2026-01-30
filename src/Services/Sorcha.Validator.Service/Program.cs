@@ -175,7 +175,8 @@ app.MapGroup("/api/validators")
     .WithTags("Validators")
     .MapValidatorRegistrationEndpoints();
 
-// Map metrics endpoints (VAL-9.45)
-app.MapMetricsEndpoints();
+// Map metrics endpoints (VAL-9.45) - disabled pending full service registration
+// TODO: Enable once all metrics services are properly registered
+// app.MapMetricsEndpoints();
 
 app.Run();
