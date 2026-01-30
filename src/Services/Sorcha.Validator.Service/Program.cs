@@ -21,6 +21,9 @@ builder.AddServiceDefaults();
 // Add rate limiting (SEC-002)
 builder.AddRateLimiting();
 
+// Add input validation (SEC-003)
+builder.AddInputValidation();
+
 // Add Redis for distributed coordination and memory pool persistence
 builder.AddRedisClient("redis");
 
@@ -131,6 +134,9 @@ app.UseApiSecurityHeaders();
 
 // Enable HTTPS enforcement with HSTS (SEC-001)
 app.UseHttpsEnforcement();
+
+// Enable input validation (SEC-003)
+app.UseInputValidation();
 
 // Enable rate limiting (SEC-002)
 app.UseRateLimiting();

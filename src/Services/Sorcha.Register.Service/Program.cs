@@ -29,6 +29,9 @@ builder.AddServiceDefaults();
 // Add rate limiting (SEC-002)
 builder.AddRateLimiting();
 
+// Add input validation (SEC-003)
+builder.AddInputValidation();
+
 // Add SignalR for real-time notifications
 builder.Services.AddSignalR();
 
@@ -400,6 +403,9 @@ app.UseApiSecurityHeaders();
 
 // Enable HTTPS enforcement with HSTS (SEC-001)
 app.UseHttpsEnforcement();
+
+// Enable input validation (SEC-003)
+app.UseInputValidation();
 
 // Configure OpenAPI
 app.MapOpenApi();

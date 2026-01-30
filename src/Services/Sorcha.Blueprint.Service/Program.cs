@@ -20,6 +20,9 @@ builder.AddServiceDefaults();
 // Add rate limiting (SEC-002)
 builder.AddRateLimiting();
 
+// Add input validation (SEC-003)
+builder.AddInputValidation();
+
 // Add Redis output caching
 builder.AddRedisOutputCache("redis");
 
@@ -107,6 +110,9 @@ app.UseApiSecurityHeaders();
 
 // Enable HTTPS enforcement with HSTS (SEC-001)
 app.UseHttpsEnforcement();
+
+// Enable input validation (SEC-003)
+app.UseInputValidation();
 
 // Configure OpenAPI (available in all environments for API consumers)
 app.MapOpenApi();

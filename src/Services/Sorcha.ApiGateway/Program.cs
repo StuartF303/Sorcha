@@ -13,6 +13,9 @@ builder.AddServiceDefaults();
 // Add rate limiting (SEC-002)
 builder.AddRateLimiting();
 
+// Add input validation (SEC-003)
+builder.AddInputValidation();
+
 // Add YARP reverse proxy
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
@@ -54,6 +57,9 @@ app.UseApiSecurityHeaders();
 
 // Enable HTTPS enforcement with HSTS (SEC-001)
 app.UseHttpsEnforcement();
+
+// Enable input validation (SEC-003)
+app.UseInputValidation();
 
 // Enable CORS
 app.UseCors();

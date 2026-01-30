@@ -201,6 +201,9 @@ try
     // Add authorization policies
     builder.Services.AddTenantAuthorization();
 
+    // Add input validation (SEC-003)
+    builder.AddInputValidation();
+
     // Add rate limiting
     builder.Services.AddRateLimiter(options =>
     {
@@ -237,6 +240,9 @@ try
 
     // Add OWASP security headers (SEC-004)
     app.UseApiSecurityHeaders();
+
+    // Enable input validation (SEC-003)
+    app.UseInputValidation();
 
     // Configure the HTTP request pipeline
     if (app.Environment.IsDevelopment())

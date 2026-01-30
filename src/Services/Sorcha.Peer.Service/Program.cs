@@ -26,6 +26,9 @@ builder.AddServiceDefaults();
 // Add rate limiting (SEC-002)
 builder.AddRateLimiting();
 
+// Add input validation (SEC-003)
+builder.AddInputValidation();
+
 // Configure Kestrel for gRPC with HTTP/1.1 fallback for health checks
 // Listen on port 8080/8052 for HTTP/health checks (Aspire/Docker standard)
 // Listen on port 5000/5003 for gRPC peer-to-peer communication
@@ -159,6 +162,9 @@ app.UseApiSecurityHeaders();
 
 // Enable HTTPS enforcement with HSTS (SEC-001)
 app.UseHttpsEnforcement();
+
+// Enable input validation (SEC-003)
+app.UseInputValidation();
 
 // Enable rate limiting (SEC-002)
 app.UseRateLimiting();

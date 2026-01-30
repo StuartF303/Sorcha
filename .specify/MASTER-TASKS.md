@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 4.1 - UPDATED
+**Version:** 4.2 - UPDATED
 **Last Updated:** 2026-01-30
-**Status:** Active - Rate Limiting Complete
+**Status:** Active - Input Validation Complete
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -12,9 +12,9 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 270 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 139 (51%)
+**Completed:** 140 (52%)
 **In Progress:** 0 (0%)
-**Not Started:** 131 (49%)
+**Not Started:** 130 (48%)
 
 ---
 
@@ -39,6 +39,16 @@ This document consolidates all tasks across the Sorcha platform into a single, p
   - Applied to all 7 services: API Gateway, Blueprint, Register, Validator, Wallet, Tenant, Peer
   - IP-based partitioning with X-Forwarded-For proxy support
   - Rate limit headers (Retry-After, X-RateLimit-Policy) on 429 responses
+- ✅ SEC-003 COMPLETE: Input validation hardening (OWASP compliance)
+  - Created InputValidationMiddleware with attack pattern detection
+  - SQL injection protection with comprehensive regex patterns
+  - XSS attack detection (script tags, event handlers, javascript: URLs)
+  - Path traversal prevention (../, encoded variants)
+  - Command injection detection (shell metacharacters, dangerous commands)
+  - LDAP injection protection
+  - Configurable via InputValidationOptions (max body size, query length, header length)
+  - Applied to all 7 services: API Gateway, Blueprint, Register, Validator, Wallet, Tenant, Peer
+  - Health/alive/scalar/openapi paths excluded from validation
 
 **2026-01-29:**
 - ✅ SEC-001 COMPLETE: HTTPS enforcement with HSTS for all services

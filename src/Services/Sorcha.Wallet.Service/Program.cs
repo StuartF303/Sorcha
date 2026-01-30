@@ -13,6 +13,9 @@ builder.AddServiceDefaults();
 // Add rate limiting (SEC-002)
 builder.AddRateLimiting();
 
+// Add input validation (SEC-003)
+builder.AddInputValidation();
+
 // Add Wallet Service infrastructure and domain services
 builder.Services.AddWalletService(builder.Configuration);
 
@@ -229,6 +232,9 @@ app.MapDefaultEndpoints();
 
 // Add OWASP security headers (SEC-004)
 app.UseApiSecurityHeaders();
+
+// Enable input validation (SEC-003)
+app.UseInputValidation();
 
 // Configure OpenAPI (available in all environments for API consumers)
 app.MapOpenApi();

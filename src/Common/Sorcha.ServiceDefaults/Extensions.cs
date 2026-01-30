@@ -427,6 +427,37 @@ public static class Extensions
         // Fall back to remote IP address
         return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
+
+    /// <summary>
+    /// Adds input validation services with configurable options.
+    /// Implements SEC-003 OWASP input validation requirements.
+    /// </summary>
+    /// <param name="builder">The host application builder</param>
+    /// <param name="configure">Optional configuration action</param>
+    /// <returns>The builder for chaining</returns>
+    public static TBuilder AddInputValidation<TBuilder>(
+        this TBuilder builder,
+        Action<InputValidationOptions>? configure = null) where TBuilder : IHostApplicationBuilder
+    {
+        builder.Services.Configure<InputValidationOptions>(options =>
+        {
+            configure?.Invoke(options);
+        });
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Applies the input validation middleware for OWASP protection.
+    /// Should be called early in the pipeline, after UseRouting but before other middleware.
+    /// </summary>
+    /// <param name="app">The web application</param>
+    /// <returns>The web application for chaining</returns>
+    public static WebApplication UseInputValidation(this WebApplication app)
+    {
+        app.UseMiddleware<InputValidationMiddleware>();
+        return app;
+    }
 }
 
 /// <summary>
