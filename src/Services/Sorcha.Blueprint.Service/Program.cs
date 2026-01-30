@@ -17,6 +17,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults (OpenTelemetry, health checks, service discovery)
 builder.AddServiceDefaults();
 
+// Add rate limiting (SEC-002)
+builder.AddRateLimiting();
+
 // Add Redis output caching
 builder.AddRedisOutputCache("redis");
 
@@ -128,6 +131,9 @@ app.UseJsonLdContentNegotiation();
 // Add authentication and authorization middleware (AUTH-002)
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Enable rate limiting (SEC-002)
+app.UseRateLimiting();
 
 // Add Delegation Token Middleware (Sprint 6 - Orchestration)
 app.UseMiddleware<Sorcha.Blueprint.Service.Middleware.DelegationTokenMiddleware>();

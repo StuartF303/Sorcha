@@ -10,6 +10,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add Aspire service defaults (health checks, OpenTelemetry, service discovery)
 builder.AddServiceDefaults();
 
+// Add rate limiting (SEC-002)
+builder.AddRateLimiting();
+
 // Add Wallet Service infrastructure and domain services
 builder.Services.AddWalletService(builder.Configuration);
 
@@ -250,6 +253,9 @@ app.UseHttpsEnforcement();
 // Add authentication and authorization middleware (AUTH-002)
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Enable rate limiting (SEC-002)
+app.UseRateLimiting();
 
 // Map Wallet API endpoints
 app.MapWalletEndpoints();

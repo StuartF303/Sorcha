@@ -1,5 +1,8 @@
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -285,4 +288,176 @@ public static class Extensions
 
         return app;
     }
+
+    /// <summary>
+    /// Adds rate limiting services with configurable policies.
+    /// Implements SEC-002 API rate limiting requirements.
+    /// </summary>
+    /// <param name="builder">The host application builder</param>
+    /// <param name="configure">Optional configuration action</param>
+    /// <returns>The builder for chaining</returns>
+    public static TBuilder AddRateLimiting<TBuilder>(
+        this TBuilder builder,
+        Action<RateLimiterOptions>? configure = null) where TBuilder : IHostApplicationBuilder
+    {
+        builder.Services.AddRateLimiter(options =>
+        {
+            // Default rejection status code
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            // Add response headers for rate limit info
+            options.OnRejected = async (context, cancellationToken) =>
+            {
+                context.HttpContext.Response.Headers["Retry-After"] = "60";
+                context.HttpContext.Response.Headers["X-RateLimit-Policy"] = context.Lease.TryGetMetadata(
+                    MetadataName.ReasonPhrase, out var reason) ? reason : "rate_limit_exceeded";
+
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers["Retry-After"] = ((int)retryAfter.TotalSeconds).ToString();
+                }
+
+                await context.HttpContext.Response.WriteAsync(
+                    "{\"error\":\"Too many requests\",\"message\":\"Rate limit exceeded. Please try again later.\"}",
+                    cancellationToken);
+            };
+
+            // Default API policy: Fixed window - 100 requests per minute per IP
+            options.AddPolicy(RateLimitPolicies.Api, context =>
+            {
+                var clientIp = GetClientIdentifier(context);
+                return RateLimitPartition.GetFixedWindowLimiter(clientIp, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 100,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 10
+                });
+            });
+
+            // Authentication policy: Sliding window - 10 requests per minute (stricter for auth endpoints)
+            options.AddPolicy(RateLimitPolicies.Authentication, context =>
+            {
+                var clientIp = GetClientIdentifier(context);
+                return RateLimitPartition.GetSlidingWindowLimiter(clientIp, _ => new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    SegmentsPerWindow = 6, // 10-second segments
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 2
+                });
+            });
+
+            // Strict policy: Token bucket - 5 requests per minute with burst of 2
+            options.AddPolicy(RateLimitPolicies.Strict, context =>
+            {
+                var clientIp = GetClientIdentifier(context);
+                return RateLimitPartition.GetTokenBucketLimiter(clientIp, _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 5,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(12), // 5 tokens per minute
+                    TokensPerPeriod = 1,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 1
+                });
+            });
+
+            // Heavy operations policy: Concurrency limiter - max 10 concurrent requests globally
+            options.AddPolicy(RateLimitPolicies.HeavyOperations, _ =>
+            {
+                return RateLimitPartition.GetConcurrencyLimiter("global", _ => new ConcurrencyLimiterOptions
+                {
+                    PermitLimit = 10,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 20
+                });
+            });
+
+            // Relaxed policy: Fixed window - 1000 requests per minute (for health checks, etc.)
+            options.AddPolicy(RateLimitPolicies.Relaxed, context =>
+            {
+                var clientIp = GetClientIdentifier(context);
+                return RateLimitPartition.GetFixedWindowLimiter(clientIp, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 1000,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 50
+                });
+            });
+
+            // Apply custom configuration if provided
+            configure?.Invoke(options);
+        });
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Applies the rate limiting middleware with default API policy.
+    /// Must be called after UseRouting() and before UseEndpoints().
+    /// </summary>
+    /// <param name="app">The web application</param>
+    /// <returns>The web application for chaining</returns>
+    public static WebApplication UseRateLimiting(this WebApplication app)
+    {
+        app.UseRateLimiter();
+        return app;
+    }
+
+    /// <summary>
+    /// Gets a client identifier for rate limiting partitioning.
+    /// Uses X-Forwarded-For header if behind a proxy, otherwise uses remote IP.
+    /// </summary>
+    private static string GetClientIdentifier(HttpContext context)
+    {
+        // Check for forwarded header (when behind proxy/load balancer)
+        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(forwardedFor))
+        {
+            // Take the first IP (original client)
+            var clientIp = forwardedFor.Split(',').FirstOrDefault()?.Trim();
+            if (!string.IsNullOrEmpty(clientIp))
+            {
+                return clientIp;
+            }
+        }
+
+        // Fall back to remote IP address
+        return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
+}
+
+/// <summary>
+/// Well-known rate limiting policy names (SEC-002)
+/// </summary>
+public static class RateLimitPolicies
+{
+    /// <summary>
+    /// Default API policy: 100 requests per minute per IP (fixed window)
+    /// </summary>
+    public const string Api = "api";
+
+    /// <summary>
+    /// Authentication policy: 10 requests per minute per IP (sliding window)
+    /// Use for login, token, and password reset endpoints
+    /// </summary>
+    public const string Authentication = "authentication";
+
+    /// <summary>
+    /// Strict policy: 5 requests per minute with token bucket (for sensitive operations)
+    /// </summary>
+    public const string Strict = "strict";
+
+    /// <summary>
+    /// Heavy operations policy: 10 concurrent requests globally (concurrency limiter)
+    /// Use for resource-intensive operations like file processing, bulk imports
+    /// </summary>
+    public const string HeavyOperations = "heavy";
+
+    /// <summary>
+    /// Relaxed policy: 1000 requests per minute (for health checks, metrics)
+    /// </summary>
+    public const string Relaxed = "relaxed";
 }

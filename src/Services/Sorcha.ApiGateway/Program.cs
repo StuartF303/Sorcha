@@ -10,6 +10,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add Aspire service defaults
 builder.AddServiceDefaults();
 
+// Add rate limiting (SEC-002)
+builder.AddRateLimiting();
+
 // Add YARP reverse proxy
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
@@ -54,6 +57,9 @@ app.UseHttpsEnforcement();
 
 // Enable CORS
 app.UseCors();
+
+// Enable rate limiting (SEC-002) - applies to all proxied requests
+app.UseRateLimiting();
 
 // ===========================
 // Aggregated Health Endpoint

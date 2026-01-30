@@ -287,15 +287,15 @@
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| VAL-9.44 | Configuration system (memory limits, performance) | P1 | 8h | 📋 Not Started | - |
-| VAL-9.45 | API endpoints (health, metrics, pool stats) | P1 | 8h | 📋 Not Started | - |
+| VAL-9.44 | Configuration system (memory limits, performance) | P1 | 8h | ✅ Complete | 2026-01-30 |
+| VAL-9.45 | API endpoints (health, metrics, pool stats) | P1 | 8h | ✅ Complete | 2026-01-30 |
 | VAL-9.46 | Validator Service integration tests | P0 | 24h | ✅ Complete | 2026-01-29 |
 | VAL-9.47 | Multi-validator consensus integration tests | P0 | 20h | ✅ Complete | 2026-01-29 |
 | VAL-9.48 | Leader election integration tests | P0 | 12h | ✅ Complete | 2026-01-29 |
 | VAL-9.49 | Performance testing (validation throughput) | P1 | 12h | 📋 Not Started | - |
 | VAL-9.50 | Performance testing (consensus latency) | P1 | 12h | 📋 Not Started | - |
 
-**Sprint 9G Status:** 🚧 **IN PROGRESS** (3/7 tasks, 96 hours)
+**Sprint 9G Status:** 🚧 **IN PROGRESS** (5/7 tasks, 96 hours)
 
 **Integration Test Deliverables (VAL-9.46/47/48):**
 - ✅ 133 integration tests passing

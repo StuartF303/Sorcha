@@ -26,6 +26,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults (OpenTelemetry, health checks, service discovery)
 builder.AddServiceDefaults();
 
+// Add rate limiting (SEC-002)
+builder.AddRateLimiting();
+
 // Add SignalR for real-time notifications
 builder.Services.AddSignalR();
 
@@ -419,6 +422,9 @@ app.MapHub<RegisterHub>("/hubs/register");
 // Add authentication and authorization middleware (AUTH-002)
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Enable rate limiting (SEC-002)
+app.UseRateLimiting();
 
 // ===========================
 // Register Management API

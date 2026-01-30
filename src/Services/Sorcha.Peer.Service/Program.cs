@@ -23,6 +23,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults (OpenTelemetry, health checks, service discovery)
 builder.AddServiceDefaults();
 
+// Add rate limiting (SEC-002)
+builder.AddRateLimiting();
+
 // Configure Kestrel for gRPC with HTTP/1.1 fallback for health checks
 // Listen on port 8080/8052 for HTTP/health checks (Aspire/Docker standard)
 // Listen on port 5000/5003 for gRPC peer-to-peer communication
@@ -156,6 +159,9 @@ app.UseApiSecurityHeaders();
 
 // Enable HTTPS enforcement with HSTS (SEC-001)
 app.UseHttpsEnforcement();
+
+// Enable rate limiting (SEC-002)
+app.UseRateLimiting();
 
 // Configure OpenAPI (available in all environments for API consumers)
 app.MapOpenApi();

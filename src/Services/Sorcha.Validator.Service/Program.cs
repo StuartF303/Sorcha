@@ -18,6 +18,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults (OpenTelemetry, health checks, service discovery)
 builder.AddServiceDefaults();
 
+// Add rate limiting (SEC-002)
+builder.AddRateLimiting();
+
 // Add Redis for distributed coordination and memory pool persistence
 builder.AddRedisClient("redis");
 
@@ -129,6 +132,9 @@ app.UseApiSecurityHeaders();
 // Enable HTTPS enforcement with HSTS (SEC-001)
 app.UseHttpsEnforcement();
 
+// Enable rate limiting (SEC-002)
+app.UseRateLimiting();
+
 // Map gRPC services
 app.MapGrpcService<Sorcha.Validator.Service.GrpcServices.ValidatorGrpcService>();
 
@@ -162,5 +168,8 @@ app.MapAdminEndpoints();
 app.MapGroup("/api/validators")
     .WithTags("Validators")
     .MapValidatorRegistrationEndpoints();
+
+// Map metrics endpoints (VAL-9.45)
+app.MapMetricsEndpoints();
 
 app.Run();

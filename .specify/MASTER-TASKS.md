@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 4.0 - UPDATED
-**Last Updated:** 2026-01-29
-**Status:** Active - Validator Service Integration Tests Complete
+**Version:** 4.1 - UPDATED
+**Last Updated:** 2026-01-30
+**Status:** Active - Rate Limiting Complete
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -12,13 +12,33 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 270 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 136 (50%)
+**Completed:** 139 (51%)
 **In Progress:** 0 (0%)
-**Not Started:** 134 (50%)
+**Not Started:** 131 (49%)
 
 ---
 
 ## Recent Updates
+
+**2026-01-30:**
+- ✅ VAL-9.44 COMPLETE: Validator Service configuration system (memory limits, performance)
+  - ValidationEngineConfiguration with batch size, parallel validation, timeout settings
+  - MemPoolConfiguration with max size, TTL, priority quotas
+  - ConsensusConfiguration with approval threshold, vote timeout, retry settings
+  - DocketBuildConfiguration with time/size thresholds, max transactions per docket
+- ✅ VAL-9.45 COMPLETE: Validator Service metrics API endpoints
+  - `/api/metrics` - Aggregated metrics from all subsystems
+  - `/api/metrics/validation` - Validation engine stats
+  - `/api/metrics/consensus` - Consensus, distribution, failure stats
+  - `/api/metrics/pools` - Verified queue metrics
+  - `/api/metrics/caches` - Blueprint cache stats
+  - `/api/metrics/config` - Current configuration (redacted)
+- ✅ SEC-002 COMPLETE: API rate limiting and throttling for all services
+  - Added RateLimiter extension methods to ServiceDefaults
+  - 5 policy types: API (100/min), Authentication (10/min), Strict (5/min), Heavy (10 concurrent), Relaxed (1000/min)
+  - Applied to all 7 services: API Gateway, Blueprint, Register, Validator, Wallet, Tenant, Peer
+  - IP-based partitioning with X-Forwarded-For proxy support
+  - Rate limit headers (Retry-After, X-RateLimit-Policy) on 429 responses
 
 **2026-01-29:**
 - ✅ SEC-001 COMPLETE: HTTPS enforcement with HSTS for all services
