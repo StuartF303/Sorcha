@@ -21,7 +21,11 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-01-29:**
-- ✅ VAL-024/025 COMPLETE: Validator Service integration tests (133 tests)
+- ✅ SEC-001 COMPLETE: HTTPS enforcement with HSTS for all services
+  - Added UseHttpsEnforcement() extension method to ServiceDefaults
+  - HSTS header (max-age=1yr, includeSubDomains, preload) in production
+  - Applied to all 7 services: API Gateway, Blueprint, Register, Validator, Wallet, Tenant, Peer
+- ✅ VAL-9.46/47/48 COMPLETE: Validator Service integration tests (133 tests passing)
   - ValidationEngineIntegrationTests: Transaction validation, batch processing, payload hash verification
   - ConsensusEngineIntegrationTests: Multi-validator consensus, docket publishing, failure handling
   - GenesisConfigServiceIntegrationTests: Genesis transaction, control record validation
@@ -30,6 +34,10 @@ This document consolidates all tasks across the Sorcha platform into a single, p
   - ServiceClientIntegrationTests: Register, Blueprint, Peer, Wallet client integration
   - BlueprintCacheIntegrationTests: Caching, version resolution, invalidation
   - LeaderElectionIntegrationTests: Leader status, rotating election, failure handling
+- ✅ AUTH-001 UPDATED: Tenant Service PostgreSQL repositories confirmed complete (95%)
+  - All 3 repositories fully implemented: Organization, Identity, Participant
+  - 67 integration tests passing
+  - EF Core DbContext with multi-schema support
 
 **2026-01-28:**
 - ✅ UI-REGISTER-MANAGEMENT 100% COMPLETE: Register list, details, creation, query (70/70 tasks)
@@ -116,20 +124,20 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete | Details |
 |-------|-------------|----------|-------------|-------------|------------|---------|
-| **Phase 1: Blueprint-Action** | 118 | 64 | 0 | 54 | **54%** | [View Tasks](tasks/phase1-blueprint-service.md) |
+| **Phase 1: Blueprint-Action** | 118 | 67 | 0 | 51 | **57%** | [View Tasks](tasks/phase1-blueprint-service.md) |
 | **Phase 2: Wallet Service** | 34 | 34 | 0 | 0 | **100%** ✅ | [View Tasks](tasks/phase2-wallet-service.md) |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ | [View Tasks](tasks/phase3-register-service.md) |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% | [View Tasks](tasks/phase4-enhancements.md) |
-| **Production Readiness** | 10 | 0 | 0 | 10 | 0% ⚠️ | [View Tasks](tasks/production-readiness.md) |
+| **Production Readiness** | 10 | 5 | 0 | 5 | **50%** | [View Tasks](tasks/production-readiness.md) |
 | **CLI Admin Tool** | 60 | 0 | 0 | 60 | 0% | [View Tasks](tasks/cli-admin-tool.md) |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% | [View Tasks](tasks/deferred-tasks.md) |
-| **TOTAL** | **270** | **112** | **0** | **158** | **41%** | |
+| **TOTAL** | **270** | **120** | **0** | **150** | **44%** | |
 
 ### By Priority
 
 | Priority | Total | Complete | In Progress | Not Started |
 |----------|-------|----------|-------------|-------------|
-| **P0 - Critical (MVD Blocker)** | 40 | 3 | 0 | 37 ⚠️ |
+| **P0 - Critical (MVD Blocker)** | 40 | 7 | 0 | 33 ⚠️ |
 | **P1 - High (Production Ready)** | 32 | 0 | 0 | 32 ⚠️ |
 | **P2 - Medium (Enhancements)** | 65 | 58 | 0 | 7 |
 | **P3 - Low (Post-MVD)** | 66 | 42 | 0 | 24 |

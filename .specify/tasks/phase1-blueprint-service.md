@@ -289,17 +289,28 @@
 |----|------|----------|--------|--------|----------|
 | VAL-9.44 | Configuration system (memory limits, performance) | P1 | 8h | 📋 Not Started | - |
 | VAL-9.45 | API endpoints (health, metrics, pool stats) | P1 | 8h | 📋 Not Started | - |
-| VAL-9.46 | Validator Service integration tests | P0 | 24h | 📋 Not Started | - |
-| VAL-9.47 | Multi-validator consensus integration tests | P0 | 20h | 📋 Not Started | - |
-| VAL-9.48 | Leader election integration tests | P0 | 12h | 📋 Not Started | - |
+| VAL-9.46 | Validator Service integration tests | P0 | 24h | ✅ Complete | 2026-01-29 |
+| VAL-9.47 | Multi-validator consensus integration tests | P0 | 20h | ✅ Complete | 2026-01-29 |
+| VAL-9.48 | Leader election integration tests | P0 | 12h | ✅ Complete | 2026-01-29 |
 | VAL-9.49 | Performance testing (validation throughput) | P1 | 12h | 📋 Not Started | - |
 | VAL-9.50 | Performance testing (consensus latency) | P1 | 12h | 📋 Not Started | - |
 
-**Sprint 9G Status:** 📋 **NOT STARTED** (0/7 tasks, 96 hours)
+**Sprint 9G Status:** 🚧 **IN PROGRESS** (3/7 tasks, 96 hours)
+
+**Integration Test Deliverables (VAL-9.46/47/48):**
+- ✅ 133 integration tests passing
+- ✅ ValidationEngineIntegrationTests - Transaction validation, batch processing, payload hash verification
+- ✅ ConsensusEngineIntegrationTests - Multi-validator consensus, docket publishing, failure handling
+- ✅ GenesisConfigServiceIntegrationTests - Genesis transaction, control record validation
+- ✅ DocketBuilderIntegrationTests - Docket construction, merkle tree, transaction ordering
+- ✅ MemPoolIntegrationTests - Transaction pool, expiration, priority, concurrency
+- ✅ ServiceClientIntegrationTests - Register, Blueprint, Peer, Wallet client integration
+- ✅ BlueprintCacheIntegrationTests - Caching, version resolution, invalidation
+- ✅ LeaderElectionIntegrationTests - Leader status, rotating election, failure handling
 
 ---
 
-**Sprint 9 Total:** 🚧 **IN PROGRESS** (40/50 tasks, 560 hours)
+**Sprint 9 Total:** 🚧 **IN PROGRESS** (43/50 tasks, 560 hours)
 
 **References:**
 - [VALIDATOR-SERVICE-REQUIREMENTS.md](../VALIDATOR-SERVICE-REQUIREMENTS.md) - Updated with decentralized consensus

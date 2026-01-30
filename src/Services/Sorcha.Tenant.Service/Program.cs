@@ -267,7 +267,8 @@ try
 
     app.UseCors();
 
-    app.UseHttpsRedirection();
+    // Enable HTTPS enforcement with HSTS (SEC-001)
+    app.UseHttpsEnforcement();
 
     // Authentication and authorization middleware
     app.UseAuthentication();

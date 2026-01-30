@@ -123,6 +123,12 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 app.MapDefaultEndpoints();
 
+// Add OWASP security headers (SEC-004)
+app.UseApiSecurityHeaders();
+
+// Enable HTTPS enforcement with HSTS (SEC-001)
+app.UseHttpsEnforcement();
+
 // Map gRPC services
 app.MapGrpcService<Sorcha.Validator.Service.GrpcServices.ValidatorGrpcService>();
 

@@ -181,6 +181,34 @@ public static class Extensions
     }
 
     /// <summary>
+    /// Enables HTTPS enforcement including HSTS header and HTTPS redirection.
+    /// Implements SEC-001 HTTPS enforcement requirements.
+    /// HSTS is only applied in production to avoid certificate warnings in development.
+    /// </summary>
+    /// <param name="app">The web application</param>
+    /// <param name="forceInDevelopment">Force HTTPS in development (default: false)</param>
+    /// <returns>The web application for chaining</returns>
+    public static WebApplication UseHttpsEnforcement(this WebApplication app, bool forceInDevelopment = false)
+    {
+        // Only enable HSTS in production environments to prevent certificate issues in development
+        if (!app.Environment.IsDevelopment() || forceInDevelopment)
+        {
+            // HSTS (HTTP Strict-Transport-Security)
+            // max-age: 1 year, includeSubDomains, preload for submission to browser preload lists
+            app.Use(async (context, next) =>
+            {
+                context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload";
+                await next();
+            });
+        }
+
+        // Always enable HTTPS redirection
+        app.UseHttpsRedirection();
+
+        return app;
+    }
+
+    /// <summary>
     /// Adds security headers optimized for API services (less restrictive CSP).
     /// Use this for services that don't serve HTML/UI content.
     /// </summary>

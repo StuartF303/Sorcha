@@ -17,7 +17,7 @@
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| AUTH-001 | Implement Tenant Service (JWT + RBAC + Delegation) | P0 | 80h | 🚧 80% Complete | - |
+| AUTH-001 | Implement Tenant Service (JWT + RBAC + Delegation) | P0 | 80h | 🚧 95% Complete | - |
 | AUTH-002 | Integrate services with Tenant Service authentication | P0 | 24h | ✅ Complete | 2025-12-12 |
 | AUTH-003 | Deploy PostgreSQL + Redis for Tenant Service | P0 | 8h | ✅ Complete | 2025-12-12 |
 | AUTH-004 | Bootstrap seed scripts (admin + service principals) | P0 | 12h | ✅ Complete | 2025-12-12 |
@@ -39,9 +39,13 @@
 - ✅ 30+ REST API endpoints documented
 - ✅ Stateless horizontal scaling architecture
 - ✅ 99.5% SLA target with degraded operation modes
-- 🚧 Implementation 80% complete (core features implemented)
-- 📋 PostgreSQL repository pending
-- 📋 Production deployment pending
+- ✅ Implementation 95% complete (core features implemented)
+- ✅ PostgreSQL repositories complete (Organization, Identity, Participant)
+- ✅ EF Core DbContext with multi-schema support
+- ✅ 3 migrations auto-applied on startup
+- ✅ 67 integration tests passing
+- 📋 Azure AD / Identity Provider integration pending (post-MVD)
+- 📋 Production deployment documentation pending
 
 ### AUTH-002 Status Details
 
@@ -87,7 +91,7 @@
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| SEC-001 | HTTPS enforcement and certificate management | P0 | 4h | 🚧 Partial | - |
+| SEC-001 | HTTPS enforcement and certificate management | P0 | 4h | ✅ Complete | 2026-01-29 |
 | SEC-002 | API rate limiting and throttling | P1 | 8h | 📋 Not Started | - |
 | SEC-003 | Input validation hardening (OWASP compliance) | P1 | 12h | 📋 Not Started | - |
 | SEC-004 | Security headers (CSP, HSTS, X-Frame-Options) | P1 | 4h | ✅ Complete | 2025-12-09 |

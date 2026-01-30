@@ -244,7 +244,8 @@ if (app.Environment.IsDevelopment())
     app.UseCors("DevelopmentPolicy");
 }
 
-app.UseHttpsRedirection();
+// Enable HTTPS enforcement with HSTS (SEC-001)
+app.UseHttpsEnforcement();
 
 // Add authentication and authorization middleware (AUTH-002)
 app.UseAuthentication();

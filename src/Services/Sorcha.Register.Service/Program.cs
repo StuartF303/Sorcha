@@ -395,6 +395,9 @@ app.MapDefaultEndpoints();
 // Add OWASP security headers (SEC-004)
 app.UseApiSecurityHeaders();
 
+// Enable HTTPS enforcement with HSTS (SEC-001)
+app.UseHttpsEnforcement();
+
 // Configure OpenAPI
 app.MapOpenApi();
 
