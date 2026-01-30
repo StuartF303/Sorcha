@@ -207,12 +207,19 @@ public partial class InputValidationMiddleware
         return headerName.Equals("Authorization", StringComparison.OrdinalIgnoreCase)
             || headerName.Equals("Content-Type", StringComparison.OrdinalIgnoreCase)
             || headerName.Equals("Accept", StringComparison.OrdinalIgnoreCase)
+            || headerName.Equals("Accept-Language", StringComparison.OrdinalIgnoreCase)
+            || headerName.Equals("Accept-Encoding", StringComparison.OrdinalIgnoreCase)
             || headerName.Equals("User-Agent", StringComparison.OrdinalIgnoreCase)
             || headerName.Equals("Cookie", StringComparison.OrdinalIgnoreCase)
             || headerName.Equals("Host", StringComparison.OrdinalIgnoreCase)
             || headerName.Equals("Referer", StringComparison.OrdinalIgnoreCase)
             || headerName.Equals("Origin", StringComparison.OrdinalIgnoreCase)
+            || headerName.Equals("Cache-Control", StringComparison.OrdinalIgnoreCase)
+            || headerName.Equals("Connection", StringComparison.OrdinalIgnoreCase)
+            || headerName.Equals("If-None-Match", StringComparison.OrdinalIgnoreCase)
+            || headerName.Equals("If-Modified-Since", StringComparison.OrdinalIgnoreCase)
             || headerName.StartsWith("X-Forwarded-", StringComparison.OrdinalIgnoreCase)
+            || headerName.StartsWith("X-Request-", StringComparison.OrdinalIgnoreCase)
             || headerName.StartsWith("Sec-", StringComparison.OrdinalIgnoreCase);
     }
 
