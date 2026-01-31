@@ -331,6 +331,207 @@ public class ValidatorRegistry : IValidatorRegistry
         return validators.Count;
     }
 
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<ValidatorInfo>> GetPendingValidatorsAsync(
+        string registerId,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registerId);
+
+        try
+        {
+            // Get all validators and filter for pending status
+            var allValidators = await GetValidatorsFromRedisAsync(registerId, ct);
+            return allValidators
+                .Where(v => v.Status == Interfaces.ValidatorStatus.Pending)
+                .OrderBy(v => v.RegisteredAt)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get pending validators for register {RegisterId}", registerId);
+            return [];
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<ValidatorApprovalResult> ApproveValidatorAsync(
+        string registerId,
+        ValidatorApprovalRequest request,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registerId);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            _logger.LogInformation(
+                "Approving validator {ValidatorId} for register {RegisterId} by {ApprovedBy}",
+                request.ValidatorId, registerId, request.ApprovedBy);
+
+            // Check registration mode - approval only makes sense in consent mode
+            var validatorConfig = await _genesisConfig.GetValidatorConfigAsync(registerId, ct);
+            if (validatorConfig.IsPublicRegistration)
+            {
+                return ValidatorApprovalResult.Failed(
+                    "Register uses public registration mode - approval not required");
+            }
+
+            // Get the pending validator
+            var validator = await GetValidatorAsync(registerId, request.ValidatorId, ct);
+            if (validator == null)
+            {
+                return ValidatorApprovalResult.Failed("Validator not found");
+            }
+
+            if (validator.Status != Interfaces.ValidatorStatus.Pending)
+            {
+                return ValidatorApprovalResult.Failed(
+                    $"Validator is not pending approval (status: {validator.Status})");
+            }
+
+            // Check max validators
+            var currentCount = await GetActiveCountAsync(registerId, ct);
+            if (currentCount >= validatorConfig.MaxValidators)
+            {
+                return ValidatorApprovalResult.Failed(
+                    $"Maximum validators ({validatorConfig.MaxValidators}) reached");
+            }
+
+            var approvedAt = DateTimeOffset.UtcNow;
+
+            // Update validator to active status
+            var updatedValidator = validator with
+            {
+                Status = Interfaces.ValidatorStatus.Active,
+                Metadata = validator.Metadata == null
+                    ? new Dictionary<string, string>
+                    {
+                        ["approvedBy"] = request.ApprovedBy,
+                        ["approvedAt"] = approvedAt.ToString("O"),
+                        ["approvalNotes"] = request.ApprovalNotes ?? ""
+                    }
+                    : new Dictionary<string, string>(validator.Metadata)
+                    {
+                        ["approvedBy"] = request.ApprovedBy,
+                        ["approvedAt"] = approvedAt.ToString("O"),
+                        ["approvalNotes"] = request.ApprovalNotes ?? ""
+                    }
+            };
+
+            // Store updated validator
+            await StoreValidatorAsync(registerId, updatedValidator, ct);
+
+            // Clear local cache to pick up changes
+            _localCache.TryRemove(registerId, out _);
+
+            // Raise event
+            RaiseValidatorListChanged(registerId, ValidatorListChangeType.ValidatorApproved,
+                request.ValidatorId, currentCount + 1);
+
+            _logger.LogInformation(
+                "Validator {ValidatorId} approved for register {RegisterId} (order: {Order})",
+                request.ValidatorId, registerId, updatedValidator.OrderIndex);
+
+            // TODO: In production, create approval transaction on chain
+            var txId = $"approve-tx-{Guid.NewGuid():N}";
+
+            return ValidatorApprovalResult.Succeeded(txId, updatedValidator.OrderIndex ?? 0, approvedAt);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to approve validator {ValidatorId} for register {RegisterId}",
+                request.ValidatorId, registerId);
+            return ValidatorApprovalResult.Failed(ex.Message);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> RejectValidatorAsync(
+        string registerId,
+        string validatorId,
+        string reason,
+        string rejectedBy,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registerId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(validatorId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        ArgumentException.ThrowIfNullOrWhiteSpace(rejectedBy);
+
+        try
+        {
+            _logger.LogInformation(
+                "Rejecting validator {ValidatorId} for register {RegisterId} by {RejectedBy}: {Reason}",
+                validatorId, registerId, rejectedBy, reason);
+
+            // Get the pending validator
+            var validator = await GetValidatorAsync(registerId, validatorId, ct);
+            if (validator == null)
+            {
+                _logger.LogWarning("Validator {ValidatorId} not found for rejection", validatorId);
+                return false;
+            }
+
+            if (validator.Status != Interfaces.ValidatorStatus.Pending)
+            {
+                _logger.LogWarning(
+                    "Validator {ValidatorId} is not pending (status: {Status}), cannot reject",
+                    validatorId, validator.Status);
+                return false;
+            }
+
+            // Update validator to removed status with rejection metadata
+            var rejectedValidator = validator with
+            {
+                Status = Interfaces.ValidatorStatus.Removed,
+                Metadata = validator.Metadata == null
+                    ? new Dictionary<string, string>
+                    {
+                        ["rejectedBy"] = rejectedBy,
+                        ["rejectedAt"] = DateTimeOffset.UtcNow.ToString("O"),
+                        ["rejectionReason"] = reason
+                    }
+                    : new Dictionary<string, string>(validator.Metadata)
+                    {
+                        ["rejectedBy"] = rejectedBy,
+                        ["rejectedAt"] = DateTimeOffset.UtcNow.ToString("O"),
+                        ["rejectionReason"] = reason
+                    }
+            };
+
+            // Store updated validator
+            await StoreValidatorAsync(registerId, rejectedValidator, ct);
+
+            // Update order list (remove from order)
+            var order = await GetValidatorOrderAsync(registerId, ct);
+            var newOrder = order.Where(v => v != validatorId).ToList();
+            await UpdateOrderAsync(registerId, newOrder, ct);
+
+            // Clear local cache
+            _localCache.TryRemove(registerId, out _);
+
+            // Raise event
+            var currentCount = await GetActiveCountAsync(registerId, ct);
+            RaiseValidatorListChanged(registerId, ValidatorListChangeType.ValidatorRejected,
+                validatorId, currentCount);
+
+            _logger.LogInformation(
+                "Validator {ValidatorId} rejected for register {RegisterId}",
+                validatorId, registerId);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to reject validator {ValidatorId} for register {RegisterId}",
+                validatorId, registerId);
+            return false;
+        }
+    }
+
     #region Private Methods
 
     private async Task<List<ValidatorInfo>> GetValidatorsFromRedisAsync(

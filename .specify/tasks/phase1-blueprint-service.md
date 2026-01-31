@@ -3,10 +3,10 @@
 **Goal:** Complete the unified Blueprint-Action Service with full execution capabilities
 **Duration:** Weeks 1-14 (extended for validation testing)
 **Total Tasks:** 82
-**Completion:** 95% (78 complete, 0 in progress, 4 not started)
+**Completion:** 96% (79 complete, 0 in progress, 3 not started)
 
 **Validator Service Tasks:** 50
-**Validator Completion:** 82% (41 complete, 0 in progress, 9 not started)
+**Validator Completion:** 84% (42 complete, 0 in progress, 8 not started)
 
 **Back to:** [MASTER-TASKS.md](../MASTER-TASKS.md)
 
@@ -266,13 +266,13 @@
 |----|------|----------|--------|--------|----------|
 | VAL-9.37 | Implement Validator Registry (active validators) | P0 | 12h | ✅ Complete | 2026-01-29 |
 | VAL-9.38 | Implement Validator Registration flow (public mode) | P0 | 12h | ✅ Complete | 2026-01-29 |
-| VAL-9.39 | Implement Validator Approval flow (consent mode) | P1 | 12h | 📋 Not Started | - |
+| VAL-9.39 | Implement Validator Approval flow (consent mode) | P1 | 12h | ✅ Complete | 2026-01-31 |
 | VAL-9.40 | Connect GenesisConfigService to Register Service | P0 | 8h | ✅ Complete | 2026-01-29 |
 | VAL-9.41 | Implement Control Docket Processor | P1 | 16h | ✅ Complete | 2026-01-30 |
 | VAL-9.42 | Implement Control Blueprint Version Resolver | P0 | 8h | ✅ Complete | 2026-01-29 |
 | VAL-9.43 | Validator registration API endpoints | P0 | 8h | ✅ Complete | 2026-01-29 |
 
-**Sprint 9F Status:** 🚧 **IN PROGRESS** (6/7 tasks, 76 hours)
+**Sprint 9F Status:** ✅ **COMPLETE** (7/7 tasks, 76 hours)
 
 **Deliverables:**
 - ✅ ValidatorRegistry - Redis-backed registry with L1 cache, ordering, events
@@ -283,6 +283,11 @@
 - ✅ Service lifetime fixes (scoped services for proper DI)
 - ✅ ControlBlueprintVersionResolver - Tracks governance config versions through control transaction chain
 - ✅ ControlDocketProcessor - Processes governance transactions (validator management, config updates, blueprint publication)
+- ✅ Validator Approval flow (consent mode) - Full implementation of approval/rejection for pending validators
+  - IValidatorRegistry methods: GetPendingValidatorsAsync, ApproveValidatorAsync, RejectValidatorAsync
+  - ValidatorApprovalRequest/ValidatorApprovalResult types
+  - REST endpoints: GET /pending, POST /approve, POST /reject
+  - 22 unit tests for approval flow
 
 ### Sprint 9G: Configuration & Testing
 

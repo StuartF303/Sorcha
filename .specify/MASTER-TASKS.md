@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 4.3 - UPDATED
-**Last Updated:** 2026-01-30
-**Status:** Active - Control Docket Processor Complete
+**Version:** 4.4 - UPDATED
+**Last Updated:** 2026-01-31
+**Status:** Active - Setup Wizard Complete
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -12,13 +12,32 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 270 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 141 (52%)
+**Completed:** 143 (53%)
 **In Progress:** 0 (0%)
-**Not Started:** 129 (48%)
+**Not Started:** 127 (47%)
 
 ---
 
 ## Recent Updates
+
+**2026-01-31:**
+- ✅ VAL-9.39 COMPLETE: Validator Approval flow (consent mode)
+  - IValidatorRegistry methods: GetPendingValidatorsAsync, ApproveValidatorAsync, RejectValidatorAsync
+  - ValidatorApprovalRequest/ValidatorApprovalResult types
+  - REST endpoints: GET /{registerId}/pending, POST /{validatorId}/approve, POST /{validatorId}/reject
+  - ValidatorListChangeType: ValidatorApproved, ValidatorRejected events
+  - Registration flow updated to set Pending status in consent mode
+  - 22 unit tests for approval flow
+  - Sprint 9F now 100% complete (7/7 tasks)
+- ✅ SETUP-001 COMPLETE: First-run setup wizard for fresh installations
+  - `scripts/setup.ps1` - PowerShell setup wizard with 8-step process
+  - `scripts/setup.sh` - Bash equivalent for Linux/macOS
+  - `scripts/setup-config.yaml` - Configuration template with defaults
+  - `scripts/validate-environment.ps1` - Comprehensive environment validation
+  - `docs/FIRST-RUN-SETUP.md` - Complete setup documentation
+  - Environment detection, configuration generation, volume creation
+  - Infrastructure startup, service validation, health checks
+  - Interactive and non-interactive modes supported
 
 **2026-01-30:**
 - ✅ VAL-9.41 COMPLETE: Control Docket Processor for governance transactions
@@ -162,11 +181,11 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete | Details |
 |-------|-------------|----------|-------------|-------------|------------|---------|
-| **Phase 1: Blueprint-Action** | 118 | 67 | 0 | 51 | **57%** | [View Tasks](tasks/phase1-blueprint-service.md) |
+| **Phase 1: Blueprint-Action** | 118 | 68 | 0 | 50 | **58%** | [View Tasks](tasks/phase1-blueprint-service.md) |
 | **Phase 2: Wallet Service** | 34 | 34 | 0 | 0 | **100%** ✅ | [View Tasks](tasks/phase2-wallet-service.md) |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ | [View Tasks](tasks/phase3-register-service.md) |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% | [View Tasks](tasks/phase4-enhancements.md) |
-| **Production Readiness** | 10 | 5 | 0 | 5 | **50%** | [View Tasks](tasks/production-readiness.md) |
+| **Production Readiness** | 10 | 6 | 0 | 4 | **60%** | [View Tasks](tasks/production-readiness.md) |
 | **CLI Admin Tool** | 60 | 0 | 0 | 60 | 0% | [View Tasks](tasks/cli-admin-tool.md) |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% | [View Tasks](tasks/deferred-tasks.md) |
 | **TOTAL** | **270** | **120** | **0** | **150** | **44%** | |
@@ -280,6 +299,6 @@ BP-11.x (Production Readiness)
 
 ---
 
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-01-31
 **Next Review:** Weekly
 **Document Owner:** Sorcha Architecture Team

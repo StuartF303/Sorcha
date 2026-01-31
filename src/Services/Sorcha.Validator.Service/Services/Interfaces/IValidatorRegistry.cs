@@ -81,6 +81,44 @@ public interface IValidatorRegistry
     Task<int> GetActiveCountAsync(string registerId, CancellationToken ct = default);
 
     /// <summary>
+    /// Get pending validators awaiting approval (consent mode)
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>List of pending validators</returns>
+    Task<IReadOnlyList<ValidatorInfo>> GetPendingValidatorsAsync(
+        string registerId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Approve a pending validator (consent mode)
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="request">Approval request</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Approval result</returns>
+    Task<ValidatorApprovalResult> ApproveValidatorAsync(
+        string registerId,
+        ValidatorApprovalRequest request,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Reject a pending validator (consent mode)
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="validatorId">Validator to reject</param>
+    /// <param name="reason">Rejection reason</param>
+    /// <param name="rejectedBy">Who rejected (wallet address)</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>True if rejected successfully</returns>
+    Task<bool> RejectValidatorAsync(
+        string registerId,
+        string validatorId,
+        string reason,
+        string rejectedBy,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Event raised when validator list changes
     /// </summary>
     event EventHandler<ValidatorListChangedEventArgs>? ValidatorListChanged;
@@ -218,5 +256,63 @@ public enum ValidatorListChangeType
     ValidatorSuspended,
 
     /// <summary>Validator reactivated</summary>
-    ValidatorReactivated
+    ValidatorReactivated,
+
+    /// <summary>Validator approved (consent mode)</summary>
+    ValidatorApproved,
+
+    /// <summary>Validator rejected (consent mode)</summary>
+    ValidatorRejected
+}
+
+/// <summary>
+/// Request to approve a pending validator
+/// </summary>
+public record ValidatorApprovalRequest
+{
+    /// <summary>Validator ID to approve</summary>
+    public required string ValidatorId { get; init; }
+
+    /// <summary>Who approved (wallet address)</summary>
+    public required string ApprovedBy { get; init; }
+
+    /// <summary>Optional approval notes</summary>
+    public string? ApprovalNotes { get; init; }
+}
+
+/// <summary>
+/// Result of validator approval attempt
+/// </summary>
+public record ValidatorApprovalResult
+{
+    /// <summary>Whether approval succeeded</summary>
+    public required bool Success { get; init; }
+
+    /// <summary>Approval transaction ID if successful</summary>
+    public string? TransactionId { get; init; }
+
+    /// <summary>Error message if failed</summary>
+    public string? ErrorMessage { get; init; }
+
+    /// <summary>Validator's order index after approval</summary>
+    public int? OrderIndex { get; init; }
+
+    /// <summary>When the validator was approved</summary>
+    public DateTimeOffset? ApprovedAt { get; init; }
+
+    /// <summary>Creates a successful result</summary>
+    public static ValidatorApprovalResult Succeeded(string txId, int orderIndex, DateTimeOffset approvedAt) => new()
+    {
+        Success = true,
+        TransactionId = txId,
+        OrderIndex = orderIndex,
+        ApprovedAt = approvedAt
+    };
+
+    /// <summary>Creates a failed result</summary>
+    public static ValidatorApprovalResult Failed(string error) => new()
+    {
+        Success = false,
+        ErrorMessage = error
+    };
 }

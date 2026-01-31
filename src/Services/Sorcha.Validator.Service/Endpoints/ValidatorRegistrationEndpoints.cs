@@ -19,12 +19,17 @@ public static class ValidatorRegistrationEndpoints
         group.MapPost("/register", RegisterValidator)
             .WithName("RegisterValidator")
             .WithSummary("Register as a validator for a register")
-            .WithDescription("Registers this validator node for participation in consensus for the specified register");
+            .WithDescription("Registers this validator node for participation in consensus. In public mode, registration is immediate. In consent mode, registration is pending until approved.");
 
         group.MapGet("/{registerId}", GetValidators)
             .WithName("GetValidators")
             .WithSummary("Get validators for a register")
-            .WithDescription("Returns all validators registered for the specified register");
+            .WithDescription("Returns all active validators registered for the specified register");
+
+        group.MapGet("/{registerId}/pending", GetPendingValidators)
+            .WithName("GetPendingValidators")
+            .WithSummary("Get pending validators awaiting approval")
+            .WithDescription("Returns validators with pending status awaiting approval (consent mode only)");
 
         group.MapGet("/{registerId}/{validatorId}", GetValidator)
             .WithName("GetValidator")
@@ -35,6 +40,16 @@ public static class ValidatorRegistrationEndpoints
             .WithName("GetValidatorCount")
             .WithSummary("Get active validator count")
             .WithDescription("Returns the number of active validators for the register");
+
+        group.MapPost("/{registerId}/{validatorId}/approve", ApproveValidator)
+            .WithName("ApproveValidator")
+            .WithSummary("Approve a pending validator")
+            .WithDescription("Approves a pending validator registration (consent mode only). Requires register owner authorization.");
+
+        group.MapPost("/{registerId}/{validatorId}/reject", RejectValidator)
+            .WithName("RejectValidator")
+            .WithSummary("Reject a pending validator")
+            .WithDescription("Rejects a pending validator registration (consent mode only). Requires register owner authorization.");
 
         group.MapPost("/{registerId}/refresh", RefreshValidators)
             .WithName("RefreshValidators")
@@ -63,18 +78,6 @@ public static class ValidatorRegistrationEndpoints
             // Check registration mode
             var validatorConfig = await genesisConfig.GetValidatorConfigAsync(request.RegisterId, cancellationToken);
 
-            if (!validatorConfig.IsPublicRegistration)
-            {
-                logger.LogWarning(
-                    "Registration rejected - register {RegisterId} requires consent mode",
-                    request.RegisterId);
-                return Results.BadRequest(new
-                {
-                    error = "Registration requires approval",
-                    message = "This register uses consent mode. Contact the register owner for approval."
-                });
-            }
-
             var registration = new ValidatorRegistration
             {
                 ValidatorId = request.ValidatorId,
@@ -97,18 +100,26 @@ public static class ValidatorRegistrationEndpoints
                 });
             }
 
-            logger.LogInformation(
-                "Validator {ValidatorId} registered successfully for register {RegisterId} (order: {Order})",
-                request.ValidatorId, request.RegisterId, result.OrderIndex);
+            // Determine status based on registration mode
+            var status = validatorConfig.IsPublicRegistration ? "active" : "pending";
 
-            return Results.Created($"/api/validators/{request.RegisterId}/{request.ValidatorId}", new
+            logger.LogInformation(
+                "Validator {ValidatorId} registered for register {RegisterId} (status: {Status}, order: {Order})",
+                request.ValidatorId, request.RegisterId, status, result.OrderIndex);
+
+            var response = new
             {
                 validatorId = request.ValidatorId,
                 registerId = request.RegisterId,
                 transactionId = result.TransactionId,
                 orderIndex = result.OrderIndex,
-                status = "active"
-            });
+                status,
+                message = validatorConfig.IsPublicRegistration
+                    ? "Registration successful"
+                    : "Registration pending approval. Contact register owner for approval."
+            };
+
+            return Results.Created($"/api/validators/{request.RegisterId}/{request.ValidatorId}", response);
         }
         catch (Exception ex)
         {
@@ -273,6 +284,191 @@ public static class ValidatorRegistrationEndpoints
                 title: "Refresh error");
         }
     }
+
+    /// <summary>
+    /// Get pending validators awaiting approval
+    /// </summary>
+    private static async Task<IResult> GetPendingValidators(
+        string registerId,
+        [FromServices] IValidatorRegistry registry,
+        [FromServices] IGenesisConfigService genesisConfig,
+        [FromServices] ILogger<Program> logger,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var validatorConfig = await genesisConfig.GetValidatorConfigAsync(registerId, cancellationToken);
+            var pendingValidators = await registry.GetPendingValidatorsAsync(registerId, cancellationToken);
+
+            return Results.Ok(new
+            {
+                registerId,
+                registrationMode = validatorConfig.RegistrationMode,
+                count = pendingValidators.Count,
+                validators = pendingValidators.Select(v => new
+                {
+                    validatorId = v.ValidatorId,
+                    publicKey = v.PublicKey,
+                    grpcEndpoint = v.GrpcEndpoint,
+                    status = v.Status.ToString().ToLowerInvariant(),
+                    registeredAt = v.RegisteredAt,
+                    orderIndex = v.OrderIndex,
+                    metadata = v.Metadata
+                })
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting pending validators for register {RegisterId}", registerId);
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: 500,
+                title: "Query error");
+        }
+    }
+
+    /// <summary>
+    /// Approve a pending validator
+    /// </summary>
+    private static async Task<IResult> ApproveValidator(
+        string registerId,
+        string validatorId,
+        [FromBody] ApproveValidatorRequest request,
+        [FromServices] IValidatorRegistry registry,
+        [FromServices] IGenesisConfigService genesisConfig,
+        [FromServices] ILogger<Program> logger,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            logger.LogInformation(
+                "Processing approval for validator {ValidatorId} on register {RegisterId} by {ApprovedBy}",
+                validatorId, registerId, request.ApprovedBy);
+
+            // Check registration mode
+            var validatorConfig = await genesisConfig.GetValidatorConfigAsync(registerId, cancellationToken);
+            if (validatorConfig.IsPublicRegistration)
+            {
+                return Results.BadRequest(new
+                {
+                    error = "Approval not required",
+                    message = "This register uses public registration mode. Validators are automatically approved."
+                });
+            }
+
+            var approvalRequest = new ValidatorApprovalRequest
+            {
+                ValidatorId = validatorId,
+                ApprovedBy = request.ApprovedBy,
+                ApprovalNotes = request.ApprovalNotes
+            };
+
+            var result = await registry.ApproveValidatorAsync(registerId, approvalRequest, cancellationToken);
+
+            if (!result.Success)
+            {
+                logger.LogWarning(
+                    "Validator approval failed for {ValidatorId}: {Error}",
+                    validatorId, result.ErrorMessage);
+                return Results.BadRequest(new
+                {
+                    error = "Approval failed",
+                    message = result.ErrorMessage
+                });
+            }
+
+            logger.LogInformation(
+                "Validator {ValidatorId} approved for register {RegisterId}",
+                validatorId, registerId);
+
+            return Results.Ok(new
+            {
+                validatorId,
+                registerId,
+                status = "active",
+                transactionId = result.TransactionId,
+                orderIndex = result.OrderIndex,
+                approvedAt = result.ApprovedAt,
+                approvedBy = request.ApprovedBy
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error approving validator {ValidatorId}", validatorId);
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: 500,
+                title: "Approval error");
+        }
+    }
+
+    /// <summary>
+    /// Reject a pending validator
+    /// </summary>
+    private static async Task<IResult> RejectValidator(
+        string registerId,
+        string validatorId,
+        [FromBody] RejectValidatorRequest request,
+        [FromServices] IValidatorRegistry registry,
+        [FromServices] IGenesisConfigService genesisConfig,
+        [FromServices] ILogger<Program> logger,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            logger.LogInformation(
+                "Processing rejection for validator {ValidatorId} on register {RegisterId} by {RejectedBy}",
+                validatorId, registerId, request.RejectedBy);
+
+            // Check registration mode
+            var validatorConfig = await genesisConfig.GetValidatorConfigAsync(registerId, cancellationToken);
+            if (validatorConfig.IsPublicRegistration)
+            {
+                return Results.BadRequest(new
+                {
+                    error = "Rejection not applicable",
+                    message = "This register uses public registration mode. Use validator removal instead."
+                });
+            }
+
+            var success = await registry.RejectValidatorAsync(
+                registerId, validatorId, request.Reason, request.RejectedBy, cancellationToken);
+
+            if (!success)
+            {
+                logger.LogWarning(
+                    "Validator rejection failed for {ValidatorId}",
+                    validatorId);
+                return Results.BadRequest(new
+                {
+                    error = "Rejection failed",
+                    message = "Validator not found or not in pending status"
+                });
+            }
+
+            logger.LogInformation(
+                "Validator {ValidatorId} rejected for register {RegisterId}",
+                validatorId, registerId);
+
+            return Results.Ok(new
+            {
+                validatorId,
+                registerId,
+                status = "rejected",
+                reason = request.Reason,
+                rejectedBy = request.RejectedBy,
+                rejectedAt = DateTimeOffset.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error rejecting validator {ValidatorId}", validatorId);
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: 500,
+                title: "Rejection error");
+        }
+    }
 }
 
 /// <summary>
@@ -294,4 +490,28 @@ public record RegisterValidatorRequest
 
     /// <summary>Optional metadata</summary>
     public Dictionary<string, string>? Metadata { get; init; }
+}
+
+/// <summary>
+/// Request to approve a pending validator
+/// </summary>
+public record ApproveValidatorRequest
+{
+    /// <summary>Wallet address of approver (register owner)</summary>
+    public required string ApprovedBy { get; init; }
+
+    /// <summary>Optional approval notes</summary>
+    public string? ApprovalNotes { get; init; }
+}
+
+/// <summary>
+/// Request to reject a pending validator
+/// </summary>
+public record RejectValidatorRequest
+{
+    /// <summary>Wallet address of rejector (register owner)</summary>
+    public required string RejectedBy { get; init; }
+
+    /// <summary>Reason for rejection</summary>
+    public required string Reason { get; init; }
 }
