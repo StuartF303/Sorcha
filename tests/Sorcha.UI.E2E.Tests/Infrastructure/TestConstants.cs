@@ -54,6 +54,10 @@ public static class TestConstants
         "401",
         "Unauthorized",
         "Failed to load resource",
+        // Static file MIME type issues (development environment)
+        "MIME type",
+        "clipboard.js",
+        "strict MIME type checking",
     ];
 
     /// <summary>
