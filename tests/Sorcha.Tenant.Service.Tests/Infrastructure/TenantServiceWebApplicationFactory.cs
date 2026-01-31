@@ -34,13 +34,6 @@ public class TenantServiceWebApplicationFactory : WebApplicationFactory<Program>
     /// </summary>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // Configure Serilog to prevent "logger frozen" errors during tests
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-            .WriteTo.Console()
-            .CreateLogger();
-
         builder.ConfigureTestServices(services =>
         {
             // Remove all EF Core related services to prevent provider conflicts

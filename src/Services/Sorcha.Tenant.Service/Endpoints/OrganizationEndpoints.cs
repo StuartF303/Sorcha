@@ -180,10 +180,26 @@ public static class OrganizationEndpoints
     private static async Task<Ok<OrganizationListResponse>> ListOrganizations(
         IOrganizationService organizationService,
         bool includeInactive = false,
+        int pageNumber = 1,
+        int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
         var response = await organizationService.ListOrganizationsAsync(includeInactive, cancellationToken);
-        return TypedResults.Ok(response);
+
+        // Apply pagination
+        var skip = (pageNumber - 1) * pageSize;
+        var paginatedOrgs = response.Organizations
+            .Skip(skip)
+            .Take(pageSize)
+            .ToList();
+
+        var paginatedResponse = new OrganizationListResponse
+        {
+            Organizations = paginatedOrgs,
+            TotalCount = response.TotalCount
+        };
+
+        return TypedResults.Ok(paginatedResponse);
     }
 
     private static async Task<Results<Ok<OrganizationResponse>, NotFound>> GetOrganization(

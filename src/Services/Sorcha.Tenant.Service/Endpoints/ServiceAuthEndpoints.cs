@@ -29,6 +29,7 @@ public static class ServiceAuthEndpoints
             .WithDescription("OAuth2 compliant token endpoint. Supports grant types: password, client_credentials, refresh_token.")
             .AllowAnonymous()
             .Accepts<OAuth2TokenRequest>("application/x-www-form-urlencoded")
+            .Accepts<OAuth2TokenRequest>("application/json")
             .Produces<TokenResponse>()
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized);
@@ -143,15 +144,42 @@ public static class ServiceAuthEndpoints
         ILogger<Program> logger,
         CancellationToken cancellationToken)
     {
-        // Parse form-urlencoded data
-        var form = await context.Request.ReadFormAsync(cancellationToken);
-        var grantType = form["grant_type"].ToString();
-        var username = form["username"].ToString();
-        var password = form["password"].ToString();
-        var clientId = form["client_id"].ToString();
-        var clientSecret = form["client_secret"].ToString();
-        var refreshToken = form["refresh_token"].ToString();
-        var scope = form["scope"].ToString();
+        // Parse request data (support both form-urlencoded and JSON)
+        string grantType, username, password, clientId, clientSecret, refreshToken, scope;
+
+        var contentType = context.Request.ContentType?.ToLowerInvariant() ?? "";
+        if (contentType.Contains("application/json"))
+        {
+            // Parse JSON body
+            var request = await context.Request.ReadFromJsonAsync<OAuth2TokenRequest>(cancellationToken);
+            if (request == null)
+            {
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["request"] = ["Invalid JSON request body"]
+                });
+            }
+
+            grantType = request.GrantType ?? "";
+            username = request.Username ?? "";
+            password = request.Password ?? "";
+            clientId = request.ClientId ?? "";
+            clientSecret = request.ClientSecret ?? "";
+            refreshToken = request.RefreshToken ?? "";
+            scope = request.Scope ?? "";
+        }
+        else
+        {
+            // Parse form-urlencoded data (OAuth2 standard)
+            var form = await context.Request.ReadFormAsync(cancellationToken);
+            grantType = form["grant_type"].ToString();
+            username = form["username"].ToString();
+            password = form["password"].ToString();
+            clientId = form["client_id"].ToString();
+            clientSecret = form["client_secret"].ToString();
+            refreshToken = form["refresh_token"].ToString();
+            scope = form["scope"].ToString();
+        }
 
         if (string.IsNullOrWhiteSpace(grantType))
         {
