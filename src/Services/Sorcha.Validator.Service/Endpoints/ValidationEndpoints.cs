@@ -199,6 +199,7 @@ public static class ValidationEndpoints
                 controlRecordHashHex);
 
             // Sign control record hash with system wallet using the register-control derivation path
+            // If system wallet doesn't exist, auto-create it (lazy initialization)
             var systemWalletAddress = validatorConfig.Value.SystemWalletAddress;
 
             WalletSignResult systemSignResult;
@@ -211,15 +212,49 @@ public static class ValidationEndpoints
                     isPreHashed: true,
                     cancellationToken);
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+            catch (InvalidOperationException ex) when (
+                ex.Message.Contains("not found") ||
+                ex.Message.Contains("Authentication failed") ||
+                ex.Message.Contains("401"))
             {
-                logger.LogError(
-                    "System wallet {WalletAddress} not found - platform bootstrap incomplete",
-                    systemWalletAddress);
-                return Results.Problem(
-                    title: "Platform bootstrap incomplete",
-                    detail: "System wallet not available. Run bootstrap to create the system wallet.",
-                    statusCode: 503);
+                // Auto-create system wallet on first use (wallet not found or auth failed because wallet doesn't exist)
+                logger.LogInformation(
+                    "System wallet {WalletAddress} not available ({Reason}), creating on-demand for validator {ValidatorId}",
+                    systemWalletAddress,
+                    ex.Message.Contains("Authentication") ? "auth failed" : "not found",
+                    validatorConfig.Value.ValidatorId);
+
+                try
+                {
+                    // Create system wallet using the validator ID
+                    systemWalletAddress = await walletClient.CreateOrRetrieveSystemWalletAsync(
+                        validatorConfig.Value.ValidatorId,
+                        cancellationToken);
+
+                    logger.LogInformation(
+                        "Created system wallet {WalletAddress} for validator {ValidatorId}",
+                        systemWalletAddress,
+                        validatorConfig.Value.ValidatorId);
+
+                    // Retry signing with newly created wallet
+                    systemSignResult = await walletClient.SignTransactionAsync(
+                        systemWalletAddress,
+                        controlRecordHash,
+                        "sorcha:register-control",
+                        isPreHashed: true,
+                        cancellationToken);
+                }
+                catch (Exception createEx)
+                {
+                    logger.LogError(
+                        createEx,
+                        "Failed to create system wallet for validator {ValidatorId}",
+                        validatorConfig.Value.ValidatorId);
+                    return Results.Problem(
+                        title: "Platform bootstrap incomplete",
+                        detail: $"Failed to create system wallet: {createEx.Message}",
+                        statusCode: 503);
+                }
             }
 
             logger.LogInformation(

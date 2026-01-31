@@ -1,6 +1,7 @@
 @* SPDX-License-Identifier: MIT *@
 @* Copyright (c) 2025 Sorcha Contributors *@
 
+@using Sorcha.Register.Models.Enums
 @using Sorcha.UI.Core.Models.Registers
 @using Sorcha.UI.Core.Models.Wallet
 @using Sorcha.UI.Core.Services
@@ -303,6 +304,12 @@
     public string TenantId { get; set; } = string.Empty;
 
     /// <summary>
+    /// Current user ID for the owner attestation
+    /// </summary>
+    [Parameter]
+    public string UserId { get; set; } = "user-001";
+
+    /// <summary>
     /// Callback when register is created successfully
     /// </summary>
     [Parameter]
@@ -395,9 +402,9 @@
 
     private string GetProcessingMessage() => _state.CurrentStep switch
     {
-        2 => "Initiating register creation...",
-        3 => "Signing control record...",
-        4 => "Finalizing register creation...",
+        1 => "Initiating register creation...",
+        2 => "Signing attestation...",
+        3 => "Finalizing register...",
         _ => "Processing..."
     };
 
@@ -439,24 +446,34 @@
         {
             IsProcessing = true,
             ErrorMessage = null,
-            CurrentStep = 2
+            CurrentStep = 1
         };
 
         try
         {
             // Step 1: Initiate register creation
-            var request = new CreateRegisterRequest
+            var initiateRequest = new CreateRegisterRequest
             {
                 Name = _name,
                 TenantId = TenantId,
-                Advertise = _advertise,
-                IsFullReplica = _isFullReplica,
-                WalletAddress = _selectedWalletAddress
+                Owners = new List<OwnerInfo>
+                {
+                    new OwnerInfo
+                    {
+                        UserId = UserId,
+                        WalletId = _selectedWalletAddress!
+                    }
+                },
+                Metadata = new Dictionary<string, string>
+                {
+                    ["advertise"] = _advertise.ToString().ToLowerInvariant(),
+                    ["isFullReplica"] = _isFullReplica.ToString().ToLowerInvariant()
+                }
             };
 
-            var initiateResponse = await RegisterService.InitiateRegisterAsync(request);
+            var initiateResponse = await RegisterService.InitiateRegisterAsync(initiateRequest);
 
-            if (initiateResponse is null)
+            if (initiateResponse is null || initiateResponse.AttestationsToSign.Count == 0)
             {
                 _state = _state with
                 {
@@ -466,45 +483,64 @@
                 return;
             }
 
-            _state = _state with
-            {
-                RegisterId = initiateResponse.RegisterId,
-                UnsignedControlRecord = initiateResponse.UnsignedControlRecord,
-                CurrentStep = 3
-            };
+            _state = _state with { CurrentStep = 2 };
 
-            // Step 2: Sign the control record with selected wallet
-            var signRequest = new SignTransactionRequest
-            {
-                TransactionData = initiateResponse.UnsignedControlRecord,
-                DerivationPath = "sorcha:register-attestation"
-            };
-            var signResponse = await WalletService.SignDataAsync(
-                _selectedWalletAddress!,
-                signRequest);
+            // Step 2: Sign each attestation
+            var signedAttestations = new List<SignedAttestation>();
 
-            if (signResponse is null || string.IsNullOrEmpty(signResponse.Signature))
+            foreach (var attestation in initiateResponse.AttestationsToSign)
             {
-                _state = _state with
+                // Convert hex hash to bytes for signing
+                var hashBytes = Convert.FromHexString(attestation.DataToSign);
+
+                // Sign the hash with the wallet (hash is pre-computed, don't re-hash)
+                var signRequest = new SignTransactionRequest
                 {
-                    IsProcessing = false,
-                    ErrorMessage = "Failed to sign the control record. Please try again."
+                    TransactionData = Convert.ToBase64String(hashBytes),
+                    DerivationPath = "sorcha:register-attestation",
+                    IsPreHashed = true
                 };
-                return;
+
+                var signResponse = await WalletService.SignDataAsync(
+                    attestation.WalletId,
+                    signRequest);
+
+                if (signResponse is null || string.IsNullOrEmpty(signResponse.Signature))
+                {
+                    _state = _state with
+                    {
+                        IsProcessing = false,
+                        ErrorMessage = $"Failed to sign attestation for {attestation.UserId}. Please try again."
+                    };
+                    return;
+                }
+
+                // Get algorithm from the wallet model
+                var signingWallet = _wallets.FirstOrDefault(w => w.Address == attestation.WalletId);
+                var algorithm = signingWallet?.Algorithm ?? "ED25519";
+
+                signedAttestations.Add(new SignedAttestation
+                {
+                    AttestationData = attestation.AttestationData,
+                    PublicKey = signResponse.PublicKey ?? "",
+                    Signature = signResponse.Signature,
+                    Algorithm = algorithm
+                });
             }
 
-            _state = _state with { CurrentStep = 4 };
+            _state = _state with { CurrentStep = 3 };
 
-            // Step 3: Finalize register creation with signed data
+            // Step 3: Finalize register creation with signed attestations
             var finalizeRequest = new FinalizeRegisterRequest
             {
                 RegisterId = initiateResponse.RegisterId,
-                SignedControlRecord = signResponse.Signature
+                Nonce = initiateResponse.Nonce,
+                SignedAttestations = signedAttestations
             };
 
-            var register = await RegisterService.FinalizeRegisterAsync(finalizeRequest);
+            var finalizeResponse = await RegisterService.FinalizeRegisterAsync(finalizeRequest);
 
-            if (register is null)
+            if (finalizeResponse is null)
             {
                 _state = _state with
                 {
@@ -514,9 +550,26 @@
                 return;
             }
 
-            // Success - notify parent and close dialog
-            await OnRegisterCreated.InvokeAsync(register);
-            MudDialog?.Close(DialogResult.Ok(register));
+            // Success - create view model for callback
+            // Parse status string to enum (default to Online for newly created registers)
+            var status = Enum.TryParse<RegisterStatus>(finalizeResponse.Status, true, out var parsedStatus)
+                ? parsedStatus
+                : RegisterStatus.Online;
+
+            var createdRegister = new RegisterViewModel
+            {
+                Id = finalizeResponse.RegisterId,
+                Name = _name,
+                Status = status,
+                Advertise = _advertise,
+                IsFullReplica = _isFullReplica,
+                TenantId = TenantId,
+                CreatedAt = finalizeResponse.CreatedAt.UtcDateTime,
+                UpdatedAt = finalizeResponse.CreatedAt.UtcDateTime
+            };
+
+            await OnRegisterCreated.InvokeAsync(createdRegister);
+            MudDialog?.Close(DialogResult.Ok(createdRegister));
         }
         catch (Exception ex)
         {

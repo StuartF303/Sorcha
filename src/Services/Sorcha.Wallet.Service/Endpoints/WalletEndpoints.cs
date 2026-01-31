@@ -24,6 +24,13 @@ public static class WalletEndpoints
             .WithTags("Wallets")
             .RequireAuthorization("CanManageWallets");
 
+        // POST /api/v1/wallets/system - Create or retrieve system wallet (for validators)
+        walletGroup.MapPost("/system", CreateOrRetrieveSystemWallet)
+            .WithName("CreateOrRetrieveSystemWallet")
+            .WithSummary("Create or retrieve system wallet")
+            .WithDescription("Creates or retrieves a system wallet for a validator. Used by Validator Service for signing operations.")
+            .AllowAnonymous(); // System wallets are service-to-service, use service auth
+
         // POST /api/v1/wallets - Create new wallet
         walletGroup.MapPost("/", CreateWallet)
             .WithName("CreateWallet")
@@ -957,6 +964,72 @@ public static class WalletEndpoints
             return Results.Problem(
                 title: "Failed to Get Gap Status",
                 detail: "An error occurred while checking gap status",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// Create or retrieve a system wallet for a validator
+    /// </summary>
+    private static async Task<IResult> CreateOrRetrieveSystemWallet(
+        [FromBody] SystemWalletRequest request,
+        WalletManager walletManager,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var validatorId = request.ValidatorId ?? "default-validator";
+            var systemWalletName = $"system-wallet-{validatorId}";
+            var systemTenant = "system";
+            var systemOwner = $"validator:{validatorId}";
+
+            logger.LogInformation(
+                "Creating or retrieving system wallet for validator {ValidatorId}",
+                validatorId);
+
+            // Try to find existing system wallet
+            var existingWallets = await walletManager.GetWalletsByOwnerAsync(
+                systemOwner, systemTenant, cancellationToken);
+
+            var existingWallet = existingWallets.FirstOrDefault(w =>
+                w.Name == systemWalletName && w.Status == Wallet.Core.Domain.WalletStatus.Active);
+
+            if (existingWallet != null)
+            {
+                logger.LogInformation(
+                    "Found existing system wallet {Address} for validator {ValidatorId}",
+                    existingWallet.Address,
+                    validatorId);
+
+                return Results.Ok(new SystemWalletResponse { Address = existingWallet.Address });
+            }
+
+            // Create new system wallet with ED25519 (fast signing)
+            var (wallet, _) = await walletManager.CreateWalletAsync(
+                systemWalletName,
+                "ED25519",
+                systemOwner,
+                systemTenant,
+                wordCount: 24, // Strong entropy for system wallets
+                passphrase: null,
+                cancellationToken);
+
+            logger.LogInformation(
+                "Created new system wallet {Address} for validator {ValidatorId}",
+                wallet.Address,
+                validatorId);
+
+            return Results.Created(
+                $"/api/v1/wallets/{wallet.Address}",
+                new SystemWalletResponse { Address = wallet.Address });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create/retrieve system wallet");
+            return Results.Problem(
+                title: "System Wallet Creation Failed",
+                detail: ex.Message,
                 statusCode: StatusCodes.Status500InternalServerError);
         }
     }

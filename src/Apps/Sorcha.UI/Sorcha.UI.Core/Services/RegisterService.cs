@@ -104,6 +104,10 @@ public class RegisterService : IRegisterService
     {
         try
         {
+            _logger.LogInformation(
+                "Initiating register creation for '{Name}' with {OwnerCount} owner(s)",
+                request.Name, request.Owners.Count);
+
             var response = await _httpClient.PostAsJsonAsync(
                 "/api/registers/initiate",
                 request,
@@ -118,8 +122,14 @@ public class RegisterService : IRegisterService
                 return null;
             }
 
-            return await response.Content.ReadFromJsonAsync<InitiateRegisterResponse>(
+            var result = await response.Content.ReadFromJsonAsync<InitiateRegisterResponse>(
                 JsonOptions, cancellationToken);
+
+            _logger.LogInformation(
+                "Register initiation successful: {RegisterId}, {AttestationCount} attestation(s) to sign",
+                result?.RegisterId, result?.AttestationsToSign.Count ?? 0);
+
+            return result;
         }
         catch (Exception ex)
         {
@@ -129,12 +139,16 @@ public class RegisterService : IRegisterService
     }
 
     /// <inheritdoc />
-    public async Task<RegisterViewModel?> FinalizeRegisterAsync(
+    public async Task<FinalizeRegisterResponse?> FinalizeRegisterAsync(
         FinalizeRegisterRequest request,
         CancellationToken cancellationToken = default)
     {
         try
         {
+            _logger.LogInformation(
+                "Finalizing register creation for {RegisterId} with {AttestationCount} signed attestation(s)",
+                request.RegisterId, request.SignedAttestations.Count);
+
             var response = await _httpClient.PostAsJsonAsync(
                 "/api/registers/finalize",
                 request,
@@ -149,10 +163,14 @@ public class RegisterService : IRegisterService
                 return null;
             }
 
-            var register = await response.Content.ReadFromJsonAsync<Register.Models.Register>(
+            var result = await response.Content.ReadFromJsonAsync<FinalizeRegisterResponse>(
                 JsonOptions, cancellationToken);
 
-            return register != null ? MapToViewModel(register) : null;
+            _logger.LogInformation(
+                "Register finalized successfully: {RegisterId}, status: {Status}",
+                result?.RegisterId, result?.Status);
+
+            return result;
         }
         catch (Exception ex)
         {
