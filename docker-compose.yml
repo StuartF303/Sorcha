@@ -405,7 +405,7 @@ services:
       - "80:8080"      # HTTP ingress
       - "443:8443"     # HTTPS ingress (requires certificate)
     environment:
-      <<: *otel-env
+      <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: api-gateway
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080;https://+:8443

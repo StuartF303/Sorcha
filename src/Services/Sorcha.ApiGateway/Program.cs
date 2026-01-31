@@ -33,6 +33,9 @@ builder.Services.AddSingleton<ClientDownloadService>();
 // Add OpenAPI aggregation service
 builder.Services.AddSingleton<OpenApiAggregationService>();
 
+// Add JWT authentication (AUTH-005)
+builder.AddJwtAuthentication();
+
 // Add OpenAPI documentation
 builder.Services.AddOpenApi();
 
@@ -63,6 +66,10 @@ app.UseInputValidation();
 
 // Enable CORS
 app.UseCors();
+
+// Enable authentication and authorization (AUTH-005)
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Enable rate limiting (SEC-002) - applies to all proxied requests
 app.UseRateLimiting();

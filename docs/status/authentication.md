@@ -13,9 +13,10 @@
 | Blueprint Service | ✅ 100% | 2 files | ~140 lines |
 | Wallet Service | ✅ 100% | 3 files | ~140 lines |
 | Register Service | ✅ 100% | 2 files | ~140 lines |
-| Configuration | ✅ 100% | 1 file | 20 lines |
-| Documentation | ✅ 100% | 1 file | 364 lines |
-| **TOTAL** | **✅ 100%** | **9 files** | **~804 lines** |
+| API Gateway | ✅ 100% | 2 files | ~15 lines |
+| Configuration | ✅ 100% | 2 files | ~25 lines |
+| Documentation | ✅ 100% | 2 files | ~384 lines |
+| **TOTAL** | **✅ 100%** | **13 files** | **~844 lines** |
 
 ---
 
@@ -144,9 +145,28 @@ All three core services now have JWT Bearer authentication integrated with the T
 
 ---
 
+## API Gateway JWT Validation - COMPLETE ✅
+
+**Implementation:** `src/Services/Sorcha.ApiGateway/Program.cs`
+**Completed:** 2026-01-31
+
+- ✅ JWT Bearer token validation at gateway level
+- ✅ Shared JWT settings via ServiceDefaults
+- ✅ Authentication middleware in request pipeline
+- ✅ Protected endpoints return 401 without valid tokens
+- ✅ Public endpoints (health, stats) remain accessible
+- ✅ Automatic token forwarding to backend services via YARP
+
+**Configuration:**
+- JWT settings configured via docker-compose environment variables
+- Uses shared JWT signing key across all services (`x-jwt-env`)
+- Issuer: `http://localhost` (via `JwtSettings__InstallationName`)
+- Authentication integrated without breaking existing functionality
+
+---
+
 ## Pending Work
 
-- 📋 API Gateway JWT validation (not yet implemented)
 - 📋 Peer Service authentication (service not yet implemented)
 
 ---
