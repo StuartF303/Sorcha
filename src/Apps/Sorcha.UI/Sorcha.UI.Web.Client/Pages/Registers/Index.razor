@@ -33,7 +33,7 @@
             <MudButton Variant="Variant.Outlined"
                        Color="Color.Default"
                        StartIcon="@Icons.Material.Filled.Search"
-                       Href="/registers/query"
+                       Href="registers/query"
                        data-testid="query-transactions-button">
                 Query Transactions
             </MudButton>
@@ -199,7 +199,7 @@
 
     private void NavigateToRegister(RegisterViewModel register)
     {
-        Navigation.NavigateTo($"/registers/{register.Id}");
+        Navigation.NavigateTo($"registers/{register.Id}");
     }
 
     private async Task OpenCreateRegisterDialog()

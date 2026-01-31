@@ -158,7 +158,7 @@
 
     private void NavigateBack()
     {
-        Navigation.NavigateTo("/registers");
+        Navigation.NavigateTo("registers");
     }
 
     private async Task ExecuteQueryAsync(string walletAddress)
@@ -232,7 +232,7 @@
 
     private void NavigateToTransaction(TransactionQueryResult item)
     {
-        Navigation.NavigateTo($"/registers/{item.RegisterId}?tx={item.Transaction.TxId}");
+        Navigation.NavigateTo($"registers/{item.RegisterId}?tx={item.Transaction.TxId}");
     }
 
     private static string TruncateId(string id) =>

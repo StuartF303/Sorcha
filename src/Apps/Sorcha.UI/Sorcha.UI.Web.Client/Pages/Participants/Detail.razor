@@ -38,14 +38,14 @@
 
     private List<BreadcrumbItem> _breadcrumbs = new()
     {
-        new BreadcrumbItem("Home", href: "/"),
-        new BreadcrumbItem("Participants", href: "/participants"),
+        new BreadcrumbItem("Home", href: ""),
+        new BreadcrumbItem("Participants", href: "participants"),
         new BreadcrumbItem("Details", href: null, disabled: true)
     };
 
     private void NavigateBack()
     {
-        Navigation.NavigateTo("/participants");
+        Navigation.NavigateTo("participants");
     }
 
     private async Task ShowEditDialog(ParticipantDetailViewModel participant)
@@ -87,6 +87,6 @@
 
     private void OnParticipantChanged()
     {
-        Navigation.NavigateTo("/participants");
+        Navigation.NavigateTo("participants");
     }
 }
