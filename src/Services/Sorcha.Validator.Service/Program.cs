@@ -121,6 +121,9 @@ builder.Services.AddValidatorRegistry(builder.Configuration);
 // Add control blueprint version resolver (Sprint 9F - VAL-9.42)
 builder.Services.AddControlBlueprintVersionResolver();
 
+// Add control docket processor (Sprint 9F - VAL-9.41)
+builder.Services.AddControlDocketProcessor();
+
 // Add gRPC services
 builder.Services.AddGrpc();
 

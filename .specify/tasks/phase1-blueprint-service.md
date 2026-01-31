@@ -268,11 +268,11 @@
 | VAL-9.38 | Implement Validator Registration flow (public mode) | P0 | 12h | ✅ Complete | 2026-01-29 |
 | VAL-9.39 | Implement Validator Approval flow (consent mode) | P1 | 12h | 📋 Not Started | - |
 | VAL-9.40 | Connect GenesisConfigService to Register Service | P0 | 8h | ✅ Complete | 2026-01-29 |
-| VAL-9.41 | Implement Control Docket Processor | P1 | 16h | 📋 Not Started | - |
+| VAL-9.41 | Implement Control Docket Processor | P1 | 16h | ✅ Complete | 2026-01-30 |
 | VAL-9.42 | Implement Control Blueprint Version Resolver | P0 | 8h | ✅ Complete | 2026-01-29 |
 | VAL-9.43 | Validator registration API endpoints | P0 | 8h | ✅ Complete | 2026-01-29 |
 
-**Sprint 9F Status:** 🚧 **IN PROGRESS** (5/7 tasks, 76 hours)
+**Sprint 9F Status:** 🚧 **IN PROGRESS** (6/7 tasks, 76 hours)
 
 **Deliverables:**
 - ✅ ValidatorRegistry - Redis-backed registry with L1 cache, ordering, events
@@ -282,6 +282,7 @@
 - ✅ ISO 8601 duration parsing for consensus/leader election timeouts
 - ✅ Service lifetime fixes (scoped services for proper DI)
 - ✅ ControlBlueprintVersionResolver - Tracks governance config versions through control transaction chain
+- ✅ ControlDocketProcessor - Processes governance transactions (validator management, config updates, blueprint publication)
 
 ### Sprint 9G: Configuration & Testing
 

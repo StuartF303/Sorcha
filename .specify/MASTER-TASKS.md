@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 4.2 - UPDATED
+**Version:** 4.3 - UPDATED
 **Last Updated:** 2026-01-30
-**Status:** Active - Input Validation Complete
+**Status:** Active - Control Docket Processor Complete
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -12,15 +12,23 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 270 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 140 (52%)
+**Completed:** 141 (52%)
 **In Progress:** 0 (0%)
-**Not Started:** 130 (48%)
+**Not Started:** 129 (48%)
 
 ---
 
 ## Recent Updates
 
 **2026-01-30:**
+- ✅ VAL-9.41 COMPLETE: Control Docket Processor for governance transactions
+  - `IControlDocketProcessor` interface and `ControlDocketProcessor` implementation
+  - Extracts control transactions from dockets (7 action types supported)
+  - Validates control transactions against control blueprint rules
+  - Applies control actions: validator.register, validator.approve, validator.suspend, validator.remove
+  - Applies control actions: config.update, blueprint.publish, register.updateMetadata
+  - Refreshes GenesisConfigService and ValidatorRegistry on state changes
+  - 36 unit tests with comprehensive coverage
 - ✅ VAL-9.44 COMPLETE: Validator Service configuration system (memory limits, performance)
   - ValidationEngineConfiguration with batch size, parallel validation, timeout settings
   - MemPoolConfiguration with max size, TTL, priority quotas
