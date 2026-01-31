@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.CommandLine.Parsing;
+using Sorcha.Cli.Services;
 
 namespace Sorcha.Cli.Commands;
 
@@ -14,6 +15,9 @@ public abstract class BaseCommand : Command
     public static Option<string>? OutputOption { get; set; }
     public static Option<bool>? QuietOption { get; set; }
     public static Option<bool>? VerboseOption { get; set; }
+
+    // Config service - set by Program.cs for profile resolution
+    public static IConfigurationService? ConfigService { get; set; }
 
     protected BaseCommand(string name, string? description = null)
         : base(name, description)
@@ -71,9 +75,18 @@ public abstract class BaseCommand : Command
     /// </summary>
     protected virtual CommandContext BuildCommandContext(ParseResult parseResult)
     {
+        // Get profile from option, or fall back to active profile from config
+        var profileName = ProfileOption != null ? parseResult.GetValue(ProfileOption) : null;
+
+        if (string.IsNullOrEmpty(profileName) && ConfigService != null)
+        {
+            var activeProfile = ConfigService.GetActiveProfileAsync().GetAwaiter().GetResult();
+            profileName = activeProfile?.Name;
+        }
+
         return new CommandContext
         {
-            ProfileName = (ProfileOption != null ? parseResult.GetValue(ProfileOption) : null) ?? "dev",
+            ProfileName = profileName ?? "docker", // Default to docker if no config
             OutputFormat = (OutputOption != null ? parseResult.GetValue(OutputOption) : null) ?? "table",
             Quiet = QuietOption != null && parseResult.GetValue(QuietOption),
             Verbose = VerboseOption != null && parseResult.GetValue(VerboseOption)

@@ -110,8 +110,7 @@ internal class Program
         // Global options
         var profileOption = new Option<string>("--profile", "-p")
         {
-            Description = "Configuration profile to use (dev, local, docker, staging, production)",
-            DefaultValueFactory = _ => "dev"
+            Description = "Configuration profile to use (uses active profile from config if not specified)"
         };
 
         var outputOption = new Option<string>("--output", "-o")
@@ -135,15 +134,18 @@ internal class Program
         rootCommand.Options.Add(quietOption);
         rootCommand.Options.Add(verboseOption);
 
+        // Get config service for profile resolution
+        var configService = serviceProvider.GetRequiredService<IConfigurationService>();
+
         // Set global options for BaseCommand
         BaseCommand.ProfileOption = profileOption;
         BaseCommand.OutputOption = outputOption;
         BaseCommand.QuietOption = quietOption;
         BaseCommand.VerboseOption = verboseOption;
+        BaseCommand.ConfigService = configService;
 
         // Get services from DI container
         var authService = serviceProvider.GetRequiredService<IAuthenticationService>();
-        var configService = serviceProvider.GetRequiredService<IConfigurationService>();
         var clientFactory = serviceProvider.GetRequiredService<HttpClientFactory>();
 
         // Subcommands with dependency injection

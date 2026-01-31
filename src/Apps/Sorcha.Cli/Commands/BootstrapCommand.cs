@@ -109,7 +109,7 @@ public class BootstrapCommand : Command
                 if (string.IsNullOrEmpty(profileName))
                 {
                     var profile = await configService.GetActiveProfileAsync();
-                    profileName = profile?.Name ?? "dev";
+                    profileName = profile?.Name ?? "docker";
                 }
 
                 // Interactive prompts if values not provided
