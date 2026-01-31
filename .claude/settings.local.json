@@ -252,7 +252,11 @@
       "Bash(sorcha register create --help:*)",
       "Bash(./src/Apps/Sorcha.Cli/bin/Release/net10.0/sorcha register create:*)",
       "Bash(C:/Projects/Sorcha/src/Apps/Sorcha.Cli/bin/Release/net10.0/Sorcha.Cli.exe register create:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(./scripts/get-jwt-token.ps1 -Email \"admin@sorcha.local\" -Password \"Admin123!\" -Quiet)",
+      "Bash(Select-Object -Last 1)",
+      "Bash(./test-mongodb-register.sh:*)",
+      "Bash(./test-register-mongodb.sh:*)"
     ],
     "deny": [],
     "ask": []

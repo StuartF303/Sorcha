@@ -81,6 +81,22 @@ docker run --rm \
 
 To get a valid JWT token for testing:
 
+### Quick Method: Use the utility script
+
+**PowerShell (Windows):**
+```powershell
+.\scripts\get-jwt-token.ps1 -Email "admin@sorcha.local" -Password "Admin123!"
+```
+
+**Bash (Linux/macOS):**
+```bash
+./scripts/get-jwt-token.sh -e admin@sorcha.local -p Admin123!
+```
+
+The script will output the JWT token and usage examples.
+
+### Manual Method: cURL
+
 ### 1. Start Tenant Service
 ```bash
 docker-compose up -d tenant-service
@@ -88,7 +104,7 @@ docker-compose up -d tenant-service
 
 ### 2. Login to Get Token
 ```bash
-curl -X POST http://localhost:5450/api/auth/login \
+curl -X POST http://localhost/api/tenant/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@sorcha.local","password":"Admin123!"}'
 ```

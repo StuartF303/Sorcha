@@ -15,11 +15,26 @@ public class MongoRegisterStorageConfiguration
 
     /// <summary>
     /// Database name for register storage.
+    /// When UseDatabasePerRegister is true, this is the registry database for register metadata.
+    /// When false, all data is stored in this single database.
     /// </summary>
     public string DatabaseName { get; set; } = "sorcha_register";
 
     /// <summary>
-    /// Collection name for registers.
+    /// Use a separate database for each register's data (recommended for production).
+    /// When true, register metadata is in DatabaseName, and each register's transactions/dockets
+    /// are in their own database named "{DatabaseNamePrefix}{RegisterId}".
+    /// </summary>
+    public bool UseDatabasePerRegister { get; set; } = true;
+
+    /// <summary>
+    /// Prefix for per-register databases. Default: "sorcha_register_"
+    /// Each register will have database: "{DatabaseNamePrefix}{RegisterId}"
+    /// </summary>
+    public string DatabaseNamePrefix { get; set; } = "sorcha_register_";
+
+    /// <summary>
+    /// Collection name for registers (in registry database).
     /// </summary>
     public string RegisterCollectionName { get; set; } = "registers";
 

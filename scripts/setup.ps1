@@ -20,8 +20,8 @@
     Skip infrastructure provisioning (assumes already running)
 .PARAMETER Force
     Force re-initialization even if already configured
-.PARAMETER Verbose
-    Show detailed output during setup
+.NOTES
+    The -Verbose parameter is automatically available via [CmdletBinding()]
 .EXAMPLE
     .\setup.ps1
     Interactive setup with all checks and prompts
@@ -35,8 +35,7 @@ param(
     [switch]$NonInteractive,
     [switch]$SkipDocker,
     [switch]$SkipInfrastructure,
-    [switch]$Force,
-    [switch]$Verbose
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -113,9 +112,9 @@ function Write-Info {
     Write-Host $Message -ForegroundColor White
 }
 
-function Write-Debug {
+function Write-DebugMessage {
     param([string]$Message)
-    if ($Verbose) {
+    if ($VerbosePreference -ne 'SilentlyContinue') {
         Write-Host "  [D] " -NoNewline -ForegroundColor DarkGray
         Write-Host $Message -ForegroundColor DarkGray
     }
@@ -583,7 +582,7 @@ function Step-StartInfrastructure {
 
             Start-Sleep -Seconds 2
             $waited += 2
-            Write-Debug "Waiting... ($waited/$maxWait seconds)"
+            Write-DebugMessage "Waiting... ($waited/$maxWait seconds)"
         }
 
         if ($waited -ge $maxWait) {
@@ -649,7 +648,7 @@ function Step-StartApplicationServices {
 
             Start-Sleep -Seconds 3
             $waited += 3
-            Write-Debug "Waiting for API Gateway... ($waited/$maxWait seconds)"
+            Write-DebugMessage "Waiting for API Gateway... ($waited/$maxWait seconds)"
         }
 
         if ($waited -ge $maxWait) {

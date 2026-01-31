@@ -103,11 +103,32 @@ The MCP server uses standard .NET configuration with the following sources (in o
 }
 ```
 
+## Getting a JWT Token
+
+Use the utility script to get a JWT token:
+
+**PowerShell:**
+```powershell
+.\scripts\get-jwt-token.ps1 -Email "admin@sorcha.local" -Password "Admin123!"
+```
+
+**Bash:**
+```bash
+./scripts/get-jwt-token.sh -e admin@sorcha.local -p Admin123!
+```
+
+Or get it manually via API:
+```bash
+curl -X POST http://localhost/api/tenant/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@sorcha.local","password":"Admin123!"}'
+```
+
 ## Integration with Claude Desktop
 
 To use the MCP server with Claude Desktop:
 
-1. Obtain a JWT token from the Sorcha Tenant Service
+1. Obtain a JWT token (see above)
 2. Configure Claude Desktop's MCP settings to launch the server:
 
 ```json

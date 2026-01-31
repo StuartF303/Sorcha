@@ -32,7 +32,7 @@
 |----|------|----------|--------|--------|----------|
 | REG-INT-1 | Refactor API to use core managers | P2 | 12h | ✅ Complete | - |
 | REG-CODE-DUP | Resolve DocketManager/ChainValidator duplication | P1 | 4h | ✅ Complete | 2025-12-09 |
-| REG-003 | MongoDB transaction repository | P1 | 12h | 📋 Deferred | - |
+| REG-003 | MongoDB transaction repository | P1 | 12h | ✅ Complete | 2026-01-31 |
 | REG-005 | Implement POST /api/registers/{id}/transactions | P0 | 8h | ✅ Complete | - |
 | REG-006 | Implement GET /api/registers/{id}/transactions/{txId} | P0 | 6h | ✅ Complete | - |
 | REG-007 | Implement GET /api/registers/{id}/transactions | P0 | 8h | ✅ Complete | - |
@@ -43,9 +43,35 @@
 | REG-012 | SignalR hub integration tests | P0 | 8h | ✅ Complete | - |
 | REG-013 | OData V4 support | P1 | 8h | ✅ Complete | - |
 
-**API Integration Status:** ✅ **COMPLETE** (11/13 tasks, 2 deferred to post-MVD)
+**API Integration Status:** ✅ **COMPLETE** (12/13 tasks, 1 deferred to post-MVD)
 **Achievement:** API fully integrated with comprehensive testing (112 tests, ~2,459 LOC)
+**MongoDB Persistence:** ✅ **COMPLETE** (REG-003) - Per-register database architecture enabled
 **Recommended Next:** End-to-end integration with Blueprint and Wallet services
+
+### REG-003 Completion Details (2026-01-31)
+
+MongoDB persistence implemented with **per-register database architecture**:
+
+**Architecture:**
+- Registry database (`sorcha_register_registry`) stores register metadata
+- Each register gets its own database (`sorcha_register_{registerId}`)
+- Collections per register: `transactions`, `dockets`
+- Automatic index creation on register creation
+
+**Implementation:**
+- Enhanced `MongoRegisterStorageConfiguration` with `UseDatabasePerRegister` flag
+- Refactored `MongoRegisterRepository` to support both architectures
+  - Per-register mode (production): Isolated databases per register
+  - Single-database mode (legacy): All data in one database for testing
+- Updated Docker Compose and appsettings configurations
+- Enabled MongoDB storage in Register Service
+
+**Benefits:**
+- Complete data isolation between registers
+- Scalable across MongoDB shards
+- Database-level access control
+- Optimized indexes per register
+- Clean deletion (drop database = remove register)
 
 ---
 

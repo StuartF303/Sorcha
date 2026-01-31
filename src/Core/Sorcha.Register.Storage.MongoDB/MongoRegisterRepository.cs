@@ -13,14 +13,20 @@ namespace Sorcha.Register.Storage.MongoDB;
 
 /// <summary>
 /// MongoDB implementation of IRegisterRepository.
-/// Provides document storage for registers, transactions, and dockets.
+/// Supports two architectures:
+/// 1. Per-Register Databases (recommended): Each register gets its own database for isolation
+/// 2. Single Database: All data in one database (legacy, for testing)
 /// </summary>
 public class MongoRegisterRepository : IRegisterRepository
 {
+    private readonly IMongoClient _client;
     private readonly IMongoCollection<Models.Register> _registers;
-    private readonly IMongoCollection<TransactionModel> _transactions;
-    private readonly IMongoCollection<Docket> _dockets;
+    private readonly MongoRegisterStorageConfiguration _config;
     private readonly ILogger<MongoRegisterRepository> _logger;
+
+    // Legacy: used only when UseDatabasePerRegister = false
+    private readonly IMongoCollection<TransactionModel>? _legacyTransactions;
+    private readonly IMongoCollection<Docket>? _legacyDockets;
 
     /// <summary>
     /// Initializes a new instance of the MongoRegisterRepository.
@@ -31,24 +37,35 @@ public class MongoRegisterRepository : IRegisterRepository
     {
         ArgumentNullException.ThrowIfNull(options?.Value);
 
-        var config = options.Value;
+        _config = options.Value;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        var client = new MongoClient(config.ConnectionString);
-        var database = client.GetDatabase(config.DatabaseName);
+        _client = new MongoClient(_config.ConnectionString);
 
-        _registers = database.GetCollection<Models.Register>(config.RegisterCollectionName);
-        _transactions = database.GetCollection<TransactionModel>(config.TransactionCollectionName);
-        _dockets = database.GetCollection<Docket>(config.DocketCollectionName);
+        // Registry database holds register metadata
+        var registryDatabase = _client.GetDatabase(_config.DatabaseName);
+        _registers = registryDatabase.GetCollection<Models.Register>(_config.RegisterCollectionName);
 
-        if (config.CreateIndexesOnStartup)
+        // Legacy single-database mode
+        if (!_config.UseDatabasePerRegister)
+        {
+            _legacyTransactions = registryDatabase.GetCollection<TransactionModel>(_config.TransactionCollectionName);
+            _legacyDockets = registryDatabase.GetCollection<Docket>(_config.DocketCollectionName);
+        }
+
+        if (_config.CreateIndexesOnStartup)
         {
             CreateIndexesAsync().GetAwaiter().GetResult();
         }
+
+        _logger.LogInformation(
+            "MongoRegisterRepository initialized. Mode: {Mode}, Registry: {DatabaseName}",
+            _config.UseDatabasePerRegister ? "Per-Register Databases" : "Single Database",
+            _config.DatabaseName);
     }
 
     /// <summary>
-    /// Initializes a new instance for testing with explicit database.
+    /// Initializes a new instance for testing with explicit database (legacy single-database mode).
     /// </summary>
     public MongoRegisterRepository(
         IMongoDatabase database,
@@ -59,10 +76,63 @@ public class MongoRegisterRepository : IRegisterRepository
     {
         ArgumentNullException.ThrowIfNull(database);
 
+        _config = new MongoRegisterStorageConfiguration
+        {
+            UseDatabasePerRegister = false, // Legacy mode for tests
+            RegisterCollectionName = registerCollection,
+            TransactionCollectionName = transactionCollection,
+            DocketCollectionName = docketCollection
+        };
+
+        _client = database.Client;
         _registers = database.GetCollection<Models.Register>(registerCollection);
-        _transactions = database.GetCollection<TransactionModel>(transactionCollection);
-        _dockets = database.GetCollection<Docket>(docketCollection);
+        _legacyTransactions = database.GetCollection<TransactionModel>(transactionCollection);
+        _legacyDockets = database.GetCollection<Docket>(docketCollection);
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    /// <summary>
+    /// Gets the MongoDB database for a specific register's data.
+    /// </summary>
+    private IMongoDatabase GetRegisterDatabase(string registerId)
+    {
+        if (!_config.UseDatabasePerRegister)
+        {
+            // Legacy: all data in one database
+            return _client.GetDatabase(_config.DatabaseName);
+        }
+
+        // Per-register database: sorcha_register_{registerId}
+        var dbName = $"{_config.DatabaseNamePrefix}{registerId}";
+        return _client.GetDatabase(dbName);
+    }
+
+    /// <summary>
+    /// Gets the transactions collection for a specific register.
+    /// </summary>
+    private IMongoCollection<TransactionModel> GetTransactionsCollection(string registerId)
+    {
+        if (!_config.UseDatabasePerRegister)
+        {
+            return _legacyTransactions ?? throw new InvalidOperationException("Legacy transactions collection not initialized");
+        }
+
+        var db = GetRegisterDatabase(registerId);
+        return db.GetCollection<TransactionModel>(_config.TransactionCollectionName);
+    }
+
+    /// <summary>
+    /// Gets the dockets collection for a specific register.
+    /// </summary>
+    private IMongoCollection<Docket> GetDocketsCollection(string registerId)
+    {
+        if (!_config.UseDatabasePerRegister)
+        {
+            return _legacyDockets ?? throw new InvalidOperationException("Legacy dockets collection not initialized");
+        }
+
+        var db = GetRegisterDatabase(registerId);
+        return db.GetCollection<Docket>(_config.DocketCollectionName);
     }
 
     /// <summary>
@@ -72,7 +142,7 @@ public class MongoRegisterRepository : IRegisterRepository
     {
         _logger.LogInformation("Creating MongoDB indexes for Register storage");
 
-        // Register indexes
+        // Register indexes (in registry database)
         var registerIndexes = new List<CreateIndexModel<Models.Register>>
         {
             new(Builders<Models.Register>.IndexKeys.Ascending(r => r.TenantId)),
@@ -81,57 +151,77 @@ public class MongoRegisterRepository : IRegisterRepository
         };
         await _registers.Indexes.CreateManyAsync(registerIndexes);
 
-        // Transaction indexes
+        // For legacy mode, create indexes in single database
+        if (!_config.UseDatabasePerRegister && _legacyTransactions != null && _legacyDockets != null)
+        {
+            await CreateTransactionIndexesAsync(_legacyTransactions);
+            await CreateDocketIndexesAsync(_legacyDockets);
+        }
+
+        _logger.LogInformation("MongoDB indexes created successfully");
+    }
+
+    /// <summary>
+    /// Creates indexes for a register's data (called when register is first created).
+    /// </summary>
+    private async Task CreateRegisterIndexesAsync(string registerId)
+    {
+        if (!_config.UseDatabasePerRegister)
+        {
+            return; // Indexes already created in legacy mode
+        }
+
+        _logger.LogDebug("Creating indexes for register {RegisterId}", registerId);
+
+        var transactions = GetTransactionsCollection(registerId);
+        var dockets = GetDocketsCollection(registerId);
+
+        await CreateTransactionIndexesAsync(transactions);
+        await CreateDocketIndexesAsync(dockets);
+
+        _logger.LogDebug("Indexes created for register {RegisterId}", registerId);
+    }
+
+    private static async Task CreateTransactionIndexesAsync(IMongoCollection<TransactionModel> collection)
+    {
         var transactionIndexes = new List<CreateIndexModel<TransactionModel>>
         {
-            // Composite index for register + txId lookups
-            new(Builders<TransactionModel>.IndexKeys
-                .Ascending(t => t.RegisterId)
-                .Ascending(t => t.TxId),
+            // Index for txId lookups
+            new(Builders<TransactionModel>.IndexKeys.Ascending(t => t.TxId),
                 new CreateIndexOptions { Unique = true }),
 
             // Index for sender address queries
-            new(Builders<TransactionModel>.IndexKeys
-                .Ascending(t => t.RegisterId)
-                .Ascending(t => t.SenderWallet)),
+            new(Builders<TransactionModel>.IndexKeys.Ascending(t => t.SenderWallet)),
 
             // Index for timestamp-based queries
-            new(Builders<TransactionModel>.IndexKeys
-                .Ascending(t => t.RegisterId)
-                .Descending(t => t.TimeStamp)),
+            new(Builders<TransactionModel>.IndexKeys.Descending(t => t.TimeStamp)),
 
             // Index for block number queries
-            new(Builders<TransactionModel>.IndexKeys
-                .Ascending(t => t.RegisterId)
-                .Ascending(t => t.BlockNumber)),
+            new(Builders<TransactionModel>.IndexKeys.Ascending(t => t.BlockNumber)),
 
             // Index for blueprint queries
             new(Builders<TransactionModel>.IndexKeys
                 .Ascending("MetaData.BlueprintId")
                 .Ascending("MetaData.InstanceId"))
         };
-        await _transactions.Indexes.CreateManyAsync(transactionIndexes);
+        await collection.Indexes.CreateManyAsync(transactionIndexes);
+    }
 
-        // Docket indexes
+    private static async Task CreateDocketIndexesAsync(IMongoCollection<Docket> collection)
+    {
         var docketIndexes = new List<CreateIndexModel<Docket>>
         {
-            // Composite index for register + docket ID lookups
-            new(Builders<Docket>.IndexKeys
-                .Ascending(d => d.RegisterId)
-                .Ascending(d => d.Id),
+            // Index for docket ID lookups
+            new(Builders<Docket>.IndexKeys.Ascending(d => d.Id),
                 new CreateIndexOptions { Unique = true }),
 
             // Index for hash lookups
             new(Builders<Docket>.IndexKeys.Ascending(d => d.Hash)),
 
             // Index for state queries
-            new(Builders<Docket>.IndexKeys
-                .Ascending(d => d.RegisterId)
-                .Ascending(d => d.State))
+            new(Builders<Docket>.IndexKeys.Ascending(d => d.State))
         };
-        await _dockets.Indexes.CreateManyAsync(docketIndexes);
-
-        _logger.LogInformation("MongoDB indexes created successfully");
+        await collection.Indexes.CreateManyAsync(docketIndexes);
     }
 
     // ===========================
@@ -178,6 +268,13 @@ public class MongoRegisterRepository : IRegisterRepository
 
         await _registers.InsertOneAsync(newRegister, new InsertOneOptions(), cancellationToken);
         _logger.LogDebug("Inserted register {RegisterId}", newRegister.Id);
+
+        // Create indexes for this register's database
+        if (_config.CreateIndexesOnStartup)
+        {
+            await CreateRegisterIndexesAsync(newRegister.Id);
+        }
+
         return newRegister;
     }
 
@@ -196,15 +293,24 @@ public class MongoRegisterRepository : IRegisterRepository
     /// <inheritdoc/>
     public async Task DeleteRegisterAsync(string registerId, CancellationToken cancellationToken = default)
     {
-        // Delete all associated transactions first
-        var txFilter = Builders<TransactionModel>.Filter.Eq(t => t.RegisterId, registerId);
-        await _transactions.DeleteManyAsync(txFilter, cancellationToken);
+        if (_config.UseDatabasePerRegister)
+        {
+            // Drop the entire register database
+            var dbName = $"{_config.DatabaseNamePrefix}{registerId}";
+            await _client.DropDatabaseAsync(dbName, cancellationToken);
+            _logger.LogInformation("Dropped database {DatabaseName} for register {RegisterId}", dbName, registerId);
+        }
+        else
+        {
+            // Legacy: Delete documents from collections
+            var txFilter = Builders<TransactionModel>.Filter.Eq(t => t.RegisterId, registerId);
+            await _legacyTransactions!.DeleteManyAsync(txFilter, cancellationToken);
 
-        // Delete all associated dockets
-        var docketFilter = Builders<Docket>.Filter.Eq(d => d.RegisterId, registerId);
-        await _dockets.DeleteManyAsync(docketFilter, cancellationToken);
+            var docketFilter = Builders<Docket>.Filter.Eq(d => d.RegisterId, registerId);
+            await _legacyDockets!.DeleteManyAsync(docketFilter, cancellationToken);
+        }
 
-        // Delete the register
+        // Delete the register metadata
         var registerFilter = Builders<Models.Register>.Filter.Eq(r => r.Id, registerId);
         await _registers.DeleteOneAsync(registerFilter, cancellationToken);
 
@@ -225,8 +331,8 @@ public class MongoRegisterRepository : IRegisterRepository
     /// <inheritdoc/>
     public async Task<IEnumerable<Docket>> GetDocketsAsync(string registerId, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<Docket>.Filter.Eq(d => d.RegisterId, registerId);
-        return await _dockets.Find(filter)
+        var dockets = GetDocketsCollection(registerId);
+        return await dockets.Find(FilterDefinition<Docket>.Empty)
             .SortBy(d => d.Id)
             .ToListAsync(cancellationToken);
     }
@@ -234,11 +340,9 @@ public class MongoRegisterRepository : IRegisterRepository
     /// <inheritdoc/>
     public async Task<Docket?> GetDocketAsync(string registerId, ulong docketId, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<Docket>.Filter.And(
-            Builders<Docket>.Filter.Eq(d => d.RegisterId, registerId),
-            Builders<Docket>.Filter.Eq(d => d.Id, docketId));
-
-        return await _dockets.Find(filter).FirstOrDefaultAsync(cancellationToken);
+        var dockets = GetDocketsCollection(registerId);
+        var filter = Builders<Docket>.Filter.Eq(d => d.Id, docketId);
+        return await dockets.Find(filter).FirstOrDefaultAsync(cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -246,7 +350,8 @@ public class MongoRegisterRepository : IRegisterRepository
     {
         ArgumentNullException.ThrowIfNull(docket);
 
-        await _dockets.InsertOneAsync(docket, new InsertOneOptions(), cancellationToken);
+        var dockets = GetDocketsCollection(docket.RegisterId);
+        await dockets.InsertOneAsync(docket, new InsertOneOptions(), cancellationToken);
         _logger.LogDebug("Inserted docket {DocketId} for register {RegisterId}", docket.Id, docket.RegisterId);
         return docket;
     }
@@ -270,20 +375,17 @@ public class MongoRegisterRepository : IRegisterRepository
     /// <inheritdoc/>
     public async Task<IQueryable<TransactionModel>> GetTransactionsAsync(string registerId, CancellationToken cancellationToken = default)
     {
-        // Return MongoDB LINQ queryable for deferred execution
-        var filter = Builders<TransactionModel>.Filter.Eq(t => t.RegisterId, registerId);
-        var transactions = await _transactions.Find(filter).ToListAsync(cancellationToken);
-        return transactions.AsQueryable();
+        var transactions = GetTransactionsCollection(registerId);
+        var allTransactions = await transactions.Find(FilterDefinition<TransactionModel>.Empty).ToListAsync(cancellationToken);
+        return allTransactions.AsQueryable();
     }
 
     /// <inheritdoc/>
     public async Task<TransactionModel?> GetTransactionAsync(string registerId, string transactionId, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<TransactionModel>.Filter.And(
-            Builders<TransactionModel>.Filter.Eq(t => t.RegisterId, registerId),
-            Builders<TransactionModel>.Filter.Eq(t => t.TxId, transactionId));
-
-        return await _transactions.Find(filter).FirstOrDefaultAsync(cancellationToken);
+        var transactions = GetTransactionsCollection(registerId);
+        var filter = Builders<TransactionModel>.Filter.Eq(t => t.TxId, transactionId);
+        return await transactions.Find(filter).FirstOrDefaultAsync(cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -297,7 +399,8 @@ public class MongoRegisterRepository : IRegisterRepository
             transaction.Id = transaction.GenerateDidUri();
         }
 
-        await _transactions.InsertOneAsync(transaction, new InsertOneOptions(), cancellationToken);
+        var transactions = GetTransactionsCollection(transaction.RegisterId);
+        await transactions.InsertOneAsync(transaction, new InsertOneOptions(), cancellationToken);
         _logger.LogDebug("Inserted transaction {TxId} in register {RegisterId}", transaction.TxId, transaction.RegisterId);
         return transaction;
     }
@@ -308,11 +411,9 @@ public class MongoRegisterRepository : IRegisterRepository
         Expression<Func<TransactionModel, bool>> predicate,
         CancellationToken cancellationToken = default)
     {
-        var registerFilter = Builders<TransactionModel>.Filter.Eq(t => t.RegisterId, registerId);
-        var predicateFilter = Builders<TransactionModel>.Filter.Where(predicate);
-        var combinedFilter = Builders<TransactionModel>.Filter.And(registerFilter, predicateFilter);
-
-        return await _transactions.Find(combinedFilter).ToListAsync(cancellationToken);
+        var transactions = GetTransactionsCollection(registerId);
+        var filter = Builders<TransactionModel>.Filter.Where(predicate);
+        return await transactions.Find(filter).ToListAsync(cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -321,11 +422,9 @@ public class MongoRegisterRepository : IRegisterRepository
         ulong docketId,
         CancellationToken cancellationToken = default)
     {
-        var filter = Builders<TransactionModel>.Filter.And(
-            Builders<TransactionModel>.Filter.Eq(t => t.RegisterId, registerId),
-            Builders<TransactionModel>.Filter.Eq(t => t.BlockNumber, docketId));
-
-        return await _transactions.Find(filter)
+        var transactions = GetTransactionsCollection(registerId);
+        var filter = Builders<TransactionModel>.Filter.Eq(t => t.BlockNumber, docketId);
+        return await transactions.Find(filter)
             .SortBy(t => t.TimeStamp)
             .ToListAsync(cancellationToken);
     }
@@ -340,11 +439,9 @@ public class MongoRegisterRepository : IRegisterRepository
         string address,
         CancellationToken cancellationToken = default)
     {
-        var filter = Builders<TransactionModel>.Filter.And(
-            Builders<TransactionModel>.Filter.Eq(t => t.RegisterId, registerId),
-            Builders<TransactionModel>.Filter.AnyEq(t => t.RecipientsWallets, address));
-
-        return await _transactions.Find(filter)
+        var transactions = GetTransactionsCollection(registerId);
+        var filter = Builders<TransactionModel>.Filter.AnyEq(t => t.RecipientsWallets, address);
+        return await transactions.Find(filter)
             .SortByDescending(t => t.TimeStamp)
             .ToListAsync(cancellationToken);
     }
@@ -355,11 +452,9 @@ public class MongoRegisterRepository : IRegisterRepository
         string address,
         CancellationToken cancellationToken = default)
     {
-        var filter = Builders<TransactionModel>.Filter.And(
-            Builders<TransactionModel>.Filter.Eq(t => t.RegisterId, registerId),
-            Builders<TransactionModel>.Filter.Eq(t => t.SenderWallet, address));
-
-        return await _transactions.Find(filter)
+        var transactions = GetTransactionsCollection(registerId);
+        var filter = Builders<TransactionModel>.Filter.Eq(t => t.SenderWallet, address);
+        return await transactions.Find(filter)
             .SortByDescending(t => t.TimeStamp)
             .ToListAsync(cancellationToken);
     }

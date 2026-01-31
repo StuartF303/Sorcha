@@ -149,10 +149,33 @@
 
 ---
 
+## MongoDB Persistence - COMPLETE ✅
+
+**Status:** Production-ready MongoDB storage enabled (2026-01-31)
+
+**Architecture:** Per-Register Database Pattern
+- **Registry Database:** `sorcha_register_registry` - Stores register metadata
+- **Per-Register Databases:** `sorcha_register_{registerId}` - Each register gets its own database
+  - Collections: `transactions`, `dockets`
+  - Automatic index creation on register creation
+  - Full isolation between registers
+
+**Configuration:**
+- Type: MongoDB (enabled in Docker and appsettings)
+- Connection: `mongodb://sorcha:sorcha_dev_password@mongodb:27017`
+- UseDatabasePerRegister: `true` (recommended for production)
+- Backward compatible with single-database mode for testing
+
+**Benefits:**
+- **Data Isolation:** Each register is completely isolated in its own database
+- **Scalability:** Registers can be distributed across MongoDB shards
+- **Security:** Per-register access control at database level
+- **Performance:** Indexes optimized per register
+- **Clean Deletion:** Dropping a register = dropping its database
+
 ## Pending (Future Phases)
 
-1. 🚧 MongoDB/PostgreSQL repository implementation (Phase 3)
-2. 🚧 Performance benchmarking (Phase 7)
+1. 🚧 Performance benchmarking (Phase 7)
 
 ---
 
