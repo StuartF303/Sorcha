@@ -3,10 +3,10 @@
 **Goal:** Complete the unified Blueprint-Action Service with full execution capabilities
 **Duration:** Weeks 1-14 (extended for validation testing)
 **Total Tasks:** 82
-**Completion:** 96% (79 complete, 0 in progress, 3 not started)
+**Completion:** 99% (81 complete, 0 in progress, 1 not started)
 
 **Validator Service Tasks:** 50
-**Validator Completion:** 84% (42 complete, 0 in progress, 8 not started)
+**Validator Completion:** 100% (50 complete, 0 in progress, 0 not started)
 
 **Back to:** [MASTER-TASKS.md](../MASTER-TASKS.md)
 
@@ -298,10 +298,10 @@
 | VAL-9.46 | Validator Service integration tests | P0 | 24h | ✅ Complete | 2026-01-29 |
 | VAL-9.47 | Multi-validator consensus integration tests | P0 | 20h | ✅ Complete | 2026-01-29 |
 | VAL-9.48 | Leader election integration tests | P0 | 12h | ✅ Complete | 2026-01-29 |
-| VAL-9.49 | Performance testing (validation throughput) | P1 | 12h | 📋 Not Started | - |
-| VAL-9.50 | Performance testing (consensus latency) | P1 | 12h | 📋 Not Started | - |
+| VAL-9.49 | Performance testing (validation throughput) | P1 | 12h | ✅ Complete | 2026-01-31 |
+| VAL-9.50 | Performance testing (consensus latency) | P1 | 12h | ✅ Complete | 2026-01-31 |
 
-**Sprint 9G Status:** 🚧 **IN PROGRESS** (5/7 tasks, 96 hours)
+**Sprint 9G Status:** ✅ **COMPLETE** (7/7 tasks, 96 hours)
 
 **Integration Test Deliverables (VAL-9.46/47/48):**
 - ✅ 133 integration tests passing
@@ -314,9 +314,22 @@
 - ✅ BlueprintCacheIntegrationTests - Caching, version resolution, invalidation
 - ✅ LeaderElectionIntegrationTests - Leader status, rotating election, failure handling
 
+**Performance Test Deliverables (VAL-9.49/50):**
+- ✅ Validation Throughput Testing - NBomber scenarios for transaction validation under load
+  - validator_throughput: Single transaction validation at configurable RPS
+  - validator_batch: Batch validation (5 transactions) simulating concurrent validators
+  - validator_mempool_stats: Memory pool statistics endpoint performance
+  - validator_stress: Stress test with ramp-up/sustain/ramp-down load pattern
+- ✅ Consensus Latency Testing - NBomber scenarios for consensus system performance
+  - validator_metrics: Rotates through all metrics endpoints
+  - validator_consensus_metrics: Dedicated consensus metrics latency measurement
+  - validator_registry: Validator registry lookup performance under load
+- ✅ Test Suite Selection - Added `--test-suite` parameter: all, core, validator, wallet, register, mixed
+- ✅ Integrated into Sorcha.Performance.Tests with existing NBomber infrastructure
+
 ---
 
-**Sprint 9 Total:** 🚧 **IN PROGRESS** (43/50 tasks, 560 hours)
+**Sprint 9 Total:** ✅ **COMPLETE** (50/50 tasks, 560 hours)
 
 **References:**
 - [VALIDATOR-SERVICE-REQUIREMENTS.md](../VALIDATOR-SERVICE-REQUIREMENTS.md) - Updated with decentralized consensus

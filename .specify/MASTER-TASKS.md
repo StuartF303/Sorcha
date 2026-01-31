@@ -12,15 +12,23 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 270 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 143 (53%)
+**Completed:** 145 (54%)
 **In Progress:** 0 (0%)
-**Not Started:** 127 (47%)
+**Not Started:** 125 (46%)
 
 ---
 
 ## Recent Updates
 
 **2026-01-31:**
+- ✅ VAL-9.49/VAL-9.50 COMPLETE: Performance testing for Validator Service
+  - NBomber-based validation throughput testing (validator_throughput, validator_batch, validator_stress)
+  - Consensus latency testing (validator_metrics, validator_consensus_metrics, validator_registry)
+  - Memory pool statistics endpoint performance testing
+  - Test suite selection parameter (--test-suite validator)
+  - Integrated into Sorcha.Performance.Tests
+  - Sprint 9G now 100% complete (7/7 tasks)
+  - **Sprint 9 (Validator Service) 100% COMPLETE** (50/50 tasks)
 - ✅ VAL-9.39 COMPLETE: Validator Approval flow (consent mode)
   - IValidatorRegistry methods: GetPendingValidatorsAsync, ApproveValidatorAsync, RejectValidatorAsync
   - ValidatorApprovalRequest/ValidatorApprovalResult types
@@ -254,16 +262,16 @@ REG-INT-x (Full Integration) ✅
     ↓
 BP-7.1 (E2E Tests) ✅
     ↓
-VAL-9.x (Validator Service - Decentralized Consensus) ⚠️ CURRENT BLOCKER
-    ├── VAL-9A: Core Infrastructure
-    ├── VAL-9B: Validation Engine
-    ├── VAL-9C: Initiator Role (Docket Building)
-    ├── VAL-9D: Confirmer Role
-    ├── VAL-9E: Service Integration (Peer, Register, Blueprint)
-    ├── VAL-9F: Validator Registration & Genesis
-    └── VAL-9G: Configuration & Testing
+VAL-9.x (Validator Service - Decentralized Consensus) ✅ COMPLETE
+    ├── VAL-9A: Core Infrastructure ✅
+    ├── VAL-9B: Validation Engine ✅
+    ├── VAL-9C: Initiator Role (Docket Building) ✅
+    ├── VAL-9D: Confirmer Role ✅
+    ├── VAL-9E: Service Integration (Peer, Register, Blueprint) ✅
+    ├── VAL-9F: Validator Registration & Genesis ✅
+    └── VAL-9G: Configuration & Testing ✅
     ↓
-BP-11.x (Production Readiness)
+BP-11.x (Production Readiness) ⚠️ CURRENT BLOCKER
 ```
 
 ---
@@ -283,6 +291,7 @@ BP-11.x (Production Readiness)
 - ✅ Sprint 2: 100% (8/8 tasks)
 - ✅ Sprint 3-7: 100% Complete
 - ✅ Sprint 8: 100% (11/11 tasks)
+- ✅ Sprint 9: 100% (50/50 tasks) - Validator Service Complete!
 - ✅ Sprint 10: 100% (16/16 tasks)
 
 **Code Quality:**
