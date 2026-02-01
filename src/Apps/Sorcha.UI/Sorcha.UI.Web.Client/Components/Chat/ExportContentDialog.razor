@@ -1,0 +1,43 @@
+@inject IJSRuntime JS
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField Value="@Content"
+                      ReadOnly="true"
+                      Lines="20"
+                      Variant="Variant.Outlined"
+                      Class="export-content-field"
+                      FullWidth="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@CopyToClipboard" StartIcon="@Icons.Material.Filled.ContentCopy" Color="Color.Primary">
+            Copy to Clipboard
+        </MudButton>
+        <MudButton OnClick="@Cancel">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .export-content-field textarea {
+        font-family: monospace;
+        font-size: 12px;
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public string Content { get; set; } = "";
+
+    [Parameter]
+    public string Format { get; set; } = "json";
+
+    private async Task CopyToClipboard()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", Content);
+    }
+
+    private void Cancel() => MudDialog?.Close(DialogResult.Cancel());
+}

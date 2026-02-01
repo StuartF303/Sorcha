@@ -6,6 +6,7 @@ using Scalar.AspNetCore;
 using System.Collections.Concurrent;
 using Sorcha.Blueprint.Service.Endpoints;
 using Sorcha.Blueprint.Service.Extensions;
+using Sorcha.Blueprint.Service.Hubs;
 using Sorcha.Blueprint.Service.JsonLd;
 using Sorcha.Blueprint.Schemas.Services;
 using Sorcha.Cryptography.Core;
@@ -84,6 +85,9 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.INotificationService,
     Sorcha.Blueprint.Service.Services.Implementation.NotificationService>();
 
+// Add AI-assisted Blueprint Chat services (Sprint 8)
+builder.Services.AddChatServices(builder.Configuration);
+
 // Add Schema Store services (Sprint 7)
 builder.Services.AddSingleton<SystemSchemaLoader>();
 builder.Services.AddScoped<ISchemaStore, SchemaStore>();
@@ -144,8 +148,9 @@ app.UseRateLimiting();
 // Add Delegation Token Middleware (Sprint 6 - Orchestration)
 app.UseMiddleware<Sorcha.Blueprint.Service.Middleware.DelegationTokenMiddleware>();
 
-// Map SignalR hub (Sprint 5)
+// Map SignalR hubs (Sprint 5, Sprint 8)
 app.MapHub<Sorcha.Blueprint.Service.Hubs.ActionsHub>("/actionshub");
+app.MapHub<Sorcha.Blueprint.Service.Hubs.ChatHub>("/hubs/chat");
 
 // ===========================
 // Blueprint CRUD Endpoints

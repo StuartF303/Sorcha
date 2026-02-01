@@ -1,0 +1,35 @@
+@using Sorcha.UI.Core.Models.Chat
+
+@if (Validation == null)
+{
+    <MudChip T="string" Color="Color.Default" Size="MudBlazor.Size.Small" Variant="Variant.Outlined">
+        <MudIcon Icon="@Icons.Material.Filled.HelpOutline" Size="MudBlazor.Size.Small" Class="mr-1" />
+        Not Validated
+    </MudChip>
+}
+else if (Validation.IsValid && !Validation.Warnings.Any())
+{
+    <MudChip T="string" Color="Color.Success" Size="MudBlazor.Size.Small" Variant="Variant.Filled">
+        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="MudBlazor.Size.Small" Class="mr-1" />
+        Valid
+    </MudChip>
+}
+else if (Validation.IsValid && Validation.Warnings.Any())
+{
+    <MudChip T="string" Color="Color.Warning" Size="MudBlazor.Size.Small" Variant="Variant.Filled">
+        <MudIcon Icon="@Icons.Material.Filled.Warning" Size="MudBlazor.Size.Small" Class="mr-1" />
+        @Validation.Warnings.Count Warning(s)
+    </MudChip>
+}
+else
+{
+    <MudChip T="string" Color="Color.Error" Size="MudBlazor.Size.Small" Variant="Variant.Filled">
+        <MudIcon Icon="@Icons.Material.Filled.Error" Size="MudBlazor.Size.Small" Class="mr-1" />
+        @Validation.Errors.Count Error(s)
+    </MudChip>
+}
+
+@code {
+    [Parameter]
+    public ValidationResult? Validation { get; set; }
+}

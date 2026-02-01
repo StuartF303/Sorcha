@@ -88,6 +88,30 @@ public static class ServiceCollectionExtensions
         // Blueprint Storage Services
         services.AddBlueprintStorageServices(baseAddress);
 
+        // Chat Hub Connection (SignalR for AI-assisted blueprint design)
+        services.AddChatHubServices(baseAddress);
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the Chat Hub connection for AI-assisted blueprint design.
+    /// </summary>
+    public static IServiceCollection AddChatHubServices(this IServiceCollection services, string baseAddress)
+    {
+        // Chat Hub Connection (uses active profile from ApiConfiguration)
+        services.AddScoped<IChatHubConnection>(sp =>
+        {
+            var options = new ChatHubOptions
+            {
+                BlueprintServiceUrl = baseAddress,
+                ProfileName = ApiConfiguration.ActiveProfileName ?? "default"
+            };
+            var authService = sp.GetRequiredService<IAuthenticationService>();
+            var logger = sp.GetRequiredService<ILogger<ChatHubConnection>>();
+            return new ChatHubConnection(options, authService, logger);
+        });
+
         return services;
     }
 
