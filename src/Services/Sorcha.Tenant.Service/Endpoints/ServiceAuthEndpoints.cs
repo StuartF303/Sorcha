@@ -23,13 +23,13 @@ public static class ServiceAuthEndpoints
             .WithTags("Service Authentication");
 
         // Unified OAuth2 token endpoint supporting multiple grant types
+        // Note: We manually parse both form-urlencoded and JSON in the handler,
+        // so we don't use .Accepts<T>() which would cause Content-Type validation issues
         group.MapPost("/token", GetOAuth2Token)
             .WithName("GetOAuth2Token")
             .WithSummary("OAuth2 token endpoint")
-            .WithDescription("OAuth2 compliant token endpoint. Supports grant types: password, client_credentials, refresh_token.")
+            .WithDescription("OAuth2 compliant token endpoint. Supports grant types: password, client_credentials, refresh_token. Accepts both application/x-www-form-urlencoded and application/json content types.")
             .AllowAnonymous()
-            .Accepts<OAuth2TokenRequest>("application/x-www-form-urlencoded")
-            .Accepts<OAuth2TokenRequest>("application/json")
             .Produces<TokenResponse>()
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized);
