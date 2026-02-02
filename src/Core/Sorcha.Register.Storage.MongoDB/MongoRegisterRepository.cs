@@ -211,9 +211,8 @@ public class MongoRegisterRepository : IRegisterRepository
     {
         var docketIndexes = new List<CreateIndexModel<Docket>>
         {
-            // Index for docket ID lookups
-            new(Builders<Docket>.IndexKeys.Ascending(d => d.Id),
-                new CreateIndexOptions { Unique = true }),
+            // Note: Id maps to _id which is already unique by default in MongoDB
+            // No need to create a separate unique index on it
 
             // Index for hash lookups
             new(Builders<Docket>.IndexKeys.Ascending(d => d.Hash)),

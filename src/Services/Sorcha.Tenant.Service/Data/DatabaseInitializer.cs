@@ -26,6 +26,7 @@ public class DatabaseInitializer
     public static readonly Guid WalletServicePrincipalId = new("00000000-0000-0000-0002-000000000002");
     public static readonly Guid RegisterServicePrincipalId = new("00000000-0000-0000-0002-000000000003");
     public static readonly Guid PeerServicePrincipalId = new("00000000-0000-0000-0002-000000000004");
+    public static readonly Guid ValidatorServicePrincipalId = new("00000000-0000-0000-0002-000000000005");
 
     // Default credentials (can be overridden via configuration)
     public const string DefaultAdminEmail = "admin@sorcha.local";
@@ -198,33 +199,49 @@ public class DatabaseInitializer
         _logger.LogInformation("Checking for service principals...");
 
         // Define service principals to seed
-        var servicePrincipals = new (Guid Id, string ServiceName, string ClientId, string[] Scopes)[]
+        // DevSecret is used in Development environment for docker-compose compatibility
+        var servicePrincipals = new (Guid Id, string ServiceName, string ClientId, string? DevSecret, string[] Scopes)[]
         {
             (
                 BlueprintServicePrincipalId,
                 "Blueprint Service",
                 "service-blueprint",
+                "blueprint-service-secret",
                 new[] { "blueprints:read", "blueprints:write", "wallets:sign", "register:write" }
             ),
             (
                 WalletServicePrincipalId,
                 "Wallet Service",
                 "service-wallet",
+                "wallet-service-secret",
                 new[] { "wallets:read", "wallets:write", "wallets:sign", "wallets:encrypt", "wallets:decrypt" }
             ),
             (
                 RegisterServicePrincipalId,
                 "Register Service",
-                "service-register",
-                new[] { "registers:read", "registers:write", "registers:query" }
+                "register-service",
+                "register-service-secret",
+                new[] { "registers:read", "registers:write", "registers:query", "validator:write" }
             ),
             (
                 PeerServicePrincipalId,
                 "Peer Service",
                 "service-peer",
+                "peer-service-secret",
                 new[] { "peers:read", "peers:write", "registers:read" }
+            ),
+            (
+                ValidatorServicePrincipalId,
+                "Validator Service",
+                "validator-service",
+                "validator-service-secret",
+                new[] { "validator:read", "validator:write", "wallets:sign", "registers:read" }
             )
         };
+
+        // Check if we're in development mode - use predictable secrets for docker-compose
+        var isDevelopment = _configuration["ASPNETCORE_ENVIRONMENT"] == "Development" ||
+                           Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
 
         foreach (var sp in servicePrincipals)
         {
@@ -233,8 +250,10 @@ public class DatabaseInitializer
 
             if (existing == null)
             {
-                // Generate and hash client secret
-                var clientSecret = GenerateClientSecret();
+                // Use dev secret in Development, otherwise generate random
+                var clientSecret = isDevelopment && !string.IsNullOrEmpty(sp.DevSecret)
+                    ? sp.DevSecret
+                    : GenerateClientSecret();
                 var encryptedSecret = EncryptClientSecret(clientSecret);
 
                 _logger.LogInformation("Creating service principal: {ServiceName}", sp.ServiceName);
@@ -253,13 +272,22 @@ public class DatabaseInitializer
                 dbContext.ServicePrincipals.Add(servicePrincipal);
                 await dbContext.SaveChangesAsync(cancellationToken);
 
-                _logger.LogWarning(
-                    "Service Principal Created - {ServiceName}\n" +
-                    "  Client ID:     {ClientId}\n" +
-                    "  Client Secret: {ClientSecret}\n" +
-                    "  Scopes:        {Scopes}\n" +
-                    "  ⚠️  SAVE THIS SECRET - It will not be shown again!",
-                    sp.ServiceName, sp.ClientId, clientSecret, string.Join(", ", sp.Scopes));
+                if (isDevelopment && !string.IsNullOrEmpty(sp.DevSecret))
+                {
+                    _logger.LogInformation(
+                        "Service Principal Created (Development) - {ServiceName}, Client ID: {ClientId}",
+                        sp.ServiceName, sp.ClientId);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Service Principal Created - {ServiceName}\n" +
+                        "  Client ID:     {ClientId}\n" +
+                        "  Client Secret: {ClientSecret}\n" +
+                        "  Scopes:        {Scopes}\n" +
+                        "  ⚠️  SAVE THIS SECRET - It will not be shown again!",
+                        sp.ServiceName, sp.ClientId, clientSecret, string.Join(", ", sp.Scopes));
+                }
             }
             else
             {

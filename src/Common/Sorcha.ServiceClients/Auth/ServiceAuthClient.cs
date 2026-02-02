@@ -90,7 +90,7 @@ public class ServiceAuthClient : IServiceAuthClient, IDisposable
                 ["grant_type"] = "client_credentials",
                 ["client_id"] = _clientId,
                 ["client_secret"] = _clientSecret,
-                ["scope"] = "wallet:sign"
+                ["scope"] = "wallets:sign"
             });
 
             var response = await _httpClient.PostAsync("/api/service-auth/token", formData, cancellationToken);
