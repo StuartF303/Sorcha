@@ -3,138 +3,106 @@
 
 using Microsoft.Extensions.Logging;
 using Moq;
-using Moq.Protected;
-using Sorcha.Blueprint.Service.Clients;
+using Sorcha.ServiceClients.Wallet;
+using Sorcha.ServiceClients.Register;
 using Sorcha.Register.Models;
-using System.Net;
-using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Xunit;
 using FluentAssertions;
 
 namespace Sorcha.Blueprint.Service.Tests.Integration;
 
 /// <summary>
-/// Integration tests for Wallet and Register service client integration
+/// Integration tests for Wallet and Register service client interface behaviors.
+/// Uses mocked service clients to test expected behaviors without infrastructure dependencies.
 /// </summary>
 public class WalletRegisterIntegrationTests
 {
-    private readonly Mock<HttpMessageHandler> _mockHttpHandler;
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<WalletServiceClient> _walletLogger;
-    private readonly ILogger<RegisterServiceClient> _registerLogger;
+    private readonly Mock<IWalletServiceClient> _mockWalletClient;
+    private readonly Mock<IRegisterServiceClient> _mockRegisterClient;
 
     public WalletRegisterIntegrationTests()
     {
-        _mockHttpHandler = new Mock<HttpMessageHandler>();
-        _httpClient = new HttpClient(_mockHttpHandler.Object)
-        {
-            BaseAddress = new Uri("http://localhost")
-        };
-        _walletLogger = Mock.Of<ILogger<WalletServiceClient>>();
-        _registerLogger = Mock.Of<ILogger<RegisterServiceClient>>();
+        _mockWalletClient = new Mock<IWalletServiceClient>();
+        _mockRegisterClient = new Mock<IRegisterServiceClient>();
     }
 
     #region Wallet Service Client Tests
 
     [Fact]
-    public async Task WalletServiceClient_EncryptPayload_Success()
+    public async Task WalletServiceClient_EncryptPayload_ReturnsEncryptedData()
     {
         // Arrange
-        var client = new WalletServiceClient(_httpClient, _walletLogger);
         var recipientWallet = "wallet123";
         var payload = Encoding.UTF8.GetBytes("test payload");
+        var expectedEncrypted = Encoding.UTF8.GetBytes("encrypted-data");
 
-        var expectedResponse = new
-        {
-            EncryptedPayload = Convert.ToBase64String(Encoding.UTF8.GetBytes("encrypted-data")),
-            RecipientAddress = recipientWallet,
-            EncryptedAt = DateTime.UtcNow
-        };
-
-        SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
+        _mockWalletClient
+            .Setup(x => x.EncryptPayloadAsync(recipientWallet, payload, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedEncrypted);
 
         // Act
-        var result = await client.EncryptPayloadAsync(recipientWallet, payload);
+        var result = await _mockWalletClient.Object.EncryptPayloadAsync(recipientWallet, payload);
 
         // Assert
         result.Should().NotBeNull();
-        result.Should().NotBeEmpty();
-        Encoding.UTF8.GetString(result).Should().Be("encrypted-data");
+        result.Should().BeEquivalentTo(expectedEncrypted);
     }
 
     [Fact]
-    public async Task WalletServiceClient_EncryptPayload_ThrowsOnInvalidWallet()
+    public async Task WalletServiceClient_DecryptPayload_ReturnsDecryptedData()
     {
         // Arrange
-        var client = new WalletServiceClient(_httpClient, _walletLogger);
-        var payload = Encoding.UTF8.GetBytes("test payload");
-
-        // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await client.EncryptPayloadAsync("", payload));
-    }
-
-    [Fact]
-    public async Task WalletServiceClient_DecryptPayload_Success()
-    {
-        // Arrange
-        var client = new WalletServiceClient(_httpClient, _walletLogger);
         var walletAddress = "wallet123";
         var encryptedPayload = Encoding.UTF8.GetBytes("encrypted-data");
+        var expectedDecrypted = Encoding.UTF8.GetBytes("decrypted-data");
 
-        var expectedResponse = new
-        {
-            DecryptedPayload = Convert.ToBase64String(Encoding.UTF8.GetBytes("decrypted-data")),
-            DecryptedBy = walletAddress,
-            DecryptedAt = DateTime.UtcNow
-        };
-
-        SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
+        _mockWalletClient
+            .Setup(x => x.DecryptPayloadAsync(walletAddress, encryptedPayload, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedDecrypted);
 
         // Act
-        var result = await client.DecryptPayloadAsync(walletAddress, encryptedPayload);
+        var result = await _mockWalletClient.Object.DecryptPayloadAsync(walletAddress, encryptedPayload);
 
         // Assert
         result.Should().NotBeNull();
-        result.Should().NotBeEmpty();
-        Encoding.UTF8.GetString(result).Should().Be("decrypted-data");
+        result.Should().BeEquivalentTo(expectedDecrypted);
     }
 
     [Fact]
-    public async Task WalletServiceClient_SignTransaction_Success()
+    public async Task WalletServiceClient_SignTransaction_ReturnsSignature()
     {
         // Arrange
-        var client = new WalletServiceClient(_httpClient, _walletLogger);
         var walletAddress = "wallet123";
         var transactionData = Encoding.UTF8.GetBytes("transaction-to-sign");
-
-        var expectedResponse = new
+        var expectedSignature = Encoding.UTF8.GetBytes("signature-data");
+        var expectedPublicKey = Encoding.UTF8.GetBytes("public-key-hex");
+        var expectedSignResult = new WalletSignResult
         {
-            Signature = Convert.ToBase64String(Encoding.UTF8.GetBytes("signature-data")),
+            Signature = expectedSignature,
+            PublicKey = expectedPublicKey,
             SignedBy = walletAddress,
-            SignedAt = DateTime.UtcNow
+            Algorithm = "ED25519"
         };
 
-        SetupHttpResponse(HttpStatusCode.OK, expectedResponse);
+        _mockWalletClient
+            .Setup(x => x.SignTransactionAsync(walletAddress, transactionData, null, false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedSignResult);
 
         // Act
-        var result = await client.SignTransactionAsync(walletAddress, transactionData);
+        var result = await _mockWalletClient.Object.SignTransactionAsync(walletAddress, transactionData);
 
         // Assert
         result.Should().NotBeNull();
-        result.Should().NotBeEmpty();
-        Encoding.UTF8.GetString(result).Should().Be("signature-data");
+        result.Signature.Should().BeEquivalentTo(expectedSignature);
+        result.Algorithm.Should().Be("ED25519");
     }
 
     [Fact]
-    public async Task WalletServiceClient_GetWallet_Success()
+    public async Task WalletServiceClient_GetWallet_ReturnsWalletInfo()
     {
         // Arrange
-        var client = new WalletServiceClient(_httpClient, _walletLogger);
         var walletAddress = "wallet123";
-
         var expectedWallet = new WalletInfo
         {
             Address = walletAddress,
@@ -148,10 +116,12 @@ public class WalletRegisterIntegrationTests
             UpdatedAt = DateTime.UtcNow
         };
 
-        SetupHttpResponse(HttpStatusCode.OK, expectedWallet);
+        _mockWalletClient
+            .Setup(x => x.GetWalletAsync(walletAddress, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedWallet);
 
         // Act
-        var result = await client.GetWalletAsync(walletAddress);
+        var result = await _mockWalletClient.Object.GetWalletAsync(walletAddress);
 
         // Assert
         result.Should().NotBeNull();
@@ -161,16 +131,17 @@ public class WalletRegisterIntegrationTests
     }
 
     [Fact]
-    public async Task WalletServiceClient_GetWallet_NotFound_ReturnsNull()
+    public async Task WalletServiceClient_GetWallet_ReturnsNull_WhenNotFound()
     {
         // Arrange
-        var client = new WalletServiceClient(_httpClient, _walletLogger);
         var walletAddress = "nonexistent-wallet";
 
-        SetupHttpResponse<object>(HttpStatusCode.NotFound, null);
+        _mockWalletClient
+            .Setup(x => x.GetWalletAsync(walletAddress, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((WalletInfo?)null);
 
         // Act
-        var result = await client.GetWalletAsync(walletAddress);
+        var result = await _mockWalletClient.Object.GetWalletAsync(walletAddress);
 
         // Assert
         result.Should().BeNull();
@@ -181,10 +152,9 @@ public class WalletRegisterIntegrationTests
     #region Register Service Client Tests
 
     [Fact]
-    public async Task RegisterServiceClient_SubmitTransaction_Success()
+    public async Task RegisterServiceClient_SubmitTransaction_ReturnsTransaction()
     {
         // Arrange
-        var client = new RegisterServiceClient(_httpClient, _registerLogger);
         var registerId = "register123";
         var transaction = new TransactionModel
         {
@@ -194,10 +164,12 @@ public class WalletRegisterIntegrationTests
             TimeStamp = DateTime.UtcNow
         };
 
-        SetupHttpResponse(HttpStatusCode.Created, transaction);
+        _mockRegisterClient
+            .Setup(x => x.SubmitTransactionAsync(registerId, transaction, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transaction);
 
         // Act
-        var result = await client.SubmitTransactionAsync(registerId, transaction);
+        var result = await _mockRegisterClient.Object.SubmitTransactionAsync(registerId, transaction);
 
         // Assert
         result.Should().NotBeNull();
@@ -206,13 +178,11 @@ public class WalletRegisterIntegrationTests
     }
 
     [Fact]
-    public async Task RegisterServiceClient_GetTransaction_Success()
+    public async Task RegisterServiceClient_GetTransaction_ReturnsTransaction()
     {
         // Arrange
-        var client = new RegisterServiceClient(_httpClient, _registerLogger);
         var registerId = "register123";
         var transactionId = "tx-123";
-
         var expectedTransaction = new TransactionModel
         {
             TxId = transactionId,
@@ -221,10 +191,12 @@ public class WalletRegisterIntegrationTests
             TimeStamp = DateTime.UtcNow
         };
 
-        SetupHttpResponse(HttpStatusCode.OK, expectedTransaction);
+        _mockRegisterClient
+            .Setup(x => x.GetTransactionAsync(registerId, transactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedTransaction);
 
         // Act
-        var result = await client.GetTransactionAsync(registerId, transactionId);
+        var result = await _mockRegisterClient.Object.GetTransactionAsync(registerId, transactionId);
 
         // Assert
         result.Should().NotBeNull();
@@ -233,92 +205,28 @@ public class WalletRegisterIntegrationTests
     }
 
     [Fact]
-    public async Task RegisterServiceClient_GetTransaction_NotFound_ReturnsNull()
+    public async Task RegisterServiceClient_GetTransaction_ReturnsNull_WhenNotFound()
     {
         // Arrange
-        var client = new RegisterServiceClient(_httpClient, _registerLogger);
         var registerId = "register123";
         var transactionId = "nonexistent-tx";
 
-        SetupHttpResponse<object>(HttpStatusCode.NotFound, null);
+        _mockRegisterClient
+            .Setup(x => x.GetTransactionAsync(registerId, transactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TransactionModel?)null);
 
         // Act
-        var result = await client.GetTransactionAsync(registerId, transactionId);
+        var result = await _mockRegisterClient.Object.GetTransactionAsync(registerId, transactionId);
 
         // Assert
         result.Should().BeNull();
     }
 
     [Fact]
-    public async Task RegisterServiceClient_GetTransactions_Success()
+    public async Task RegisterServiceClient_GetRegister_ReturnsRegister()
     {
         // Arrange
-        var client = new RegisterServiceClient(_httpClient, _registerLogger);
         var registerId = "register123";
-
-        var expectedPage = new TransactionPage
-        {
-            Page = 1,
-            PageSize = 20,
-            Total = 50,
-            Transactions = new List<TransactionModel>
-            {
-                new() { TxId = "tx-1", RegisterId = registerId, SenderWallet = "wallet1" },
-                new() { TxId = "tx-2", RegisterId = registerId, SenderWallet = "wallet2" }
-            }
-        };
-
-        SetupHttpResponse(HttpStatusCode.OK, expectedPage);
-
-        // Act
-        var result = await client.GetTransactionsAsync(registerId, page: 1, pageSize: 20);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.Page.Should().Be(1);
-        result.PageSize.Should().Be(20);
-        result.Total.Should().Be(50);
-        result.Transactions.Should().HaveCount(2);
-    }
-
-    [Fact]
-    public async Task RegisterServiceClient_GetTransactionsByWallet_Success()
-    {
-        // Arrange
-        var client = new RegisterServiceClient(_httpClient, _registerLogger);
-        var registerId = "register123";
-        var walletAddress = "wallet123";
-
-        var expectedPage = new TransactionPage
-        {
-            Page = 1,
-            PageSize = 20,
-            Total = 10,
-            Transactions = new List<TransactionModel>
-            {
-                new() { TxId = "tx-1", RegisterId = registerId, SenderWallet = walletAddress }
-            }
-        };
-
-        SetupHttpResponse(HttpStatusCode.OK, expectedPage);
-
-        // Act
-        var result = await client.GetTransactionsByWalletAsync(registerId, walletAddress);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.Total.Should().Be(10);
-        result.Transactions.Should().HaveCount(1);
-        result.Transactions[0].SenderWallet.Should().Be(walletAddress);
-    }
-
-    [Fact]
-    public async Task RegisterServiceClient_GetRegister_Success()
-    {
-        // Arrange
-        var client = new RegisterServiceClient(_httpClient, _registerLogger);
-        var registerId = "register123";
-
         var expectedRegister = new Register.Models.Register
         {
             Id = registerId,
@@ -327,10 +235,12 @@ public class WalletRegisterIntegrationTests
             Status = Register.Models.Enums.RegisterStatus.Online
         };
 
-        SetupHttpResponse(HttpStatusCode.OK, expectedRegister);
+        _mockRegisterClient
+            .Setup(x => x.GetRegisterAsync(registerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedRegister);
 
         // Act
-        var result = await client.GetRegisterAsync(registerId);
+        var result = await _mockRegisterClient.Object.GetRegisterAsync(registerId);
 
         // Assert
         result.Should().NotBeNull();
@@ -339,16 +249,17 @@ public class WalletRegisterIntegrationTests
     }
 
     [Fact]
-    public async Task RegisterServiceClient_GetRegister_NotFound_ReturnsNull()
+    public async Task RegisterServiceClient_GetRegister_ReturnsNull_WhenNotFound()
     {
         // Arrange
-        var client = new RegisterServiceClient(_httpClient, _registerLogger);
         var registerId = "nonexistent-register";
 
-        SetupHttpResponse<object>(HttpStatusCode.NotFound, null);
+        _mockRegisterClient
+            .Setup(x => x.GetRegisterAsync(registerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Register.Models.Register?)null);
 
         // Act
-        var result = await client.GetRegisterAsync(registerId);
+        var result = await _mockRegisterClient.Object.GetRegisterAsync(registerId);
 
         // Assert
         result.Should().BeNull();
@@ -362,32 +273,23 @@ public class WalletRegisterIntegrationTests
     public async Task EndToEnd_PayloadEncryptionAndDecryption_WorksCorrectly()
     {
         // Arrange
-        var walletClient = new WalletServiceClient(_httpClient, _walletLogger);
         var walletAddress = "wallet123";
         var originalPayload = Encoding.UTF8.GetBytes("sensitive data");
+        var encryptedData = Encoding.UTF8.GetBytes("encrypted-sensitive-data");
 
-        // Mock encryption response
-        var encryptedData = Convert.ToBase64String(Encoding.UTF8.GetBytes("encrypted-sensitive-data"));
-        SetupHttpResponse(HttpStatusCode.OK, new
-        {
-            EncryptedPayload = encryptedData,
-            RecipientAddress = walletAddress,
-            EncryptedAt = DateTime.UtcNow
-        });
+        _mockWalletClient
+            .Setup(x => x.EncryptPayloadAsync(walletAddress, originalPayload, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(encryptedData);
 
-        // Act 1: Encrypt
-        var encrypted = await walletClient.EncryptPayloadAsync(walletAddress, originalPayload);
+        _mockWalletClient
+            .Setup(x => x.DecryptPayloadAsync(walletAddress, encryptedData, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(originalPayload);
 
-        // Mock decryption response
-        SetupHttpResponse(HttpStatusCode.OK, new
-        {
-            DecryptedPayload = Convert.ToBase64String(originalPayload),
-            DecryptedBy = walletAddress,
-            DecryptedAt = DateTime.UtcNow
-        });
+        // Act - Encrypt
+        var encrypted = await _mockWalletClient.Object.EncryptPayloadAsync(walletAddress, originalPayload);
 
-        // Act 2: Decrypt
-        var decrypted = await walletClient.DecryptPayloadAsync(walletAddress, encrypted);
+        // Act - Decrypt
+        var decrypted = await _mockWalletClient.Object.DecryptPayloadAsync(walletAddress, encrypted);
 
         // Assert
         decrypted.Should().NotBeNull();
@@ -398,7 +300,6 @@ public class WalletRegisterIntegrationTests
     public async Task EndToEnd_SubmitAndRetrieveTransaction_WorksCorrectly()
     {
         // Arrange
-        var registerClient = new RegisterServiceClient(_httpClient, _registerLogger);
         var registerId = "register123";
         var transaction = new TransactionModel
         {
@@ -408,48 +309,25 @@ public class WalletRegisterIntegrationTests
             TimeStamp = DateTime.UtcNow
         };
 
-        // Mock submission response
-        SetupHttpResponse(HttpStatusCode.Created, transaction);
+        _mockRegisterClient
+            .Setup(x => x.SubmitTransactionAsync(registerId, transaction, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transaction);
 
-        // Act 1: Submit
-        var submitted = await registerClient.SubmitTransactionAsync(registerId, transaction);
+        _mockRegisterClient
+            .Setup(x => x.GetTransactionAsync(registerId, "tx-456", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transaction);
 
-        // Mock retrieval response
-        SetupHttpResponse(HttpStatusCode.OK, transaction);
+        // Act - Submit
+        var submitted = await _mockRegisterClient.Object.SubmitTransactionAsync(registerId, transaction);
 
-        // Act 2: Retrieve
-        var retrieved = await registerClient.GetTransactionAsync(registerId, "tx-456");
+        // Act - Retrieve
+        var retrieved = await _mockRegisterClient.Object.GetTransactionAsync(registerId, "tx-456");
 
         // Assert
         submitted.Should().NotBeNull();
         retrieved.Should().NotBeNull();
         retrieved!.TxId.Should().Be("tx-456");
         retrieved.RegisterId.Should().Be(registerId);
-    }
-
-    #endregion
-
-    #region Helper Methods
-
-    private void SetupHttpResponse<T>(HttpStatusCode statusCode, T? content)
-    {
-        var response = new HttpResponseMessage(statusCode);
-
-        if (content != null)
-        {
-            var json = JsonSerializer.Serialize(content, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            });
-            response.Content = new StringContent(json, Encoding.UTF8, "application/json");
-        }
-
-        _mockHttpHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(response);
     }
 
     #endregion

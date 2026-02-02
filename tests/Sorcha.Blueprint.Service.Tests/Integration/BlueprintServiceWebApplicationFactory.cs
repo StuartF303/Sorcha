@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.OutputCaching;
@@ -8,12 +9,18 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using AuthenticationOptions = Microsoft.AspNetCore.Authentication.AuthenticationOptions;
 using Moq;
 using Moq.Protected;
-using Sorcha.Blueprint.Service.Clients;
+using Sorcha.ServiceClients.Wallet;
+using Sorcha.ServiceClients.Register;
 using StackExchange.Redis;
 using System.Net;
+using System.Security.Claims;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace Sorcha.Blueprint.Service.Tests.Integration;
@@ -58,6 +65,19 @@ public class BlueprintServiceWebApplicationFactory : WebApplicationFactory<Progr
             // and add mock implementations
             RemoveHttpClientServices(services);
             AddMockHttpClients(services);
+
+            // Remove existing authentication to replace with test authentication
+            services.RemoveAll<IConfigureOptions<AuthenticationOptions>>();
+            services.RemoveAll<IPostConfigureOptions<AuthenticationOptions>>();
+
+            // Configure test authentication to bypass JWT validation
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = "TestScheme";
+                options.DefaultChallengeScheme = "TestScheme";
+                options.DefaultScheme = "TestScheme";
+            })
+            .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>("TestScheme", _ => { });
         });
 
         builder.UseEnvironment("Testing");
@@ -89,30 +109,82 @@ public class BlueprintServiceWebApplicationFactory : WebApplicationFactory<Progr
         // Setup default mock responses for register service
         SetupDefaultRegisterResponses();
 
-        // Create HttpClient with mock handler for wallet service
-        var walletHttpClient = new HttpClient(MockWalletHttpHandler.Object)
-        {
-            BaseAddress = new Uri("http://walletservice")
-        };
+        // Create mock wallet service client
+        var mockWalletClient = new Mock<IWalletServiceClient>();
+        mockWalletClient
+            .Setup(x => x.EncryptPayloadAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string wallet, byte[] data, CancellationToken _) =>
+                Encoding.UTF8.GetBytes($"encrypted-for-{wallet}"));
 
-        // Create HttpClient with mock handler for register service
-        var registerHttpClient = new HttpClient(MockRegisterHttpHandler.Object)
-        {
-            BaseAddress = new Uri("http://registerservice")
-        };
+        mockWalletClient
+            .Setup(x => x.DecryptPayloadAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string wallet, byte[] data, CancellationToken _) => data);
+
+        mockWalletClient
+            .Setup(x => x.GetWalletAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string address, CancellationToken _) => new WalletInfo
+            {
+                Address = address,
+                Name = "Test Wallet",
+                PublicKey = "test-public-key",
+                Algorithm = "ED25519",
+                Status = "Active",
+                Owner = "test-owner",
+                Tenant = "test-tenant",
+                CreatedAt = DateTime.UtcNow.AddDays(-1),
+                UpdatedAt = DateTime.UtcNow
+            });
+
+        // Mock SignTransactionAsync - required for action submission
+        mockWalletClient
+            .Setup(x => x.SignTransactionAsync(
+                It.IsAny<string>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string wallet, byte[] data, string? derivationPath, bool prehashed, CancellationToken _) =>
+                new WalletSignResult
+                {
+                    Signature = Encoding.UTF8.GetBytes("test-signature"),
+                    PublicKey = Encoding.UTF8.GetBytes("test-public-key"),
+                    SignedBy = wallet,
+                    Algorithm = "ED25519"
+                });
+
+        // Create mock register service client
+        var mockRegisterClient = new Mock<IRegisterServiceClient>();
+        mockRegisterClient
+            .Setup(x => x.SubmitTransactionAsync(It.IsAny<string>(), It.IsAny<Sorcha.Register.Models.TransactionModel>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string regId, Sorcha.Register.Models.TransactionModel tx, CancellationToken _) =>
+            {
+                tx.TxId ??= Guid.NewGuid().ToString();
+                return tx;
+            });
+
+        mockRegisterClient
+            .Setup(x => x.GetTransactionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string regId, string txId, CancellationToken _) => new Sorcha.Register.Models.TransactionModel
+            {
+                TxId = txId,
+                RegisterId = regId,
+                SenderWallet = "wallet-test",
+                TimeStamp = DateTime.UtcNow
+            });
+
+        mockRegisterClient
+            .Setup(x => x.GetRegisterAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string regId, CancellationToken _) => new Sorcha.Register.Models.Register
+            {
+                Id = regId,
+                Name = "Test Register",
+                TenantId = "test-tenant",
+                Status = Sorcha.Register.Models.Enums.RegisterStatus.Online
+            });
 
         // Register mock clients
-        services.AddSingleton<IWalletServiceClient>(sp =>
-        {
-            var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<WalletServiceClient>>();
-            return new WalletServiceClient(walletHttpClient, logger);
-        });
-
-        services.AddSingleton<IRegisterServiceClient>(sp =>
-        {
-            var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<RegisterServiceClient>>();
-            return new RegisterServiceClient(registerHttpClient, logger);
-        });
+        services.AddSingleton<IWalletServiceClient>(mockWalletClient.Object);
+        services.AddSingleton<IRegisterServiceClient>(mockRegisterClient.Object);
     }
 
     private void SetupDefaultWalletResponses()
@@ -299,5 +371,39 @@ internal class NoOpOutputCacheStore : IOutputCacheStore
     public ValueTask SetAsync(string key, byte[] value, string[]? tags, TimeSpan validFor, CancellationToken cancellationToken)
     {
         return ValueTask.CompletedTask;
+    }
+}
+
+/// <summary>
+/// Test authentication handler that authenticates all requests with a test user.
+/// </summary>
+internal class TestAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+{
+    public TestAuthenticationHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder)
+        : base(options, logger, encoder)
+    {
+    }
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, "test-user-123"),
+            new Claim(ClaimTypes.Name, "Test User"),
+            new Claim(ClaimTypes.Role, "Administrator"),
+            new Claim("org_id", "test-org-456"),
+            new Claim("tenant_id", "test-tenant-789"),
+            new Claim("can_publish_blueprint", "true"),
+            new Claim("token_type", "service")
+        };
+
+        var identity = new ClaimsIdentity(claims, "TestScheme");
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, "TestScheme");
+
+        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }
