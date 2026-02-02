@@ -971,6 +971,17 @@ docketsGroup.MapPost("/", async (
         Votes = request.ProposerValidatorId
     };
 
+    // Insert transaction documents if provided
+    if (request.Transactions is not null && request.Transactions.Any())
+    {
+        foreach (var tx in request.Transactions)
+        {
+            // Set block number for each transaction
+            tx.BlockNumber = (ulong)request.DocketNumber;
+            await repository.InsertTransactionAsync(tx);
+        }
+    }
+
     // Insert docket
     var inserted = await repository.InsertDocketAsync(docket);
 
@@ -1009,4 +1020,5 @@ record WriteDocketRequest(
     DateTimeOffset CreatedAt,
     List<string> TransactionIds,
     string ProposerValidatorId,
-    string MerkleRoot);
+    string MerkleRoot,
+    List<TransactionModel>? Transactions = null);

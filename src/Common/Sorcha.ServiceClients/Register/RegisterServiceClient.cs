@@ -6,15 +6,17 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Sorcha.Register.Models;
+using Sorcha.ServiceClients.Auth;
 
 namespace Sorcha.ServiceClients.Register;
 
 /// <summary>
-/// HTTP client for Register Service operations
+/// HTTP client for Register Service operations with JWT authentication support
 /// </summary>
 public class RegisterServiceClient : IRegisterServiceClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IServiceAuthClient _serviceAuth;
     private readonly ILogger<RegisterServiceClient> _logger;
     private readonly string _serviceAddress;
     private readonly bool _useGrpc;
@@ -27,10 +29,12 @@ public class RegisterServiceClient : IRegisterServiceClient
 
     public RegisterServiceClient(
         HttpClient httpClient,
+        IServiceAuthClient serviceAuth,
         IConfiguration configuration,
         ILogger<RegisterServiceClient> logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _serviceAuth = serviceAuth ?? throw new ArgumentNullException(nameof(serviceAuth));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         _serviceAddress = configuration["ServiceClients:RegisterService:Address"]
@@ -50,6 +54,23 @@ public class RegisterServiceClient : IRegisterServiceClient
             _serviceAddress, _useGrpc ? "gRPC" : "HTTP");
     }
 
+    /// <summary>
+    /// Sets the JWT authentication header for service-to-service calls
+    /// </summary>
+    private async Task SetAuthHeaderAsync(CancellationToken cancellationToken)
+    {
+        var token = await _serviceAuth.GetTokenAsync(cancellationToken);
+        if (token is not null)
+        {
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+        else
+        {
+            _logger.LogWarning("No auth token available for Register Service call");
+        }
+    }
+
     // =========================================================================
     // Docket Operations
     // =========================================================================
@@ -64,6 +85,8 @@ public class RegisterServiceClient : IRegisterServiceClient
                 "Writing docket {DocketNumber} to register {RegisterId}",
                 docket.DocketNumber, docket.RegisterId);
 
+            await SetAuthHeaderAsync(cancellationToken);
+
             var request = new WriteDocketRequest
             {
                 DocketId = docket.DocketId,
@@ -73,7 +96,8 @@ public class RegisterServiceClient : IRegisterServiceClient
                 CreatedAt = docket.CreatedAt,
                 TransactionIds = docket.Transactions.Select(t => t.TxId ?? t.Id ?? string.Empty).ToList(),
                 ProposerValidatorId = docket.ProposerValidatorId,
-                MerkleRoot = docket.MerkleRoot
+                MerkleRoot = docket.MerkleRoot,
+                Transactions = docket.Transactions
             };
 
             var response = await _httpClient.PostAsJsonAsync(
@@ -504,6 +528,8 @@ public class RegisterServiceClient : IRegisterServiceClient
         {
             _logger.LogDebug("Getting register info for {RegisterId}", registerId);
 
+            await SetAuthHeaderAsync(cancellationToken);
+
             var response = await _httpClient.GetAsync(
                 $"api/registers/{Uri.EscapeDataString(registerId)}",
                 cancellationToken);
@@ -600,6 +626,7 @@ public class RegisterServiceClient : IRegisterServiceClient
         public required List<string> TransactionIds { get; init; }
         public required string ProposerValidatorId { get; init; }
         public required string MerkleRoot { get; init; }
+        public List<Sorcha.Register.Models.TransactionModel>? Transactions { get; init; }
     }
 
     private record CreateRegisterRequest

@@ -167,6 +167,8 @@ public static class ValidationEndpoints
     private static async Task<IResult> SubmitGenesisTransaction(
         [FromBody] GenesisTransactionRequest request,
         [FromServices] IMemPoolManager memPoolManager,
+        [FromServices] IRegisterMonitoringRegistry monitoringRegistry,
+        [FromServices] ISystemWalletProvider systemWalletProvider,
         [FromServices] Microsoft.Extensions.Options.IOptions<Sorcha.Validator.Service.Configuration.ValidatorConfiguration> validatorConfig,
         [FromServices] Sorcha.ServiceClients.Wallet.IWalletServiceClient walletClient,
         [FromServices] Sorcha.Cryptography.Interfaces.IHashProvider hashProvider,
@@ -200,7 +202,26 @@ public static class ValidationEndpoints
 
             // Sign control record hash with system wallet using the register-control derivation path
             // If system wallet doesn't exist, auto-create it (lazy initialization)
-            var systemWalletAddress = validatorConfig.Value.SystemWalletAddress;
+            var systemWalletAddress = systemWalletProvider.GetSystemWalletId();
+
+            if (string.IsNullOrWhiteSpace(systemWalletAddress))
+            {
+                // System wallet not initialized yet, create it now
+                logger.LogInformation(
+                    "System wallet not initialized, creating on-demand for validator {ValidatorId}",
+                    validatorConfig.Value.ValidatorId);
+
+                systemWalletAddress = await walletClient.CreateOrRetrieveSystemWalletAsync(
+                    validatorConfig.Value.ValidatorId,
+                    cancellationToken);
+
+                systemWalletProvider.SetSystemWalletId(systemWalletAddress);
+
+                logger.LogInformation(
+                    "Created system wallet {WalletAddress} for validator {ValidatorId}",
+                    systemWalletAddress,
+                    validatorConfig.Value.ValidatorId);
+            }
 
             WalletSignResult systemSignResult;
             try
@@ -217,22 +238,24 @@ public static class ValidationEndpoints
                 ex.Message.Contains("Authentication failed") ||
                 ex.Message.Contains("401"))
             {
-                // Auto-create system wallet on first use (wallet not found or auth failed because wallet doesn't exist)
-                logger.LogInformation(
-                    "System wallet {WalletAddress} not available ({Reason}), creating on-demand for validator {ValidatorId}",
+                // Wallet was deleted or became unavailable, recreate it
+                logger.LogWarning(
+                    "System wallet {WalletAddress} not available ({Reason}), recreating for validator {ValidatorId}",
                     systemWalletAddress,
                     ex.Message.Contains("Authentication") ? "auth failed" : "not found",
                     validatorConfig.Value.ValidatorId);
 
                 try
                 {
-                    // Create system wallet using the validator ID
+                    // Recreate system wallet using the validator ID
                     systemWalletAddress = await walletClient.CreateOrRetrieveSystemWalletAsync(
                         validatorConfig.Value.ValidatorId,
                         cancellationToken);
 
+                    systemWalletProvider.SetSystemWalletId(systemWalletAddress);
+
                     logger.LogInformation(
-                        "Created system wallet {WalletAddress} for validator {ValidatorId}",
+                        "Recreated system wallet {WalletAddress} for validator {ValidatorId}",
                         systemWalletAddress,
                         validatorConfig.Value.ValidatorId);
 
@@ -322,6 +345,9 @@ public static class ValidationEndpoints
             }
 
             logger.LogInformation("Genesis transaction for register {RegisterId} added to memory pool successfully", request.RegisterId);
+
+            // Register for docket building monitoring
+            monitoringRegistry.RegisterForMonitoring(request.RegisterId);
 
             return Results.Ok(new
             {

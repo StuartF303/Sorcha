@@ -20,6 +20,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
 {
     private readonly ILogger<RegisterCreationOrchestrator> _logger;
     private readonly RegisterManager _registerManager;
+    private readonly TransactionManager _transactionManager;
     private readonly IWalletServiceClient _walletClient;
     private readonly IHashProvider _hashProvider;
     private readonly ICryptoModule _cryptoModule;
@@ -32,6 +33,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     public RegisterCreationOrchestrator(
         ILogger<RegisterCreationOrchestrator> logger,
         RegisterManager registerManager,
+        TransactionManager transactionManager,
         IWalletServiceClient walletClient,
         IHashProvider hashProvider,
         ICryptoModule cryptoModule,
@@ -40,6 +42,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _registerManager = registerManager ?? throw new ArgumentNullException(nameof(registerManager));
+        _transactionManager = transactionManager ?? throw new ArgumentNullException(nameof(transactionManager));
         _walletClient = walletClient ?? throw new ArgumentNullException(nameof(walletClient));
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
@@ -333,6 +336,10 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
 
         _logger.LogInformation("Created register {RegisterId} in database after genesis success", register.Id);
 
+        // NOTE: Genesis transaction remains in Validator memory pool
+        // It will be written to Register Service database after docket creation
+        // Validator Service handles the write after successful docket build
+
         return new FinalizeRegisterCreationResponse
         {
             RegisterId = register.Id,
@@ -478,13 +485,19 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         var payloadHash = _hashProvider.ComputeHash(controlRecordBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
         var payloadHashHex = Convert.ToHexString(payloadHash).ToLowerInvariant();
 
+        // Generate a proper 64-character transaction ID by hashing "genesis-{registerId}"
+        var genesisIdBytes = Encoding.UTF8.GetBytes($"genesis-{registerId}");
+        var genesisIdHash = _hashProvider.ComputeHash(genesisIdBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
+        var genesisTxId = Convert.ToHexString(genesisIdHash).ToLowerInvariant();
+
         return new TransactionModel
         {
-            TxId = $"genesis-{registerId}",
+            TxId = genesisTxId,
             RegisterId = registerId,
             SenderWallet = "system", // System transaction
             TimeStamp = controlRecord.CreatedAt.UtcDateTime,
             PrevTxId = string.Empty, // Genesis has no previous transaction
+            PayloadCount = 1, // One payload containing the control record
             Payloads = new[]
             {
                 new PayloadModel

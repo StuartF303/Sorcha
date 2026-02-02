@@ -1,34 +1,44 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
-using System.Collections.Concurrent;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Models;
 
 namespace Sorcha.Validator.Service.Services;
 
 /// <summary>
-/// Manages memory pools for pending transactions with FIFO + priority queuing
+/// Redis-backed memory pool manager for pending transactions.
+/// Persists across container restarts.
 /// </summary>
 public class MemPoolManager : IMemPoolManager
 {
+    private const string RedisKeyPrefix = "validator:mempool:";
+
+    private readonly IConnectionMultiplexer _redis;
     private readonly MemPoolConfiguration _config;
     private readonly ILogger<MemPoolManager> _logger;
 
-    // Per-register memory pools
-    private readonly ConcurrentDictionary<string, RegisterMemoryPool> _memoryPools = new();
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
 
     public MemPoolManager(
+        IConnectionMultiplexer redis,
         IOptions<MemPoolConfiguration> config,
         ILogger<MemPoolManager> logger)
     {
+        _redis = redis ?? throw new ArgumentNullException(nameof(redis));
         _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
-    /// Adds a transaction to the memory pool
+    /// Adds a transaction to the memory pool (Redis-backed)
     /// </summary>
     public Task<bool> AddTransactionAsync(string registerId, Transaction transaction, CancellationToken cancellationToken = default)
     {
@@ -38,51 +48,37 @@ public class MemPoolManager : IMemPoolManager
         if (transaction == null)
             throw new ArgumentNullException(nameof(transaction));
 
-        var pool = GetOrCreatePool(registerId);
-
-        // Check if transaction already exists
-        if (pool.ContainsTransaction(transaction.TransactionId))
+        try
         {
-            _logger.LogWarning("Transaction {TransactionId} already exists in memory pool for register {RegisterId}",
-                transaction.TransactionId, registerId);
-            return Task.FromResult(false);
-        }
+            var db = _redis.GetDatabase();
+            var hashKey = $"{RedisKeyPrefix}{registerId}:transactions";
 
-        // Check capacity
-        if (pool.IsFull && transaction.Priority != TransactionPriority.High)
-        {
-            // Evict oldest low/normal priority transaction
-            if (!pool.EvictOldest())
+            // Check if transaction already exists
+            if (db.HashExists(hashKey, transaction.TransactionId))
             {
-                _logger.LogWarning("Memory pool for register {RegisterId} is full and cannot evict", registerId);
+                _logger.LogWarning("Transaction {TransactionId} already exists in memory pool for register {RegisterId}",
+                    transaction.TransactionId, registerId);
                 return Task.FromResult(false);
             }
 
-            pool.IncrementEvictions();
-        }
+            // Set added timestamp
+            transaction.AddedToPoolAt = DateTimeOffset.UtcNow;
 
-        // Check high-priority quota
-        if (transaction.Priority == TransactionPriority.High)
+            // Serialize and store in Redis
+            var json = JsonSerializer.Serialize(transaction, JsonOptions);
+            db.HashSet(hashKey, transaction.TransactionId, json);
+
+            _logger.LogInformation("Added transaction {TransactionId} to memory pool for register {RegisterId} (persisted to Redis)",
+                transaction.TransactionId, registerId);
+
+            return Task.FromResult(true);
+        }
+        catch (Exception ex)
         {
-            var highPriorityQuota = (int)(_config.MaxSize * _config.HighPriorityQuota);
-            if (pool.HighPriorityCount >= highPriorityQuota)
-            {
-                _logger.LogWarning("High-priority quota exceeded for register {RegisterId}. Downgrading to normal priority.",
-                    registerId);
-                transaction.Priority = TransactionPriority.Normal;
-            }
+            _logger.LogError(ex, "Failed to add transaction {TransactionId} to memory pool for register {RegisterId}",
+                transaction.TransactionId, registerId);
+            return Task.FromResult(false);
         }
-
-        // Set added timestamp
-        transaction.AddedToPoolAt = DateTimeOffset.UtcNow;
-
-        // Add to appropriate queue
-        pool.AddTransaction(transaction);
-
-        _logger.LogInformation("Added transaction {TransactionId} to memory pool for register {RegisterId} with priority {Priority}",
-            transaction.TransactionId, registerId, transaction.Priority);
-
-        return Task.FromResult(true);
     }
 
     /// <summary>
@@ -90,34 +86,68 @@ public class MemPoolManager : IMemPoolManager
     /// </summary>
     public Task<bool> RemoveTransactionAsync(string registerId, string transactionId, CancellationToken cancellationToken = default)
     {
-        if (!_memoryPools.TryGetValue(registerId, out var pool))
-            return Task.FromResult(false);
-
-        var removed = pool.RemoveTransaction(transactionId);
-
-        if (removed)
+        try
         {
-            _logger.LogInformation("Removed transaction {TransactionId} from memory pool for register {RegisterId}",
-                transactionId, registerId);
-        }
+            var db = _redis.GetDatabase();
+            var hashKey = $"{RedisKeyPrefix}{registerId}:transactions";
 
-        return Task.FromResult(removed);
+            var removed = db.HashDelete(hashKey, transactionId);
+
+            if (removed)
+            {
+                _logger.LogInformation("Removed transaction {TransactionId} from memory pool for register {RegisterId}",
+                    transactionId, registerId);
+            }
+
+            return Task.FromResult(removed);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove transaction {TransactionId} from memory pool for register {RegisterId}",
+                transactionId, registerId);
+            return Task.FromResult(false);
+        }
     }
 
     /// <summary>
-    /// Gets pending transactions for docket building (ordered by priority then FIFO)
+    /// Gets pending transactions for docket building
     /// </summary>
     public Task<List<Transaction>> GetPendingTransactionsAsync(string registerId, int maxCount, CancellationToken cancellationToken = default)
     {
-        if (!_memoryPools.TryGetValue(registerId, out var pool))
+        try
+        {
+            var db = _redis.GetDatabase();
+            var hashKey = $"{RedisKeyPrefix}{registerId}:transactions";
+
+            var entries = db.HashGetAll(hashKey);
+            var transactions = new List<Transaction>();
+
+            foreach (var entry in entries.Take(maxCount))
+            {
+                try
+                {
+                    var transaction = JsonSerializer.Deserialize<Transaction>(entry.Value.ToString(), JsonOptions);
+                    if (transaction != null)
+                    {
+                        transactions.Add(transaction);
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning(ex, "Failed to deserialize transaction from Redis for register {RegisterId}", registerId);
+                }
+            }
+
+            _logger.LogDebug("Retrieved {Count} transactions from memory pool for register {RegisterId}",
+                transactions.Count, registerId);
+
+            return Task.FromResult(transactions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get transactions from memory pool for register {RegisterId}", registerId);
             return Task.FromResult(new List<Transaction>());
-
-        var transactions = pool.GetTransactions(maxCount);
-
-        _logger.LogDebug("Retrieved {Count} transactions from memory pool for register {RegisterId}",
-            transactions.Count, registerId);
-
-        return Task.FromResult(transactions);
+        }
     }
 
     /// <summary>
@@ -125,10 +155,18 @@ public class MemPoolManager : IMemPoolManager
     /// </summary>
     public Task<int> GetTransactionCountAsync(string registerId, CancellationToken cancellationToken = default)
     {
-        if (!_memoryPools.TryGetValue(registerId, out var pool))
+        try
+        {
+            var db = _redis.GetDatabase();
+            var hashKey = $"{RedisKeyPrefix}{registerId}:transactions";
+            var count = (int)db.HashLength(hashKey);
+            return Task.FromResult(count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get transaction count for register {RegisterId}", registerId);
             return Task.FromResult(0);
-
-        return Task.FromResult(pool.TotalCount);
+        }
     }
 
     /// <summary>
@@ -136,29 +174,30 @@ public class MemPoolManager : IMemPoolManager
     /// </summary>
     public Task<MemPoolStats> GetStatsAsync(string registerId, CancellationToken cancellationToken = default)
     {
-        if (!_memoryPools.TryGetValue(registerId, out var pool))
+        try
         {
+            var db = _redis.GetDatabase();
+            var hashKey = $"{RedisKeyPrefix}{registerId}:transactions";
+            var count = (int)db.HashLength(hashKey);
+
+            var stats = new MemPoolStats
+            {
+                RegisterId = registerId,
+                TotalTransactions = count,
+                MaxSize = _config.MaxSize
+            };
+
+            return Task.FromResult(stats);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get stats for register {RegisterId}", registerId);
             return Task.FromResult(new MemPoolStats
             {
                 RegisterId = registerId,
                 MaxSize = _config.MaxSize
             });
         }
-
-        var stats = new MemPoolStats
-        {
-            RegisterId = registerId,
-            TotalTransactions = pool.TotalCount,
-            HighPriorityCount = pool.HighPriorityCount,
-            NormalPriorityCount = pool.NormalPriorityCount,
-            LowPriorityCount = pool.LowPriorityCount,
-            MaxSize = _config.MaxSize,
-            TotalEvictions = pool.TotalEvictions,
-            TotalExpired = pool.TotalExpired,
-            OldestTransactionTime = pool.OldestTransactionTime
-        };
-
-        return Task.FromResult(stats);
     }
 
     /// <summary>
@@ -166,27 +205,50 @@ public class MemPoolManager : IMemPoolManager
     /// </summary>
     public Task CleanupExpiredTransactionsAsync(CancellationToken cancellationToken = default)
     {
-        var now = DateTimeOffset.UtcNow;
-        var totalExpired = 0;
-
-        foreach (var (registerId, pool) in _memoryPools)
+        try
         {
-            var expired = pool.RemoveExpiredTransactions(now);
-            totalExpired += expired;
+            var db = _redis.GetDatabase();
+            var server = _redis.GetServer(_redis.GetEndPoints()[0]);
+            var totalExpired = 0;
 
-            if (expired > 0)
+            // Find all mempool keys
+            foreach (var key in server.Keys(pattern: $"{RedisKeyPrefix}*:transactions"))
             {
-                _logger.LogInformation("Removed {Count} expired transactions from memory pool for register {RegisterId}",
-                    expired, registerId);
+                var entries = db.HashGetAll(key);
+                var now = DateTimeOffset.UtcNow;
+
+                foreach (var entry in entries)
+                {
+                    try
+                    {
+                        var transaction = JsonSerializer.Deserialize<Transaction>(entry.Value.ToString(), JsonOptions);
+                        if (transaction != null && transaction.AddedToPoolAt.Add(_config.DefaultTTL) < now)
+                        {
+                            db.HashDelete(key, entry.Name);
+                            totalExpired++;
+                        }
+                    }
+                    catch (JsonException)
+                    {
+                        // Remove corrupted entry
+                        db.HashDelete(key, entry.Name);
+                        totalExpired++;
+                    }
+                }
             }
-        }
 
-        if (totalExpired > 0)
+            if (totalExpired > 0)
+            {
+                _logger.LogInformation("Cleanup removed {TotalExpired} expired transactions from memory pools", totalExpired);
+            }
+
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
         {
-            _logger.LogInformation("Cleanup removed {TotalExpired} expired transactions across all memory pools", totalExpired);
+            _logger.LogError(ex, "Failed to cleanup expired transactions");
+            return Task.CompletedTask;
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -204,158 +266,6 @@ public class MemPoolManager : IMemPoolManager
         {
             // Preserve original timestamp and priority
             await AddTransactionAsync(registerId, transaction, cancellationToken);
-        }
-    }
-
-    private RegisterMemoryPool GetOrCreatePool(string registerId)
-    {
-        return _memoryPools.GetOrAdd(registerId, _ => new RegisterMemoryPool(_config.MaxSize, _logger));
-    }
-
-    /// <summary>
-    /// Internal class managing a single register's memory pool with priority queues
-    /// </summary>
-    private class RegisterMemoryPool
-    {
-        private readonly int _maxSize;
-        private readonly ILogger _logger;
-
-        // Priority queues
-        private readonly ConcurrentQueue<Transaction> _highPriorityQueue = new();
-        private readonly ConcurrentQueue<Transaction> _normalPriorityQueue = new();
-        private readonly ConcurrentQueue<Transaction> _lowPriorityQueue = new();
-
-        // Transaction lookup for quick existence checks
-        private readonly ConcurrentDictionary<string, Transaction> _transactionLookup = new();
-
-        // Statistics
-        private int _totalEvictions;
-        private int _totalExpired;
-
-        public RegisterMemoryPool(int maxSize, ILogger logger)
-        {
-            _maxSize = maxSize;
-            _logger = logger;
-        }
-
-        public int TotalCount => _transactionLookup.Count;
-        public int HighPriorityCount => _highPriorityQueue.Count;
-        public int NormalPriorityCount => _normalPriorityQueue.Count;
-        public int LowPriorityCount => _lowPriorityQueue.Count;
-        public bool IsFull => TotalCount >= _maxSize;
-        public int TotalEvictions => _totalEvictions;
-        public int TotalExpired => _totalExpired;
-
-        public DateTimeOffset? OldestTransactionTime
-        {
-            get
-            {
-                if (_transactionLookup.Values.Any())
-                {
-                    return _transactionLookup.Values.Min(t => t.AddedToPoolAt);
-                }
-                return null;
-            }
-        }
-
-        public bool ContainsTransaction(string transactionId) => _transactionLookup.ContainsKey(transactionId);
-
-        public void AddTransaction(Transaction transaction)
-        {
-            _transactionLookup[transaction.TransactionId] = transaction;
-
-            switch (transaction.Priority)
-            {
-                case TransactionPriority.High:
-                    _highPriorityQueue.Enqueue(transaction);
-                    break;
-                case TransactionPriority.Normal:
-                    _normalPriorityQueue.Enqueue(transaction);
-                    break;
-                case TransactionPriority.Low:
-                    _lowPriorityQueue.Enqueue(transaction);
-                    break;
-            }
-        }
-
-        public bool RemoveTransaction(string transactionId)
-        {
-            return _transactionLookup.TryRemove(transactionId, out _);
-        }
-
-        public List<Transaction> GetTransactions(int maxCount)
-        {
-            var transactions = new List<Transaction>();
-
-            // Get high-priority first
-            while (transactions.Count < maxCount && _highPriorityQueue.TryPeek(out var tx))
-            {
-                if (_transactionLookup.ContainsKey(tx.TransactionId))
-                {
-                    transactions.Add(tx);
-                }
-                _highPriorityQueue.TryDequeue(out _);
-            }
-
-            // Then normal priority
-            while (transactions.Count < maxCount && _normalPriorityQueue.TryPeek(out var tx))
-            {
-                if (_transactionLookup.ContainsKey(tx.TransactionId))
-                {
-                    transactions.Add(tx);
-                }
-                _normalPriorityQueue.TryDequeue(out _);
-            }
-
-            // Then low priority
-            while (transactions.Count < maxCount && _lowPriorityQueue.TryPeek(out var tx))
-            {
-                if (_transactionLookup.ContainsKey(tx.TransactionId))
-                {
-                    transactions.Add(tx);
-                }
-                _lowPriorityQueue.TryDequeue(out _);
-            }
-
-            return transactions;
-        }
-
-        public bool EvictOldest()
-        {
-            // Try to evict from low priority first, then normal
-            if (_lowPriorityQueue.TryDequeue(out var lowTx))
-            {
-                _transactionLookup.TryRemove(lowTx.TransactionId, out _);
-                return true;
-            }
-
-            if (_normalPriorityQueue.TryDequeue(out var normalTx))
-            {
-                _transactionLookup.TryRemove(normalTx.TransactionId, out _);
-                return true;
-            }
-
-            return false;
-        }
-
-        public void IncrementEvictions() => Interlocked.Increment(ref _totalEvictions);
-
-        public int RemoveExpiredTransactions(DateTimeOffset now)
-        {
-            var expiredIds = _transactionLookup.Values
-                .Where(t => t.ExpiresAt.HasValue && t.ExpiresAt.Value < now)
-                .Select(t => t.TransactionId)
-                .ToList();
-
-            foreach (var id in expiredIds)
-            {
-                if (_transactionLookup.TryRemove(id, out _))
-                {
-                    Interlocked.Increment(ref _totalExpired);
-                }
-            }
-
-            return expiredIds.Count;
         }
     }
 }
