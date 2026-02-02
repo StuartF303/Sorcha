@@ -209,7 +209,11 @@ public class TransactionManager
             throw new ArgumentException("Transaction SenderWallet is required", nameof(transaction));
         }
 
-        if (string.IsNullOrWhiteSpace(transaction.Signature))
+        // Genesis/system transactions (SenderWallet = "system") don't require signatures
+        // They are validated by the Validator Service before storage
+        var isSystemTransaction = transaction.SenderWallet.Equals("system", StringComparison.OrdinalIgnoreCase);
+
+        if (!isSystemTransaction && string.IsNullOrWhiteSpace(transaction.Signature))
         {
             throw new ArgumentException("Transaction Signature is required", nameof(transaction));
         }

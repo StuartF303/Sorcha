@@ -20,6 +20,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
 {
     private readonly ILogger<RegisterCreationOrchestrator> _logger;
     private readonly RegisterManager _registerManager;
+    private readonly TransactionManager _transactionManager;
     private readonly IWalletServiceClient _walletClient;
     private readonly IHashProvider _hashProvider;
     private readonly ICryptoModule _cryptoModule;
@@ -32,6 +33,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     public RegisterCreationOrchestrator(
         ILogger<RegisterCreationOrchestrator> logger,
         RegisterManager registerManager,
+        TransactionManager transactionManager,
         IWalletServiceClient walletClient,
         IHashProvider hashProvider,
         ICryptoModule cryptoModule,
@@ -40,6 +42,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _registerManager = registerManager ?? throw new ArgumentNullException(nameof(registerManager));
+        _transactionManager = transactionManager ?? throw new ArgumentNullException(nameof(transactionManager));
         _walletClient = walletClient ?? throw new ArgumentNullException(nameof(walletClient));
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
@@ -333,6 +336,24 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
 
         _logger.LogInformation("Created register {RegisterId} in database after genesis success", register.Id);
 
+        // Store genesis transaction in Register Service repository
+        // This allows the transaction to be queried via GET /api/registers/{id}/transactions
+        try
+        {
+            await _transactionManager.StoreTransactionAsync(genesisTransaction, cancellationToken);
+            _logger.LogInformation(
+                "Stored genesis transaction {TransactionId} in Register Service repository",
+                genesisTransaction.TxId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to store genesis transaction {TransactionId} in repository. " +
+                "Register created but genesis transaction not queryable.",
+                genesisTransaction.TxId);
+            // Don't throw - register was already created successfully
+        }
+
         return new FinalizeRegisterCreationResponse
         {
             RegisterId = register.Id,
@@ -478,13 +499,19 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         var payloadHash = _hashProvider.ComputeHash(controlRecordBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
         var payloadHashHex = Convert.ToHexString(payloadHash).ToLowerInvariant();
 
+        // Generate a proper 64-character transaction ID by hashing "genesis-{registerId}"
+        var genesisIdBytes = Encoding.UTF8.GetBytes($"genesis-{registerId}");
+        var genesisIdHash = _hashProvider.ComputeHash(genesisIdBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
+        var genesisTxId = Convert.ToHexString(genesisIdHash).ToLowerInvariant();
+
         return new TransactionModel
         {
-            TxId = $"genesis-{registerId}",
+            TxId = genesisTxId,
             RegisterId = registerId,
             SenderWallet = "system", // System transaction
             TimeStamp = controlRecord.CreatedAt.UtcDateTime,
             PrevTxId = string.Empty, // Genesis has no previous transaction
+            PayloadCount = 1, // One payload containing the control record
             Payloads = new[]
             {
                 new PayloadModel
