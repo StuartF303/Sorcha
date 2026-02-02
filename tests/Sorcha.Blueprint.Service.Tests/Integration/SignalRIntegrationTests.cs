@@ -24,9 +24,9 @@ public class SignalRIntegrationTests : IClassFixture<BlueprintServiceWebApplicat
         _factory = factory;
     }
 
-    public Task InitializeAsync() => Task.CompletedTask;
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         // Clean up all connections
         foreach (var connection in _connections)

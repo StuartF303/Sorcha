@@ -2,7 +2,8 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Microsoft.Extensions.Logging;
-using Sorcha.Blueprint.Service.Clients;
+using Sorcha.ServiceClients.Wallet;
+using Sorcha.ServiceClients.Register;
 using Sorcha.Blueprint.Service.Services.Implementation;
 using Sorcha.Register.Models;
 using System.Text;

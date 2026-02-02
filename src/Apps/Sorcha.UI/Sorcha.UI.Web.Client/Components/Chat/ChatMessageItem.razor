@@ -1,0 +1,124 @@
+@using Sorcha.UI.Core.Models.Chat
+
+<div class="chat-message @GetMessageClass()">
+    <div class="message-header">
+        <MudIcon Icon="@GetRoleIcon()" Size="MudBlazor.Size.Small" Class="mr-1" />
+        <MudText Typo="Typo.caption" Class="font-weight-bold">
+            @(Message.Role == MessageRole.User ? "You" : "AI Assistant")
+        </MudText>
+        <MudSpacer />
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            @Message.Timestamp.ToString("HH:mm")
+        </MudText>
+    </div>
+
+    <div class="message-content">
+        @if (Message.IsStreaming)
+        {
+            <span class="streaming-text">@Message.Content</span>
+            <span class="cursor-blink">|</span>
+        }
+        else
+        {
+            <span class="message-text">@Message.Content</span>
+        }
+    </div>
+
+    @if (Message.ToolResults.Any())
+    {
+        <div class="tool-results">
+            @foreach (var result in Message.ToolResults)
+            {
+                <MudChip T="string"
+                         Color="@(result.Success ? Color.Success : Color.Error)"
+                         Size="MudBlazor.Size.Small"
+                         Variant="Variant.Outlined"
+                         Icon="@(result.Success ? Icons.Material.Filled.Check : Icons.Material.Filled.Error)">
+                    @FormatToolName(result.ToolName)
+                    @if (!result.Success && !string.IsNullOrEmpty(result.Error))
+                    {
+                        <span class="ml-1">- @result.Error</span>
+                    }
+                </MudChip>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .chat-message {
+        padding: 12px 16px;
+        border-radius: 12px;
+        max-width: 85%;
+    }
+
+    .user-message {
+        background: var(--mud-palette-primary);
+        color: var(--mud-palette-primary-text);
+        align-self: flex-end;
+        margin-left: auto;
+    }
+
+    .assistant-message {
+        background: var(--mud-palette-background);
+        border: 1px solid var(--mud-palette-divider);
+        align-self: flex-start;
+    }
+
+    .message-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .message-content {
+        line-height: 1.5;
+    }
+
+    .streaming-text, .message-text {
+        white-space: pre-wrap;
+    }
+
+    .cursor-blink {
+        animation: blink 1s step-end infinite;
+    }
+
+    @@keyframes blink {
+        50% { opacity: 0; }
+    }
+
+    .tool-results {
+        margin-top: 12px;
+        padding-top: 8px;
+        border-top: 1px solid var(--mud-palette-divider);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public required Sorcha.UI.Core.Models.Chat.ChatMessage Message { get; set; }
+
+    private string GetMessageClass() =>
+        Message.Role == MessageRole.User ? "user-message" : "assistant-message";
+
+    private string GetRoleIcon() =>
+        Message.Role == MessageRole.User
+            ? Icons.Material.Filled.Person
+            : Icons.Material.Filled.SmartToy;
+
+    private string FormatToolName(string toolName) => toolName switch
+    {
+        "create_blueprint" => "Created Blueprint",
+        "add_participant" => "Added Participant",
+        "remove_participant" => "Removed Participant",
+        "add_action" => "Added Action",
+        "update_action" => "Updated Action",
+        "set_disclosure" => "Set Disclosure",
+        "add_routing" => "Added Routing",
+        "validate_blueprint" => "Validated",
+        _ => toolName
+    };
+}

@@ -3,7 +3,8 @@
 
 using Microsoft.Extensions.Logging;
 using Moq;
-using Sorcha.Blueprint.Service.Clients;
+using Sorcha.ServiceClients.Wallet;
+using Sorcha.ServiceClients.Register;
 using Sorcha.Blueprint.Service.Services.Implementation;
 using Sorcha.Register.Models;
 using System.Text;

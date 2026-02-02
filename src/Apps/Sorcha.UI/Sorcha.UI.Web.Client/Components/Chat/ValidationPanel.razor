@@ -1,0 +1,95 @@
+@using Sorcha.UI.Core.Models.Chat
+
+<MudPaper Elevation="1" Class="pa-4 validation-panel">
+    <div class="d-flex align-center mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.Checklist" Class="mr-2" />
+        <MudText Typo="Typo.h6">Validation Results</MudText>
+    </div>
+
+    @if (Validation?.Errors.Any() == true)
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-2">
+            <div class="d-flex align-center mb-2">
+                <MudText Typo="Typo.subtitle2" Class="font-weight-bold">
+                    @Validation.Errors.Count Error(s)
+                </MudText>
+            </div>
+            <ul class="validation-list">
+                @foreach (var error in Validation.Errors)
+                {
+                    <li>
+                        <span class="error-code">[@error.Code]</span>
+                        @error.Message
+                        @if (!string.IsNullOrEmpty(error.Location))
+                        {
+                            <span class="error-location">at @error.Location</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </MudAlert>
+    }
+
+    @if (Validation?.Warnings.Any() == true)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true">
+            <div class="d-flex align-center mb-2">
+                <MudText Typo="Typo.subtitle2" Class="font-weight-bold">
+                    @Validation.Warnings.Count Warning(s)
+                </MudText>
+            </div>
+            <ul class="validation-list">
+                @foreach (var warning in Validation.Warnings)
+                {
+                    <li>
+                        <span class="warning-code">[@warning.Code]</span>
+                        @warning.Message
+                        @if (!string.IsNullOrEmpty(warning.Location))
+                        {
+                            <span class="warning-location">at @warning.Location</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </MudAlert>
+    }
+
+    @if (Validation?.IsValid == true && !Validation.Warnings.Any())
+    {
+        <MudAlert Severity="Severity.Success" Dense="true">
+            Blueprint is valid and ready to be saved.
+        </MudAlert>
+    }
+</MudPaper>
+
+<style>
+    .validation-panel {
+        border-left: 4px solid var(--mud-palette-warning);
+    }
+
+    .validation-list {
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    .validation-list li {
+        margin-bottom: 4px;
+    }
+
+    .error-code, .warning-code {
+        font-family: monospace;
+        font-weight: bold;
+        margin-right: 8px;
+    }
+
+    .error-location, .warning-location {
+        opacity: 0.7;
+        font-style: italic;
+        margin-left: 8px;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public required ValidationResult Validation { get; set; }
+}
