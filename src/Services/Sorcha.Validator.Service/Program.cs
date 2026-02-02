@@ -66,6 +66,10 @@ builder.Services.AddScoped<Sorcha.Validator.Core.Validators.IConsensusValidator,
 builder.Services.AddSingleton<Sorcha.Validator.Service.Services.IMemPoolManager,
     Sorcha.Validator.Service.Services.MemPoolManager>();
 
+// Add register monitoring registry (singleton - shared state across services)
+builder.Services.AddSingleton<Sorcha.Validator.Service.Services.IRegisterMonitoringRegistry,
+    Sorcha.Validator.Service.Services.RegisterMonitoringRegistry>();
+
 // Add consensus engine
 builder.Services.AddScoped<Sorcha.Validator.Service.Services.IConsensusEngine,
     Sorcha.Validator.Service.Services.ConsensusEngine>();
@@ -111,6 +115,7 @@ builder.Services.AddSingleton<IWalletIntegrationService, WalletIntegrationServic
 
 // Add background services
 builder.Services.AddHostedService<Sorcha.Validator.Service.Services.MemPoolCleanupService>();
+builder.Services.AddHostedService<Sorcha.Validator.Service.Services.DocketBuildTriggerService>();
 
 // Add genesis configuration service (Sprint 9F)
 builder.Services.AddGenesisConfigService(builder.Configuration);

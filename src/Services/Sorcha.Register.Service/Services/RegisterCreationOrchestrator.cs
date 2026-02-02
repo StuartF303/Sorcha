@@ -336,23 +336,9 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
 
         _logger.LogInformation("Created register {RegisterId} in database after genesis success", register.Id);
 
-        // Store genesis transaction in Register Service repository
-        // This allows the transaction to be queried via GET /api/registers/{id}/transactions
-        try
-        {
-            await _transactionManager.StoreTransactionAsync(genesisTransaction, cancellationToken);
-            _logger.LogInformation(
-                "Stored genesis transaction {TransactionId} in Register Service repository",
-                genesisTransaction.TxId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "Failed to store genesis transaction {TransactionId} in repository. " +
-                "Register created but genesis transaction not queryable.",
-                genesisTransaction.TxId);
-            // Don't throw - register was already created successfully
-        }
+        // NOTE: Genesis transaction remains in Validator memory pool
+        // It will be written to Register Service database after docket creation
+        // Validator Service handles the write after successful docket build
 
         return new FinalizeRegisterCreationResponse
         {

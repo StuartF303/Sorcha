@@ -353,6 +353,7 @@ services:
       # Service client configuration for inter-service communication
       ServiceClients__WalletService__Address: http://wallet-service:8080
       ServiceClients__TenantService__Address: http://tenant-service:8080
+      ServiceClients__RegisterService__Address: http://sorcha-register-service:8080
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:

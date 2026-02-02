@@ -167,6 +167,7 @@ public static class ValidationEndpoints
     private static async Task<IResult> SubmitGenesisTransaction(
         [FromBody] GenesisTransactionRequest request,
         [FromServices] IMemPoolManager memPoolManager,
+        [FromServices] IRegisterMonitoringRegistry monitoringRegistry,
         [FromServices] Microsoft.Extensions.Options.IOptions<Sorcha.Validator.Service.Configuration.ValidatorConfiguration> validatorConfig,
         [FromServices] Sorcha.ServiceClients.Wallet.IWalletServiceClient walletClient,
         [FromServices] Sorcha.Cryptography.Interfaces.IHashProvider hashProvider,
@@ -322,6 +323,9 @@ public static class ValidationEndpoints
             }
 
             logger.LogInformation("Genesis transaction for register {RegisterId} added to memory pool successfully", request.RegisterId);
+
+            // Register for docket building monitoring
+            monitoringRegistry.RegisterForMonitoring(request.RegisterId);
 
             return Results.Ok(new
             {
