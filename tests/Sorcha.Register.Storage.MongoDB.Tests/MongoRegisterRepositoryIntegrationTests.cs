@@ -228,7 +228,7 @@ public class MongoRegisterRepositoryIntegrationTests : IAsyncLifetime
         await _sut.InsertRegisterAsync(CreateTestRegister("query-tx-reg"));
         for (int i = 1; i <= 10; i++)
         {
-            await _sut.InsertTransactionAsync(CreateTestTransaction($"q-tx-{i}", "query-tx-reg"));
+            await _sut.InsertTransactionAsync(CreateTestTransaction($"q-tx-{i:D5}", "query-tx-reg"));
         }
 
         // Act
