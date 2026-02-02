@@ -1,0 +1,28 @@
+{
+  "name": "sorcha",
+  "version": "1.0.0",
+  "description": "A modern .NET 10 blueprint execution engine and designer for data flow orchestration.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StuartF303/Sorcha.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/StuartF303/Sorcha/issues"
+  },
+  "homepage": "https://github.com/StuartF303/Sorcha#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.1",
+    "@types/node": "^25.2.0"
+  }
+}
