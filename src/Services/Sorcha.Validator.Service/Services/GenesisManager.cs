@@ -17,6 +17,7 @@ public class GenesisManager : IGenesisManager
 {
     private readonly IRegisterServiceClient _registerClient;
     private readonly IWalletServiceClient _walletClient;
+    private readonly ISystemWalletProvider _systemWalletProvider;
     private readonly MerkleTree _merkleTree;
     private readonly DocketHasher _docketHasher;
     private readonly ValidatorConfiguration _config;
@@ -25,6 +26,7 @@ public class GenesisManager : IGenesisManager
     public GenesisManager(
         IRegisterServiceClient registerClient,
         IWalletServiceClient walletClient,
+        ISystemWalletProvider systemWalletProvider,
         MerkleTree merkleTree,
         DocketHasher docketHasher,
         IOptions<ValidatorConfiguration> config,
@@ -32,6 +34,7 @@ public class GenesisManager : IGenesisManager
     {
         _registerClient = registerClient ?? throw new ArgumentNullException(nameof(registerClient));
         _walletClient = walletClient ?? throw new ArgumentNullException(nameof(walletClient));
+        _systemWalletProvider = systemWalletProvider ?? throw new ArgumentNullException(nameof(systemWalletProvider));
         _merkleTree = merkleTree ?? throw new ArgumentNullException(nameof(merkleTree));
         _docketHasher = docketHasher ?? throw new ArgumentNullException(nameof(docketHasher));
         _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
@@ -82,13 +85,17 @@ public class GenesisManager : IGenesisManager
                 createdAt);
 
             // Sign docket hash with system wallet using the docket-signing derivation path
-            var systemWalletAddress = _config.SystemWalletAddress;
+            var systemWalletId = _systemWalletProvider.GetSystemWalletId();
+            if (string.IsNullOrWhiteSpace(systemWalletId))
+            {
+                throw new InvalidOperationException("System wallet not initialized - cannot sign genesis docket");
+            }
 
-            var signResult = await _walletClient.SignDataAsync(systemWalletAddress, docketHash, cancellationToken);
+            var signResult = await _walletClient.SignDataAsync(systemWalletId, docketHash, cancellationToken);
 
             _logger.LogDebug(
-                "Docket signed by system wallet {WalletAddress} using {Algorithm}",
-                systemWalletAddress, signResult.Algorithm);
+                "Docket signed by system wallet {WalletId} using {Algorithm}",
+                systemWalletId, signResult.Algorithm);
 
             // Create genesis docket with real cryptographic signature
             var genesisDocket = new Docket

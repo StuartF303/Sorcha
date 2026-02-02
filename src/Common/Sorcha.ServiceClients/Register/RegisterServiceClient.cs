@@ -96,7 +96,8 @@ public class RegisterServiceClient : IRegisterServiceClient
                 CreatedAt = docket.CreatedAt,
                 TransactionIds = docket.Transactions.Select(t => t.TxId ?? t.Id ?? string.Empty).ToList(),
                 ProposerValidatorId = docket.ProposerValidatorId,
-                MerkleRoot = docket.MerkleRoot
+                MerkleRoot = docket.MerkleRoot,
+                Transactions = docket.Transactions
             };
 
             var response = await _httpClient.PostAsJsonAsync(
@@ -625,6 +626,7 @@ public class RegisterServiceClient : IRegisterServiceClient
         public required List<string> TransactionIds { get; init; }
         public required string ProposerValidatorId { get; init; }
         public required string MerkleRoot { get; init; }
+        public List<Sorcha.Register.Models.TransactionModel>? Transactions { get; init; }
     }
 
     private record CreateRegisterRequest

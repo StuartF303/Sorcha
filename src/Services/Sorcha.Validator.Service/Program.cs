@@ -70,6 +70,10 @@ builder.Services.AddSingleton<Sorcha.Validator.Service.Services.IMemPoolManager,
 builder.Services.AddSingleton<Sorcha.Validator.Service.Services.IRegisterMonitoringRegistry,
     Sorcha.Validator.Service.Services.RegisterMonitoringRegistry>();
 
+// Add system wallet provider (singleton - maintains wallet reference across service lifetime)
+builder.Services.AddSingleton<Sorcha.Validator.Service.Services.ISystemWalletProvider,
+    Sorcha.Validator.Service.Services.SystemWalletProvider>();
+
 // Add consensus engine
 builder.Services.AddScoped<Sorcha.Validator.Service.Services.IConsensusEngine,
     Sorcha.Validator.Service.Services.ConsensusEngine>();
@@ -114,6 +118,7 @@ builder.Services.AddSingleton(sp =>
 builder.Services.AddSingleton<IWalletIntegrationService, WalletIntegrationService>();
 
 // Add background services
+builder.Services.AddHostedService<Sorcha.Validator.Service.Services.SystemWalletInitializer>();
 builder.Services.AddHostedService<Sorcha.Validator.Service.Services.MemPoolCleanupService>();
 builder.Services.AddHostedService<Sorcha.Validator.Service.Services.DocketBuildTriggerService>();
 
