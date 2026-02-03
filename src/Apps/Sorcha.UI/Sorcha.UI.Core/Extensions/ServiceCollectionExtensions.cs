@@ -9,6 +9,7 @@ using Sorcha.UI.Core.Services.Authentication;
 using Sorcha.UI.Core.Services.Configuration;
 using Sorcha.UI.Core.Services.Encryption;
 using Sorcha.UI.Core.Services.Http;
+using Sorcha.UI.Core.Services.Navigation;
 using Sorcha.UI.Core.Services.Participants;
 using Sorcha.UI.Core.Services.Wallet;
 
@@ -47,6 +48,9 @@ public static class ServiceCollectionExtensions
 
         // Auth state sync service (for SSR -> WASM token handoff)
         services.AddScoped<AuthStateSync>();
+
+        // Navigation service for authenticated redirects with return URL support
+        services.AddScoped<INavigationService, NavigationService>();
 
         // HTTP message handler for authenticated API calls (registered but not used by AuthenticationService)
         services.AddTransient<AuthenticatedHttpMessageHandler>();

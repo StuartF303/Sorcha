@@ -1,0 +1,1 @@
+# Contracts\n\nNo new API contracts required for this feature.\n\nThis feature is entirely client-side (Blazor WASM) and uses existing OAuth2 endpoints:\n\n- **Token endpoint**: `/api/service-auth/token` (existing)\n- **Grant types**: `password`, `refresh_token` (existing)\n\nNo new endpoints, no schema changes.

@@ -1,13 +1,16 @@
 @page "/auth/login"
 @layout AuthLayout
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using Microsoft.AspNetCore.Components.Web
 @using Sorcha.UI.Core.Models.Authentication
 @using Sorcha.UI.Core.Models.Configuration
 @using Sorcha.UI.Core.Services.Authentication
 @using Sorcha.UI.Core.Services.Configuration
+@using Sorcha.UI.Core.Services.Navigation
 @using Sorcha.UI.Web.Client.Components.Layout
 @inject IAuthenticationService AuthService
 @inject IConfigurationService ConfigService
+@inject INavigationService NavigationService
 @inject CustomAuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 
@@ -69,6 +72,7 @@
                         <input type="text"
                                class="form-control"
                                @bind="_username"
+                               @onkeydown="HandleKeyDown"
                                placeholder="Enter your username"
                                autocomplete="username" />
                     </div>
@@ -78,6 +82,7 @@
                         <input type="password"
                                class="form-control"
                                @bind="_password"
+                               @onkeydown="HandleKeyDown"
                                placeholder="Enter your password"
                                autocomplete="current-password" />
                     </div>
@@ -163,6 +168,13 @@
 </ErrorBoundary>
 
 @code {
+    /// <summary>
+    /// Optional return URL to navigate to after successful login.
+    /// </summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
     private List<Profile> _profiles = new();
     private string _selectedProfile = "Development";
     private string _username = "";
@@ -191,6 +203,18 @@
 
         // Force component to re-render and show the login form
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Handles keyboard events on input fields.
+    /// Submits the form when Enter is pressed.
+    /// </summary>
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !_isLoading)
+        {
+            await HandleLogin();
+        }
     }
 
     private async Task HandleLogin()
@@ -227,8 +251,8 @@
             // Small delay to ensure state propagates before navigation
             await Task.Delay(100);
 
-            // Navigate to dashboard without forcing full reload (keeps Blazor state)
-            Navigation.NavigateTo("dashboard", forceLoad: false);
+            // Navigate to return URL if provided and valid, otherwise go to dashboard
+            NavigationService.NavigateToValidatedUrl(ReturnUrl, "dashboard");
         }
         catch (HttpRequestException ex)
         {
