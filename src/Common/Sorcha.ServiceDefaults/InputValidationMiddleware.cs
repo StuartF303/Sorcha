@@ -220,6 +220,7 @@ public partial class InputValidationMiddleware
             || headerName.Equals("If-Modified-Since", StringComparison.OrdinalIgnoreCase)
             || headerName.StartsWith("X-Forwarded-", StringComparison.OrdinalIgnoreCase)
             || headerName.StartsWith("X-Request-", StringComparison.OrdinalIgnoreCase)
+            || headerName.StartsWith("X-SignalR-", StringComparison.OrdinalIgnoreCase)
             || headerName.StartsWith("Sec-", StringComparison.OrdinalIgnoreCase);
     }
 

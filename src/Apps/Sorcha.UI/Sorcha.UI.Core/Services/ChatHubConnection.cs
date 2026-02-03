@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
 using Sorcha.UI.Core.Models.Chat;
 using Sorcha.UI.Core.Services.Authentication;
+using Sorcha.UI.Core.Services.Configuration;
 
 namespace Sorcha.UI.Core.Services;
 
@@ -16,8 +17,8 @@ public class ChatHubConnection : IChatHubConnection
 {
     private readonly HubConnection _connection;
     private readonly IAuthenticationService _authService;
+    private readonly IConfigurationService _configurationService;
     private readonly ILogger<ChatHubConnection> _logger;
-    private readonly string _profileName;
     private ChatConnectionState _state = ChatConnectionState.Disconnected;
 
     // Reconnection delays: 0s, 2s, 5s, 10s, 30s (per chat-hub.md)
@@ -55,11 +56,12 @@ public class ChatHubConnection : IChatHubConnection
     public ChatHubConnection(
         ChatHubOptions hubOptions,
         IAuthenticationService authService,
+        IConfigurationService configurationService,
         ILogger<ChatHubConnection> logger)
     {
         _authService = authService;
+        _configurationService = configurationService;
         _logger = logger;
-        _profileName = hubOptions.ProfileName;
 
         var hubUrl = $"{hubOptions.BlueprintServiceUrl.TrimEnd('/')}/hubs/chat";
 
@@ -68,7 +70,11 @@ public class ChatHubConnection : IChatHubConnection
             {
                 options.AccessTokenProvider = async () =>
                 {
-                    var token = await _authService.GetAccessTokenAsync(_profileName);
+                    // Get the current active profile name dynamically
+                    var profileName = await _configurationService.GetActiveProfileNameAsync();
+                    var token = await _authService.GetAccessTokenAsync(profileName);
+                    _logger.LogDebug("ChatHub token provider: profile={Profile}, hasToken={HasToken}",
+                        profileName, !string.IsNullOrEmpty(token));
                     return token;
                 };
             })

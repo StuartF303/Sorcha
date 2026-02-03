@@ -103,17 +103,34 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddChatHubServices(this IServiceCollection services, string baseAddress)
     {
-        // Chat Hub Connection (uses active profile from ApiConfiguration)
+        // Chat Hub Connection (uses active profile from ConfigurationService)
         services.AddScoped<IChatHubConnection>(sp =>
         {
+            // The baseAddress includes the WASM app path (e.g., http://localhost/app/ or /app/)
+            // but SignalR hubs are at the API Gateway root (e.g., http://localhost/hubs/chat or /hubs/chat)
+            // We need to strip off the app path to get the root URL
+            string hubBaseUrl;
+
+            if (Uri.TryCreate(baseAddress, UriKind.Absolute, out var uri))
+            {
+                // Absolute URL: extract just the origin (scheme + host + port)
+                hubBaseUrl = $"{uri.Scheme}://{uri.Authority}";
+            }
+            else
+            {
+                // Relative URL (like /app/) - use empty string for same-origin relative path
+                // The SignalR hub will be accessed at /hubs/chat relative to the current origin
+                hubBaseUrl = "";
+            }
+
             var options = new ChatHubOptions
             {
-                BlueprintServiceUrl = baseAddress,
-                ProfileName = ApiConfiguration.ActiveProfileName ?? "default"
+                BlueprintServiceUrl = hubBaseUrl
             };
             var authService = sp.GetRequiredService<IAuthenticationService>();
+            var configService = sp.GetRequiredService<IConfigurationService>();
             var logger = sp.GetRequiredService<ILogger<ChatHubConnection>>();
-            return new ChatHubConnection(options, authService, logger);
+            return new ChatHubConnection(options, authService, configService, logger);
         });
 
         return services;

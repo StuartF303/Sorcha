@@ -10,11 +10,7 @@ public class ChatHubOptions
 {
     /// <summary>
     /// Base URL for the Blueprint service where the Chat Hub is hosted.
+    /// Empty string means relative URLs (same origin).
     /// </summary>
     public required string BlueprintServiceUrl { get; init; }
-
-    /// <summary>
-    /// Profile name for authentication token retrieval.
-    /// </summary>
-    public required string ProfileName { get; init; }
 }

@@ -195,6 +195,23 @@ public static class JwtAuthenticationExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    // Handle SignalR WebSocket/SSE connections where token is in query string
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+
+                        // If the request is for a SignalR hub and has a token in the query string
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            (path.StartsWithSegments("/hubs") || path.StartsWithSegments("/hub")))
+                        {
+                            // Extract the token from query string for SignalR
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    },
+
                     OnAuthenticationFailed = context =>
                     {
                         var logger = context.HttpContext.RequestServices
