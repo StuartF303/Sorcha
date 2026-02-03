@@ -365,17 +365,23 @@ public class LoginTests : DockerTestBase
         await _loginPage.NavigateAsync();
         if (!await _loginPage.WaitForFormAsync()) return;
 
-        // Fill credentials
-        await _loginPage.UsernameInput.FillAsync(TestConstants.TestEmail);
-        await _loginPage.PasswordInput.FillAsync(TestConstants.TestPassword);
-
-        // Select profile if available
+        // Select profile first (before filling credentials)
         if (await _loginPage.ProfileSelector.CountAsync() > 0)
         {
             await _loginPage.SelectProfileAsync(TestConstants.TestProfileName);
         }
 
-        // Press Enter on password field instead of clicking button
+        // Fill credentials using FillAsync
+        await _loginPage.UsernameInput.FillAsync(TestConstants.TestEmail);
+        await _loginPage.PasswordInput.FillAsync(TestConstants.TestPassword);
+
+        // Blur password to trigger Blazor binding, then refocus and press Enter
+        await _loginPage.PasswordInput.BlurAsync();
+        await _loginPage.UsernameInput.BlurAsync();
+        await Page.WaitForTimeoutAsync(500);
+
+        // Focus password and press Enter
+        await _loginPage.PasswordInput.ClickAsync();
         await _loginPage.PasswordInput.PressAsync("Enter");
 
         // Wait for navigation away from login page (form was submitted)
