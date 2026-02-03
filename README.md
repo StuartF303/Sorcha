@@ -1,6 +1,8 @@
 # Sorcha
 
-A modern .NET 10 blueprint execution engine and designer for data flow orchestration.
+A distributed ledger platform for secure, multi-participant data flow orchestration built on .NET 10 and .NET Aspire.
+
+Sorcha implements the **DAD** (Disclosure, Alteration, Destruction) security model - creating cryptographically secured registers where disclosure is managed through defined schemas, alteration is recorded on immutable ledgers, and destruction risk is eliminated through peer network replication.
 
 ## Development Status
 
@@ -21,7 +23,24 @@ A modern .NET 10 blueprint execution engine and designer for data flow orchestra
 
 > **⚠️ Production Readiness: 30%** - Core functionality and authentication complete. Database persistence and security hardening are pending. See [MASTER-PLAN.md](.specify/MASTER-PLAN.md) for details.
 
-**Recent Updates (2026-01-28):**
+**Recent Updates (2026-02-03):**
+- ✅ **Validator Service Transaction Storage** - Full end-to-end genesis docket creation with transaction documents stored in MongoDB
+  - System wallet auto-initialization on validator startup using `CreateOrRetrieveSystemWalletAsync`
+  - Redis-backed memory pool (`MemPoolManager`) for transaction persistence across restarts
+  - Redis-backed register monitoring (`RegisterMonitoringRegistry`) for docket build tracking
+  - Transaction documents written to register database when dockets are created (fixed missing storage)
+  - Fixed register height tracking and docket-transaction linkage
+- ✅ **AI-Assisted Blueprint Design Chat** - Interactive blueprint design with Claude AI integration
+  - Real-time chat interface for blueprint creation assistance
+  - SignalR-based `ChatHub` with JWT authentication
+  - Anthropic AI provider configuration with streaming responses
+  - YARP routes configured for SignalR negotiation
+- ✅ **UI Authentication Improvements** - Token management and login UX enhancements
+  - Automatic token refresh handling with refresh token support
+  - Improved login flow with error handling and validation
+  - Secure token storage using browser local storage
+
+**Previous Updates (2026-01-28):**
 - ✅ **UI Register Management 100% complete** - Register list, details, creation wizard with wallet selection, transaction query
 - ✅ **CLI Register Commands complete** - `sorcha register create/list/dockets/query` with two-phase creation
 - ✅ **Enhanced CreateRegisterWizard** - 4-step flow with wallet selection for signing transactions
@@ -59,7 +78,10 @@ A modern .NET 10 blueprint execution engine and designer for data flow orchestra
 - ✅ **UI Register Management** - Wallet selection wizard, transaction query
 - ✅ **CLI Register Commands** - Two-phase creation, dockets, queries
 - ✅ **Peer Service Phase 1-3** - Hub connection, replication, heartbeat
-- ✅ **Validator Service 95%** - Memory pool, docket building, consensus
+- ✅ **Validator Service 95%** - Memory pool, docket building, consensus, transaction storage
+  - System wallet auto-initialization
+  - Redis-backed memory pool and register monitoring
+  - Full genesis docket creation with transaction document storage
 - 🚧 Validator Service decentralized consensus (leader election, multi-validator)
 - 🚧 Production deployment (Azure Key Vault, MongoDB persistence)
 
@@ -135,6 +157,19 @@ All specifications are designed to provide context for AI-assisted development. 
   - ✅ DID URI support: `did:sorcha:register:{id}/tx:{txId}`
   - ✅ JWT Bearer authentication with authorization policies (AUTH-002 COMPLETE)
   - 🚧 MongoDB repository (InMemory implementation complete)
+
+- **✅ Validator Service** (95% COMPLETE): Blockchain consensus and validation
+  - ✅ System wallet auto-initialization with `ISystemWalletProvider`
+  - ✅ Redis-backed memory pool (`IMemPoolManager`) for transaction persistence
+  - ✅ Redis-backed register monitoring (`IRegisterMonitoringRegistry`) for docket build tracking
+  - ✅ Genesis docket creation with Merkle tree computation
+  - ✅ Docket building and signing with system wallet
+  - ✅ Transaction validation and consensus
+  - ✅ Full transaction document storage integration with Register Service
+  - ✅ Periodic docket build triggers (`DocketBuildTriggerService`)
+  - ✅ JWT Bearer authentication for service-to-service communication
+  - 🚧 Decentralized consensus (leader election, multi-validator)
+  - 🚧 Byzantine fault tolerance mechanisms
 
 - **✅ Tenant Service** (85% COMPLETE): Multi-tenant authentication and authorization ([View Specification](.specify/specs/sorcha-tenant-service.md))
   - ✅ User authentication with JWT tokens (60 min lifetime)
@@ -931,10 +966,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [x] Wallet Service with EF Core persistence (95%)
 - [x] Register Service with distributed ledger (100%)
 - [x] Peer Service hub connection and replication (70%)
-- [x] Validator Service memory pool and consensus (95%)
+- [x] Validator Service memory pool, consensus, and transaction storage (95%)
 - [x] UI Consolidation - Single unified Sorcha.UI (100%)
 - [x] UI Register Management with wallet selection (100%)
+- [x] UI Authentication with token refresh (100%)
 - [x] CLI Register Commands (100%)
+- [x] AI-Assisted Blueprint Design Chat with Claude integration (100%)
 - [ ] Validator Service decentralized consensus (leader election)
 - [ ] MongoDB persistence for Register Service
 - [ ] Azure Key Vault integration for Wallet Service
