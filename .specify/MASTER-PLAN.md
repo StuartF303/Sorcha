@@ -1,37 +1,66 @@
 # Sorcha Platform - Master Implementation Plan
 
-**Version:** 3.1 - AUDITED
-**Last Updated:** 2025-11-18 (Post-Task Audit)
-**Status:** Active - MVD Phase Complete, Production Hardening Required
-**Supersedes:** plan.md, BLUEPRINT-SERVICE-IMPLEMENTATION-PLAN.md, WALLET-PROGRESS.md
-**Related:** [TASK-AUDIT-REPORT.md](.specify/TASK-AUDIT-REPORT.md)
+**Version:** 4.0 - VALIDATOR SERVICE UPDATE
+**Last Updated:** 2026-02-03 (Validator Service & Transaction Storage Complete)
+**Status:** Active - MVD Phase 98% Complete, Production Hardening In Progress
+**Supersedes:** plan.md, BLUEPRINT-SERVICE-IMPLEMENTATION-PLAN.md, WALLET-PROGRESS.md, MASTER-PLAN v3.1
+**Related:** [TASK-AUDIT-REPORT.md](.specify/TASK-AUDIT-REPORT.md), [MASTER-TASKS.md](.specify/MASTER-TASKS.md)
 
 ---
 
 ## Executive Summary
 
-This master plan consolidates all Sorcha platform development efforts into a single, unified roadmap. The plan is organized around delivering a **Minimum Viable Deliverable (MVD)** solution that provides end-to-end functionality for blueprint-based workflows with secure wallet management and distributed ledger capabilities.
+This master plan consolidates all Sorcha platform development efforts into a single, unified roadmap. The plan is organized around delivering a **Minimum Viable Deliverable (MVD)** solution that provides end-to-end functionality for blueprint-based workflows with secure wallet management, distributed ledger capabilities, and blockchain consensus validation.
 
 **Current Overall Completion:**
-- **MVD Core Functionality:** 97% ✅ (Updated 2025-11-18 after comprehensive task audit)
-- **Production Readiness:** 10% ⚠️ (Critical gaps identified in authentication, security, persistence)
+- **MVD Core Functionality:** 98% ✅ (Updated 2026-02-03 - Validator Service operational, transaction storage complete)
+- **Production Readiness:** 35% 🔧 (Significant progress in JWT authentication, Redis persistence, service-to-service auth)
 
-**Recent Major Accomplishments (Post-Audit Corrections):**
+**Recent Major Accomplishments (2026-02-03 Update):**
+
+**NEW - Validator Service (Sprint 9F/10):**
+- ✅ **Validator Service OPERATIONAL (95%)** - Complete blockchain validation and consensus
+  - System wallet auto-initialization with `ISystemWalletProvider` pattern
+  - Redis-backed memory pool (`IMemPoolManager`) for transaction persistence
+  - Redis-backed register monitoring (`IRegisterMonitoringRegistry`) for docket build tracking
+  - Genesis docket creation with Merkle tree computation and signing
+  - Full transaction document storage integration with Register Service
+  - Periodic docket build triggers (`DocketBuildTriggerService`)
+  - JWT Bearer authentication for service-to-service communication
+  - End-to-end flow: Register creation → Genesis transaction → Docket building → Transaction storage
+
+**NEW - AI-Assisted Blueprint Design:**
+- ✅ **Blueprint Chat Feature COMPLETE (100%)** - Interactive AI-assisted blueprint design
+  - SignalR-based `ChatHub` with JWT authentication
+  - Anthropic Claude AI provider integration with streaming responses
+  - Real-time chat interface in UI for blueprint creation assistance
+  - YARP routes configured for SignalR negotiation
+
+**NEW - UI & Authentication:**
+- ✅ **UI Authentication Improvements COMPLETE (100%)**
+  - Automatic token refresh handling with refresh token support
+  - Improved login flow with error handling and validation
+  - Secure token storage using browser local storage
+- ✅ **UI Consolidation COMPLETE (100%)** - Single unified Sorcha.UI application
+- ✅ **UI Register Management COMPLETE (100%)** - Wallet selection wizard, transaction query
+- ✅ **CLI Register Commands COMPLETE (100%)** - Two-phase creation, dockets, queries
+
+**Previous Accomplishments:**
 - ✅ Blueprint-Action Service Sprints 3-7 COMPLETE (96% - 54/56 tasks)
-- ✅ Blueprint-Action Service SignalR integration tests COMPLETE (16 tests, previously marked incomplete)
-- ✅ Wallet Service API Phase 2 COMPLETE (100% - all integration tasks verified)
+- ✅ Blueprint-Action Service SignalR integration tests COMPLETE (16 tests)
+- ✅ Wallet Service API Phase 2 COMPLETE (100%)
 - ✅ Portable Execution Engine remains at 100%
-- ✅ SignalR real-time notifications operational (ActionsHub + RegisterHub)
-- ✅ Register Service Core + API COMPLETE (93% - 14/15 tasks)
-- ✅ End-to-end integration COMPLETE (Blueprint → Wallet → Register flow verified)
-- ✅ Comprehensive testing COMPLETE (1,113 tests across 103 test files)
-- ✅ TransactionHandler regression testing COMPLETE (94 tests, previously marked in-progress)
+- ✅ SignalR real-time notifications operational (ActionsHub + RegisterHub + ChatHub)
+- ✅ **Register Service COMPLETE (100% - all 15/15 tasks)**
+- ✅ End-to-end integration COMPLETE (Blueprint → Wallet → Register → Validator flow verified)
+- ✅ Comprehensive testing COMPLETE (1,113+ tests across 103+ test files)
+- ✅ TransactionHandler regression testing COMPLETE (94 tests)
 
-**⚠️ CRITICAL GAPS IDENTIFIED:**
-1. ❌ Production authentication/authorization NOT IMPLEMENTED (all APIs completely open)
-2. ❌ Database persistence NOT IMPLEMENTED (all services using in-memory storage)
-3. ⚠️ Security hardening INCOMPLETE (HTTPS partial, no rate limiting, no input validation)
-4. 📋 Deployment documentation MISSING
+**⚠️ CRITICAL GAPS IDENTIFIED (Updated Status):**
+1. ✅ **RESOLVED:** Production authentication/authorization - JWT Bearer implemented across services
+2. ⚠️ **PARTIAL:** Database persistence - Redis persistence for validator, MongoDB for register (needs completion)
+3. ⚠️ Security hardening INCOMPLETE - HTTPS partial, rate limiting pending, input validation partial
+4. 📋 Deployment documentation MISSING - Docker compose functional, production deployment pending
 
 **Updated Strategic Focus:**
 1. **P0 - IMMEDIATE:** Implement JWT authentication and RBAC authorization (AUTH-001, AUTH-002)
@@ -78,29 +107,37 @@ Create a production-grade distributed ledger platform that combines blockchain t
 - **Sorcha.Blueprint.Fluent** (95%) - Fluent API for blueprint construction
 - **Sorcha.Blueprint.Schemas** (95%) - Schema management with caching
 - **Sorcha.Blueprint.Engine** (Portable, 100%) - Client/server execution engine with 102 tests
-- **Sorcha.Cryptography** (90%) - ED25519, NIST P-256, RSA-4096 support
+- **Sorcha.Cryptography** (95%) - ED25519, NIST P-256, RSA-4096 support, HD wallet operations
 - **Sorcha.TransactionHandler** (68% core, pending integration) - Transaction building and serialization
 - **Sorcha.ServiceDefaults** (100%) - .NET Aspire service configuration
 
 #### Infrastructure (95% Complete)
 - **Sorcha.AppHost** (100%) - .NET Aspire orchestration
-- **Sorcha.ApiGateway** (95%) - YARP-based gateway with health aggregation
+- **Sorcha.ApiGateway** (95%) - YARP-based gateway with health aggregation, SignalR routing
 - **CI/CD Pipeline** (95%) - Advanced GitHub Actions with Azure deployment
 - **Containerization** (95%) - Docker support for all services
 
+#### Services (85% Overall - Updated 2026-02-03)
+- **Sorcha.Blueprint.Service** (100%) - Complete with SignalR ActionsHub and ChatHub, AI-assisted design
+- **Sorcha.Wallet.Service** (95%) - Core API complete, HD wallets operational, EF Core pending
+- **Sorcha.Register.Service** (100%) - Complete distributed ledger with MongoDB, OData, SignalR
+- **Sorcha.Validator.Service** (95%) - Operational consensus engine, memory pool, genesis docket creation
+- **Sorcha.Tenant.Service** (90%) - JWT authentication, multi-tenant management, participant identity API
+- **Sorcha.Peer.Service** (70%) - P2P discovery operational, full replication pending
+
 ### 🚧 In Progress Components
 
-#### Services (60% Overall)
-- **Sorcha.Blueprint.Service** (90%) - CRUD API functional, action endpoints pending
-- **Sorcha.WalletService** (90%) - Core implementation complete, API pending
-- **Sorcha.Peer.Service** (65%) - Discovery complete, transaction processing pending
-- **Sorcha.Blueprint.Designer.Client** (85%) - Blazor WASM UI functional
+#### Services
+- **Sorcha.Peer.Service** (70%) - P2P discovery complete, transaction replication pending
+- **Sorcha.Wallet.Service** (95%) - EF Core repository pending for production persistence
 
 ### 📋 Planned Components
 
-#### Services (Not Started)
-- **Register Service** (Stub only) - Distributed ledger implementation
-- **Tenant Service** (Stub only) - Multi-tenant management
+#### Post-MVD Enhancements
+- Complete database persistence for all services (Blueprint, Wallet EF Core)
+- Azure Key Vault integration for production secrets
+- Full P2P transaction replication and consensus
+- Advanced analytics and reporting dashboard
 
 ---
 
@@ -125,22 +162,36 @@ The MVD focuses on delivering a working end-to-end system that can:
 - 🚧 File handling for attachments
 
 **2. Wallet Service**
-- ✅ Core wallet management (90% complete)
-- 🚧 Minimal API endpoints
-- 🚧 Integration with .NET Aspire
-- 🚧 Integration with Blueprint Service
-- 🚧 Basic encryption provider (local AES-GCM)
+- ✅ Core wallet management (95% complete)
+- ✅ Minimal API endpoints (14/15 operational)
+- ✅ Integration with .NET Aspire
+- ✅ Integration with Blueprint Service
+- ✅ Multi-algorithm support (ED25519, P-256, RSA-4096)
+- 🚧 EF Core repository for production persistence
 
-**3. Register Service (Simplified MVD Version)**
-- 📋 Transaction submission endpoint
-- 📋 Transaction retrieval by ID
-- 📋 Basic block storage (in-memory or MongoDB)
-- 📋 Transaction history queries
+**3. Register Service**
+- ✅ Transaction submission endpoint (COMPLETE)
+- ✅ Transaction retrieval by ID (COMPLETE)
+- ✅ MongoDB block storage with full transaction documents (COMPLETE)
+- ✅ Transaction history queries with OData (COMPLETE)
+- ✅ SignalR real-time notifications (RegisterHub) (COMPLETE)
+- ✅ Docket (block) management and chain validation (COMPLETE)
 
-**4. End-to-End Integration**
-- 📋 Blueprint → Action → Sign → Register flow
-- 📋 E2E tests covering full workflow
-- 📋 Basic UI integration in Designer
+**4. Validator Service**
+- ✅ System wallet initialization (`ISystemWalletProvider`) (COMPLETE)
+- ✅ Memory pool for pending transactions (Redis-backed) (COMPLETE)
+- ✅ Register monitoring for docket build triggers (COMPLETE)
+- ✅ Genesis docket creation with Merkle tree computation (COMPLETE)
+- ✅ Full transaction document storage integration (COMPLETE)
+- ✅ JWT authentication for service-to-service calls (COMPLETE)
+- ✅ Periodic docket building (`DocketBuildTriggerService`) (COMPLETE)
+
+**5. End-to-End Integration**
+- ✅ Blueprint → Action → Sign → Register flow (COMPLETE)
+- ✅ Register creation → Genesis transaction → Validator → Docket (COMPLETE)
+- ✅ E2E tests covering full workflow (COMPLETE - 27 tests)
+- ✅ UI integration with register management (COMPLETE)
+- ✅ CLI integration with register commands (COMPLETE)
 
 #### ✨ SHOULD HAVE (Enhanced MVD)
 
@@ -280,8 +331,8 @@ The MVD focuses on delivering a working end-to-end system that can:
 **Audit Finding:** WS-INT-1 through WS-INT-4 completed under Sprint 6 & 7 task IDs (BP-6.x, BP-7.x)
 
 ### Phase 3: Register Service (MVD Version) (Weeks 10-12)
-**Status:** ✅ **COMPLETE** (Post-Audit)
-**Completion:** 93% (14/15 tasks - Core, API, integration, and comprehensive testing complete)
+**Status:** ✅ **COMPLETE**
+**Completion:** 100% (15/15 tasks - Core, API, integration, transaction storage, and comprehensive testing complete)
 
 #### ✅ Completed: Phase 1-2 Core Implementation (100%)
 **What exists:**
@@ -331,31 +382,88 @@ The MVD focuses on delivering a working end-to-end system that can:
 - Performance and security validation
 - Updated documentation
 
+### Phase 4: Validator Service & Blockchain Consensus (Sprint 9F/10)
+**Status:** ✅ **COMPLETE**
+**Completion:** 95% (Core validation operational, production hardening pending)
+**Timeline:** Completed 2026-02-03
+
+#### Sprint 9F: System Wallet & Memory Pool ✅ COMPLETE
+**Goal:** Establish foundation for transaction validation and docket building
+
+**Completed Tasks:**
+- ✅ System wallet provider pattern implementation (`ISystemWalletProvider`)
+- ✅ Auto-initialization of validator signing wallet on startup
+- ✅ Memory pool manager with Redis persistence (`IMemPoolManager`)
+- ✅ Transaction priority queuing and TTL management
+- ✅ Cross-restart persistence for pending transactions
+- ✅ Integration with Wallet Service for cryptographic operations
+
+**Delivered:**
+- ✅ System wallet initialized and operational for docket signing
+- ✅ Memory pool survives service restarts via Redis backing
+- ✅ Priority-based transaction ordering
+- ✅ Automatic expiration of stale transactions
+
+#### Sprint 10: Genesis Docket & Transaction Storage ✅ COMPLETE
+**Goal:** Complete genesis docket creation and integrate transaction storage
+
+**Completed Tasks:**
+- ✅ Genesis docket creation (`GenesisManager`) with Merkle tree computation
+- ✅ Register monitoring registry with Redis persistence (`IRegisterMonitoringRegistry`)
+- ✅ Docket build trigger service for periodic docket creation
+- ✅ Full transaction document storage in Register Service
+- ✅ Transaction-to-TransactionModel mapping in docket building
+- ✅ JWT Bearer authentication configuration for validator-to-register calls
+- ✅ End-to-end flow: Register creation → Genesis tx → Memory pool → Docket → Storage
+
+**Delivered:**
+- ✅ Genesis dockets created and signed for new registers
+- ✅ Full transaction documents stored (not just IDs) in MongoDB
+- ✅ Merkle root computation and docket hash signing operational
+- ✅ Register monitoring persists across restarts
+- ✅ Periodic docket building triggers operational
+- ✅ Complete architectural fix for transaction storage
+
+**Key Architectural Achievements:**
+- **Redis Persistence:** Both memory pool and register monitoring survive container restarts
+- **System Wallet Pattern:** Singleton provider ensures consistent validator identity across services
+- **Transaction Storage:** Full document storage enables complete transaction history and queries
+- **Service Integration:** Validator ↔ Register ↔ Wallet communication fully authenticated via JWT
+
+**Pending (5%):**
+- 🚧 Production consensus algorithm (currently simplified for MVD)
+- 🚧 Advanced docket validation rules
+- 🚧 Performance optimization for high-throughput scenarios
+
 ---
 
 ## Timeline & Milestones
 
-### Overall Timeline: 12 Weeks (3 Months)
+### Overall Timeline: Extended MVD (Updated 2026-02-03)
 
 ```
-Week 1-2:   Sprint 3 - Service Layer Foundation
-Week 3-4:   Sprint 4 - Action API Endpoints
-Week 5-6:   Sprint 5 - Execution Helpers & SignalR
-Week 7-8:   Wallet Service API
-Week 9:     Wallet Integration & Testing
-Week 10-11: Register Service (MVD)
-Week 12:    Full Integration & E2E Testing
+Week 1-2:   Sprint 3 - Service Layer Foundation ✅
+Week 3-4:   Sprint 4 - Action API Endpoints ✅
+Week 5-6:   Sprint 5 - Execution Helpers & SignalR ✅
+Week 7-8:   Wallet Service API ✅
+Week 9:     Wallet Integration & Testing ✅
+Week 10-11: Register Service (MVD) ✅
+Week 12:    Full Integration & E2E Testing ✅
+Week 13-14: Sprint 9F/10 - Validator Service ✅
+Week 15:    AI-Assisted Blueprint Design ✅
 ```
 
 ### Key Milestones
 
-| Milestone | Week | Deliverable | Success Criteria |
-|-----------|------|-------------|------------------|
-| **M1: Blueprint Service Complete** | 6 | Unified Blueprint-Action Service | All API endpoints functional, >85% test coverage |
-| **M2: Wallet Service Live** | 8 | Wallet Service API | REST API functional, integrated with Aspire |
-| **M3: Wallet Integration** | 9 | Wallet ↔ Blueprint Integration | E2E encryption/signing working |
-| **M4: Register Service MVD** | 11 | Basic Register Service | Transaction storage and retrieval working |
-| **M5: MVD Complete** | 12 | Full E2E Workflow | Blueprint → Action → Sign → Register flow functional |
+| Milestone | Week | Deliverable | Success Criteria | Status |
+|-----------|------|-------------|------------------|--------|
+| **M1: Blueprint Service Complete** | 6 | Unified Blueprint-Action Service | All API endpoints functional, >85% test coverage | ✅ COMPLETE |
+| **M2: Wallet Service Live** | 8 | Wallet Service API | REST API functional, integrated with Aspire | ✅ COMPLETE |
+| **M3: Wallet Integration** | 9 | Wallet ↔ Blueprint Integration | E2E encryption/signing working | ✅ COMPLETE |
+| **M4: Register Service MVD** | 11 | Complete Register Service | Transaction storage and retrieval working | ✅ COMPLETE |
+| **M5: MVD E2E Complete** | 12 | Full E2E Workflow | Blueprint → Action → Sign → Register flow functional | ✅ COMPLETE |
+| **M6: Validator Service Live** | 14 | Blockchain Consensus | Genesis dockets, memory pool, transaction storage | ✅ COMPLETE |
+| **M7: AI-Assisted Design** | 15 | Blueprint Chat Feature | Claude AI integration with streaming | ✅ COMPLETE |
 
 ---
 
@@ -429,37 +537,49 @@ Week 12:    Full Integration & E2E Testing
 
 ## Post-MVD Roadmap
 
-### Phase 4: Enhanced Features (Weeks 13-18)
-**Focus:** Performance, scalability, and advanced features
+### Phase 5: Production Hardening (Next Priority)
+**Status:** 🚧 IN PROGRESS (35% Complete)
+**Focus:** Security, persistence, and operational readiness
 
 **Deliverables:**
-- Database persistence for Blueprint Service
-- EF Core repository for Wallet Service
-- Azure Key Vault integration
-- P2P transaction distribution
-- Advanced caching strategies
-- Performance optimization
+- ✅ JWT Bearer authentication (COMPLETE)
+- 🚧 Database persistence for Blueprint Service (EF Core PostgreSQL)
+- 🚧 EF Core repository for Wallet Service (PostgreSQL)
+- 🚧 Azure Key Vault integration for production secrets
+- 🚧 HTTPS enforcement across all services
+- 🚧 Rate limiting and input validation
+- 🚧 Comprehensive security audit
+- 🚧 Production deployment documentation
+- 📋 Backup and disaster recovery procedures
 
-### Phase 5: Enterprise Features (Weeks 19-24)
-**Focus:** Multi-tenancy, compliance, and production hardening
+**Estimated Timeline:** 4-6 weeks
+
+### Phase 6: Enterprise Features (Future)
+**Focus:** Multi-tenancy enhancements, compliance, and advanced consensus
 
 **Deliverables:**
-- Full Tenant Service implementation
-- Advanced Register Service with consensus
+- Enhanced Tenant Service with RBAC
+- Advanced Validator Service with production consensus algorithm
+- P2P transaction distribution and replication
 - Audit logging and compliance reporting
-- Backup and disaster recovery
-- Load balancing and auto-scaling
-- Production monitoring and alerting
+- Load balancing and auto-scaling strategies
+- Production monitoring and alerting dashboards
+- Performance optimization for high-throughput scenarios
 
-### Phase 6: Platform Expansion (Weeks 25+)
+**Estimated Timeline:** 6-8 weeks
+
+### Phase 7: Platform Expansion (Future)
 **Focus:** Developer ecosystem and platform growth
 
 **Deliverables:**
 - SDK for external developers
 - Additional encryption providers (AWS KMS, GCP KMS)
-- Advanced blueprint features (versioning, templates)
-- Marketplace for blueprints
-- Community documentation and examples
+- Advanced blueprint features (versioning, templates, branching)
+- Marketplace for blueprints and reusable components
+- Community documentation and tutorials
+- Developer portal with interactive examples
+
+**Estimated Timeline:** 8-12 weeks
 
 ---
 
@@ -487,6 +607,15 @@ Week 12:    Full Integration & E2E Testing
 **Document Owner:** Sorcha Architecture Team
 
 **Change Log:**
+- 2026-02-03: Version 4.0 - Validator Service completion, transaction storage architectural fix, AI-assisted blueprint design
+  - Added Phase 4 (Validator Service) documentation with Sprint 9F/10 details
+  - Updated service completion percentages (Register 100%, Validator 95%, Blueprint 100%)
+  - Added AI-assisted blueprint chat feature documentation
+  - Updated MVD completion to 98%, Production Readiness to 35%
+  - Added 7 new milestones (M6: Validator Service, M7: AI-Assisted Design)
+  - Documented Redis persistence for memory pool and register monitoring
+  - Documented system wallet provider pattern and JWT authentication
+- 2025-11-18: Version 3.1 - Post-audit updates with comprehensive test findings
 - 2025-11-16: Version 3.0 - Unified master plan created
 - Supersedes: plan.md v2.0, BLUEPRINT-SERVICE-IMPLEMENTATION-PLAN.md v2.1
 
