@@ -256,7 +256,8 @@
       "Bash(./scripts/get-jwt-token.ps1 -Email \"admin@sorcha.local\" -Password \"Admin123!\" -Quiet)",
       "Bash(Select-Object -Last 1)",
       "Bash(./test-mongodb-register.sh:*)",
-      "Bash(./test-register-mongodb.sh:*)"
+      "Bash(./test-register-mongodb.sh:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTAwMDAtMDAwMS0wMDAwMDAwMDAwMDEiLCJlbWFpbCI6ImFkbWluQHNvcmNoYS5sb2NhbCIsImp0aSI6IjZiNGQ1Yzk3LTdiZmMtNDg3NS05MGM3LWFmMTdhZThjMThlNSIsIm5hbWUiOiJTeXN0ZW0gQWRtaW5pc3RyYXRvciIsIm9yZ19pZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMSIsIm9yZ19uYW1lIjoiU29yY2hhIExvY2FsIiwidG9rZW5fdHlwZSI6InVzZXIiLCJyb2xlIjpbIkFkbWluaXN0cmF0b3IiLCJTeXN0ZW1BZG1pbiIsIkRlc2lnbmVyIiwiRGV2ZWxvcGVyIiwiVXNlciIsIkNvbnN1bWVyIiwiQXVkaXRvciJdLCJuYmYiOjE3NzAxMjkyNjcsImV4cCI6MTc3MDEzMjg2NywiaWF0IjoxNzcwMTI5MjY3LCJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCJ9._Pt983QfW2jaoF4Fn_mYUIikLBc2gdAET3qtZ4VGdsE\")"
     ],
     "deny": [],
     "ask": []
