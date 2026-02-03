@@ -117,6 +117,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
+      # AI Provider configuration (Anthropic Claude API)
+      AIProvider__ApiKey: ${ANTHROPIC_API_KEY:-}
+      AIProvider__Model: claude-sonnet-4-20250514
       # Service client configuration for inter-service communication
       ServiceClients__RegisterService__Address: http://register-service:8080
       ServiceClients__WalletService__Address: http://wallet-service:8080
