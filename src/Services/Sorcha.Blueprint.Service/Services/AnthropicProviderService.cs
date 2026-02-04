@@ -52,8 +52,11 @@ public class AnthropicProviderService : IAIProviderService
             Stream = true
         };
 
-        _logger.LogDebug("Starting AI completion stream with {MessageCount} messages and {ToolCount} tools",
-            messages.Count, tools.Count);
+        _logger.LogInformation("Starting AI completion stream with model: {Model}, {MessageCount} messages, {ToolCount} tools",
+            _options.Model, messages.Count, tools.Count);
+        _logger.LogInformation("System prompt length: {Length} chars, Tools: {ToolNames}",
+            (systemPrompt ?? "").Length, string.Join(", ", tools.Select(t => t.Name)));
+        _logger.LogDebug("Full system prompt: {SystemPrompt}", systemPrompt ?? "You are a helpful assistant.");
 
         string? currentToolId = null;
         string? currentToolName = null;
@@ -71,6 +74,7 @@ public class AnthropicProviderService : IAIProviderService
                 currentToolId = response.ContentBlock.Id;
                 currentToolName = response.ContentBlock.Name;
                 toolArgumentsJson = "";
+                _logger.LogInformation("AI is calling tool: {ToolName} (ID: {ToolId})", currentToolName, currentToolId);
             }
             else if (response.Delta?.Type == "input_json_delta" && response.Delta.PartialJson != null)
             {
@@ -101,6 +105,7 @@ public class AnthropicProviderService : IAIProviderService
             }
             else if (response.Delta?.StopReason != null)
             {
+                _logger.LogInformation("AI stream ended with stop reason: {StopReason}", response.Delta.StopReason);
                 yield return new StreamEnd(response.Delta.StopReason);
             }
         }
@@ -136,10 +141,13 @@ public class AnthropicProviderService : IAIProviderService
             else if (msg.ToolCalls != null && msg.ToolCalls.Count > 0)
             {
                 // Assistant message with tool calls
-                var contents = new List<ContentBase>
+                var contents = new List<ContentBase>();
+
+                // Only add text content if it's non-empty
+                if (!string.IsNullOrWhiteSpace(msg.Content))
                 {
-                    new TextContent { Text = msg.Content }
-                };
+                    contents.Add(new TextContent { Text = msg.Content });
+                }
 
                 foreach (var tc in msg.ToolCalls)
                 {
