@@ -220,15 +220,16 @@
             </summary>
         </member>
         <member name="T:Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator">
-            <summary>
-            JSON Logic expression evaluator for calculations and conditional routing.
-            </summary>
-            <remarks>
-            This implementation uses Json.Logic.Net to evaluate JSON Logic expressions
-            as defined at https://jsonlogic.com
+             <summary>
+             JSON Logic expression evaluator for calculations and conditional routing.
+             </summary>
+             <remarks>
+             This implementation uses Json.Logic.Net to evaluate JSON Logic expressions
+             as defined at https://jsonlogic.com
             
-            Thread-safe and can be used concurrently.
-            </remarks>
+             Thread-safe and can be used concurrently.
+             Optionally uses JsonLogicCache to avoid repeated deserialization of the same expression.
+             </remarks>
         </member>
         <member name="M:Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator.Evaluate(System.Text.Json.Nodes.JsonNode,System.Collections.Generic.Dictionary{System.String,System.Object})">
             <summary>
@@ -294,6 +295,29 @@
         <member name="M:Sorcha.Blueprint.Engine.Implementation.RoutingEngine.DetermineNextAsync(Sorcha.Blueprint.Models.Blueprint,Sorcha.Blueprint.Models.Action,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
             <summary>
             Determine the next action and participant based on routing conditions.
+            Routes (if defined) take precedence over legacy Condition-based routing.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.RoutingEngine.EvaluateRoutes(Sorcha.Blueprint.Models.Blueprint,System.Collections.Generic.List{Sorcha.Blueprint.Models.Route},System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Evaluates Route-based routing: iterates routes in order,
+            first matching condition wins, default route used as fallback.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.RoutingEngine.BuildRoutingResult(Sorcha.Blueprint.Models.Blueprint,Sorcha.Blueprint.Models.Route,System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            Builds a RoutingResult from a matched Route.
+            Single NextActionId → Next(), multiple → Parallel().
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.RoutingEngine.EvaluateLegacyConditionsAsync(Sorcha.Blueprint.Models.Blueprint,Sorcha.Blueprint.Models.Action,System.Collections.Generic.Dictionary{System.String,System.Object},System.Threading.CancellationToken)">
+            <summary>
+            Legacy Condition-based routing via Action.Participants.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Implementation.RoutingEngine.IsTruthy(System.Object)">
+            <summary>
+            Determines if a JSON Logic evaluation result is truthy.
             </summary>
         </member>
         <member name="M:Sorcha.Blueprint.Engine.Implementation.RoutingEngine.FindNextActionForParticipant(Sorcha.Blueprint.Models.Blueprint,Sorcha.Blueprint.Models.Action,System.String)">
@@ -1177,20 +1201,38 @@
             Used server-side in Blueprint Service.
             </summary>
         </member>
-        <member name="T:Sorcha.Blueprint.Engine.Models.RoutingResult">
+        <member name="T:Sorcha.Blueprint.Engine.Models.RoutedAction">
             <summary>
-            Result of routing determination indicating the next step in the workflow.
+            Represents a single routed action target in a parallel or single-route result.
             </summary>
-            <remarks>
-            The routing result is produced by evaluating routing conditions
-            against the action data to determine which participant should
-            perform the next action.
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.RoutedAction.ActionId">
+            <summary>Target action ID.</summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.RoutedAction.ParticipantId">
+            <summary>Target participant ID, if specified by the route.</summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.RoutedAction.BranchId">
+            <summary>Unique branch identifier for parallel execution tracking.</summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.RoutedAction.MatchedRouteId">
+            <summary>The route ID that was matched to produce this action.</summary>
+        </member>
+        <member name="T:Sorcha.Blueprint.Engine.Models.RoutingResult">
+             <summary>
+             Result of routing determination indicating the next step in the workflow.
+             </summary>
+             <remarks>
+             The routing result is produced by evaluating routing conditions
+             against the action data to determine which participant should
+             perform the next action.
             
-            Three possible outcomes:
-            1. Normal routing: NextActionId and NextParticipantId are set
-            2. Workflow complete: IsWorkflowComplete is true, no next action
-            3. Rejection: RejectedToParticipantId is set (workflow returns to sender)
-            </remarks>
+             Four possible outcomes:
+             1. Normal routing: NextActionId and NextParticipantId are set (single next action)
+             2. Parallel routing: NextActions has multiple entries, IsParallel is true
+             3. Workflow complete: IsWorkflowComplete is true, no next action
+             4. Rejection: RejectedToParticipantId is set (workflow returns to sender)
+             </remarks>
         </member>
         <member name="P:Sorcha.Blueprint.Engine.Models.RoutingResult.NextActionId">
             <summary>
@@ -1199,6 +1241,7 @@
             <remarks>
             Null if the workflow is complete or rejected.
             This ID corresponds to an action in the blueprint.
+            For backward compatibility, also populated when a single-route result is created.
             </remarks>
         </member>
         <member name="P:Sorcha.Blueprint.Engine.Models.RoutingResult.NextParticipantId">
@@ -1220,15 +1263,15 @@
             </remarks>
         </member>
         <member name="P:Sorcha.Blueprint.Engine.Models.RoutingResult.RejectedToParticipantId">
-            <summary>
-            If set, indicates the action was rejected and should return to this participant.
-            </summary>
-            <remarks>
-            Used in approval workflows where an action can be rejected
-            and sent back to the original requester.
+             <summary>
+             If set, indicates the action was rejected and should return to this participant.
+             </summary>
+             <remarks>
+             Used in approval workflows where an action can be rejected
+             and sent back to the original requester.
             
-            When set, this takes precedence over NextActionId/NextParticipantId.
-            </remarks>
+             When set, this takes precedence over NextActionId/NextParticipantId.
+             </remarks>
         </member>
         <member name="P:Sorcha.Blueprint.Engine.Models.RoutingResult.MatchedCondition">
             <summary>
@@ -1239,6 +1282,21 @@
             Useful for understanding why a particular route was chosen.
             </remarks>
         </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.RoutingResult.NextActions">
+            <summary>
+            List of next actions for route-based routing, supporting parallel branches.
+            </summary>
+            <remarks>
+            For single-route results, contains one entry matching NextActionId/NextParticipantId.
+            For parallel results, contains multiple entries (one per branch).
+            Empty for workflow-complete or rejection results.
+            </remarks>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.RoutingResult.IsParallel">
+            <summary>
+            True when multiple next actions exist (parallel branch execution).
+            </summary>
+        </member>
         <member name="M:Sorcha.Blueprint.Engine.Models.RoutingResult.Complete">
             <summary>
             Creates a routing result for workflow completion.
@@ -1248,6 +1306,17 @@
             <summary>
             Creates a routing result for the next action.
             </summary>
+            <remarks>
+            Populates both the singular NextActionId/NextParticipantId properties
+            and the NextActions list for backward compatibility.
+            </remarks>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Models.RoutingResult.Parallel(System.Collections.Generic.List{Sorcha.Blueprint.Engine.Models.RoutedAction},System.String)">
+            <summary>
+            Creates a routing result for parallel branch execution.
+            </summary>
+            <param name="actions">The list of routed actions to execute in parallel.</param>
+            <param name="matchedCondition">The condition that produced this parallel result.</param>
         </member>
         <member name="M:Sorcha.Blueprint.Engine.Models.RoutingResult.Reject(System.String)">
             <summary>

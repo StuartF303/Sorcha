@@ -57,6 +57,9 @@ builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IRoutingEngine, So
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IActionProcessor, Sorcha.Blueprint.Engine.Implementation.ActionProcessor>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IExecutionEngine, Sorcha.Blueprint.Engine.Implementation.ExecutionEngine>();
 
+// Add JsonLogic expression cache (singleton - shared across scoped evaluators)
+builder.Services.AddSingleton<Sorcha.Blueprint.Engine.Caching.JsonLogicCache>();
+
 // Add Action service layer (Sprint 3)
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IActionResolverService, Sorcha.Blueprint.Service.Services.Implementation.ActionResolverService>();
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IPayloadResolverService, Sorcha.Blueprint.Service.Services.Implementation.PayloadResolverService>();
@@ -584,7 +587,8 @@ actionsGroup.MapPost("/", async (
     Sorcha.ServiceClients.Wallet.IWalletServiceClient walletClient,
     Sorcha.ServiceClients.Register.IRegisterServiceClient registerClient,
     Sorcha.Blueprint.Service.Storage.IActionStore actionStore,
-    Sorcha.Cryptography.Interfaces.IHashProvider hashProvider) =>
+    Sorcha.Cryptography.Interfaces.IHashProvider hashProvider,
+    Sorcha.Blueprint.Engine.Interfaces.IDisclosureProcessor disclosureProcessor) =>
 {
     try
     {
@@ -602,21 +606,35 @@ actionsGroup.MapPost("/", async (
             return Results.BadRequest(new { error = "Action not found in blueprint" });
         }
 
-        // 3. Determine participants who will receive payloads
-        // For MVP, encrypt payload for the sender wallet
-        // TODO: In full implementation, process disclosure rules to determine
-        // which data each participant should receive
-        var participantWalletMap = new Dictionary<string, string>
-        {
-            [request.SenderWallet] = request.SenderWallet
-        };
+        // 3. Process disclosure rules to determine which data each participant receives
+        var disclosureResults = new Dictionary<string, object>();
+        var participantWalletMap = new Dictionary<string, string>();
 
-        // Simple disclosure: all participants get the full payload
-        // In production, use disclosure rules from actionDef
-        var disclosureResults = new Dictionary<string, object>
+        var actionDisclosures = actionDef.Disclosures?.ToList();
+        if (actionDisclosures != null && actionDisclosures.Count > 0)
         {
-            [request.SenderWallet] = request.PayloadData
-        };
+            // Apply disclosure rules: each participant gets only their authorized fields
+            var engineDisclosures = disclosureProcessor.CreateDisclosures(
+                request.PayloadData,
+                actionDisclosures);
+
+            foreach (var disclosure in engineDisclosures)
+            {
+                // Resolve participant ID to wallet address from blueprint participants
+                var participant = blueprint.Participants.FirstOrDefault(p => p.Id == disclosure.ParticipantId);
+                var walletAddress = participant?.WalletAddress ?? disclosure.ParticipantId;
+
+                disclosureResults[walletAddress] = disclosure.DisclosedData;
+                participantWalletMap[disclosure.ParticipantId] = walletAddress;
+            }
+        }
+
+        // Ensure sender always receives the full payload
+        if (!disclosureResults.ContainsKey(request.SenderWallet))
+        {
+            disclosureResults[request.SenderWallet] = request.PayloadData;
+            participantWalletMap[request.SenderWallet] = request.SenderWallet;
+        }
 
         // 4. Create encrypted payloads using Wallet Service
         var encryptedPayloads = await payloadResolver.CreateEncryptedPayloadsAsync(
@@ -1751,9 +1769,108 @@ public class PublishService(IBlueprintStore blueprintStore, IPublishedBlueprintS
         }
 
         // Rule 4: No circular action dependencies
-        // TODO: Implement graph cycle detection
+        var cycleErrors = DetectCycles(blueprint);
+        errors.AddRange(cycleErrors);
 
         return errors;
+    }
+
+    /// <summary>
+    /// Detects cycles in the blueprint action graph using DFS with coloring.
+    /// Checks Routes[].NextActionIds and RejectionConfig.TargetActionId edges.
+    /// </summary>
+    private List<string> DetectCycles(BlueprintModel blueprint)
+    {
+        var errors = new List<string>();
+
+        // Build adjacency list: actionId -> list of target actionIds
+        var adjacency = new Dictionary<int, List<int>>();
+        foreach (var action in blueprint.Actions)
+        {
+            var targets = new List<int>();
+
+            // Add edges from Routes
+            if (action.Routes != null)
+            {
+                foreach (var route in action.Routes)
+                {
+                    if (route.NextActionIds != null)
+                    {
+                        targets.AddRange(route.NextActionIds);
+                    }
+                }
+            }
+
+            // Add edge from RejectionConfig
+            if (action.RejectionConfig != null)
+            {
+                targets.Add(action.RejectionConfig.TargetActionId);
+            }
+
+            adjacency[action.Id] = targets;
+        }
+
+        // DFS with coloring: 0=White (unvisited), 1=Gray (in path), 2=Black (done)
+        var color = new Dictionary<int, int>();
+        foreach (var action in blueprint.Actions)
+        {
+            color[action.Id] = 0;
+        }
+
+        var path = new List<int>();
+
+        foreach (var action in blueprint.Actions)
+        {
+            if (color[action.Id] == 0)
+            {
+                DfsCycleDetect(action.Id, adjacency, color, path, errors);
+            }
+        }
+
+        return errors;
+    }
+
+    private void DfsCycleDetect(
+        int node,
+        Dictionary<int, List<int>> adjacency,
+        Dictionary<int, int> color,
+        List<int> path,
+        List<string> errors)
+    {
+        // Self-reference check
+        if (adjacency.TryGetValue(node, out var neighbors) && neighbors.Contains(node))
+        {
+            errors.Add($"Self-referencing route detected: Action {node} routes to itself");
+        }
+
+        color[node] = 1; // Gray - in current path
+        path.Add(node);
+
+        if (neighbors != null)
+        {
+            foreach (var neighbor in neighbors)
+            {
+                if (neighbor == node) continue; // Already reported self-reference
+
+                if (!color.ContainsKey(neighbor)) continue; // Target action doesn't exist
+
+                if (color[neighbor] == 1)
+                {
+                    // Cycle detected - build cycle path string
+                    var cycleStart = path.IndexOf(neighbor);
+                    var cyclePath = path.Skip(cycleStart).Append(neighbor);
+                    var cycleStr = string.Join(" → ", cyclePath.Select(id => $"Action {id}"));
+                    errors.Add($"Circular dependency detected: {cycleStr}");
+                }
+                else if (color[neighbor] == 0)
+                {
+                    DfsCycleDetect(neighbor, adjacency, color, path, errors);
+                }
+            }
+        }
+
+        path.RemoveAt(path.Count - 1);
+        color[node] = 2; // Black - fully explored
     }
 }
 

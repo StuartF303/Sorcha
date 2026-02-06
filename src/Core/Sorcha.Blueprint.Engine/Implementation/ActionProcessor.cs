@@ -70,6 +70,14 @@ public class ActionProcessor : IActionProcessor
                 result.Validation = ValidationResult.Valid();
             }
 
+            // ValidationOnly mode: return after schema validation without executing
+            // calculations, routing, or disclosure processing
+            if (context.Mode == ExecutionMode.ValidationOnly)
+            {
+                result.Success = result.Validation.IsValid;
+                return result;
+            }
+
             // Step 2: Apply calculations using JSON Logic
             var processedData = new Dictionary<string, object>(context.ActionData);
 

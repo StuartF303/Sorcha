@@ -627,4 +627,312 @@ public class RoutingEngineTests
     }
 
     #endregion
+
+    #region Route-Based Routing
+
+    [Fact]
+    public async Task DetermineNextAsync_WithRoutes_UsesRoutesOverLegacy()
+    {
+        // Arrange - action has both Routes and Participants; Routes should take precedence
+        var blueprint = new BpModels.Blueprint
+        {
+            Id = "BP-ROUTE-001",
+            Title = "Route-Based Workflow",
+            Participants = new List<BpModels.Participant>
+            {
+                new() { Id = "user", Name = "User" },
+                new() { Id = "approver", Name = "Approver" }
+            },
+            Actions = new List<BpModels.Action>
+            {
+                new()
+                {
+                    Id = 1,
+                    Title = "Submit",
+                    Sender = "user",
+                    Routes = new List<BpModels.Route>
+                    {
+                        new() { Id = "route-1", NextActionIds = new List<int> { 2 }, IsDefault = true }
+                    },
+                    // Legacy participants should be ignored when Routes are defined
+                    Participants = new List<BpModels.Condition>
+                    {
+                        new("nonexistent", true)
+                    }
+                },
+                new()
+                {
+                    Id = 2,
+                    Title = "Approve",
+                    Sender = "approver"
+                }
+            }
+        };
+
+        var data = new Dictionary<string, object>();
+
+        // Act
+        var result = await _routingEngine.DetermineNextAsync(blueprint, blueprint.Actions[0], data);
+
+        // Assert - should use Routes, not legacy Participants
+        result.NextActionId.Should().Be("2");
+        result.NextParticipantId.Should().Be("approver");
+        result.IsWorkflowComplete.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DetermineNextAsync_WithConditionalRoutes_FirstMatchWins()
+    {
+        // Arrange
+        var blueprint = new BpModels.Blueprint
+        {
+            Id = "BP-ROUTE-002",
+            Title = "Conditional Routes",
+            Participants = new List<BpModels.Participant>(),
+            Actions = new List<BpModels.Action>
+            {
+                new()
+                {
+                    Id = 1,
+                    Title = "Submit",
+                    Sender = "user",
+                    Routes = new List<BpModels.Route>
+                    {
+                        new()
+                        {
+                            Id = "high-value",
+                            NextActionIds = new List<int> { 3 },
+                            Condition = System.Text.Json.Nodes.JsonNode.Parse("""{">": [{"var": "amount"}, 10000]}""")
+                        },
+                        new()
+                        {
+                            Id = "default",
+                            NextActionIds = new List<int> { 2 },
+                            IsDefault = true
+                        }
+                    }
+                },
+                new() { Id = 2, Title = "Standard Review", Sender = "reviewer" },
+                new() { Id = 3, Title = "Executive Review", Sender = "executive" }
+            }
+        };
+
+        // Act - high value
+        var highResult = await _routingEngine.DetermineNextAsync(
+            blueprint, blueprint.Actions[0],
+            new Dictionary<string, object> { ["amount"] = 50000 });
+
+        // Act - low value (falls to default)
+        var lowResult = await _routingEngine.DetermineNextAsync(
+            blueprint, blueprint.Actions[0],
+            new Dictionary<string, object> { ["amount"] = 500 });
+
+        // Assert
+        highResult.NextActionId.Should().Be("3");
+        highResult.NextParticipantId.Should().Be("executive");
+
+        lowResult.NextActionId.Should().Be("2");
+        lowResult.NextParticipantId.Should().Be("reviewer");
+    }
+
+    [Fact]
+    public async Task DetermineNextAsync_WithParallelRoutes_ReturnsParallelResult()
+    {
+        // Arrange
+        var blueprint = new BpModels.Blueprint
+        {
+            Id = "BP-ROUTE-003",
+            Title = "Parallel Routing",
+            Participants = new List<BpModels.Participant>(),
+            Actions = new List<BpModels.Action>
+            {
+                new()
+                {
+                    Id = 1,
+                    Title = "Submit",
+                    Sender = "user",
+                    Routes = new List<BpModels.Route>
+                    {
+                        new()
+                        {
+                            Id = "parallel-review",
+                            NextActionIds = new List<int> { 2, 3 }, // Parallel branches
+                            IsDefault = true
+                        }
+                    }
+                },
+                new() { Id = 2, Title = "Legal Review", Sender = "legal" },
+                new() { Id = 3, Title = "Finance Review", Sender = "finance" }
+            }
+        };
+
+        var data = new Dictionary<string, object>();
+
+        // Act
+        var result = await _routingEngine.DetermineNextAsync(blueprint, blueprint.Actions[0], data);
+
+        // Assert
+        result.IsParallel.Should().BeTrue();
+        result.NextActions.Should().HaveCount(2);
+        result.NextActions[0].ActionId.Should().Be("2");
+        result.NextActions[0].ParticipantId.Should().Be("legal");
+        result.NextActions[0].BranchId.Should().NotBeNullOrEmpty();
+        result.NextActions[1].ActionId.Should().Be("3");
+        result.NextActions[1].ParticipantId.Should().Be("finance");
+        result.NextActions[1].BranchId.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task DetermineNextAsync_WithRoutesNoMatch_ReturnsComplete()
+    {
+        // Arrange - only conditional routes, none match, no default
+        var blueprint = new BpModels.Blueprint
+        {
+            Id = "BP-ROUTE-004",
+            Title = "No Match",
+            Participants = new List<BpModels.Participant>(),
+            Actions = new List<BpModels.Action>
+            {
+                new()
+                {
+                    Id = 1,
+                    Title = "Submit",
+                    Sender = "user",
+                    Routes = new List<BpModels.Route>
+                    {
+                        new()
+                        {
+                            Id = "conditional",
+                            NextActionIds = new List<int> { 2 },
+                            Condition = System.Text.Json.Nodes.JsonNode.Parse("""{"==": [{"var": "status"}, "approved"]}""")
+                        }
+                    }
+                },
+                new() { Id = 2, Title = "Process", Sender = "processor" }
+            }
+        };
+
+        var data = new Dictionary<string, object> { ["status"] = "rejected" };
+
+        // Act
+        var result = await _routingEngine.DetermineNextAsync(blueprint, blueprint.Actions[0], data);
+
+        // Assert
+        result.IsWorkflowComplete.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DetermineNextAsync_WithEmptyRoutes_FallsBackToLegacy()
+    {
+        // Arrange - empty Routes list, should fall back to Participants
+        var blueprint = new BpModels.Blueprint
+        {
+            Id = "BP-ROUTE-005",
+            Title = "Legacy Fallback",
+            Participants = new List<BpModels.Participant>
+            {
+                new() { Id = "user", Name = "User" },
+                new() { Id = "approver", Name = "Approver" }
+            },
+            Actions = new List<BpModels.Action>
+            {
+                new()
+                {
+                    Id = 1,
+                    Title = "Submit",
+                    Sender = "user",
+                    Routes = new List<BpModels.Route>(), // Empty list
+                    Participants = new List<BpModels.Condition>
+                    {
+                        new("approver", true)
+                    }
+                },
+                new() { Id = 2, Title = "Approve", Sender = "approver" }
+            }
+        };
+
+        var data = new Dictionary<string, object>();
+
+        // Act
+        var result = await _routingEngine.DetermineNextAsync(blueprint, blueprint.Actions[0], data);
+
+        // Assert - should use legacy routing
+        result.NextActionId.Should().Be("2");
+        result.NextParticipantId.Should().Be("approver");
+    }
+
+    [Fact]
+    public async Task DetermineNextAsync_WithRouteEmptyNextActionIds_ReturnsComplete()
+    {
+        // Arrange
+        var blueprint = new BpModels.Blueprint
+        {
+            Id = "BP-ROUTE-006",
+            Title = "Empty NextActionIds",
+            Participants = new List<BpModels.Participant>(),
+            Actions = new List<BpModels.Action>
+            {
+                new()
+                {
+                    Id = 1,
+                    Title = "Submit",
+                    Sender = "user",
+                    Routes = new List<BpModels.Route>
+                    {
+                        new() { Id = "empty", NextActionIds = new List<int>(), IsDefault = true }
+                    }
+                }
+            }
+        };
+
+        var data = new Dictionary<string, object>();
+
+        // Act
+        var result = await _routingEngine.DetermineNextAsync(blueprint, blueprint.Actions[0], data);
+
+        // Assert
+        result.IsWorkflowComplete.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DetermineNextAsync_WithRoute_PopulatesMatchedRouteId()
+    {
+        // Arrange
+        var blueprint = new BpModels.Blueprint
+        {
+            Id = "BP-ROUTE-007",
+            Title = "Route ID Tracking",
+            Participants = new List<BpModels.Participant>(),
+            Actions = new List<BpModels.Action>
+            {
+                new()
+                {
+                    Id = 1,
+                    Title = "Submit",
+                    Sender = "user",
+                    Routes = new List<BpModels.Route>
+                    {
+                        new()
+                        {
+                            Id = "approval-route",
+                            NextActionIds = new List<int> { 2 },
+                            IsDefault = true
+                        }
+                    }
+                },
+                new() { Id = 2, Title = "Approve", Sender = "approver" }
+            }
+        };
+
+        var data = new Dictionary<string, object>();
+
+        // Act
+        var result = await _routingEngine.DetermineNextAsync(blueprint, blueprint.Actions[0], data);
+
+        // Assert
+        result.NextActions.Should().HaveCount(1);
+        result.NextActions[0].MatchedRouteId.Should().Be("approval-route");
+    }
+
+    #endregion
 }

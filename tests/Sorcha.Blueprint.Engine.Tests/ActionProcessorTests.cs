@@ -492,6 +492,107 @@ public class ActionProcessorTests
 
     #endregion
 
+    #region ExecutionMode.ValidationOnly Tests
+
+    [Fact]
+    public async Task ProcessAsync_ValidationOnlyMode_ValidData_ReturnsTrueWithoutRouting()
+    {
+        // Arrange
+        var blueprint = CreateSimpleBlueprint();
+        var action = blueprint.Actions[0];
+
+        var context = new EngineModels.ExecutionContext
+        {
+            Blueprint = blueprint,
+            Action = action,
+            ActionData = new Dictionary<string, object>
+            {
+                ["name"] = "Alice",
+                ["age"] = 30
+            },
+            ParticipantId = "user1",
+            WalletAddress = "0x123",
+            Mode = EngineModels.ExecutionMode.ValidationOnly
+        };
+
+        // Act
+        var result = await _processor.ProcessAsync(context);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Validation.IsValid.Should().BeTrue();
+        // Should NOT have routing, calculations, or disclosures
+        result.Routing.IsWorkflowComplete.Should().BeFalse();
+        result.Routing.NextActionId.Should().BeNull();
+        result.ProcessedData.Should().BeEmpty();
+        result.CalculatedValues.Should().BeEmpty();
+        result.Disclosures.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ProcessAsync_ValidationOnlyMode_InvalidData_ReturnsFalse()
+    {
+        // Arrange
+        var blueprint = CreateSimpleBlueprint();
+        var action = blueprint.Actions[0];
+
+        var context = new EngineModels.ExecutionContext
+        {
+            Blueprint = blueprint,
+            Action = action,
+            ActionData = new Dictionary<string, object>
+            {
+                ["name"] = 12345 // Wrong type - should be string
+            },
+            ParticipantId = "user1",
+            WalletAddress = "0x123",
+            Mode = EngineModels.ExecutionMode.ValidationOnly
+        };
+
+        // Act
+        var result = await _processor.ProcessAsync(context);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Validation.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ProcessAsync_FullMode_ExecutesEntirePipeline()
+    {
+        // Arrange
+        var blueprint = CreateCompleteBlueprint();
+        var action = blueprint.Actions[0];
+
+        var context = new EngineModels.ExecutionContext
+        {
+            Blueprint = blueprint,
+            Action = action,
+            ActionData = new Dictionary<string, object>
+            {
+                ["productId"] = "PROD-001",
+                ["quantity"] = 5,
+                ["unitPrice"] = 100.0
+            },
+            ParticipantId = "buyer",
+            WalletAddress = "0x123",
+            Mode = EngineModels.ExecutionMode.Full
+        };
+
+        // Act
+        var result = await _processor.ProcessAsync(context);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        // Full mode should execute everything
+        result.ProcessedData.Should().NotBeEmpty();
+        result.CalculatedValues.Should().ContainKey("totalPrice");
+        result.Routing.NextParticipantId.Should().Be("seller");
+        result.Disclosures.Should().NotBeEmpty();
+    }
+
+    #endregion
+
     #region Error Handling Tests
 
     [Fact]

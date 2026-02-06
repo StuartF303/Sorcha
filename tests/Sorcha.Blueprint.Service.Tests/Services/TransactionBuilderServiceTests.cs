@@ -2,12 +2,16 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Microsoft.Extensions.Logging;
+using Sorcha.Blueprint.Service.Models;
 using Sorcha.Blueprint.Service.Services.Implementation;
 using Sorcha.Blueprint.Service.Services.Interfaces;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.TransactionHandler.Enums;
 using System.Text;
 using System.Text.Json;
+using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
+using ActionModel = Sorcha.Blueprint.Models.Action;
+using ParticipantModel = Sorcha.Blueprint.Models.Participant;
 
 namespace Sorcha.Blueprint.Service.Tests.Services;
 
@@ -354,4 +358,139 @@ public class TransactionBuilderServiceTests
         result.Timestamp.Should().BeOnOrAfter(beforeTime);
         result.Timestamp.Should().BeOnOrBefore(afterTime);
     }
+
+    #region Extension Method Tests
+
+    [Fact]
+    public async Task BuildActionTransactionAsync_Extension_ProducesNonEmptyTransactionData()
+    {
+        // Arrange
+        var blueprint = new BlueprintModel
+        {
+            Id = "bp-1",
+            Title = "Test",
+            Participants = [new ParticipantModel { Id = "p1", Name = "P1" }],
+            Actions = [new ActionModel { Id = 1, Title = "Submit", Sender = "p1" }]
+        };
+        var instance = new Instance
+        {
+            Id = "inst-1",
+            BlueprintId = "bp-1",
+            BlueprintVersion = 1,
+            RegisterId = "reg-1",
+            TenantId = "tenant-1",
+            State = InstanceState.Active,
+            CurrentActionIds = [1],
+            ParticipantWallets = new Dictionary<string, string> { ["p1"] = "wallet-1" }
+        };
+        var action = blueprint.Actions.First();
+        var payloadData = new Dictionary<string, object> { ["amount"] = 100 };
+        var disclosedPayloads = new Dictionary<string, Dictionary<string, object>>
+        {
+            ["wallet-1"] = new() { ["amount"] = 100 }
+        };
+
+        // Act
+        var result = await _service.BuildActionTransactionAsync(
+            blueprint, instance, action, payloadData, disclosedPayloads, null);
+
+        // Assert
+        result.TransactionData.Should().NotBeEmpty();
+        result.TxId.Should().NotBeNullOrEmpty();
+        result.TransactionType.Should().Be("action");
+        result.Metadata["blueprintId"].Should().Be("bp-1");
+        result.Metadata["actionId"].Should().Be(1);
+        result.Metadata["instanceId"].Should().Be("inst-1");
+
+        // Verify transaction data is valid JSON containing the disclosed payloads
+        var json = JsonSerializer.Deserialize<JsonElement>(result.TransactionData);
+        json.GetProperty("type").GetString().Should().Be("action");
+        json.GetProperty("blueprintId").GetString().Should().Be("bp-1");
+    }
+
+    [Fact]
+    public async Task BuildRejectionTransactionAsync_Extension_ProducesNonEmptyTransactionData()
+    {
+        // Arrange
+        var blueprint = new BlueprintModel
+        {
+            Id = "bp-1",
+            Title = "Test",
+            Participants = [new ParticipantModel { Id = "p1", Name = "P1" }],
+            Actions = [new ActionModel { Id = 1, Title = "Submit", Sender = "p1" }]
+        };
+        var instance = new Instance
+        {
+            Id = "inst-1",
+            BlueprintId = "bp-1",
+            BlueprintVersion = 1,
+            RegisterId = "reg-1",
+            TenantId = "tenant-1",
+            State = InstanceState.Active,
+            CurrentActionIds = [1],
+            ParticipantWallets = new Dictionary<string, string> { ["p1"] = "wallet-1" }
+        };
+        var action = blueprint.Actions.First();
+        var rejectionData = new Dictionary<string, object>
+        {
+            ["rejectionReason"] = "Data incomplete"
+        };
+
+        // Act
+        var result = await _service.BuildRejectionTransactionAsync(
+            blueprint, instance, action, rejectionData, "prev-tx-123");
+
+        // Assert
+        result.TransactionData.Should().NotBeEmpty();
+        result.TxId.Should().NotBeNullOrEmpty();
+        result.TransactionType.Should().Be("rejection");
+        result.Metadata["rejectionReason"].Should().Be("Data incomplete");
+        result.Metadata["previousTxId"].Should().Be("prev-tx-123");
+
+        // Verify transaction data is valid JSON containing the rejection data
+        var json = JsonSerializer.Deserialize<JsonElement>(result.TransactionData);
+        json.GetProperty("type").GetString().Should().Be("rejection");
+    }
+
+    [Fact]
+    public async Task BuildActionTransactionAsync_Extension_IncludesDisclosedPayloadsInData()
+    {
+        // Arrange
+        var blueprint = new BlueprintModel
+        {
+            Id = "bp-1",
+            Title = "Test",
+            Participants = [new ParticipantModel { Id = "p1", Name = "P1" }],
+            Actions = [new ActionModel { Id = 1, Title = "Submit", Sender = "p1" }]
+        };
+        var instance = new Instance
+        {
+            Id = "inst-1",
+            BlueprintId = "bp-1",
+            BlueprintVersion = 1,
+            RegisterId = "reg-1",
+            TenantId = "tenant-1",
+            State = InstanceState.Active,
+            CurrentActionIds = [1],
+            ParticipantWallets = new Dictionary<string, string> { ["p1"] = "wallet-1" }
+        };
+        var action = blueprint.Actions.First();
+        var payloadData = new Dictionary<string, object> { ["field1"] = "value1", ["field2"] = 42 };
+        var disclosedPayloads = new Dictionary<string, Dictionary<string, object>>
+        {
+            ["wallet-reviewer"] = new() { ["field1"] = "value1" },
+            ["wallet-approver"] = new() { ["field1"] = "value1", ["field2"] = 42 }
+        };
+
+        // Act
+        var result = await _service.BuildActionTransactionAsync(
+            blueprint, instance, action, payloadData, disclosedPayloads, null);
+
+        // Assert
+        result.TransactionData.Should().NotBeEmpty();
+        var json = JsonSerializer.Deserialize<JsonElement>(result.TransactionData);
+        json.GetProperty("payloads").Should().NotBeNull();
+    }
+
+    #endregion
 }
