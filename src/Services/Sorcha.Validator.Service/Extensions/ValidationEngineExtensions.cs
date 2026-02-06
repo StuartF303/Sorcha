@@ -26,8 +26,8 @@ public static class ValidationEngineExtensions
         services.Configure<ValidationEngineConfiguration>(
             configuration.GetSection(ValidationEngineConfiguration.SectionName));
 
-        // Register the validation engine as singleton
-        services.AddSingleton<IValidationEngine, ValidationEngine>();
+        // Register the validation engine as scoped (matches IRegisterServiceClient lifetime)
+        services.AddScoped<IValidationEngine, ValidationEngine>();
 
         // Register the background service
         services.AddHostedService<ValidationEngineService>();

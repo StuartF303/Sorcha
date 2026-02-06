@@ -93,6 +93,9 @@ builder.Services.AddScoped<Sorcha.Validator.Service.Services.IValidatorOrchestra
 // Add consolidated service clients
 builder.Services.AddServiceClients(builder.Configuration);
 
+// Add validation engine (schema validation, chain validation)
+builder.Services.AddValidationEngine(builder.Configuration);
+
 // Configure gRPC channel for Wallet Service (T014)
 builder.Services.AddSingleton(sp =>
 {
