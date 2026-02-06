@@ -4,6 +4,7 @@
 using Scalar.AspNetCore;
 using Sorcha.Wallet.Service.Extensions;
 using Sorcha.Wallet.Service.Endpoints;
+using Sorcha.Wallet.Service.GrpcServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +19,9 @@ builder.AddInputValidation();
 
 // Add Wallet Service infrastructure and domain services
 builder.Services.AddWalletService(builder.Configuration);
+
+// Add gRPC services for inter-service communication (Validator, Peer, etc.)
+builder.Services.AddGrpc();
 
 // Add OpenAPI services (built-in .NET 10)
 builder.Services.AddOpenApi(options =>
@@ -262,6 +266,9 @@ app.UseAuthorization();
 
 // Enable rate limiting (SEC-002)
 app.UseRateLimiting();
+
+// Map gRPC services for inter-service communication
+app.MapGrpcService<WalletGrpcService>();
 
 // Map Wallet API endpoints
 app.MapWalletEndpoints();

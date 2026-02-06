@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
+using Sorcha.Cryptography.Enums;
+using Sorcha.Cryptography.Interfaces;
+using Sorcha.Wallet.Core.Domain;
+using Sorcha.Wallet.Core.Domain.ValueObjects;
+using Sorcha.Wallet.Core.Repositories.Interfaces;
+using Sorcha.Wallet.Core.Services.Interfaces;
 using Sorcha.Wallet.Service.Protos;
 
 namespace Sorcha.Wallet.Service.GrpcServices;
@@ -44,15 +52,27 @@ namespace Sorcha.Wallet.Service.GrpcServices;
 public class WalletGrpcService : Protos.WalletService.WalletServiceBase
 {
     private readonly ILogger<WalletGrpcService> _logger;
-    // TODO: Add dependencies (IWalletRepository, ICryptoModule, etc.)
+    private readonly IWalletRepository _repository;
+    private readonly IKeyManagementService _keyManagement;
+    private readonly ICryptoModule _cryptoModule;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WalletGrpcService"/> class.
     /// </summary>
     /// <param name="logger">Logger instance.</param>
-    public WalletGrpcService(ILogger<WalletGrpcService> logger)
+    /// <param name="repository">Wallet repository for data access.</param>
+    /// <param name="keyManagement">Key management service for decryption and derivation.</param>
+    /// <param name="cryptoModule">Cryptographic module for signing and verification.</param>
+    public WalletGrpcService(
+        ILogger<WalletGrpcService> logger,
+        IWalletRepository repository,
+        IKeyManagementService keyManagement,
+        ICryptoModule cryptoModule)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _keyManagement = keyManagement ?? throw new ArgumentNullException(nameof(keyManagement));
+        _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
     }
 
     /// <summary>
@@ -76,20 +96,52 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
     ///   <item>Unavailable - Database connection failure</item>
     /// </list>
     /// </remarks>
-    public override Task<WalletDetailsResponse> GetWalletDetails(
+    public override async Task<WalletDetailsResponse> GetWalletDetails(
         GetWalletDetailsRequest request,
         ServerCallContext context)
     {
         _logger.LogInformation("GetWalletDetails called for wallet ID: {WalletId}", request.WalletId);
 
-        // TODO: Implement wallet details retrieval
-        // 1. Validate request (WalletId not empty)
-        // 2. Query wallet from repository by ID
-        // 3. Return NotFound if wallet doesn't exist
-        // 4. Map wallet to response (Address, PublicKey, Algorithm, Version, DerivationPath)
-        // 5. Log success and return response
+        if (string.IsNullOrWhiteSpace(request.WalletId))
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Wallet ID is required"));
 
-        throw new RpcException(new Status(StatusCode.Unimplemented, "GetWalletDetails not yet implemented"));
+        Core.Domain.Entities.Wallet wallet;
+        try
+        {
+            var result = await _repository.GetByAddressAsync(
+                request.WalletId,
+                cancellationToken: context.CancellationToken);
+
+            if (result is null)
+                throw new RpcException(new Status(StatusCode.NotFound, $"Wallet '{request.WalletId}' not found"));
+
+            wallet = result;
+        }
+        catch (RpcException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve wallet {WalletId}", request.WalletId);
+            throw new RpcException(new Status(StatusCode.Unavailable, "Database connection failure"));
+        }
+
+        var response = new WalletDetailsResponse
+        {
+            WalletId = wallet.Address,
+            Address = wallet.Address,
+            Algorithm = ConvertAlgorithmToProto(wallet.Algorithm),
+            Version = wallet.Version,
+            DerivationPath = wallet.Metadata.GetValueOrDefault("DerivationPath", ""),
+            CreatedAt = Timestamp.FromDateTime(DateTime.SpecifyKind(wallet.CreatedAt, DateTimeKind.Utc))
+        };
+
+        if (!string.IsNullOrEmpty(wallet.PublicKey))
+            response.PublicKey = ByteString.CopyFrom(Convert.FromBase64String(wallet.PublicKey));
+
+        _logger.LogInformation("GetWalletDetails succeeded for wallet {WalletId}", request.WalletId);
+        return response;
     }
 
     /// <summary>
@@ -121,7 +173,7 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
     ///   <item>FailedPrecondition - Wallet is locked or deleted</item>
     /// </list>
     /// </remarks>
-    public override Task<SignDataResponse> SignData(
+    public override async Task<SignDataResponse> SignData(
         SignDataRequest request,
         ServerCallContext context)
     {
@@ -130,15 +182,84 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
             request.WalletId,
             request.DataHash.Length);
 
-        // TODO: Implement data signing
-        // 1. Validate request (WalletId, Data not empty, Data is 32 bytes)
-        // 2. Query wallet from repository
-        // 3. Retrieve private key (root or derived if DerivationPath provided)
-        // 4. Sign data using ICryptoModule.SignAsync
-        // 5. Return signature bytes in response
-        // 6. Log success with signature length
+        if (string.IsNullOrWhiteSpace(request.WalletId))
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Wallet ID is required"));
 
-        throw new RpcException(new Status(StatusCode.Unimplemented, "SignData not yet implemented"));
+        if (request.DataHash.IsEmpty || request.DataHash.Length != 32)
+            throw new RpcException(new Status(StatusCode.InvalidArgument,
+                $"Data hash must be exactly 32 bytes (SHA-256), received {request.DataHash.Length} bytes"));
+
+        var wallet = await _repository.GetByAddressAsync(
+            request.WalletId,
+            cancellationToken: context.CancellationToken);
+
+        if (wallet is null)
+            throw new RpcException(new Status(StatusCode.NotFound, $"Wallet '{request.WalletId}' not found"));
+
+        if (wallet.Status != WalletStatus.Active)
+            throw new RpcException(new Status(StatusCode.FailedPrecondition,
+                $"Wallet is {wallet.Status} and cannot sign data"));
+
+        var network = ParseAlgorithm(wallet.Algorithm);
+        byte[] privateKey;
+        byte[] publicKey;
+
+        // Decrypt the wallet's private key
+        var decryptedKey = await _keyManagement.DecryptPrivateKeyAsync(
+            wallet.EncryptedPrivateKey, wallet.EncryptionKeyId);
+
+        if (!string.IsNullOrWhiteSpace(request.DerivationPath))
+        {
+            // Use derived key at specified path
+            DerivationPath path;
+            try
+            {
+                path = new DerivationPath(request.DerivationPath);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new RpcException(new Status(StatusCode.InvalidArgument,
+                    $"Invalid derivation path: {ex.Message}"));
+            }
+
+            var derived = await _keyManagement.DeriveKeyAtPathAsync(
+                decryptedKey, path, wallet.Algorithm);
+            privateKey = derived.PrivateKey;
+            publicKey = derived.PublicKey;
+        }
+        else
+        {
+            // Use the root key directly
+            privateKey = decryptedKey;
+            publicKey = !string.IsNullOrEmpty(wallet.PublicKey)
+                ? Convert.FromBase64String(wallet.PublicKey)
+                : Array.Empty<byte>();
+        }
+
+        var signResult = await _cryptoModule.SignAsync(
+            request.DataHash.ToByteArray(),
+            (byte)network,
+            privateKey,
+            context.CancellationToken);
+
+        if (!signResult.IsSuccess)
+            throw new RpcException(new Status(StatusCode.Internal,
+                $"Signing failed: {signResult.ErrorMessage}"));
+
+        var response = new SignDataResponse
+        {
+            Signature = ByteString.CopyFrom(signResult.Value!),
+            PublicKey = ByteString.CopyFrom(publicKey),
+            Algorithm = ConvertAlgorithmToProto(wallet.Algorithm),
+            Version = wallet.Version,
+            SignedAt = Timestamp.FromDateTime(DateTime.UtcNow)
+        };
+
+        _logger.LogInformation(
+            "SignData succeeded for wallet {WalletId}, signature length: {SignatureLength} bytes",
+            request.WalletId, signResult.Value!.Length);
+
+        return response;
     }
 
     /// <summary>
@@ -162,7 +283,7 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
     ///   <item>Internal - Cryptography module error</item>
     /// </list>
     /// </remarks>
-    public override Task<VerifySignatureResponse> VerifySignature(
+    public override async Task<VerifySignatureResponse> VerifySignature(
         VerifySignatureRequest request,
         ServerCallContext context)
     {
@@ -171,14 +292,47 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
             request.Algorithm,
             request.Signature.Length);
 
-        // TODO: Implement signature verification
-        // 1. Validate request (Signature, Data, PublicKey not empty, Data is 32 bytes)
-        // 2. Call ICryptoModule.VerifyAsync with provided parameters
-        // 3. Return IsValid = true if verification succeeds
-        // 4. Return IsValid = false if verification fails (don't throw exception)
-        // 5. Log result
+        if (request.Signature.IsEmpty)
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Signature is required"));
 
-        throw new RpcException(new Status(StatusCode.Unimplemented, "VerifySignature not yet implemented"));
+        if (request.DataHash.IsEmpty || request.DataHash.Length != 32)
+            throw new RpcException(new Status(StatusCode.InvalidArgument,
+                $"Data hash must be exactly 32 bytes (SHA-256), received {request.DataHash.Length} bytes"));
+
+        if (request.PublicKey.IsEmpty)
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Public key is required"));
+
+        if (request.Algorithm == WalletAlgorithm.Unspecified)
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Algorithm must be specified"));
+
+        var network = ConvertProtoToNetwork(request.Algorithm);
+
+        try
+        {
+            var status = await _cryptoModule.VerifyAsync(
+                request.Signature.ToByteArray(),
+                request.DataHash.ToByteArray(),
+                (byte)network,
+                request.PublicKey.ToByteArray(),
+                context.CancellationToken);
+
+            var isValid = status == CryptoStatus.Success;
+
+            _logger.LogDebug("VerifySignature result: {IsValid}", isValid);
+
+            return new VerifySignatureResponse
+            {
+                IsValid = isValid,
+                ErrorMessage = isValid ? "" : $"Verification failed: {status}",
+                VerifiedAt = Timestamp.FromDateTime(DateTime.UtcNow)
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Cryptography error during signature verification");
+            throw new RpcException(new Status(StatusCode.Internal,
+                "Cryptography module error during verification"));
+        }
     }
 
     /// <summary>
@@ -225,7 +379,7 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
     ///   <item>SC-006: Private keys never persisted outside secure storage</item>
     /// </list>
     /// </remarks>
-    public override Task<GetDerivedKeyResponse> GetDerivedKey(
+    public override async Task<GetDerivedKeyResponse> GetDerivedKey(
         GetDerivedKeyRequest request,
         ServerCallContext context)
     {
@@ -234,16 +388,94 @@ public class WalletGrpcService : Protos.WalletService.WalletServiceBase
             request.WalletId,
             request.DerivationPath);
 
-        // TODO: Implement derived key retrieval
-        // 1. Validate request (WalletId, DerivationPath not empty)
-        // 2. Validate derivation path format (must start with "m/" and follow BIP44)
-        // 3. Query wallet from repository
-        // 4. Verify wallet is HD wallet (has mnemonic)
-        // 5. Derive private key using ICryptoModule.DerivePrivateKeyAsync
-        // 6. Return private key bytes in response
-        // 7. Log success (DO NOT log the key itself!)
-        // 8. CRITICAL: Ensure root private key is never returned
+        if (string.IsNullOrWhiteSpace(request.WalletId))
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Wallet ID is required"));
 
-        throw new RpcException(new Status(StatusCode.Unimplemented, "GetDerivedKey not yet implemented"));
+        if (string.IsNullOrWhiteSpace(request.DerivationPath))
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Derivation path is required"));
+
+        // Validate derivation path format
+        DerivationPath derivationPath;
+        try
+        {
+            derivationPath = new DerivationPath(request.DerivationPath);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument,
+                $"Invalid derivation path format: {ex.Message}"));
+        }
+
+        var wallet = await _repository.GetByAddressAsync(
+            request.WalletId,
+            cancellationToken: context.CancellationToken);
+
+        if (wallet is null)
+            throw new RpcException(new Status(StatusCode.NotFound, $"Wallet '{request.WalletId}' not found"));
+
+        if (wallet.Status != WalletStatus.Active)
+            throw new RpcException(new Status(StatusCode.FailedPrecondition,
+                $"Wallet is {wallet.Status} and cannot provide derived keys"));
+
+        // Verify this is an HD wallet (has encrypted private key that can derive children)
+        if (string.IsNullOrEmpty(wallet.EncryptedPrivateKey))
+            throw new RpcException(new Status(StatusCode.FailedPrecondition,
+                "Wallet does not support key derivation"));
+
+        // Decrypt master key and derive child key
+        var masterKey = await _keyManagement.DecryptPrivateKeyAsync(
+            wallet.EncryptedPrivateKey, wallet.EncryptionKeyId);
+
+        var (privateKey, publicKey) = await _keyManagement.DeriveKeyAtPathAsync(
+            masterKey, derivationPath, wallet.Algorithm);
+
+        var response = new GetDerivedKeyResponse
+        {
+            PrivateKey = ByteString.CopyFrom(privateKey),
+            PublicKey = ByteString.CopyFrom(publicKey),
+            Algorithm = ConvertAlgorithmToProto(wallet.Algorithm),
+            DerivationPath = derivationPath.Path
+        };
+
+        _logger.LogInformation(
+            "GetDerivedKey succeeded for wallet {WalletId} at path {DerivationPath}",
+            request.WalletId, derivationPath.Path);
+
+        return response;
+    }
+
+    private static Protos.WalletAlgorithm ConvertAlgorithmToProto(string algorithm)
+    {
+        return algorithm.ToUpperInvariant() switch
+        {
+            "ED25519" => Protos.WalletAlgorithm.Ed25519,
+            "NISTP256" => Protos.WalletAlgorithm.Nistp256,
+            "RSA4096" => Protos.WalletAlgorithm.Rsa4096,
+            _ => Protos.WalletAlgorithm.Unspecified
+        };
+    }
+
+    private static WalletNetworks ConvertProtoToNetwork(Protos.WalletAlgorithm algorithm)
+    {
+        return algorithm switch
+        {
+            Protos.WalletAlgorithm.Ed25519 => WalletNetworks.ED25519,
+            Protos.WalletAlgorithm.Nistp256 => WalletNetworks.NISTP256,
+            Protos.WalletAlgorithm.Rsa4096 => WalletNetworks.RSA4096,
+            _ => throw new RpcException(new Status(StatusCode.InvalidArgument,
+                $"Unsupported algorithm: {algorithm}"))
+        };
+    }
+
+    private static WalletNetworks ParseAlgorithm(string algorithm)
+    {
+        return algorithm.ToUpperInvariant() switch
+        {
+            "ED25519" => WalletNetworks.ED25519,
+            "NISTP256" => WalletNetworks.NISTP256,
+            "RSA4096" => WalletNetworks.RSA4096,
+            _ => throw new RpcException(new Status(StatusCode.Internal,
+                $"Wallet has unsupported algorithm: {algorithm}"))
+        };
     }
 }
