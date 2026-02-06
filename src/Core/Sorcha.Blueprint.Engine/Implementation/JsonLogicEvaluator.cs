@@ -4,6 +4,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Json.Logic;
+using Sorcha.Blueprint.Engine.Caching;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Engine.Models;
 using Sorcha.Blueprint.Models;
@@ -16,11 +17,21 @@ namespace Sorcha.Blueprint.Engine.Implementation;
 /// <remarks>
 /// This implementation uses Json.Logic.Net to evaluate JSON Logic expressions
 /// as defined at https://jsonlogic.com
-/// 
+///
 /// Thread-safe and can be used concurrently.
+/// Optionally uses JsonLogicCache to avoid repeated deserialization of the same expression.
 /// </remarks>
 public class JsonLogicEvaluator : IJsonLogicEvaluator
 {
+    private readonly JsonLogicCache? _cache;
+
+    public JsonLogicEvaluator() { }
+
+    public JsonLogicEvaluator(JsonLogicCache cache)
+    {
+        _cache = cache;
+    }
+
     /// <summary>
     /// Evaluate a JSON Logic expression against data.
     /// </summary>
@@ -31,8 +42,20 @@ public class JsonLogicEvaluator : IJsonLogicEvaluator
 
         try
         {
-            // Parse the JSON Logic rule
-            var rule = JsonSerializer.Deserialize<Rule>(expression.ToJsonString());
+            // Parse the JSON Logic rule (with optional caching)
+            var expressionString = expression.ToJsonString();
+            Rule? rule;
+
+            if (_cache != null)
+            {
+                rule = _cache.GetOrAdd(expression, expr =>
+                    JsonSerializer.Deserialize<Rule>(expr.ToJsonString())!);
+            }
+            else
+            {
+                rule = JsonSerializer.Deserialize<Rule>(expressionString);
+            }
+
             if (rule == null)
             {
                 throw new InvalidOperationException("Failed to parse JSON Logic expression");

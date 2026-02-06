@@ -27,6 +27,7 @@ public class RoutingEngine : IRoutingEngine
 
     /// <summary>
     /// Determine the next action and participant based on routing conditions.
+    /// Routes (if defined) take precedence over legacy Condition-based routing.
     /// </summary>
     public async Task<RoutingResult> DetermineNextAsync(
         Sorcha.Blueprint.Models.Blueprint blueprint,
@@ -38,35 +39,134 @@ public class RoutingEngine : IRoutingEngine
         ArgumentNullException.ThrowIfNull(currentAction);
         ArgumentNullException.ThrowIfNull(data);
 
-        // Use the action's Participants conditions for routing
+        // Route-based routing takes precedence
+        var routes = currentAction.Routes?.ToList();
+        if (routes != null && routes.Count > 0)
+        {
+            return EvaluateRoutes(blueprint, routes, data);
+        }
+
+        // Legacy: Condition-based routing via Participants
+        return await EvaluateLegacyConditionsAsync(blueprint, currentAction, data, ct);
+    }
+
+    /// <summary>
+    /// Evaluates Route-based routing: iterates routes in order,
+    /// first matching condition wins, default route used as fallback.
+    /// </summary>
+    private RoutingResult EvaluateRoutes(
+        Sorcha.Blueprint.Models.Blueprint blueprint,
+        List<Route> routes,
+        Dictionary<string, object> data)
+    {
+        Route? defaultRoute = null;
+
+        foreach (var route in routes)
+        {
+            // Save default route for fallback
+            if (route.Condition == null && route.IsDefault)
+            {
+                defaultRoute = route;
+                continue;
+            }
+
+            // Skip routes with no condition and not default (invalid config)
+            if (route.Condition == null)
+            {
+                continue;
+            }
+
+            // Evaluate JSON Logic condition
+            var result = _evaluator.Evaluate(route.Condition, data);
+            if (IsTruthy(result))
+            {
+                return BuildRoutingResult(blueprint, route, data);
+            }
+        }
+
+        // Use default route if no conditions matched
+        if (defaultRoute != null)
+        {
+            return BuildRoutingResult(blueprint, defaultRoute, data);
+        }
+
+        // No routes matched
+        return RoutingResult.Complete();
+    }
+
+    /// <summary>
+    /// Builds a RoutingResult from a matched Route.
+    /// Single NextActionId → Next(), multiple → Parallel().
+    /// </summary>
+    private static RoutingResult BuildRoutingResult(
+        Sorcha.Blueprint.Models.Blueprint blueprint,
+        Route route,
+        Dictionary<string, object> data)
+    {
+        var nextActionIds = route.NextActionIds?.ToList() ?? [];
+        if (nextActionIds.Count == 0)
+        {
+            return RoutingResult.Complete();
+        }
+
+        var conditionStr = route.Condition?.ToJsonString();
+
+        var routedActions = nextActionIds.Select((actionId, index) =>
+        {
+            var targetAction = blueprint.Actions?.FirstOrDefault(a => a.Id == actionId);
+            return new RoutedAction
+            {
+                ActionId = actionId.ToString(),
+                ParticipantId = targetAction?.Sender,
+                BranchId = nextActionIds.Count > 1 ? $"{route.Id ?? "route"}-branch-{index}" : null,
+                MatchedRouteId = route.Id
+            };
+        }).ToList();
+
+        if (routedActions.Count == 1)
+        {
+            return new RoutingResult
+            {
+                NextActionId = routedActions[0].ActionId,
+                NextParticipantId = routedActions[0].ParticipantId ?? "",
+                MatchedCondition = conditionStr,
+                NextActions = routedActions
+            };
+        }
+
+        return RoutingResult.Parallel(routedActions, conditionStr);
+    }
+
+    /// <summary>
+    /// Legacy Condition-based routing via Action.Participants.
+    /// </summary>
+    private async Task<RoutingResult> EvaluateLegacyConditionsAsync(
+        Sorcha.Blueprint.Models.Blueprint blueprint,
+        Sorcha.Blueprint.Models.Action currentAction,
+        Dictionary<string, object> data,
+        CancellationToken ct)
+    {
         var conditions = currentAction.Participants?.ToList() ?? new List<Condition>();
 
         if (!conditions.Any())
         {
-            // No routing conditions means workflow is complete
             return RoutingResult.Complete();
         }
 
-        // Evaluate conditions to find the next participant
         var nextParticipantId = await _evaluator.EvaluateConditionsAsync(data, conditions, ct);
 
         if (nextParticipantId == null)
         {
-            // No conditions matched - workflow is complete
             return RoutingResult.Complete();
         }
 
-        // Find the next action for this participant in the blueprint
         var nextAction = FindNextActionForParticipant(blueprint, currentAction, nextParticipantId);
 
         if (nextAction == null)
         {
-            // Participant matched but no action found
-            // This could indicate end of workflow for this participant
             return RoutingResult.Complete();
         }
 
-        // Create the matched condition string for audit
         var matchedCondition = conditions
             .FirstOrDefault(c => c.Principal == nextParticipantId)?.Criteria
             .FirstOrDefault();
@@ -77,6 +177,20 @@ public class RoutingEngine : IRoutingEngine
             matchedCondition
         );
     }
+
+    /// <summary>
+    /// Determines if a JSON Logic evaluation result is truthy.
+    /// </summary>
+    private static bool IsTruthy(object? result) => result switch
+    {
+        null => false,
+        bool b => b,
+        int i => i != 0,
+        long l => l != 0,
+        double d => d != 0,
+        string s => s.Length > 0,
+        _ => true
+    };
 
     /// <summary>
     /// Finds the next action for a participant in the blueprint.

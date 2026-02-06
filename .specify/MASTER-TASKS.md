@@ -2,7 +2,7 @@
 
 **Version:** 4.5 - UPDATED
 **Last Updated:** 2026-02-06
-**Status:** Active - Peer Service Test Coverage
+**Status:** Active - Blueprint Engine Integration
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -21,6 +21,18 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-06:**
+- ✅ BLUEPRINT-ENGINE-INTEGRATION COMPLETE: Wire Blueprint Engine into ActionExecutionService (36 tasks, 12 phases)
+  - Replaced 4 stub methods in ActionExecutionService with real Engine delegation (validate, route, calculate, disclose)
+  - Implemented Route-based routing in RoutingEngine with parallel branch support and legacy fallback
+  - Extended RoutingResult with RoutedAction record, NextActions list, IsParallel, Parallel() factory
+  - Added RouteBuilder and RejectionConfigBuilder to Fluent API with full ActionBuilder integration
+  - Implemented graph cycle detection (DFS with coloring) in blueprint publish validation
+  - Wired JsonLogicCache into JsonLogicEvaluator for expression caching
+  - Implemented ExecutionMode.ValidationOnly short-circuit in ActionProcessor
+  - Fixed TransactionBuilderServiceExtensions stubs (now produce real serialized transaction data)
+  - Fixed POST /api/actions disclosure (now processes disclosure rules per participant)
+  - New tests: 57 across Engine (14 RoutingResult + 7 Route routing + 3 ValidationOnly), Fluent (12 Route/Rejection), Service (8 cycle detection + 5 disclosure + 3 TransactionBuilder extension + 5 engine delegation)
+  - Test results: Engine 323 pass (17 pre-existing failures), Fluent 88 pass, Service 214 pass
 - ✅ PEER-TESTS COMPLETE: Peer Service unit test coverage (232 new tests, 11 test files)
   - `CircuitBreakerTests` (25 tests): State transitions, thresholds, fallbacks, HalfOpen recovery
   - `GossipProtocolEngineTests` (33 tests): ShouldGossip, RecordSeen, PrepareForNextRound, BloomFilter, cleanup

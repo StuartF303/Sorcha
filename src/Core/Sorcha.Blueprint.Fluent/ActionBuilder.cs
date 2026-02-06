@@ -17,6 +17,7 @@ public class ActionBuilder
     private readonly Dictionary<string, Participant> _participants;
     private readonly List<Disclosure> _disclosures = new();
     private readonly Dictionary<string, JsonNode> _calculations = new();
+    private readonly List<Route> _routes = new();
 
     internal ActionBuilder(int actionId, Dictionary<string, Participant> participants)
     {
@@ -221,6 +222,60 @@ public class ActionBuilder
         return this;
     }
 
+    /// <summary>
+    /// Adds a route with the specified route ID and configuration
+    /// </summary>
+    public ActionBuilder AddRoute(string routeId, Action<RouteBuilder> configure)
+    {
+        var builder = new RouteBuilder(routeId);
+        configure(builder);
+        _routes.Add(builder.Build());
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a default route that targets the specified action IDs
+    /// </summary>
+    public ActionBuilder WithDefaultRoute(params int[] nextActionIds)
+    {
+        _routes.Add(new Route
+        {
+            Id = $"default-{_action.Id}",
+            NextActionIds = nextActionIds.ToList(),
+            IsDefault = true
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// Configures rejection handling for this action
+    /// </summary>
+    public ActionBuilder OnRejection(Action<RejectionConfigBuilder> configure)
+    {
+        var builder = new RejectionConfigBuilder();
+        configure(builder);
+        _action.RejectionConfig = builder.Build();
+        return this;
+    }
+
+    /// <summary>
+    /// Marks this action as a starting action in the workflow
+    /// </summary>
+    public ActionBuilder AsStartingAction()
+    {
+        _action.IsStartingAction = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Specifies which prior actions must be completed before this action can execute
+    /// </summary>
+    public ActionBuilder RequiresPriorActions(params int[] actionIds)
+    {
+        _action.RequiredPriorActions = actionIds.ToList();
+        return this;
+    }
+
     internal Models.Action Build()
     {
         // Apply disclosures
@@ -233,6 +288,12 @@ public class ActionBuilder
         if (_calculations.Count > 0)
         {
             _action.Calculations = _calculations;
+        }
+
+        // Apply routes
+        if (_routes.Count > 0)
+        {
+            _action.Routes = _routes;
         }
 
         return _action;

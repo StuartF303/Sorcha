@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Register;
+using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Service.Models;
 using Sorcha.Blueprint.Service.Models.Requests;
 using Sorcha.Blueprint.Service.Models.Responses;
@@ -28,6 +29,7 @@ public class ActionExecutionService : IActionExecutionService
     private readonly IWalletServiceClient _walletClient;
     private readonly INotificationService _notificationService;
     private readonly IInstanceStore _instanceStore;
+    private readonly IExecutionEngine _executionEngine;
     private readonly ILogger<ActionExecutionService> _logger;
     private static readonly ActivitySource ActivitySource = new("Sorcha.Blueprint.Service.ActionExecution");
 
@@ -39,6 +41,7 @@ public class ActionExecutionService : IActionExecutionService
         IWalletServiceClient walletClient,
         INotificationService notificationService,
         IInstanceStore instanceStore,
+        IExecutionEngine executionEngine,
         ILogger<ActionExecutionService> logger)
     {
         _actionResolver = actionResolver ?? throw new ArgumentNullException(nameof(actionResolver));
@@ -48,6 +51,7 @@ public class ActionExecutionService : IActionExecutionService
         _walletClient = walletClient ?? throw new ArgumentNullException(nameof(walletClient));
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
         _instanceStore = instanceStore ?? throw new ArgumentNullException(nameof(instanceStore));
+        _executionEngine = executionEngine ?? throw new ArgumentNullException(nameof(executionEngine));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -111,11 +115,20 @@ public class ActionExecutionService : IActionExecutionService
             throw new ValidationException(validationResult.Errors);
         }
 
-        // 7. Evaluate routing conditions to determine next action(s)
-        var routingResult = EvaluateRouting(actionDef, request.PayloadData, accumulatedState);
+        // 7. Merge accumulated state with current data for routing and calculations
+        var mergedData = accumulatedState.GetFlattenedData()
+            .Where(kvp => kvp.Value != null)
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value!);
+        foreach (var kvp in request.PayloadData)
+        {
+            mergedData[kvp.Key] = kvp.Value;
+        }
 
-        // 8. Apply calculations
-        var calculations = EvaluateCalculations(actionDef, request.PayloadData, accumulatedState);
+        // 8. Evaluate routing conditions to determine next action(s)
+        var routingResult = await EvaluateRoutingAsync(blueprint, actionDef, mergedData, cancellationToken);
+
+        // 9. Apply calculations
+        var calculations = await EvaluateCalculationsAsync(actionDef, mergedData, cancellationToken);
 
         // 9. Apply disclosure rules for recipients
         var disclosedPayloads = ApplyDisclosures(actionDef, request.PayloadData, blueprint, instance.ParticipantWallets);
@@ -300,20 +313,20 @@ public class ActionExecutionService : IActionExecutionService
         Dictionary<string, object> data,
         CancellationToken cancellationToken)
     {
-        var errors = new List<string>();
-        var warnings = new List<string>();
-
-        // Validate against JSON schemas if present
+        // Delegate to the Blueprint Engine for full JSON Schema validation
         if (action.DataSchemas?.Any() == true)
         {
-            foreach (var schema in action.DataSchemas)
+            var engineResult = await _executionEngine.ValidateAsync(data, action, cancellationToken);
+            return new ValidationResult
             {
-                // Schema validation would be done here using JsonSchema.Net
-                // For now, we'll do basic validation
-            }
+                IsValid = engineResult.IsValid,
+                Errors = engineResult.Errors.Select(e => e.Message).ToList(),
+                Warnings = []
+            };
         }
 
-        // Check required action data
+        // Fallback: field-presence check when no schemas are defined
+        var errors = new List<string>();
         if (action.RequiredActionData?.Any() == true)
         {
             foreach (var required in action.RequiredActionData)
@@ -325,139 +338,81 @@ public class ActionExecutionService : IActionExecutionService
             }
         }
 
-        await Task.CompletedTask; // For async signature
-
         return new ValidationResult
         {
             IsValid = errors.Count == 0,
             Errors = errors,
-            Warnings = warnings
+            Warnings = []
         };
     }
 
-    private RoutingResult EvaluateRouting(
+    private async Task<RoutingResult> EvaluateRoutingAsync(
+        BlueprintModel blueprint,
         ActionModel action,
-        Dictionary<string, object> data,
-        AccumulatedState state)
+        Dictionary<string, object> mergedData,
+        CancellationToken cancellationToken)
     {
+        // Delegate to the Blueprint Engine for JSON Logic routing
+        var engineResult = await _executionEngine.DetermineRoutingAsync(
+            blueprint, action, mergedData, cancellationToken);
+
+        // Map engine RoutedActions to service NextActions
         var nextActions = new List<NextAction>();
 
-        // Evaluate routes in order
-        if (action.Routes != null)
+        foreach (var routedAction in engineResult.NextActions)
         {
-            var flattenedData = state.GetFlattenedData();
-            // Merge current action data
-            foreach (var kvp in data)
-            {
-                flattenedData[kvp.Key] = kvp.Value;
-            }
+            // Resolve action title from blueprint
+            var targetActionDef = blueprint.Actions?.FirstOrDefault(
+                a => a.Id.ToString() == routedAction.ActionId);
 
-            foreach (var route in action.Routes)
+            nextActions.Add(new NextAction
             {
-                var conditionMatches = false;
-
-                if (route.Condition == null || route.IsDefault)
-                {
-                    conditionMatches = route.IsDefault;
-                }
-                else
-                {
-                    // Evaluate JSON Logic condition
-                    // Using JsonLogic.NET or similar library
-                    conditionMatches = EvaluateJsonLogicCondition(route.Condition.ToString(), flattenedData!);
-                }
-
-                if (conditionMatches)
-                {
-                    foreach (var nextActionId in route.NextActionIds ?? [])
-                    {
-                        nextActions.Add(new NextAction
-                        {
-                            ActionId = nextActionId,
-                            ActionTitle = "", // Would be filled from blueprint
-                            ParticipantId = "", // Would be filled from blueprint
-                            BranchId = route.NextActionIds?.Count() > 1 ? Guid.NewGuid().ToString() : null
-                        });
-                    }
-                    break; // First matching route wins
-                }
-            }
-        }
-        else if (action.Condition != null)
-        {
-            // Legacy condition-based routing
-            var conditionResult = EvaluateJsonLogicCondition(action.Condition.ToString(), data);
-            if (conditionResult && int.TryParse(action.Condition.ToString(), out var nextId))
-            {
-                nextActions.Add(new NextAction
-                {
-                    ActionId = nextId,
-                    ActionTitle = "",
-                    ParticipantId = ""
-                });
-            }
+                ActionId = int.TryParse(routedAction.ActionId, out var id) ? id : 0,
+                ActionTitle = targetActionDef?.Title ?? "",
+                ParticipantId = routedAction.ParticipantId ?? targetActionDef?.Sender ?? "",
+                BranchId = routedAction.BranchId
+            });
         }
 
         return new RoutingResult
         {
             NextActions = nextActions,
-            IsParallel = nextActions.Count > 1
+            IsParallel = engineResult.IsParallel
         };
     }
 
-    private bool EvaluateJsonLogicCondition(string condition, Dictionary<string, object> data)
-    {
-        // Simplified JSON Logic evaluation
-        // In production, use JsonLogic.NET library
-        try
-        {
-            // Basic equality check for simple conditions
-            if (condition.Contains("\"==\""))
-            {
-                // Parse the condition
-                // For now, return true as a placeholder
-                return true;
-            }
-            return false;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private Dictionary<string, object>? EvaluateCalculations(
+    private async Task<Dictionary<string, object>?> EvaluateCalculationsAsync(
         ActionModel action,
-        Dictionary<string, object> data,
-        AccumulatedState state)
+        Dictionary<string, object> mergedData,
+        CancellationToken cancellationToken)
     {
         if (action.Calculations == null || action.Calculations.Count == 0)
         {
             return null;
         }
 
-        var results = new Dictionary<string, object>();
-        var flattenedData = state.GetFlattenedData();
-        foreach (var kvp in data)
+        try
         {
-            flattenedData[kvp.Key] = kvp.Value;
-        }
+            // Delegate to the Blueprint Engine for JSON Logic calculation evaluation
+            var result = await _executionEngine.ApplyCalculationsAsync(mergedData, action, cancellationToken);
 
-        foreach (var (fieldName, expression) in action.Calculations)
+            // Return only the calculated fields (those defined in action.Calculations)
+            var calculations = new Dictionary<string, object>();
+            foreach (var fieldName in action.Calculations.Keys)
+            {
+                if (result.TryGetValue(fieldName, out var value))
+                {
+                    calculations[fieldName] = value;
+                }
+            }
+
+            return calculations.Count > 0 ? calculations : null;
+        }
+        catch (Exception ex)
         {
-            try
-            {
-                // Evaluate JSON Logic expression
-                // For now, store the expression as-is
-                results[fieldName] = expression.ToString();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to evaluate calculation {FieldName}", fieldName);
-            }
+            _logger.LogWarning(ex, "Failed to evaluate calculations for action {ActionId}", action.Id);
+            return null;
         }
-
-        return results.Count > 0 ? results : null;
     }
 
     private Dictionary<string, Dictionary<string, object>> ApplyDisclosures(
@@ -466,14 +421,15 @@ public class ActionExecutionService : IActionExecutionService
         BlueprintModel blueprint,
         Dictionary<string, string> participantWallets)
     {
+        // Delegate to the Blueprint Engine for JSON Pointer disclosure filtering
+        var engineResults = _executionEngine.ApplyDisclosures(data, action);
+
         var disclosedPayloads = new Dictionary<string, Dictionary<string, object>>();
 
-        foreach (var disclosure in action.Disclosures)
+        foreach (var result in engineResults)
         {
-            // ParticipantAddress can be either a direct wallet address or a participant ID
-            var recipientAddress = disclosure.ParticipantAddress;
-
-            // Try to resolve as participant ID first
+            // Resolve participant ID to wallet address
+            var recipientAddress = result.ParticipantId;
             if (participantWallets.TryGetValue(recipientAddress, out var walletAddress))
             {
                 recipientAddress = walletAddress;
@@ -481,34 +437,11 @@ public class ActionExecutionService : IActionExecutionService
 
             if (string.IsNullOrEmpty(recipientAddress))
             {
-                _logger.LogWarning("No wallet address for disclosure recipient {ParticipantAddress}", disclosure.ParticipantAddress);
+                _logger.LogWarning("No wallet address for disclosure recipient {ParticipantId}", result.ParticipantId);
                 continue;
             }
 
-            var disclosedData = new Dictionary<string, object>();
-
-            foreach (var path in disclosure.DataPointers)
-            {
-                if (path == "/*" || path == "/")
-                {
-                    // Disclose all data
-                    foreach (var kvp in data)
-                    {
-                        disclosedData[kvp.Key] = kvp.Value;
-                    }
-                }
-                else
-                {
-                    // Disclose specific path
-                    var fieldName = path.TrimStart('/');
-                    if (data.TryGetValue(fieldName, out var value))
-                    {
-                        disclosedData[fieldName] = value;
-                    }
-                }
-            }
-
-            disclosedPayloads[recipientAddress] = disclosedData;
+            disclosedPayloads[recipientAddress] = result.DisclosedData;
         }
 
         return disclosedPayloads;

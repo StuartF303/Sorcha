@@ -84,7 +84,8 @@ public record FileAttachment(
 public static class TransactionBuilderServiceExtensions
 {
     /// <summary>
-    /// Builds an action transaction using orchestration context
+    /// Builds an action transaction using orchestration context.
+    /// Serializes disclosed payloads into transaction data for signing and submission.
     /// </summary>
     public static Task<BuiltTransaction> BuildActionTransactionAsync(
         this ITransactionBuilderService service,
@@ -96,24 +97,41 @@ public static class TransactionBuilderServiceExtensions
         string? previousTransactionId,
         CancellationToken cancellationToken = default)
     {
-        // This extension method bridges the new orchestration model to the existing interface
-        // The actual implementation would encrypt payloads per recipient
+        var txId = Guid.NewGuid().ToString();
+        var metadata = new Dictionary<string, object>
+        {
+            ["blueprintId"] = blueprint.Id,
+            ["actionId"] = action.Id,
+            ["instanceId"] = instance.Id,
+            ["previousTxId"] = previousTransactionId ?? ""
+        };
+
+        // Serialize the disclosed payloads into transaction data bytes
+        var transactionPayload = new
+        {
+            txId,
+            type = "action",
+            blueprintId = blueprint.Id,
+            actionId = action.Id,
+            instanceId = instance.Id,
+            previousTxId = previousTransactionId,
+            timestamp = DateTimeOffset.UtcNow,
+            payloads = disclosedPayloads
+        };
+
+        var transactionData = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(transactionPayload);
+
         return Task.FromResult(new BuiltTransaction
         {
-            TransactionData = [],
-            TxId = Guid.NewGuid().ToString(),
-            Metadata = new Dictionary<string, object>
-            {
-                ["blueprintId"] = blueprint.Id,
-                ["actionId"] = action.Id,
-                ["instanceId"] = instance.Id,
-                ["previousTxId"] = previousTransactionId ?? ""
-            }
+            TransactionData = transactionData,
+            TxId = txId,
+            Metadata = metadata
         });
     }
 
     /// <summary>
-    /// Builds a rejection transaction using orchestration context
+    /// Builds a rejection transaction using orchestration context.
+    /// Serializes rejection data into transaction data for signing and submission.
     /// </summary>
     public static Task<BuiltTransaction> BuildRejectionTransactionAsync(
         this ITransactionBuilderService service,
@@ -124,19 +142,37 @@ public static class TransactionBuilderServiceExtensions
         string? previousTransactionId,
         CancellationToken cancellationToken = default)
     {
+        var txId = Guid.NewGuid().ToString();
+        var metadata = new Dictionary<string, object>
+        {
+            ["blueprintId"] = blueprint.Id,
+            ["actionId"] = action.Id,
+            ["instanceId"] = instance.Id,
+            ["previousTxId"] = previousTransactionId ?? "",
+            ["rejectionReason"] = rejectionData.GetValueOrDefault("rejectionReason", "")!
+        };
+
+        // Serialize the rejection data into transaction data bytes
+        var transactionPayload = new
+        {
+            txId,
+            type = "rejection",
+            blueprintId = blueprint.Id,
+            actionId = action.Id,
+            instanceId = instance.Id,
+            previousTxId = previousTransactionId,
+            timestamp = DateTimeOffset.UtcNow,
+            rejectionData
+        };
+
+        var transactionData = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(transactionPayload);
+
         return Task.FromResult(new BuiltTransaction
         {
-            TransactionData = [],
-            TxId = Guid.NewGuid().ToString(),
+            TransactionData = transactionData,
+            TxId = txId,
             TransactionType = "rejection",
-            Metadata = new Dictionary<string, object>
-            {
-                ["blueprintId"] = blueprint.Id,
-                ["actionId"] = action.Id,
-                ["instanceId"] = instance.Id,
-                ["previousTxId"] = previousTransactionId ?? "",
-                ["rejectionReason"] = rejectionData.GetValueOrDefault("rejectionReason", "")!
-            }
+            Metadata = metadata
         });
     }
 }
