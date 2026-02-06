@@ -19,6 +19,7 @@ public class TransactionBuilderServiceTests
 {
     private readonly Mock<ICryptoModule> _mockCryptoModule;
     private readonly Mock<IHashProvider> _mockHashProvider;
+    private readonly Mock<ISymmetricCrypto> _mockSymmetricCrypto;
     private readonly Mock<ILogger<TransactionBuilderService>> _mockLogger;
     private readonly TransactionBuilderService _service;
 
@@ -26,10 +27,12 @@ public class TransactionBuilderServiceTests
     {
         _mockCryptoModule = new Mock<ICryptoModule>();
         _mockHashProvider = new Mock<IHashProvider>();
+        _mockSymmetricCrypto = new Mock<ISymmetricCrypto>();
         _mockLogger = new Mock<ILogger<TransactionBuilderService>>();
         _service = new TransactionBuilderService(
             _mockCryptoModule.Object,
             _mockHashProvider.Object,
+            _mockSymmetricCrypto.Object,
             _mockLogger.Object);
     }
 

@@ -17,6 +17,7 @@ public class TransactionBenchmarks
 {
     private CryptoModule _cryptoModule = null!;
     private HashProvider _hashProvider = null!;
+    private SymmetricCrypto _symmetricCrypto = null!;
     private string _privateKeyWif = null!;
     private Transaction _signedTransaction = null!;
     private BinaryTransactionSerializer _binarySerializer = null!;
@@ -29,8 +30,9 @@ public class TransactionBenchmarks
     {
         _cryptoModule = new CryptoModule();
         _hashProvider = new HashProvider();
-        _binarySerializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
-        _jsonSerializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider);
+        _symmetricCrypto = new SymmetricCrypto();
+        _binarySerializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
+        _jsonSerializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         // Generate a test wallet
         var keyManager = new KeyManager(_cryptoModule);
@@ -39,7 +41,7 @@ public class TransactionBenchmarks
         _privateKeyWif = Convert.ToBase64String(keyRing.MasterKeySet.PrivateKey.Key!);
 
         // Create a signed transaction for benchmarking
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var builderResult = await builder
             .Create(TransactionVersion.V4)
             .WithRecipients("ws1recipient1", "ws1recipient2")
@@ -57,7 +59,7 @@ public class TransactionBenchmarks
     [Benchmark]
     public async Task<Transaction> CreateTransaction()
     {
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var result = await builder
             .Create(TransactionVersion.V4)
             .WithRecipients("ws1recipient")
@@ -69,7 +71,7 @@ public class TransactionBenchmarks
     [Benchmark]
     public async Task<Transaction> CreateTransactionWithMetadata()
     {
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var result = await builder
             .Create(TransactionVersion.V4)
             .WithRecipients("ws1recipient")
@@ -82,7 +84,7 @@ public class TransactionBenchmarks
     [Benchmark]
     public async Task<Transaction> CreateTransactionWithPayload()
     {
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var payloadData = new byte[1024]; // 1KB payload
 
         var result = await builder
@@ -97,7 +99,7 @@ public class TransactionBenchmarks
     [Benchmark]
     public async Task<TransactionStatus> SignTransaction()
     {
-        var payloadManager = new Payload.PayloadManager();
+        var payloadManager = new Payload.PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
         transaction.Recipients = new[] { "ws1recipient" };
 
@@ -138,7 +140,7 @@ public class TransactionBenchmarks
     public async Task<Transaction> CompleteWorkflow()
     {
         // Complete workflow: Create -> Add Payload -> Sign -> Serialize -> Deserialize
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var payloadData = new byte[512];
 
         var builderResult = await builder

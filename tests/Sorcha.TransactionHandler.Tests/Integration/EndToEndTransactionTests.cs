@@ -19,18 +19,20 @@ public class EndToEndTransactionTests
 {
     private readonly CryptoModule _cryptoModule;
     private readonly HashProvider _hashProvider;
+    private readonly SymmetricCrypto _symmetricCrypto;
 
     public EndToEndTransactionTests()
     {
         _cryptoModule = new CryptoModule();
         _hashProvider = new HashProvider();
+        _symmetricCrypto = new SymmetricCrypto();
     }
 
     [Fact]
     public async Task CompleteTransactionWorkflow_ShouldSucceed()
     {
         // Arrange - Create a transaction using the builder
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
         var recipient = "ws1qyqszqgp123recipient";
 
@@ -65,7 +67,7 @@ public class EndToEndTransactionTests
     public async Task TransactionSerialization_RoundTrip_ShouldPreserveData()
     {
         // Arrange - Create and sign a transaction
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
@@ -78,7 +80,7 @@ public class EndToEndTransactionTests
         var originalTransaction = builderResult.Build().Value!;
 
         // Act - Serialize to binary and deserialize
-        var binarySerializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var binarySerializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var binaryData = binarySerializer.SerializeToBinary(originalTransaction);
         var deserializedTransaction = binarySerializer.DeserializeFromBinary(binaryData);
 
@@ -92,7 +94,7 @@ public class EndToEndTransactionTests
     public async Task TransactionWithMultiplePayloads_ShouldSucceed()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
         var recipients = new[] { "ws1recipient1", "ws1recipient2" };
 
@@ -123,7 +125,7 @@ public class EndToEndTransactionTests
     public async Task TransactionChaining_WithPreviousHash_ShouldSucceed()
     {
         // Arrange - Create first transaction
-        var builder1 = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder1 = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet1 = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var tx1Result = await builder1
@@ -134,7 +136,7 @@ public class EndToEndTransactionTests
         var transaction1 = tx1Result.Build().Value!;
 
         // Act - Create second transaction referencing the first
-        var builder2 = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder2 = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet2 = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var tx2Result = await builder2
@@ -154,7 +156,7 @@ public class EndToEndTransactionTests
     public async Task JsonSerialization_RoundTrip_ShouldPreserveStructure()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
@@ -166,7 +168,7 @@ public class EndToEndTransactionTests
         var originalTransaction = builderResult.Build().Value!;
 
         // Act
-        var jsonSerializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider);
+        var jsonSerializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var json = jsonSerializer.SerializeToJson(originalTransaction);
 
         // Assert - JSON contains expected fields
@@ -184,7 +186,7 @@ public class EndToEndTransactionTests
     public async Task TransportPacket_Creation_ShouldIncludeAllData()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
@@ -195,7 +197,7 @@ public class EndToEndTransactionTests
         var transaction = builderResult.Build().Value!;
 
         // Act
-        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var packet = serializer.CreateTransportPacket(transaction);
 
         // Assert
@@ -210,10 +212,10 @@ public class EndToEndTransactionTests
     {
         // Arrange
         var versionDetector = new VersionDetector();
-        var factory = new TransactionFactory(_cryptoModule, _hashProvider, versionDetector);
+        var factory = new TransactionFactory(_cryptoModule, _hashProvider, _symmetricCrypto, versionDetector);
 
         // Create a V4 transaction
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
@@ -224,7 +226,7 @@ public class EndToEndTransactionTests
         var originalTransaction = builderResult.Build().Value!;
 
         // Serialize
-        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var binaryData = serializer.SerializeToBinary(originalTransaction);
 
         // Act - Use factory to deserialize with auto-detection
@@ -239,7 +241,7 @@ public class EndToEndTransactionTests
     public async Task MetadataWithComplexObject_ShouldSerializeCorrectly()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var metadata = new
@@ -276,7 +278,7 @@ public class EndToEndTransactionTests
     public async Task LargePayload_ShouldHandleCorrectly()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         // Create a 1MB payload

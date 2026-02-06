@@ -9,25 +9,24 @@ using Sorcha.Cryptography.Enums;
 
 namespace Sorcha.TransactionHandler.Tests.Unit;
 
-/// <summary>
-/// Unit tests for Transaction core functionality.
-/// </summary>
 public class TransactionTests
 {
     private readonly CryptoModule _cryptoModule;
     private readonly HashProvider _hashProvider;
+    private readonly SymmetricCrypto _symmetricCrypto;
 
     public TransactionTests()
     {
         _cryptoModule = new CryptoModule();
         _hashProvider = new HashProvider();
+        _symmetricCrypto = new SymmetricCrypto();
     }
 
     [Fact]
     public void Constructor_ShouldCreateTransaction()
     {
         // Arrange & Act
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(
             _cryptoModule,
             _hashProvider,
@@ -44,7 +43,7 @@ public class TransactionTests
     public void Recipients_ShouldSetAndGet()
     {
         // Arrange
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
         var recipients = new[] { "ws1qyqszqgp123", "ws1pqpszqgp456" };
 
@@ -59,7 +58,7 @@ public class TransactionTests
     public void Metadata_ShouldSetAndGet()
     {
         // Arrange
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
         var metadata = "{\"type\": \"test\"}";
 
@@ -74,7 +73,7 @@ public class TransactionTests
     public void PreviousTxHash_ShouldSetAndGet()
     {
         // Arrange
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
         var hash = "prev_hash_123";
 
@@ -89,7 +88,7 @@ public class TransactionTests
     public async Task SignAsync_ShouldSetSignatureAndSenderWallet()
     {
         // Arrange
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
@@ -109,7 +108,7 @@ public class TransactionTests
     public async Task SignAsync_ShouldFailWithEmptyKey()
     {
         // Arrange
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
 
         // Act
@@ -123,7 +122,7 @@ public class TransactionTests
     public async Task VerifyAsync_ShouldSucceedForValidSignature()
     {
         // Arrange
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
@@ -143,7 +142,7 @@ public class TransactionTests
     public async Task VerifyAsync_ShouldFailForUnsignedTransaction()
     {
         // Arrange
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
 
         // Act
@@ -161,7 +160,7 @@ public class TransactionTests
     public void Constructor_ShouldSupportAllVersions(TransactionVersion version)
     {
         // Arrange & Act
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(
             _cryptoModule,
             _hashProvider,

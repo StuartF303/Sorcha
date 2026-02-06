@@ -18,14 +18,16 @@ public class JsonTransactionSerializer : ITransactionSerializer
 {
     private readonly ICryptoModule _cryptoModule;
     private readonly IHashProvider _hashProvider;
+    private readonly ISymmetricCrypto _symmetricCrypto;
 
     /// <summary>
     /// Initializes a new instance of the JsonTransactionSerializer class.
     /// </summary>
-    public JsonTransactionSerializer(ICryptoModule cryptoModule, IHashProvider hashProvider)
+    public JsonTransactionSerializer(ICryptoModule cryptoModule, IHashProvider hashProvider, ISymmetricCrypto symmetricCrypto)
     {
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
+        _symmetricCrypto = symmetricCrypto ?? throw new ArgumentNullException(nameof(symmetricCrypto));
     }
 
     /// <inheritdoc/>
@@ -77,7 +79,7 @@ public class JsonTransactionSerializer : ITransactionSerializer
         var root = doc.RootElement;
 
         var version = (TransactionVersion)root.GetProperty("version").GetUInt32();
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager, version);
 
         // Set basic properties
@@ -122,7 +124,7 @@ public class JsonTransactionSerializer : ITransactionSerializer
             throw new ArgumentNullException(nameof(transaction));
 
         // Use BinaryTransactionSerializer for transport packets
-        var binarySerializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var binarySerializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         return binarySerializer.CreateTransportPacket(transaction);
     }
 }

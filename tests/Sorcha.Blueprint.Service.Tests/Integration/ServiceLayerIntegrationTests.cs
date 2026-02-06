@@ -66,10 +66,12 @@ public class ServiceLayerIntegrationTests
         // Create transaction builder with mocks
         var mockCryptoModule = new Mock<ICryptoModule>();
         var mockHashProvider = new Mock<IHashProvider>();
+        var mockSymmetricCrypto = new Mock<ISymmetricCrypto>();
         var transactionBuilderLogger = Mock.Of<ILogger<TransactionBuilderService>>();
         _transactionBuilder = new TransactionBuilderService(
             mockCryptoModule.Object,
             mockHashProvider.Object,
+            mockSymmetricCrypto.Object,
             transactionBuilderLogger);
     }
 

@@ -48,6 +48,7 @@ builder.Services.AddSingleton<Sorcha.Blueprint.Service.Templates.IBlueprintTempl
 // Add Cryptography services (required for transaction building)
 builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.ICryptoModule, Sorcha.Cryptography.Core.CryptoModule>();
 builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.IHashProvider, Sorcha.Cryptography.Core.HashProvider>();
+builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.ISymmetricCrypto, Sorcha.Cryptography.Core.SymmetricCrypto>();
 
 // Add Execution Engine services (Sprint 5)
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.ISchemaValidator, Sorcha.Blueprint.Engine.Implementation.SchemaValidator>();

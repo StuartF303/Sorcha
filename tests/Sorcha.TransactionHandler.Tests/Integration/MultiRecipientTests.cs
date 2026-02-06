@@ -17,18 +17,20 @@ public class MultiRecipientTests
 {
     private readonly CryptoModule _cryptoModule;
     private readonly HashProvider _hashProvider;
+    private readonly SymmetricCrypto _symmetricCrypto;
 
     public MultiRecipientTests()
     {
         _cryptoModule = new CryptoModule();
         _hashProvider = new HashProvider();
+        _symmetricCrypto = new SymmetricCrypto();
     }
 
     [Fact]
     public async Task Transaction_WithMultipleRecipients_ShouldSucceed()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var recipients = new[]
@@ -60,7 +62,7 @@ public class MultiRecipientTests
     public async Task Payload_WithMultipleRecipients_ShouldCreateSeparateAccess()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var recipients = new[]
@@ -97,7 +99,7 @@ public class MultiRecipientTests
     public async Task MultiplePayloads_WithDifferentRecipients_ShouldSucceed()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var allRecipients = new[] { "ws1recipient1", "ws1recipient2", "ws1recipient3" };
@@ -149,7 +151,7 @@ public class MultiRecipientTests
     public async Task LargeNumberOfRecipients_ShouldHandleCorrectly()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         // Create 100 recipients
@@ -176,7 +178,7 @@ public class MultiRecipientTests
     public async Task Payload_WithSingleRecipient_ShouldWorkCorrectly()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var singleRecipient = new[] { "ws1singlerecipient" };
@@ -207,7 +209,7 @@ public class MultiRecipientTests
     public async Task Transaction_WithDuplicateRecipients_ShouldHandleGracefully()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var recipientsWithDuplicates = new[]
@@ -236,7 +238,7 @@ public class MultiRecipientTests
     public async Task ComplexMultiRecipientScenario_ShouldSucceed()
     {
         // Arrange - Simulate a real-world multi-party contract
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var contractParties = new[] { "ws1party1", "ws1party2", "ws1party3" };

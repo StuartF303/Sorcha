@@ -17,18 +17,20 @@ public class SigningVerificationTests
 {
     private readonly CryptoModule _cryptoModule;
     private readonly HashProvider _hashProvider;
+    private readonly SymmetricCrypto _symmetricCrypto;
 
     public SigningVerificationTests()
     {
         _cryptoModule = new CryptoModule();
         _hashProvider = new HashProvider();
+        _symmetricCrypto = new SymmetricCrypto();
     }
 
     [Fact]
     public async Task SignAndVerify_CompleteWorkflow_ShouldSucceed()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         // Act - Create and sign transaction
@@ -54,7 +56,7 @@ public class SigningVerificationTests
     public async Task BinarySerialization_PreservesTransactionData()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
@@ -66,7 +68,7 @@ public class SigningVerificationTests
         var originalTransaction = builderResult.Build().Value!;
 
         // Act - Serialize and deserialize
-        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var binaryData = serializer.SerializeToBinary(originalTransaction);
         var deserializedTransaction = serializer.DeserializeFromBinary(binaryData);
 
@@ -82,7 +84,7 @@ public class SigningVerificationTests
     {
         // Test ED25519
         var ed25519Wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
-        var ed25519Builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var ed25519Builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         var ed25519Result = await ed25519Builder
             .Create(TransactionVersion.V4)
@@ -103,7 +105,7 @@ public class SigningVerificationTests
     public async Task Verify_UnsignedTransaction_ShouldFail()
     {
         // Arrange - Create transaction without signing
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager);
 
         transaction.Recipients = new[] { "ws1recipient" };
@@ -119,7 +121,7 @@ public class SigningVerificationTests
     public async Task SignedTransaction_IsImmutable_ShouldVerify()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
@@ -149,9 +151,9 @@ public class SigningVerificationTests
         var wallet2 = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
         var wallet3 = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
-        var builder1 = new TransactionBuilder(_cryptoModule, _hashProvider);
-        var builder2 = new TransactionBuilder(_cryptoModule, _hashProvider);
-        var builder3 = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder1 = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
+        var builder2 = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
+        var builder3 = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         // Act - Create and sign three transactions
         var tx1 = (await builder1
@@ -187,7 +189,7 @@ public class SigningVerificationTests
     public async Task Sign_WithEmptyPrivateKey_ShouldFail()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -203,7 +205,7 @@ public class SigningVerificationTests
     public async Task Sign_WithInvalidPrivateKey_ShouldFail()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -219,7 +221,7 @@ public class SigningVerificationTests
     public async Task TransactionWithPayloads_SignatureCoversAllData_ShouldVerify()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var payload1 = System.Text.Encoding.UTF8.GetBytes("Payload 1 data");
@@ -250,8 +252,8 @@ public class SigningVerificationTests
         // Arrange - Create transaction with same data twice
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
-        var builder1 = new TransactionBuilder(_cryptoModule, _hashProvider);
-        var builder2 = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder1 = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
+        var builder2 = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         var metadata = "{\"test\": \"deterministic\"}";
         var recipients = new[] { "ws1recipient" };
@@ -280,7 +282,7 @@ public class SigningVerificationTests
     public async Task DoubleSignature_SHA256_ShouldBeUsed()
     {
         // Arrange
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         // Act
@@ -308,7 +310,7 @@ public class SigningVerificationTests
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         // Create first transaction
-        var builder1 = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder1 = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var tx1 = (await builder1
             .Create()
             .WithRecipients("ws1recipient")
@@ -316,7 +318,7 @@ public class SigningVerificationTests
             .Build().Value!;
 
         // Create second transaction referencing first
-        var builder2 = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder2 = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var tx2 = (await builder2
             .Create()
             .WithPreviousTransaction(tx1.TxId!)
@@ -325,7 +327,7 @@ public class SigningVerificationTests
             .Build().Value!;
 
         // Create third transaction referencing second
-        var builder3 = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder3 = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var tx3 = (await builder3
             .Create()
             .WithPreviousTransaction(tx2.TxId!)

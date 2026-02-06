@@ -19,15 +19,18 @@ public class TransactionBuilderService : ITransactionBuilderService
 {
     private readonly ICryptoModule _cryptoModule;
     private readonly IHashProvider _hashProvider;
+    private readonly ISymmetricCrypto _symmetricCrypto;
     private readonly ILogger<TransactionBuilderService> _logger;
 
     public TransactionBuilderService(
         ICryptoModule cryptoModule,
         IHashProvider hashProvider,
+        ISymmetricCrypto symmetricCrypto,
         ILogger<TransactionBuilderService> logger)
     {
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
+        _symmetricCrypto = symmetricCrypto ?? throw new ArgumentNullException(nameof(symmetricCrypto));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -81,7 +84,7 @@ public class TransactionBuilderService : ITransactionBuilderService
         };
 
         // Create payload manager
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
 
         // Create transaction (note: SenderWallet is read-only and set during signing)
         var transaction = new Transaction(
@@ -152,7 +155,7 @@ public class TransactionBuilderService : ITransactionBuilderService
         };
 
         // Create payload manager
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
 
         // Create rejection transaction (note: SenderWallet is read-only and set during signing)
         var transaction = new Transaction(
@@ -232,7 +235,7 @@ public class TransactionBuilderService : ITransactionBuilderService
             };
 
             // Create payload manager
-            var payloadManager = new PayloadManager();
+            var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
 
             // Create file transaction (note: SenderWallet is read-only and set during signing)
             var transaction = new Transaction(

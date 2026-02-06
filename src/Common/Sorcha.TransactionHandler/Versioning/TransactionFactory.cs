@@ -15,6 +15,7 @@ public class TransactionFactory : ITransactionFactory
 {
     private readonly ICryptoModule _cryptoModule;
     private readonly IHashProvider _hashProvider;
+    private readonly ISymmetricCrypto _symmetricCrypto;
     private readonly IVersionDetector _versionDetector;
 
     /// <summary>
@@ -23,10 +24,12 @@ public class TransactionFactory : ITransactionFactory
     public TransactionFactory(
         ICryptoModule cryptoModule,
         IHashProvider hashProvider,
+        ISymmetricCrypto symmetricCrypto,
         IVersionDetector versionDetector)
     {
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
+        _symmetricCrypto = symmetricCrypto ?? throw new ArgumentNullException(nameof(symmetricCrypto));
         _versionDetector = versionDetector ?? throw new ArgumentNullException(nameof(versionDetector));
     }
 
@@ -79,7 +82,7 @@ public class TransactionFactory : ITransactionFactory
 
     private ITransaction CreateV4Transaction()
     {
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         return new Transaction(_cryptoModule, _hashProvider, payloadManager, TransactionVersion.V4);
     }
 
@@ -87,7 +90,7 @@ public class TransactionFactory : ITransactionFactory
     {
         // TODO: Implement V3 adapter for backward compatibility
         // For now, create a V4 transaction with V3 version marker
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         return new Transaction(_cryptoModule, _hashProvider, payloadManager, TransactionVersion.V3);
     }
 
@@ -95,7 +98,7 @@ public class TransactionFactory : ITransactionFactory
     {
         // TODO: Implement V2 adapter for backward compatibility
         // For now, create a V4 transaction with V2 version marker
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         return new Transaction(_cryptoModule, _hashProvider, payloadManager, TransactionVersion.V2);
     }
 
@@ -103,7 +106,7 @@ public class TransactionFactory : ITransactionFactory
     {
         // TODO: Implement V1 adapter for backward compatibility
         // For now, create a V4 transaction with V1 version marker
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         return new Transaction(_cryptoModule, _hashProvider, payloadManager, TransactionVersion.V1);
     }
 
@@ -113,10 +116,10 @@ public class TransactionFactory : ITransactionFactory
         // TODO: Implement version-specific serializers for true backward compatibility
         return version switch
         {
-            TransactionVersion.V4 => new BinaryTransactionSerializer(_cryptoModule, _hashProvider),
-            TransactionVersion.V3 => new BinaryTransactionSerializer(_cryptoModule, _hashProvider),
-            TransactionVersion.V2 => new BinaryTransactionSerializer(_cryptoModule, _hashProvider),
-            TransactionVersion.V1 => new BinaryTransactionSerializer(_cryptoModule, _hashProvider),
+            TransactionVersion.V4 => new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto),
+            TransactionVersion.V3 => new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto),
+            TransactionVersion.V2 => new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto),
+            TransactionVersion.V1 => new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto),
             _ => throw new NotSupportedException($"No serializer available for version {version}")
         };
     }
