@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 4.4 - UPDATED
-**Last Updated:** 2026-01-31
-**Status:** Active - Setup Wizard Complete
+**Version:** 4.5 - UPDATED
+**Last Updated:** 2026-02-06
+**Status:** Active - Peer Service Test Coverage
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -19,6 +19,21 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ---
 
 ## Recent Updates
+
+**2026-02-06:**
+- ✅ PEER-TESTS COMPLETE: Peer Service unit test coverage (232 new tests, 11 test files)
+  - `CircuitBreakerTests` (25 tests): State transitions, thresholds, fallbacks, HalfOpen recovery
+  - `GossipProtocolEngineTests` (33 tests): ShouldGossip, RecordSeen, PrepareForNextRound, BloomFilter, cleanup
+  - `PushNotificationHandlerTests` (29 tests): Subscriber management, stream notifications, failure cleanup
+  - `HubNodeValidatorTests` (16 tests): Hostname pattern validation (n0-n2.sorcha.dev)
+  - `HeartbeatValidatorTests` (10 tests): Timeout detection, failover thresholds, constants
+  - `RetryBackoffValidatorTests` (14 tests): Exponential backoff, cap at 60s, attempt validation
+  - `SyncValidatorTests` (8 tests): Sync timing, interval constants
+  - `SystemRegisterValidatorTests` (6 tests): System register ID validation
+  - `PeerNodeTests` (19 tests): Equality, hashing, HashSet behavior, defaults
+  - `HubNodeInfoTests` (15 tests): Connection state, failure tracking, gRPC address
+  - `TransactionNotificationTests` (11 tests): Default values, property round-trip
+  - Peer Service test count: 139 → 371 (167% increase)
 
 **2026-01-31:**
 - ✅ VAL-9.49/VAL-9.50 COMPLETE: Performance testing for Validator Service
@@ -308,6 +323,6 @@ BP-11.x (Production Readiness) ⚠️ CURRENT BLOCKER
 
 ---
 
-**Last Updated:** 2026-01-31
+**Last Updated:** 2026-02-06
 **Next Review:** Weekly
 **Document Owner:** Sorcha Architecture Team
