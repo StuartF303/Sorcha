@@ -13,8 +13,8 @@ namespace Sorcha.Validator.Service.Services;
 /// </summary>
 public class ValidationEngineService : BackgroundService
 {
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ITransactionPoolPoller _poolPoller;
-    private readonly IValidationEngine _validationEngine;
     private readonly IVerifiedTransactionQueue _verifiedQueue;
     private readonly ValidationEngineConfiguration _config;
     private readonly ILogger<ValidationEngineService> _logger;
@@ -24,14 +24,14 @@ public class ValidationEngineService : BackgroundService
     private readonly object _registersLock = new();
 
     public ValidationEngineService(
+        IServiceScopeFactory scopeFactory,
         ITransactionPoolPoller poolPoller,
-        IValidationEngine validationEngine,
         IVerifiedTransactionQueue verifiedQueue,
         IOptions<ValidationEngineConfiguration> config,
         ILogger<ValidationEngineService> logger)
     {
+        _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         _poolPoller = poolPoller ?? throw new ArgumentNullException(nameof(poolPoller));
-        _validationEngine = validationEngine ?? throw new ArgumentNullException(nameof(validationEngine));
         _verifiedQueue = verifiedQueue ?? throw new ArgumentNullException(nameof(verifiedQueue));
         _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -110,8 +110,10 @@ public class ValidationEngineService : BackgroundService
                 "Processing {Count} transactions for register {RegisterId}",
                 transactions.Count, registerId);
 
-            // Validate the batch
-            var results = await _validationEngine.ValidateBatchAsync(transactions, ct);
+            // Validate the batch (create scope for scoped IValidationEngine)
+            using var scope = _scopeFactory.CreateScope();
+            var validationEngine = scope.ServiceProvider.GetRequiredService<IValidationEngine>();
+            var results = await validationEngine.ValidateBatchAsync(transactions, ct);
 
             var validCount = 0;
             var invalidCount = 0;
@@ -186,7 +188,9 @@ public class ValidationEngineService : BackgroundService
     {
         ArgumentNullException.ThrowIfNull(transaction);
 
-        var result = await _validationEngine.ValidateTransactionAsync(transaction, ct);
+        using var scope = _scopeFactory.CreateScope();
+        var validationEngine = scope.ServiceProvider.GetRequiredService<IValidationEngine>();
+        var result = await validationEngine.ValidateTransactionAsync(transaction, ct);
 
         if (result.IsValid)
         {

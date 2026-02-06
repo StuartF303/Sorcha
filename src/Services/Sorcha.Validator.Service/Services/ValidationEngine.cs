@@ -5,9 +5,11 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using Json.Schema;
 using Microsoft.Extensions.Options;
 using Sorcha.Cryptography.Enums;
 using Sorcha.Cryptography.Interfaces;
+using Sorcha.ServiceClients.Register;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Models;
 using Sorcha.Validator.Service.Services.Interfaces;
@@ -25,6 +27,7 @@ public class ValidationEngine : IValidationEngine
     private readonly IBlueprintCache _blueprintCache;
     private readonly IHashProvider _hashProvider;
     private readonly ICryptoModule _cryptoModule;
+    private readonly IRegisterServiceClient _registerClient;
     private readonly ILogger<ValidationEngine> _logger;
 
     // Statistics
@@ -41,12 +44,14 @@ public class ValidationEngine : IValidationEngine
         IBlueprintCache blueprintCache,
         IHashProvider hashProvider,
         ICryptoModule cryptoModule,
+        IRegisterServiceClient registerClient,
         ILogger<ValidationEngine> logger)
     {
         _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
         _blueprintCache = blueprintCache ?? throw new ArgumentNullException(nameof(blueprintCache));
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
+        _registerClient = registerClient ?? throw new ArgumentNullException(nameof(registerClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -284,6 +289,16 @@ public class ValidationEngine : IValidationEngine
         var sw = Stopwatch.StartNew();
         var errors = new List<ValidationEngineError>();
 
+        // Config check: skip if disabled
+        if (!_config.EnableSchemaValidation)
+        {
+            _logger.LogDebug("Schema validation disabled by configuration");
+            return ValidationEngineResult.Success(
+                transaction.TransactionId,
+                transaction.RegisterId,
+                sw.Elapsed);
+        }
+
         try
         {
             // Get the blueprint
@@ -314,11 +329,73 @@ public class ValidationEngine : IValidationEngine
                 return CreateFailureResult(transaction, sw.Elapsed, errors);
             }
 
-            // TODO: Implement actual schema validation against action.Schema
-            // For now, just verify action exists
+            // Skip schema validation if no schemas defined (FR-006)
+            if (action.DataSchemas == null || !action.DataSchemas.Any())
+            {
+                _logger.LogDebug(
+                    "No schemas defined for action {ActionId} in blueprint {BlueprintId}, skipping schema validation",
+                    transaction.ActionId, transaction.BlueprintId);
+                return ValidationEngineResult.Success(
+                    transaction.TransactionId,
+                    transaction.RegisterId,
+                    sw.Elapsed);
+            }
+
+            // Evaluate payload against all schemas (payload must pass ALL schemas)
+            var evalOptions = new EvaluationOptions
+            {
+                OutputFormat = OutputFormat.List,
+                RequireFormatValidation = true
+            };
+
+            foreach (var schemaDoc in action.DataSchemas)
+            {
+                JsonSchema jsonSchema;
+                try
+                {
+                    var schemaText = schemaDoc.RootElement.GetRawText();
+                    jsonSchema = JsonSchema.FromText(schemaText);
+                }
+                catch (Exception ex)
+                {
+                    errors.Add(CreateError("VAL_SCHEMA_005",
+                        $"Malformed JSON schema in blueprint '{transaction.BlueprintId}' action {transaction.ActionId}: {ex.Message}",
+                        ValidationErrorCategory.Blueprint, "DataSchemas", true));
+                    continue;
+                }
+
+                var result = jsonSchema.Evaluate(transaction.Payload, evalOptions);
+
+                if (!result.IsValid)
+                {
+                    // Collect all violations from the evaluation
+                    if (result.Details != null)
+                    {
+                        foreach (var detail in result.Details.Where(d => !d.IsValid && d.Errors != null))
+                        {
+                            foreach (var error in detail.Errors!)
+                            {
+                                var instanceLocation = detail.InstanceLocation.ToString();
+                                errors.Add(CreateError("VAL_SCHEMA_004",
+                                    $"Schema violation at '{instanceLocation}': {error.Value}",
+                                    ValidationErrorCategory.Schema, instanceLocation));
+                            }
+                        }
+                    }
+
+                    // If no details were extracted, add a generic error
+                    if (errors.Count == 0)
+                    {
+                        errors.Add(CreateError("VAL_SCHEMA_004",
+                            "Payload does not conform to the required schema",
+                            ValidationErrorCategory.Schema, "Payload"));
+                    }
+                }
+            }
+
             _logger.LogDebug(
-                "Schema validation for transaction {TransactionId} against blueprint {BlueprintId} action {ActionId}",
-                transaction.TransactionId, transaction.BlueprintId, transaction.ActionId);
+                "Schema validation for transaction {TransactionId} against blueprint {BlueprintId} action {ActionId}: {ViolationCount} violations",
+                transaction.TransactionId, transaction.BlueprintId, transaction.ActionId, errors.Count);
         }
         catch (Exception ex)
         {
@@ -428,16 +505,106 @@ public class ValidationEngine : IValidationEngine
         ArgumentNullException.ThrowIfNull(transaction);
 
         var sw = Stopwatch.StartNew();
+        var errors = new List<ValidationEngineError>();
 
-        // Chain validation would check:
-        // 1. If this transaction references a valid previous transaction
-        // 2. The previous transaction belongs to the same register/blueprint
-        // 3. The action sequence is valid according to the blueprint
+        // Config check: skip if disabled
+        if (!_config.EnableChainValidation)
+        {
+            _logger.LogDebug("Chain validation disabled by configuration");
+            return ValidationEngineResult.Success(
+                transaction.TransactionId,
+                transaction.RegisterId,
+                sw.Elapsed);
+        }
 
-        // TODO: Implement actual chain validation against Register Service
-        // For now, we do basic structural validation
+        try
+        {
+            // 1. Transaction-level chain validation
+            var previousTxId = transaction.PreviousTransactionId;
+            if (!string.IsNullOrWhiteSpace(previousTxId))
+            {
+                var previousTx = await _registerClient.GetTransactionAsync(
+                    transaction.RegisterId, previousTxId, ct);
 
-        await Task.CompletedTask; // Placeholder for async Register Service call
+                if (previousTx == null)
+                {
+                    errors.Add(CreateError("VAL_CHAIN_001",
+                        $"Previous transaction '{previousTxId}' not found in register '{transaction.RegisterId}'",
+                        ValidationErrorCategory.Chain, "PreviousTransactionId"));
+                }
+                else if (!string.Equals(previousTx.RegisterId, transaction.RegisterId, StringComparison.Ordinal))
+                {
+                    errors.Add(CreateError("VAL_CHAIN_002",
+                        $"Previous transaction '{previousTxId}' belongs to register '{previousTx.RegisterId}', expected '{transaction.RegisterId}'",
+                        ValidationErrorCategory.Chain, "PreviousTransactionId"));
+                }
+            }
+
+            // 2. Docket-level chain validation
+            var height = await _registerClient.GetRegisterHeightAsync(transaction.RegisterId, ct);
+
+            if (height > 0)
+            {
+                var latestDocket = await _registerClient.ReadDocketAsync(
+                    transaction.RegisterId, height, ct);
+
+                if (latestDocket != null && height > 1)
+                {
+                    var predecessorDocket = await _registerClient.ReadDocketAsync(
+                        transaction.RegisterId, height - 1, ct);
+
+                    if (predecessorDocket == null)
+                    {
+                        errors.Add(CreateError("VAL_CHAIN_003",
+                            $"Docket gap detected: docket {height - 1} not found in register '{transaction.RegisterId}'",
+                            ValidationErrorCategory.Chain, "DocketNumber"));
+                    }
+                    else
+                    {
+                        // Verify hash linkage
+                        if (!string.Equals(latestDocket.PreviousHash, predecessorDocket.DocketHash, StringComparison.Ordinal))
+                        {
+                            errors.Add(CreateError("VAL_CHAIN_004",
+                                $"Docket hash chain broken: docket {height} PreviousHash does not match docket {height - 1} DocketHash",
+                                ValidationErrorCategory.Chain, "DocketHash"));
+                        }
+
+                        // Verify sequential numbering
+                        if (latestDocket.DocketNumber != predecessorDocket.DocketNumber + 1)
+                        {
+                            errors.Add(CreateError("VAL_CHAIN_003",
+                                $"Docket numbering gap: expected {predecessorDocket.DocketNumber + 1}, found {latestDocket.DocketNumber}",
+                                ValidationErrorCategory.Chain, "DocketNumber"));
+                        }
+                    }
+                }
+            }
+
+            _logger.LogDebug(
+                "Chain validation for transaction {TransactionId} in register {RegisterId}: {ErrorCount} errors",
+                transaction.TransactionId, transaction.RegisterId, errors.Count);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Register Service unavailable during chain validation for transaction {TransactionId}",
+                transaction.TransactionId);
+            errors.Add(CreateError("VAL_CHAIN_TRANSIENT",
+                $"Register Service unavailable: {ex.Message}",
+                ValidationErrorCategory.Chain, isFatal: false));
+        }
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "Register Service timed out during chain validation for transaction {TransactionId}",
+                transaction.TransactionId);
+            errors.Add(CreateError("VAL_CHAIN_TRANSIENT",
+                $"Register Service timed out: {ex.Message}",
+                ValidationErrorCategory.Chain, isFatal: false));
+        }
+
+        if (errors.Count > 0)
+        {
+            return CreateFailureResult(transaction, sw.Elapsed, errors);
+        }
 
         return ValidationEngineResult.Success(
             transaction.TransactionId,

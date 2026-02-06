@@ -11,6 +11,7 @@ using Sorcha.Cryptography.Interfaces;
 using Sorcha.Cryptography.Models;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Models;
+using Sorcha.ServiceClients.Register;
 using Sorcha.Validator.Service.Services;
 using Sorcha.Validator.Service.Services.Interfaces;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
@@ -23,6 +24,7 @@ public class ValidationEngineTests
     private readonly Mock<IBlueprintCache> _blueprintCacheMock;
     private readonly Mock<IHashProvider> _hashProviderMock;
     private readonly Mock<ICryptoModule> _cryptoModuleMock;
+    private readonly Mock<IRegisterServiceClient> _registerClientMock;
     private readonly Mock<ILogger<ValidationEngine>> _loggerMock;
     private readonly ValidationEngineConfiguration _config;
     private readonly ValidationEngine _engine;
@@ -32,6 +34,7 @@ public class ValidationEngineTests
         _blueprintCacheMock = new Mock<IBlueprintCache>();
         _hashProviderMock = new Mock<IHashProvider>();
         _cryptoModuleMock = new Mock<ICryptoModule>();
+        _registerClientMock = new Mock<IRegisterServiceClient>();
         _loggerMock = new Mock<ILogger<ValidationEngine>>();
 
         _config = new ValidationEngineConfiguration
@@ -49,6 +52,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _registerClientMock.Object,
             _loggerMock.Object);
     }
 
@@ -60,6 +64,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _registerClientMock.Object,
             _loggerMock.Object);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("config");
@@ -73,6 +78,7 @@ public class ValidationEngineTests
             null!,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _registerClientMock.Object,
             _loggerMock.Object);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("blueprintCache");
@@ -86,6 +92,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             null!,
             _cryptoModuleMock.Object,
+            _registerClientMock.Object,
             _loggerMock.Object);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("hashProvider");
@@ -99,9 +106,24 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             null!,
+            _registerClientMock.Object,
             _loggerMock.Object);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("cryptoModule");
+    }
+
+    [Fact]
+    public void Constructor_WithNullRegisterClient_ThrowsArgumentNullException()
+    {
+        var act = () => new ValidationEngine(
+            Options.Create(_config),
+            _blueprintCacheMock.Object,
+            _hashProviderMock.Object,
+            _cryptoModuleMock.Object,
+            null!,
+            _loggerMock.Object);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("registerClient");
     }
 
     [Fact]
@@ -112,6 +134,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _registerClientMock.Object,
             null!);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("logger");
@@ -610,10 +633,12 @@ public class ValidationEngineTests
     }
 
     [Fact]
-    public async Task ValidateChainAsync_ReturnsSuccess()
+    public async Task ValidateChainAsync_NoPreviousTransaction_ReturnsSuccess()
     {
-        // Arrange
+        // Arrange - genesis transaction (no previous), empty register
         var tx = CreateValidTransaction();
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
 
         // Act
         var result = await _engine.ValidateChainAsync(tx);
@@ -661,6 +686,523 @@ public class ValidationEngineTests
         stats.SuccessRate.Should().BeApproximately(0.5, 0.01);
     }
 
+    #region Schema Validation Tests (US1)
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ValidPayload_ReturnsSuccess()
+    {
+        // Arrange
+        var tx = CreateValidTransaction(payloadJson: """{"name":"Alice","amount":100}""");
+        var blueprint = CreateTestBlueprintWithSchema(tx.BlueprintId);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_MissingRequiredField_ReturnsSchemaError()
+    {
+        // Arrange - payload missing "amount"
+        var tx = CreateValidTransaction(payloadJson: """{"name":"Alice"}""");
+        var blueprint = CreateTestBlueprintWithSchema(tx.BlueprintId);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_SCHEMA_004");
+        result.Errors.Should().Contain(e => e.Category == ValidationErrorCategory.Schema);
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_WrongType_ReturnsSchemaError()
+    {
+        // Arrange - amount is string instead of number
+        var tx = CreateValidTransaction(payloadJson: """{"name":"Alice","amount":"not-a-number"}""");
+        var blueprint = CreateTestBlueprintWithSchema(tx.BlueprintId);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_SCHEMA_004");
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_NoSchemas_ReturnsSuccess()
+    {
+        // Arrange - action has no DataSchemas (null)
+        var tx = CreateValidTransaction();
+        var blueprint = CreateTestBlueprint(tx.BlueprintId); // no schemas
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_EmptySchemas_ReturnsSuccess()
+    {
+        // Arrange - action has empty DataSchemas list
+        var tx = CreateValidTransaction();
+        var blueprint = CreateTestBlueprintWithSchema(tx.BlueprintId, schemaJson: null);
+        // Override the action to have empty DataSchemas
+        blueprint.Actions.First().DataSchemas = [];
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_DisabledByConfig_ReturnsSuccess()
+    {
+        // Arrange - disable schema validation
+        var config = new ValidationEngineConfiguration
+        {
+            EnableSchemaValidation = false,
+            EnableSignatureVerification = true,
+            EnableChainValidation = true,
+            EnableParallelValidation = false,
+            MaxClockSkew = TimeSpan.FromMinutes(5),
+            MaxTransactionAge = TimeSpan.FromHours(1)
+        };
+        var engine = new ValidationEngine(
+            Options.Create(config),
+            _blueprintCacheMock.Object,
+            _hashProviderMock.Object,
+            _cryptoModuleMock.Object,
+            _registerClientMock.Object,
+            _loggerMock.Object);
+
+        var tx = CreateValidTransaction();
+
+        // Act
+        var result = await engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        _blueprintCacheMock.Verify(
+            c => c.GetBlueprintAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_MalformedSchema_ReturnsBlueprintError()
+    {
+        // Arrange - action has invalid JSON schema
+        var tx = CreateValidTransaction(payloadJson: """{"name":"Alice"}""");
+        var blueprint = CreateTestBlueprintWithSchema(tx.BlueprintId,
+            schemaJson: """{"type": "invalid-type-value", "$schema": "not-a-schema"}""");
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert - malformed schema should fail but may produce VAL_SCHEMA_004 or VAL_SCHEMA_005
+        // depending on whether JsonSchema.Net can parse but evaluates badly, or throws
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_MultipleSchemas_AllMustPass()
+    {
+        // Arrange - two schemas: first requires "name", second requires "email"
+        var tx = CreateValidTransaction(payloadJson: """{"name":"Alice"}"""); // passes first, fails second
+
+        var schema1 = """{"type":"object","required":["name"],"properties":{"name":{"type":"string"}}}""";
+        var schema2 = """{"type":"object","required":["email"],"properties":{"email":{"type":"string"}}}""";
+
+        var blueprint = new BlueprintModel
+        {
+            Id = tx.BlueprintId,
+            Title = "Test Blueprint",
+            Participants = [new Sorcha.Blueprint.Models.Participant { Id = "p-1", Name = "P1" }],
+            Actions =
+            [
+                new ActionModel
+                {
+                    Id = 1,
+                    Title = "Test Action",
+                    Sender = "p-1",
+                    DataSchemas =
+                    [
+                        JsonDocument.Parse(schema1),
+                        JsonDocument.Parse(schema2)
+                    ]
+                }
+            ]
+        };
+
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_SCHEMA_004");
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_MultipleViolations_AllReported()
+    {
+        // Arrange - payload missing "name" (required) AND "amount" is wrong type
+        var tx = CreateValidTransaction(payloadJson: """{"amount":"not-a-number"}""");
+        var blueprint = CreateTestBlueprintWithSchema(tx.BlueprintId);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Where(e => e.Code == "VAL_SCHEMA_004").Should().HaveCountGreaterOrEqualTo(2);
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_NestedObjectViolation_IncludesJsonPath()
+    {
+        // Arrange - schema requires nested object
+        var schemaJson = """
+        {
+            "type": "object",
+            "required": ["address"],
+            "properties": {
+                "address": {
+                    "type": "object",
+                    "required": ["zipCode"],
+                    "properties": {
+                        "zipCode": { "type": "string" }
+                    }
+                }
+            }
+        }
+        """;
+        var tx = CreateValidTransaction(payloadJson: """{"address":{"zipCode":12345}}""");
+        var blueprint = CreateTestBlueprintWithSchema(tx.BlueprintId, schemaJson);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e =>
+            e.Code == "VAL_SCHEMA_004" &&
+            e.Field != null && e.Field.Contains("zipCode", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_EnumViolation_ReportsAllowedValues()
+    {
+        // Arrange - schema with enum constraint
+        var schemaJson = """
+        {
+            "type": "object",
+            "required": ["status"],
+            "properties": {
+                "status": { "type": "string", "enum": ["active", "inactive", "pending"] }
+            }
+        }
+        """;
+        var tx = CreateValidTransaction(payloadJson: """{"status":"deleted"}""");
+        var blueprint = CreateTestBlueprintWithSchema(tx.BlueprintId, schemaJson);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_SCHEMA_004" && e.Field != null && e.Field.Contains("status"));
+    }
+
+    #endregion
+
+    #region Chain Validation Tests (US2)
+
+    [Fact]
+    public async Task ValidateChainAsync_EmptyPreviousTransaction_ReturnsSuccess()
+    {
+        // Arrange - empty string treated as null (FR-009)
+        var tx = CreateValidTransaction(previousTransactionId: "");
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_ValidPreviousTransaction_ReturnsSuccess()
+    {
+        // Arrange
+        var previousTxId = "prev-tx-001";
+        var tx = CreateValidTransaction(previousTransactionId: previousTxId);
+
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, previousTxId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel { RegisterId = tx.RegisterId, TxId = previousTxId });
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_PreviousTransactionNotFound_ReturnsChainError()
+    {
+        // Arrange
+        var tx = CreateValidTransaction(previousTransactionId: "nonexistent-tx");
+
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, "nonexistent-tx", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Sorcha.Register.Models.TransactionModel?)null);
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_CHAIN_001");
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_PreviousTransactionWrongRegister_ReturnsChainError()
+    {
+        // Arrange
+        var previousTxId = "prev-tx-wrong-register";
+        var tx = CreateValidTransaction(previousTransactionId: previousTxId);
+
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, previousTxId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel { RegisterId = "different-register", TxId = previousTxId });
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_CHAIN_002");
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_DisabledByConfig_ReturnsSuccess()
+    {
+        // Arrange
+        var config = new ValidationEngineConfiguration
+        {
+            EnableSchemaValidation = true,
+            EnableSignatureVerification = true,
+            EnableChainValidation = false,
+            EnableParallelValidation = false,
+            MaxClockSkew = TimeSpan.FromMinutes(5),
+            MaxTransactionAge = TimeSpan.FromHours(1)
+        };
+        var engine = new ValidationEngine(
+            Options.Create(config),
+            _blueprintCacheMock.Object,
+            _hashProviderMock.Object,
+            _cryptoModuleMock.Object,
+            _registerClientMock.Object,
+            _loggerMock.Object);
+
+        var tx = CreateValidTransaction(previousTransactionId: "some-tx");
+
+        // Act
+        var result = await engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        _registerClientMock.Verify(
+            r => r.GetTransactionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_RegisterServiceUnavailable_ReturnsTransientError()
+    {
+        // Arrange
+        var tx = CreateValidTransaction(previousTransactionId: "some-tx");
+
+        _registerClientMock.Setup(r => r.GetTransactionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Connection refused"));
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_CHAIN_TRANSIENT" && !e.IsFatal);
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_DocketChainIntact_ReturnsSuccess()
+    {
+        // Arrange
+        var tx = CreateValidTransaction();
+
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(2);
+        _registerClientMock.Setup(r => r.ReadDocketAsync(tx.RegisterId, 2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DocketModel
+            {
+                DocketId = "docket-2",
+                RegisterId = tx.RegisterId,
+                DocketNumber = 2,
+                PreviousHash = "hash-of-docket-1",
+                DocketHash = "hash-of-docket-2",
+                CreatedAt = DateTimeOffset.UtcNow,
+                Transactions = [],
+                ProposerValidatorId = "val-1",
+                MerkleRoot = "merkle-2"
+            });
+        _registerClientMock.Setup(r => r.ReadDocketAsync(tx.RegisterId, 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DocketModel
+            {
+                DocketId = "docket-1",
+                RegisterId = tx.RegisterId,
+                DocketNumber = 1,
+                PreviousHash = null,
+                DocketHash = "hash-of-docket-1",
+                CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-5),
+                Transactions = [],
+                ProposerValidatorId = "val-1",
+                MerkleRoot = "merkle-1"
+            });
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_DocketHashMismatch_ReturnsChainError()
+    {
+        // Arrange
+        var tx = CreateValidTransaction();
+
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(2);
+        _registerClientMock.Setup(r => r.ReadDocketAsync(tx.RegisterId, 2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DocketModel
+            {
+                DocketId = "docket-2",
+                RegisterId = tx.RegisterId,
+                DocketNumber = 2,
+                PreviousHash = "WRONG-HASH",
+                DocketHash = "hash-of-docket-2",
+                CreatedAt = DateTimeOffset.UtcNow,
+                Transactions = [],
+                ProposerValidatorId = "val-1",
+                MerkleRoot = "merkle-2"
+            });
+        _registerClientMock.Setup(r => r.ReadDocketAsync(tx.RegisterId, 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DocketModel
+            {
+                DocketId = "docket-1",
+                RegisterId = tx.RegisterId,
+                DocketNumber = 1,
+                PreviousHash = null,
+                DocketHash = "hash-of-docket-1",
+                CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-5),
+                Transactions = [],
+                ProposerValidatorId = "val-1",
+                MerkleRoot = "merkle-1"
+            });
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_CHAIN_004");
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_DocketGap_ReturnsChainError()
+    {
+        // Arrange
+        var tx = CreateValidTransaction();
+
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(3);
+        _registerClientMock.Setup(r => r.ReadDocketAsync(tx.RegisterId, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DocketModel
+            {
+                DocketId = "docket-3",
+                RegisterId = tx.RegisterId,
+                DocketNumber = 3,
+                PreviousHash = "some-hash",
+                DocketHash = "hash-of-docket-3",
+                CreatedAt = DateTimeOffset.UtcNow,
+                Transactions = [],
+                ProposerValidatorId = "val-1",
+                MerkleRoot = "merkle-3"
+            });
+        _registerClientMock.Setup(r => r.ReadDocketAsync(tx.RegisterId, 2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DocketModel?)null); // Gap!
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_CHAIN_003");
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_GenesisRegister_ReturnsSuccess()
+    {
+        // Arrange - empty register (height 0)
+        var tx = CreateValidTransaction();
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static Transaction CreateValidTransaction(
@@ -671,9 +1213,11 @@ public class ValidationEngineTests
         string? payloadHash = null,
         DateTimeOffset? createdAt = null,
         DateTimeOffset? expiresAt = null,
-        List<Signature>? signatures = null)
+        List<Signature>? signatures = null,
+        string? previousTransactionId = null,
+        string? payloadJson = null)
     {
-        var payloadJson = "{}";
+        var json = payloadJson ?? "{}";
         var defaultPayloadHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"; // SHA256 of {}
 
         return new Transaction
@@ -682,10 +1226,11 @@ public class ValidationEngineTests
             RegisterId = registerId ?? "test-register",
             BlueprintId = blueprintId ?? "bp-1",
             ActionId = actionId ?? "1",
-            Payload = JsonSerializer.Deserialize<JsonElement>(payloadJson),
+            Payload = JsonSerializer.Deserialize<JsonElement>(json),
             PayloadHash = payloadHash ?? defaultPayloadHash,
             CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
             ExpiresAt = expiresAt,
+            PreviousTransactionId = previousTransactionId,
             Signatures = signatures ??
             [
                 new Signature
@@ -719,6 +1264,10 @@ public class ValidationEngineTests
                 It.IsAny<byte[]>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(CryptoStatus.Success);
+
+        // Setup register client for chain validation (empty register = genesis)
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
     }
 
     private static BlueprintModel CreateTestBlueprint(string blueprintId)
@@ -742,6 +1291,46 @@ public class ValidationEngineTests
                     Id = 1,
                     Title = "Test Action",
                     Sender = "participant-1"
+                }
+            ]
+        };
+    }
+
+    private static BlueprintModel CreateTestBlueprintWithSchema(string blueprintId, string? schemaJson = null)
+    {
+        var defaultSchema = """
+        {
+            "type": "object",
+            "required": ["name", "amount"],
+            "properties": {
+                "name": { "type": "string" },
+                "amount": { "type": "number" }
+            }
+        }
+        """;
+
+        var schema = schemaJson ?? defaultSchema;
+
+        return new BlueprintModel
+        {
+            Id = blueprintId,
+            Title = "Test Blueprint With Schema",
+            Participants =
+            [
+                new Sorcha.Blueprint.Models.Participant
+                {
+                    Id = "participant-1",
+                    Name = "Test Participant"
+                }
+            ],
+            Actions =
+            [
+                new ActionModel
+                {
+                    Id = 1,
+                    Title = "Test Action",
+                    Sender = "participant-1",
+                    DataSchemas = [JsonDocument.Parse(schema)]
                 }
             ]
         };

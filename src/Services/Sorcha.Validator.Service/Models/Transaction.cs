@@ -82,6 +82,13 @@ public class Transaction
     /// </summary>
     public int RetryCount { get; set; }
 
+    // Chain Linkage
+    /// <summary>
+    /// Previous transaction ID for chain linkage. Null for genesis/independent transactions.
+    /// Empty string is treated as null (no previous transaction).
+    /// </summary>
+    public string? PreviousTransactionId { get; init; }
+
     // Metadata
     /// <summary>
     /// Extensible key-value metadata

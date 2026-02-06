@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Models;
 using Sorcha.Validator.Service.Services;
+using StackExchange.Redis;
 
 namespace Sorcha.Validator.Service.Tests.Services;
 
@@ -16,12 +17,14 @@ namespace Sorcha.Validator.Service.Tests.Services;
 /// </summary>
 public class MemPoolManagerTests
 {
+    private readonly Mock<IConnectionMultiplexer> _mockRedis;
     private readonly Mock<ILogger<MemPoolManager>> _mockLogger;
     private readonly MemPoolConfiguration _config;
     private readonly IOptions<MemPoolConfiguration> _options;
 
     public MemPoolManagerTests()
     {
+        _mockRedis = new Mock<IConnectionMultiplexer>();
         _mockLogger = new Mock<ILogger<MemPoolManager>>();
         _config = new MemPoolConfiguration
         {
@@ -39,7 +42,7 @@ public class MemPoolManagerTests
     public void Constructor_WithValidParameters_CreatesInstance()
     {
         // Act
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Assert
         manager.Should().NotBeNull();
@@ -50,7 +53,7 @@ public class MemPoolManagerTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(
-            () => new MemPoolManager(null!, _mockLogger.Object));
+            () => new MemPoolManager(_mockRedis.Object, null!, _mockLogger.Object));
         exception.ParamName.Should().Be("config");
     }
 
@@ -59,7 +62,7 @@ public class MemPoolManagerTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(
-            () => new MemPoolManager(_options, null!));
+            () => new MemPoolManager(_mockRedis.Object, _options, null!));
         exception.ParamName.Should().Be("logger");
     }
 
@@ -71,7 +74,7 @@ public class MemPoolManagerTests
     public async Task AddTransactionAsync_WithValidTransaction_ReturnsTrue()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
         var transaction = CreateValidTransaction(priority: TransactionPriority.Normal);
 
         // Act
@@ -87,7 +90,7 @@ public class MemPoolManagerTests
     public async Task AddTransactionAsync_WithNullRegisterId_ThrowsArgumentException()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
         var transaction = CreateValidTransaction();
 
         // Act & Assert
@@ -99,7 +102,7 @@ public class MemPoolManagerTests
     public async Task AddTransactionAsync_WithEmptyRegisterId_ThrowsArgumentException()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
         var transaction = CreateValidTransaction();
 
         // Act & Assert
@@ -111,7 +114,7 @@ public class MemPoolManagerTests
     public async Task AddTransactionAsync_WithNullTransaction_ThrowsArgumentNullException()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
@@ -122,7 +125,7 @@ public class MemPoolManagerTests
     public async Task AddTransactionAsync_WithDuplicateTransaction_ReturnsFalse()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
         var transaction = CreateValidTransaction("tx-1");
 
         // Act
@@ -141,7 +144,7 @@ public class MemPoolManagerTests
     {
         // Arrange
         var smallConfig = new MemPoolConfiguration { MaxSize = 5, HighPriorityQuota = 0.20 };
-        var manager = new MemPoolManager(Options.Create(smallConfig), _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, Options.Create(smallConfig), _mockLogger.Object);
 
         // Fill pool with low priority transactions
         for (int i = 0; i < 5; i++)
@@ -165,7 +168,7 @@ public class MemPoolManagerTests
     {
         // Arrange
         var config = new MemPoolConfiguration { MaxSize = 100, HighPriorityQuota = 0.10 }; // 10 high-priority max
-        var manager = new MemPoolManager(Options.Create(config), _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, Options.Create(config), _mockLogger.Object);
 
         // Fill high-priority quota
         for (int i = 0; i < 10; i++)
@@ -187,7 +190,7 @@ public class MemPoolManagerTests
     public async Task AddTransactionAsync_SetsAddedToPoolAt()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
         var transaction = CreateValidTransaction();
         var beforeAdd = DateTimeOffset.UtcNow;
 
@@ -202,7 +205,7 @@ public class MemPoolManagerTests
     public async Task AddTransactionAsync_WithMultipleRegisters_KeepsSeparatePools()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
         var tx1 = CreateValidTransaction("tx-1");
         var tx2 = CreateValidTransaction("tx-2");
 
@@ -225,7 +228,7 @@ public class MemPoolManagerTests
     public async Task RemoveTransactionAsync_WithExistingTransaction_ReturnsTrueAndRemoves()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
         var transaction = CreateValidTransaction("tx-1");
         await manager.AddTransactionAsync("register-1", transaction);
 
@@ -242,7 +245,7 @@ public class MemPoolManagerTests
     public async Task RemoveTransactionAsync_WithNonExistentTransaction_ReturnsFalse()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act
         var result = await manager.RemoveTransactionAsync("register-1", "non-existent");
@@ -255,7 +258,7 @@ public class MemPoolManagerTests
     public async Task RemoveTransactionAsync_WithNonExistentRegister_ReturnsFalse()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act
         var result = await manager.RemoveTransactionAsync("non-existent-register", "tx-1");
@@ -272,7 +275,7 @@ public class MemPoolManagerTests
     public async Task GetPendingTransactionsAsync_WithEmptyPool_ReturnsEmptyList()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act
         var transactions = await manager.GetPendingTransactionsAsync("register-1", 10);
@@ -285,7 +288,7 @@ public class MemPoolManagerTests
     public async Task GetPendingTransactionsAsync_ReturnsPriorityOrdered()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Add transactions in mixed order
         var lowTx = CreateValidTransaction("tx-low", priority: TransactionPriority.Low);
@@ -310,7 +313,7 @@ public class MemPoolManagerTests
     public async Task GetPendingTransactionsAsync_RespectsMaxCount()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Add 10 transactions
         for (int i = 0; i < 10; i++)
@@ -330,7 +333,7 @@ public class MemPoolManagerTests
     public async Task GetPendingTransactionsAsync_IsFIFOWithinPriority()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Add multiple normal priority transactions
         var tx1 = CreateValidTransaction("tx-1", priority: TransactionPriority.Normal);
@@ -361,7 +364,7 @@ public class MemPoolManagerTests
     public async Task GetTransactionCountAsync_WithEmptyPool_ReturnsZero()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act
         var count = await manager.GetTransactionCountAsync("register-1");
@@ -374,7 +377,7 @@ public class MemPoolManagerTests
     public async Task GetTransactionCountAsync_ReturnsCorrectCount()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         for (int i = 0; i < 5; i++)
         {
@@ -397,7 +400,7 @@ public class MemPoolManagerTests
     public async Task GetStatsAsync_WithEmptyPool_ReturnsZeroStats()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act
         var stats = await manager.GetStatsAsync("register-1");
@@ -417,7 +420,7 @@ public class MemPoolManagerTests
     public async Task GetStatsAsync_ReturnsAccurateStats()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         var highTx = CreateValidTransaction("tx-high", priority: TransactionPriority.High);
         var normalTx1 = CreateValidTransaction("tx-normal-1", priority: TransactionPriority.Normal);
@@ -449,7 +452,7 @@ public class MemPoolManagerTests
     public async Task CleanupExpiredTransactionsAsync_RemovesExpiredTransactions()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         var expiredTx = CreateValidTransaction("tx-expired", expiresAt: DateTimeOffset.UtcNow.AddMinutes(-10)); // Expired 10 min ago
         var validTx = CreateValidTransaction("tx-valid", expiresAt: DateTimeOffset.UtcNow.AddMinutes(10)); // Expires in 10 min
@@ -472,7 +475,7 @@ public class MemPoolManagerTests
     public async Task CleanupExpiredTransactionsAsync_WithNoExpiredTransactions_DoesNothing()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         var validTx1 = CreateValidTransaction("tx-1");
         var validTx2 = CreateValidTransaction("tx-2");
@@ -492,7 +495,7 @@ public class MemPoolManagerTests
     public async Task CleanupExpiredTransactionsAsync_WithMultipleRegisters_CleansAll()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         var expiredTx1 = CreateValidTransaction("tx-expired-1", expiresAt: DateTimeOffset.UtcNow.AddMinutes(-10));
         var expiredTx2 = CreateValidTransaction("tx-expired-2", expiresAt: DateTimeOffset.UtcNow.AddMinutes(-10));
@@ -518,7 +521,7 @@ public class MemPoolManagerTests
     public async Task ReturnTransactionsAsync_WithValidTransactions_AddsThemBack()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         var tx1 = CreateValidTransaction("tx-1");
         var tx2 = CreateValidTransaction("tx-2");
@@ -536,7 +539,7 @@ public class MemPoolManagerTests
     public async Task ReturnTransactionsAsync_WithNullList_DoesNothing()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act
         await manager.ReturnTransactionsAsync("register-1", null!);
@@ -550,7 +553,7 @@ public class MemPoolManagerTests
     public async Task ReturnTransactionsAsync_WithEmptyList_DoesNothing()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act
         await manager.ReturnTransactionsAsync("register-1", new List<Transaction>());
@@ -564,7 +567,7 @@ public class MemPoolManagerTests
     public async Task ReturnTransactionsAsync_PreservesOriginalPriorityAndTimestamp()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
 
         var originalTime = DateTimeOffset.UtcNow.AddMinutes(-30);
         var tx = CreateValidTransaction("tx-1", priority: TransactionPriority.High);
@@ -590,7 +593,7 @@ public class MemPoolManagerTests
     public async Task MemPoolManager_WithHighConcurrency_HandlesCorrectly()
     {
         // Arrange
-        var manager = new MemPoolManager(_options, _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, _options, _mockLogger.Object);
         var tasks = new List<Task<bool>>();
 
         // Act - Add 50 transactions concurrently
@@ -613,7 +616,7 @@ public class MemPoolManagerTests
     {
         // Arrange
         var smallConfig = new MemPoolConfiguration { MaxSize = 3, HighPriorityQuota = 0.30 };
-        var manager = new MemPoolManager(Options.Create(smallConfig), _mockLogger.Object);
+        var manager = new MemPoolManager(_mockRedis.Object, Options.Create(smallConfig), _mockLogger.Object);
 
         // Fill pool
         for (int i = 0; i < 3; i++)
