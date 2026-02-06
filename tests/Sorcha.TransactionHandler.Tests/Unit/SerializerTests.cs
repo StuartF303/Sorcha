@@ -18,18 +18,20 @@ public class SerializerTests
 {
     private readonly CryptoModule _cryptoModule;
     private readonly HashProvider _hashProvider;
+    private readonly SymmetricCrypto _symmetricCrypto;
 
     public SerializerTests()
     {
         _cryptoModule = new CryptoModule();
         _hashProvider = new HashProvider();
+        _symmetricCrypto = new SymmetricCrypto();
     }
 
     [Fact]
     public async Task JsonSerializer_ShouldSerializeTransaction()
     {
         // Arrange
-        var serializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var transaction = await CreateSignedTransaction();
 
         // Act
@@ -45,7 +47,7 @@ public class SerializerTests
     public async Task JsonSerializer_ShouldDeserializeTransaction()
     {
         // Arrange
-        var serializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var originalTransaction = await CreateSignedTransaction();
         var json = serializer.SerializeToJson(originalTransaction);
 
@@ -62,7 +64,7 @@ public class SerializerTests
     public async Task BinarySerializer_ShouldSerializeTransaction()
     {
         // Arrange
-        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var transaction = await CreateSignedTransaction();
 
         // Act
@@ -77,7 +79,7 @@ public class SerializerTests
     public async Task BinarySerializer_ShouldDeserializeTransaction()
     {
         // Arrange
-        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var originalTransaction = await CreateSignedTransaction();
         var binary = serializer.SerializeToBinary(originalTransaction);
 
@@ -94,7 +96,7 @@ public class SerializerTests
     public async Task BinarySerializer_ShouldRoundTrip()
     {
         // Arrange
-        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var originalTransaction = await CreateSignedTransaction();
 
         // Act
@@ -110,7 +112,7 @@ public class SerializerTests
     public async Task CreateTransportPacket_ShouldCreatePacket()
     {
         // Arrange
-        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var transaction = await CreateSignedTransaction();
 
         // Act
@@ -127,7 +129,7 @@ public class SerializerTests
     public void JsonSerializer_ShouldThrowOnNullTransaction()
     {
         // Arrange
-        var serializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -138,7 +140,7 @@ public class SerializerTests
     public void BinarySerializer_ShouldThrowOnNullTransaction()
     {
         // Arrange
-        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -149,7 +151,7 @@ public class SerializerTests
     public void JsonSerializer_ShouldThrowOnEmptyJson()
     {
         // Arrange
-        var serializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -160,7 +162,7 @@ public class SerializerTests
     public void BinarySerializer_ShouldThrowOnEmptyBinary()
     {
         // Arrange
-        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -169,7 +171,7 @@ public class SerializerTests
 
     private async Task<Transaction> CreateSignedTransaction()
     {
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(
             _cryptoModule,
             _hashProvider,

@@ -15,6 +15,7 @@ public class TransactionFactoryTests
 {
     private readonly CryptoModule _cryptoModule;
     private readonly HashProvider _hashProvider;
+    private readonly SymmetricCrypto _symmetricCrypto;
     private readonly VersionDetector _versionDetector;
     private readonly TransactionFactory _factory;
 
@@ -22,8 +23,9 @@ public class TransactionFactoryTests
     {
         _cryptoModule = new CryptoModule();
         _hashProvider = new HashProvider();
+        _symmetricCrypto = new SymmetricCrypto();
         _versionDetector = new VersionDetector();
-        _factory = new TransactionFactory(_cryptoModule, _hashProvider, _versionDetector);
+        _factory = new TransactionFactory(_cryptoModule, _hashProvider, _symmetricCrypto, _versionDetector);
     }
 
     [Theory]
@@ -45,7 +47,7 @@ public class TransactionFactoryTests
     public async Task Deserialize_V4BinaryTransaction_ShouldSucceed()
     {
         // Arrange - Create a V4 transaction
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
@@ -56,7 +58,7 @@ public class TransactionFactoryTests
         var originalTransaction = builderResult.Build().Value!;
 
         // Serialize it
-        var serializer = new Serialization.BinaryTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new Serialization.BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var binaryData = serializer.SerializeToBinary(originalTransaction);
 
         // Act - Deserialize using factory
@@ -71,7 +73,7 @@ public class TransactionFactoryTests
     public async Task Deserialize_V4JsonTransaction_ShouldSucceed()
     {
         // Arrange - Create a V4 transaction
-        var builder = new TransactionBuilder(_cryptoModule, _hashProvider);
+        var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
@@ -82,7 +84,7 @@ public class TransactionFactoryTests
         var originalTransaction = builderResult.Build().Value!;
 
         // Serialize to JSON
-        var serializer = new Serialization.JsonTransactionSerializer(_cryptoModule, _hashProvider);
+        var serializer = new Serialization.JsonTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var json = serializer.SerializeToJson(originalTransaction);
 
         // Act - Deserialize using factory

@@ -19,22 +19,25 @@ public class TransactionBuilder : ITransactionBuilder
     private bool _isSigned = false;
     private readonly ICryptoModule _cryptoModule;
     private readonly IHashProvider _hashProvider;
+    private readonly ISymmetricCrypto _symmetricCrypto;
 
     /// <summary>
     /// Initializes a new instance of the TransactionBuilder class.
     /// </summary>
     /// <param name="cryptoModule">The cryptography module</param>
     /// <param name="hashProvider">The hash provider</param>
-    public TransactionBuilder(ICryptoModule cryptoModule, IHashProvider hashProvider)
+    /// <param name="symmetricCrypto">The symmetric encryption provider</param>
+    public TransactionBuilder(ICryptoModule cryptoModule, IHashProvider hashProvider, ISymmetricCrypto symmetricCrypto)
     {
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
+        _symmetricCrypto = symmetricCrypto ?? throw new ArgumentNullException(nameof(symmetricCrypto));
     }
 
     /// <inheritdoc/>
     public ITransactionBuilder Create(TransactionVersion version = TransactionVersion.V4)
     {
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         _transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager, version);
         _isSigned = false;
         return this;

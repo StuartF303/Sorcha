@@ -20,14 +20,16 @@ public class BinaryTransactionSerializer : ITransactionSerializer
 {
     private readonly ICryptoModule _cryptoModule;
     private readonly IHashProvider _hashProvider;
+    private readonly ISymmetricCrypto _symmetricCrypto;
 
     /// <summary>
     /// Initializes a new instance of the BinaryTransactionSerializer class.
     /// </summary>
-    public BinaryTransactionSerializer(ICryptoModule cryptoModule, IHashProvider hashProvider)
+    public BinaryTransactionSerializer(ICryptoModule cryptoModule, IHashProvider hashProvider, ISymmetricCrypto symmetricCrypto)
     {
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
+        _symmetricCrypto = symmetricCrypto ?? throw new ArgumentNullException(nameof(symmetricCrypto));
     }
 
     /// <inheritdoc/>
@@ -130,7 +132,7 @@ public class BinaryTransactionSerializer : ITransactionSerializer
         // Read version
         var version = (TransactionVersion)reader.ReadUInt32();
 
-        var payloadManager = new PayloadManager();
+        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager, version);
 
         // Read timestamp
@@ -212,7 +214,7 @@ public class BinaryTransactionSerializer : ITransactionSerializer
     public string SerializeToJson(ITransaction transaction)
     {
         // Delegate to JsonTransactionSerializer
-        var jsonSerializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider);
+        var jsonSerializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         return jsonSerializer.SerializeToJson(transaction);
     }
 
@@ -220,7 +222,7 @@ public class BinaryTransactionSerializer : ITransactionSerializer
     public ITransaction DeserializeFromJson(string json)
     {
         // Delegate to JsonTransactionSerializer
-        var jsonSerializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider);
+        var jsonSerializer = new JsonTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         return jsonSerializer.DeserializeFromJson(json);
     }
 
