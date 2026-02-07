@@ -68,9 +68,10 @@ An operator wants to stop replicating a register. They select a subscription in 
 
 **Acceptance Scenarios**:
 
-1. **Given** an active subscription to a register, **When** the operator clicks "Unsubscribe" and confirms, **Then** the subscription is removed and sync stops.
-2. **Given** an active subscription, **When** the operator runs `sorcha peer unsubscribe --register-id reg-123`, **Then** the CLI confirms removal.
-3. **Given** no subscription to a register, **When** the operator attempts to unsubscribe, **Then** the system returns a clear "not found" message.
+1. **Given** an active subscription to a register, **When** the operator clicks "Unsubscribe" and confirms, **Then** the subscription is removed, sync stops, and cached data is retained.
+2. **Given** an unsubscribed register with retained cached data, **When** the operator clicks "Purge Cache", **Then** the cached transactions and dockets for that register are deleted.
+3. **Given** an active subscription, **When** the operator runs `sorcha peer unsubscribe --register-id reg-123`, **Then** the CLI confirms removal and notes that cached data is retained (use `--purge` flag to also delete cached data).
+4. **Given** no subscription to a register, **When** the operator attempts to unsubscribe, **Then** the system returns a clear "not found" message.
 
 ---
 
@@ -122,10 +123,10 @@ An operator wants to manually adjust peer trust. They can ban a peer (block all 
 - **FR-001**: System MUST expose peer network state (peer list with health, latency, advertised registers) via REST API, CLI, and Blazor UI.
 - **FR-002**: System MUST expose register subscription state (mode, sync state, progress, errors) via REST API, CLI, and Blazor UI.
 - **FR-003**: System MUST allow operators to subscribe to a register with a chosen replication mode (forward-only or full-replica) via REST API, CLI, and Blazor UI.
-- **FR-004**: System MUST allow operators to unsubscribe from a register via REST API, CLI, and Blazor UI.
-- **FR-005**: System MUST show registers advertised across the peer network (aggregated from peer advertisements) so operators can discover what is available to subscribe to.
+- **FR-004**: System MUST allow operators to unsubscribe from a register via REST API, CLI, and Blazor UI. Unsubscribing stops sync but retains cached data; a separate purge action deletes cached data.
+- **FR-005**: System MUST show public registers advertised across the peer network (aggregated from peer advertisements where `IsPublic = true`) so operators can discover what is available to subscribe to. Private register sharing via invitation protocol is out of scope (future feature).
 - **FR-006**: System MUST display per-peer quality scores and quality categories based on connection metrics (latency, failure count, success rate).
-- **FR-007**: System MUST allow operators to ban/unban a peer, preventing all communication with the banned peer.
+- **FR-007**: System MUST allow operators to ban/unban a peer, preventing all communication with the banned peer. Bans MUST be persisted to the database and survive service restarts.
 - **FR-008**: System MUST allow operators to reset a peer's failure count.
 - **FR-009**: System MUST display register cache statistics (transaction count, docket count, latest versions) for each locally cached register.
 - **FR-010**: System MUST provide auto-refreshing dashboard in the UI with configurable refresh interval.
@@ -142,6 +143,14 @@ An operator wants to manually adjust peer trust. They can ban a peer (block all 
 - **RegisterSubscriptionView**: Subscription state including register ID, replication mode, sync state, progress percentage, docket/transaction versions, last sync time, error details.
 - **AvailableRegister**: A register discovered through peer advertisements — register ID, number of peers holding it, latest known version, whether it is public.
 - **PeerReputationScore**: Per-peer quality metrics — quality score (0-100), category (Excellent/Good/Fair/Poor), latency average, success rate, failure count.
+
+## Clarifications
+
+### Session 2026-02-07
+
+- Q: When an operator unsubscribes from a register, what should happen to locally cached data? → A: Keep cached data but stop syncing; offer a separate "purge" action to delete cached data explicitly.
+- Q: Should peer bans persist across service restarts? → A: Yes, persisted to database so bans survive restarts.
+- Q: Should "Available Registers" show only public or also private registers? → A: Public registers only for now. Private register sharing via an invitation protocol is a future requirement (out of scope for this feature).
 
 ## Assumptions
 
