@@ -189,17 +189,17 @@
 
 ### Implementation
 
-- [ ] T051 [US7] Implement V3 transaction adapter in `TransactionFactory` — map V3 fields to current V4 model with minimal transformation in `src/Common/Sorcha.TransactionHandler/Versioning/TransactionFactory.cs` (line ~91)
-- [ ] T052 [US7] Implement V2 transaction adapter — map V2 fields to V4 model, add defaults for missing fields in `src/Common/Sorcha.TransactionHandler/Versioning/TransactionFactory.cs` (line ~99)
-- [ ] T053 [US7] Implement V1 transaction adapter — map V1 fields to V4 model, add defaults for all missing fields in `src/Common/Sorcha.TransactionHandler/Versioning/TransactionFactory.cs` (line ~107)
-- [ ] T054 [US7] Implement version detection and adapter dispatch — detect transaction version from JSON, route to correct adapter in `src/Common/Sorcha.TransactionHandler/Versioning/TransactionFactory.cs` (line ~116)
+- [x] T051 [US7] Implement V3 transaction adapter in `TransactionFactory` — map V3 fields to current V4 model with minimal transformation in `src/Common/Sorcha.TransactionHandler/Versioning/TransactionFactory.cs` (line ~91)
+- [x] T052 [US7] Implement V2 transaction adapter — map V2 fields to V4 model, add defaults for missing fields in `src/Common/Sorcha.TransactionHandler/Versioning/TransactionFactory.cs` (line ~99)
+- [x] T053 [US7] Implement V1 transaction adapter — map V1 fields to V4 model, add defaults for all missing fields in `src/Common/Sorcha.TransactionHandler/Versioning/TransactionFactory.cs` (line ~107)
+- [x] T054 [US7] Implement version detection and adapter dispatch — detect transaction version from JSON, route to correct adapter in `src/Common/Sorcha.TransactionHandler/Versioning/TransactionFactory.cs` (line ~116)
 
 ### Tests
 
-- [ ] T055 [P] [US7] Write tests for V3 adapter — deserialize V3 JSON, verify all fields accessible in `tests/Sorcha.TransactionHandler.Tests/`
-- [ ] T056 [P] [US7] Write tests for V2 adapter — deserialize V2 JSON, verify defaults applied for missing fields in `tests/Sorcha.TransactionHandler.Tests/`
-- [ ] T057 [P] [US7] Write tests for V1 adapter — deserialize V1 JSON, verify all defaults and field mapping in `tests/Sorcha.TransactionHandler.Tests/`
-- [ ] T058 [P] [US7] Write tests for version detection — verify correct adapter selected for each version in `tests/Sorcha.TransactionHandler.Tests/`
+- [x] T055 [P] [US7] Write tests for V3 adapter — deserialize V3 JSON, verify all fields accessible in `tests/Sorcha.TransactionHandler.Tests/`
+- [x] T056 [P] [US7] Write tests for V2 adapter — deserialize V2 JSON, verify defaults applied for missing fields in `tests/Sorcha.TransactionHandler.Tests/`
+- [x] T057 [P] [US7] Write tests for V1 adapter — deserialize V1 JSON, verify all defaults and field mapping in `tests/Sorcha.TransactionHandler.Tests/`
+- [x] T058 [P] [US7] Write tests for version detection — verify correct adapter selected for each version in `tests/Sorcha.TransactionHandler.Tests/`
 
 **Checkpoint**: All transaction versions V1-V4 readable by current system
 
@@ -209,10 +209,10 @@
 
 **Purpose**: Final verification and documentation
 
-- [ ] T059 Run full static analysis scan — verify zero `NotImplementedException` in `src/` and zero production-critical TODOs resolved
-- [ ] T060 Run full test suite across all projects — verify no regressions from baseline (595 Validator, 148 Register Core, 88 Fluent, 323 Engine)
-- [ ] T061 [P] Update MASTER-TASKS.md with completed stub resolutions in `.specify/MASTER-TASKS.md`
-- [ ] T062 [P] Update XML documentation on all modified public API endpoints
+- [x] T059 Run full static analysis scan — verify zero `NotImplementedException` in `src/` and zero production-critical TODOs resolved
+- [x] T060 Run full test suite across all projects — verify no regressions from baseline (595 Validator, 148 Register Core, 88 Fluent, 323 Engine)
+- [x] T061 [P] Update MASTER-TASKS.md with completed stub resolutions in `.specify/MASTER-TASKS.md`
+- [x] T062 [P] Update XML documentation on all modified public API endpoints
 
 ---
 

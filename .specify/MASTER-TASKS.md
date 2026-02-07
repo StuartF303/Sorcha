@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 4.5 - UPDATED
-**Last Updated:** 2026-02-06
-**Status:** Active - Blueprint Engine Integration
+**Version:** 4.6 - UPDATED
+**Last Updated:** 2026-02-07
+**Status:** Active - Runtime Stubs Resolved
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -21,6 +21,16 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-07:**
+- ✅ RESOLVE-RUNTIME-STUBS COMPLETE: Eliminate all NotImplementedException stubs and resolve production-critical TODOs (62 tasks, 10 phases)
+  - Zero NotImplementedException remaining in src/ (was 5: WalletManager, DelegationService, JsonTransactionSerializer x2, Transaction)
+  - Auth/Security: JWT claim extraction in WalletEndpoints, DelegationEndpoints, BootstrapEndpoints
+  - Crypto: RecoverKeySetAsync (ED25519/P-256/RSA-4096), KeyChain ExportAsync/ImportAsync with AES-256-GCM
+  - Validator-Peer: ValidatorRegistry chain storage, SignatureCollector gRPC, RotatingLeaderElection heartbeat, DocketBuildTrigger consensus, ConsensusFailureHandler persistence
+  - Peer Service: Replaced all hardcoded zeros with SystemRegisterCache real values (HubNodeConnectionService, HeartbeatService, PeriodicSyncService, HeartbeatMonitorService, ValidatorGrpcService)
+  - Data Layer: PendingRegistrationStore rewritten from ConcurrentDictionary to Redis-backed with TTL expiry
+  - Transaction Versioning: V1/V2/V3 adapters in TransactionFactory, binary serialization in Transaction and JsonTransactionSerializer
+  - DelegationService.GetAccessById: Added repository method
+  - Test results: TransactionHandler 135 pass, Cryptography 77 pass, Validator 594 pass, Register Core 148 pass, Engine 323 pass, Fluent 88 pass, Wallet 251 pass, Blueprint Service 214 pass
 - ✅ TRANSACTION-QUERY-API COMPLETE: Extend IRegisterServiceClient to support querying transactions by PrevTxId (26 tasks, 6 phases)
   - Added PrevTxId ascending index to MongoDB CreateTransactionIndexesAsync
   - Added GetTransactionsByPrevTxIdAsync to IRegisterRepository with MongoDB + InMemory implementations
