@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Diagnostics;
 using Grpc.Core;
 using Sorcha.Peer.Service.Core;
 using Sorcha.Peer.Service.Discovery;
 using Sorcha.Peer.Service.Protos;
+using Sorcha.Peer.Service.Replication;
 
 namespace Sorcha.Peer.Service.Services;
 
@@ -26,8 +28,10 @@ public class HubNodeConnectionService : HubNodeConnection.HubNodeConnectionBase
     private readonly ILogger<HubNodeConnectionService> _logger;
     private readonly PeerListManager _peerListManager;
     private readonly HubNodeDiscoveryService _hubNodeDiscoveryService;
+    private readonly SystemRegisterCache _systemRegisterCache;
     private readonly Dictionary<string, ConnectedPeerSession> _activeSessions;
     private readonly object _sessionsLock = new();
+    private static readonly long _startTimeTicks = Stopwatch.GetTimestamp();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HubNodeConnectionService"/> class
@@ -35,11 +39,13 @@ public class HubNodeConnectionService : HubNodeConnection.HubNodeConnectionBase
     public HubNodeConnectionService(
         ILogger<HubNodeConnectionService> logger,
         PeerListManager peerListManager,
-        HubNodeDiscoveryService hubNodeDiscoveryService)
+        HubNodeDiscoveryService hubNodeDiscoveryService,
+        SystemRegisterCache systemRegisterCache)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _peerListManager = peerListManager ?? throw new ArgumentNullException(nameof(peerListManager));
         _hubNodeDiscoveryService = hubNodeDiscoveryService ?? throw new ArgumentNullException(nameof(hubNodeDiscoveryService));
+        _systemRegisterCache = systemRegisterCache ?? throw new ArgumentNullException(nameof(systemRegisterCache));
         _activeSessions = new Dictionary<string, ConnectedPeerSession>();
     }
 
@@ -113,7 +119,7 @@ public class HubNodeConnectionService : HubNodeConnection.HubNodeConnectionBase
                 Message = "Connection established successfully",
                 SessionId = sessionId,
                 HubNodeId = _hubNodeDiscoveryService.GetHostname(),
-                CurrentSystemRegisterVersion = 0, // TODO: Get from SystemRegisterRepository
+                CurrentSystemRegisterVersion = _systemRegisterCache.GetCurrentVersion(),
                 ConnectedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 HeartbeatIntervalSeconds = 30,
                 Config = new ConnectionConfig
@@ -211,11 +217,13 @@ public class HubNodeConnectionService : HubNodeConnection.HubNodeConnectionBase
             {
                 NodeId = _hubNodeDiscoveryService.GetHostname(),
                 Health = NodeHealth.Healthy,
-                CurrentSystemRegisterVersion = 0, // TODO: Get from SystemRegisterRepository
-                TotalBlueprints = 0, // TODO: Get from SystemRegisterRepository
+                CurrentSystemRegisterVersion = _systemRegisterCache.GetCurrentVersion(),
+                TotalBlueprints = _systemRegisterCache.GetBlueprintCount(),
                 ActivePeerCount = activePeerCount,
-                LastBlueprintPublishedAt = 0, // TODO: Get from SystemRegisterRepository
-                UptimeSeconds = 0, // TODO: Track uptime
+                LastBlueprintPublishedAt = _systemRegisterCache.GetLastUpdateTime() != DateTime.MinValue
+                    ? new DateTimeOffset(_systemRegisterCache.GetLastUpdateTime(), TimeSpan.Zero).ToUnixTimeMilliseconds()
+                    : 0,
+                UptimeSeconds = (long)Stopwatch.GetElapsedTime(_startTimeTicks).TotalSeconds,
                 ConnectedPeers = { connectedPeers }
             };
         }

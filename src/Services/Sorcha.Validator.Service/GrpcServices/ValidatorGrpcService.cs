@@ -35,6 +35,7 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
     private readonly IDocketDistributor? _docketDistributor;
     private readonly IDocketConfirmer? _docketConfirmer;
     private readonly ISignatureCollector? _signatureCollector;
+    private readonly IRegisterMonitoringRegistry? _monitoringRegistry;
     private readonly ValidatorConfiguration _validatorConfig;
     private readonly ILogger<ValidatorGrpcService> _logger;
 
@@ -45,7 +46,8 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
         ITransactionReceiver? transactionReceiver = null,
         IDocketDistributor? docketDistributor = null,
         IDocketConfirmer? docketConfirmer = null,
-        ISignatureCollector? signatureCollector = null)
+        ISignatureCollector? signatureCollector = null,
+        IRegisterMonitoringRegistry? monitoringRegistry = null)
     {
         _consensusEngine = consensusEngine ?? throw new ArgumentNullException(nameof(consensusEngine));
         _validatorConfig = validatorConfig?.Value ?? throw new ArgumentNullException(nameof(validatorConfig));
@@ -54,6 +56,7 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
         _docketDistributor = docketDistributor;
         _docketConfirmer = docketConfirmer;
         _signatureCollector = signatureCollector;
+        _monitoringRegistry = monitoringRegistry;
     }
 
     /// <summary>
@@ -176,7 +179,7 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
         {
             Status = Grpc.V1.HealthStatus.Healthy,
             ValidatorId = _validatorConfig.ValidatorId,
-            ActiveRegisters = 0, // TODO: Get from ValidatorOrchestrator
+            ActiveRegisters = _monitoringRegistry?.GetAll().Count() ?? 0,
             LastHeartbeat = Timestamp.FromDateTime(DateTime.UtcNow)
         };
 

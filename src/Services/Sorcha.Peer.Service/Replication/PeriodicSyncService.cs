@@ -146,7 +146,7 @@ public class PeriodicSyncService : BackgroundService
                 PeerId = _checkpoint.PeerId,
                 LastKnownVersion = _checkpoint.CurrentVersion,
                 FullSync = false,
-                SessionId = string.Empty, // TODO: Get from connection manager
+                SessionId = _connectionManager.GetActiveHubNode()?.NodeId ?? string.Empty,
                 MaxBlueprints = 0, // Unlimited
                 RequestTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
