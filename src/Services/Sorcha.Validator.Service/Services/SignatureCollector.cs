@@ -3,6 +3,7 @@
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using Grpc.Net.Client;
 using Microsoft.Extensions.Options;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Models;
@@ -229,29 +230,53 @@ public class SignatureCollector : ISignatureCollector
                 "Requesting signature from validator {ValidatorId} for docket {DocketId}",
                 validator.ValidatorId, docket.DocketId);
 
-            // TODO: Integrate with Peer Service to send signature request via gRPC
-            // For now, simulate a successful response
-            // await _peerClient.RequestDocketSignatureAsync(validator.GrpcEndpoint, docket, term, ct);
+            // Create gRPC channel to peer validator and request vote
+            using var channel = GrpcChannel.ForAddress(validator.GrpcEndpoint);
+            var client = new Sorcha.Validator.Grpc.V1.ValidatorService.ValidatorServiceClient(channel);
 
-            // Simulate network latency for testing
-            await Task.Delay(Random.Shared.Next(10, 50), ct);
+            var request = new Sorcha.Validator.Grpc.V1.VoteRequest
+            {
+                DocketId = docket.DocketId,
+                RegisterId = docket.RegisterId,
+                DocketNumber = docket.DocketNumber,
+                DocketHash = docket.DocketHash,
+                PreviousHash = docket.PreviousHash ?? string.Empty,
+                CreatedAt = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTimeOffset(docket.CreatedAt),
+                ProposerValidatorId = docket.ProposerValidatorId,
+                MerkleRoot = docket.MerkleRoot
+            };
+
+            if (docket.ProposerSignature != null)
+            {
+                request.ProposerSignature = new Sorcha.Validator.Grpc.V1.Signature
+                {
+                    PublicKey = Convert.ToBase64String(docket.ProposerSignature.PublicKey),
+                    SignatureValue = Convert.ToBase64String(docket.ProposerSignature.SignatureValue),
+                    Algorithm = docket.ProposerSignature.Algorithm
+                };
+            }
+
+            var response = await client.RequestVoteAsync(request, cancellationToken: ct);
 
             stopwatch.Stop();
 
-            // In production, this would be the actual response from the validator
-            // For now, return a simulated approval
+            var approved = response.Decision == Sorcha.Validator.Grpc.V1.VoteDecision.Approve;
+
             return new ValidatorSignatureResponse
             {
-                ValidatorId = validator.ValidatorId,
-                Approved = true,
-                Signature = new Signature
-                {
-                    PublicKey = System.Text.Encoding.UTF8.GetBytes(validator.PublicKey),
-                    SignatureValue = System.Text.Encoding.UTF8.GetBytes($"sig-{validator.ValidatorId}-{docket.DocketId}"),
-                    Algorithm = "ED25519",
-                    SignedAt = DateTimeOffset.UtcNow,
-                    SignedBy = validator.ValidatorId
-                },
+                ValidatorId = response.ValidatorId,
+                Approved = approved,
+                Signature = approved && response.ValidatorSignature != null
+                    ? new Signature
+                    {
+                        PublicKey = Convert.FromBase64String(response.ValidatorSignature.PublicKey),
+                        SignatureValue = Convert.FromBase64String(response.ValidatorSignature.SignatureValue),
+                        Algorithm = response.ValidatorSignature.Algorithm,
+                        SignedAt = response.VotedAt?.ToDateTimeOffset() ?? DateTimeOffset.UtcNow,
+                        SignedBy = response.ValidatorId
+                    }
+                    : null,
+                RejectionDetails = !approved ? response.RejectionReason : null,
                 Latency = stopwatch.Elapsed
             };
         }

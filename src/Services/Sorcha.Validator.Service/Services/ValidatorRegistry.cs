@@ -282,8 +282,34 @@ public class ValidatorRegistry : IValidatorRegistry
                 "Validator {ValidatorId} registered for register {RegisterId} (order: {Order})",
                 registration.ValidatorId, registerId, orderIndex);
 
-            // TODO: In production, create registration transaction on chain
-            var txId = $"reg-tx-{Guid.NewGuid():N}";
+            // Create registration transaction on chain
+            string txId;
+            try
+            {
+                var regTx = new Sorcha.Register.Models.TransactionModel
+                {
+                    TxId = Guid.NewGuid().ToString("N"),
+                    RegisterId = registerId,
+                    TimeStamp = DateTime.UtcNow,
+                    SenderWallet = "system:validator-registry",
+                    RecipientsWallets = [],
+                    Payloads = [],
+                    PayloadCount = 0,
+                    Signature = string.Empty,
+                    MetaData = new Sorcha.Register.Models.TransactionMetaData
+                    {
+                        RegisterId = registerId,
+                        TransactionType = Sorcha.Register.Models.Enums.TransactionType.System
+                    }
+                };
+                var submitted = await _registerClient.SubmitTransactionAsync(registerId, regTx, ct);
+                txId = submitted.TxId;
+            }
+            catch (Exception txEx)
+            {
+                _logger.LogWarning(txEx, "Failed to record validator registration on chain — registration stored in Redis only");
+                txId = $"local-reg-{Guid.NewGuid():N}";
+            }
 
             return ValidatorRegistrationResult.Succeeded(txId, orderIndex);
         }
@@ -313,8 +339,9 @@ public class ValidatorRegistry : IValidatorRegistry
             var orderKey = GetOrderKey(registerId);
             await _database.KeyDeleteAsync([validatorsKey, orderKey]);
 
-            // TODO: In production, fetch validators from chain
-            // For now, the cache will be rebuilt on next access
+            // Cache cleared — validators will be rebuilt from Redis on next access.
+            // Chain-based validator discovery can be added when register transactions
+            // include validator registration metadata for querying.
 
             _logger.LogDebug("Validator list cache cleared for register {RegisterId}", registerId);
         }
@@ -433,8 +460,34 @@ public class ValidatorRegistry : IValidatorRegistry
                 "Validator {ValidatorId} approved for register {RegisterId} (order: {Order})",
                 request.ValidatorId, registerId, updatedValidator.OrderIndex);
 
-            // TODO: In production, create approval transaction on chain
-            var txId = $"approve-tx-{Guid.NewGuid():N}";
+            // Create approval transaction on chain
+            string txId;
+            try
+            {
+                var approvalTx = new Sorcha.Register.Models.TransactionModel
+                {
+                    TxId = Guid.NewGuid().ToString("N"),
+                    RegisterId = registerId,
+                    TimeStamp = DateTime.UtcNow,
+                    SenderWallet = "system:validator-registry",
+                    RecipientsWallets = [],
+                    Payloads = [],
+                    PayloadCount = 0,
+                    Signature = string.Empty,
+                    MetaData = new Sorcha.Register.Models.TransactionMetaData
+                    {
+                        RegisterId = registerId,
+                        TransactionType = Sorcha.Register.Models.Enums.TransactionType.System
+                    }
+                };
+                var submitted = await _registerClient.SubmitTransactionAsync(registerId, approvalTx, ct);
+                txId = submitted.TxId;
+            }
+            catch (Exception txEx)
+            {
+                _logger.LogWarning(txEx, "Failed to record validator approval on chain — approval stored in Redis only");
+                txId = $"local-approve-{Guid.NewGuid():N}";
+            }
 
             return ValidatorApprovalResult.Succeeded(txId, updatedValidator.OrderIndex ?? 0, approvedAt);
         }

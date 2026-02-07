@@ -21,6 +21,7 @@ public class ConsensusFailureHandlerTests
     private readonly Mock<IValidatorRegistry> _validatorRegistryMock;
     private readonly Mock<IGenesisConfigService> _genesisConfigServiceMock;
     private readonly Mock<IMemPoolManager> _memPoolManagerMock;
+    private readonly Mock<IPendingDocketStore> _pendingDocketStoreMock;
     private readonly Mock<ILogger<ConsensusFailureHandler>> _loggerMock;
     private readonly ConsensusFailureHandler _handler;
 
@@ -31,6 +32,7 @@ public class ConsensusFailureHandlerTests
         _validatorRegistryMock = new Mock<IValidatorRegistry>();
         _genesisConfigServiceMock = new Mock<IGenesisConfigService>();
         _memPoolManagerMock = new Mock<IMemPoolManager>();
+        _pendingDocketStoreMock = new Mock<IPendingDocketStore>();
         _loggerMock = new Mock<ILogger<ConsensusFailureHandler>>();
 
         _consensusConfigMock.Setup(x => x.Value).Returns(new ConsensusConfiguration
@@ -46,6 +48,7 @@ public class ConsensusFailureHandlerTests
             _validatorRegistryMock.Object,
             _genesisConfigServiceMock.Object,
             _memPoolManagerMock.Object,
+            _pendingDocketStoreMock.Object,
             _loggerMock.Object);
     }
 
@@ -61,6 +64,7 @@ public class ConsensusFailureHandlerTests
             _validatorRegistryMock.Object,
             _genesisConfigServiceMock.Object,
             _memPoolManagerMock.Object,
+            _pendingDocketStoreMock.Object,
             _loggerMock.Object);
 
         // Assert
@@ -78,6 +82,7 @@ public class ConsensusFailureHandlerTests
             _validatorRegistryMock.Object,
             _genesisConfigServiceMock.Object,
             _memPoolManagerMock.Object,
+            _pendingDocketStoreMock.Object,
             _loggerMock.Object);
 
         // Assert
@@ -95,6 +100,7 @@ public class ConsensusFailureHandlerTests
             null!,
             _genesisConfigServiceMock.Object,
             _memPoolManagerMock.Object,
+            _pendingDocketStoreMock.Object,
             _loggerMock.Object);
 
         // Assert
@@ -112,6 +118,7 @@ public class ConsensusFailureHandlerTests
             _validatorRegistryMock.Object,
             null!,
             _memPoolManagerMock.Object,
+            _pendingDocketStoreMock.Object,
             _loggerMock.Object);
 
         // Assert
@@ -129,6 +136,7 @@ public class ConsensusFailureHandlerTests
             _validatorRegistryMock.Object,
             _genesisConfigServiceMock.Object,
             null!,
+            _pendingDocketStoreMock.Object,
             _loggerMock.Object);
 
         // Assert
@@ -146,6 +154,7 @@ public class ConsensusFailureHandlerTests
             _validatorRegistryMock.Object,
             _genesisConfigServiceMock.Object,
             _memPoolManagerMock.Object,
+            _pendingDocketStoreMock.Object,
             null!);
 
         // Assert

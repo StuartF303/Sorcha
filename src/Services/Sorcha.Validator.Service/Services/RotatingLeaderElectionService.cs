@@ -162,9 +162,12 @@ public class RotatingLeaderElectionService : ILeaderElectionService, IDisposable
                 "Leader {ValidatorId} sending heartbeat for term {Term}",
                 _validatorConfig.ValidatorId, _currentTerm);
 
-            // TODO: Integrate with Peer Service to broadcast heartbeat
-            // await _peerService.BroadcastHeartbeatAsync(_registerId, _currentTerm, latestDocketNumber, ct);
-
+            // Heartbeat broadcasting to followers requires a dedicated gRPC RPC
+            // (e.g., ValidatorService.SendLeaderHeartbeat) which is not yet defined in the proto.
+            // For now, followers detect leader liveness via the term rotation timer and
+            // missed heartbeat threshold (CheckLeaderHealthAsync). In single-validator deployments
+            // this is a no-op. Multi-validator heartbeat broadcasting will be added when the
+            // validator-to-validator heartbeat proto is defined.
             await Task.CompletedTask;
         }
         catch (Exception ex)

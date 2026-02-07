@@ -3,6 +3,7 @@
 
 using Microsoft.Extensions.Options;
 using Sorcha.Validator.Service.Configuration;
+using Sorcha.Validator.Service.Services;
 using Sorcha.Validator.Service.Services.Interfaces;
 
 namespace Sorcha.Validator.Service.Services;
@@ -16,6 +17,7 @@ public class ValidationEngineService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ITransactionPoolPoller _poolPoller;
     private readonly IVerifiedTransactionQueue _verifiedQueue;
+    private readonly IRegisterMonitoringRegistry _monitoringRegistry;
     private readonly ValidationEngineConfiguration _config;
     private readonly ILogger<ValidationEngineService> _logger;
 
@@ -27,12 +29,14 @@ public class ValidationEngineService : BackgroundService
         IServiceScopeFactory scopeFactory,
         ITransactionPoolPoller poolPoller,
         IVerifiedTransactionQueue verifiedQueue,
+        IRegisterMonitoringRegistry monitoringRegistry,
         IOptions<ValidationEngineConfiguration> config,
         ILogger<ValidationEngineService> logger)
     {
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         _poolPoller = poolPoller ?? throw new ArgumentNullException(nameof(poolPoller));
         _verifiedQueue = verifiedQueue ?? throw new ArgumentNullException(nameof(verifiedQueue));
+        _monitoringRegistry = monitoringRegistry ?? throw new ArgumentNullException(nameof(monitoringRegistry));
         _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -66,12 +70,28 @@ public class ValidationEngineService : BackgroundService
 
     private async Task ProcessValidationBatchAsync(CancellationToken ct)
     {
-        // Get list of registers that have pending transactions
-        // For now, we'll need to track this - in production this would come from
-        // register subscription or Redis pub/sub
+        // Discover active registers from the monitoring registry
+        var monitoredRegisters = _monitoringRegistry.GetAll().ToList();
 
-        // TODO: Get active register list from a discovery mechanism
-        // For now, placeholder - actual implementation would track registers with pending transactions
+        if (monitoredRegisters.Count == 0)
+        {
+            _logger.LogTrace("No monitored registers — skipping validation batch");
+            return;
+        }
+
+        _logger.LogTrace("Processing validation batch for {Count} monitored registers", monitoredRegisters.Count);
+
+        foreach (var registerId in monitoredRegisters)
+        {
+            try
+            {
+                await ProcessRegisterAsync(registerId, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing register {RegisterId} during validation batch", registerId);
+            }
+        }
     }
 
     /// <summary>
