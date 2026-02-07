@@ -538,6 +538,17 @@ public class ValidationEngine : IValidationEngine
                         $"Previous transaction '{previousTxId}' belongs to register '{previousTx.RegisterId}', expected '{transaction.RegisterId}'",
                         ValidationErrorCategory.Chain, "PreviousTransactionId"));
                 }
+
+                // 3. Fork detection — check if other transactions already reference the same predecessor
+                var existingSuccessors = await _registerClient.GetTransactionsByPrevTxIdAsync(
+                    transaction.RegisterId, previousTxId, 1, 1, ct);
+
+                if (existingSuccessors.Total > 0)
+                {
+                    errors.Add(CreateError("VAL_CHAIN_FORK",
+                        $"Fork detected: {existingSuccessors.Total} existing transaction(s) already reference previous transaction '{previousTxId}' in register '{transaction.RegisterId}'",
+                        ValidationErrorCategory.Chain, "PreviousTransactionId"));
+                }
             }
 
             // 2. Docket-level chain validation

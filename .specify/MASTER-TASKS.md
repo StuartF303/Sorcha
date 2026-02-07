@@ -20,6 +20,19 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 ## Recent Updates
 
+**2026-02-07:**
+- ✅ TRANSACTION-QUERY-API COMPLETE: Extend IRegisterServiceClient to support querying transactions by PrevTxId (26 tasks, 6 phases)
+  - Added PrevTxId ascending index to MongoDB CreateTransactionIndexesAsync
+  - Added GetTransactionsByPrevTxIdAsync to IRegisterRepository with MongoDB + InMemory implementations
+  - Added GetTransactionsByPrevTxIdPaginatedAsync to QueryManager with pagination support
+  - Added GET /api/query/previous/{prevTxId}/transactions endpoint to Register Service
+  - Added GetTransactionsByPrevTxIdAsync to IRegisterServiceClient + RegisterServiceClient implementation
+  - Added fork detection (VAL_CHAIN_FORK) to ValidationEngine.ValidateChainAsync
+  - Created new Sorcha.ServiceClients.Tests project with 4 unit tests
+  - New tests: 23 across Register Core (14), ServiceClients (4), Validator Service (5)
+  - MongoDB integration tests: 5 new (PrevTxId queries + index verification via Testcontainers)
+  - Test results: Register Core 139 pass, ServiceClients 4 pass, Validator Service 540 pass, MongoDB 5 pass
+
 **2026-02-06:**
 - ✅ BLUEPRINT-ENGINE-INTEGRATION COMPLETE: Wire Blueprint Engine into ActionExecutionService (36 tasks, 12 phases)
   - Replaced 4 stub methods in ActionExecutionService with real Engine delegation (validate, route, calculate, disclose)

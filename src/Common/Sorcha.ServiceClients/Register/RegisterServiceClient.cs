@@ -472,6 +472,73 @@ public class RegisterServiceClient : IRegisterServiceClient
         }
     }
 
+    public async Task<TransactionPage> GetTransactionsByPrevTxIdAsync(
+        string registerId,
+        string prevTxId,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug(
+                "Getting transactions by prevTxId {PrevTxId} from register {RegisterId}",
+                prevTxId, registerId);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var response = await _httpClient.GetAsync(
+                $"api/query/previous/{Uri.EscapeDataString(prevTxId)}/transactions?registerId={Uri.EscapeDataString(registerId)}&$skip={(page - 1) * pageSize}&$top={pageSize}&$count=true",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    _logger.LogDebug(
+                        "No transactions found for prevTxId {PrevTxId} in register {RegisterId}",
+                        prevTxId, registerId);
+                    return new TransactionPage { Page = page, PageSize = pageSize };
+                }
+
+                _logger.LogWarning(
+                    "Failed to get transactions by prevTxId {PrevTxId} from register {RegisterId}: {StatusCode}",
+                    prevTxId, registerId, response.StatusCode);
+                return new TransactionPage { Page = page, PageSize = pageSize };
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<PrevTxIdQueryResponse>(JsonOptions, cancellationToken);
+            if (result == null)
+            {
+                return new TransactionPage { Page = page, PageSize = pageSize };
+            }
+
+            return new TransactionPage
+            {
+                Page = result.Page,
+                PageSize = result.PageSize,
+                Total = result.TotalCount,
+                Transactions = result.Items ?? []
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(
+                ex,
+                "HTTP error getting transactions by prevTxId {PrevTxId} from register {RegisterId}",
+                prevTxId, registerId);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to get transactions by prevTxId {PrevTxId} from register {RegisterId}",
+                prevTxId, registerId);
+            throw;
+        }
+    }
+
     public async Task<List<TransactionModel>> GetTransactionsByInstanceIdAsync(
         string registerId,
         string instanceId,
@@ -635,6 +702,15 @@ public class RegisterServiceClient : IRegisterServiceClient
         public required string TenantId { get; init; }
         public bool Advertise { get; init; } = false;
         public bool IsFullReplica { get; init; } = true;
+    }
+
+    private record PrevTxIdQueryResponse
+    {
+        public List<TransactionModel> Items { get; init; } = [];
+        public int Page { get; init; }
+        public int PageSize { get; init; }
+        public int TotalCount { get; init; }
+        public int TotalPages { get; init; }
     }
 
     private record DocketResponse

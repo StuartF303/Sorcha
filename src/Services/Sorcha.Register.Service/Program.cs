@@ -862,6 +862,32 @@ queryGroup.MapGet("/stats", async (
 .WithSummary("Get transaction statistics")
 .WithDescription("Retrieves comprehensive statistics for a register.");
 
+/// <summary>
+/// Query transactions by previous transaction ID (for fork detection and chain traversal)
+/// </summary>
+queryGroup.MapGet("/previous/{prevTxId}/transactions", async (
+    QueryManager manager,
+    string prevTxId,
+    string? registerId = null,
+    int page = 1,
+    int pageSize = 20) =>
+{
+    if (registerId is null)
+    {
+        return Results.BadRequest(new { error = "registerId is required" });
+    }
+
+    var result = await manager.GetTransactionsByPrevTxIdPaginatedAsync(
+        registerId,
+        prevTxId,
+        page,
+        pageSize);
+    return Results.Ok(result);
+})
+.WithName("GetTransactionsByPrevTxId")
+.WithSummary("Query transactions by previous transaction ID")
+.WithDescription("Retrieves all transactions that reference a given previous transaction ID. Used for fork detection and chain integrity auditing.");
+
 // ===========================
 // Docket Management API
 // ===========================

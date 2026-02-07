@@ -210,4 +210,16 @@ public interface IRegisterRepository
         string registerId,
         string address,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all transactions that reference the given previous transaction ID
+    /// </summary>
+    /// <param name="registerId">Register identifier</param>
+    /// <param name="prevTxId">Previous transaction ID to search for</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of transactions referencing the given previous transaction ID</returns>
+    Task<IEnumerable<TransactionModel>> GetTransactionsByPrevTxIdAsync(
+        string registerId,
+        string prevTxId,
+        CancellationToken cancellationToken = default);
 }

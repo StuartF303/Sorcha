@@ -261,4 +261,25 @@ public class InMemoryRegisterRepository : IRegisterRepository
             .OrderByDescending(t => t.TimeStamp)
             .ToList();
     }
+
+    public async Task<IEnumerable<TransactionModel>> GetTransactionsByPrevTxIdAsync(
+        string registerId,
+        string prevTxId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(prevTxId))
+        {
+            return Enumerable.Empty<TransactionModel>();
+        }
+
+        if (!_transactions.TryGetValue(registerId, out var registerTransactions))
+        {
+            return Enumerable.Empty<TransactionModel>();
+        }
+
+        return registerTransactions.Values
+            .Where(t => t.PrevTxId == prevTxId)
+            .OrderByDescending(t => t.TimeStamp)
+            .ToList();
+    }
 }
