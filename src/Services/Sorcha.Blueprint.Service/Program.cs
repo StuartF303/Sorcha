@@ -108,7 +108,19 @@ builder.Services.AddHttpClient<IExternalSchemaProvider, SchemaStoreOrgProvider>(
 builder.AddJwtAuthentication();
 builder.Services.AddBlueprintAuthorization();
 
+// Add CORS policy (SEC-005) - production restriction handled at API Gateway (YARP)
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
+var logger = app.Logger;
 
 // Configure the HTTP request pipeline
 app.MapDefaultEndpoints();
@@ -142,6 +154,9 @@ app.UseOutputCache();
 // Enable JSON-LD content negotiation
 app.UseJsonLdContentNegotiation();
 
+// Enable CORS (SEC-005)
+app.UseCors();
+
 // Add authentication and authorization middleware (AUTH-002)
 app.UseAuthentication();
 app.UseAuthorization();
@@ -153,7 +168,7 @@ app.UseRateLimiting();
 app.UseMiddleware<Sorcha.Blueprint.Service.Middleware.DelegationTokenMiddleware>();
 
 // Map SignalR hubs (Sprint 5, Sprint 8)
-app.MapHub<Sorcha.Blueprint.Service.Hubs.ActionsHub>("/actionshub");
+app.MapHub<Sorcha.Blueprint.Service.Hubs.ActionsHub>("/actionshub").RequireAuthorization();
 app.MapHub<Sorcha.Blueprint.Service.Hubs.ChatHub>("/hubs/chat");
 
 // ===========================
@@ -768,7 +783,8 @@ actionsGroup.MapPost("/", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("SubmitAction")
@@ -870,7 +886,8 @@ actionsGroup.MapPost("/reject", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("RejectAction")
@@ -914,7 +931,8 @@ app.MapGet("/api/files/{wallet}/{register}/{tx}/{fileId}", async (
 .WithName("GetFile")
 .WithSummary("Get file attachment")
 .WithDescription("Retrieve a file attachment from an action transaction")
-.WithTags("Actions");
+.WithTags("Actions")
+.RequireAuthorization("CanExecuteBlueprints");
 
 // ===========================
 // Execution Helper Endpoints (Sprint 5)
@@ -970,7 +988,8 @@ executionGroup.MapPost("/validate", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("ValidateAction")
@@ -1017,7 +1036,8 @@ executionGroup.MapPost("/calculate", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("CalculateAction")
@@ -1067,7 +1087,8 @@ executionGroup.MapPost("/route", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("DetermineRouting")
@@ -1119,7 +1140,8 @@ executionGroup.MapPost("/disclose", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("ApplyDisclosure")
@@ -1162,7 +1184,8 @@ notificationGroup.MapPost("/transaction-confirmed", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("NotifyTransactionConfirmed")
@@ -1226,7 +1249,8 @@ instancesGroup.MapPost("/", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("CreateInstance")
@@ -1289,7 +1313,8 @@ instancesGroup.MapPost("/{instanceId}/actions/{actionId}/execute", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("ExecuteAction")
@@ -1333,7 +1358,8 @@ instancesGroup.MapPost("/{instanceId}/actions/{actionId}/reject", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("RejectActionInInstance")
@@ -1404,7 +1430,8 @@ instancesGroup.MapGet("/{instanceId}/state", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("GetInstanceState")
@@ -1463,7 +1490,8 @@ instancesGroup.MapGet("/{instanceId}/next-actions", async (
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        logger.LogWarning(ex, "Request failed");
+        return Results.Problem("An error occurred processing the request.", statusCode: 400);
     }
 })
 .WithName("GetNextActions")
@@ -1505,18 +1533,20 @@ app.MapGet("/api/health", async (IBlueprintStore blueprintStore, IPublishedBluep
     }
     catch (Exception ex)
     {
+        logger.LogWarning(ex, "Health check failed");
         return Results.Json(new
         {
             status = "unhealthy",
             service = "blueprint-service",
             timestamp = DateTimeOffset.UtcNow,
-            error = ex.Message
+            error = "Service unavailable"
         }, statusCode: 503);
     }
 })
 .WithName("HealthCheck")
 .WithSummary("Service health check with metrics")
-.WithTags("Health");
+.WithTags("Health")
+.AllowAnonymous();
 
 app.Run();
 

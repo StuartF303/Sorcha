@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Sorcha.Blueprint.Service.Hubs;
@@ -24,6 +25,7 @@ namespace Sorcha.Blueprint.Service.Hubs;
 /// - SubscribeToWallet(walletAddress): Subscribe to notifications for a wallet
 /// - UnsubscribeFromWallet(walletAddress): Unsubscribe from wallet notifications
 /// </remarks>
+[Authorize]
 public class ActionsHub : Hub
 {
     private readonly ILogger<ActionsHub> _logger;
