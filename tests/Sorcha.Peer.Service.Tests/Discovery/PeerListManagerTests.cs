@@ -301,7 +301,7 @@ public class PeerListManagerTests : IDisposable
             Address = "192.168.1.100",
             Port = 5001,
             FailureCount = 4,
-            IsBootstrapNode = false
+            IsSeedNode = false
         };
         await _manager.AddOrUpdatePeerAsync(peer);
 
@@ -322,6 +322,242 @@ public class PeerListManagerTests : IDisposable
 
         // Assert
         count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetPeersForRegister_ShouldReturnPeersWithMatchingRegister()
+    {
+        // Arrange
+        var peer1 = new PeerNode
+        {
+            PeerId = "peer1",
+            Address = "192.168.1.100",
+            Port = 5001,
+            AdvertisedRegisters =
+            [
+                new PeerRegisterInfo { RegisterId = "reg-1", SyncState = RegisterSyncState.FullyReplicated },
+                new PeerRegisterInfo { RegisterId = "reg-2", SyncState = RegisterSyncState.Active }
+            ]
+        };
+        var peer2 = new PeerNode
+        {
+            PeerId = "peer2",
+            Address = "192.168.1.101",
+            Port = 5001,
+            AdvertisedRegisters =
+            [
+                new PeerRegisterInfo { RegisterId = "reg-2", SyncState = RegisterSyncState.Active }
+            ]
+        };
+        var peer3 = new PeerNode
+        {
+            PeerId = "peer3",
+            Address = "192.168.1.102",
+            Port = 5001,
+            AdvertisedRegisters = []
+        };
+        await _manager.AddOrUpdatePeerAsync(peer1);
+        await _manager.AddOrUpdatePeerAsync(peer2);
+        await _manager.AddOrUpdatePeerAsync(peer3);
+
+        // Act
+        var peersForReg1 = _manager.GetPeersForRegister("reg-1");
+        var peersForReg2 = _manager.GetPeersForRegister("reg-2");
+        var peersForReg3 = _manager.GetPeersForRegister("reg-nonexistent");
+
+        // Assert
+        peersForReg1.Should().ContainSingle().Which.PeerId.Should().Be("peer1");
+        peersForReg2.Should().HaveCount(2);
+        peersForReg2.Select(p => p.PeerId).Should().Contain(["peer1", "peer2"]);
+        peersForReg3.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetPeersForRegister_ShouldOrderByFailureCountThenLastSeen()
+    {
+        // Arrange
+        var peer1 = new PeerNode
+        {
+            PeerId = "peer1",
+            Address = "192.168.1.100",
+            Port = 5001,
+            FailureCount = 2,
+            LastSeen = DateTimeOffset.UtcNow.AddMinutes(-10),
+            AdvertisedRegisters =
+            [
+                new PeerRegisterInfo { RegisterId = "reg-1" }
+            ]
+        };
+        var peer2 = new PeerNode
+        {
+            PeerId = "peer2",
+            Address = "192.168.1.101",
+            Port = 5001,
+            FailureCount = 0,
+            LastSeen = DateTimeOffset.UtcNow,
+            AdvertisedRegisters =
+            [
+                new PeerRegisterInfo { RegisterId = "reg-1" }
+            ]
+        };
+        await _manager.AddOrUpdatePeerAsync(peer1);
+        await _manager.AddOrUpdatePeerAsync(peer2);
+
+        // Act
+        var peers = _manager.GetPeersForRegister("reg-1");
+
+        // Assert
+        peers.Should().HaveCount(2);
+        peers.First().PeerId.Should().Be("peer2"); // Lower failure count first
+    }
+
+    [Fact]
+    public async Task GetFullReplicaPeersForRegister_ShouldReturnOnlyFullReplicaPeers()
+    {
+        // Arrange
+        var peer1 = new PeerNode
+        {
+            PeerId = "peer1",
+            Address = "192.168.1.100",
+            Port = 5001,
+            AverageLatencyMs = 50,
+            AdvertisedRegisters =
+            [
+                new PeerRegisterInfo { RegisterId = "reg-1", SyncState = RegisterSyncState.FullyReplicated }
+            ]
+        };
+        var peer2 = new PeerNode
+        {
+            PeerId = "peer2",
+            Address = "192.168.1.101",
+            Port = 5001,
+            AverageLatencyMs = 100,
+            AdvertisedRegisters =
+            [
+                new PeerRegisterInfo { RegisterId = "reg-1", SyncState = RegisterSyncState.Active }
+            ]
+        };
+        var peer3 = new PeerNode
+        {
+            PeerId = "peer3",
+            Address = "192.168.1.102",
+            Port = 5001,
+            AverageLatencyMs = 20,
+            AdvertisedRegisters =
+            [
+                new PeerRegisterInfo { RegisterId = "reg-1", SyncState = RegisterSyncState.FullyReplicated }
+            ]
+        };
+        await _manager.AddOrUpdatePeerAsync(peer1);
+        await _manager.AddOrUpdatePeerAsync(peer2);
+        await _manager.AddOrUpdatePeerAsync(peer3);
+
+        // Act
+        var peers = _manager.GetFullReplicaPeersForRegister("reg-1");
+
+        // Assert
+        peers.Should().HaveCount(2);
+        peers.Select(p => p.PeerId).Should().NotContain("peer2"); // Not a full replica
+        peers.First().PeerId.Should().Be("peer3"); // Ordered by latency (20ms < 50ms)
+    }
+
+    [Fact]
+    public async Task GetFullReplicaPeersForRegister_ShouldReturnEmpty_WhenNoFullReplicas()
+    {
+        // Arrange
+        var peer = new PeerNode
+        {
+            PeerId = "peer1",
+            Address = "192.168.1.100",
+            Port = 5001,
+            AdvertisedRegisters =
+            [
+                new PeerRegisterInfo { RegisterId = "reg-1", SyncState = RegisterSyncState.Active }
+            ]
+        };
+        await _manager.AddOrUpdatePeerAsync(peer);
+
+        // Act
+        var peers = _manager.GetFullReplicaPeersForRegister("reg-1");
+
+        // Assert
+        peers.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task IncrementFailureCountAsync_ShouldNotRemoveSeedNode_EvenWithExcessiveFailures()
+    {
+        // Arrange
+        var seedPeer = new PeerNode
+        {
+            PeerId = "seed1",
+            Address = "192.168.1.100",
+            Port = 5001,
+            FailureCount = 4,
+            IsSeedNode = true
+        };
+        await _manager.AddOrUpdatePeerAsync(seedPeer);
+
+        // Act
+        await _manager.IncrementFailureCountAsync("seed1");
+
+        // Assert
+        _manager.GetPeer("seed1").Should().NotBeNull();
+        _manager.GetPeer("seed1")!.FailureCount.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task AddOrUpdatePeerAsync_ShouldRejectWhenListIsFull()
+    {
+        // Arrange - Fill to max (100)
+        for (int i = 0; i < 100; i++)
+        {
+            await _manager.AddOrUpdatePeerAsync(new PeerNode
+            {
+                PeerId = $"peer{i}",
+                Address = $"192.168.1.{i}",
+                Port = 5001
+            });
+        }
+
+        // Act - Try to add one more
+        var result = await _manager.AddOrUpdatePeerAsync(new PeerNode
+        {
+            PeerId = "overflow",
+            Address = "10.0.0.1",
+            Port = 5001
+        });
+
+        // Assert
+        result.Should().BeFalse();
+        _manager.GetAllPeers().Should().HaveCount(100);
+    }
+
+    [Fact]
+    public async Task AddOrUpdatePeerAsync_ShouldAllowUpdateWhenListIsFull()
+    {
+        // Arrange - Fill to max (100)
+        for (int i = 0; i < 100; i++)
+        {
+            await _manager.AddOrUpdatePeerAsync(new PeerNode
+            {
+                PeerId = $"peer{i}",
+                Address = $"192.168.1.{i}",
+                Port = 5001
+            });
+        }
+
+        // Act - Update existing peer (should succeed even at max)
+        var result = await _manager.AddOrUpdatePeerAsync(new PeerNode
+        {
+            PeerId = "peer0",
+            Address = "10.0.0.1",
+            Port = 9999
+        });
+
+        // Assert
+        result.Should().BeTrue();
+        _manager.GetPeer("peer0")!.Address.Should().Be("10.0.0.1");
     }
 
     public void Dispose()

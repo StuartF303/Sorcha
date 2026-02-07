@@ -136,13 +136,13 @@ public class PeerNodeTests
     }
 
     [Fact]
-    public void DefaultIsBootstrapNode_IsFalse()
+    public void DefaultIsSeedNode_IsFalse()
     {
         // Arrange & Act
         var peer = new PeerNode();
 
         // Assert
-        peer.IsBootstrapNode.Should().BeFalse();
+        peer.IsSeedNode.Should().BeFalse();
     }
 
     [Fact]

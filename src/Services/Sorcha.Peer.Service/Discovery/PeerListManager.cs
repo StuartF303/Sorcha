@@ -1,46 +1,37 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
-using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sorcha.Peer.Service.Core;
+using Sorcha.Peer.Service.Data;
 using System.Collections.Concurrent;
 
 namespace Sorcha.Peer.Service.Discovery;
 
 /// <summary>
-/// Manages the list of known peers with SQLite persistence
+/// Manages the list of known peers with EF Core persistence (PostgreSQL or InMemory).
+/// Provides register-aware queries for targeted sync and gossip.
 /// </summary>
 public class PeerListManager : IDisposable
 {
     private readonly ILogger<PeerListManager> _logger;
     private readonly PeerDiscoveryConfiguration _configuration;
     private readonly ConcurrentDictionary<string, PeerNode> _peers;
-    private readonly SqliteConnection _dbConnection;
-    private readonly SemaphoreSlim _dbLock = new(1, 1);
+    private readonly IDbContextFactory<PeerDbContext>? _dbContextFactory;
     private bool _disposed;
     private ActivePeerInfo? _localPeerInfo;
 
     public PeerListManager(
         ILogger<PeerListManager> logger,
-        IOptions<PeerServiceConfiguration> configuration)
+        IOptions<PeerServiceConfiguration> configuration,
+        IDbContextFactory<PeerDbContext>? dbContextFactory = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration?.Value?.PeerDiscovery ?? throw new ArgumentNullException(nameof(configuration));
         _peers = new ConcurrentDictionary<string, PeerNode>();
-
-        // Initialize SQLite database
-        var dbPath = "./data/peers.db";
-        var directory = Path.GetDirectoryName(dbPath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        _dbConnection = new SqliteConnection($"Data Source={dbPath}");
-        _dbConnection.Open();
-        InitializeDatabaseAsync().GetAwaiter().GetResult();
+        _dbContextFactory = dbContextFactory;
     }
 
     /// <summary>
@@ -81,6 +72,32 @@ public class PeerListManager : IDisposable
     }
 
     /// <summary>
+    /// Gets peers that advertise a specific register (register-aware peering)
+    /// </summary>
+    public IReadOnlyCollection<PeerNode> GetPeersForRegister(string registerId)
+    {
+        return _peers.Values
+            .Where(p => p.AdvertisedRegisters.Any(r => r.RegisterId == registerId))
+            .OrderBy(p => p.FailureCount)
+            .ThenByDescending(p => p.LastSeen)
+            .ToList()
+            .AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets peers that can serve a full replica for a specific register
+    /// </summary>
+    public IReadOnlyCollection<PeerNode> GetFullReplicaPeersForRegister(string registerId)
+    {
+        return _peers.Values
+            .Where(p => p.AdvertisedRegisters.Any(r =>
+                r.RegisterId == registerId && r.CanServeFullReplica))
+            .OrderBy(p => p.AverageLatencyMs)
+            .ToList()
+            .AsReadOnly();
+    }
+
+    /// <summary>
     /// Adds or updates a peer in the list
     /// </summary>
     public async Task<bool> AddOrUpdatePeerAsync(PeerNode peer, CancellationToken cancellationToken = default)
@@ -94,7 +111,6 @@ public class PeerListManager : IDisposable
             return false;
         }
 
-        // Check if we've reached the maximum peer count
         if (_peers.Count >= _configuration.MaxPeersInList && !_peers.ContainsKey(peer.PeerId))
         {
             _logger.LogWarning("Peer list is full ({Count}/{Max}), cannot add new peer",
@@ -111,9 +127,7 @@ public class PeerListManager : IDisposable
         _logger.LogDebug("{Action} peer: {PeerId} at {Address}:{Port}",
             isNew ? "Added" : "Updated", peer.PeerId, peer.Address, peer.Port);
 
-        // Persist to database
         await PersistPeerAsync(peer, cancellationToken);
-
         return true;
     }
 
@@ -153,7 +167,7 @@ public class PeerListManager : IDisposable
         if (_peers.TryGetValue(peerId, out var peer))
         {
             peer.LastSeen = DateTimeOffset.UtcNow;
-            peer.FailureCount = 0; // Reset failure count on successful contact
+            peer.FailureCount = 0;
             await PersistPeerAsync(peer, cancellationToken);
         }
     }
@@ -168,8 +182,7 @@ public class PeerListManager : IDisposable
             peer.FailureCount++;
             _logger.LogWarning("Peer {PeerId} failure count: {Count}", peerId, peer.FailureCount);
 
-            // Remove peer if failure count is too high
-            if (peer.FailureCount >= 5 && !peer.IsBootstrapNode)
+            if (peer.FailureCount >= 5 && !peer.IsSeedNode)
             {
                 _logger.LogWarning("Removing peer {PeerId} due to excessive failures", peerId);
                 await RemovePeerAsync(peerId, cancellationToken);
@@ -194,33 +207,21 @@ public class PeerListManager : IDisposable
     /// </summary>
     public async Task LoadPeersFromDatabaseAsync(CancellationToken cancellationToken = default)
     {
-        await _dbLock.WaitAsync(cancellationToken);
+        if (_dbContextFactory == null)
+        {
+            _logger.LogDebug("No database configured, skipping peer load");
+            return;
+        }
+
         try
         {
-            using var command = _dbConnection.CreateCommand();
-            command.CommandText = @"
-                SELECT peer_id, address, port, protocols, first_seen, last_seen,
-                       failure_count, is_bootstrap, avg_latency_ms
-                FROM peers";
-
-            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            await using var context = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+            var entities = await context.Peers.ToListAsync(cancellationToken);
             var loadedCount = 0;
 
-            while (await reader.ReadAsync(cancellationToken))
+            foreach (var entity in entities)
             {
-                var peer = new PeerNode
-                {
-                    PeerId = reader.GetString(0),
-                    Address = reader.GetString(1),
-                    Port = reader.GetInt32(2),
-                    SupportedProtocols = reader.GetString(3).Split(',').ToList(),
-                    FirstSeen = DateTimeOffset.Parse(reader.GetString(4)),
-                    LastSeen = DateTimeOffset.Parse(reader.GetString(5)),
-                    FailureCount = reader.GetInt32(6),
-                    IsBootstrapNode = reader.GetBoolean(7),
-                    AverageLatencyMs = reader.GetInt32(8)
-                };
-
+                var peer = entity.ToDomain();
                 _peers.TryAdd(peer.PeerId, peer);
                 loadedCount++;
             }
@@ -231,108 +232,14 @@ public class PeerListManager : IDisposable
         {
             _logger.LogError(ex, "Error loading peers from database");
         }
-        finally
-        {
-            _dbLock.Release();
-        }
-    }
-
-    /// <summary>
-    /// Initializes the database schema
-    /// </summary>
-    private async Task InitializeDatabaseAsync()
-    {
-        await _dbLock.WaitAsync();
-        try
-        {
-            using var command = _dbConnection.CreateCommand();
-            command.CommandText = @"
-                CREATE TABLE IF NOT EXISTS peers (
-                    peer_id TEXT PRIMARY KEY,
-                    address TEXT NOT NULL,
-                    port INTEGER NOT NULL,
-                    protocols TEXT NOT NULL,
-                    first_seen TEXT NOT NULL,
-                    last_seen TEXT NOT NULL,
-                    failure_count INTEGER NOT NULL DEFAULT 0,
-                    is_bootstrap INTEGER NOT NULL DEFAULT 0,
-                    avg_latency_ms INTEGER NOT NULL DEFAULT 0
-                )";
-
-            await command.ExecuteNonQueryAsync();
-            _logger.LogDebug("Database initialized");
-        }
-        finally
-        {
-            _dbLock.Release();
-        }
-    }
-
-    /// <summary>
-    /// Persists a peer to the database
-    /// </summary>
-    private async Task PersistPeerAsync(PeerNode peer, CancellationToken cancellationToken)
-    {
-        await _dbLock.WaitAsync(cancellationToken);
-        try
-        {
-            using var command = _dbConnection.CreateCommand();
-            command.CommandText = @"
-                INSERT OR REPLACE INTO peers
-                (peer_id, address, port, protocols, first_seen, last_seen, failure_count, is_bootstrap, avg_latency_ms)
-                VALUES ($peerId, $address, $port, $protocols, $firstSeen, $lastSeen, $failureCount, $isBootstrap, $avgLatency)";
-
-            command.Parameters.AddWithValue("$peerId", peer.PeerId);
-            command.Parameters.AddWithValue("$address", peer.Address);
-            command.Parameters.AddWithValue("$port", peer.Port);
-            command.Parameters.AddWithValue("$protocols", string.Join(",", peer.SupportedProtocols));
-            command.Parameters.AddWithValue("$firstSeen", peer.FirstSeen.ToString("o"));
-            command.Parameters.AddWithValue("$lastSeen", peer.LastSeen.ToString("o"));
-            command.Parameters.AddWithValue("$failureCount", peer.FailureCount);
-            command.Parameters.AddWithValue("$isBootstrap", peer.IsBootstrapNode ? 1 : 0);
-            command.Parameters.AddWithValue("$avgLatency", peer.AverageLatencyMs);
-
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error persisting peer {PeerId}", peer.PeerId);
-        }
-        finally
-        {
-            _dbLock.Release();
-        }
-    }
-
-    /// <summary>
-    /// Deletes a peer from the database
-    /// </summary>
-    private async Task DeletePeerAsync(string peerId, CancellationToken cancellationToken)
-    {
-        await _dbLock.WaitAsync(cancellationToken);
-        try
-        {
-            using var command = _dbConnection.CreateCommand();
-            command.CommandText = "DELETE FROM peers WHERE peer_id = $peerId";
-            command.Parameters.AddWithValue("$peerId", peerId);
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting peer {PeerId}", peerId);
-        }
-        finally
-        {
-            _dbLock.Release();
-        }
     }
 
     /// <summary>
     /// Updates the local peer connection status
     /// </summary>
-    /// <param name="connectedHubNodeId">ID of connected hub node (null if disconnected)</param>
+    /// <param name="connectedPeerId">ID of connected peer (null if disconnected)</param>
     /// <param name="status">Current connection status</param>
-    public void UpdateLocalPeerStatus(string? connectedHubNodeId, PeerConnectionStatus status)
+    public void UpdateLocalPeerStatus(string? connectedPeerId, PeerConnectionStatus status)
     {
         if (_localPeerInfo == null)
         {
@@ -343,31 +250,87 @@ public class PeerListManager : IDisposable
             };
         }
 
-        _localPeerInfo.ConnectedHubNodeId = connectedHubNodeId;
+        if (connectedPeerId != null)
+        {
+            if (!_localPeerInfo.ConnectedPeerIds.Contains(connectedPeerId))
+            {
+                _localPeerInfo.ConnectedPeerIds.Clear();
+                _localPeerInfo.ConnectedPeerIds.Add(connectedPeerId);
+            }
+        }
+        else
+        {
+            _localPeerInfo.ConnectedPeerIds.Clear();
+        }
+
         _localPeerInfo.Status = status;
         _localPeerInfo.LastHeartbeat = DateTime.UtcNow;
 
         _logger.LogDebug(
-            "Updated local peer status: Connected to {HubNode}, Status={Status}",
-            connectedHubNodeId ?? "none",
+            "Updated local peer status: Connected to {Peer}, Status={Status}",
+            connectedPeerId ?? "none",
             status);
     }
 
     /// <summary>
     /// Gets the current local peer connection status
     /// </summary>
-    /// <returns>Local peer info if available, null otherwise</returns>
     public ActivePeerInfo? GetLocalPeerStatus()
     {
         return _localPeerInfo;
+    }
+
+    private async Task PersistPeerAsync(PeerNode peer, CancellationToken cancellationToken)
+    {
+        if (_dbContextFactory == null) return;
+
+        try
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+            var entity = PeerNodeEntity.FromDomain(peer);
+
+            var existing = await context.Peers.FindAsync([peer.PeerId], cancellationToken);
+            if (existing != null)
+            {
+                context.Entry(existing).CurrentValues.SetValues(entity);
+            }
+            else
+            {
+                context.Peers.Add(entity);
+            }
+
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error persisting peer {PeerId}", peer.PeerId);
+        }
+    }
+
+    private async Task DeletePeerAsync(string peerId, CancellationToken cancellationToken)
+    {
+        if (_dbContextFactory == null) return;
+
+        try
+        {
+            await using var context = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+            var entity = await context.Peers.FindAsync([peerId], cancellationToken);
+            if (entity != null)
+            {
+                context.Peers.Remove(entity);
+                await context.SaveChangesAsync(cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting peer {PeerId}", peerId);
+        }
     }
 
     public void Dispose()
     {
         if (!_disposed)
         {
-            _dbLock.Dispose();
-            _dbConnection.Dispose();
             _disposed = true;
         }
     }

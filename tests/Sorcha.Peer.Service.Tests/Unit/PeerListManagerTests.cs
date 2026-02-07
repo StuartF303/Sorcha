@@ -47,13 +47,13 @@ public class PeerListManagerTests : IDisposable
     public void UpdateLocalPeerStatus_InitializesActivePeerInfo_WhenNull()
     {
         // Act
-        _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.Connected);
+        _manager.UpdateLocalPeerStatus("peer-1", PeerConnectionStatus.Connected);
 
         // Assert
         var status = _manager.GetLocalPeerStatus();
         status.Should().NotBeNull();
         status!.PeerId.Should().NotBeNullOrEmpty();
-        status.ConnectedHubNodeId.Should().Be("n0.sorcha.dev");
+        status.ConnectedPeerIds.Should().Contain("peer-1");
         status.Status.Should().Be(PeerConnectionStatus.Connected);
     }
 
@@ -61,25 +61,25 @@ public class PeerListManagerTests : IDisposable
     public void UpdateLocalPeerStatus_UpdatesExistingStatus_WhenAlreadyInitialized()
     {
         // Arrange
-        _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.Connected);
+        _manager.UpdateLocalPeerStatus("peer-1", PeerConnectionStatus.Connected);
         var initialStatus = _manager.GetLocalPeerStatus();
 
         // Act
-        _manager.UpdateLocalPeerStatus("n1.sorcha.dev", PeerConnectionStatus.Connected);
+        _manager.UpdateLocalPeerStatus("peer-2", PeerConnectionStatus.Connected);
 
         // Assert
         var updatedStatus = _manager.GetLocalPeerStatus();
         updatedStatus.Should().NotBeNull();
-        updatedStatus!.ConnectedHubNodeId.Should().Be("n1.sorcha.dev");
+        updatedStatus!.ConnectedPeerIds.Should().Contain("peer-2");
         updatedStatus.Status.Should().Be(PeerConnectionStatus.Connected);
         updatedStatus.PeerId.Should().Be(initialStatus!.PeerId); // PeerId should remain same
     }
 
     [Fact]
-    public void UpdateLocalPeerStatus_WithNullHubNodeId_SetsStatusToDisconnected()
+    public void UpdateLocalPeerStatus_WithNullPeerId_SetsStatusToDisconnected()
     {
         // Arrange
-        _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.Connected);
+        _manager.UpdateLocalPeerStatus("peer-1", PeerConnectionStatus.Connected);
 
         // Act
         _manager.UpdateLocalPeerStatus(null, PeerConnectionStatus.Disconnected);
@@ -87,7 +87,7 @@ public class PeerListManagerTests : IDisposable
         // Assert
         var status = _manager.GetLocalPeerStatus();
         status.Should().NotBeNull();
-        status!.ConnectedHubNodeId.Should().BeNull();
+        status!.ConnectedPeerIds.Should().BeEmpty();
         status.Status.Should().Be(PeerConnectionStatus.Disconnected);
     }
 
@@ -99,7 +99,7 @@ public class PeerListManagerTests : IDisposable
         System.Threading.Thread.Sleep(10); // Small delay to ensure timestamp difference
 
         // Act
-        _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.Connected);
+        _manager.UpdateLocalPeerStatus("peer-1", PeerConnectionStatus.Connected);
 
         // Assert
         var status = _manager.GetLocalPeerStatus();
@@ -116,7 +116,7 @@ public class PeerListManagerTests : IDisposable
     public void UpdateLocalPeerStatus_HandlesAllConnectionStatusTransitions(PeerConnectionStatus status)
     {
         // Act
-        _manager.UpdateLocalPeerStatus("n0.sorcha.dev", status);
+        _manager.UpdateLocalPeerStatus("peer-1", status);
 
         // Assert
         var peerStatus = _manager.GetLocalPeerStatus();
@@ -141,58 +141,59 @@ public class PeerListManagerTests : IDisposable
         _manager.UpdateLocalPeerStatus(null, PeerConnectionStatus.Disconnected);
         _manager.GetLocalPeerStatus()!.Status.Should().Be(PeerConnectionStatus.Disconnected);
 
-        _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.Connecting);
+        _manager.UpdateLocalPeerStatus("peer-1", PeerConnectionStatus.Connecting);
         _manager.GetLocalPeerStatus()!.Status.Should().Be(PeerConnectionStatus.Connecting);
 
-        _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.Connected);
+        _manager.UpdateLocalPeerStatus("peer-1", PeerConnectionStatus.Connected);
         _manager.GetLocalPeerStatus()!.Status.Should().Be(PeerConnectionStatus.Connected);
 
-        _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.HeartbeatTimeout);
+        _manager.UpdateLocalPeerStatus("peer-1", PeerConnectionStatus.HeartbeatTimeout);
         _manager.GetLocalPeerStatus()!.Status.Should().Be(PeerConnectionStatus.HeartbeatTimeout);
 
-        _manager.UpdateLocalPeerStatus("n1.sorcha.dev", PeerConnectionStatus.Connected);
+        _manager.UpdateLocalPeerStatus("peer-2", PeerConnectionStatus.Connected);
         var status = _manager.GetLocalPeerStatus();
         status!.Status.Should().Be(PeerConnectionStatus.Connected);
-        status.ConnectedHubNodeId.Should().Be("n1.sorcha.dev");
+        status.ConnectedPeerIds.Should().Contain("peer-2");
     }
 
     [Fact]
     public void UpdateLocalPeerStatus_FailoverScenario_TracksCorrectly()
     {
-        // Arrange & Act - Simulate failover from n0 to n1 to n2
-        _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.Connected);
-        var n0Status = _manager.GetLocalPeerStatus();
+        // Note: GetLocalPeerStatus() returns a mutable reference,
+        // so we assert at each step before mutating further.
 
-        _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.HeartbeatTimeout);
-        var timeoutStatus = _manager.GetLocalPeerStatus();
+        // Step 1: Connect to peer-1
+        _manager.UpdateLocalPeerStatus("peer-1", PeerConnectionStatus.Connected);
+        var status = _manager.GetLocalPeerStatus();
+        status!.ConnectedPeerIds.Should().Contain("peer-1");
+        status.Status.Should().Be(PeerConnectionStatus.Connected);
 
-        _manager.UpdateLocalPeerStatus("n1.sorcha.dev", PeerConnectionStatus.Connected);
-        var n1Status = _manager.GetLocalPeerStatus();
+        // Step 2: peer-1 heartbeat timeout
+        _manager.UpdateLocalPeerStatus("peer-1", PeerConnectionStatus.HeartbeatTimeout);
+        status = _manager.GetLocalPeerStatus();
+        status!.Status.Should().Be(PeerConnectionStatus.HeartbeatTimeout);
 
-        // Assert
-        n0Status!.ConnectedHubNodeId.Should().Be("n0.sorcha.dev");
-        n0Status.Status.Should().Be(PeerConnectionStatus.Connected);
-
-        timeoutStatus!.Status.Should().Be(PeerConnectionStatus.HeartbeatTimeout);
-
-        n1Status!.ConnectedHubNodeId.Should().Be("n1.sorcha.dev");
-        n1Status.Status.Should().Be(PeerConnectionStatus.Connected);
+        // Step 3: Failover to peer-2
+        _manager.UpdateLocalPeerStatus("peer-2", PeerConnectionStatus.Connected);
+        status = _manager.GetLocalPeerStatus();
+        status!.ConnectedPeerIds.Should().Contain("peer-2");
+        status.Status.Should().Be(PeerConnectionStatus.Connected);
     }
 
     [Fact]
     public void UpdateLocalPeerStatus_IsolatedMode_TracksCorrectly()
     {
         // Arrange
-        _manager.UpdateLocalPeerStatus("n0.sorcha.dev", PeerConnectionStatus.Connected);
+        _manager.UpdateLocalPeerStatus("peer-1", PeerConnectionStatus.Connected);
 
-        // Act - All hub nodes unreachable
+        // Act - All peers unreachable
         _manager.UpdateLocalPeerStatus(null, PeerConnectionStatus.Isolated);
 
         // Assert
         var status = _manager.GetLocalPeerStatus();
         status.Should().NotBeNull();
         status!.Status.Should().Be(PeerConnectionStatus.Isolated);
-        status.ConnectedHubNodeId.Should().BeNull();
+        status.ConnectedPeerIds.Should().BeEmpty();
     }
 
     public void Dispose()

@@ -149,6 +149,88 @@ public class PeerDiscoveryServiceImpl : PeerDiscovery.PeerDiscoveryBase
     }
 
     /// <summary>
+    /// Handles ExchangePeers requests - gossip-style peer list exchange
+    /// </summary>
+    public override async Task<PeerExchangeResponse> ExchangePeers(PeerExchangeRequest request, ServerCallContext context)
+    {
+        _logger.LogDebug("ExchangePeers request from {PeerId} with {Count} peers",
+            request.PeerId, request.KnownPeers.Count);
+
+        try
+        {
+            // Merge incoming peers into our list
+            foreach (var remotePeer in request.KnownPeers)
+            {
+                if (remotePeer.PeerId == (_configuration.NodeId ?? "unknown"))
+                    continue; // Don't add ourselves
+
+                var peer = ConvertToPeerNode(remotePeer);
+                await _peerListManager.AddOrUpdatePeerAsync(peer);
+            }
+
+            // Return our healthy peers
+            var maxPeers = request.MaxPeers > 0 ? request.MaxPeers : PeerServiceConstants.MaxPeersInExchangeResponse;
+            var ourPeers = _peerListManager.GetHealthyPeers()
+                .Take(maxPeers)
+                .Select(ConvertToPeerInfo)
+                .ToList();
+
+            var response = new PeerExchangeResponse { Success = true };
+            response.KnownPeers.AddRange(ourPeers);
+
+            _logger.LogDebug("Exchanged {Received} peers from {PeerId}, returning {Sent} peers",
+                request.KnownPeers.Count, request.PeerId, ourPeers.Count);
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing ExchangePeers request");
+            return new PeerExchangeResponse
+            {
+                Success = false,
+                Message = "Internal server error"
+            };
+        }
+    }
+
+    /// <summary>
+    /// Handles FindPeersForRegister requests - returns peers that hold a specific register
+    /// </summary>
+    public override Task<FindPeersForRegisterResponse> FindPeersForRegister(FindPeersForRegisterRequest request, ServerCallContext context)
+    {
+        _logger.LogDebug("FindPeersForRegister request from {PeerId} for register {RegisterId}",
+            request.RequestingPeerId, request.RegisterId);
+
+        try
+        {
+            var maxPeers = request.MaxPeers > 0 ? request.MaxPeers : 20;
+
+            var peers = request.RequireFullReplica
+                ? _peerListManager.GetFullReplicaPeersForRegister(request.RegisterId)
+                : _peerListManager.GetPeersForRegister(request.RegisterId);
+
+            var peerInfos = peers
+                .Take(maxPeers)
+                .Select(ConvertToPeerInfo)
+                .ToList();
+
+            var response = new FindPeersForRegisterResponse
+            {
+                TotalPeers = peers.Count
+            };
+            response.Peers.AddRange(peerInfos);
+
+            return Task.FromResult(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing FindPeersForRegister request");
+            throw new RpcException(new Status(StatusCode.Internal, "Error finding peers for register"));
+        }
+    }
+
+    /// <summary>
     /// Converts a PeerNode to PeerInfo proto message
     /// </summary>
     private PeerInfo ConvertToPeerInfo(PeerNode peer)
@@ -157,9 +239,23 @@ public class PeerDiscoveryServiceImpl : PeerDiscovery.PeerDiscoveryBase
         {
             PeerId = peer.PeerId,
             Address = peer.Address,
-            Port = peer.Port
+            Port = peer.Port,
+            IsSeedNode = peer.IsSeedNode,
+            LastSeen = peer.LastSeen.ToUnixTimeSeconds()
         };
         peerInfo.SupportedProtocols.AddRange(peer.SupportedProtocols);
+
+        foreach (var reg in peer.AdvertisedRegisters)
+        {
+            peerInfo.AdvertisedRegisters.Add(new PeerRegisterAdvertisement
+            {
+                RegisterId = reg.RegisterId,
+                HasFullReplica = reg.CanServeFullReplica,
+                LatestVersion = reg.LatestVersion,
+                IsPublic = reg.IsPublic
+            });
+        }
+
         return peerInfo;
     }
 
@@ -177,8 +273,17 @@ public class PeerDiscoveryServiceImpl : PeerDiscovery.PeerDiscoveryBase
             FirstSeen = DateTimeOffset.UtcNow,
             LastSeen = DateTimeOffset.UtcNow,
             FailureCount = 0,
-            IsBootstrapNode = false,
+            IsSeedNode = peerInfo.IsSeedNode,
             AverageLatencyMs = 0,
+            AdvertisedRegisters = peerInfo.AdvertisedRegisters
+                .Select(r => new PeerRegisterInfo
+                {
+                    RegisterId = r.RegisterId,
+                    SyncState = r.HasFullReplica ? RegisterSyncState.FullyReplicated : RegisterSyncState.Active,
+                    LatestVersion = r.LatestVersion,
+                    IsPublic = r.IsPublic
+                })
+                .ToList(),
             Capabilities = new Core.PeerCapabilities
             {
                 SupportsStreaming = peerInfo.SupportedProtocols.Contains("GrpcStream"),

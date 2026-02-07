@@ -51,9 +51,14 @@ public class PeerNode : IEquatable<PeerNode>
     public int FailureCount { get; set; } = 0;
 
     /// <summary>
-    /// Whether this is a bootstrap node
+    /// Whether this is a seed node (well-known bootstrap peer for initial discovery)
     /// </summary>
-    public bool IsBootstrapNode { get; set; } = false;
+    public bool IsSeedNode { get; set; } = false;
+
+    /// <summary>
+    /// Registers this peer advertises (register-aware peering)
+    /// </summary>
+    public List<PeerRegisterInfo> AdvertisedRegisters { get; set; } = new();
 
     /// <summary>
     /// Peer capabilities
