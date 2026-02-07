@@ -297,6 +297,15 @@ public class CachedRegisterRepository : IRegisterRepository
         return _innerRepository.GetTransactionsByDocketAsync(registerId, docketId, cancellationToken);
     }
 
+    public Task<IEnumerable<TransactionModel>> GetTransactionsByPrevTxIdAsync(
+        string registerId,
+        string prevTxId,
+        CancellationToken cancellationToken = default)
+    {
+        // Bypass cache for query operations
+        return _innerRepository.GetTransactionsByPrevTxIdAsync(registerId, prevTxId, cancellationToken);
+    }
+
     // ===========================
     // Advanced Queries
     // ===========================

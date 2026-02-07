@@ -252,6 +252,77 @@ public class CachedRegisterRepositoryTests
     }
 
     // ===========================
+    // GetTransactionsByPrevTxIdAsync Tests
+    // ===========================
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdAsync_DelegatesToInnerRepository()
+    {
+        // Arrange
+        var register = CreateTestRegister("reg-prevtx-1");
+        await _sut.InsertRegisterAsync(register);
+
+        var prevTxId = "prev-tx-1".PadRight(64, '0');
+        var tx1 = CreateTestTransaction("tx-child-1", "reg-prevtx-1", prevTxId);
+        var tx2 = CreateTestTransaction("tx-child-2", "reg-prevtx-1", prevTxId);
+        var txUnrelated = CreateTestTransaction("tx-other", "reg-prevtx-1");
+        await _sut.InsertTransactionAsync(tx1);
+        await _sut.InsertTransactionAsync(tx2);
+        await _sut.InsertTransactionAsync(txUnrelated);
+
+        // Act
+        var result = (await _sut.GetTransactionsByPrevTxIdAsync("reg-prevtx-1", prevTxId)).ToList();
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().AllSatisfy(t => t.PrevTxId.Should().Be(prevTxId));
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdAsync_EmptyPrevTxId_ReturnsEmpty()
+    {
+        // Arrange
+        var register = CreateTestRegister("reg-prevtx-2");
+        await _sut.InsertRegisterAsync(register);
+
+        var tx = CreateTestTransaction("tx-child-3", "reg-prevtx-2", "some-prev".PadRight(64, '0'));
+        await _sut.InsertTransactionAsync(tx);
+
+        // Act
+        var result = await _sut.GetTransactionsByPrevTxIdAsync("reg-prevtx-2", "");
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdAsync_NoMatches_ReturnsEmpty()
+    {
+        // Arrange
+        var register = CreateTestRegister("reg-prevtx-3");
+        await _sut.InsertRegisterAsync(register);
+
+        var tx = CreateTestTransaction("tx-child-4", "reg-prevtx-3", "known-prev".PadRight(64, '0'));
+        await _sut.InsertTransactionAsync(tx);
+
+        // Act
+        var result = await _sut.GetTransactionsByPrevTxIdAsync("reg-prevtx-3", "nonexistent".PadRight(64, '0'));
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdAsync_NonexistentRegister_ReturnsEmpty()
+    {
+        // Act
+        var result = await _sut.GetTransactionsByPrevTxIdAsync("no-such-register", "some-prev".PadRight(64, '0'));
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    // ===========================
     // Cache Management Tests
     // ===========================
 
@@ -354,7 +425,7 @@ public class CachedRegisterRepositoryTests
         };
     }
 
-    private static TransactionModel CreateTestTransaction(string txId, string registerId)
+    private static TransactionModel CreateTestTransaction(string txId, string registerId, string? prevTxId = null)
     {
         return new TransactionModel
         {
@@ -363,7 +434,8 @@ public class CachedRegisterRepositoryTests
             SenderWallet = "sender-wallet",
             RecipientsWallets = new List<string> { "recipient-wallet" },
             TimeStamp = DateTime.UtcNow,
-            Signature = "test-signature"
+            Signature = "test-signature",
+            PrevTxId = prevTxId ?? string.Empty
         };
     }
 }
