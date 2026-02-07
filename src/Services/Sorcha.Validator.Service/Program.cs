@@ -97,6 +97,9 @@ builder.Services.AddServiceClients(builder.Configuration);
 builder.Services.AddBlueprintCache(builder.Configuration);
 builder.Services.AddTransactionPoolPoller(builder.Configuration);
 
+// Add verified transaction queue (required by validation engine)
+builder.Services.AddVerifiedTransactionQueue(builder.Configuration);
+
 // Add validation engine (schema validation, chain validation)
 builder.Services.AddValidationEngine(builder.Configuration);
 
