@@ -183,6 +183,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.McpServer", "src\App
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.McpServer.Tests", "tests\Sorcha.McpServer.Tests\Sorcha.McpServer.Tests.csproj", "{DEF31FA5-6980-4764-AE4A-1A83A03BD188}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.ServiceClients.Tests", "tests\Sorcha.ServiceClients.Tests\Sorcha.ServiceClients.Tests.csproj", "{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -925,6 +927,18 @@ Global
 		{DEF31FA5-6980-4764-AE4A-1A83A03BD188}.Release|x64.Build.0 = Release|Any CPU
 		{DEF31FA5-6980-4764-AE4A-1A83A03BD188}.Release|x86.ActiveCfg = Release|Any CPU
 		{DEF31FA5-6980-4764-AE4A-1A83A03BD188}.Release|x86.Build.0 = Release|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Debug|x64.Build.0 = Debug|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Debug|x86.Build.0 = Debug|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Release|x64.ActiveCfg = Release|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Release|x64.Build.0 = Release|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Release|x86.ActiveCfg = Release|Any CPU
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -996,5 +1010,6 @@ Global
 		{9C9E228A-8BA4-4B51-9172-3A56F073D6B8} = {BFF2DF6E-AA54-47C7-211F-79ACCBB4577C}
 		{7C2F3599-6885-40F2-842F-E16AA49AEE10} = {1787FE1D-075E-9E68-7218-25F1BD1BBEAB}
 		{DEF31FA5-6980-4764-AE4A-1A83A03BD188} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

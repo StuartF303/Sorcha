@@ -260,7 +260,7 @@ public class RegisterManagerTests
         var register = await _manager.CreateRegisterAsync("Test", "tenant123");
 
         // Act
-        var result = await _manager.ExistsAsync(register.Id);
+        var result = await _manager.RegisterExistsAsync(register.Id);
 
         // Assert
         result.Should().BeTrue();
@@ -270,7 +270,7 @@ public class RegisterManagerTests
     public async Task ExistsAsync_WithNonExistentRegister_ShouldReturnFalse()
     {
         // Act
-        var result = await _manager.ExistsAsync("nonexistent");
+        var result = await _manager.RegisterExistsAsync("nonexistent");
 
         // Assert
         result.Should().BeFalse();

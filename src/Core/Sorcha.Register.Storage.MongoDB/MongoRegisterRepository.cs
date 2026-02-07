@@ -202,7 +202,10 @@ public class MongoRegisterRepository : IRegisterRepository
             // Index for blueprint queries
             new(Builders<TransactionModel>.IndexKeys
                 .Ascending("MetaData.BlueprintId")
-                .Ascending("MetaData.InstanceId"))
+                .Ascending("MetaData.InstanceId")),
+
+            // Index for previous transaction ID queries (fork detection)
+            new(Builders<TransactionModel>.IndexKeys.Ascending(t => t.PrevTxId))
         };
         await collection.Indexes.CreateManyAsync(transactionIndexes);
     }
@@ -453,6 +456,24 @@ public class MongoRegisterRepository : IRegisterRepository
     {
         var transactions = GetTransactionsCollection(registerId);
         var filter = Builders<TransactionModel>.Filter.Eq(t => t.SenderWallet, address);
+        return await transactions.Find(filter)
+            .SortByDescending(t => t.TimeStamp)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IEnumerable<TransactionModel>> GetTransactionsByPrevTxIdAsync(
+        string registerId,
+        string prevTxId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(prevTxId))
+        {
+            return Enumerable.Empty<TransactionModel>();
+        }
+
+        var transactions = GetTransactionsCollection(registerId);
+        var filter = Builders<TransactionModel>.Filter.Eq(t => t.PrevTxId, prevTxId);
         return await transactions.Find(filter)
             .SortByDescending(t => t.TimeStamp)
             .ToListAsync(cancellationToken);

@@ -22,7 +22,7 @@ public class QueryManagerTests
         _manager = new QueryManager(_repository);
 
         // Create a test register
-        var register = new Models.Register
+        var register = new Sorcha.Register.Models.Register
         {
             Id = Guid.NewGuid().ToString("N"),
             Name = "Test Register",
@@ -42,7 +42,7 @@ public class QueryManagerTests
         await SeedTransactionsAsync(walletAddress);
 
         // Act
-        var result = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 1, 20);
+        var result = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, walletAddress, 1, 20);
 
         // Assert
         result.Should().NotBeNull();
@@ -60,8 +60,8 @@ public class QueryManagerTests
         await SeedTransactionsAsync(walletAddress);
 
         // Act
-        var page1 = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 1, 2);
-        var page2 = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 2, 2);
+        var page1 = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, walletAddress, 1, 2);
+        var page2 = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, walletAddress, 2, 2);
 
         // Assert
         page1.Items.Should().HaveCount(2);
@@ -79,7 +79,7 @@ public class QueryManagerTests
         await SeedTransactionsAsync(walletAddress, count: 5);
 
         // Act
-        var result = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 1, 2);
+        var result = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, walletAddress, 1, 2);
 
         // Assert
         result.TotalPages.Should().Be(3); // 5 transactions / 2 per page = 3 pages
@@ -94,9 +94,9 @@ public class QueryManagerTests
         await SeedTransactionsAsync(walletAddress, count: 5);
 
         // Act
-        var page1 = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 1, 2);
-        var page2 = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 2, 2);
-        var page3 = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 3, 2);
+        var page1 = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, walletAddress, 1, 2);
+        var page2 = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, walletAddress, 2, 2);
+        var page3 = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, walletAddress, 3, 2);
 
         // Assert
         page1.HasPreviousPage.Should().BeFalse();
@@ -119,7 +119,7 @@ public class QueryManagerTests
         await _repository.InsertTransactionAsync(CreateTransaction("otherSender", "recipient3"));
 
         // Act
-        var result = await _manager.GetTransactionsBySenderAsync(_testRegisterId, senderAddress, 1, 20);
+        var result = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, senderAddress, 1, 20, asSender: true, asRecipient: false);
 
         // Assert
         result.Items.Should().HaveCount(2);
@@ -144,7 +144,7 @@ public class QueryManagerTests
         await _repository.InsertTransactionAsync(tx3);
 
         // Act
-        var result = await _manager.GetTransactionsBySenderAsync(_testRegisterId, senderAddress, 1, 20);
+        var result = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, senderAddress, 1, 20, asSender: true, asRecipient: false);
 
         // Assert
         result.Items.Should().HaveCount(3);
@@ -160,11 +160,11 @@ public class QueryManagerTests
         await SeedBlueprintTransactionsAsync(blueprintId);
 
         // Act
-        var result = await _manager.GetTransactionsByBlueprintAsync(_testRegisterId, blueprintId, null, 1, 20);
+        var result = await _manager.GetTransactionsByBlueprintAsync(_testRegisterId, blueprintId);
 
         // Assert
-        result.Items.Should().HaveCountGreaterThan(0);
-        result.Items.Should().OnlyContain(t => t.MetaData?.BlueprintId == blueprintId);
+        result.Should().HaveCountGreaterThan(0);
+        result.Should().OnlyContain(t => t.MetaData != null && t.MetaData.BlueprintId == blueprintId);
     }
 
     [Fact]
@@ -176,13 +176,14 @@ public class QueryManagerTests
         await SeedBlueprintTransactionsAsync(blueprintId, instanceId);
 
         // Act
-        var result = await _manager.GetTransactionsByBlueprintAsync(_testRegisterId, blueprintId, instanceId, 1, 20);
+        var result = await _manager.GetTransactionsByBlueprintAsync(_testRegisterId, blueprintId, instanceId);
 
         // Assert
-        result.Items.Should().HaveCountGreaterThan(0);
-        result.Items.Should().OnlyContain(t =>
-            t.MetaData?.BlueprintId == blueprintId &&
-            t.MetaData?.InstanceId == instanceId);
+        result.Should().HaveCountGreaterThan(0);
+        result.Should().OnlyContain(t =>
+            t.MetaData != null &&
+            t.MetaData.BlueprintId == blueprintId &&
+            t.MetaData.InstanceId == instanceId);
     }
 
     [Fact]
@@ -267,7 +268,7 @@ public class QueryManagerTests
         await _repository.InsertTransactionAsync(tx);
 
         // Act
-        var result = await _manager.GetTransactionsByWalletAsync(_testRegisterId, walletAddress, 1, 20);
+        var result = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, walletAddress, 1, 20);
 
         // Assert
         result.Items.Should().HaveCount(1); // Should only appear once, not twice
@@ -280,7 +281,7 @@ public class QueryManagerTests
     {
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            async () => await _manager.GetTransactionsByWalletAsync(_testRegisterId, "wallet123", invalidPage, 20));
+            async () => await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, "wallet123", invalidPage, 20));
     }
 
     [Theory]
@@ -291,7 +292,7 @@ public class QueryManagerTests
     {
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            async () => await _manager.GetTransactionsByWalletAsync(_testRegisterId, "wallet123", 1, invalidPageSize));
+            async () => await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, "wallet123", 1, invalidPageSize));
     }
 
     [Fact]
@@ -386,5 +387,269 @@ public class QueryManagerTests
             },
             Signature = "signature"
         };
+    }
+
+    private TransactionModel CreateTransactionWithPrevTxId(string prevTxId, DateTime? timestamp = null)
+    {
+        var tx = CreateTransaction("sender1", "recipient1");
+        tx.PrevTxId = prevTxId;
+        if (timestamp.HasValue) tx.TimeStamp = timestamp.Value;
+        return tx;
+    }
+
+    // ===== PrevTxId Query Tests =====
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdPaginatedAsync_SingleMatch_ReturnsPaginatedResultWith1Item()
+    {
+        // Arrange
+        var prevTxId = new string('a', 64);
+        await _repository.InsertTransactionAsync(CreateTransactionWithPrevTxId(prevTxId));
+
+        // Act
+        var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, prevTxId);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Items.Should().HaveCount(1);
+        result.TotalCount.Should().Be(1);
+        result.Items[0].PrevTxId.Should().Be(prevTxId);
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdPaginatedAsync_MultipleMatches_ReturnsAll()
+    {
+        // Arrange - fork scenario: two transactions claim same predecessor
+        var prevTxId = new string('b', 64);
+        await _repository.InsertTransactionAsync(CreateTransactionWithPrevTxId(prevTxId));
+        await _repository.InsertTransactionAsync(CreateTransactionWithPrevTxId(prevTxId));
+
+        // Act
+        var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, prevTxId);
+
+        // Assert
+        result.Items.Should().HaveCount(2);
+        result.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdPaginatedAsync_NoMatches_ReturnsEmpty()
+    {
+        // Arrange
+        var prevTxId = new string('c', 64);
+
+        // Act
+        var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, prevTxId);
+
+        // Assert
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task GetTransactionsByPrevTxIdPaginatedAsync_NullOrEmptyPrevTxId_ReturnsEmpty(string? prevTxId)
+    {
+        // Act
+        var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, prevTxId!);
+
+        // Assert
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdPaginatedAsync_Pagination_RespectsPageAndPageSize()
+    {
+        // Arrange - 5 transactions with same prevTxId (severe fork)
+        var prevTxId = new string('d', 64);
+        for (int i = 0; i < 5; i++)
+        {
+            await _repository.InsertTransactionAsync(CreateTransactionWithPrevTxId(prevTxId));
+        }
+
+        // Act
+        var page1 = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, prevTxId, page: 1, pageSize: 2);
+        var page2 = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, prevTxId, page: 2, pageSize: 2);
+
+        // Assert
+        page1.Items.Should().HaveCount(2);
+        page1.Page.Should().Be(1);
+        page1.TotalCount.Should().Be(5);
+        page1.TotalPages.Should().Be(3);
+        page1.HasNextPage.Should().BeTrue();
+        page1.HasPreviousPage.Should().BeFalse();
+
+        page2.Items.Should().HaveCount(2);
+        page2.Page.Should().Be(2);
+        page2.HasPreviousPage.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdPaginatedAsync_InvalidPage_ClampsTo1()
+    {
+        // Arrange
+        var prevTxId = new string('e', 64);
+        await _repository.InsertTransactionAsync(CreateTransactionWithPrevTxId(prevTxId));
+
+        // Act
+        var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, prevTxId, page: -1);
+
+        // Assert
+        result.Page.Should().Be(1);
+        result.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdPaginatedAsync_InvalidPageSize_ClampsToDefault()
+    {
+        // Arrange
+        var prevTxId = new string('f', 64);
+        await _repository.InsertTransactionAsync(CreateTransactionWithPrevTxId(prevTxId));
+
+        // Act
+        var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, prevTxId, pageSize: 200);
+
+        // Assert
+        result.PageSize.Should().Be(20);
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdPaginatedAsync_OrdersByTimestampDescending()
+    {
+        // Arrange
+        var prevTxId = new string('1', 64);
+        var older = CreateTransactionWithPrevTxId(prevTxId, DateTime.UtcNow.AddMinutes(-10));
+        var newer = CreateTransactionWithPrevTxId(prevTxId, DateTime.UtcNow);
+        await _repository.InsertTransactionAsync(older);
+        await _repository.InsertTransactionAsync(newer);
+
+        // Act
+        var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, prevTxId);
+
+        // Assert
+        result.Items.Should().HaveCount(2);
+        result.Items[0].TimeStamp.Should().BeAfter(result.Items[1].TimeStamp);
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdPaginatedAsync_DoesNotReturnOtherTransactions()
+    {
+        // Arrange - register scoping
+        var targetPrevTxId = new string('a', 64);
+        var otherPrevTxId = new string('b', 64);
+        await _repository.InsertTransactionAsync(CreateTransactionWithPrevTxId(targetPrevTxId));
+        await _repository.InsertTransactionAsync(CreateTransactionWithPrevTxId(otherPrevTxId));
+
+        // Act
+        var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, targetPrevTxId);
+
+        // Assert
+        result.Items.Should().HaveCount(1);
+        result.Items[0].PrevTxId.Should().Be(targetPrevTxId);
+    }
+
+    // ===== Chain Traversal Tests (US2) =====
+
+    [Fact]
+    public async Task ChainTraversal_WalkForwardFromGenesis_ReachesAllTransactions()
+    {
+        // Arrange — build a 10-transaction chain
+        var chainTxIds = new List<string>();
+        var prevTxId = string.Empty; // genesis has no predecessor
+
+        for (int i = 0; i < 10; i++)
+        {
+            var tx = CreateTransaction("sender1", "recipient1");
+            tx.PrevTxId = prevTxId;
+            await _repository.InsertTransactionAsync(tx);
+            chainTxIds.Add(tx.TxId);
+            prevTxId = tx.TxId; // next transaction's predecessor
+        }
+
+        // Act — walk forward from genesis (TxId of first transaction)
+        var visited = new List<string>();
+        var currentPrevTxId = chainTxIds[0]; // start from the first transaction's TxId
+
+        for (int step = 0; step < 10; step++)
+        {
+            var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, currentPrevTxId);
+            if (result.TotalCount == 0)
+                break;
+
+            var successor = result.Items[0];
+            visited.Add(successor.TxId);
+            currentPrevTxId = successor.TxId;
+        }
+
+        // Assert — should have walked 9 successors (tx[1] through tx[9])
+        visited.Should().HaveCount(9);
+        for (int i = 0; i < visited.Count; i++)
+        {
+            visited[i].Should().Be(chainTxIds[i + 1]);
+        }
+    }
+
+    [Fact]
+    public async Task ChainTraversal_DetectGap_MissingTransactionBreaksChain()
+    {
+        // Arrange — create tx1 -> tx2 -> tx3, but tx2 references a non-existent predecessor
+        var tx1 = CreateTransaction("sender1", "recipient1");
+        tx1.PrevTxId = string.Empty;
+        await _repository.InsertTransactionAsync(tx1);
+
+        // tx2 references a TxId that doesn't exist in the chain (gap)
+        var missingTxId = new string('x', 64);
+        var tx2 = CreateTransaction("sender1", "recipient1");
+        tx2.PrevTxId = missingTxId;
+        await _repository.InsertTransactionAsync(tx2);
+
+        // Act — try to walk forward from tx1
+        var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, tx1.TxId);
+
+        // Assert — no successor found (gap detected: nothing references tx1 as predecessor)
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ChainTraversal_DetectFork_TwoTransactionsSharePredecessor()
+    {
+        // Arrange — tx1 is predecessor, both tx2a and tx2b reference tx1
+        var tx1 = CreateTransaction("sender1", "recipient1");
+        tx1.PrevTxId = string.Empty;
+        await _repository.InsertTransactionAsync(tx1);
+
+        var tx2a = CreateTransaction("sender1", "recipient1");
+        tx2a.PrevTxId = tx1.TxId;
+        await _repository.InsertTransactionAsync(tx2a);
+
+        var tx2b = CreateTransaction("sender2", "recipient2");
+        tx2b.PrevTxId = tx1.TxId;
+        await _repository.InsertTransactionAsync(tx2b);
+
+        // Act — query successors of tx1
+        var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, tx1.TxId);
+
+        // Assert — fork: two successors
+        result.TotalCount.Should().Be(2);
+        result.Items.Select(t => t.TxId).Should().Contain(tx2a.TxId);
+        result.Items.Select(t => t.TxId).Should().Contain(tx2b.TxId);
+    }
+
+    [Fact]
+    public async Task ChainTraversal_ChainTip_QueryReturnsEmpty()
+    {
+        // Arrange — single transaction at end of chain (no successors)
+        var tx = CreateTransaction("sender1", "recipient1");
+        tx.PrevTxId = string.Empty;
+        await _repository.InsertTransactionAsync(tx);
+
+        // Act — query for successors of the chain tip
+        var result = await _manager.GetTransactionsByPrevTxIdPaginatedAsync(_testRegisterId, tx.TxId);
+
+        // Assert — empty = end of chain
+        result.TotalCount.Should().Be(0);
+        result.Items.Should().BeEmpty();
     }
 }

@@ -131,6 +131,23 @@ public interface IRegisterServiceClient
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets transactions that reference a given previous transaction ID.
+    /// Used for fork detection and chain integrity auditing.
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="prevTxId">Previous transaction ID to query</param>
+    /// <param name="page">Page number (1-based)</param>
+    /// <param name="pageSize">Number of transactions per page</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated transaction list</returns>
+    Task<TransactionPage> GetTransactionsByPrevTxIdAsync(
+        string registerId,
+        string prevTxId,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets all transactions associated with a workflow instance
     /// </summary>
     /// <param name="registerId">Register ID</param>

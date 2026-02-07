@@ -395,6 +395,115 @@ public class MongoRegisterRepositoryIntegrationTests : IAsyncLifetime
     }
 
     // ===========================
+    // PrevTxId Query Tests
+    // ===========================
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdAsync_ReturnsMatchingTransactions()
+    {
+        // Arrange
+        var registerId = "prevtx-test-reg";
+        await _sut.InsertRegisterAsync(CreateTestRegister(registerId));
+
+        var prevTxId = "abcdef1234567890".PadRight(64, '0');
+        var tx1 = CreateTestTransaction("ptx-1", registerId);
+        tx1.PrevTxId = prevTxId;
+        var tx2 = CreateTestTransaction("ptx-2", registerId);
+        tx2.PrevTxId = prevTxId;
+        var tx3 = CreateTestTransaction("ptx-3", registerId);
+        tx3.PrevTxId = "different".PadRight(64, '0');
+
+        await _sut.InsertTransactionAsync(tx1);
+        await _sut.InsertTransactionAsync(tx2);
+        await _sut.InsertTransactionAsync(tx3);
+
+        // Act
+        var result = (await _sut.GetTransactionsByPrevTxIdAsync(registerId, prevTxId)).ToList();
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(t => t.PrevTxId == prevTxId);
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdAsync_ReturnsEmptyForNullPrevTxId()
+    {
+        // Arrange
+        await _sut.InsertRegisterAsync(CreateTestRegister("prevtx-null-reg"));
+
+        // Act
+        var result = await _sut.GetTransactionsByPrevTxIdAsync("prevtx-null-reg", null!);
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdAsync_ReturnsEmptyForEmptyPrevTxId()
+    {
+        // Arrange
+        await _sut.InsertRegisterAsync(CreateTestRegister("prevtx-empty-reg"));
+
+        // Act
+        var result = await _sut.GetTransactionsByPrevTxIdAsync("prevtx-empty-reg", "");
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTransactionsByPrevTxIdAsync_ResultsSortedByTimestampDescending()
+    {
+        // Arrange
+        var registerId = "prevtx-sort-reg";
+        await _sut.InsertRegisterAsync(CreateTestRegister(registerId));
+
+        var prevTxId = "sorttest".PadRight(64, '0');
+        var older = CreateTestTransaction("sort-1", registerId);
+        older.PrevTxId = prevTxId;
+        older.TimeStamp = DateTime.UtcNow.AddMinutes(-10);
+
+        var newer = CreateTestTransaction("sort-2", registerId);
+        newer.PrevTxId = prevTxId;
+        newer.TimeStamp = DateTime.UtcNow;
+
+        await _sut.InsertTransactionAsync(older);
+        await _sut.InsertTransactionAsync(newer);
+
+        // Act
+        var result = (await _sut.GetTransactionsByPrevTxIdAsync(registerId, prevTxId)).ToList();
+
+        // Assert
+        result.Should().HaveCount(2);
+        result[0].TimeStamp.Should().BeAfter(result[1].TimeStamp);
+    }
+
+    [Fact]
+    public async Task PrevTxIdIndex_ExistsOnTransactionCollection()
+    {
+        // Arrange — insert a register to ensure the collection exists
+        var registerId = "idx-verify-reg";
+        await _sut.InsertRegisterAsync(CreateTestRegister(registerId));
+        await _sut.InsertTransactionAsync(CreateTestTransaction("idx-tx-1", registerId));
+
+        // Manually create indexes (test constructor doesn't auto-create)
+        var collection = _database.GetCollection<TransactionModel>("transactions");
+        var indexes = new List<CreateIndexModel<TransactionModel>>
+        {
+            new(Builders<TransactionModel>.IndexKeys.Ascending(t => t.PrevTxId))
+        };
+        await collection.Indexes.CreateManyAsync(indexes);
+
+        // Act — list all indexes on the collection
+        var cursor = await collection.Indexes.ListAsync();
+        var indexList = await cursor.ToListAsync();
+        var indexNames = indexList.Select(i => i["name"].AsString).ToList();
+
+        // Assert — verify PrevTxId index exists
+        indexNames.Should().Contain(name => name.Contains("PrevTxId"));
+    }
+
+    // ===========================
     // Helper Methods
     // ===========================
 

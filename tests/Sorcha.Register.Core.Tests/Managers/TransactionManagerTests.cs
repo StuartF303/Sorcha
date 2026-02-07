@@ -25,7 +25,7 @@ public class TransactionManagerTests
         _manager = new TransactionManager(_repository, _eventPublisher);
 
         // Create a test register
-        var register = new Models.Register
+        var register = new Sorcha.Register.Models.Register
         {
             Id = Guid.NewGuid().ToString("N"),
             Name = "Test Register",
@@ -328,7 +328,7 @@ public class TransactionManagerTests
     }
 
     [Fact]
-    public async Task StoreTransactionAsync_WithPrevTxId_ShouldLinkToPrevi ousTransaction()
+    public async Task StoreTransactionAsync_WithPrevTxId_ShouldLinkToPreviousTransaction()
     {
         // Arrange
         var tx1 = CreateValidTransaction("tx1");

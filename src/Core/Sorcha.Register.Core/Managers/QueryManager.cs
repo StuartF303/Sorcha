@@ -145,6 +145,57 @@ public class QueryManager
     }
 
     /// <summary>
+    /// Gets transactions by previous transaction ID with pagination.
+    /// Used for fork detection and chain traversal.
+    /// </summary>
+    public async Task<PaginatedResult<TransactionModel>> GetTransactionsByPrevTxIdPaginatedAsync(
+        string registerId,
+        string prevTxId,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registerId);
+
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 20;
+
+        if (string.IsNullOrEmpty(prevTxId))
+        {
+            return new PaginatedResult<TransactionModel>
+            {
+                Items = new List<TransactionModel>(),
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = 0,
+                TotalPages = 0
+            };
+        }
+
+        var transactions = (await _repository.GetTransactionsByPrevTxIdAsync(
+            registerId,
+            prevTxId,
+            cancellationToken))
+            .OrderByDescending(t => t.TimeStamp)
+            .ToList();
+
+        var total = transactions.Count;
+        var items = transactions
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return new PaginatedResult<TransactionModel>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = total,
+            TotalPages = (int)Math.Ceiling(total / (double)pageSize)
+        };
+    }
+
+    /// <summary>
     /// Gets transactions by blueprint with optional instance filtering
     /// </summary>
     public async Task<IEnumerable<TransactionModel>> GetTransactionsByBlueprintAsync(

@@ -37,6 +37,11 @@ public class ValidationEngineTests
         _registerClientMock = new Mock<IRegisterServiceClient>();
         _loggerMock = new Mock<ILogger<ValidationEngine>>();
 
+        // Default: no existing successors (no fork)
+        _registerClientMock.Setup(r => r.GetTransactionsByPrevTxIdAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TransactionPage { Page = 1, PageSize = 1 });
+
         _config = new ValidationEngineConfiguration
         {
             EnableSchemaValidation = true,
@@ -1199,6 +1204,124 @@ public class ValidationEngineTests
 
         // Assert
         result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_NoFork_ZeroExistingSuccessors_ReturnsSuccess()
+    {
+        // Arrange
+        var previousTxId = "prev-tx-no-fork";
+        var tx = CreateValidTransaction(previousTransactionId: previousTxId);
+
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, previousTxId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel { RegisterId = tx.RegisterId, TxId = previousTxId });
+        _registerClientMock.Setup(r => r.GetTransactionsByPrevTxIdAsync(
+                tx.RegisterId, previousTxId, 1, 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TransactionPage { Page = 1, PageSize = 1, Total = 0 });
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Errors.Should().NotContain(e => e.Code == "VAL_CHAIN_FORK");
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_ForkDetected_ExistingSuccessors_ReturnsChainForkError()
+    {
+        // Arrange — another transaction already claims the same predecessor
+        var previousTxId = "prev-tx-forked";
+        var tx = CreateValidTransaction(previousTransactionId: previousTxId);
+
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, previousTxId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel { RegisterId = tx.RegisterId, TxId = previousTxId });
+        _registerClientMock.Setup(r => r.GetTransactionsByPrevTxIdAsync(
+                tx.RegisterId, previousTxId, 1, 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TransactionPage { Page = 1, PageSize = 1, Total = 1, Transactions = [new Sorcha.Register.Models.TransactionModel { TxId = "existing-fork-tx" }] });
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_CHAIN_FORK");
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_ForkDetection_SkippedWhenPreviousTransactionIdIsNull()
+    {
+        // Arrange — no PreviousTransactionId means no fork detection
+        var tx = CreateValidTransaction(previousTransactionId: null);
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        _registerClientMock.Verify(
+            r => r.GetTransactionsByPrevTxIdAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_ForkDetection_SkippedWhenChainValidationDisabled()
+    {
+        // Arrange
+        var config = new ValidationEngineConfiguration
+        {
+            EnableSchemaValidation = true,
+            EnableSignatureVerification = true,
+            EnableChainValidation = false,
+            EnableParallelValidation = false,
+            MaxClockSkew = TimeSpan.FromMinutes(5),
+            MaxTransactionAge = TimeSpan.FromHours(1)
+        };
+        var engine = new ValidationEngine(
+            Options.Create(config),
+            _blueprintCacheMock.Object,
+            _hashProviderMock.Object,
+            _cryptoModuleMock.Object,
+            _registerClientMock.Object,
+            _loggerMock.Object);
+
+        var tx = CreateValidTransaction(previousTransactionId: "some-tx");
+
+        // Act
+        var result = await engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        _registerClientMock.Verify(
+            r => r.GetTransactionsByPrevTxIdAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_ForkDetection_TransientErrorOnServiceUnavailable()
+    {
+        // Arrange — GetTransactionAsync succeeds but fork detection throws
+        var previousTxId = "prev-tx-transient";
+        var tx = CreateValidTransaction(previousTransactionId: previousTxId);
+
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, previousTxId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel { RegisterId = tx.RegisterId, TxId = previousTxId });
+        _registerClientMock.Setup(r => r.GetTransactionsByPrevTxIdAsync(
+                tx.RegisterId, previousTxId, 1, 1, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Service unavailable"));
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_CHAIN_TRANSIENT" && !e.IsFatal);
     }
 
     #endregion
