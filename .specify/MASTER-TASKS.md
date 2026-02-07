@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
 **Version:** 4.5 - UPDATED
-**Last Updated:** 2026-02-06
-**Status:** Active - Blueprint Engine Integration
+**Last Updated:** 2026-02-07
+**Status:** Active - Production Readiness (Sprint 11)
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -12,15 +12,23 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 270 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 145 (54%)
+**Completed:** 146 (54%)
 **In Progress:** 0 (0%)
-**Not Started:** 125 (46%)
+**Not Started:** 124 (46%)
 
 ---
 
 ## Recent Updates
 
 **2026-02-07:**
+- ✅ BP-11.2 COMPLETE: Blueprint Service security hardening
+  - Added `[Authorize]` to ActionsHub SignalR hub + `.RequireAuthorization()` on hub mapping
+  - Secured file download endpoint (`/api/files/...`) with `CanExecuteBlueprints` policy
+  - Added CORS policy (SEC-005) matching API Gateway/Tenant Service pattern
+  - Added `.AllowAnonymous()` to health endpoint for explicit intent
+  - Hardened 13 generic catch blocks — stopped leaking `ex.Message` to clients
+  - Added `logger.LogWarning()` for all exception handling paths
+  - All tests passing: 194 unit + 43 integration
 - ✅ TRANSACTION-QUERY-API COMPLETE: Extend IRegisterServiceClient to support querying transactions by PrevTxId (26 tasks, 6 phases)
   - Added PrevTxId ascending index to MongoDB CreateTransactionIndexesAsync
   - Added GetTransactionsByPrevTxIdAsync to IRegisterRepository with MongoDB + InMemory implementations
@@ -229,14 +237,14 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete | Details |
 |-------|-------------|----------|-------------|-------------|------------|---------|
-| **Phase 1: Blueprint-Action** | 118 | 68 | 0 | 50 | **58%** | [View Tasks](tasks/phase1-blueprint-service.md) |
+| **Phase 1: Blueprint-Action** | 118 | 69 | 0 | 49 | **58%** | [View Tasks](tasks/phase1-blueprint-service.md) |
 | **Phase 2: Wallet Service** | 34 | 34 | 0 | 0 | **100%** ✅ | [View Tasks](tasks/phase2-wallet-service.md) |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ | [View Tasks](tasks/phase3-register-service.md) |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% | [View Tasks](tasks/phase4-enhancements.md) |
 | **Production Readiness** | 10 | 6 | 0 | 4 | **60%** | [View Tasks](tasks/production-readiness.md) |
 | **CLI Admin Tool** | 60 | 0 | 0 | 60 | 0% | [View Tasks](tasks/cli-admin-tool.md) |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% | [View Tasks](tasks/deferred-tasks.md) |
-| **TOTAL** | **270** | **120** | **0** | **150** | **44%** | |
+| **TOTAL** | **270** | **121** | **0** | **149** | **45%** | |
 
 ### By Priority
 
@@ -348,6 +356,6 @@ BP-11.x (Production Readiness) ⚠️ CURRENT BLOCKER
 
 ---
 
-**Last Updated:** 2026-02-06
+**Last Updated:** 2026-02-07
 **Next Review:** Weekly
 **Document Owner:** Sorcha Architecture Team

@@ -98,6 +98,16 @@
 
 **Related:** BP-8.2 Security hardening task (promoted from P1 in Phase 1)
 
+### SEC-005: Blueprint Service Security Hardening (BP-11.2)
+
+✅ **Complete (2026-02-07)** — Endpoint audit and hardening
+- ✅ ActionsHub SignalR hub secured with `[Authorize]` + `.RequireAuthorization()`
+- ✅ File download endpoint (`/api/files/...`) secured with `CanExecuteBlueprints` policy
+- ✅ CORS policy added (matching API Gateway and Tenant Service patterns)
+- ✅ Health endpoint marked `.AllowAnonymous()` for explicit intent
+- ✅ 13 generic catch blocks hardened — no longer leak `ex.Message` to clients
+- ✅ All exception paths now log via `logger.LogWarning()`
+
 ---
 
 ## First-Run Setup & Commissioning (P0 - BLOCKER)

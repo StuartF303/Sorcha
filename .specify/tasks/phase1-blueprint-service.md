@@ -384,16 +384,30 @@
 
 ---
 
-## Sprint 11: Production Readiness 📋 NOT STARTED
+## Sprint 11: Production Readiness 🚧 IN PROGRESS
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
 | BP-11.1 | Performance optimization | P2 | 8h | 📋 Not Started | - |
-| BP-11.2 | Security hardening | P1 | 8h | 📋 Not Started | - |
+| BP-11.2 | Security hardening | P1 | 8h | ✅ Complete | 2026-02-07 |
 | BP-11.3 | Monitoring and alerting | P2 | 6h | 📋 Not Started | - |
 | BP-11.4 | Production deployment guide | P2 | 4h | 📋 Not Started | - |
 
-**Sprint 11 Status:** 📋 **NOT STARTED** (0/4 tasks, 26 hours)
+**Sprint 11 Status:** 🚧 **IN PROGRESS** (1/4 tasks, 26 hours)
+
+### BP-11.2 Status Details
+
+✅ **Complete (2026-02-07)** - Blueprint Service security hardening
+- ✅ Added `[Authorize]` attribute to ActionsHub (was unauthenticated, now matches ChatHub)
+- ✅ Added `.RequireAuthorization()` to ActionsHub hub mapping
+- ✅ Added `.RequireAuthorization("CanExecuteBlueprints")` to file download endpoint (`/api/files/...`)
+- ✅ Added CORS policy (SEC-005) matching API Gateway and Tenant Service patterns
+- ✅ Added `.AllowAnonymous()` to health endpoint for explicit intent
+- ✅ Hardened 13 generic `catch (Exception ex)` blocks — stopped leaking `ex.Message` to clients
+- ✅ Added `logger.LogWarning()` for all exception handling paths
+- ✅ Health endpoint error changed from raw exception to "Service unavailable"
+- ✅ Typed exception catches (`InvalidOperationException`, `KeyNotFoundException`) preserved as-is
+- ✅ All tests passing: 194 unit + 43 integration
 
 ---
 
