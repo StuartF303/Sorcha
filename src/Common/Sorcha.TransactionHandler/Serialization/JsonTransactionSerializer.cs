@@ -106,15 +106,17 @@ public class JsonTransactionSerializer : ITransactionSerializer
     /// <inheritdoc/>
     public byte[] SerializeToBinary(ITransaction transaction)
     {
-        throw new NotSupportedException(
-            "Binary serialization is not supported. Use JSON format via SerializeToJson() instead.");
+        // Delegate binary serialization to BinaryTransactionSerializer
+        var binarySerializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
+        return binarySerializer.SerializeToBinary(transaction);
     }
 
     /// <inheritdoc/>
     public ITransaction DeserializeFromBinary(byte[] data)
     {
-        throw new NotSupportedException(
-            "Binary deserialization is not supported. Use JSON format via DeserializeFromJson() instead.");
+        // Delegate binary deserialization to BinaryTransactionSerializer
+        var binarySerializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
+        return binarySerializer.DeserializeFromBinary(data);
     }
 
     /// <inheritdoc/>

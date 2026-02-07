@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -157,8 +158,104 @@ public class Transaction : ITransaction
     /// <inheritdoc/>
     public byte[] SerializeToBinary()
     {
-        throw new NotSupportedException(
-            "Binary serialization is not supported. Use JSON format via SerializeToJson() instead.");
+        // Serialize using the same format as BinaryTransactionSerializer
+        using var ms = new System.IO.MemoryStream();
+        using var writer = new System.IO.BinaryWriter(ms);
+
+        // Write version
+        writer.Write((uint)Version);
+
+        // Write timestamp
+        if (Timestamp.HasValue)
+        {
+            writer.Write(true);
+            writer.Write(Timestamp.Value.ToBinary());
+        }
+        else
+        {
+            writer.Write(false);
+        }
+
+        // Write previous transaction hash
+        WriteBinaryString(writer, PreviousTxHash ?? string.Empty);
+
+        // Write sender wallet
+        WriteBinaryString(writer, SenderWallet ?? string.Empty);
+
+        // Write recipients
+        var recipients = Recipients ?? Array.Empty<string>();
+        WriteBinaryVarInt(writer, (ulong)recipients.Length);
+        foreach (var recipient in recipients)
+        {
+            WriteBinaryString(writer, recipient);
+        }
+
+        // Write metadata
+        WriteBinaryString(writer, Metadata ?? string.Empty);
+
+        // Write signature
+        if (Signature != null && Signature.Length > 0)
+        {
+            writer.Write(true);
+            WriteBinaryVarInt(writer, (ulong)Signature.Length);
+            writer.Write(Signature);
+        }
+        else
+        {
+            writer.Write(false);
+        }
+
+        // Write payloads
+        var payloads = PayloadManager.GetAllAsync().GetAwaiter().GetResult();
+        var payloadList = payloads.ToArray();
+        WriteBinaryVarInt(writer, (ulong)payloadList.Length);
+
+        foreach (var payload in payloadList)
+        {
+            WriteBinaryVarInt(writer, (ulong)payload.Id);
+            writer.Write((byte)payload.Type);
+            WriteBinaryVarInt(writer, (ulong)payload.OriginalSize);
+            writer.Write(payload.IsCompressed);
+
+            var info = payload.GetInfo();
+            var accessibleBy = info.AccessibleBy ?? Array.Empty<string>();
+            WriteBinaryVarInt(writer, (ulong)accessibleBy.Length);
+            foreach (var wallet in accessibleBy)
+            {
+                WriteBinaryString(writer, wallet);
+            }
+
+            WriteBinaryVarInt(writer, (ulong)payload.Data.Length);
+            writer.Write(payload.Data);
+
+            WriteBinaryVarInt(writer, (ulong)payload.IV.Length);
+            writer.Write(payload.IV);
+
+            WriteBinaryVarInt(writer, (ulong)payload.Hash.Length);
+            writer.Write(payload.Hash);
+        }
+
+        return ms.ToArray();
+    }
+
+    private static void WriteBinaryVarInt(System.IO.BinaryWriter writer, ulong value)
+    {
+        var encoded = Sorcha.Cryptography.Utilities.VariableLengthInteger.Encode(value);
+        writer.Write(encoded);
+    }
+
+    private static void WriteBinaryString(System.IO.BinaryWriter writer, string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            WriteBinaryVarInt(writer, 0);
+        }
+        else
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+            WriteBinaryVarInt(writer, (ulong)bytes.Length);
+            writer.Write(bytes);
+        }
     }
 
     /// <inheritdoc/>
