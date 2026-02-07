@@ -45,18 +45,170 @@ public class CryptoModule : ICryptoModule
     }
 
     /// <summary>
-    /// Recovers a key set from key data.
+    /// Recovers a key set from key data (private key bytes).
+    /// For ED25519: expects 64-byte private key (or 32-byte seed).
+    /// For NIST P-256: expects 32-byte private key (D parameter).
+    /// For RSA-4096: expects DER-encoded RSA private key.
     /// </summary>
-    public Task<CryptoResult<KeySet>> RecoverKeySetAsync(
+    public async Task<CryptoResult<KeySet>> RecoverKeySetAsync(
         WalletNetworks network,
         byte[] keyData,
         string? password = null,
         CancellationToken cancellationToken = default)
     {
-        // TODO: Implement key recovery logic
-        return Task.FromResult(CryptoResult<KeySet>.Failure(
-            CryptoStatus.InvalidParameter,
-            "Key recovery not yet implemented"));
+        try
+        {
+            if (keyData == null || keyData.Length == 0)
+                return CryptoResult<KeySet>.Failure(CryptoStatus.InvalidParameter, "Key data cannot be null or empty");
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // If password is provided, treat keyData as encrypted: decrypt first
+            byte[] rawKeyData = keyData;
+            if (!string.IsNullOrEmpty(password))
+            {
+                var decryptResult = DecryptKeyDataWithPassword(keyData, password);
+                if (!decryptResult.IsSuccess)
+                    return CryptoResult<KeySet>.Failure(decryptResult.Status, decryptResult.ErrorMessage ?? "Decryption failed");
+                rawKeyData = decryptResult.Value!;
+            }
+
+            return network switch
+            {
+                WalletNetworks.ED25519 => await RecoverED25519KeySetAsync(rawKeyData, cancellationToken),
+                WalletNetworks.NISTP256 => await RecoverNISTP256KeySetAsync(rawKeyData, cancellationToken),
+                WalletNetworks.RSA4096 => await RecoverRSA4096KeySetAsync(rawKeyData, cancellationToken),
+                _ => CryptoResult<KeySet>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return CryptoResult<KeySet>.Failure(CryptoStatus.Cancelled, "Operation was cancelled");
+        }
+        catch (Exception ex)
+        {
+            return CryptoResult<KeySet>.Failure(CryptoStatus.KeyGenerationFailed, $"Key recovery failed: {ex.Message}");
+        }
+    }
+
+    private Task<CryptoResult<KeySet>> RecoverED25519KeySetAsync(byte[] keyData, CancellationToken ct)
+    {
+        return Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+
+            KeyPair keyPair;
+            if (keyData.Length == 32)
+            {
+                // 32-byte seed: generate key pair from seed
+                keyPair = PublicKeyAuth.GenerateKeyPair(keyData);
+            }
+            else if (keyData.Length == 64)
+            {
+                // 64-byte private key: extract public key
+                var publicKey = PublicKeyAuth.ExtractEd25519PublicKeyFromEd25519SecretKey(keyData);
+                return CryptoResult<KeySet>.Success(new KeySet
+                {
+                    PrivateKey = new CryptoKey(WalletNetworks.ED25519, keyData),
+                    PublicKey = new CryptoKey(WalletNetworks.ED25519, publicKey)
+                });
+            }
+            else
+            {
+                return CryptoResult<KeySet>.Failure(CryptoStatus.InvalidKey,
+                    "ED25519 key data must be 32 bytes (seed) or 64 bytes (private key)");
+            }
+
+            return CryptoResult<KeySet>.Success(new KeySet
+            {
+                PrivateKey = new CryptoKey(WalletNetworks.ED25519, keyPair.PrivateKey),
+                PublicKey = new CryptoKey(WalletNetworks.ED25519, keyPair.PublicKey)
+            });
+        }, ct);
+    }
+
+    private Task<CryptoResult<KeySet>> RecoverNISTP256KeySetAsync(byte[] keyData, CancellationToken ct)
+    {
+        return Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+
+            if (keyData.Length != 32)
+                return CryptoResult<KeySet>.Failure(CryptoStatus.InvalidKey,
+                    "NIST P-256 key data must be 32 bytes (D parameter)");
+
+            var parameters = new ECParameters
+            {
+                Curve = ECCurve.NamedCurves.nistP256,
+                D = keyData
+            };
+
+            using var ecdsa = ECDsa.Create(parameters);
+            var exportedParams = ecdsa.ExportParameters(false);
+
+            var publicKey = new byte[64];
+            Array.Copy(exportedParams.Q.X!, 0, publicKey, 0, 32);
+            Array.Copy(exportedParams.Q.Y!, 0, publicKey, 32, 32);
+
+            return CryptoResult<KeySet>.Success(new KeySet
+            {
+                PrivateKey = new CryptoKey(WalletNetworks.NISTP256, keyData),
+                PublicKey = new CryptoKey(WalletNetworks.NISTP256, publicKey)
+            });
+        }, ct);
+    }
+
+    private Task<CryptoResult<KeySet>> RecoverRSA4096KeySetAsync(byte[] keyData, CancellationToken ct)
+    {
+        return Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+
+            using var rsa = RSA.Create();
+            rsa.ImportRSAPrivateKey(keyData, out _);
+
+            var publicKeyBytes = rsa.ExportRSAPublicKey();
+
+            return CryptoResult<KeySet>.Success(new KeySet
+            {
+                PrivateKey = new CryptoKey(WalletNetworks.RSA4096, keyData),
+                PublicKey = new CryptoKey(WalletNetworks.RSA4096, publicKeyBytes)
+            });
+        }, ct);
+    }
+
+    private static CryptoResult<byte[]> DecryptKeyDataWithPassword(byte[] encryptedData, string password)
+    {
+        try
+        {
+            // Format: [16-byte salt][12-byte nonce][16-byte tag][ciphertext]
+            const int saltLen = 16;
+            const int nonceLen = 12;
+            const int tagLen = 16;
+            var minLen = saltLen + nonceLen + tagLen + 1;
+
+            if (encryptedData.Length < minLen)
+                return CryptoResult<byte[]>.Failure(CryptoStatus.DecryptionFailed, "Encrypted data too short");
+
+            var salt = encryptedData.AsSpan(0, saltLen);
+            var nonce = encryptedData.AsSpan(saltLen, nonceLen);
+            var tag = encryptedData.AsSpan(saltLen + nonceLen, tagLen);
+            var ciphertext = encryptedData.AsSpan(saltLen + nonceLen + tagLen);
+
+            // Derive key from password via PBKDF2
+            var key = Rfc2898DeriveBytes.Pbkdf2(
+                password, salt, 100_000, HashAlgorithmName.SHA256, 32);
+
+            var plaintext = new byte[ciphertext.Length];
+            using var aesGcm = new AesGcm(key, tagLen);
+            aesGcm.Decrypt(nonce, ciphertext, tag, plaintext);
+
+            return CryptoResult<byte[]>.Success(plaintext);
+        }
+        catch (CryptographicException)
+        {
+            return CryptoResult<byte[]>.Failure(CryptoStatus.DecryptionFailed, "Wrong password or corrupted data");
+        }
     }
 
     /// <summary>
