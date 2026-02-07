@@ -43,14 +43,14 @@ public class PeerListManager : IDisposable
     }
 
     /// <summary>
-    /// Gets healthy peers (low failure count, recently seen)
+    /// Gets healthy peers (low failure count, recently seen, not banned)
     /// </summary>
     public IReadOnlyCollection<PeerNode> GetHealthyPeers()
     {
         var cutoffTime = DateTimeOffset.UtcNow.AddMinutes(-_configuration.RefreshIntervalMinutes * 2);
 
         return _peers.Values
-            .Where(p => p.FailureCount < 3 && p.LastSeen > cutoffTime)
+            .Where(p => !p.IsBanned && p.FailureCount < 3 && p.LastSeen > cutoffTime)
             .OrderBy(p => p.FailureCount)
             .ThenByDescending(p => p.LastSeen)
             .Take(_configuration.MinHealthyPeers * 2)
@@ -192,6 +192,67 @@ public class PeerListManager : IDisposable
                 await PersistPeerAsync(peer, cancellationToken);
             }
         }
+    }
+
+    /// <summary>
+    /// Bans a peer, preventing all communication.
+    /// </summary>
+    public async Task<bool> BanPeerAsync(string peerId, string? reason = null, CancellationToken cancellationToken = default)
+    {
+        if (!_peers.TryGetValue(peerId, out var peer))
+            return false;
+
+        if (peer.IsBanned)
+            return false;
+
+        if (peer.IsSeedNode)
+        {
+            _logger.LogWarning("Banning seed node {PeerId} — operator override", peerId);
+        }
+
+        peer.IsBanned = true;
+        peer.BannedAt = DateTimeOffset.UtcNow;
+        peer.BanReason = reason;
+
+        _logger.LogInformation("Banned peer {PeerId}: {Reason}", peerId, reason ?? "(no reason)");
+        await PersistPeerAsync(peer, cancellationToken);
+        return true;
+    }
+
+    /// <summary>
+    /// Unbans a peer, restoring normal communication.
+    /// </summary>
+    public async Task<bool> UnbanPeerAsync(string peerId, CancellationToken cancellationToken = default)
+    {
+        if (!_peers.TryGetValue(peerId, out var peer))
+            return false;
+
+        if (!peer.IsBanned)
+            return false;
+
+        peer.IsBanned = false;
+        peer.BannedAt = null;
+        peer.BanReason = null;
+
+        _logger.LogInformation("Unbanned peer {PeerId}", peerId);
+        await PersistPeerAsync(peer, cancellationToken);
+        return true;
+    }
+
+    /// <summary>
+    /// Resets a peer's failure count to zero. Returns the previous failure count, or -1 if peer not found.
+    /// </summary>
+    public async Task<int> ResetFailureCountAsync(string peerId, CancellationToken cancellationToken = default)
+    {
+        if (!_peers.TryGetValue(peerId, out var peer))
+            return -1;
+
+        var previous = peer.FailureCount;
+        peer.FailureCount = 0;
+
+        _logger.LogInformation("Reset failure count for peer {PeerId}: {Previous} → 0", peerId, previous);
+        await PersistPeerAsync(peer, cancellationToken);
+        return previous;
     }
 
     /// <summary>

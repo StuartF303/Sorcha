@@ -4,6 +4,7 @@
 using Microsoft.Extensions.Logging;
 using Sorcha.Peer.Service.Core;
 using Sorcha.Peer.Service.Discovery;
+using Sorcha.Peer.Service.Models;
 using System.Collections.Concurrent;
 
 namespace Sorcha.Peer.Service.Replication;
@@ -149,6 +150,62 @@ public class RegisterAdvertisementService
                 IsPublic = a.IsPublic
             })
             .ToList();
+    }
+
+    /// <summary>
+    /// Aggregates registers advertised across all known peers (public only).
+    /// Returns one entry per register with peer count, max versions, and full replica count.
+    /// </summary>
+    public IReadOnlyCollection<AvailableRegisterInfo> GetNetworkAdvertisedRegisters()
+    {
+        var allPeers = _peerListManager.GetAllPeers();
+        var registerMap = new Dictionary<string, AvailableRegisterInfo>();
+
+        foreach (var peer in allPeers)
+        {
+            if (peer.IsBanned) continue;
+
+            foreach (var reg in peer.AdvertisedRegisters)
+            {
+                if (!reg.IsPublic) continue;
+
+                if (!registerMap.TryGetValue(reg.RegisterId, out var info))
+                {
+                    info = new AvailableRegisterInfo
+                    {
+                        RegisterId = reg.RegisterId,
+                        IsPublic = true
+                    };
+                    registerMap[reg.RegisterId] = info;
+                }
+
+                info.PeerCount++;
+                if (reg.LatestVersion > info.LatestVersion)
+                    info.LatestVersion = reg.LatestVersion;
+                if (reg.CanServeFullReplica)
+                    info.FullReplicaPeerCount++;
+            }
+        }
+
+        // Also include docket version from local advertisements
+        foreach (var (registerId, info) in registerMap)
+        {
+            // Scan peers for max docket version
+            foreach (var peer in allPeers)
+            {
+                if (peer.IsBanned) continue;
+                var reg = peer.AdvertisedRegisters.FirstOrDefault(r => r.RegisterId == registerId);
+                if (reg != null)
+                {
+                    // PeerRegisterInfo doesn't track docket version, so use local advertisement if available
+                    var localAd = GetAdvertisement(registerId);
+                    if (localAd != null && localAd.LatestDocketVersion > info.LatestDocketVersion)
+                        info.LatestDocketVersion = localAd.LatestDocketVersion;
+                }
+            }
+        }
+
+        return registerMap.Values.ToList().AsReadOnly();
     }
 
     /// <summary>

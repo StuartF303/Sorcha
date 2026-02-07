@@ -17,7 +17,7 @@
                         @(serviceStatus?.IsRunning == true ? "Running" : "Offline")
                     </MudChip>
                     <MudIconButton Icon="@Icons.Material.Filled.Refresh"
-                                   OnClick="LoadServiceMetrics"
+                                   OnClick="RefreshAll"
                                    Size="Size.Small"
                                    Color="Color.Primary" />
                 </MudStack>
@@ -27,6 +27,7 @@
 
     @if (serviceStatus?.IsRunning == true)
     {
+        <!-- Service Info + Performance Metrics -->
         <MudItem xs="12" md="6">
             <MudPaper Elevation="2" Class="pa-4">
                 <MudText Typo="Typo.h6" Class="mb-3">Service Information</MudText>
@@ -91,44 +92,300 @@
             </MudPaper>
         </MudItem>
 
+        <!-- Tabbed Content -->
         <MudItem xs="12">
             <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.h6" Class="mb-3">Connected Peers</MudText>
-                @if (peers?.Any() == true)
-                {
-                    <MudTable Items="@peers" Dense="true" Hover="true" Striped="true">
-                        <HeaderContent>
-                            <MudTh>Peer ID</MudTh>
-                            <MudTh>Endpoint</MudTh>
-                            <MudTh>Status</MudTh>
-                            <MudTh>Connected Since</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="Peer ID">@context.PeerId</MudTd>
-                            <MudTd DataLabel="Endpoint">@context.Endpoint</MudTd>
-                            <MudTd DataLabel="Status">
-                                <MudChip T="string" Size="Size.Small" Color="@(context.Status == "active" ? Color.Success : Color.Default)">
-                                    @context.Status
-                                </MudChip>
-                            </MudTd>
-                            <MudTd DataLabel="Connected Since">@context.ConnectedSince.ToString("g")</MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                }
-                else
-                {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        No peers currently connected
-                    </MudText>
-                }
+                <MudTabs Elevation="0" ApplyEffectsToContainer="true" Rounded="true" PanelClass="pa-3">
+                    <!-- Tab 1: Network Overview -->
+                    <MudTabPanel Text="Network Overview" Icon="@Icons.Material.Filled.Lan">
+                        <!-- Summary Cards -->
+                        <MudGrid Class="mb-3">
+                            <MudItem xs="6" sm="3">
+                                <MudPaper Elevation="1" Class="pa-3 text-center">
+                                    <MudText Typo="Typo.h4">@(enhancedPeers?.Count ?? 0)</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Total Peers</MudText>
+                                </MudPaper>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudPaper Elevation="1" Class="pa-3 text-center">
+                                    <MudText Typo="Typo.h4" Color="Color.Success">@(enhancedPeers?.Count(p => !p.IsBanned) ?? 0)</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Healthy Peers</MudText>
+                                </MudPaper>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudPaper Elevation="1" Class="pa-3 text-center">
+                                    <MudText Typo="Typo.h4">@(enhancedPeers?.Count > 0 ? enhancedPeers.Average(p => p.QualityScore).ToString("F0") : "0")</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Avg Quality</MudText>
+                                </MudPaper>
+                            </MudItem>
+                            <MudItem xs="6" sm="3">
+                                <MudPaper Elevation="1" Class="pa-3 text-center">
+                                    <MudText Typo="Typo.h4" Color="Color.Error">@(enhancedPeers?.Count(p => p.IsBanned) ?? 0)</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Banned</MudText>
+                                </MudPaper>
+                            </MudItem>
+                        </MudGrid>
+
+                        @if (enhancedPeers?.Any() == true)
+                        {
+                            <MudTable Items="@enhancedPeers" Dense="true" Hover="true" Striped="true"
+                                       SortLabel="Sort By">
+                                <HeaderContent>
+                                    <MudTh><MudTableSortLabel SortBy="new Func<EnhancedPeerInfo, object>(x => x.PeerId)">Peer ID</MudTableSortLabel></MudTh>
+                                    <MudTh>Address</MudTh>
+                                    <MudTh><MudTableSortLabel SortBy="new Func<EnhancedPeerInfo, object>(x => x.AverageLatencyMs)">Latency</MudTableSortLabel></MudTh>
+                                    <MudTh><MudTableSortLabel InitialDirection="SortDirection.Descending" SortBy="new Func<EnhancedPeerInfo, object>(x => x.QualityScore)">Quality</MudTableSortLabel></MudTh>
+                                    <MudTh>Rating</MudTh>
+                                    <MudTh>Registers</MudTh>
+                                    <MudTh>Status</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Peer ID">
+                                        <MudText Typo="Typo.body2" Style="font-family: monospace; font-size: 0.85em;">
+                                            @TruncateId(context.PeerId)
+                                        </MudText>
+                                    </MudTd>
+                                    <MudTd DataLabel="Address">@context.Address:@context.Port</MudTd>
+                                    <MudTd DataLabel="Latency">@($"{context.AverageLatencyMs:F0}ms")</MudTd>
+                                    <MudTd DataLabel="Quality">@($"{context.QualityScore:F0}")</MudTd>
+                                    <MudTd DataLabel="Rating">
+                                        <MudChip T="string" Size="Size.Small" Color="@GetQualityColor(context.QualityRating)">
+                                            @context.QualityRating
+                                        </MudChip>
+                                    </MudTd>
+                                    <MudTd DataLabel="Registers">@context.AdvertisedRegisterCount</MudTd>
+                                    <MudTd DataLabel="Status">
+                                        @if (context.IsBanned)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Error">Banned</MudChip>
+                                        }
+                                        else if (context.IsSeedNode)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Seed</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Active</MudChip>
+                                        }
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                No peers currently connected
+                            </MudText>
+                        }
+                    </MudTabPanel>
+
+                    <!-- Tab 2: Register Subscriptions -->
+                    <MudTabPanel Text="Register Subscriptions" Icon="@Icons.Material.Filled.Sync">
+                        @if (subscriptions?.Any() == true)
+                        {
+                            <MudTable Items="@subscriptions" Dense="true" Hover="true" Striped="true">
+                                <HeaderContent>
+                                    <MudTh>Register ID</MudTh>
+                                    <MudTh>Mode</MudTh>
+                                    <MudTh>Sync State</MudTh>
+                                    <MudTh>Progress</MudTh>
+                                    <MudTh>Last Sync</MudTh>
+                                    <MudTh>Errors</MudTh>
+                                    <MudTh>Actions</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Register ID">
+                                        <MudText Typo="Typo.body2" Style="font-family: monospace; font-size: 0.85em;">
+                                            @TruncateId(context.RegisterId)
+                                        </MudText>
+                                    </MudTd>
+                                    <MudTd DataLabel="Mode">
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@(context.Mode == "FullReplica" ? Color.Primary : Color.Default)">
+                                            @context.Mode
+                                        </MudChip>
+                                    </MudTd>
+                                    <MudTd DataLabel="Sync State">
+                                        <MudChip T="string" Size="Size.Small" Color="@GetSyncStateColor(context.SyncState)">
+                                            @context.SyncState
+                                        </MudChip>
+                                    </MudTd>
+                                    <MudTd DataLabel="Progress">
+                                        <MudStack Spacing="1">
+                                            <MudProgressLinear Color="@GetProgressColor(context.SyncProgressPercent)"
+                                                               Value="@context.SyncProgressPercent"
+                                                               Size="Size.Small" />
+                                            <MudText Typo="Typo.caption">@($"{context.SyncProgressPercent:F0}%")</MudText>
+                                        </MudStack>
+                                    </MudTd>
+                                    <MudTd DataLabel="Last Sync">
+                                        @(context.LastSyncAt?.ToString("g") ?? "Never")
+                                    </MudTd>
+                                    <MudTd DataLabel="Errors">
+                                        @if (context.ConsecutiveFailures > 0)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Error">
+                                                @context.ConsecutiveFailures failures
+                                            </MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.body2" Color="Color.Success">None</MudText>
+                                        }
+                                    </MudTd>
+                                    <MudTd DataLabel="Actions">
+                                        <MudIconButton Icon="@Icons.Material.Filled.LinkOff"
+                                                       Size="Size.Small" Color="Color.Error"
+                                                       OnClick="@(() => ShowUnsubscribeDialog(context.RegisterId))" />
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                No active register subscriptions
+                            </MudText>
+                        }
+                    </MudTabPanel>
+
+                    <!-- Tab 3: Available Registers -->
+                    <MudTabPanel Text="Available Registers" Icon="@Icons.Material.Filled.CloudQueue">
+                        @if (availableRegisters?.Any() == true)
+                        {
+                            <MudTable Items="@availableRegisters" Dense="true" Hover="true" Striped="true">
+                                <HeaderContent>
+                                    <MudTh>Register ID</MudTh>
+                                    <MudTh>Peers</MudTh>
+                                    <MudTh>Latest Version</MudTh>
+                                    <MudTh>Latest Docket</MudTh>
+                                    <MudTh>Full Replicas</MudTh>
+                                    <MudTh>Actions</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Register ID">
+                                        <MudText Typo="Typo.body2" Style="font-family: monospace; font-size: 0.85em;">
+                                            @TruncateId(context.RegisterId)
+                                        </MudText>
+                                    </MudTd>
+                                    <MudTd DataLabel="Peers">@context.PeerCount</MudTd>
+                                    <MudTd DataLabel="Latest Version">@context.LatestVersion</MudTd>
+                                    <MudTd DataLabel="Latest Docket">@context.LatestDocketVersion</MudTd>
+                                    <MudTd DataLabel="Full Replicas">@context.FullReplicaPeerCount</MudTd>
+                                    <MudTd DataLabel="Actions">
+                                        @if (IsAlreadySubscribed(context.RegisterId))
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Subscribed</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                                       Color="Color.Primary"
+                                                       OnClick="@(() => ShowSubscribeDialog(context.RegisterId))">
+                                                Subscribe
+                                            </MudButton>
+                                        }
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                No registers available in the network
+                            </MudText>
+                        }
+                    </MudTabPanel>
+
+                    <!-- Tab 4: Peer Quality -->
+                    <MudTabPanel Text="Peer Quality" Icon="@Icons.Material.Filled.Speed">
+                        <!-- Quality Distribution Cards -->
+                        <MudGrid Class="mb-3">
+                            @foreach (var rating in new[] { "Excellent", "Good", "Fair", "Poor" })
+                            {
+                                <MudItem xs="6" sm="3">
+                                    <MudPaper Elevation="1" Class="pa-3 text-center">
+                                        <MudText Typo="Typo.h4" Color="@GetQualityColor(rating)">
+                                            @(qualityScores?.Count(q => q.QualityRating == rating) ?? 0)
+                                        </MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@rating</MudText>
+                                    </MudPaper>
+                                </MudItem>
+                            }
+                        </MudGrid>
+
+                        @if (qualityScores?.Any() == true)
+                        {
+                            <MudTable Items="@qualityScores.OrderByDescending(q => q.QualityScore)" Dense="true" Hover="true" Striped="true">
+                                <HeaderContent>
+                                    <MudTh>Peer ID</MudTh>
+                                    <MudTh>Score</MudTh>
+                                    <MudTh>Rating</MudTh>
+                                    <MudTh>Avg Latency</MudTh>
+                                    <MudTh>Min / Max</MudTh>
+                                    <MudTh>Success Rate</MudTh>
+                                    <MudTh>Requests</MudTh>
+                                    <MudTh>Actions</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Peer ID">
+                                        <MudText Typo="Typo.body2" Style="font-family: monospace; font-size: 0.85em;">
+                                            @TruncateId(context.PeerId)
+                                        </MudText>
+                                    </MudTd>
+                                    <MudTd DataLabel="Score">@($"{context.QualityScore:F0}")</MudTd>
+                                    <MudTd DataLabel="Rating">
+                                        <MudChip T="string" Size="Size.Small" Color="@GetQualityColor(context.QualityRating)">
+                                            @context.QualityRating
+                                        </MudChip>
+                                    </MudTd>
+                                    <MudTd DataLabel="Avg Latency">@($"{context.AverageLatencyMs:F0}ms")</MudTd>
+                                    <MudTd DataLabel="Min / Max">@($"{context.MinLatencyMs:F0} / {context.MaxLatencyMs:F0}ms")</MudTd>
+                                    <MudTd DataLabel="Success Rate">@($"{context.SuccessRate:P0}")</MudTd>
+                                    <MudTd DataLabel="Requests">@context.TotalRequests</MudTd>
+                                    <MudTd DataLabel="Actions">
+                                        @{
+                                            var peerInfo = enhancedPeers?.FirstOrDefault(p => p.PeerId == context.PeerId);
+                                        }
+                                        @if (peerInfo?.IsBanned == true)
+                                        {
+                                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Success"
+                                                       OnClick="@(() => UnbanPeer(context.PeerId))">
+                                                Unban
+                                            </MudButton>
+                                        }
+                                        else
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.Block"
+                                                           Size="Size.Small" Color="Color.Error"
+                                                           OnClick="@(() => ShowBanDialog(context.PeerId))" />
+                                        }
+                                        <MudIconButton Icon="@Icons.Material.Filled.RestartAlt"
+                                                       Size="Size.Small" Color="Color.Warning"
+                                                       OnClick="@(() => ResetPeer(context.PeerId))" />
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                No quality data available
+                            </MudText>
+                        }
+                    </MudTabPanel>
+                </MudTabs>
             </MudPaper>
         </MudItem>
 
         <MudItem xs="12">
             <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.h6" Class="mb-3">Activity Log</MudText>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
                     Last updated: @lastUpdateTime.ToString("HH:mm:ss")
+                    @if (!string.IsNullOrEmpty(statusMessage))
+                    {
+                        <MudText Typo="Typo.body2" Color="@statusMessageColor">@statusMessage</MudText>
+                    }
                 </MudText>
             </MudPaper>
         </MudItem>
@@ -143,33 +400,133 @@
     }
 </MudGrid>
 
+<!-- Subscribe Dialog -->
+<MudDialog @bind-Visible="showSubscribeDialog">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Subscribe to Register</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3">
+            Register: <strong>@subscribeRegisterId</strong>
+        </MudText>
+        <MudSelect T="string" @bind-Value="subscribeMode" Label="Replication Mode" Variant="Variant.Outlined">
+            <MudSelectItem Value="@("forward-only")">Forward Only (new transactions from now)</MudSelectItem>
+            <MudSelectItem Value="@("full-replica")">Full Replica (complete docket chain pull)</MudSelectItem>
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => showSubscribeDialog = false)">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="SubscribeToRegister" Disabled="@(string.IsNullOrEmpty(subscribeMode))">
+            Subscribe
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Unsubscribe Dialog -->
+<MudDialog @bind-Visible="showUnsubscribeDialog">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Unsubscribe from Register</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3">
+            Are you sure you want to unsubscribe from <strong>@unsubscribeRegisterId</strong>?
+        </MudText>
+        <MudCheckBox T="bool" @bind-Value="purgeCacheOnUnsubscribe" Label="Purge cached data" Color="Color.Error" />
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            If unchecked, cached transactions and dockets will be retained for future use.
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => showUnsubscribeDialog = false)">Cancel</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="UnsubscribeFromRegister">
+            Unsubscribe
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Ban Dialog -->
+<MudDialog @bind-Visible="showBanDialog">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Ban Peer</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3">
+            Ban peer <strong>@banPeerId</strong>? This prevents all communication with this peer.
+        </MudText>
+        <MudTextField T="string" @bind-Value="banReason" Label="Reason (optional)"
+                      Variant="Variant.Outlined" Lines="2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => showBanDialog = false)">Cancel</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="BanPeer">
+            Ban
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     private ServiceStatus? serviceStatus;
     private PeerMetrics? metrics;
-    private List<PeerInfo> peers = new();
+    private List<EnhancedPeerInfo> enhancedPeers = new();
+    private List<PeerQualityInfo> qualityScores = new();
+    private List<RegisterSubscriptionInfo> subscriptions = new();
+    private List<AvailableRegisterInfo> availableRegisters = new();
     private DateTime lastUpdateTime = DateTime.Now;
     private Timer? refreshTimer;
 
+    // Status feedback
+    private string statusMessage = string.Empty;
+    private Color statusMessageColor = Color.Default;
+
+    // Subscribe dialog
+    private bool showSubscribeDialog;
+    private string subscribeRegisterId = string.Empty;
+    private string subscribeMode = "forward-only";
+
+    // Unsubscribe dialog
+    private bool showUnsubscribeDialog;
+    private string unsubscribeRegisterId = string.Empty;
+    private bool purgeCacheOnUnsubscribe;
+
+    // Ban dialog
+    private bool showBanDialog;
+    private string banPeerId = string.Empty;
+    private string banReason = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
-        await LoadServiceMetrics();
+        await RefreshAll();
 
         // Auto-refresh every 5 seconds
         refreshTimer = new Timer(async _ =>
         {
             await InvokeAsync(async () =>
             {
-                await LoadServiceMetrics();
+                await RefreshAll();
                 StateHasChanged();
             });
         }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private async Task RefreshAll()
+    {
+        await LoadServiceMetrics();
+        if (serviceStatus?.IsRunning == true)
+        {
+            await Task.WhenAll(
+                LoadEnhancedPeers(),
+                LoadQualityScores(),
+                LoadSubscriptions(),
+                LoadAvailableRegisters()
+            );
+        }
     }
 
     private async Task LoadServiceMetrics()
     {
         try
         {
-            // Call the real health endpoint via API Gateway
             var healthResponse = await Http.GetFromJsonAsync<PeerHealthResponse>(ApiConfiguration.PeerStatusUrl);
 
             if (healthResponse != null && healthResponse.Status == "healthy")
@@ -180,7 +537,6 @@
                     Endpoint = ApiConfiguration.PeerServiceUrl
                 };
 
-                // Parse uptime string to seconds for display
                 var uptimeParts = healthResponse.Uptime.Split('.');
                 long uptimeSeconds = 0;
                 if (uptimeParts.Length > 0)
@@ -205,27 +561,6 @@
                     MemoryUsageBytes = healthResponse.Metrics?.MemoryUsageBytes ?? 0,
                     ThroughputPerSecond = healthResponse.Metrics?.ThroughputPerSecond ?? 0
                 };
-
-                // Load actual peer list from /api/peers endpoint via gateway
-                try
-                {
-                    var peersResponse = await Http.GetFromJsonAsync<List<PeerNodeInfo>>($"{ApiConfiguration.PeerServiceUrl}/peers");
-                    if (peersResponse != null)
-                    {
-                        peers = peersResponse.Select(p => new PeerInfo
-                        {
-                            PeerId = p.PeerId,
-                            Endpoint = p.Endpoint,
-                            Status = p.Status,
-                            ConnectedSince = DateTimeOffset.FromUnixTimeSeconds(p.RegisteredAt).LocalDateTime
-                        }).ToList();
-                    }
-                }
-                catch
-                {
-                    // If peer list fails, just show empty list
-                    peers = new List<PeerInfo>();
-                }
             }
             else
             {
@@ -234,16 +569,237 @@
 
             lastUpdateTime = DateTime.Now;
         }
-        catch (HttpRequestException)
-        {
-            // Service is not reachable
-            serviceStatus = new ServiceStatus { IsRunning = false };
-        }
-        catch (Exception)
+        catch
         {
             serviceStatus = new ServiceStatus { IsRunning = false };
         }
     }
+
+    private async Task LoadEnhancedPeers()
+    {
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<EnhancedPeerInfo>>($"{ApiConfiguration.PeerServiceUrl}/peers");
+            if (result != null)
+            {
+                enhancedPeers = result;
+            }
+        }
+        catch
+        {
+            enhancedPeers = new();
+        }
+    }
+
+    private async Task LoadQualityScores()
+    {
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<PeerQualityInfo>>($"{ApiConfiguration.PeerServiceUrl}/peers/quality");
+            if (result != null)
+            {
+                qualityScores = result;
+            }
+        }
+        catch
+        {
+            qualityScores = new();
+        }
+    }
+
+    private async Task LoadSubscriptions()
+    {
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<RegisterSubscriptionInfo>>($"{ApiConfiguration.PeerServiceUrl}/registers/subscriptions");
+            if (result != null)
+            {
+                subscriptions = result;
+            }
+        }
+        catch
+        {
+            subscriptions = new();
+        }
+    }
+
+    private async Task LoadAvailableRegisters()
+    {
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<AvailableRegisterInfo>>($"{ApiConfiguration.PeerServiceUrl}/registers/available");
+            if (result != null)
+            {
+                availableRegisters = result;
+            }
+        }
+        catch
+        {
+            availableRegisters = new();
+        }
+    }
+
+    // --- Dialog Handlers ---
+
+    private void ShowSubscribeDialog(string registerId)
+    {
+        subscribeRegisterId = registerId;
+        subscribeMode = "forward-only";
+        showSubscribeDialog = true;
+    }
+
+    private async Task SubscribeToRegister()
+    {
+        showSubscribeDialog = false;
+        try
+        {
+            var response = await Http.PostAsJsonAsync(
+                $"{ApiConfiguration.PeerServiceUrl}/registers/{subscribeRegisterId}/subscribe",
+                new { Mode = subscribeMode });
+
+            if (response.IsSuccessStatusCode)
+            {
+                SetStatus($"Subscribed to {TruncateId(subscribeRegisterId)} ({subscribeMode})", Color.Success);
+                await Task.WhenAll(LoadSubscriptions(), LoadAvailableRegisters());
+                StateHasChanged();
+            }
+            else
+            {
+                SetStatus($"Failed to subscribe: {response.StatusCode}", Color.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Error: {ex.Message}", Color.Error);
+        }
+    }
+
+    private void ShowUnsubscribeDialog(string registerId)
+    {
+        unsubscribeRegisterId = registerId;
+        purgeCacheOnUnsubscribe = false;
+        showUnsubscribeDialog = true;
+    }
+
+    private async Task UnsubscribeFromRegister()
+    {
+        showUnsubscribeDialog = false;
+        try
+        {
+            var purgeParam = purgeCacheOnUnsubscribe ? "?purge=true" : "";
+            var response = await Http.DeleteAsync(
+                $"{ApiConfiguration.PeerServiceUrl}/registers/{unsubscribeRegisterId}/subscribe{purgeParam}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var cacheNote = purgeCacheOnUnsubscribe ? " (cache purged)" : " (cache retained)";
+                SetStatus($"Unsubscribed from {TruncateId(unsubscribeRegisterId)}{cacheNote}", Color.Success);
+                await Task.WhenAll(LoadSubscriptions(), LoadAvailableRegisters());
+                StateHasChanged();
+            }
+            else
+            {
+                SetStatus($"Failed to unsubscribe: {response.StatusCode}", Color.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Error: {ex.Message}", Color.Error);
+        }
+    }
+
+    private void ShowBanDialog(string peerId)
+    {
+        banPeerId = peerId;
+        banReason = string.Empty;
+        showBanDialog = true;
+    }
+
+    private async Task BanPeer()
+    {
+        showBanDialog = false;
+        try
+        {
+            var response = await Http.PostAsJsonAsync(
+                $"{ApiConfiguration.PeerServiceUrl}/peers/{banPeerId}/ban",
+                new { Reason = string.IsNullOrWhiteSpace(banReason) ? (string?)null : banReason });
+
+            if (response.IsSuccessStatusCode)
+            {
+                SetStatus($"Banned peer {TruncateId(banPeerId)}", Color.Warning);
+                await Task.WhenAll(LoadEnhancedPeers(), LoadQualityScores());
+                StateHasChanged();
+            }
+            else
+            {
+                SetStatus($"Failed to ban: {response.StatusCode}", Color.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Error: {ex.Message}", Color.Error);
+        }
+    }
+
+    private async Task UnbanPeer(string peerId)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"{ApiConfiguration.PeerServiceUrl}/peers/{peerId}/ban");
+
+            if (response.IsSuccessStatusCode)
+            {
+                SetStatus($"Unbanned peer {TruncateId(peerId)}", Color.Success);
+                await Task.WhenAll(LoadEnhancedPeers(), LoadQualityScores());
+                StateHasChanged();
+            }
+            else
+            {
+                SetStatus($"Failed to unban: {response.StatusCode}", Color.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Error: {ex.Message}", Color.Error);
+        }
+    }
+
+    private async Task ResetPeer(string peerId)
+    {
+        try
+        {
+            var response = await Http.PostAsync($"{ApiConfiguration.PeerServiceUrl}/peers/{peerId}/reset", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                SetStatus($"Reset failure count for {TruncateId(peerId)}", Color.Success);
+                await Task.WhenAll(LoadEnhancedPeers(), LoadQualityScores());
+                StateHasChanged();
+            }
+            else
+            {
+                SetStatus($"Failed to reset: {response.StatusCode}", Color.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Error: {ex.Message}", Color.Error);
+        }
+    }
+
+    // --- Helpers ---
+
+    private void SetStatus(string message, Color color)
+    {
+        statusMessage = message;
+        statusMessageColor = color;
+    }
+
+    private bool IsAlreadySubscribed(string registerId) =>
+        subscriptions?.Any(s => s.RegisterId == registerId) ?? false;
+
+    private string TruncateId(string id) =>
+        id.Length > 16 ? $"{id[..8]}...{id[^4..]}" : id;
 
     private string FormatUptime(long seconds)
     {
@@ -268,17 +824,40 @@
         return $"{len:F2} {sizes[order]}";
     }
 
-    private double GetMemoryPercentage(long bytes)
-    {
-        // Assume 1GB max for progress bar visualization
-        return Math.Min(100, (bytes / 1_000_000_000.0) * 100);
-    }
+    private double GetMemoryPercentage(long bytes) =>
+        Math.Min(100, (bytes / 1_000_000_000.0) * 100);
 
     private Color GetCpuColor(double percentage)
     {
         if (percentage < 50) return Color.Success;
         if (percentage < 80) return Color.Warning;
         return Color.Error;
+    }
+
+    private Color GetQualityColor(string rating) => rating switch
+    {
+        "Excellent" => Color.Success,
+        "Good" => Color.Info,
+        "Fair" => Color.Warning,
+        "Poor" => Color.Error,
+        _ => Color.Default
+    };
+
+    private Color GetSyncStateColor(string state) => state switch
+    {
+        "FullyReplicated" => Color.Success,
+        "Active" => Color.Success,
+        "Syncing" => Color.Info,
+        "Subscribing" => Color.Warning,
+        "Error" => Color.Error,
+        _ => Color.Default
+    };
+
+    private Color GetProgressColor(double percent)
+    {
+        if (percent >= 100) return Color.Success;
+        if (percent >= 50) return Color.Info;
+        return Color.Warning;
     }
 
     public void Dispose()
@@ -300,13 +879,5 @@
         public double CpuUsagePercent { get; set; }
         public long MemoryUsageBytes { get; set; }
         public double ThroughputPerSecond { get; set; }
-    }
-
-    private class PeerInfo
-    {
-        public string PeerId { get; set; } = string.Empty;
-        public string Endpoint { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
-        public DateTime ConnectedSince { get; set; }
     }
 }

@@ -70,6 +70,21 @@ public class PeerNode : IEquatable<PeerNode>
     /// </summary>
     public int AverageLatencyMs { get; set; } = 0;
 
+    /// <summary>
+    /// Whether this peer is banned from communication
+    /// </summary>
+    public bool IsBanned { get; set; } = false;
+
+    /// <summary>
+    /// When the ban was applied (null if not banned)
+    /// </summary>
+    public DateTimeOffset? BannedAt { get; set; }
+
+    /// <summary>
+    /// Operator-provided reason for the ban
+    /// </summary>
+    public string? BanReason { get; set; }
+
     public bool Equals(PeerNode? other)
     {
         return other != null && PeerId == other.PeerId;
