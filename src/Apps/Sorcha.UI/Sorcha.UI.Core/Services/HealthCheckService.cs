@@ -190,6 +190,7 @@ public class HealthCheckService : IHealthCheckService
 
     private (HealthStatus status, string? version, string? uptime) ParseHealthResponse(string content)
     {
+        // Try JSON format first (custom health endpoints return JSON with status/version/uptime)
         try
         {
             using var doc = JsonDocument.Parse(content);
@@ -219,7 +220,18 @@ public class HealthCheckService : IHealthCheckService
         }
         catch (JsonException)
         {
-            return (HealthStatus.Unknown, null, null);
+            // Fall back to plain text format (standard .NET health check endpoints
+            // return "Healthy", "Degraded", or "Unhealthy" as plain text)
+            var trimmed = content.Trim().ToLowerInvariant();
+            var plainStatus = trimmed switch
+            {
+                "healthy" => HealthStatus.Healthy,
+                "degraded" => HealthStatus.Degraded,
+                "unhealthy" => HealthStatus.Unhealthy,
+                _ => HealthStatus.Unknown
+            };
+
+            return (plainStatus, null, null);
         }
     }
 

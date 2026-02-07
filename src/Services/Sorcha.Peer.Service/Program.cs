@@ -12,6 +12,7 @@ using Sorcha.Peer.Service.Distribution;
 using Sorcha.Peer.Service.Monitoring;
 using Sorcha.Peer.Service.Network;
 using Sorcha.Peer.Service.Observability;
+using Microsoft.AspNetCore.Mvc;
 using Sorcha.Peer.Service.Models;
 using Sorcha.Peer.Service.Replication;
 using Sorcha.Peer.Service.Services;
@@ -115,7 +116,10 @@ builder.Services.AddSingleton<PeerHeartbeatGrpcService>();
 // Register background services
 builder.Services.AddHostedService<PeerService>();
 builder.Services.AddHostedService<PeerHeartbeatBackgroundService>();
-builder.Services.AddHostedService<RegisterSyncBackgroundService>();
+// RegisterSyncBackgroundService is also resolved by concrete type in REST endpoints,
+// so register as singleton first, then wire up as hosted service.
+builder.Services.AddSingleton<RegisterSyncBackgroundService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<RegisterSyncBackgroundService>());
 
 // Add HttpClient
 builder.Services.AddHttpClient();
@@ -371,7 +375,7 @@ app.MapGet("/api/peers/connected", (PeerListManager peerListManager, HttpContext
     .AllowAnonymous();
 
 // Register subscription endpoints (P2P replication)
-app.MapGet("/api/registers/subscriptions", (RegisterSyncBackgroundService syncService) =>
+app.MapGet("/api/registers/subscriptions", ([FromServices] RegisterSyncBackgroundService syncService) =>
 {
     var subs = syncService.GetSubscriptions();
     return Results.Ok(subs.Select(s => new
@@ -395,7 +399,7 @@ app.MapGet("/api/registers/subscriptions", (RegisterSyncBackgroundService syncSe
     .WithDescription("Returns all per-register replication subscriptions with their sync state and progress.")
     .WithTags("Registers");
 
-app.MapGet("/api/registers/cache", (RegisterCache registerCache) =>
+app.MapGet("/api/registers/cache", ([FromServices] RegisterCache registerCache) =>
 {
     var stats = registerCache.GetAllStatistics();
     return Results.Ok(stats.Select(s => new
@@ -414,7 +418,7 @@ app.MapGet("/api/registers/cache", (RegisterCache registerCache) =>
     .WithTags("Registers");
 
 // Available registers endpoint (aggregated from peer advertisements)
-app.MapGet("/api/registers/available", (RegisterAdvertisementService advertisementService) =>
+app.MapGet("/api/registers/available", ([FromServices] RegisterAdvertisementService advertisementService) =>
 {
     var registers = advertisementService.GetNetworkAdvertisedRegisters();
     return Results.Ok(registers);
@@ -428,8 +432,8 @@ app.MapGet("/api/registers/available", (RegisterAdvertisementService advertiseme
 app.MapPost("/api/registers/{registerId}/subscribe", async (
     string registerId,
     SubscribeRequest request,
-    RegisterSyncBackgroundService syncService,
-    RegisterAdvertisementService advertisementService) =>
+    [FromServices] RegisterSyncBackgroundService syncService,
+    [FromServices] RegisterAdvertisementService advertisementService) =>
 {
     // Validate mode
     if (!Enum.TryParse<ReplicationMode>(request.Mode.Replace("-", ""), ignoreCase: true, out var mode))
@@ -473,8 +477,8 @@ app.MapPost("/api/registers/{registerId}/subscribe", async (
 app.MapDelete("/api/registers/{registerId}/subscribe", async (
     string registerId,
     bool? purge,
-    RegisterSyncBackgroundService syncService,
-    RegisterCache registerCache) =>
+    [FromServices] RegisterSyncBackgroundService syncService,
+    [FromServices] RegisterCache registerCache) =>
 {
     var existing = syncService.GetSubscription(registerId);
     if (existing == null)
@@ -505,7 +509,7 @@ app.MapDelete("/api/registers/{registerId}/subscribe", async (
     .RequireAuthorization();
 
 // Purge cached data for a register
-app.MapDelete("/api/registers/{registerId}/cache", (string registerId, RegisterCache registerCache) =>
+app.MapDelete("/api/registers/{registerId}/cache", (string registerId, [FromServices] RegisterCache registerCache) =>
 {
     var entry = registerCache.Get(registerId);
     if (entry == null)
