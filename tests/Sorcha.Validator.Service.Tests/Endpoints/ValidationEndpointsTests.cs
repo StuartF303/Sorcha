@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.Cryptography.Enums;
 using Sorcha.Validator.Core.Validators;
@@ -15,6 +16,10 @@ using Sorcha.Validator.Service.Models;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Register;
 using Sorcha.ServiceClients.Peer;
+using IBlueprintCache = Sorcha.Validator.Service.Services.Interfaces.IBlueprintCache;
+using ITransactionPoolPoller = Sorcha.Validator.Service.Services.Interfaces.ITransactionPoolPoller;
+using IValidationEngine = Sorcha.Validator.Service.Services.Interfaces.IValidationEngine;
+using IVerifiedTransactionQueue = Sorcha.Validator.Service.Services.Interfaces.IVerifiedTransactionQueue;
 
 namespace Sorcha.Validator.Service.Tests.Endpoints;
 
@@ -39,6 +44,9 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
         {
             builder.ConfigureServices(services =>
             {
+                // Remove all hosted services to prevent background service startup
+                services.RemoveAll<Microsoft.Extensions.Hosting.IHostedService>();
+
                 // Remove all validator service dependencies that need mocking
                 RemoveService<ITransactionValidator>(services);
                 RemoveService<IMemPoolManager>(services);
@@ -72,6 +80,16 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
                 services.AddScoped<IWalletServiceClient>(_ => mockWalletClient.Object);
                 services.AddScoped<IRegisterServiceClient>(_ => mockRegisterClient.Object);
                 services.AddScoped<IPeerServiceClient>(_ => mockPeerClient.Object);
+
+                // Add mocks for validation engine dependencies
+                RemoveService<IBlueprintCache>(services);
+                RemoveService<ITransactionPoolPoller>(services);
+                RemoveService<IValidationEngine>(services);
+                RemoveService<IVerifiedTransactionQueue>(services);
+                services.AddSingleton<IBlueprintCache>(_ => new Mock<IBlueprintCache>().Object);
+                services.AddSingleton<ITransactionPoolPoller>(_ => new Mock<ITransactionPoolPoller>().Object);
+                services.AddScoped<IValidationEngine>(_ => new Mock<IValidationEngine>().Object);
+                services.AddSingleton<IVerifiedTransactionQueue>(_ => new Mock<IVerifiedTransactionQueue>().Object);
             });
         });
     }

@@ -69,12 +69,19 @@ public class RegisterManagerTests
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
-    [InlineData(null)]
-    public async Task CreateRegisterAsync_WithInvalidName_ShouldThrowArgumentException(string? invalidName)
+    public async Task CreateRegisterAsync_WithInvalidName_ShouldThrowArgumentException(string invalidName)
     {
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            async () => await _manager.CreateRegisterAsync(invalidName!, "tenant123"));
+            async () => await _manager.CreateRegisterAsync(invalidName, "tenant123"));
+    }
+
+    [Fact]
+    public async Task CreateRegisterAsync_WithNullName_ShouldThrowArgumentNullException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await _manager.CreateRegisterAsync(null!, "tenant123"));
     }
 
     [Fact]
@@ -246,10 +253,10 @@ public class RegisterManagerTests
     }
 
     [Fact]
-    public async Task DeleteRegisterAsync_WithNonExistentId_ShouldThrowKeyNotFoundException()
+    public async Task DeleteRegisterAsync_WithNonExistentId_ShouldThrowInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        await Assert.ThrowsAsync<InvalidOperationException>(
             async () => await _manager.DeleteRegisterAsync("nonexistent", "tenant123"));
     }
 

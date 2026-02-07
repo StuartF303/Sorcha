@@ -137,7 +137,7 @@ public class TransactionPoolPollerTests
         var transaction = CreateValidTransaction("tx-1");
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ArgumentNullException>(
             () => poller.SubmitTransactionAsync(null!, transaction));
     }
 
@@ -254,7 +254,7 @@ public class TransactionPoolPollerTests
         var poller = new TransactionPoolPoller(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ArgumentNullException>(
             () => poller.PollTransactionsAsync(null!, 10));
     }
 
@@ -285,7 +285,7 @@ public class TransactionPoolPollerTests
         var poller = new TransactionPoolPoller(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ArgumentNullException>(
             () => poller.GetUnverifiedCountAsync(null!));
     }
 
@@ -332,7 +332,7 @@ public class TransactionPoolPollerTests
         var poller = new TransactionPoolPoller(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ArgumentNullException>(
             () => poller.ExistsAsync(null!, "tx-1"));
     }
 
@@ -343,7 +343,7 @@ public class TransactionPoolPollerTests
         var poller = new TransactionPoolPoller(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ArgumentNullException>(
             () => poller.ExistsAsync("register-1", null!));
     }
 
@@ -431,7 +431,7 @@ public class TransactionPoolPollerTests
         var poller = new TransactionPoolPoller(_mockRedis.Object, _options, _mockLogger.Object);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ArgumentNullException>(
             () => poller.GetStatsAsync(null!));
     }
 

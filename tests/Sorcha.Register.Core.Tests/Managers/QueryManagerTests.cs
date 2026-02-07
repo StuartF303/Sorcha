@@ -218,7 +218,7 @@ public class QueryManagerTests
         // Assert
         result.UniqueSenders.Should().Be(2); // sender1, sender2
         result.UniqueRecipients.Should().Be(2); // recipient1, recipient2
-        result.UniqueWallets.Should().Be(3); // sender1, sender2, recipient1, recipient2 (deduplicated)
+        result.UniqueWallets.Should().Be(4); // sender1, sender2, recipient1, recipient2 (deduplicated)
     }
 
     [Fact]
@@ -277,22 +277,28 @@ public class QueryManagerTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    public async Task GetTransactionsByWalletAsync_WithInvalidPage_ShouldThrowArgumentException(int invalidPage)
+    public async Task GetTransactionsByWalletAsync_WithInvalidPage_ShouldClampToPage1(int invalidPage)
     {
-        // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
-            async () => await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, "wallet123", invalidPage, 20));
+        // Act — implementation clamps invalid page values to 1 instead of throwing
+        var result = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, "wallet123", invalidPage, 20);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Page.Should().Be(1);
     }
 
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(101)] // Max is 100
-    public async Task GetTransactionsByWalletAsync_WithInvalidPageSize_ShouldThrowArgumentException(int invalidPageSize)
+    public async Task GetTransactionsByWalletAsync_WithInvalidPageSize_ShouldClampToDefault(int invalidPageSize)
     {
-        // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
-            async () => await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, "wallet123", 1, invalidPageSize));
+        // Act — implementation clamps invalid pageSize values to 20 instead of throwing
+        var result = await _manager.GetTransactionsByWalletPaginatedAsync(_testRegisterId, "wallet123", 1, invalidPageSize);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.PageSize.Should().Be(20);
     }
 
     [Fact]

@@ -705,6 +705,10 @@ public class ValidatorOrchestratorTests
             .Setup(c => c.AchieveConsensusAsync(docket, It.IsAny<CancellationToken>()))
             .ReturnsAsync(consensusResult);
 
+        _mockRegisterClient
+            .Setup(r => r.WriteDocketAsync(It.IsAny<Sorcha.ServiceClients.Register.DocketModel>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
         _mockMemPoolManager
             .Setup(m => m.RemoveTransactionAsync(registerId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);

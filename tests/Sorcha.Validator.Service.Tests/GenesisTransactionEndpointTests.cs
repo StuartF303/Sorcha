@@ -7,8 +7,12 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Moq;
+using Sorcha.Cryptography.Interfaces;
+using Sorcha.ServiceClients.Wallet;
 using Sorcha.Validator.Service.Services;
+using Sorcha.Validator.Service.Services.Interfaces;
 using Xunit;
 
 namespace Sorcha.Validator.Service.Tests;
@@ -23,6 +27,68 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
     public GenesisTransactionEndpointTests(WebApplicationFactory<Program> factory)
     {
         _factory = factory;
+    }
+
+    private static void RemoveService<T>(IServiceCollection services)
+    {
+        var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(T));
+        if (descriptor != null) services.Remove(descriptor);
+    }
+
+    private static void RegisterAllMocks(IServiceCollection services)
+    {
+        // Remove all hosted services to prevent background service startup
+        services.RemoveAll<Microsoft.Extensions.Hosting.IHostedService>();
+
+        // Remove singleton TransactionPoolPollerService (registered separately from IHostedService)
+        RemoveService<Sorcha.Validator.Service.Services.TransactionPoolPollerService>(services);
+
+        // Remove and mock validation engine dependencies
+        RemoveService<IBlueprintCache>(services);
+        RemoveService<ITransactionPoolPoller>(services);
+        RemoveService<IValidationEngine>(services);
+        RemoveService<IVerifiedTransactionQueue>(services);
+        services.AddSingleton<IBlueprintCache>(_ => new Mock<IBlueprintCache>().Object);
+        services.AddSingleton<ITransactionPoolPoller>(_ => new Mock<ITransactionPoolPoller>().Object);
+        services.AddScoped<IValidationEngine>(_ => new Mock<IValidationEngine>().Object);
+        services.AddSingleton<IVerifiedTransactionQueue>(_ => new Mock<IVerifiedTransactionQueue>().Object);
+
+        // Mock IConnectionMultiplexer to prevent Redis connection attempts
+        RemoveService<StackExchange.Redis.IConnectionMultiplexer>(services);
+        services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(_ =>
+            new Mock<StackExchange.Redis.IConnectionMultiplexer>().Object);
+
+        // Remove and mock genesis endpoint dependencies
+        RemoveService<IRegisterMonitoringRegistry>(services);
+        services.AddSingleton<IRegisterMonitoringRegistry>(_ => new Mock<IRegisterMonitoringRegistry>().Object);
+
+        RemoveService<ISystemWalletProvider>(services);
+        var mockWalletProvider = new Mock<ISystemWalletProvider>();
+        mockWalletProvider.Setup(w => w.GetSystemWalletId()).Returns("test-system-wallet");
+        mockWalletProvider.Setup(w => w.IsInitialized).Returns(true);
+        services.AddSingleton<ISystemWalletProvider>(_ => mockWalletProvider.Object);
+
+        RemoveService<IHashProvider>(services);
+        var mockHashProvider = new Mock<IHashProvider>();
+        mockHashProvider
+            .Setup(h => h.ComputeHash(It.IsAny<byte[]>(), It.IsAny<Sorcha.Cryptography.Enums.HashType>()))
+            .Returns(new byte[32]);
+        services.AddScoped<IHashProvider>(_ => mockHashProvider.Object);
+
+        RemoveService<IWalletServiceClient>(services);
+        var mockWalletClient = new Mock<IWalletServiceClient>();
+        mockWalletClient
+            .Setup(w => w.SignTransactionAsync(
+                It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<string?>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WalletSignResult
+            {
+                Signature = new byte[64],
+                PublicKey = new byte[32],
+                SignedBy = "test-system-wallet",
+                Algorithm = "ED25519"
+            });
+        services.AddScoped<IWalletServiceClient>(_ => mockWalletClient.Object);
     }
 
     [Fact]
@@ -47,7 +113,8 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
                 {
                     services.Remove(descriptor);
                 }
-                services.AddScoped(_ => mockMemPoolManager.Object);
+                services.AddSingleton(_ => mockMemPoolManager.Object);
+                RegisterAllMocks(services);
             });
         }).CreateClient();
 
@@ -135,7 +202,8 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
                 {
                     services.Remove(descriptor);
                 }
-                services.AddScoped(_ => mockMemPoolManager.Object);
+                services.AddSingleton(_ => mockMemPoolManager.Object);
+                RegisterAllMocks(services);
             });
         }).CreateClient();
 
@@ -201,7 +269,8 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
                 {
                     services.Remove(descriptor);
                 }
-                services.AddScoped(_ => mockMemPoolManager.Object);
+                services.AddSingleton(_ => mockMemPoolManager.Object);
+                RegisterAllMocks(services);
             });
         }).CreateClient();
 
@@ -267,7 +336,8 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
                 {
                     services.Remove(descriptor);
                 }
-                services.AddScoped(_ => mockMemPoolManager.Object);
+                services.AddSingleton(_ => mockMemPoolManager.Object);
+                RegisterAllMocks(services);
             });
         }).CreateClient();
 
@@ -310,7 +380,13 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
     public async Task SubmitGenesisTransaction_WithMissingFields_ShouldReturn400BadRequest()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                RegisterAllMocks(services);
+            });
+        }).CreateClient();
 
         var request = new
         {
@@ -351,7 +427,8 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
                 {
                     services.Remove(descriptor);
                 }
-                services.AddScoped(_ => mockMemPoolManager.Object);
+                services.AddSingleton(_ => mockMemPoolManager.Object);
+                RegisterAllMocks(services);
             });
         }).CreateClient();
 
@@ -390,7 +467,7 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         capturedTransaction.Should().NotBeNull();
-        capturedTransaction!.Signatures.Should().HaveCount(1);
+        capturedTransaction!.Signatures.Should().HaveCount(2); // Request signature + system wallet signature
         capturedTransaction.Signatures[0].PublicKey.Should().BeEquivalentTo(publicKeyBytes);
         capturedTransaction.Signatures[0].SignatureValue.Should().BeEquivalentTo(signatureBytes);
         capturedTransaction.Signatures[0].Algorithm.Should().Be("ED25519");
@@ -421,7 +498,8 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
                 {
                     services.Remove(descriptor);
                 }
-                services.AddScoped(_ => mockMemPoolManager.Object);
+                services.AddSingleton(_ => mockMemPoolManager.Object);
+                RegisterAllMocks(services);
             });
         }).CreateClient();
 

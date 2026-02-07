@@ -65,7 +65,7 @@ public class TransactionManagerTests
         // Assert
         result.Id.Should().NotBeNullOrWhiteSpace();
         result.Id.Should().StartWith("did:sorcha:register:");
-        result.Id.Should().Contain($"/{_testRegisterId}/tx/");
+        result.Id.Should().Contain($":{_testRegisterId}/tx/");
         result.Id.Should().EndWith(transaction.TxId);
     }
 
