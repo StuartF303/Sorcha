@@ -129,6 +129,13 @@ public class DocketBuilder : IDocketBuilder
             // Sign docket with system wallet
             var systemWalletAddress = _validatorConfig.SystemWalletAddress;
 
+            if (string.IsNullOrEmpty(systemWalletAddress))
+            {
+                systemWalletAddress = await _walletClient.CreateOrRetrieveSystemWalletAsync(
+                    _validatorConfig.ValidatorId, cancellationToken);
+                _validatorConfig.SystemWalletAddress = systemWalletAddress;
+            }
+
             var signResult = await _walletClient.SignDataAsync(systemWalletAddress, docketHash, cancellationToken);
 
             // Create docket with real cryptographic signature
