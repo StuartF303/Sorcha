@@ -64,6 +64,8 @@ public static class DelegationEndpoints
         try
         {
             var grantedBy = GetCurrentUser(context);
+            if (grantedBy is null)
+                return Results.Unauthorized();
 
             if (!Enum.TryParse<AccessRight>(request.AccessRight, out var accessRight))
             {
@@ -163,6 +165,8 @@ public static class DelegationEndpoints
         try
         {
             var revokedBy = GetCurrentUser(context);
+            if (revokedBy is null)
+                return Results.Unauthorized();
 
             logger.LogInformation(
                 "Revoking access for {Subject} on wallet {WalletAddress}",
@@ -240,10 +244,9 @@ public static class DelegationEndpoints
     }
 
     // Helper methods for authentication/authorization
-    private static string GetCurrentUser(HttpContext context)
+    private static string? GetCurrentUser(HttpContext context)
     {
-        // TODO: Extract from JWT claims
-        return context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
+        return context.User.FindFirstValue(ClaimTypes.NameIdentifier);
     }
 }
 

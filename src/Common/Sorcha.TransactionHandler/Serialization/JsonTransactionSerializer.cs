@@ -106,15 +106,15 @@ public class JsonTransactionSerializer : ITransactionSerializer
     /// <inheritdoc/>
     public byte[] SerializeToBinary(ITransaction transaction)
     {
-        // TODO: Implement binary serialization with VarInt encoding
-        throw new NotImplementedException("Binary serialization not yet implemented");
+        throw new NotSupportedException(
+            "Binary serialization is not supported. Use JSON format via SerializeToJson() instead.");
     }
 
     /// <inheritdoc/>
     public ITransaction DeserializeFromBinary(byte[] data)
     {
-        // TODO: Implement binary deserialization
-        throw new NotImplementedException("Binary deserialization not yet implemented");
+        throw new NotSupportedException(
+            "Binary deserialization is not supported. Use JSON format via DeserializeFromJson() instead.");
     }
 
     /// <inheritdoc/>

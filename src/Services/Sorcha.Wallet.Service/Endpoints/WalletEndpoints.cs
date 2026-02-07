@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 using Sorcha.Wallet.Service.Mappers;
 using Sorcha.Wallet.Service.Models;
 using Sorcha.Wallet.Core.Domain.ValueObjects;
+using Sorcha.Wallet.Core.Domain;
+using Sorcha.Wallet.Core.Domain.Entities;
 using Sorcha.Wallet.Core.Services.Implementation;
 using System.Security.Claims;
 
@@ -145,6 +147,8 @@ public static class WalletEndpoints
         try
         {
             var owner = GetCurrentUser(context);
+            if (owner is null)
+                return Results.Unauthorized();
             var tenant = GetCurrentTenant(context);
 
             logger.LogInformation("Creating wallet for user {Owner} in tenant {Tenant}", owner, tenant);
@@ -199,6 +203,8 @@ public static class WalletEndpoints
         try
         {
             var owner = GetCurrentUser(context);
+            if (owner is null)
+                return Results.Unauthorized();
             var tenant = GetCurrentTenant(context);
 
             logger.LogInformation("Recovering wallet for user {Owner} in tenant {Tenant}", owner, tenant);
@@ -251,9 +257,15 @@ public static class WalletEndpoints
     /// </summary>
     private static async Task<IResult> GetWallet(
         string address,
+        HttpContext context,
         WalletManager walletManager,
+        DelegationService delegationService,
         CancellationToken cancellationToken = default)
     {
+        var currentUser = GetCurrentUser(context);
+        if (currentUser is null)
+            return Results.Unauthorized();
+
         var wallet = await walletManager.GetWalletAsync(address, cancellationToken);
 
         if (wallet == null)
@@ -261,7 +273,17 @@ public static class WalletEndpoints
             return Results.NotFound();
         }
 
-        // TODO: Add authorization check - user should own the wallet or have delegated access
+        // Authorization: caller must be owner or have delegated access
+        if (wallet.Owner != currentUser)
+        {
+            var hasAccess = await delegationService.HasAccessAsync(
+                address, currentUser, AccessRight.ReadOnly, cancellationToken);
+            if (!hasAccess)
+            {
+                return Results.Forbid();
+            }
+        }
+
         return Results.Ok(wallet.ToDto());
     }
 
@@ -274,6 +296,8 @@ public static class WalletEndpoints
         CancellationToken cancellationToken = default)
     {
         var owner = GetCurrentUser(context);
+        if (owner is null)
+            return Results.Unauthorized();
         var tenant = GetCurrentTenant(context);
 
         var wallets = await walletManager.GetWalletsByOwnerAsync(owner, tenant, cancellationToken);
@@ -1035,15 +1059,13 @@ public static class WalletEndpoints
     }
 
     // Helper methods for authentication/authorization
-    private static string GetCurrentUser(HttpContext context)
+    private static string? GetCurrentUser(HttpContext context)
     {
-        // TODO: Extract from JWT claims
-        return context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
+        return context.User.FindFirstValue(ClaimTypes.NameIdentifier);
     }
 
     private static string GetCurrentTenant(HttpContext context)
     {
-        // TODO: Extract from JWT claims or headers
         return context.User.FindFirstValue("tenant") ?? "default";
     }
 }

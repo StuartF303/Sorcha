@@ -698,11 +698,60 @@ public class DelegationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateAccessAsync_ShouldThrowNotImplemented()
+    public async Task UpdateAccessAsync_WithValidId_ShouldUpdateAccessRight()
+    {
+        // Arrange
+        await CreateTestWalletAsync();
+        var access = await _delegationService.GrantAccessAsync(
+            _testWallet.Address, "delegate-user", AccessRight.ReadOnly, _testWallet.Owner);
+
+        // Act
+        var updated = await _delegationService.UpdateAccessAsync(
+            access.Id, accessRight: AccessRight.ReadWrite);
+
+        // Assert
+        updated.AccessRight.Should().Be(AccessRight.ReadWrite);
+        updated.ParentWalletAddress.Should().Be(_testWallet.Address);
+    }
+
+    [Fact]
+    public async Task UpdateAccessAsync_WithValidId_ShouldUpdateExpiration()
+    {
+        // Arrange
+        await CreateTestWalletAsync();
+        var access = await _delegationService.GrantAccessAsync(
+            _testWallet.Address, "delegate-user", AccessRight.ReadOnly, _testWallet.Owner);
+        var newExpiry = DateTime.UtcNow.AddDays(30);
+
+        // Act
+        var updated = await _delegationService.UpdateAccessAsync(
+            access.Id, expiresAt: newExpiry);
+
+        // Assert
+        updated.ExpiresAt.Should().Be(newExpiry);
+    }
+
+    [Fact]
+    public async Task UpdateAccessAsync_WithInvalidId_ShouldThrowInvalidOperation()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(async () =>
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             await _delegationService.UpdateAccessAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task UpdateAccessAsync_WithRevokedAccess_ShouldThrowInvalidOperation()
+    {
+        // Arrange
+        await CreateTestWalletAsync();
+        var access = await _delegationService.GrantAccessAsync(
+            _testWallet.Address, "delegate-user", AccessRight.ReadOnly, _testWallet.Owner);
+        await _delegationService.RevokeAccessAsync(
+            _testWallet.Address, "delegate-user", _testWallet.Owner);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await _delegationService.UpdateAccessAsync(access.Id, accessRight: AccessRight.ReadWrite));
     }
 
     public void Dispose()

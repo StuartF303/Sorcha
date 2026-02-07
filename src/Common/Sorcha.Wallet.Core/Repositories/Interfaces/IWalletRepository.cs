@@ -119,6 +119,14 @@ public interface IWalletRepository
     Task UpdateAccessAsync(WalletAccess access, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a specific access grant by its unique identifier
+    /// </summary>
+    /// <param name="accessId">Access grant identifier</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Access grant if found, null otherwise</returns>
+    Task<WalletAccess?> GetAccessByIdAsync(Guid accessId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets all access grants for a wallet
     /// </summary>
     /// <param name="walletAddress">Wallet address</param>

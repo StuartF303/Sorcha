@@ -61,6 +61,7 @@ public static class BootstrapEndpoints
         [FromBody] BootstrapRequest request,
         IOrganizationService organizationService,
         IServiceAuthService serviceAuthService,
+        ITokenService tokenService,
         Data.Repositories.IIdentityRepository identityRepository,
         ILogger<Program> logger)
     {
@@ -119,10 +120,28 @@ public static class BootstrapEndpoints
             var createdUser = await identityRepository.CreateUserAsync(adminUser);
             logger.LogInformation("Administrator user created: {UserId}", createdUser.Id);
 
-            // Step 3: Generate tokens via login
-            // TODO: Implement proper token generation
-            // For now, clients should use the /api/auth/login endpoint with the created credentials
-            logger.LogInformation("Token generation deferred - use /api/auth/login endpoint");
+            // Step 3: Generate JWT tokens for immediate use
+            string adminAccessToken;
+            string adminRefreshToken;
+            try
+            {
+                logger.LogInformation("Generating admin tokens for user {UserId}", createdUser.Id);
+                var orgEntity = new Organization
+                {
+                    Id = organization.Id,
+                    Name = organization.Name,
+                    Subdomain = organization.Subdomain
+                };
+                var tokenResponse = await tokenService.GenerateUserTokenAsync(createdUser, orgEntity);
+                adminAccessToken = tokenResponse.AccessToken;
+                adminRefreshToken = tokenResponse.RefreshToken;
+            }
+            catch (Exception tokenEx)
+            {
+                logger.LogWarning(tokenEx, "Token generation failed during bootstrap — use /api/auth/login instead");
+                adminAccessToken = string.Empty;
+                adminRefreshToken = string.Empty;
+            }
 
             // Step 4: Optionally create service principal
             Guid? servicePrincipalId = null;
@@ -158,8 +177,8 @@ public static class BootstrapEndpoints
                 OrganizationSubdomain = organization.Subdomain,
                 AdminUserId = createdUser.Id,
                 AdminEmail = createdUser.Email,
-                AdminAccessToken = "USE_LOGIN_ENDPOINT", // Placeholder - use /api/auth/login
-                AdminRefreshToken = "USE_LOGIN_ENDPOINT", // Placeholder - use /api/auth/login
+                AdminAccessToken = adminAccessToken,
+                AdminRefreshToken = adminRefreshToken,
                 ServicePrincipalId = servicePrincipalId,
                 ServicePrincipalClientId = servicePrincipalClientId,
                 ServicePrincipalClientSecret = servicePrincipalSecret,
@@ -167,7 +186,6 @@ public static class BootstrapEndpoints
             };
 
             logger.LogInformation("Bootstrap completed successfully for organization: {OrgId}", organization.Id);
-            logger.LogInformation("Admin can now login at /api/auth/login with email: {Email}", createdUser.Email);
 
             return TypedResults.Created($"/api/organizations/{organization.Id}", response);
         }

@@ -157,8 +157,8 @@ public class Transaction : ITransaction
     /// <inheritdoc/>
     public byte[] SerializeToBinary()
     {
-        // TODO: Implement binary serialization
-        throw new NotImplementedException("Binary serialization not yet implemented");
+        throw new NotSupportedException(
+            "Binary serialization is not supported. Use JSON format via SerializeToJson() instead.");
     }
 
     /// <inheritdoc/>
