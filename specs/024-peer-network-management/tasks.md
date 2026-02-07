@@ -55,15 +55,15 @@
 
 ### Implementation
 
-- [ ] T013 [US1] Enhance GET /api/peers endpoint to include isBanned, qualityScore, qualityRating, advertisedRegisterCount, advertisedRegisters per peer — join PeerListManager.GetAllPeers() with ConnectionQualityTracker.GetAllQualities() in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T014 [US1] Enhance GET /api/peers/{peerId} endpoint to include ban status, full quality details, and advertised registers in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T015 [US1] Add GET /api/peers/quality endpoint — return ConnectionQualityTracker.GetAllQualities() as JSON in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T016 [P] [US1] Add GetQualityScoresAsync() Refit method to IPeerServiceClient in `src/Apps/Sorcha.Cli/Services/IPeerServiceClient.cs`
-- [ ] T017 [P] [US1] Add ConnectionQualityInfo DTO and SubscriptionInfo DTO to CLI models in `src/Apps/Sorcha.Cli/Models/Peer.cs`
-- [ ] T018 [US1] Add `peer quality` subcommand — call GetQualityScoresAsync, render table with PeerId, QualityScore, QualityRating, AvgLatency, SuccessRate using Spectre.Console in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
-- [ ] T019 [US1] Enhance PeerServiceAdmin.razor — add MudTabs with "Network Overview" as first tab, replace existing peer table with enhanced MudDataGrid showing PeerId, Address, Latency, QualityScore, QualityRating, AdvertisedRegisterCount, IsBanned columns, add summary cards (total peers, healthy peers, avg quality, banned count) at top in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
-- [ ] T020 [P] [US1] Add PeerQualityInfo and EnhancedPeerInfo response models to UI models in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Models/Admin/HealthResponse.cs`
-- [ ] T021 [US1] Add endpoint tests for GET /api/peers (enhanced), GET /api/peers/{peerId} (enhanced), GET /api/peers/quality in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
+- [x] T013 [US1] Enhance GET /api/peers endpoint to include isBanned, qualityScore, qualityRating, advertisedRegisterCount, advertisedRegisters per peer — join PeerListManager.GetAllPeers() with ConnectionQualityTracker.GetAllQualities() in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T014 [US1] Enhance GET /api/peers/{peerId} endpoint to include ban status, full quality details, and advertised registers in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T015 [US1] Add GET /api/peers/quality endpoint — return ConnectionQualityTracker.GetAllQualities() as JSON in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T016 [P] [US1] Add GetQualityScoresAsync() Refit method to IPeerServiceClient in `src/Apps/Sorcha.Cli/Services/IPeerServiceClient.cs`
+- [x] T017 [P] [US1] Add ConnectionQualityInfo DTO and SubscriptionInfo DTO to CLI models in `src/Apps/Sorcha.Cli/Models/Peer.cs`
+- [x] T018 [US1] Add `peer quality` subcommand — call GetQualityScoresAsync, render table with PeerId, QualityScore, QualityRating, AvgLatency, SuccessRate using Spectre.Console in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
+- [x] T019 [US1] Enhance PeerServiceAdmin.razor — add MudTabs with "Network Overview" as first tab, replace existing peer table with enhanced MudDataGrid showing PeerId, Address, Latency, QualityScore, QualityRating, AdvertisedRegisterCount, IsBanned columns, add summary cards (total peers, healthy peers, avg quality, banned count) at top in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
+- [x] T020 [P] [US1] Add PeerQualityInfo and EnhancedPeerInfo response models to UI models in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Models/Admin/HealthResponse.cs`
+- [x] T021 [US1] Add endpoint tests for GET /api/peers (enhanced), GET /api/peers/{peerId} (enhanced), GET /api/peers/quality in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
 
 **Checkpoint**: User Story 1 complete — peer network state visible across all 3 surfaces.
 
@@ -77,11 +77,11 @@
 
 ### Implementation
 
-- [ ] T022 [US2] Enhance GET /api/registers/subscriptions endpoint response to include all RegisterSubscription fields (mode, syncState, syncProgressPercent, lastSyncedDocketVersion, lastSyncedTransactionVersion, totalDocketsInChain, canParticipateInValidation, isReceiving, lastSyncAt, consecutiveFailures, errorMessage) — delegate to RegisterSyncBackgroundService.GetSubscriptions() in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T023 [P] [US2] Add GetSubscriptionsAsync() Refit method to IPeerServiceClient in `src/Apps/Sorcha.Cli/Services/IPeerServiceClient.cs`
-- [ ] T024 [US2] Add `peer subscriptions` subcommand — call GetSubscriptionsAsync, render table with RegisterId, Mode, SyncState, Progress%, LastSync using Spectre.Console, show progress bar for full-replica syncs in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
-- [ ] T025 [US2] Add "Register Subscriptions" tab to PeerServiceAdmin.razor — MudDataGrid with RegisterId, Mode, SyncState, Progress (MudProgressLinear), LastSync, Errors columns, color-code Error state rows red in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
-- [ ] T026 [US2] Add endpoint test for GET /api/registers/subscriptions (enhanced response) in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
+- [x] T022 [US2] Enhance GET /api/registers/subscriptions endpoint response to include all RegisterSubscription fields (mode, syncState, syncProgressPercent, lastSyncedDocketVersion, lastSyncedTransactionVersion, totalDocketsInChain, canParticipateInValidation, isReceiving, lastSyncAt, consecutiveFailures, errorMessage) — delegate to RegisterSyncBackgroundService.GetSubscriptions() in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T023 [P] [US2] Add GetSubscriptionsAsync() Refit method to IPeerServiceClient in `src/Apps/Sorcha.Cli/Services/IPeerServiceClient.cs`
+- [x] T024 [US2] Add `peer subscriptions` subcommand — call GetSubscriptionsAsync, render table with RegisterId, Mode, SyncState, Progress%, LastSync using Spectre.Console, show progress bar for full-replica syncs in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
+- [x] T025 [US2] Add "Register Subscriptions" tab to PeerServiceAdmin.razor — MudDataGrid with RegisterId, Mode, SyncState, Progress (MudProgressLinear), LastSync, Errors columns, color-code Error state rows red in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
+- [x] T026 [US2] Add endpoint test for GET /api/registers/subscriptions (enhanced response) in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
 
 **Checkpoint**: User Story 2 complete — subscription monitoring visible across all 3 surfaces.
 
@@ -95,13 +95,13 @@
 
 ### Implementation
 
-- [ ] T027 [US3] Add GET /api/registers/available endpoint — call RegisterAdvertisementService.GetNetworkAdvertisedRegisters(), return AvailableRegisterInfo list in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T028 [US3] Add POST /api/registers/{registerId}/subscribe endpoint — parse SubscribeRequest body, validate mode ("forward-only"→ForwardOnly, "full-replica"→FullReplica), check not already subscribed (409), check register exists in network advertisements (404), delegate to RegisterSyncBackgroundService.SubscribeToRegisterAsync(), require [Authorize], return 201 with subscription state in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T029 [P] [US3] Add GetAvailableRegistersAsync() and SubscribeToRegisterAsync(string registerId, SubscribeRequest request) Refit methods to IPeerServiceClient in `src/Apps/Sorcha.Cli/Services/IPeerServiceClient.cs`
-- [ ] T030 [P] [US3] Add AvailableRegisterInfo and SubscribeRequest DTOs to CLI models in `src/Apps/Sorcha.Cli/Models/Peer.cs`
-- [ ] T031 [US3] Add `peer subscribe --register-id <id> --mode <forward-only|full-replica>` subcommand — validate mode, call SubscribeToRegisterAsync, display result in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
-- [ ] T032 [US3] Add "Available Registers" tab to PeerServiceAdmin.razor — MudDataGrid with RegisterId, PeerCount, LatestVersion, LatestDocketVersion, FullReplicaPeerCount columns, "Subscribe" button per row that opens dialog to select mode, call subscribe endpoint on confirm in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
-- [ ] T033 [US3] Add endpoint tests for GET /api/registers/available, POST /api/registers/{registerId}/subscribe (success 201, duplicate 409, not found 404, invalid mode 400) in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
+- [x] T027 [US3] Add GET /api/registers/available endpoint — call RegisterAdvertisementService.GetNetworkAdvertisedRegisters(), return AvailableRegisterInfo list in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T028 [US3] Add POST /api/registers/{registerId}/subscribe endpoint — parse SubscribeRequest body, validate mode ("forward-only"→ForwardOnly, "full-replica"→FullReplica), check not already subscribed (409), check register exists in network advertisements (404), delegate to RegisterSyncBackgroundService.SubscribeToRegisterAsync(), require [Authorize], return 201 with subscription state in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T029 [P] [US3] Add GetAvailableRegistersAsync() and SubscribeToRegisterAsync(string registerId, SubscribeRequest request) Refit methods to IPeerServiceClient in `src/Apps/Sorcha.Cli/Services/IPeerServiceClient.cs`
+- [x] T030 [P] [US3] Add AvailableRegisterInfo and SubscribeRequest DTOs to CLI models in `src/Apps/Sorcha.Cli/Models/Peer.cs`
+- [x] T031 [US3] Add `peer subscribe --register-id <id> --mode <forward-only|full-replica>` subcommand — validate mode, call SubscribeToRegisterAsync, display result in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
+- [x] T032 [US3] Add "Available Registers" tab to PeerServiceAdmin.razor — MudDataGrid with RegisterId, PeerCount, LatestVersion, LatestDocketVersion, FullReplicaPeerCount columns, "Subscribe" button per row that opens dialog to select mode, call subscribe endpoint on confirm in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
+- [x] T033 [US3] Add endpoint tests for GET /api/registers/available, POST /api/registers/{registerId}/subscribe (success 201, duplicate 409, not found 404, invalid mode 400) in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
 
 **Checkpoint**: User Story 3 complete — register discovery and subscription via all 3 surfaces.
 
@@ -115,12 +115,12 @@
 
 ### Implementation
 
-- [ ] T034 [US4] Add DELETE /api/registers/{registerId}/subscribe endpoint — parse optional ?purge=true query param, check subscription exists (404), delegate to RegisterSyncBackgroundService.UnsubscribeFromRegisterAsync(), if purge also clear cache, require [Authorize], return UnsubscribeResponse in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T035 [US4] Add DELETE /api/registers/{registerId}/cache endpoint — standalone purge of cached data for a register, check cache exists (404), count removed transactions/dockets, require [Authorize], return PurgeResponse in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T036 [P] [US4] Add UnsubscribeFromRegisterAsync(string registerId, bool purge) and PurgeCacheAsync(string registerId) Refit methods to IPeerServiceClient in `src/Apps/Sorcha.Cli/Services/IPeerServiceClient.cs`
-- [ ] T037 [US4] Add `peer unsubscribe --register-id <id> [--purge]` subcommand — call UnsubscribeFromRegisterAsync, display result noting cache retention unless --purge in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
-- [ ] T038 [US4] Add "Unsubscribe" button to Register Subscriptions tab rows in PeerServiceAdmin.razor — confirmation dialog noting cache retention, optional purge checkbox in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
-- [ ] T039 [US4] Add endpoint tests for DELETE /api/registers/{registerId}/subscribe (success, with purge, not found 404), DELETE /api/registers/{registerId}/cache (success, not found 404) in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
+- [x] T034 [US4] Add DELETE /api/registers/{registerId}/subscribe endpoint — parse optional ?purge=true query param, check subscription exists (404), delegate to RegisterSyncBackgroundService.UnsubscribeFromRegisterAsync(), if purge also clear cache, require [Authorize], return UnsubscribeResponse in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T035 [US4] Add DELETE /api/registers/{registerId}/cache endpoint — standalone purge of cached data for a register, check cache exists (404), count removed transactions/dockets, require [Authorize], return PurgeResponse in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T036 [P] [US4] Add UnsubscribeFromRegisterAsync(string registerId, bool purge) and PurgeCacheAsync(string registerId) Refit methods to IPeerServiceClient in `src/Apps/Sorcha.Cli/Services/IPeerServiceClient.cs`
+- [x] T037 [US4] Add `peer unsubscribe --register-id <id> [--purge]` subcommand — call UnsubscribeFromRegisterAsync, display result noting cache retention unless --purge in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
+- [x] T038 [US4] Add "Unsubscribe" button to Register Subscriptions tab rows in PeerServiceAdmin.razor — confirmation dialog noting cache retention, optional purge checkbox in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
+- [x] T039 [US4] Add endpoint tests for DELETE /api/registers/{registerId}/subscribe (success, with purge, not found 404), DELETE /api/registers/{registerId}/cache (success, not found 404) in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
 
 **Checkpoint**: User Story 4 complete — unsubscribe and purge via all 3 surfaces.
 
@@ -134,7 +134,7 @@
 
 ### Implementation
 
-- [ ] T040 [US5] Add "Peer Quality" tab to PeerServiceAdmin.razor — summary cards showing quality distribution (count per rating), MudDataGrid with PeerId, QualityScore, QualityRating, AvgLatency, MinLatency, MaxLatency, SuccessRate, TotalRequests columns, sort by QualityScore descending, color badges per rating in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
+- [x] T040 [US5] Add "Peer Quality" tab to PeerServiceAdmin.razor — summary cards showing quality distribution (count per rating), MudDataGrid with PeerId, QualityScore, QualityRating, AvgLatency, MinLatency, MaxLatency, SuccessRate, TotalRequests columns, sort by QualityScore descending, color badges per rating in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
 
 **Checkpoint**: User Story 5 complete — peer quality visible in UI (REST and CLI already done in US1 T015/T018).
 
@@ -148,15 +148,15 @@
 
 ### Implementation
 
-- [ ] T041 [US6] Add POST /api/peers/{peerId}/ban endpoint — parse optional BanRequest body, check peer exists (404), check not already banned (409), delegate to PeerListManager.BanPeerAsync(), require [Authorize], return BanResponse in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T042 [US6] Add DELETE /api/peers/{peerId}/ban endpoint — check peer exists (404), check is banned (409), delegate to PeerListManager.UnbanPeerAsync(), require [Authorize], return unban response in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T043 [US6] Add POST /api/peers/{peerId}/reset endpoint — check peer exists (404), delegate to PeerListManager.ResetFailureCountAsync(), require [Authorize], return ResetResponse with previous count in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T044 [P] [US6] Add BanPeerAsync, UnbanPeerAsync, ResetFailureCountAsync Refit methods to IPeerServiceClient in `src/Apps/Sorcha.Cli/Services/IPeerServiceClient.cs`
-- [ ] T045 [P] [US6] Add BanRequest, BanResponse, ResetResponse DTOs to CLI models in `src/Apps/Sorcha.Cli/Models/Peer.cs`
-- [ ] T046 [US6] Add `peer ban --peer-id <id> [--reason <text>]` subcommand — call BanPeerAsync, display ban confirmation in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
-- [ ] T047 [US6] Add `peer reset --peer-id <id>` subcommand — call ResetFailureCountAsync, display previous and new failure count in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
-- [ ] T048 [US6] Add ban/unban and reset action buttons to Peer Quality tab rows in PeerServiceAdmin.razor — ban button opens dialog for optional reason, unban button with confirmation, reset button with confirmation in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
-- [ ] T049 [US6] Add endpoint tests for POST /api/peers/{peerId}/ban (success, not found 404, already banned 409), DELETE /api/peers/{peerId}/ban (success, not found 404, not banned 409), POST /api/peers/{peerId}/reset (success, not found 404) in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
+- [x] T041 [US6] Add POST /api/peers/{peerId}/ban endpoint — parse optional BanRequest body, check peer exists (404), check not already banned (409), delegate to PeerListManager.BanPeerAsync(), require [Authorize], return BanResponse in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T042 [US6] Add DELETE /api/peers/{peerId}/ban endpoint — check peer exists (404), check is banned (409), delegate to PeerListManager.UnbanPeerAsync(), require [Authorize], return unban response in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T043 [US6] Add POST /api/peers/{peerId}/reset endpoint — check peer exists (404), delegate to PeerListManager.ResetFailureCountAsync(), require [Authorize], return ResetResponse with previous count in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T044 [P] [US6] Add BanPeerAsync, UnbanPeerAsync, ResetFailureCountAsync Refit methods to IPeerServiceClient in `src/Apps/Sorcha.Cli/Services/IPeerServiceClient.cs`
+- [x] T045 [P] [US6] Add BanRequest, BanResponse, ResetResponse DTOs to CLI models in `src/Apps/Sorcha.Cli/Models/Peer.cs`
+- [x] T046 [US6] Add `peer ban --peer-id <id> [--reason <text>]` subcommand — call BanPeerAsync, display ban confirmation in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
+- [x] T047 [US6] Add `peer reset --peer-id <id>` subcommand — call ResetFailureCountAsync, display previous and new failure count in `src/Apps/Sorcha.Cli/Commands/PeerCommands.cs`
+- [x] T048 [US6] Add ban/unban and reset action buttons to Peer Quality tab rows in PeerServiceAdmin.razor — ban button opens dialog for optional reason, unban button with confirmation, reset button with confirmation in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Components/Admin/PeerServiceAdmin.razor`
+- [x] T049 [US6] Add endpoint tests for POST /api/peers/{peerId}/ban (success, not found 404, already banned 409), DELETE /api/peers/{peerId}/ban (success, not found 404, not banned 409), POST /api/peers/{peerId}/reset (success, not found 404) in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
 
 **Checkpoint**: User Story 6 complete — peer management actions via all 3 surfaces.
 
@@ -166,13 +166,13 @@
 
 **Purpose**: Integration validation, documentation, and cleanup
 
-- [ ] T050 [P] Add OpenAPI tags and summaries to all new endpoints (Monitoring, Management, Registers groups) via .WithTags()/.WithSummary()/.WithDescription() in `src/Services/Sorcha.Peer.Service/Program.cs`
-- [ ] T051 [P] Add XML documentation comments to all new public methods (BanPeerAsync, UnbanPeerAsync, ResetFailureCountAsync, GetNetworkAdvertisedRegisters) in service files
-- [ ] T052 Verify all management endpoints (ban, unban, reset, subscribe, unsubscribe, purge) require [Authorize] and return 401 for unauthenticated requests — add auth test cases in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
-- [ ] T053 Run full Peer Service test suite (`dotnet test tests/Sorcha.Peer.Service.Tests`) and verify no regressions from baseline (433 pass / 29 pre-existing fail)
-- [ ] T054 [P] Run CLI build (`dotnet build src/Apps/Sorcha.Cli`) and verify no compilation errors
-- [ ] T055 [P] Run UI build (`dotnet build src/Apps/Sorcha.UI/Sorcha.UI.Core`) and verify no compilation errors
-- [ ] T056 Update MASTER-TASKS.md with 024-peer-network-management completion status in `.specify/MASTER-TASKS.md`
+- [x] T050 [P] Add OpenAPI tags and summaries to all new endpoints (Monitoring, Management, Registers groups) via .WithTags()/.WithSummary()/.WithDescription() in `src/Services/Sorcha.Peer.Service/Program.cs`
+- [x] T051 [P] Add XML documentation comments to all new public methods (BanPeerAsync, UnbanPeerAsync, ResetFailureCountAsync, GetNetworkAdvertisedRegisters) in service files
+- [x] T052 Verify all management endpoints (ban, unban, reset, subscribe, unsubscribe, purge) require [Authorize] and return 401 for unauthenticated requests — add auth test cases in `tests/Sorcha.Peer.Service.Tests/Endpoints/PeerManagementEndpointTests.cs`
+- [x] T053 Run full Peer Service test suite (`dotnet test tests/Sorcha.Peer.Service.Tests`) and verify no regressions from baseline (433 pass / 29 pre-existing fail)
+- [x] T054 [P] Run CLI build (`dotnet build src/Apps/Sorcha.Cli`) and verify no compilation errors
+- [x] T055 [P] Run UI build (`dotnet build src/Apps/Sorcha.UI/Sorcha.UI.Core`) and verify no compilation errors
+- [x] T056 Update MASTER-TASKS.md with 024-peer-network-management completion status in `.specify/MASTER-TASKS.md`
 
 ---
 

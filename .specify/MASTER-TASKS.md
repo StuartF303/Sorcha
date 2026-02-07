@@ -350,6 +350,11 @@ PEER-023 (P2P Topology Refactor) ✅ COMPLETE
     ├── Phase 6-7: Register-aware sync, advertisements ✅
     ├── Phase 8-9: P2P heartbeat, service integration ✅
     └── Phase 10: Hub code cleanup ✅
+    ↓
+PEER-024 (Peer Network Management & Observability) ✅ COMPLETE
+    ├── Phase 1-2: Entity changes, service methods, unit tests ✅
+    ├── Phase 3-8: REST endpoints, CLI commands, Blazor UI (6 user stories) ✅
+    └── Phase 9: Polish, OpenAPI docs, endpoint tests ✅
 ```
 
 ---

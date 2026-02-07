@@ -12,6 +12,7 @@ using Sorcha.Peer.Service.Distribution;
 using Sorcha.Peer.Service.Monitoring;
 using Sorcha.Peer.Service.Network;
 using Sorcha.Peer.Service.Observability;
+using Sorcha.Peer.Service.Models;
 using Sorcha.Peer.Service.Replication;
 using Sorcha.Peer.Service.Services;
 
@@ -176,34 +177,78 @@ app.MapGet("/", (IConfiguration config) =>
 // REST monitoring endpoints for CLI and admin tools
 // These endpoints provide read-only access to peer network status
 
-app.MapGet("/api/peers", (PeerListManager peerListManager) =>
+app.MapGet("/api/peers", (PeerListManager peerListManager, ConnectionQualityTracker qualityTracker) =>
 {
     var peers = peerListManager.GetAllPeers();
-    return Results.Ok(peers.Select(p => new
+    var qualities = qualityTracker.GetAllQualities();
+
+    return Results.Ok(peers.Select(p =>
     {
-        p.PeerId,
-        p.Address,
-        p.Port,
-        p.SupportedProtocols,
-        p.FirstSeen,
-        p.LastSeen,
-        p.FailureCount,
-        p.IsSeedNode,
-        p.AverageLatencyMs
+        qualities.TryGetValue(p.PeerId, out var quality);
+        return new
+        {
+            p.PeerId,
+            p.Address,
+            p.Port,
+            p.SupportedProtocols,
+            p.FirstSeen,
+            p.LastSeen,
+            p.FailureCount,
+            p.IsSeedNode,
+            p.AverageLatencyMs,
+            p.IsBanned,
+            p.BannedAt,
+            p.BanReason,
+            QualityScore = quality?.QualityScore ?? 0,
+            QualityRating = quality?.QualityRating ?? "Unknown",
+            AdvertisedRegisterCount = p.AdvertisedRegisters.Count,
+            AdvertisedRegisters = p.AdvertisedRegisters.Select(r => new
+            {
+                r.RegisterId,
+                SyncState = r.SyncState.ToString(),
+                r.LatestVersion,
+                r.IsPublic
+            })
+        };
     }));
 })
     .WithName("GetAllPeers")
     .WithSummary("List all known peers in the network")
-    .WithDescription(@"Returns a comprehensive list of all peer nodes currently known to this node, including connection metadata, latency metrics, and bootstrap node status. This endpoint provides visibility into the peer-to-peer network topology.")
+    .WithDescription(@"Returns a comprehensive list of all peer nodes currently known to this node, including connection metadata, latency metrics, quality scores, ban status, and advertised registers.")
     .WithTags("Peers");
 
-app.MapGet("/api/peers/{peerId}", (string peerId, PeerListManager peerListManager) =>
+app.MapGet("/api/peers/quality", (ConnectionQualityTracker qualityTracker) =>
+{
+    var qualities = qualityTracker.GetAllQualities();
+    return Results.Ok(qualities.Values.Select(q => new
+    {
+        q.PeerId,
+        q.AverageLatencyMs,
+        q.MinLatencyMs,
+        q.MaxLatencyMs,
+        q.SuccessRate,
+        q.TotalRequests,
+        q.SuccessfulRequests,
+        q.FailedRequests,
+        q.QualityScore,
+        q.QualityRating,
+        q.LastUpdated
+    }));
+})
+    .WithName("GetPeerQuality")
+    .WithSummary("Get connection quality metrics for all tracked peers")
+    .WithDescription("Returns quality scores, latency breakdown, and success rates for all peers with tracked connection metrics.")
+    .WithTags("Monitoring");
+
+app.MapGet("/api/peers/{peerId}", (string peerId, PeerListManager peerListManager, ConnectionQualityTracker qualityTracker) =>
 {
     var peer = peerListManager.GetPeer(peerId);
     if (peer == null)
     {
         return Results.NotFound(new { error = $"Peer '{peerId}' not found" });
     }
+
+    var quality = qualityTracker.GetQuality(peerId);
 
     return Results.Ok(new
     {
@@ -215,12 +260,36 @@ app.MapGet("/api/peers/{peerId}", (string peerId, PeerListManager peerListManage
         peer.LastSeen,
         peer.FailureCount,
         peer.IsSeedNode,
-        peer.AverageLatencyMs
+        peer.AverageLatencyMs,
+        peer.IsBanned,
+        peer.BannedAt,
+        peer.BanReason,
+        QualityScore = quality?.QualityScore ?? 0,
+        QualityRating = quality?.QualityRating ?? "Unknown",
+        QualityDetails = quality != null ? new
+        {
+            quality.AverageLatencyMs,
+            quality.MinLatencyMs,
+            quality.MaxLatencyMs,
+            quality.SuccessRate,
+            quality.TotalRequests,
+            quality.SuccessfulRequests,
+            quality.FailedRequests,
+            quality.LastUpdated
+        } : null,
+        AdvertisedRegisterCount = peer.AdvertisedRegisters.Count,
+        AdvertisedRegisters = peer.AdvertisedRegisters.Select(r => new
+        {
+            r.RegisterId,
+            SyncState = r.SyncState.ToString(),
+            r.LatestVersion,
+            r.IsPublic
+        })
     });
 })
     .WithName("GetPeerById")
     .WithSummary("Get detailed information about a specific peer")
-    .WithDescription(@"Retrieves comprehensive details for a single peer node identified by its peer ID, including connection history, latency statistics, supported protocols, and operational status.")
+    .WithDescription(@"Retrieves comprehensive details for a single peer node including connection history, latency statistics, quality metrics, ban status, and advertised registers.")
     .WithTags("Peers");
 
 app.MapGet("/api/peers/stats", (StatisticsAggregator statisticsAggregator) =>
@@ -343,6 +412,205 @@ app.MapGet("/api/registers/cache", (RegisterCache registerCache) =>
     .WithSummary("Get register cache statistics")
     .WithDescription("Returns cache statistics for all locally cached registers.")
     .WithTags("Registers");
+
+// Available registers endpoint (aggregated from peer advertisements)
+app.MapGet("/api/registers/available", (RegisterAdvertisementService advertisementService) =>
+{
+    var registers = advertisementService.GetNetworkAdvertisedRegisters();
+    return Results.Ok(registers);
+})
+    .WithName("GetAvailableRegisters")
+    .WithSummary("List registers advertised across the peer network")
+    .WithDescription("Returns aggregated register information from all known peer advertisements. Only public registers are included.")
+    .WithTags("Registers");
+
+// Subscribe to a register
+app.MapPost("/api/registers/{registerId}/subscribe", async (
+    string registerId,
+    SubscribeRequest request,
+    RegisterSyncBackgroundService syncService,
+    RegisterAdvertisementService advertisementService) =>
+{
+    // Validate mode
+    if (!Enum.TryParse<ReplicationMode>(request.Mode.Replace("-", ""), ignoreCase: true, out var mode))
+    {
+        return Results.BadRequest(new { error = "Invalid mode. Use 'forward-only' or 'full-replica'." });
+    }
+
+    // Check if already subscribed
+    var existing = syncService.GetSubscription(registerId);
+    if (existing != null)
+    {
+        return Results.Conflict(new { error = $"Already subscribed to register '{registerId}'." });
+    }
+
+    // Check if register exists in network advertisements
+    var available = advertisementService.GetNetworkAdvertisedRegisters();
+    if (!available.Any(r => r.RegisterId == registerId))
+    {
+        return Results.NotFound(new { error = $"Register '{registerId}' not found in network advertisements." });
+    }
+
+    var subscription = await syncService.SubscribeToRegisterAsync(registerId, mode);
+
+    return Results.Created($"/api/registers/{registerId}/subscribe", new SubscribeResponse
+    {
+        RegisterId = subscription.RegisterId,
+        Mode = subscription.Mode.ToString(),
+        SyncState = subscription.SyncState.ToString(),
+        LastSyncedDocketVersion = subscription.LastSyncedDocketVersion,
+        LastSyncedTransactionVersion = subscription.LastSyncedTransactionVersion,
+        SyncProgressPercent = subscription.SyncProgressPercent
+    });
+})
+    .WithName("SubscribeToRegister")
+    .WithSummary("Subscribe to a register for replication")
+    .WithDescription("Creates a new subscription to replicate a register. Mode can be 'forward-only' (new transactions only) or 'full-replica' (complete docket chain pull).")
+    .WithTags("Registers")
+    .RequireAuthorization();
+
+// Unsubscribe from a register
+app.MapDelete("/api/registers/{registerId}/subscribe", async (
+    string registerId,
+    bool? purge,
+    RegisterSyncBackgroundService syncService,
+    RegisterCache registerCache) =>
+{
+    var existing = syncService.GetSubscription(registerId);
+    if (existing == null)
+    {
+        return Results.NotFound(new { error = $"No subscription found for register '{registerId}'." });
+    }
+
+    await syncService.UnsubscribeFromRegisterAsync(registerId);
+
+    var cacheRetained = true;
+    if (purge == true)
+    {
+        registerCache.Remove(registerId);
+        cacheRetained = false;
+    }
+
+    return Results.Ok(new UnsubscribeResponse
+    {
+        RegisterId = registerId,
+        Unsubscribed = true,
+        CacheRetained = cacheRetained
+    });
+})
+    .WithName("UnsubscribeFromRegister")
+    .WithSummary("Unsubscribe from a register")
+    .WithDescription("Stops replication for a register. Cached data is retained unless ?purge=true is specified.")
+    .WithTags("Registers")
+    .RequireAuthorization();
+
+// Purge cached data for a register
+app.MapDelete("/api/registers/{registerId}/cache", (string registerId, RegisterCache registerCache) =>
+{
+    var entry = registerCache.Get(registerId);
+    if (entry == null)
+    {
+        return Results.NotFound(new { error = $"No cached data for register '{registerId}'." });
+    }
+
+    var stats = entry.GetStatistics();
+    entry.Clear();
+    registerCache.Remove(registerId);
+
+    return Results.Ok(new PurgeResponse
+    {
+        RegisterId = registerId,
+        Purged = true,
+        TransactionsRemoved = stats.TransactionCount,
+        DocketsRemoved = stats.DocketCount
+    });
+})
+    .WithName("PurgeRegisterCache")
+    .WithSummary("Purge cached data for a register")
+    .WithDescription("Deletes all locally cached transactions and dockets for a register.")
+    .WithTags("Registers")
+    .RequireAuthorization();
+
+// Peer management endpoints (ban/unban/reset)
+app.MapPost("/api/peers/{peerId}/ban", async (string peerId, BanRequest? request, PeerListManager peerListManager) =>
+{
+    var peer = peerListManager.GetPeer(peerId);
+    if (peer == null)
+    {
+        return Results.NotFound(new { error = $"Peer '{peerId}' not found." });
+    }
+
+    if (peer.IsBanned)
+    {
+        return Results.Conflict(new { error = $"Peer '{peerId}' is already banned." });
+    }
+
+    await peerListManager.BanPeerAsync(peerId, request?.Reason);
+
+    peer = peerListManager.GetPeer(peerId)!;
+    return Results.Ok(new BanResponse
+    {
+        PeerId = peer.PeerId,
+        IsBanned = peer.IsBanned,
+        BannedAt = peer.BannedAt,
+        BanReason = peer.BanReason
+    });
+})
+    .WithName("BanPeer")
+    .WithSummary("Ban a peer from communication")
+    .WithDescription("Bans a peer, preventing all gossip, sync, and heartbeat communication. Ban persists across restarts.")
+    .WithTags("Management")
+    .RequireAuthorization();
+
+app.MapDelete("/api/peers/{peerId}/ban", async (string peerId, PeerListManager peerListManager) =>
+{
+    var peer = peerListManager.GetPeer(peerId);
+    if (peer == null)
+    {
+        return Results.NotFound(new { error = $"Peer '{peerId}' not found." });
+    }
+
+    if (!peer.IsBanned)
+    {
+        return Results.Conflict(new { error = $"Peer '{peerId}' is not currently banned." });
+    }
+
+    await peerListManager.UnbanPeerAsync(peerId);
+
+    return Results.Ok(new BanResponse
+    {
+        PeerId = peerId,
+        IsBanned = false
+    });
+})
+    .WithName("UnbanPeer")
+    .WithSummary("Unban a peer, restoring communication")
+    .WithDescription("Removes the ban on a peer. The peer's failure count is preserved (not reset).")
+    .WithTags("Management")
+    .RequireAuthorization();
+
+app.MapPost("/api/peers/{peerId}/reset", async (string peerId, PeerListManager peerListManager) =>
+{
+    var peer = peerListManager.GetPeer(peerId);
+    if (peer == null)
+    {
+        return Results.NotFound(new { error = $"Peer '{peerId}' not found." });
+    }
+
+    var previousCount = await peerListManager.ResetFailureCountAsync(peerId);
+
+    return Results.Ok(new ResetResponse
+    {
+        PeerId = peerId,
+        FailureCount = 0,
+        PreviousFailureCount = previousCount
+    });
+})
+    .WithName("ResetPeerFailures")
+    .WithSummary("Reset a peer's failure count")
+    .WithDescription("Resets the consecutive failure count for a peer to zero, making it eligible for normal communication.")
+    .WithTags("Management")
+    .RequireAuthorization();
 
 // Service health check with metrics (for admin dashboard)
 app.MapGet("/api/health", (PeerListManager peerListManager, StatisticsAggregator statisticsAggregator) =>
