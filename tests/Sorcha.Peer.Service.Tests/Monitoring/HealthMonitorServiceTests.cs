@@ -12,157 +12,154 @@ using Sorcha.Peer.Service.Network;
 
 namespace Sorcha.Peer.Service.Tests.Monitoring;
 
-public class HealthMonitorServiceTests
+public class HealthMonitorServiceTests : IDisposable
 {
-    private readonly Mock<ILogger<HealthMonitorService>> _loggerMock;
-    private readonly Mock<IOptions<PeerServiceConfiguration>> _configMock;
-    private readonly Mock<PeerListManager> _peerListManagerMock;
-    private readonly Mock<PeerDiscoveryService> _peerDiscoveryServiceMock;
+    private readonly PeerListManager _peerListManager;
+    private readonly PeerDiscoveryService _peerDiscoveryService;
+    private readonly HealthMonitorService _service;
     private readonly PeerServiceConfiguration _configuration;
 
     public HealthMonitorServiceTests()
     {
-        _loggerMock = new Mock<ILogger<HealthMonitorService>>();
-        _configMock = new Mock<IOptions<PeerServiceConfiguration>>();
         _configuration = new PeerServiceConfiguration
         {
+            NodeId = "test-node",
             PeerDiscovery = new PeerDiscoveryConfiguration
             {
                 MinHealthyPeers = 5,
-                MaxConcurrentDiscoveries = 10
-            }
+                MaxPeersInList = 100,
+                MaxConcurrentDiscoveries = 10,
+                RefreshIntervalMinutes = 15
+            },
+            NetworkAddress = new NetworkAddressConfiguration
+            {
+                ExternalAddress = "127.0.0.1",
+                HttpLookupServices = new List<string>(),
+                PreferredProtocol = "IPv4"
+            },
+            SeedNodes = new SeedNodeConfiguration()
         };
-        _configMock.Setup(x => x.Value).Returns(_configuration);
+        var config = Options.Create(_configuration);
 
-        // Create mock dependencies
-        var peerListLoggerMock = new Mock<ILogger<PeerListManager>>();
-        _peerListManagerMock = new Mock<PeerListManager>(
-            peerListLoggerMock.Object,
-            _configMock.Object);
+        _peerListManager = new PeerListManager(
+            new Mock<ILogger<PeerListManager>>().Object,
+            config);
 
-        var discoveryLoggerMock = new Mock<ILogger<PeerDiscoveryService>>();
-        var stunClientMock = new Mock<StunClient>();
-        var networkServiceMock = new Mock<NetworkAddressService>(
-            Mock.Of<ILogger<NetworkAddressService>>(),
-            _configMock.Object,
+        var stunClient = new StunClient(new Mock<ILogger<StunClient>>().Object);
+        var networkAddressService = new NetworkAddressService(
+            new Mock<ILogger<NetworkAddressService>>().Object,
+            config,
             new HttpClient(),
-            stunClientMock.Object);
+            stunClient);
 
-        _peerDiscoveryServiceMock = new Mock<PeerDiscoveryService>(
-            discoveryLoggerMock.Object,
-            _configMock.Object,
-            _peerListManagerMock.Object,
-            networkServiceMock.Object);
+        _peerDiscoveryService = new PeerDiscoveryService(
+            new Mock<ILogger<PeerDiscoveryService>>().Object,
+            config,
+            _peerListManager,
+            networkAddressService);
+
+        _service = new HealthMonitorService(
+            new Mock<ILogger<HealthMonitorService>>().Object,
+            config,
+            _peerListManager,
+            _peerDiscoveryService);
     }
 
     [Fact]
     public void Constructor_ShouldInitializeWithDependencies()
     {
-        // Act
-        var service = new HealthMonitorService(
-            _loggerMock.Object,
-            _configMock.Object,
-            _peerListManagerMock.Object,
-            _peerDiscoveryServiceMock.Object);
-
-        // Assert
-        service.Should().NotBeNull();
+        _service.Should().NotBeNull();
     }
 
     [Fact]
     public void Constructor_ShouldThrowArgumentNullException_WhenLoggerIsNull()
     {
-        // Act
+        var config = Options.Create(_configuration);
+
         var act = () => new HealthMonitorService(
             null!,
-            _configMock.Object,
-            _peerListManagerMock.Object,
-            _peerDiscoveryServiceMock.Object);
+            config,
+            _peerListManager,
+            _peerDiscoveryService);
 
-        // Assert
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
     public void DetermineServiceStatus_ShouldReturnOffline_WhenNoPeers()
     {
-        // Arrange
-        _peerListManagerMock.Setup(x => x.GetHealthyPeerCount()).Returns(0);
-        var service = new HealthMonitorService(
-            _loggerMock.Object,
-            _configMock.Object,
-            _peerListManagerMock.Object,
-            _peerDiscoveryServiceMock.Object);
+        // No peers added — healthy peer count is 0
+        var status = _service.DetermineServiceStatus();
 
-        // Act
-        var status = service.DetermineServiceStatus();
-
-        // Assert
         status.Should().Be(PeerServiceStatus.Offline);
     }
 
     [Fact]
-    public void DetermineServiceStatus_ShouldReturnDegraded_WhenBelowMinimum()
+    public async Task DetermineServiceStatus_ShouldReturnDegraded_WhenBelowMinimum()
     {
-        // Arrange
-        _peerListManagerMock.Setup(x => x.GetHealthyPeerCount()).Returns(3); // Below min of 5
-        var service = new HealthMonitorService(
-            _loggerMock.Object,
-            _configMock.Object,
-            _peerListManagerMock.Object,
-            _peerDiscoveryServiceMock.Object);
+        // Add 3 peers (below min of 5)
+        for (int i = 0; i < 3; i++)
+        {
+            await _peerListManager.AddOrUpdatePeerAsync(new PeerNode
+            {
+                PeerId = $"peer-{i}",
+                Address = $"192.168.1.{i + 1}",
+                Port = 5001
+            });
+        }
 
-        // Act
-        var status = service.DetermineServiceStatus();
+        var status = _service.DetermineServiceStatus();
 
-        // Assert
         status.Should().Be(PeerServiceStatus.Degraded);
     }
 
     [Fact]
-    public void DetermineServiceStatus_ShouldReturnOnline_WhenAboveMinimum()
+    public async Task DetermineServiceStatus_ShouldReturnOnline_WhenAboveMinimum()
     {
-        // Arrange
-        _peerListManagerMock.Setup(x => x.GetHealthyPeerCount()).Returns(10);
-        var service = new HealthMonitorService(
-            _loggerMock.Object,
-            _configMock.Object,
-            _peerListManagerMock.Object,
-            _peerDiscoveryServiceMock.Object);
+        // Add 10 peers (above min of 5)
+        for (int i = 0; i < 10; i++)
+        {
+            await _peerListManager.AddOrUpdatePeerAsync(new PeerNode
+            {
+                PeerId = $"peer-{i}",
+                Address = $"192.168.1.{i + 1}",
+                Port = 5001
+            });
+        }
 
-        // Act
-        var status = service.DetermineServiceStatus();
+        var status = _service.DetermineServiceStatus();
 
-        // Assert
         status.Should().Be(PeerServiceStatus.Online);
     }
 
     [Fact]
-    public void GetNetworkStatistics_ShouldReturnStatistics()
+    public async Task GetNetworkStatistics_ShouldReturnStatistics()
     {
-        // Arrange
-        var peers = new List<PeerNode>
+        await _peerListManager.AddOrUpdatePeerAsync(new PeerNode
         {
-            new PeerNode { PeerId = "peer1", AverageLatencyMs = 50 },
-            new PeerNode { PeerId = "peer2", AverageLatencyMs = 100 }
-        }.AsReadOnly();
+            PeerId = "peer1",
+            Address = "192.168.1.1",
+            Port = 5001,
+            AverageLatencyMs = 50
+        });
+        await _peerListManager.AddOrUpdatePeerAsync(new PeerNode
+        {
+            PeerId = "peer2",
+            Address = "192.168.1.2",
+            Port = 5001,
+            AverageLatencyMs = 100
+        });
 
-        _peerListManagerMock.Setup(x => x.GetAllPeers()).Returns(peers);
-        _peerListManagerMock.Setup(x => x.GetHealthyPeers()).Returns(peers);
+        var stats = _service.GetNetworkStatistics();
 
-        var service = new HealthMonitorService(
-            _loggerMock.Object,
-            _configMock.Object,
-            _peerListManagerMock.Object,
-            _peerDiscoveryServiceMock.Object);
-
-        // Act
-        var stats = service.GetNetworkStatistics();
-
-        // Assert
         stats.Should().NotBeNull();
         stats.TotalPeers.Should().Be(2);
         stats.HealthyPeers.Should().Be(2);
         stats.AverageLatencyMs.Should().Be(75);
+    }
+
+    public void Dispose()
+    {
+        _peerListManager.Dispose();
     }
 }

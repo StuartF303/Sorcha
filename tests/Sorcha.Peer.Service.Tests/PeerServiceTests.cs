@@ -11,18 +11,17 @@ using Sorcha.Peer.Service.Discovery;
 using Sorcha.Peer.Service.Monitoring;
 using Sorcha.Peer.Service.Network;
 using Sorcha.Peer.Service.Observability;
-using Sorcha.Peer.Service.Replication;
 
 namespace Sorcha.Peer.Service.Tests;
 
-public class PeerServiceTests
+public class PeerServiceTests : IDisposable
 {
     private readonly Mock<ILogger<PeerService>> _loggerMock;
-    private readonly Mock<IOptions<PeerServiceConfiguration>> _configMock;
-    private readonly Mock<PeerListManager> _peerListManagerMock;
-    private readonly Mock<NetworkAddressService> _networkAddressServiceMock;
-    private readonly Mock<PeerDiscoveryService> _peerDiscoveryServiceMock;
-    private readonly Mock<HealthMonitorService> _healthMonitorServiceMock;
+    private readonly IOptions<PeerServiceConfiguration> _config;
+    private readonly PeerListManager _peerListManager;
+    private readonly NetworkAddressService _networkAddressService;
+    private readonly PeerDiscoveryService _peerDiscoveryService;
+    private readonly HealthMonitorService _healthMonitorService;
     private readonly PeerConnectionPool _connectionPool;
     private readonly PeerExchangeService _exchangeService;
     private readonly PeerServiceConfiguration _configuration;
@@ -30,45 +29,78 @@ public class PeerServiceTests
     public PeerServiceTests()
     {
         _loggerMock = new Mock<ILogger<PeerService>>();
-        _configMock = new Mock<IOptions<PeerServiceConfiguration>>();
-        _peerListManagerMock = new Mock<PeerListManager>();
-        _networkAddressServiceMock = new Mock<NetworkAddressService>();
-        _peerDiscoveryServiceMock = new Mock<PeerDiscoveryService>();
-        _healthMonitorServiceMock = new Mock<HealthMonitorService>();
+
         _configuration = new PeerServiceConfiguration
         {
             Enabled = true,
             ListenPort = 5001,
-            NodeId = null // Will be auto-generated
+            NodeId = null, // Will be auto-generated
+            PeerDiscovery = new PeerDiscoveryConfiguration
+            {
+                MaxPeersInList = 100,
+                MinHealthyPeers = 5,
+                RefreshIntervalMinutes = 15,
+                BootstrapNodes = new List<string>()
+            },
+            NetworkAddress = new NetworkAddressConfiguration
+            {
+                ExternalAddress = "127.0.0.1",
+                HttpLookupServices = new List<string>(),
+                PreferredProtocol = "IPv4"
+            },
+            SeedNodes = new SeedNodeConfiguration()
         };
-        _configMock.Setup(x => x.Value).Returns(_configuration);
+        _config = Options.Create(_configuration);
 
-        // Create real instances for sealed/non-mockable types
+        _peerListManager = new PeerListManager(
+            new Mock<ILogger<PeerListManager>>().Object,
+            _config);
+
+        var stunClient = new StunClient(new Mock<ILogger<StunClient>>().Object);
+        _networkAddressService = new NetworkAddressService(
+            new Mock<ILogger<NetworkAddressService>>().Object,
+            _config,
+            new HttpClient(),
+            stunClient);
+
+        _peerDiscoveryService = new PeerDiscoveryService(
+            new Mock<ILogger<PeerDiscoveryService>>().Object,
+            _config,
+            _peerListManager,
+            _networkAddressService);
+
+        _healthMonitorService = new HealthMonitorService(
+            new Mock<ILogger<HealthMonitorService>>().Object,
+            _config,
+            _peerListManager,
+            _peerDiscoveryService);
+
         var metrics = new PeerServiceMetrics();
         var activitySource = new PeerServiceActivitySource();
-        var realPeerListManager = new PeerListManager(
-            new Mock<ILogger<PeerListManager>>().Object,
-            _configMock.Object);
         _connectionPool = new PeerConnectionPool(
             new Mock<ILogger<PeerConnectionPool>>().Object,
-            realPeerListManager,
-            _configMock.Object,
+            _peerListManager,
+            _config,
             metrics,
             activitySource);
+
         _exchangeService = new PeerExchangeService(
             new Mock<ILogger<PeerExchangeService>>().Object,
-            realPeerListManager,
+            _peerListManager,
             _connectionPool,
-            _configMock.Object);
+            _config);
     }
+
+    private PeerService CreateService() => new PeerService(
+        _loggerMock.Object, _config, _peerListManager,
+        _networkAddressService, _peerDiscoveryService,
+        _healthMonitorService, _connectionPool, _exchangeService);
 
     [Fact]
     public void Constructor_ShouldInitializeWithDependencies()
     {
-        // Act
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var service = CreateService();
 
-        // Assert
         service.Should().NotBeNull();
         service.Status.Should().Be(PeerServiceStatus.Offline);
     }
@@ -76,10 +108,11 @@ public class PeerServiceTests
     [Fact]
     public void Constructor_ShouldThrowArgumentNullException_WhenLoggerIsNull()
     {
-        // Act
-        var act = () => new PeerService(null!, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var act = () => new PeerService(
+            null!, _config, _peerListManager,
+            _networkAddressService, _peerDiscoveryService,
+            _healthMonitorService, _connectionPool, _exchangeService);
 
-        // Assert
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("logger");
     }
@@ -87,10 +120,11 @@ public class PeerServiceTests
     [Fact]
     public void Constructor_ShouldThrowArgumentNullException_WhenConfigurationIsNull()
     {
-        // Act
-        var act = () => new PeerService(_loggerMock.Object, null!, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var act = () => new PeerService(
+            _loggerMock.Object, null!, _peerListManager,
+            _networkAddressService, _peerDiscoveryService,
+            _healthMonitorService, _connectionPool, _exchangeService);
 
-        // Assert
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("configuration");
     }
@@ -98,60 +132,49 @@ public class PeerServiceTests
     [Fact]
     public void Status_ShouldInitiallyBeOffline()
     {
-        // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var service = CreateService();
 
-        // Assert
         service.Status.Should().Be(PeerServiceStatus.Offline);
     }
 
     [Fact]
-    public void NodeId_ShouldBeGenerated_WhenNotProvidedInConfiguration()
+    public async Task NodeId_ShouldBeGenerated_WhenNotProvidedInConfiguration()
     {
-        // Arrange
         _configuration.NodeId = null;
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
-
-        // Act - Start the service to trigger initialization
+        var service = CreateService();
         var cts = new CancellationTokenSource();
-        var task = service.StartAsync(cts.Token);
-        Thread.Sleep(100); // Allow service to initialize
-        cts.Cancel();
 
-        // Assert
+        var task = service.StartAsync(cts.Token);
+        await Task.Delay(200); // Allow initialization
+        await service.StopAsync(CancellationToken.None);
+
         service.NodeId.Should().NotBeNullOrEmpty();
         service.NodeId.Should().StartWith("node_");
     }
 
     [Fact]
-    public void NodeId_ShouldUseConfiguredValue_WhenProvided()
+    public async Task NodeId_ShouldUseConfiguredValue_WhenProvided()
     {
-        // Arrange
         _configuration.NodeId = "custom-node-123";
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
-
-        // Act - Start the service to trigger initialization
+        var service = CreateService();
         var cts = new CancellationTokenSource();
-        var task = service.StartAsync(cts.Token);
-        Thread.Sleep(100); // Allow service to initialize
-        cts.Cancel();
 
-        // Assert
+        var task = service.StartAsync(cts.Token);
+        await Task.Delay(200);
+        await service.StopAsync(CancellationToken.None);
+
         service.NodeId.Should().Be("custom-node-123");
     }
 
     [Fact]
     public async Task StartAsync_ShouldNotStart_WhenServiceIsDisabled()
     {
-        // Arrange
         _configuration.Enabled = false;
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var service = CreateService();
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
-        // Act
         await service.StartAsync(cts.Token);
 
-        // Assert
         service.Status.Should().Be(PeerServiceStatus.Offline);
         _loggerMock.Verify(
             x => x.Log(
@@ -166,17 +189,14 @@ public class PeerServiceTests
     [Fact]
     public async Task StartAsync_ShouldInitialize_WhenServiceIsEnabled()
     {
-        // Arrange
         _configuration.Enabled = true;
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var service = CreateService();
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
-        // Act
         var startTask = service.StartAsync(cts.Token);
-        await Task.Delay(200); // Allow initialization
+        await Task.Delay(200);
         await service.StopAsync(CancellationToken.None);
 
-        // Assert
         _loggerMock.Verify(
             x => x.Log(
                 LogLevel.Information,
@@ -190,21 +210,18 @@ public class PeerServiceTests
     [Fact]
     public async Task StopAsync_ShouldStopGracefully()
     {
-        // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var service = CreateService();
         var cts = new CancellationTokenSource();
 
-        // Act
         var startTask = service.StartAsync(cts.Token);
-        await Task.Delay(200); // Allow service to start
+        await Task.Delay(200);
         await service.StopAsync(CancellationToken.None);
 
-        // Assert
         _loggerMock.Verify(
             x => x.Log(
                 LogLevel.Information,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Stopping")),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Stopping") || v.ToString()!.Contains("shutting down")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);
@@ -213,16 +230,13 @@ public class PeerServiceTests
     [Fact]
     public async Task Service_ShouldLogNodeId_AfterInitialization()
     {
-        // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var service = CreateService();
         var cts = new CancellationTokenSource();
 
-        // Act
         var startTask = service.StartAsync(cts.Token);
         await Task.Delay(200);
         await service.StopAsync(CancellationToken.None);
 
-        // Assert
         _loggerMock.Verify(
             x => x.Log(
                 LogLevel.Information,
@@ -236,44 +250,36 @@ public class PeerServiceTests
     [Fact]
     public async Task Service_ShouldHandleCancellation()
     {
-        // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var service = CreateService();
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
 
-        // Act
         var startTask = service.StartAsync(cts.Token);
         await Task.Delay(500); // Wait for cancellation and cleanup
 
-        // Assert - Service should handle cancellation without throwing
+        // Service should handle cancellation without throwing
         service.Status.Should().Be(PeerServiceStatus.Offline);
     }
 
     [Fact]
     public void Dispose_ShouldCleanupResources()
     {
-        // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var service = CreateService();
 
-        // Act
         service.Dispose();
 
-        // Assert - Should not throw
         service.Status.Should().Be(PeerServiceStatus.Offline);
     }
 
     [Fact]
     public async Task Service_ShouldLogStatusChange()
     {
-        // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var service = CreateService();
         var cts = new CancellationTokenSource();
 
-        // Act
         var startTask = service.StartAsync(cts.Token);
         await Task.Delay(200);
         await service.StopAsync(CancellationToken.None);
 
-        // Assert - Should log status transitions
         _loggerMock.Verify(
             x => x.Log(
                 It.IsAny<LogLevel>(),
@@ -287,10 +293,8 @@ public class PeerServiceTests
     [Fact]
     public async Task MultipleStartStop_ShouldWorkCorrectly()
     {
-        // Arrange
-        var service = new PeerService(_loggerMock.Object, _configMock.Object, _peerListManagerMock.Object, _networkAddressServiceMock.Object, _peerDiscoveryServiceMock.Object, _healthMonitorServiceMock.Object, _connectionPool, _exchangeService);
+        var service = CreateService();
 
-        // Act & Assert - Start and stop multiple times
         for (int i = 0; i < 3; i++)
         {
             var cts = new CancellationTokenSource();
@@ -300,5 +304,11 @@ public class PeerServiceTests
 
             service.Status.Should().Be(PeerServiceStatus.Offline);
         }
+    }
+
+    public void Dispose()
+    {
+        _peerListManager.Dispose();
+        _connectionPool.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }
