@@ -110,9 +110,29 @@ public class DocketBuildTriggerService : BackgroundService
             // Update last build time
             _lastBuildTimes[registerId] = DateTimeOffset.UtcNow;
 
-            // TODO Phase 5: Trigger consensus process here
-            // For now, directly write docket to Register Service (bypass consensus for MVP)
-            await WriteDocketAndTransactionsAsync(scope, docket, cancellationToken);
+            // Trigger consensus process — if consensus succeeds, write docket to Register Service
+            var consensusEngine = scope.ServiceProvider.GetService<IConsensusEngine>();
+            if (consensusEngine != null)
+            {
+                var consensusResult = await consensusEngine.AchieveConsensusAsync(docket, cancellationToken);
+                if (consensusResult.Achieved)
+                {
+                    _logger.LogInformation("Consensus achieved for docket {DocketNumber}, writing to Register Service",
+                        docket.DocketNumber);
+                    await WriteDocketAndTransactionsAsync(scope, docket, cancellationToken);
+                }
+                else
+                {
+                    _logger.LogWarning("Consensus failed for docket {DocketNumber}: {Reason}",
+                        docket.DocketNumber, consensusResult.FailureReason ?? "Unknown");
+                }
+            }
+            else
+            {
+                // No consensus engine registered — write directly (single-validator mode)
+                _logger.LogDebug("No consensus engine available — writing docket directly (single-validator mode)");
+                await WriteDocketAndTransactionsAsync(scope, docket, cancellationToken);
+            }
         }
         else
         {

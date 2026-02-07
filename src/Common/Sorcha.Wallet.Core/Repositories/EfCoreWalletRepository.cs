@@ -246,6 +246,16 @@ public class EfCoreWalletRepository : IWalletRepository
     }
 
     /// <inheritdoc />
+    public async Task<WalletAccess?> GetAccessByIdAsync(Guid accessId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Getting access grant by ID {AccessId}", accessId);
+
+        return await _context.WalletAccess
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == accessId, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task UpdateAccessAsync(WalletAccess access, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(access);

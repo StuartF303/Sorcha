@@ -205,11 +205,36 @@ public class DelegationService : IDelegationService
     {
         try
         {
-            // Note: This is a simplified implementation
-            // A real implementation would need a method to get access by ID
-            throw new NotImplementedException("GetAccessById method needs to be added to IWalletRepository");
+            var access = await _repository.GetAccessByIdAsync(accessId, cancellationToken);
+            if (access == null)
+            {
+                throw new InvalidOperationException($"Access grant not found: {accessId}");
+            }
+
+            if (!access.IsActive)
+            {
+                throw new InvalidOperationException($"Access grant {accessId} is no longer active");
+            }
+
+            if (accessRight.HasValue)
+            {
+                access.AccessRight = accessRight.Value;
+            }
+
+            if (expiresAt.HasValue)
+            {
+                access.ExpiresAt = expiresAt.Value;
+            }
+
+            await _repository.UpdateAccessAsync(access, cancellationToken);
+            await _repository.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Updated access {AccessId} on wallet {WalletAddress}",
+                accessId, access.ParentWalletAddress);
+
+            return access;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InvalidOperationException)
         {
             _logger.LogError(ex, "Failed to update access {AccessId}", accessId);
             throw;

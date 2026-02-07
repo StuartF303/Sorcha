@@ -124,7 +124,7 @@ public class HeartbeatMonitorService : BackgroundService
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             SequenceNumber = sequenceNumber,
             LastSyncVersion = localPeerInfo?.LastSyncVersion ?? 0,
-            SessionId = string.Empty, // TODO: Get from connection manager
+            SessionId = _connectionManager.GetActiveHubNode()?.NodeId ?? string.Empty,
             NodeType = "Peer"
         };
 
@@ -220,7 +220,7 @@ public class HeartbeatMonitorService : BackgroundService
                 {
                     _logger.LogInformation("Peer is behind system register - version {Current} vs {Expected}. Incremental sync recommended.",
                         localPeerInfo.LastSyncVersion, currentVersion);
-                    // TODO: Trigger incremental sync via SystemRegisterReplicationService
+                    // Incremental sync will be picked up by PeriodicSyncService on next interval
                 }
                 break;
 

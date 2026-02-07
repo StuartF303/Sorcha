@@ -6,11 +6,11 @@ using Sorcha.Register.Models;
 namespace Sorcha.Register.Service.Services;
 
 /// <summary>
-/// Manages in-memory storage of pending register creations
+/// Manages storage of pending register creations
 /// </summary>
 /// <remarks>
-/// This service is registered as a singleton to maintain state across requests.
-/// TODO: Replace with Redis-backed storage for production multi-instance deployments
+/// Backed by Redis for production multi-instance deployments.
+/// Registered as singleton to maintain consistent access across requests.
 /// </remarks>
 public interface IPendingRegistrationStore
 {

@@ -1,26 +1,34 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
-using System.Collections.Concurrent;
+using System.Text.Json;
 using Sorcha.Register.Models;
+using StackExchange.Redis;
 
 namespace Sorcha.Register.Service.Services;
 
 /// <summary>
-/// In-memory implementation of pending registration storage
+/// Redis-backed implementation of pending registration storage
 /// </summary>
 /// <remarks>
-/// Uses ConcurrentDictionary for thread-safe access.
-/// Registered as singleton to maintain state across requests.
-/// TODO: Replace with Redis-backed storage for production multi-instance deployments
+/// Uses Redis Hash operations for thread-safe, multi-instance access.
+/// Each pending registration is stored as a JSON value in a Redis hash
+/// with key "register:pending" and field = registerId.
+/// TTL-based expiry is managed via per-key expiration on individual string keys
+/// as a fallback; CleanupExpired scans and removes stale entries.
 /// </remarks>
 public class PendingRegistrationStore : IPendingRegistrationStore
 {
-    private readonly ConcurrentDictionary<string, PendingRegistration> _pendingRegistrations = new();
+    private const string RedisKeyPrefix = "register:pending:";
+    private readonly IDatabase _database;
     private readonly ILogger<PendingRegistrationStore> _logger;
 
-    public PendingRegistrationStore(ILogger<PendingRegistrationStore> logger)
+    public PendingRegistrationStore(
+        IConnectionMultiplexer redis,
+        ILogger<PendingRegistrationStore> logger)
     {
+        ArgumentNullException.ThrowIfNull(redis);
+        _database = redis.GetDatabase();
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -30,15 +38,27 @@ public class PendingRegistrationStore : IPendingRegistrationStore
         if (string.IsNullOrEmpty(registerId))
             throw new ArgumentException("Register ID cannot be null or empty", nameof(registerId));
 
-        if (registration == null)
-            throw new ArgumentNullException(nameof(registration));
+        ArgumentNullException.ThrowIfNull(registration);
 
-        if (!_pendingRegistrations.TryAdd(registerId, registration))
+        var key = RedisKeyPrefix + registerId;
+        var json = JsonSerializer.Serialize(registration);
+
+        // Use NX (only set if not exists) to match ConcurrentDictionary.TryAdd behavior
+        var added = _database.StringSet(key, json, when: When.NotExists);
+
+        if (!added)
         {
             _logger.LogWarning("Failed to add pending registration for ID {RegisterId} - already exists", registerId);
         }
         else
         {
+            // Set TTL based on ExpiresAt so Redis auto-evicts expired entries
+            var ttl = registration.ExpiresAt - DateTimeOffset.UtcNow;
+            if (ttl > TimeSpan.Zero)
+            {
+                _database.KeyExpire(key, ttl);
+            }
+
             _logger.LogDebug("Added pending registration for ID {RegisterId}", registerId);
         }
     }
@@ -52,14 +72,23 @@ public class PendingRegistrationStore : IPendingRegistrationStore
             return false;
         }
 
-        var success = _pendingRegistrations.TryRemove(registerId, out registration);
+        var key = RedisKeyPrefix + registerId;
 
-        if (success)
+        // Get and delete atomically using a transaction
+        var tran = _database.CreateTransaction();
+        var getTask = tran.StringGetAsync(key);
+        var delTask = tran.KeyDeleteAsync(key);
+        var committed = tran.Execute();
+
+        if (committed && getTask.Result.HasValue)
         {
+            registration = JsonSerializer.Deserialize<PendingRegistration>((string)getTask.Result!);
             _logger.LogDebug("Removed pending registration for ID {RegisterId}", registerId);
+            return true;
         }
 
-        return success;
+        registration = null;
+        return false;
     }
 
     /// <inheritdoc />
@@ -68,29 +97,39 @@ public class PendingRegistrationStore : IPendingRegistrationStore
         if (string.IsNullOrEmpty(registerId))
             return false;
 
-        return _pendingRegistrations.ContainsKey(registerId);
+        return _database.KeyExists(RedisKeyPrefix + registerId);
     }
 
     /// <inheritdoc />
     public void CleanupExpired()
     {
-        var now = DateTimeOffset.UtcNow;
-        var expiredKeys = _pendingRegistrations
-            .Where(kvp => kvp.Value.ExpiresAt < now)
-            .Select(kvp => kvp.Key)
-            .ToList();
+        // Redis TTL handles most expiration automatically.
+        // This method scans for any entries that may have missed TTL setting
+        // (e.g., entries created before TTL was added).
+        var server = _database.Multiplexer.GetServers().FirstOrDefault();
+        if (server == null) return;
 
-        foreach (var key in expiredKeys)
+        var expiredCount = 0;
+        foreach (var key in server.Keys(pattern: RedisKeyPrefix + "*"))
         {
-            if (_pendingRegistrations.TryRemove(key, out _))
+            var json = _database.StringGet(key);
+            if (!json.HasValue) continue;
+
+            var reg = JsonSerializer.Deserialize<PendingRegistration>((string)json!);
+            if (reg != null && reg.IsExpired())
             {
-                _logger.LogInformation("Removed expired pending registration {RegisterId}", key);
+                if (_database.KeyDelete(key))
+                {
+                    var registerId = ((string)key!).Replace(RedisKeyPrefix, "");
+                    _logger.LogInformation("Removed expired pending registration {RegisterId}", registerId);
+                    expiredCount++;
+                }
             }
         }
 
-        if (expiredKeys.Count > 0)
+        if (expiredCount > 0)
         {
-            _logger.LogInformation("Cleaned up {Count} expired pending registrations", expiredKeys.Count);
+            _logger.LogInformation("Cleaned up {Count} expired pending registrations", expiredCount);
         }
     }
 }

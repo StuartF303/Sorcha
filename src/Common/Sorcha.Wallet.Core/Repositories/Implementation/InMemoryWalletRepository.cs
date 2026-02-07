@@ -275,6 +275,18 @@ public class InMemoryWalletRepository : IWalletRepository
     }
 
     /// <inheritdoc/>
+    public Task<WalletAccess?> GetAccessByIdAsync(Guid accessId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var access = _accessGrants.Values
+            .SelectMany(list => list)
+            .FirstOrDefault(a => a.Id == accessId);
+
+        return Task.FromResult(access != null ? CloneAccess(access) : null);
+    }
+
+    /// <inheritdoc/>
     public Task UpdateAccessAsync(WalletAccess access, CancellationToken cancellationToken = default)
     {
         if (access == null)

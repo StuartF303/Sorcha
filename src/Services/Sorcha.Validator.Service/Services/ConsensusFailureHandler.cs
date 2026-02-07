@@ -20,6 +20,7 @@ public class ConsensusFailureHandler : IConsensusFailureHandler
     private readonly IValidatorRegistry _validatorRegistry;
     private readonly IGenesisConfigService _genesisConfigService;
     private readonly IMemPoolManager _memPoolManager;
+    private readonly IPendingDocketStore _pendingDocketStore;
     private readonly ILogger<ConsensusFailureHandler> _logger;
 
     // Statistics
@@ -35,6 +36,7 @@ public class ConsensusFailureHandler : IConsensusFailureHandler
         IValidatorRegistry validatorRegistry,
         IGenesisConfigService genesisConfigService,
         IMemPoolManager memPoolManager,
+        IPendingDocketStore pendingDocketStore,
         ILogger<ConsensusFailureHandler> logger)
     {
         _consensusConfig = consensusConfig?.Value ?? throw new ArgumentNullException(nameof(consensusConfig));
@@ -42,6 +44,7 @@ public class ConsensusFailureHandler : IConsensusFailureHandler
         _validatorRegistry = validatorRegistry ?? throw new ArgumentNullException(nameof(validatorRegistry));
         _genesisConfigService = genesisConfigService ?? throw new ArgumentNullException(nameof(genesisConfigService));
         _memPoolManager = memPoolManager ?? throw new ArgumentNullException(nameof(memPoolManager));
+        _pendingDocketStore = pendingDocketStore ?? throw new ArgumentNullException(nameof(pendingDocketStore));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -176,13 +179,18 @@ public class ConsensusFailureHandler : IConsensusFailureHandler
             "Abandoning docket {DocketId} for register {RegisterId}: {Reason}",
             docket.DocketId, docket.RegisterId, reason);
 
-        // Mark docket as rejected
+        // Mark docket as rejected and persist status
         docket.Status = DocketStatus.Rejected;
 
-        // TODO: Persist the failure status and reason
-        // In production, this would update the docket status in storage
-
-        await Task.CompletedTask;
+        try
+        {
+            await _pendingDocketStore.UpdateStatusAsync(docket.DocketId, DocketStatus.Rejected, ct);
+            _logger.LogInformation("Persisted rejected status for docket {DocketId}: {Reason}", docket.DocketId, reason);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to persist rejected status for docket {DocketId} — status updated in memory only", docket.DocketId);
+        }
     }
 
     /// <inheritdoc/>

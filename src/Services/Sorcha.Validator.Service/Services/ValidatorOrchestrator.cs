@@ -93,11 +93,13 @@ public class ValidatorOrchestrator : IValidatorOrchestrator
 
             state.IsActive = false;
 
-            // TODO: Implement memory pool persistence if requested
             if (persistMemPool)
             {
-                _logger.LogInformation("Persisting memory pool state for register {RegisterId}", registerId);
-                // Future: Write memory pool to persistent storage
+                // MemPoolManager is already Redis-backed, so transactions persist across restarts.
+                // Log the current pool state for operational awareness.
+                var poolCount = await _memPoolManager.GetTransactionCountAsync(registerId);
+                _logger.LogInformation("Memory pool for register {RegisterId} has {Count} transactions (Redis-persisted)",
+                    registerId, poolCount);
             }
 
             _logger.LogInformation("Validator for register {RegisterId} stopped successfully", registerId);

@@ -4,6 +4,7 @@
 using Grpc.Core;
 using Sorcha.Peer.Service.Discovery;
 using Sorcha.Peer.Service.Protos;
+using Sorcha.Peer.Service.Replication;
 
 namespace Sorcha.Peer.Service.Services;
 
@@ -30,6 +31,7 @@ public class HeartbeatService : Protos.Heartbeat.HeartbeatBase
     private readonly ILogger<HeartbeatService> _logger;
     private readonly HubNodeDiscoveryService _centralNodeDiscoveryService;
     private readonly PeerListManager _peerListManager;
+    private readonly SystemRegisterCache _systemRegisterCache;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HeartbeatService"/> class
@@ -37,14 +39,17 @@ public class HeartbeatService : Protos.Heartbeat.HeartbeatBase
     /// <param name="logger">Logger instance</param>
     /// <param name="centralNodeDiscoveryService">Hub node discovery service</param>
     /// <param name="peerListManager">Peer list manager for tracking connected peers</param>
+    /// <param name="systemRegisterCache">System register cache for current version</param>
     public HeartbeatService(
         ILogger<HeartbeatService> logger,
         HubNodeDiscoveryService centralNodeDiscoveryService,
-        PeerListManager peerListManager)
+        PeerListManager peerListManager,
+        SystemRegisterCache systemRegisterCache)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _centralNodeDiscoveryService = centralNodeDiscoveryService ?? throw new ArgumentNullException(nameof(centralNodeDiscoveryService));
         _peerListManager = peerListManager ?? throw new ArgumentNullException(nameof(peerListManager));
+        _systemRegisterCache = systemRegisterCache ?? throw new ArgumentNullException(nameof(systemRegisterCache));
     }
 
     /// <summary>
@@ -71,9 +76,7 @@ public class HeartbeatService : Protos.Heartbeat.HeartbeatBase
                     request.PeerId, clockSkew);
             }
 
-            // TODO: Get current system register version from repository
-            // For now, use a placeholder
-            long currentSystemRegisterVersion = request.LastSyncVersion; // Placeholder
+            long currentSystemRegisterVersion = _systemRegisterCache.GetCurrentVersion();
 
             // Determine recommended action based on version lag
             var recommendedAction = RecommendedAction.None;
@@ -160,8 +163,7 @@ public class HeartbeatService : Protos.Heartbeat.HeartbeatBase
                 // Process heartbeat (same logic as SendHeartbeat)
                 var receiveTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-                // TODO: Get current system register version
-                long currentSystemRegisterVersion = heartbeat.LastSyncVersion; // Placeholder
+                long currentSystemRegisterVersion = _systemRegisterCache.GetCurrentVersion();
 
                 var recommendedAction = RecommendedAction.None;
                 var message = "OK";
@@ -225,23 +227,26 @@ public class HeartbeatService : Protos.Heartbeat.HeartbeatBase
         {
             _logger.LogDebug("Heartbeat status requested for peer {PeerId}", request.PeerId);
 
-            // TODO: Implement heartbeat status tracking
-            // For now, return a placeholder status
+            // Look up peer info from PeerListManager
+            var peerNode = _peerListManager.GetPeer(request.PeerId);
+            var currentVersion = _systemRegisterCache.GetCurrentVersion();
+            var isKnownPeer = peerNode != null;
+            var lastSeenMs = peerNode != null ? peerNode.LastSeen.ToUnixTimeMilliseconds() : 0;
 
             var status = new HeartbeatStatus
             {
                 PeerId = request.PeerId,
                 SessionId = request.SessionId,
-                LastHeartbeatTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                LastHeartbeatTime = lastSeenMs,
                 MissedHeartbeats = 0,
-                IsHealthy = true,
-                StatusMessage = "Healthy",
+                IsHealthy = isKnownPeer,
+                StatusMessage = isKnownPeer ? "Healthy" : "Unknown peer",
                 TotalHeartbeatsReceived = 0,
                 TotalHeartbeatsMissed = 0,
-                AverageLatencyMs = 0,
-                LastKnownSyncVersion = 0,
+                AverageLatencyMs = peerNode?.AverageLatencyMs ?? 0,
+                LastKnownSyncVersion = currentVersion,
                 VersionLag = 0,
-                HealthStatus = HeartbeatHealthStatus.Healthy
+                HealthStatus = isKnownPeer ? HeartbeatHealthStatus.Healthy : HeartbeatHealthStatus.Unknown
             };
 
             return Task.FromResult(status);

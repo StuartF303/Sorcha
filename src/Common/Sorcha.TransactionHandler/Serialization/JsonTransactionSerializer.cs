@@ -106,15 +106,17 @@ public class JsonTransactionSerializer : ITransactionSerializer
     /// <inheritdoc/>
     public byte[] SerializeToBinary(ITransaction transaction)
     {
-        // TODO: Implement binary serialization with VarInt encoding
-        throw new NotImplementedException("Binary serialization not yet implemented");
+        // Delegate binary serialization to BinaryTransactionSerializer
+        var binarySerializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
+        return binarySerializer.SerializeToBinary(transaction);
     }
 
     /// <inheritdoc/>
     public ITransaction DeserializeFromBinary(byte[] data)
     {
-        // TODO: Implement binary deserialization
-        throw new NotImplementedException("Binary deserialization not yet implemented");
+        // Delegate binary deserialization to BinaryTransactionSerializer
+        var binarySerializer = new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
+        return binarySerializer.DeserializeFromBinary(data);
     }
 
     /// <inheritdoc/>

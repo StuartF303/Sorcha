@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Sorcha.Cryptography.Enums;
@@ -109,10 +111,71 @@ public class KeyChain
         string password,
         CancellationToken cancellationToken = default)
     {
-        // TODO: Implement keychain export with encryption
-        return Task.FromResult(CryptoResult<byte[]>.Failure(
-            CryptoStatus.UnexpectedError,
-            "Keychain export not yet implemented"));
+        try
+        {
+            if (string.IsNullOrEmpty(password))
+                return Task.FromResult(CryptoResult<byte[]>.Failure(
+                    CryptoStatus.InvalidParameter, "Password is required for export"));
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Serialize all key rings to JSON
+            var exportData = new Dictionary<string, KeyRingExportDto>();
+            foreach (var name in _keyRings.Keys)
+            {
+                if (_keyRings.TryGetValue(name, out var ring))
+                {
+                    exportData[name] = new KeyRingExportDto
+                    {
+                        Network = ring.Network,
+                        Mnemonic = ring.Mnemonic,
+                        PrivateKey = ring.MasterKeySet.PrivateKey.Key,
+                        PublicKey = ring.MasterKeySet.PublicKey.Key,
+                        PasswordHint = ring.PasswordHint,
+                        CreatedAt = ring.CreatedAt
+                    };
+                }
+            }
+
+            var json = JsonSerializer.SerializeToUtf8Bytes(exportData);
+
+            // Generate salt and nonce
+            var salt = RandomNumberGenerator.GetBytes(16);
+            var nonce = RandomNumberGenerator.GetBytes(12);
+
+            // Derive key from password via PBKDF2
+            var key = Rfc2898DeriveBytes.Pbkdf2(
+                password, salt, 100_000, HashAlgorithmName.SHA256, 32);
+
+            // Encrypt with AES-256-GCM
+            var ciphertext = new byte[json.Length];
+            var tag = new byte[16];
+            using var aesGcm = new AesGcm(key, 16);
+            aesGcm.Encrypt(nonce, json, ciphertext, tag);
+
+            // Append checksum of plaintext for integrity
+            var checksum = SHA256.HashData(json);
+
+            // Format: [salt:16][nonce:12][tag:16][checksum:32][ciphertext]
+            var result = new byte[16 + 12 + 16 + 32 + ciphertext.Length];
+            salt.CopyTo(result, 0);
+            nonce.CopyTo(result, 16);
+            tag.CopyTo(result, 28);
+            checksum.CopyTo(result, 44);
+            ciphertext.CopyTo(result, 76);
+
+            return Task.FromResult(CryptoResult<byte[]>.Success(result));
+        }
+        catch (OperationCanceledException)
+        {
+            return Task.FromResult(CryptoResult<byte[]>.Failure(
+                CryptoStatus.Cancelled, "Operation was cancelled"));
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult(CryptoResult<byte[]>.Failure(
+                CryptoStatus.UnexpectedError, $"Export failed: {ex.Message}"));
+        }
     }
 
     /// <summary>
@@ -127,7 +190,91 @@ public class KeyChain
         string password,
         CancellationToken cancellationToken = default)
     {
-        // TODO: Implement keychain import with decryption
-        return Task.FromResult(CryptoStatus.UnexpectedError);
+        try
+        {
+            if (encryptedData == null || encryptedData.Length == 0)
+                return Task.FromResult(CryptoStatus.InvalidParameter);
+
+            if (string.IsNullOrEmpty(password))
+                return Task.FromResult(CryptoStatus.InvalidParameter);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Format: [salt:16][nonce:12][tag:16][checksum:32][ciphertext]
+            const int headerLen = 16 + 12 + 16 + 32;
+            if (encryptedData.Length < headerLen + 1)
+                return Task.FromResult(CryptoStatus.DecryptionFailed);
+
+            var salt = encryptedData.AsSpan(0, 16);
+            var nonce = encryptedData.AsSpan(16, 12);
+            var tag = encryptedData.AsSpan(28, 16);
+            var checksum = encryptedData.AsSpan(44, 32);
+            var ciphertext = encryptedData.AsSpan(76);
+
+            // Derive key from password
+            var key = Rfc2898DeriveBytes.Pbkdf2(
+                password, salt, 100_000, HashAlgorithmName.SHA256, 32);
+
+            // Decrypt
+            var plaintext = new byte[ciphertext.Length];
+            using var aesGcm = new AesGcm(key, 16);
+            aesGcm.Decrypt(nonce, ciphertext, tag, plaintext);
+
+            // Verify checksum
+            var actualChecksum = SHA256.HashData(plaintext);
+            if (!CryptographicOperations.FixedTimeEquals(checksum, actualChecksum))
+                return Task.FromResult(CryptoStatus.DecryptionFailed);
+
+            // Deserialize key rings
+            var exportData = JsonSerializer.Deserialize<Dictionary<string, KeyRingExportDto>>(plaintext);
+            if (exportData == null)
+                return Task.FromResult(CryptoStatus.DecryptionFailed);
+
+            // Clear existing and import
+            Clear();
+            foreach (var (name, dto) in exportData)
+            {
+                var keyRing = new KeyRing
+                {
+                    Network = dto.Network,
+                    Mnemonic = dto.Mnemonic,
+                    MasterKeySet = new KeySet
+                    {
+                        PrivateKey = new CryptoKey(dto.Network, dto.PrivateKey),
+                        PublicKey = new CryptoKey(dto.Network, dto.PublicKey)
+                    },
+                    PasswordHint = dto.PasswordHint,
+                    CreatedAt = dto.CreatedAt
+                };
+                _keyRings[name] = keyRing;
+            }
+
+            return Task.FromResult(CryptoStatus.Success);
+        }
+        catch (CryptographicException)
+        {
+            return Task.FromResult(CryptoStatus.DecryptionFailed);
+        }
+        catch (OperationCanceledException)
+        {
+            return Task.FromResult(CryptoStatus.Cancelled);
+        }
+        catch
+        {
+            return Task.FromResult(CryptoStatus.UnexpectedError);
+        }
+    }
+
+    /// <summary>
+    /// DTO for serializing key ring data during export/import.
+    /// </summary>
+    private class KeyRingExportDto
+    {
+        public WalletNetworks Network { get; set; }
+        public string? Mnemonic { get; set; }
+        public byte[]? PrivateKey { get; set; }
+        public byte[]? PublicKey { get; set; }
+        public string? PasswordHint { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
     }
 }

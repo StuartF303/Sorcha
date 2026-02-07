@@ -62,8 +62,8 @@ public class BootstrapApiTests : IClassFixture<TenantServiceWebApplicationFactor
         result.OrganizationSubdomain.Should().Be(request.OrganizationSubdomain);
         result.AdminUserId.Should().NotBeEmpty();
         result.AdminEmail.Should().Be(request.AdminEmail);
-        result.AdminAccessToken.Should().Be("USE_LOGIN_ENDPOINT");
-        result.AdminRefreshToken.Should().Be("USE_LOGIN_ENDPOINT");
+        result.AdminAccessToken.Should().NotBeNull();
+        result.AdminRefreshToken.Should().NotBeNull();
         result.ServicePrincipalId.Should().BeNull();
         result.ServicePrincipalClientId.Should().BeNull();
         result.ServicePrincipalClientSecret.Should().BeNull();

@@ -405,9 +405,11 @@ public class WalletManager : IWalletService
                 throw new InvalidOperationException($"Wallet {walletAddress} not found");
             }
 
-            // This requires the mnemonic or master key which we don't store
-            throw new NotImplementedException(
-                "Address generation requires the wallet's mnemonic or master key. " +
+            // Server-side address derivation is not supported — the mnemonic is never stored server-side.
+            // Clients must derive addresses locally and register them via RegisterDerivedAddressAsync.
+            throw new NotSupportedException(
+                "Server-side address generation is not supported. " +
+                "Address derivation requires the wallet mnemonic which is not stored on the server. " +
                 "Use RegisterDerivedAddressAsync for client-side derivation instead.");
         }
         catch (Exception ex)

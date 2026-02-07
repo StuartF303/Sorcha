@@ -192,14 +192,12 @@ public class ValidatorOrchestratorTests
         // Assert
         result.Should().BeTrue();
 
-        // Verify persistence logging was called
-        // Note: When full persistence is implemented, add verification for the
-        // IMemPoolManager.PersistAsync call or equivalent persistence mechanism
+        // Verify persistence logging was called (MemPoolManager is Redis-backed)
         _mockLogger.Verify(
             x => x.Log(
                 LogLevel.Information,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Persisting memory pool state")),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Redis-persisted")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);

@@ -359,8 +359,10 @@ builder.Services.AddScoped<QueryManager>();
 // Register creation orchestration
 builder.Services.AddScoped<IRegisterCreationOrchestrator, RegisterCreationOrchestrator>();
 
-// Pending registration storage (singleton for in-memory state)
-// TODO: Replace with Redis-backed storage for production multi-instance deployments
+// Redis client for distributed state (pending registrations, caching)
+builder.AddRedisClient("redis");
+
+// Pending registration storage (Redis-backed for multi-instance deployments)
 builder.Services.AddSingleton<IPendingRegistrationStore, PendingRegistrationStore>();
 
 // Register cryptography services (from Sorcha.Cryptography)
