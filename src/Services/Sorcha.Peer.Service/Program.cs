@@ -14,9 +14,6 @@ using Sorcha.Peer.Service.Network;
 using Sorcha.Peer.Service.Observability;
 using Sorcha.Peer.Service.Replication;
 using Sorcha.Peer.Service.Services;
-using Sorcha.Register.Service.Repositories;
-using Sorcha.Register.Service.Services;
-using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -81,36 +78,6 @@ builder.Services.AddOpenApi();
 builder.Services.Configure<PeerServiceConfiguration>(
     builder.Configuration.GetSection("PeerService"));
 
-// Configure hub node
-builder.Services.Configure<HubNodeConfiguration>(
-    builder.Configuration.GetSection("PeerService:HubNode"));
-
-// Configure system register
-builder.Services.Configure<SystemRegisterConfiguration>(
-    builder.Configuration.GetSection("PeerService:SystemRegister"));
-
-// Configure MongoDB for system register
-builder.Services.AddSingleton<IMongoClient>(sp =>
-{
-    var connectionString = builder.Configuration.GetValue<string>("MongoDB:ConnectionString")
-        ?? "mongodb://localhost:27017";
-    return new MongoClient(connectionString);
-});
-
-builder.Services.AddSingleton<IMongoDatabase>(sp =>
-{
-    var client = sp.GetRequiredService<IMongoClient>();
-    var databaseName = builder.Configuration.GetValue<string>("MongoDB:DatabaseName")
-        ?? "sorcha_system_register";
-    return client.GetDatabase(databaseName);
-});
-
-// Register MongoDB system register repository
-builder.Services.AddSingleton<ISystemRegisterRepository, MongoSystemRegisterRepository>();
-
-// Register system register service (for hub nodes)
-builder.Services.AddSingleton<SystemRegisterService>();
-
 // Register core services
 builder.Services.AddSingleton<StunClient>();
 builder.Services.AddSingleton<PeerListManager>();
@@ -125,29 +92,29 @@ builder.Services.AddSingleton<TransactionQueueManager>();
 builder.Services.AddSingleton<TransactionDistributionService>();
 builder.Services.AddSingleton<StatisticsAggregator>();
 
-// Register hub node connection services
-builder.Services.AddSingleton<HubNodeDiscoveryService>();
-builder.Services.AddSingleton<HubNodeConnectionManager>();
-
 // Register observability services (OpenTelemetry)
 builder.Services.AddSingleton<PeerServiceMetrics>();
 builder.Services.AddSingleton<PeerServiceActivitySource>();
 
-// Register replication services
-builder.Services.AddSingleton<SystemRegisterCache>();
-builder.Services.AddSingleton<SystemRegisterReplicationService>();
-builder.Services.AddSingleton<PushNotificationHandler>();
+// Register P2P replication services
+builder.Services.AddSingleton<RegisterCache>();
+builder.Services.AddSingleton<RegisterReplicationService>();
+builder.Services.AddSingleton<RegisterAdvertisementService>();
+
+// Register P2P connection pool (Phase 4)
+builder.Services.AddSingleton<PeerConnectionPool>();
+
+// Register P2P discovery (Phase 5)
+builder.Services.AddSingleton<PeerExchangeService>();
 
 // Register gRPC service implementations
 builder.Services.AddSingleton<PeerDiscoveryServiceImpl>();
-builder.Services.AddSingleton<HubNodeConnectionService>();
-builder.Services.AddSingleton<SystemRegisterSyncService>();
-builder.Services.AddSingleton<Sorcha.Peer.Service.Services.HeartbeatService>();
+builder.Services.AddSingleton<PeerHeartbeatGrpcService>();
 
 // Register background services
 builder.Services.AddHostedService<PeerService>();
-builder.Services.AddHostedService<HeartbeatMonitorService>();
-builder.Services.AddHostedService<PeriodicSyncService>();
+builder.Services.AddHostedService<PeerHeartbeatBackgroundService>();
+builder.Services.AddHostedService<RegisterSyncBackgroundService>();
 
 // Add HttpClient
 builder.Services.AddHttpClient();
@@ -186,9 +153,7 @@ if (app.Environment.IsDevelopment())
 
 // Map gRPC services
 app.MapGrpcService<PeerDiscoveryServiceImpl>();
-app.MapGrpcService<HubNodeConnectionService>();
-app.MapGrpcService<SystemRegisterSyncService>();
-app.MapGrpcService<Sorcha.Peer.Service.Services.HeartbeatService>();
+app.MapGrpcService<PeerHeartbeatGrpcService>();
 
 // Enable gRPC reflection for development
 if (app.Environment.IsDevelopment())
@@ -223,7 +188,7 @@ app.MapGet("/api/peers", (PeerListManager peerListManager) =>
         p.FirstSeen,
         p.LastSeen,
         p.FailureCount,
-        p.IsBootstrapNode,
+        p.IsSeedNode,
         p.AverageLatencyMs
     }));
 })
@@ -249,7 +214,7 @@ app.MapGet("/api/peers/{peerId}", (string peerId, PeerListManager peerListManage
         peer.FirstSeen,
         peer.LastSeen,
         peer.FailureCount,
-        peer.IsBootstrapNode,
+        peer.IsSeedNode,
         peer.AverageLatencyMs
     });
 })
@@ -317,7 +282,7 @@ app.MapGet("/api/peers/connected", (PeerListManager peerListManager, HttpContext
                 p.SupportedProtocols,
                 p.LastSeen,
                 p.AverageLatencyMs,
-                p.IsBootstrapNode
+                p.IsSeedNode
             })
         });
     }
@@ -335,6 +300,49 @@ app.MapGet("/api/peers/connected", (PeerListManager peerListManager, HttpContext
     .WithDescription(@"Returns the count of currently connected (healthy) peers. Anonymous users receive only the count, while authenticated users also receive the full list of connected peers with their details.")
     .WithTags("Peers")
     .AllowAnonymous();
+
+// Register subscription endpoints (P2P replication)
+app.MapGet("/api/registers/subscriptions", (RegisterSyncBackgroundService syncService) =>
+{
+    var subs = syncService.GetSubscriptions();
+    return Results.Ok(subs.Select(s => new
+    {
+        s.RegisterId,
+        Mode = s.Mode.ToString(),
+        SyncState = s.SyncState.ToString(),
+        s.LastSyncedDocketVersion,
+        s.LastSyncedTransactionVersion,
+        s.TotalDocketsInChain,
+        s.SyncProgressPercent,
+        s.CanParticipateInValidation,
+        s.IsReceiving,
+        s.LastSyncAt,
+        s.ConsecutiveFailures,
+        s.ErrorMessage
+    }));
+})
+    .WithName("GetRegisterSubscriptions")
+    .WithSummary("List all register subscriptions")
+    .WithDescription("Returns all per-register replication subscriptions with their sync state and progress.")
+    .WithTags("Registers");
+
+app.MapGet("/api/registers/cache", (RegisterCache registerCache) =>
+{
+    var stats = registerCache.GetAllStatistics();
+    return Results.Ok(stats.Select(s => new
+    {
+        s.Value.RegisterId,
+        s.Value.TransactionCount,
+        s.Value.DocketCount,
+        s.Value.LatestTransactionVersion,
+        s.Value.LatestDocketVersion,
+        s.Value.LastUpdateTime
+    }));
+})
+    .WithName("GetRegisterCacheStats")
+    .WithSummary("Get register cache statistics")
+    .WithDescription("Returns cache statistics for all locally cached registers.")
+    .WithTags("Registers");
 
 // Service health check with metrics (for admin dashboard)
 app.MapGet("/api/health", (PeerListManager peerListManager, StatisticsAggregator statisticsAggregator) =>

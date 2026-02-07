@@ -50,6 +50,16 @@ public class PeerServiceConfiguration
     /// Offline mode configuration
     /// </summary>
     public OfflineModeConfiguration OfflineMode { get; set; } = new();
+
+    /// <summary>
+    /// Seed node configuration for initial network bootstrap
+    /// </summary>
+    public SeedNodeConfiguration SeedNodes { get; set; } = new();
+
+    /// <summary>
+    /// Register synchronization configuration
+    /// </summary>
+    public RegisterSyncConfiguration RegisterSync { get; set; } = new();
 }
 
 public class NetworkAddressConfiguration

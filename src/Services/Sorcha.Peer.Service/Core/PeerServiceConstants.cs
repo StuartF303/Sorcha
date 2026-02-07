@@ -4,7 +4,7 @@
 namespace Sorcha.Peer.Service.Core;
 
 /// <summary>
-/// Constants for peer service hub node connection and system register
+/// Constants for the peer service P2P network
 /// </summary>
 public static class PeerServiceConstants
 {
@@ -19,32 +19,22 @@ public static class PeerServiceConstants
     public const string SystemRegisterCollectionName = "sorcha_system_register_blueprints";
 
     /// <summary>
-    /// Valid hub node hostnames
-    /// </summary>
-    public static readonly string[] HubNodeHostnames = new[]
-    {
-        "n0.sorcha.dev",
-        "n1.sorcha.dev",
-        "n2.sorcha.dev"
-    };
-
-    /// <summary>
-    /// Heartbeat interval in seconds (FR-036)
+    /// Heartbeat interval in seconds
     /// </summary>
     public const int HeartbeatIntervalSeconds = 30;
 
     /// <summary>
-    /// Heartbeat timeout in seconds (FR-036)
+    /// Heartbeat timeout in seconds
     /// </summary>
     public const int HeartbeatTimeoutSeconds = 30;
 
     /// <summary>
-    /// Maximum missed heartbeats before failover (2 = 60 seconds total)
+    /// Maximum missed heartbeats before marking peer as timed out (2 = 60 seconds total)
     /// </summary>
     public const int MaxMissedHeartbeats = 2;
 
     /// <summary>
-    /// Periodic sync interval in minutes (FR-032)
+    /// Periodic sync interval in minutes
     /// </summary>
     public const int PeriodicSyncIntervalMinutes = 5;
 
@@ -64,7 +54,7 @@ public static class PeerServiceConstants
     public const int RetryMaxDelaySeconds = 60;
 
     /// <summary>
-    /// Maximum retry attempts before giving up and trying next hub node
+    /// Maximum retry attempts before trying next peer
     /// </summary>
     public const int MaxRetryAttempts = 10;
 
@@ -74,20 +64,35 @@ public static class PeerServiceConstants
     public const int ConnectionTimeoutSeconds = 30;
 
     /// <summary>
-    /// Push notification delivery target (80% of peers within 30s, SC-016)
+    /// Push notification delivery target (80% of subscribed peers within 30s)
     /// </summary>
     public const double PushNotificationTargetPercent = 0.80;
 
     /// <summary>
-    /// Push notification delivery timeout in seconds (SC-016)
+    /// Push notification delivery timeout in seconds
     /// </summary>
     public const int PushNotificationTimeoutSeconds = 30;
 
     /// <summary>
+    /// Maximum number of peers to return in a peer exchange response
+    /// </summary>
+    public const int MaxPeersInExchangeResponse = 50;
+
+    /// <summary>
+    /// Peer exchange interval in minutes (gossip-style peer list exchange)
+    /// </summary>
+    public const int PeerExchangeIntervalMinutes = 10;
+
+    /// <summary>
+    /// Maximum number of register subscriptions per peer
+    /// </summary>
+    public const int MaxRegisterSubscriptionsPerPeer = 100;
+
+    /// <summary>
     /// Expected retry backoff sequence (in seconds): 1, 2, 4, 8, 16, 32, 60, 60, 60, 60
     /// </summary>
-    public static readonly TimeSpan[] RetryBackoffSequence = new[]
-    {
+    public static readonly TimeSpan[] RetryBackoffSequence =
+    [
         TimeSpan.FromSeconds(1),
         TimeSpan.FromSeconds(2),
         TimeSpan.FromSeconds(4),
@@ -98,5 +103,5 @@ public static class PeerServiceConstants
         TimeSpan.FromSeconds(60),
         TimeSpan.FromSeconds(60),
         TimeSpan.FromSeconds(60)
-    };
+    ];
 }

@@ -13,7 +13,8 @@ using Sorcha.Peer.Service.Network;
 namespace Sorcha.Peer.Service;
 
 /// <summary>
-/// Background service that manages peer-to-peer networking functionality
+/// Background service that manages peer-to-peer networking functionality.
+/// In the P2P model, all nodes are equal — seed nodes are just bootstrap peers.
 /// </summary>
 public class PeerService : BackgroundService
 {
@@ -23,8 +24,8 @@ public class PeerService : BackgroundService
     private readonly NetworkAddressService _networkAddressService;
     private readonly PeerDiscoveryService _peerDiscoveryService;
     private readonly HealthMonitorService _healthMonitorService;
-    private readonly HubNodeDiscoveryService _centralNodeDiscoveryService;
-    private readonly HubNodeConnectionManager _centralNodeConnectionManager;
+    private readonly PeerConnectionPool _connectionPool;
+    private readonly PeerExchangeService _exchangeService;
     private PeerServiceStatus _status = PeerServiceStatus.Offline;
     private string _nodeId = string.Empty;
     private readonly object _statusLock = new();
@@ -32,6 +33,7 @@ public class PeerService : BackgroundService
     private Task? _discoveryTask;
     private Task? _healthCheckTask;
     private Task? _transactionProcessingTask;
+    private Task? _peerExchangeTask;
 
     /// <summary>
     /// Gets the current operational status of the peer service
@@ -71,8 +73,8 @@ public class PeerService : BackgroundService
         NetworkAddressService networkAddressService,
         PeerDiscoveryService peerDiscoveryService,
         HealthMonitorService healthMonitorService,
-        HubNodeDiscoveryService centralNodeDiscoveryService,
-        HubNodeConnectionManager centralNodeConnectionManager)
+        PeerConnectionPool connectionPool,
+        PeerExchangeService exchangeService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration?.Value ?? throw new ArgumentNullException(nameof(configuration));
@@ -80,8 +82,8 @@ public class PeerService : BackgroundService
         _networkAddressService = networkAddressService ?? throw new ArgumentNullException(nameof(networkAddressService));
         _peerDiscoveryService = peerDiscoveryService ?? throw new ArgumentNullException(nameof(peerDiscoveryService));
         _healthMonitorService = healthMonitorService ?? throw new ArgumentNullException(nameof(healthMonitorService));
-        _centralNodeDiscoveryService = centralNodeDiscoveryService ?? throw new ArgumentNullException(nameof(centralNodeDiscoveryService));
-        _centralNodeConnectionManager = centralNodeConnectionManager ?? throw new ArgumentNullException(nameof(centralNodeConnectionManager));
+        _connectionPool = connectionPool ?? throw new ArgumentNullException(nameof(connectionPool));
+        _exchangeService = exchangeService ?? throw new ArgumentNullException(nameof(exchangeService));
     }
 
     /// <summary>
@@ -126,53 +128,31 @@ public class PeerService : BackgroundService
         _nodeId = _configuration.NodeId ?? GenerateNodeId();
         _logger.LogInformation("Node ID: {NodeId}", _nodeId);
 
-        // Detect if this is a hub node or peer node
-        var isHubNode = _centralNodeDiscoveryService.IsHubNode();
-        _logger.LogInformation("Node type detected: {NodeType}", isHubNode ? "Central Node" : "Peer Node");
+        // ---- P2P initialization (all nodes are equal peers) ----
 
-        if (isHubNode)
+        // Detect external address
+        var externalAddress = await _networkAddressService.GetExternalAddressAsync(cancellationToken);
+        _logger.LogInformation("External address: {Address}", externalAddress ?? "unknown");
+
+        // Load peers from database
+        await _peerListManager.LoadPeersFromDatabaseAsync(cancellationToken);
+        _logger.LogInformation("Loaded {Count} peers from database", _peerListManager.GetAllPeers().Count);
+
+        // Bootstrap from seed nodes (replaces hub node connection)
+        _logger.LogInformation("Bootstrapping from seed nodes");
+        await _connectionPool.BootstrapFromSeedNodesAsync(cancellationToken);
+
+        // Perform initial peer discovery
+        if (_configuration.PeerDiscovery.BootstrapNodes.Count > 0)
         {
-            // Hub node initialization
-            _logger.LogInformation("Running as hub node - ready to accept peer connections");
-            _logger.LogInformation("Hostname: {Hostname}", _centralNodeDiscoveryService.GetHostname());
-            // HeartbeatMonitorService will NOT start for hub nodes (it's a peer-side service)
+            _logger.LogInformation("Performing initial peer discovery from bootstrap nodes");
+            var discoveredCount = await _peerDiscoveryService.DiscoverPeersAsync(cancellationToken);
+            _logger.LogInformation("Discovered {Count} peers", discoveredCount);
         }
-        else
-        {
-            // Peer node initialization
-            _logger.LogInformation("Running as peer node - will connect to hub nodes");
 
-            // Detect external address
-            var externalAddress = await _networkAddressService.GetExternalAddressAsync(cancellationToken);
-            _logger.LogInformation("External address: {Address}", externalAddress ?? "unknown");
-
-            // Load peers from database
-            await _peerListManager.LoadPeersFromDatabaseAsync(cancellationToken);
-            _logger.LogInformation("Loaded {Count} peers from database", _peerListManager.GetAllPeers().Count);
-
-            // Perform initial peer discovery
-            if (_configuration.PeerDiscovery.BootstrapNodes.Count > 0)
-            {
-                _logger.LogInformation("Performing initial peer discovery");
-                var discoveredCount = await _peerDiscoveryService.DiscoverPeersAsync(cancellationToken);
-                _logger.LogInformation("Discovered {Count} peers", discoveredCount);
-            }
-
-            // Connect to hub node (priority order: n0 -> n1 -> n2)
-            _logger.LogInformation("Attempting to connect to hub node infrastructure");
-            var connected = await _centralNodeConnectionManager.ConnectToHubNodeAsync(cancellationToken);
-
-            if (connected)
-            {
-                var activeNode = _centralNodeConnectionManager.GetActiveHubNode();
-                _logger.LogInformation("Successfully connected to hub node {NodeId}", activeNode?.NodeId);
-            }
-            else
-            {
-                _logger.LogWarning("Failed to connect to any hub node - operating in isolated mode");
-                _logger.LogWarning("Will continue attempting to connect in background");
-            }
-        }
+        // Perform initial peer exchange with connected peers
+        var exchanged = await _exchangeService.ExchangeWithPeersAsync(cancellationToken);
+        _logger.LogInformation("Exchanged peer lists with {Count} peers", exchanged);
 
         // Determine initial status
         Status = _healthMonitorService.DetermineServiceStatus();
@@ -190,10 +170,11 @@ public class PeerService : BackgroundService
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, _internalCts.Token);
         var linkedToken = linkedCts.Token;
 
-        // Start background tasks (placeholders for future sprints)
+        // Start background tasks
         _discoveryTask = RunPeerDiscoveryAsync(linkedToken);
         _healthCheckTask = RunHealthChecksAsync(linkedToken);
         _transactionProcessingTask = RunTransactionProcessingAsync(linkedToken);
+        _peerExchangeTask = RunPeerExchangeAsync(linkedToken);
 
         // Wait for cancellation
         try
@@ -294,6 +275,42 @@ public class PeerService : BackgroundService
     }
 
     /// <summary>
+    /// Runs gossip-style peer exchange loop
+    /// </summary>
+    private async Task RunPeerExchangeAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogDebug("Peer exchange task started");
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                // Exchange at half the discovery interval for faster mesh convergence
+                await Task.Delay(
+                    TimeSpan.FromMinutes(_configuration.PeerDiscovery.RefreshIntervalMinutes / 2.0),
+                    cancellationToken);
+
+                var exchanged = await _exchangeService.ExchangeWithPeersAsync(cancellationToken);
+                if (exchanged > 0)
+                {
+                    _logger.LogDebug("Exchanged peer lists with {Count} peers", exchanged);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in peer exchange loop");
+                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+            }
+        }
+
+        _logger.LogDebug("Peer exchange task stopped");
+    }
+
+    /// <summary>
     /// Runs transaction processing loop (placeholder for Sprint 4)
     /// </summary>
     private async Task RunTransactionProcessingAsync(CancellationToken cancellationToken)
@@ -335,6 +352,7 @@ public class PeerService : BackgroundService
         if (_discoveryTask != null) tasks.Add(_discoveryTask);
         if (_healthCheckTask != null) tasks.Add(_healthCheckTask);
         if (_transactionProcessingTask != null) tasks.Add(_transactionProcessingTask);
+        if (_peerExchangeTask != null) tasks.Add(_peerExchangeTask);
 
         if (tasks.Count > 0)
         {

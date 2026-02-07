@@ -1,0 +1,250 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+syntax = "proto3";
+
+package sorcha.peer.sync;
+
+option csharp_namespace = "Sorcha.Peer.Service.Protos";
+
+// Register Synchronization Service
+// Enables peer-to-peer synchronization of any register's data.
+// Replaces the hub-specific SystemRegisterSync with a generic,
+// register-aware sync protocol that works between equal peers.
+//
+// Synchronization Modes:
+// 1. Full Replica: Pull the complete docket chain, then retrieve all
+//    transactions listed in each docket. Required for validation/docket building.
+// 2. Forward-Only: Receive new transactions from point of subscription onward.
+//    Lightweight, no historical data.
+//
+// State Machine (Full Replica):
+//   Subscribing → Syncing → FullyReplicated
+// State Machine (Forward-Only):
+//   Subscribing → Active
+service RegisterSync {
+  // Pull docket chain for a register (server streaming)
+  //
+  // Streams dockets from a peer's replica of a register, ordered by version.
+  // Used for full replica sync — caller walks the chain and pulls transactions
+  // listed in each docket.
+  //
+  // Flow:
+  // 1. Requesting peer sends DocketChainRequest with register_id and from_version
+  // 2. Serving peer streams DocketEntry messages ordered by version
+  // 3. Stream completes when all available dockets are sent
+  rpc PullDocketChain(DocketChainRequest) returns (stream DocketEntry);
+
+  // Pull transactions for a specific docket (server streaming)
+  //
+  // Streams transactions referenced by a docket. Used after PullDocketChain
+  // to retrieve the actual transaction data for each docket.
+  rpc PullDocketTransactions(DocketTransactionRequest) returns (stream TransactionEntry);
+
+  // Subscribe to live transactions for a register (server streaming)
+  //
+  // Maintains a long-lived stream for real-time transaction delivery.
+  // Used by both forward-only and full replica modes (after initial sync).
+  rpc SubscribeToRegister(RegisterSubscriptionRequest) returns (stream LiveTransactionEvent);
+
+  // Get sync status for a register on this peer
+  //
+  // Returns the peer's current sync state for a specific register.
+  // Used by requesting peers to determine best sync source.
+  rpc GetRegisterSyncStatus(RegisterSyncStatusRequest) returns (RegisterSyncStatus);
+}
+
+// Request to pull the docket chain
+message DocketChainRequest {
+  // Register to pull dockets for
+  string register_id = 1;
+
+  // Requesting peer identifier
+  string peer_id = 2;
+
+  // Start from this docket version (exclusive)
+  // 0 = start from genesis
+  int64 from_version = 3;
+
+  // Maximum number of dockets to stream
+  // 0 = unlimited
+  int32 max_dockets = 4;
+}
+
+// A docket entry streamed during chain pull
+message DocketEntry {
+  // Register this docket belongs to
+  string register_id = 1;
+
+  // Docket version number (monotonically increasing)
+  int64 version = 2;
+
+  // Serialized docket document
+  bytes docket_data = 3;
+
+  // Hash of the previous docket (chain link)
+  string previous_hash = 4;
+
+  // Hash of this docket
+  string docket_hash = 5;
+
+  // Transaction IDs included in this docket
+  repeated string transaction_ids = 6;
+
+  // Timestamp when docket was created (Unix milliseconds UTC)
+  int64 created_at = 7;
+}
+
+// Request to pull transactions for a docket
+message DocketTransactionRequest {
+  // Register the docket belongs to
+  string register_id = 1;
+
+  // Requesting peer identifier
+  string peer_id = 2;
+
+  // Transaction IDs to retrieve
+  repeated string transaction_ids = 3;
+}
+
+// A transaction entry streamed during pull
+message TransactionEntry {
+  // Transaction identifier
+  string transaction_id = 1;
+
+  // Register this transaction belongs to
+  string register_id = 2;
+
+  // Serialized transaction data
+  bytes transaction_data = 3;
+
+  // SHA-256 checksum for integrity verification
+  string checksum = 4;
+
+  // Timestamp when transaction was created (Unix milliseconds UTC)
+  int64 created_at = 5;
+}
+
+// Request to subscribe to live transactions
+message RegisterSubscriptionRequest {
+  // Register to subscribe to
+  string register_id = 1;
+
+  // Subscribing peer identifier
+  string peer_id = 2;
+
+  // Start receiving from this version (exclusive)
+  // 0 = receive only new transactions from now
+  int64 from_version = 3;
+
+  // Subscription filters (optional)
+  RegisterSubscriptionFilters filters = 4;
+}
+
+// Optional filters for register subscription
+message RegisterSubscriptionFilters {
+  // Only receive transactions of these types
+  repeated string transaction_types = 1;
+
+  // Only receive transactions from these participants
+  repeated string participant_ids = 2;
+}
+
+// Live transaction event streamed to subscribers
+message LiveTransactionEvent {
+  // Transaction identifier
+  string transaction_id = 1;
+
+  // Register this transaction belongs to
+  string register_id = 2;
+
+  // Transaction version number
+  int64 version = 3;
+
+  // Serialized transaction data
+  bytes transaction_data = 4;
+
+  // SHA-256 checksum for integrity verification
+  string checksum = 5;
+
+  // Sender peer identifier
+  string sender_peer_id = 6;
+
+  // Timestamp when event was created (Unix milliseconds UTC)
+  int64 timestamp = 7;
+
+  // Event type
+  LiveEventType event_type = 8;
+}
+
+// Type of live transaction event
+enum LiveEventType {
+  // Unknown event type
+  LIVE_EVENT_TYPE_UNKNOWN = 0;
+
+  // New transaction published
+  LIVE_EVENT_TYPE_TRANSACTION = 1;
+
+  // New docket created
+  LIVE_EVENT_TYPE_DOCKET = 2;
+
+  // Register metadata updated
+  LIVE_EVENT_TYPE_METADATA = 3;
+}
+
+// Request for register sync status
+message RegisterSyncStatusRequest {
+  // Register to query status for
+  string register_id = 1;
+
+  // Requesting peer identifier
+  string peer_id = 2;
+}
+
+// Sync status for a register on a peer
+message RegisterSyncStatus {
+  // Register identifier
+  string register_id = 1;
+
+  // Current sync state
+  SyncState sync_state = 2;
+
+  // Latest transaction version
+  int64 latest_version = 3;
+
+  // Latest docket version
+  int64 latest_docket_version = 4;
+
+  // Total transactions in local replica
+  int64 total_transactions = 5;
+
+  // Total dockets in local replica
+  int64 total_dockets = 6;
+
+  // Whether this peer can serve as full replica source
+  bool can_serve_full_replica = 7;
+
+  // Timestamp of last sync activity (Unix milliseconds UTC)
+  int64 last_sync_at = 8;
+}
+
+// Sync state for a register
+enum SyncState {
+  // Unknown state
+  SYNC_STATE_UNKNOWN = 0;
+
+  // Initial subscription (not yet syncing)
+  SYNC_STATE_SUBSCRIBING = 1;
+
+  // Actively syncing (pulling docket chain)
+  SYNC_STATE_SYNCING = 2;
+
+  // Fully replicated (all dockets and transactions)
+  SYNC_STATE_FULLY_REPLICATED = 3;
+
+  // Active (forward-only, receiving new transactions)
+  SYNC_STATE_ACTIVE = 4;
+
+  // Error state (sync failed)
+  SYNC_STATE_ERROR = 5;
+}

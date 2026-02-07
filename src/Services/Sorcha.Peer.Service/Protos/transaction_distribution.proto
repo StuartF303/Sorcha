@@ -26,6 +26,9 @@ message TransactionNotification {
   string sender_peer_id = 2;
   int64 timestamp = 3;
   int64 transaction_size = 4;
+
+  // Register this transaction belongs to (for register-scoped gossip)
+  string register_id = 5;
 }
 
 // Acknowledgment of notification
@@ -38,6 +41,9 @@ message NotificationAck {
 message TransactionRequest {
   string transaction_hash = 1;
   string requesting_peer_id = 2;
+
+  // Register this transaction belongs to (for targeted lookup)
+  string register_id = 3;
 }
 
 // Response with full transaction

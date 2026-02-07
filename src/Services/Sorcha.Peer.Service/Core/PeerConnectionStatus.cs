@@ -4,32 +4,32 @@
 namespace Sorcha.Peer.Service.Core;
 
 /// <summary>
-/// Overall peer connection status
+/// Overall peer connection status in the P2P network
 /// </summary>
 public enum PeerConnectionStatus
 {
     /// <summary>
-    /// Peer is disconnected from all hub nodes
+    /// Not connected to any peers
     /// </summary>
     Disconnected = 0,
 
     /// <summary>
-    /// Peer is attempting to connect to a hub node
+    /// Attempting to connect to peers (bootstrap in progress)
     /// </summary>
     Connecting = 1,
 
     /// <summary>
-    /// Peer is connected and heartbeat active
+    /// Connected to one or more peers with active heartbeats
     /// </summary>
     Connected = 2,
 
     /// <summary>
-    /// Heartbeat timeout detected, attempting failover
+    /// Heartbeat timeout detected on peer connections
     /// </summary>
     HeartbeatTimeout = 3,
 
     /// <summary>
-    /// Operating without hub node connection (using last known replica)
+    /// Operating with no peer connections (using last known local data)
     /// </summary>
     Isolated = 4
 }

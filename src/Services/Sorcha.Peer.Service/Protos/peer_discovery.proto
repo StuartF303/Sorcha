@@ -8,7 +8,9 @@ package sorcha.peer.discovery;
 option csharp_namespace = "Sorcha.Peer.Service.Protos";
 
 // Peer Discovery Service
-// Enables peers to find and connect to each other in the network
+// Enables peers to find and connect to each other in the network.
+// Supports seed node bootstrap and gossip-style peer exchange
+// for building a mesh topology without central coordination.
 service PeerDiscovery {
   // Get list of known peers from this peer
   rpc GetPeerList(PeerListRequest) returns (PeerListResponse);
@@ -18,6 +20,19 @@ service PeerDiscovery {
 
   // Health check - ping a peer to verify it's online
   rpc Ping(PingRequest) returns (PingResponse);
+
+  // Exchange peer lists for gossip-style mesh discovery
+  //
+  // Both peers share their known peer lists. Each peer merges
+  // the received list with its own, enabling mesh topology growth
+  // beyond seed nodes.
+  rpc ExchangePeers(PeerExchangeRequest) returns (PeerExchangeResponse);
+
+  // Find peers that hold a specific register
+  //
+  // Returns peers that advertise the given register, enabling
+  // targeted sync and gossip for register-scoped operations.
+  rpc FindPeersForRegister(FindPeersForRegisterRequest) returns (FindPeersForRegisterResponse);
 }
 
 // Request for peer list
@@ -40,6 +55,12 @@ message PeerInfo {
   repeated string supported_protocols = 4;
   int64 last_seen = 5;
   PeerCapabilities capabilities = 6;
+
+  // Registers this peer advertises (added for register-aware peering)
+  repeated PeerRegisterAdvertisement advertised_registers = 7;
+
+  // Whether this peer is a seed node
+  bool is_seed_node = 8;
 }
 
 // Capabilities of a peer
@@ -47,6 +68,21 @@ message PeerCapabilities {
   bool supports_streaming = 1;
   bool supports_transaction_distribution = 2;
   int32 max_transaction_size = 3;
+}
+
+// Register advertisement within PeerInfo
+message PeerRegisterAdvertisement {
+  // Register identifier
+  string register_id = 1;
+
+  // Whether peer has full replica
+  bool has_full_replica = 2;
+
+  // Latest version the peer has
+  int64 latest_version = 3;
+
+  // Whether this register is publicly available
+  bool is_public = 4;
 }
 
 // Request to register as a peer
@@ -78,4 +114,52 @@ enum PeerStatus {
   ONLINE = 1;
   OFFLINE = 2;
   BUSY = 3;
+}
+
+// Request to exchange peer lists (gossip protocol)
+message PeerExchangeRequest {
+  // Sending peer identifier
+  string peer_id = 1;
+
+  // Known peers to share with the remote peer
+  repeated PeerInfo known_peers = 2;
+
+  // Maximum peers to receive in response
+  int32 max_peers = 3;
+}
+
+// Response to peer exchange
+message PeerExchangeResponse {
+  // Peers from the remote peer's list
+  repeated PeerInfo known_peers = 1;
+
+  // Whether exchange was successful
+  bool success = 2;
+
+  // Optional message
+  string message = 3;
+}
+
+// Request to find peers for a specific register
+message FindPeersForRegisterRequest {
+  // Register to find peers for
+  string register_id = 1;
+
+  // Requesting peer identifier
+  string requesting_peer_id = 2;
+
+  // Whether to only return peers with full replicas
+  bool require_full_replica = 3;
+
+  // Maximum peers to return
+  int32 max_peers = 4;
+}
+
+// Response with peers for a register
+message FindPeersForRegisterResponse {
+  // Peers that hold the requested register
+  repeated PeerInfo peers = 1;
+
+  // Total known peers for this register
+  int32 total_peers = 2;
 }

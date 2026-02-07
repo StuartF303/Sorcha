@@ -22,7 +22,8 @@ public class PeerNodeTests
         peerNode.FirstSeen.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1));
         peerNode.LastSeen.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1));
         peerNode.FailureCount.Should().Be(0);
-        peerNode.IsBootstrapNode.Should().BeFalse();
+        peerNode.IsSeedNode.Should().BeFalse();
+        peerNode.AdvertisedRegisters.Should().NotBeNull().And.BeEmpty();
         peerNode.Capabilities.Should().NotBeNull();
         peerNode.AverageLatencyMs.Should().Be(0);
     }
@@ -37,7 +38,7 @@ public class PeerNodeTests
             Address = "192.168.1.100",
             Port = 5001,
             SupportedProtocols = new List<string> { "GrpcStream", "Rest" },
-            IsBootstrapNode = true,
+            IsSeedNode = true,
             AverageLatencyMs = 50
         };
 
@@ -46,7 +47,7 @@ public class PeerNodeTests
         peerNode.Address.Should().Be("192.168.1.100");
         peerNode.Port.Should().Be(5001);
         peerNode.SupportedProtocols.Should().HaveCount(2).And.Contain(new[] { "GrpcStream", "Rest" });
-        peerNode.IsBootstrapNode.Should().BeTrue();
+        peerNode.IsSeedNode.Should().BeTrue();
         peerNode.AverageLatencyMs.Should().Be(50);
     }
 

@@ -18,10 +18,9 @@ public class ActivePeerInfo
     public string PeerId { get; set; } = string.Empty;
 
     /// <summary>
-    /// ID of connected hub node (null if disconnected)
+    /// IDs of currently connected peers
     /// </summary>
-    [MaxLength(64)]
-    public string? ConnectedHubNodeId { get; set; }
+    public List<string> ConnectedPeerIds { get; set; } = new();
 
     /// <summary>
     /// When connection was established (UTC)
@@ -34,9 +33,9 @@ public class ActivePeerInfo
     public DateTime LastHeartbeat { get; set; } = DateTime.UtcNow;
 
     /// <summary>
-    /// Last synchronized system register version
+    /// Per-register sync states for registers this peer subscribes to
     /// </summary>
-    public long LastSyncVersion { get; set; } = 0;
+    public Dictionary<string, RegisterSyncState> RegisterStates { get; set; } = new();
 
     /// <summary>
     /// Current connection status

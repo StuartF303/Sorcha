@@ -56,7 +56,7 @@ public class StatisticsAggregator
                 TotalPeers = allPeers.Count,
                 HealthyPeers = healthyPeers.Count,
                 UnhealthyPeers = allPeers.Count - healthyPeers.Count,
-                BootstrapNodes = allPeers.Count(p => p.IsBootstrapNode),
+                SeedNodes = allPeers.Count(p => p.IsSeedNode),
                 AverageLatencyMs = healthyPeers.Any() ? healthyPeers.Average(p => p.AverageLatencyMs) : 0,
                 TotalFailures = allPeers.Sum(p => p.FailureCount)
             },
@@ -101,7 +101,7 @@ public class StatisticsAggregator
             FirstSeen = peer.FirstSeen,
             LastSeen = peer.LastSeen,
             FailureCount = peer.FailureCount,
-            IsBootstrapNode = peer.IsBootstrapNode,
+            IsSeedNode = peer.IsSeedNode,
             AverageLatencyMs = peer.AverageLatencyMs,
             Quality = peerQualities.TryGetValue(peer.PeerId, out var quality) ? quality : null
         }).ToList();
@@ -145,7 +145,7 @@ public class PeerStatistics
     public int TotalPeers { get; set; }
     public int HealthyPeers { get; set; }
     public int UnhealthyPeers { get; set; }
-    public int BootstrapNodes { get; set; }
+    public int SeedNodes { get; set; }
     public double AverageLatencyMs { get; set; }
     public int TotalFailures { get; set; }
 }
@@ -183,7 +183,7 @@ public class DetailedPeerInfo
     public DateTimeOffset FirstSeen { get; set; }
     public DateTimeOffset LastSeen { get; set; }
     public int FailureCount { get; set; }
-    public bool IsBootstrapNode { get; set; }
+    public bool IsSeedNode { get; set; }
     public int AverageLatencyMs { get; set; }
     public ConnectionQuality? Quality { get; set; }
 }

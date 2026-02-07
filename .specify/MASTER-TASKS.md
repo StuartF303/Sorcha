@@ -1,11 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 4.6 - UPDATED
+**Version:** 4.7 - UPDATED
 **Last Updated:** 2026-02-07
-**Status:** Active - Runtime Stubs Resolved
-**Version:** 4.5 - UPDATED
-**Last Updated:** 2026-02-07
-**Status:** Active - Production Readiness (Sprint 11)
+**Status:** Active - P2P Topology Refactor Complete
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -15,15 +12,28 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 270 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 146 (54%)
+**Completed:** 147 (54%)
 **In Progress:** 0 (0%)
-**Not Started:** 124 (46%)
+**Not Started:** 123 (46%)
 
 ---
 
 ## Recent Updates
 
 **2026-02-07:**
+- ✅ P2P-TOPOLOGY-REFACTOR COMPLETE: Refactor Peer Service from hub-and-spoke to true P2P topology (10 phases)
+  - Replaced 3-hardcoded-hub-node model with equal-peer architecture (all nodes equivalent)
+  - Seed nodes serve only as bootstrap peers — authority from cryptographic attestations, not node identity
+  - New domain models: SeedNodeConfiguration, RegisterSubscription, ReplicationMode (ForwardOnly/FullReplica), RegisterSyncState
+  - PeerConnectionPool for multi-peer gRPC channel management
+  - Gossip-style PeerExchangeService for mesh network discovery beyond seed nodes
+  - Register-aware peering: peers track which registers others hold via RegisterAdvertisementService
+  - RegisterCache + RegisterReplicationService for per-register sync with admin-configured replication mode
+  - P2P heartbeat (PeerHeartbeatBackgroundService + PeerHeartbeatGrpcService) with per-register version exchange
+  - PeerListManager migrated from SQLite to PostgreSQL (EF Core, consistent with Wallet/Tenant services)
+  - New proto files: peer_heartbeat.proto, register_sync.proto; modified peer_discovery.proto
+  - Deleted 20 hub-specific source files, 3 old proto files, 6 hub-specific test files
+  - 162 net new tests; 433 pass / 29 pre-existing fail baseline
 - ✅ RESOLVE-RUNTIME-STUBS COMPLETE: Eliminate all NotImplementedException stubs and resolve production-critical TODOs (62 tasks, 10 phases)
   - Zero NotImplementedException remaining in src/ (was 5: WalletManager, DelegationService, JsonTransactionSerializer x2, Transaction)
   - Auth/Security: JWT claim extraction in WalletEndpoints, DelegationEndpoints, BootstrapEndpoints
@@ -333,6 +343,13 @@ VAL-9.x (Validator Service - Decentralized Consensus) ✅ COMPLETE
     └── VAL-9G: Configuration & Testing ✅
     ↓
 BP-11.x (Production Readiness) ⚠️ CURRENT BLOCKER
+    ↓
+PEER-023 (P2P Topology Refactor) ✅ COMPLETE
+    ├── Phase 1-3: Domain models, PostgreSQL migration, proto files ✅
+    ├── Phase 4-5: Connection pool, peer exchange ✅
+    ├── Phase 6-7: Register-aware sync, advertisements ✅
+    ├── Phase 8-9: P2P heartbeat, service integration ✅
+    └── Phase 10: Hub code cleanup ✅
 ```
 
 ---

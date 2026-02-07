@@ -18,6 +18,13 @@ public class TransactionNotification
     public string TransactionId { get; set; } = string.Empty;
 
     /// <summary>
+    /// Register this transaction belongs to (for register-scoped gossip)
+    /// </summary>
+    [Required]
+    [MaxLength(255)]
+    public string RegisterId { get; set; } = string.Empty;
+
+    /// <summary>
     /// ID of the peer that originated this transaction
     /// </summary>
     [Required]

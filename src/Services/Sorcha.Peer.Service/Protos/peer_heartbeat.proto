@@ -1,0 +1,149 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+syntax = "proto3";
+
+package sorcha.peer.heartbeat;
+
+option csharp_namespace = "Sorcha.Peer.Service.Protos";
+
+// Peer Heartbeat Service
+// Provides connection health monitoring between equal peer nodes
+// with per-register status exchange. Replaces the hub-specific
+// Heartbeat service with a symmetric P2P protocol.
+//
+// Heartbeat Protocol:
+// 1. Peer A sends heartbeat to Peer B every 30 seconds
+// 2. Peer B responds with its own status
+// 3. Both peers exchange per-register version information
+// 4. If 2 consecutive heartbeats timeout, peer is marked unhealthy
+//
+// Register Status Exchange:
+// - Each heartbeat includes per-register version numbers
+// - Peers detect version lag and trigger targeted sync
+// - Only registers both peers share are compared
+service PeerHeartbeat {
+  // Send heartbeat to a peer (unary)
+  //
+  // Symmetric heartbeat between equal peers. Both sides learn
+  // each other's register versions and health status.
+  rpc SendHeartbeat(PeerHeartbeatRequest) returns (PeerHeartbeatResponse);
+
+  // Bidirectional heartbeat stream
+  //
+  // Long-lived connection for continuous health monitoring.
+  // Both peers send periodic heartbeats on the same stream.
+  rpc StreamHeartbeat(stream PeerHeartbeatRequest) returns (stream PeerHeartbeatResponse);
+}
+
+// Heartbeat request sent between peers
+message PeerHeartbeatRequest {
+  // Sending peer identifier
+  string peer_id = 1;
+
+  // Unix timestamp when heartbeat was sent (milliseconds UTC)
+  int64 timestamp = 2;
+
+  // Monotonically increasing sequence number
+  int64 sequence_number = 3;
+
+  // Per-register version information
+  // Key: register_id, Value: latest version
+  map<string, int64> register_versions = 4;
+
+  // Optional health metrics
+  PeerHealthMetrics metrics = 5;
+
+  // Registers this peer advertises (compact form)
+  repeated RegisterAdvertisement advertised_registers = 6;
+}
+
+// Heartbeat response from receiving peer
+message PeerHeartbeatResponse {
+  // Whether heartbeat was processed successfully
+  bool success = 1;
+
+  // Responding peer identifier
+  string peer_id = 2;
+
+  // Unix timestamp when response was sent (milliseconds UTC)
+  int64 timestamp = 3;
+
+  // Per-register version information from responder
+  map<string, int64> register_versions = 4;
+
+  // Optional health metrics from responder
+  PeerHealthMetrics metrics = 5;
+
+  // Registers the responding peer advertises
+  repeated RegisterAdvertisement advertised_registers = 6;
+
+  // Optional message (status info, warnings)
+  string message = 7;
+}
+
+// Health metrics from a peer node
+message PeerHealthMetrics {
+  // Number of active peer connections
+  int32 active_connections = 1;
+
+  // CPU usage percentage (0-100)
+  double cpu_usage_percent = 2;
+
+  // Memory usage in megabytes
+  double memory_usage_mb = 3;
+
+  // Disk usage percentage (0-100)
+  double disk_usage_percent = 4;
+
+  // Total registers this peer holds
+  int32 register_count = 5;
+
+  // Number of pending sync operations
+  int32 pending_syncs = 6;
+
+  // Whether peer is currently syncing any register
+  bool is_syncing = 7;
+
+  // Uptime in seconds
+  int64 uptime_seconds = 8;
+}
+
+// Compact register advertisement included in heartbeats
+message RegisterAdvertisement {
+  // Register identifier
+  string register_id = 1;
+
+  // Sync state of this register
+  SyncStateProto sync_state = 2;
+
+  // Latest transaction version
+  int64 latest_version = 3;
+
+  // Latest docket version
+  int64 latest_docket_version = 4;
+
+  // Whether this register is publicly advertised
+  bool is_public = 5;
+}
+
+// Sync state (mirrors the domain RegisterSyncState)
+enum SyncStateProto {
+  // Unknown state
+  SYNC_STATE_PROTO_UNKNOWN = 0;
+
+  // Subscribing
+  SYNC_STATE_PROTO_SUBSCRIBING = 1;
+
+  // Syncing
+  SYNC_STATE_PROTO_SYNCING = 2;
+
+  // Fully replicated
+  SYNC_STATE_PROTO_FULLY_REPLICATED = 3;
+
+  // Active (forward-only)
+  SYNC_STATE_PROTO_ACTIVE = 4;
+
+  // Error
+  SYNC_STATE_PROTO_ERROR = 5;
+}

@@ -142,7 +142,7 @@ public class HealthMonitorService
             AverageLatencyMs = healthyPeers.Any()
                 ? (int)healthyPeers.Average(p => p.AverageLatencyMs)
                 : 0,
-            BootstrapNodes = allPeers.Count(p => p.IsBootstrapNode),
+            SeedNodes = allPeers.Count(p => p.IsSeedNode),
             Timestamp = DateTimeOffset.UtcNow
         };
 
@@ -172,6 +172,6 @@ public class NetworkStatistics
     public int TotalPeers { get; set; }
     public int HealthyPeers { get; set; }
     public int AverageLatencyMs { get; set; }
-    public int BootstrapNodes { get; set; }
+    public int SeedNodes { get; set; }
     public DateTimeOffset Timestamp { get; set; }
 }

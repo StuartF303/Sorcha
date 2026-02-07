@@ -244,7 +244,7 @@ public class PeerDiscoveryService
             FirstSeen = DateTimeOffset.UtcNow,
             LastSeen = DateTimeOffset.UtcNow,
             FailureCount = 0,
-            IsBootstrapNode = false,
+            IsSeedNode = false,
             AverageLatencyMs = 0,
             Capabilities = new Core.PeerCapabilities
             {
