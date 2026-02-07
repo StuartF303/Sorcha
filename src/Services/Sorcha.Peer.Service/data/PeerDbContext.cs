@@ -48,8 +48,11 @@ public class PeerDbContext : DbContext
             entity.Property(e => e.IsSeedNode).HasDefaultValue(false);
             entity.Property(e => e.FailureCount).HasDefaultValue(0);
             entity.Property(e => e.AverageLatencyMs).HasDefaultValue(0);
+            entity.Property(e => e.IsBanned).HasDefaultValue(false);
+            entity.Property(e => e.BanReason).HasMaxLength(500);
 
             entity.HasIndex(e => e.IsSeedNode).HasDatabaseName("IX_Peers_IsSeedNode");
+            entity.HasIndex(e => e.IsBanned).HasDatabaseName("IX_Peers_IsBanned");
             entity.HasIndex(e => e.LastSeen).HasDatabaseName("IX_Peers_LastSeen");
         });
     }
@@ -98,6 +101,9 @@ public class PeerNodeEntity
     public int FailureCount { get; set; } = 0;
     public bool IsSeedNode { get; set; } = false;
     public int AverageLatencyMs { get; set; } = 0;
+    public bool IsBanned { get; set; } = false;
+    public DateTimeOffset? BannedAt { get; set; }
+    public string? BanReason { get; set; }
 
     public PeerNode ToDomain()
     {
@@ -113,7 +119,10 @@ public class PeerNodeEntity
             LastSeen = LastSeen,
             FailureCount = FailureCount,
             IsSeedNode = IsSeedNode,
-            AverageLatencyMs = AverageLatencyMs
+            AverageLatencyMs = AverageLatencyMs,
+            IsBanned = IsBanned,
+            BannedAt = BannedAt,
+            BanReason = BanReason
         };
     }
 
@@ -129,7 +138,10 @@ public class PeerNodeEntity
             LastSeen = peer.LastSeen,
             FailureCount = peer.FailureCount,
             IsSeedNode = peer.IsSeedNode,
-            AverageLatencyMs = peer.AverageLatencyMs
+            AverageLatencyMs = peer.AverageLatencyMs,
+            IsBanned = peer.IsBanned,
+            BannedAt = peer.BannedAt,
+            BanReason = peer.BanReason
         };
     }
 }

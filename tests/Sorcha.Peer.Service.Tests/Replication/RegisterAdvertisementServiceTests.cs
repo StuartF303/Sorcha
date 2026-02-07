@@ -245,6 +245,105 @@ public class RegisterAdvertisementServiceTests : IDisposable
         await _service.ProcessRemoteAdvertisementsAsync("unknown-peer", ads);
     }
 
+    // === GetNetworkAdvertisedRegisters Tests ===
+
+    [Fact]
+    public async Task GetNetworkAdvertisedRegisters_AggregatesAcrossPeers()
+    {
+        // Arrange - add peers with advertised registers
+        var peer1 = new PeerNode
+        {
+            PeerId = "peer-1", Address = "192.168.1.100", Port = 5001,
+            AdvertisedRegisters = new List<PeerRegisterInfo>
+            {
+                new() { RegisterId = "reg-1", SyncState = RegisterSyncState.FullyReplicated, LatestVersion = 100, IsPublic = true },
+                new() { RegisterId = "reg-2", SyncState = RegisterSyncState.Active, LatestVersion = 50, IsPublic = true }
+            }
+        };
+        var peer2 = new PeerNode
+        {
+            PeerId = "peer-2", Address = "192.168.1.101", Port = 5001,
+            AdvertisedRegisters = new List<PeerRegisterInfo>
+            {
+                new() { RegisterId = "reg-1", SyncState = RegisterSyncState.FullyReplicated, LatestVersion = 150, IsPublic = true }
+            }
+        };
+        await _peerListManager.AddOrUpdatePeerAsync(peer1);
+        await _peerListManager.AddOrUpdatePeerAsync(peer2);
+
+        // Act
+        var result = _service.GetNetworkAdvertisedRegisters();
+
+        // Assert
+        result.Should().HaveCount(2);
+
+        var reg1 = result.First(r => r.RegisterId == "reg-1");
+        reg1.PeerCount.Should().Be(2);
+        reg1.LatestVersion.Should().Be(150); // max version
+        reg1.FullReplicaPeerCount.Should().Be(2);
+        reg1.IsPublic.Should().BeTrue();
+
+        var reg2 = result.First(r => r.RegisterId == "reg-2");
+        reg2.PeerCount.Should().Be(1);
+        reg2.LatestVersion.Should().Be(50);
+    }
+
+    [Fact]
+    public async Task GetNetworkAdvertisedRegisters_ExcludesPrivateRegisters()
+    {
+        var peer = new PeerNode
+        {
+            PeerId = "peer-1", Address = "192.168.1.100", Port = 5001,
+            AdvertisedRegisters = new List<PeerRegisterInfo>
+            {
+                new() { RegisterId = "public-reg", SyncState = RegisterSyncState.Active, LatestVersion = 100, IsPublic = true },
+                new() { RegisterId = "private-reg", SyncState = RegisterSyncState.Active, LatestVersion = 200, IsPublic = false }
+            }
+        };
+        await _peerListManager.AddOrUpdatePeerAsync(peer);
+
+        var result = _service.GetNetworkAdvertisedRegisters();
+
+        result.Should().ContainSingle().Which.RegisterId.Should().Be("public-reg");
+    }
+
+    [Fact]
+    public async Task GetNetworkAdvertisedRegisters_ExcludesBannedPeers()
+    {
+        var peer1 = new PeerNode
+        {
+            PeerId = "good-peer", Address = "192.168.1.100", Port = 5001,
+            AdvertisedRegisters = new List<PeerRegisterInfo>
+            {
+                new() { RegisterId = "reg-1", SyncState = RegisterSyncState.Active, LatestVersion = 100, IsPublic = true }
+            }
+        };
+        var peer2 = new PeerNode
+        {
+            PeerId = "banned-peer", Address = "192.168.1.101", Port = 5001,
+            AdvertisedRegisters = new List<PeerRegisterInfo>
+            {
+                new() { RegisterId = "reg-1", SyncState = RegisterSyncState.FullyReplicated, LatestVersion = 200, IsPublic = true }
+            }
+        };
+        await _peerListManager.AddOrUpdatePeerAsync(peer1);
+        await _peerListManager.AddOrUpdatePeerAsync(peer2);
+        await _peerListManager.BanPeerAsync("banned-peer");
+
+        var result = _service.GetNetworkAdvertisedRegisters();
+
+        result.Should().ContainSingle();
+        result.First().PeerCount.Should().Be(1);
+        result.First().LatestVersion.Should().Be(100); // banned peer's 200 excluded
+    }
+
+    [Fact]
+    public void GetNetworkAdvertisedRegisters_EmptyNetwork_ReturnsEmpty()
+    {
+        var result = _service.GetNetworkAdvertisedRegisters();
+        result.Should().BeEmpty();
+    }
+
     public void Dispose()
     {
         _peerListManager.Dispose();

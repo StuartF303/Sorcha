@@ -560,6 +560,136 @@ public class PeerListManagerTests : IDisposable
         _manager.GetPeer("peer0")!.Address.Should().Be("10.0.0.1");
     }
 
+    // === Ban/Unban/Reset Tests ===
+
+    [Fact]
+    public async Task BanPeerAsync_ExistingPeer_SetsBanFields()
+    {
+        // Arrange
+        var peer = new PeerNode { PeerId = "peer1", Address = "192.168.1.100", Port = 5001 };
+        await _manager.AddOrUpdatePeerAsync(peer);
+
+        // Act
+        var result = await _manager.BanPeerAsync("peer1", "Bad data");
+
+        // Assert
+        result.Should().BeTrue();
+        var banned = _manager.GetPeer("peer1");
+        banned!.IsBanned.Should().BeTrue();
+        banned.BannedAt.Should().NotBeNull();
+        banned.BanReason.Should().Be("Bad data");
+    }
+
+    [Fact]
+    public async Task BanPeerAsync_NonExistentPeer_ReturnsFalse()
+    {
+        var result = await _manager.BanPeerAsync("nonexistent");
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task BanPeerAsync_AlreadyBanned_ReturnsFalse()
+    {
+        var peer = new PeerNode { PeerId = "peer1", Address = "192.168.1.100", Port = 5001 };
+        await _manager.AddOrUpdatePeerAsync(peer);
+        await _manager.BanPeerAsync("peer1");
+
+        var result = await _manager.BanPeerAsync("peer1");
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task BanPeerAsync_SeedNode_StillBans()
+    {
+        var peer = new PeerNode { PeerId = "seed1", Address = "192.168.1.100", Port = 5001, IsSeedNode = true };
+        await _manager.AddOrUpdatePeerAsync(peer);
+
+        var result = await _manager.BanPeerAsync("seed1", "Corrupt");
+        result.Should().BeTrue();
+        _manager.GetPeer("seed1")!.IsBanned.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UnbanPeerAsync_BannedPeer_ClearsBanFields()
+    {
+        var peer = new PeerNode { PeerId = "peer1", Address = "192.168.1.100", Port = 5001 };
+        await _manager.AddOrUpdatePeerAsync(peer);
+        await _manager.BanPeerAsync("peer1", "Bad");
+
+        var result = await _manager.UnbanPeerAsync("peer1");
+
+        result.Should().BeTrue();
+        var unbanned = _manager.GetPeer("peer1");
+        unbanned!.IsBanned.Should().BeFalse();
+        unbanned.BannedAt.Should().BeNull();
+        unbanned.BanReason.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UnbanPeerAsync_NotBanned_ReturnsFalse()
+    {
+        var peer = new PeerNode { PeerId = "peer1", Address = "192.168.1.100", Port = 5001 };
+        await _manager.AddOrUpdatePeerAsync(peer);
+
+        var result = await _manager.UnbanPeerAsync("peer1");
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task UnbanPeerAsync_NonExistentPeer_ReturnsFalse()
+    {
+        var result = await _manager.UnbanPeerAsync("nonexistent");
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ResetFailureCountAsync_ExistingPeer_ResetsToZero()
+    {
+        var peer = new PeerNode { PeerId = "peer1", Address = "192.168.1.100", Port = 5001, FailureCount = 12 };
+        await _manager.AddOrUpdatePeerAsync(peer);
+
+        var previous = await _manager.ResetFailureCountAsync("peer1");
+
+        previous.Should().Be(12);
+        _manager.GetPeer("peer1")!.FailureCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ResetFailureCountAsync_NonExistentPeer_ReturnsNegativeOne()
+    {
+        var result = await _manager.ResetFailureCountAsync("nonexistent");
+        result.Should().Be(-1);
+    }
+
+    [Fact]
+    public async Task GetHealthyPeers_ExcludesBannedPeers()
+    {
+        var peer1 = new PeerNode { PeerId = "healthy1", Address = "192.168.1.100", Port = 5001, LastSeen = DateTimeOffset.UtcNow };
+        var peer2 = new PeerNode { PeerId = "banned1", Address = "192.168.1.101", Port = 5001, LastSeen = DateTimeOffset.UtcNow };
+        await _manager.AddOrUpdatePeerAsync(peer1);
+        await _manager.AddOrUpdatePeerAsync(peer2);
+        await _manager.BanPeerAsync("banned1");
+
+        var healthy = _manager.GetHealthyPeers();
+
+        healthy.Should().ContainSingle().Which.PeerId.Should().Be("healthy1");
+    }
+
+    [Fact]
+    public async Task GetAllPeers_IncludesBannedPeers()
+    {
+        var peer1 = new PeerNode { PeerId = "peer1", Address = "192.168.1.100", Port = 5001 };
+        var peer2 = new PeerNode { PeerId = "peer2", Address = "192.168.1.101", Port = 5001 };
+        await _manager.AddOrUpdatePeerAsync(peer1);
+        await _manager.AddOrUpdatePeerAsync(peer2);
+        await _manager.BanPeerAsync("peer2");
+
+        var all = _manager.GetAllPeers();
+
+        all.Should().HaveCount(2);
+        all.Should().Contain(p => p.PeerId == "peer2" && p.IsBanned);
+    }
+
     public void Dispose()
     {
         _manager?.Dispose();

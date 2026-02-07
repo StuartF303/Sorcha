@@ -19,11 +19,11 @@
 
 **Purpose**: Entity changes and shared DTOs that multiple user stories depend on
 
-- [ ] T001 Add IsBanned (bool), BannedAt (DateTimeOffset?), BanReason (string?) properties to PeerNode in `src/Services/Sorcha.Peer.Service/Core/PeerNode.cs`
-- [ ] T002 Update PeerDbContext to map IsBanned, BannedAt, BanReason columns on PeerNodeEntity in `src/Services/Sorcha.Peer.Service/data/PeerDbContext.cs`
-- [ ] T003 Create EF Core migration for ban columns on peer.Peers table via `dotnet ef migrations add AddPeerBanFields`
-- [ ] T004 [P] Add response DTOs (AvailableRegisterInfo, BanResponse, ResetResponse, SubscribeResponse, UnsubscribeResponse, PurgeResponse) in a new file `src/Services/Sorcha.Peer.Service/Models/PeerManagementDtos.cs`
-- [ ] T005 [P] Add IsBanned, BannedAt, BanReason, QualityScore, QualityRating, AdvertisedRegisters fields to PeerInfo DTO in `src/Apps/Sorcha.Cli/Models/Peer.cs`
+- [x] T001 Add IsBanned (bool), BannedAt (DateTimeOffset?), BanReason (string?) properties to PeerNode in `src/Services/Sorcha.Peer.Service/Core/PeerNode.cs`
+- [x] T002 Update PeerDbContext to map IsBanned, BannedAt, BanReason columns on PeerNodeEntity in `src/Services/Sorcha.Peer.Service/data/PeerDbContext.cs`
+- [x] T003 Create EF Core migration for ban columns on peer.Peers table via `dotnet ef migrations add AddPeerBanFields`
+- [x] T004 [P] Add response DTOs (AvailableRegisterInfo, BanResponse, ResetResponse, SubscribeResponse, UnsubscribeResponse, PurgeResponse) in a new file `src/Services/Sorcha.Peer.Service/Models/PeerManagementDtos.cs`
+- [x] T005 [P] Add IsBanned, BannedAt, BanReason, QualityScore, QualityRating, AdvertisedRegisters fields to PeerInfo DTO in `src/Apps/Sorcha.Cli/Models/Peer.cs`
 
 **Checkpoint**: PeerNode entity updated, migration ready, shared DTOs available for all stories.
 
@@ -35,13 +35,13 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 Implement BanPeerAsync(string peerId, string? reason) in PeerListManager — set IsBanned=true, BannedAt=now, BanReason=reason, persist to DB, log warning if seed node in `src/Services/Sorcha.Peer.Service/Discovery/PeerListManager.cs`
-- [ ] T007 Implement UnbanPeerAsync(string peerId) in PeerListManager — set IsBanned=false, BannedAt=null, BanReason=null, persist to DB in `src/Services/Sorcha.Peer.Service/Discovery/PeerListManager.cs`
-- [ ] T008 Implement ResetFailureCountAsync(string peerId) returning previous count in PeerListManager — set FailureCount=0, persist to DB in `src/Services/Sorcha.Peer.Service/Discovery/PeerListManager.cs`
-- [ ] T009 Update GetHealthyPeers() in PeerListManager to exclude banned peers (IsBanned == true) in `src/Services/Sorcha.Peer.Service/Discovery/PeerListManager.cs`
-- [ ] T010 Implement GetNetworkAdvertisedRegisters() in RegisterAdvertisementService — aggregate AdvertisedRegisters across all known peers from PeerListManager.GetAllPeers(), count peers per register, track max versions, filter to IsPublic only, return List<AvailableRegisterInfo> in `src/Services/Sorcha.Peer.Service/Replication/RegisterAdvertisementService.cs`
-- [ ] T011 [P] Add unit tests for BanPeerAsync, UnbanPeerAsync, ResetFailureCountAsync, and GetHealthyPeers ban exclusion in `tests/Sorcha.Peer.Service.Tests/Discovery/PeerListManagerTests.cs`
-- [ ] T012 [P] Add unit tests for GetNetworkAdvertisedRegisters in `tests/Sorcha.Peer.Service.Tests/Replication/RegisterAdvertisementServiceTests.cs`
+- [x] T006 Implement BanPeerAsync(string peerId, string? reason) in PeerListManager — set IsBanned=true, BannedAt=now, BanReason=reason, persist to DB, log warning if seed node in `src/Services/Sorcha.Peer.Service/Discovery/PeerListManager.cs`
+- [x] T007 Implement UnbanPeerAsync(string peerId) in PeerListManager — set IsBanned=false, BannedAt=null, BanReason=null, persist to DB in `src/Services/Sorcha.Peer.Service/Discovery/PeerListManager.cs`
+- [x] T008 Implement ResetFailureCountAsync(string peerId) returning previous count in PeerListManager — set FailureCount=0, persist to DB in `src/Services/Sorcha.Peer.Service/Discovery/PeerListManager.cs`
+- [x] T009 Update GetHealthyPeers() in PeerListManager to exclude banned peers (IsBanned == true) in `src/Services/Sorcha.Peer.Service/Discovery/PeerListManager.cs`
+- [x] T010 Implement GetNetworkAdvertisedRegisters() in RegisterAdvertisementService — aggregate AdvertisedRegisters across all known peers from PeerListManager.GetAllPeers(), count peers per register, track max versions, filter to IsPublic only, return List<AvailableRegisterInfo> in `src/Services/Sorcha.Peer.Service/Replication/RegisterAdvertisementService.cs`
+- [x] T011 [P] Add unit tests for BanPeerAsync, UnbanPeerAsync, ResetFailureCountAsync, and GetHealthyPeers ban exclusion in `tests/Sorcha.Peer.Service.Tests/Discovery/PeerListManagerTests.cs`
+- [x] T012 [P] Add unit tests for GetNetworkAdvertisedRegisters in `tests/Sorcha.Peer.Service.Tests/Replication/RegisterAdvertisementServiceTests.cs`
 
 **Checkpoint**: Foundation ready — all service methods tested, user story implementation can begin.
 
