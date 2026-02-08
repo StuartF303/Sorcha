@@ -390,10 +390,10 @@
 |----|------|----------|--------|--------|----------|
 | BP-11.1 | Performance optimization | P2 | 8h | 📋 Not Started | - |
 | BP-11.2 | Security hardening | P1 | 8h | ✅ Complete | 2026-02-07 |
-| BP-11.3 | Monitoring and alerting | P2 | 6h | 📋 Not Started | - |
+| BP-11.3 | Monitoring and alerting | P2 | 6h | ✅ Complete | 2026-02-08 |
 | BP-11.4 | Production deployment guide | P2 | 4h | 📋 Not Started | - |
 
-**Sprint 11 Status:** 🚧 **IN PROGRESS** (1/4 tasks, 26 hours)
+**Sprint 11 Status:** 🚧 **IN PROGRESS** (2/4 tasks, 26 hours)
 
 ### BP-11.2 Status Details
 
@@ -408,6 +408,20 @@
 - ✅ Health endpoint error changed from raw exception to "Service unavailable"
 - ✅ Typed exception catches (`InvalidOperationException`, `KeyNotFoundException`) preserved as-is
 - ✅ All tests passing: 194 unit + 43 integration
+
+### BP-11.3 Status Details
+
+✅ **Complete (2026-02-08)** - Monitoring and alerting for System Health dashboard
+- ✅ AlertAggregationService in API Gateway — fetches validator/peer metrics in parallel, evaluates 9 threshold rules
+- ✅ AlertThresholdConfig bindable from appsettings.json with sensible defaults
+- ✅ GET /api/alerts endpoint returns AlertsResponse with severity counts
+- ✅ Wired HealthAggregationService.GetServiceMetricsAsync() to call real validator/peer metrics endpoints
+- ✅ AlertService in UI with change detection (new/resolved alert events via AlertsChanged)
+- ✅ AlertsPanel component between KPI panel and health cards grid (sorted by severity, empty state)
+- ✅ Per-service alerts shown in ServiceHealthCard detail dialog
+- ✅ Active Alerts KPI card added to KpiSummaryPanel
+- ✅ Snackbar notifications for new Warning+ alerts on refresh
+- ✅ 13 tests: 9 threshold evaluation tests (ApiGateway.Tests), 4 UI service tests (UI.Core.Tests)
 
 ---
 

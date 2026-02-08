@@ -12,15 +12,23 @@
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
 **Total Tasks:** 270 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 147 (54%)
+**Completed:** 148 (55%)
 **In Progress:** 0 (0%)
-**Not Started:** 123 (46%)
+**Not Started:** 122 (45%)
 
 ---
 
 ## Recent Updates
 
 **2026-02-08:**
+- ✅ BP-11.3 COMPLETE: Monitoring and alerting for System Health dashboard
+  - AlertAggregationService in API Gateway evaluates validator/peer metrics against configurable thresholds (9 rules)
+  - GET /api/alerts endpoint with AlertsResponse (severity counts, sorted alerts)
+  - Wired HealthAggregationService stub to fetch real validator/peer metrics
+  - AlertService in UI with change detection (new/resolved alert events)
+  - AlertsPanel component, per-service alerts in ServiceHealthCard detail dialog
+  - Active Alerts KPI card in KpiSummaryPanel, snackbar notifications for Warning+ alerts
+  - 13 tests: 9 threshold evaluation (ApiGateway.Tests), 4 UI service (UI.Core.Tests)
 - ✅ 023-CONSOLIDATE-TX-VERSIONING COMPLETE: Collapse TransactionVersion V1-V4 into single V1 with all V4 capabilities
   - Removed V2/V3/V4 from enum, factory, version detector
   - Updated 6 source files + 12 test/benchmark files across 4 projects
@@ -287,14 +295,14 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Phase | Total Tasks | Complete | In Progress | Not Started | % Complete | Details |
 |-------|-------------|----------|-------------|-------------|------------|---------|
-| **Phase 1: Blueprint-Action** | 118 | 69 | 0 | 49 | **58%** | [View Tasks](tasks/phase1-blueprint-service.md) |
+| **Phase 1: Blueprint-Action** | 118 | 70 | 0 | 48 | **59%** | [View Tasks](tasks/phase1-blueprint-service.md) |
 | **Phase 2: Wallet Service** | 34 | 34 | 0 | 0 | **100%** ✅ | [View Tasks](tasks/phase2-wallet-service.md) |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ | [View Tasks](tasks/phase3-register-service.md) |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% | [View Tasks](tasks/phase4-enhancements.md) |
 | **Production Readiness** | 10 | 6 | 0 | 4 | **60%** | [View Tasks](tasks/production-readiness.md) |
 | **CLI Admin Tool** | 60 | 0 | 0 | 60 | 0% | [View Tasks](tasks/cli-admin-tool.md) |
 | **Deferred** | 10 | 0 | 0 | 10 | 0% | [View Tasks](tasks/deferred-tasks.md) |
-| **TOTAL** | **270** | **121** | **0** | **149** | **45%** | |
+| **TOTAL** | **270** | **122** | **0** | **148** | **45%** | |
 
 ### By Priority
 
@@ -302,7 +310,7 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 |----------|-------|----------|-------------|-------------|
 | **P0 - Critical (MVD Blocker)** | 40 | 7 | 0 | 33 ⚠️ |
 | **P1 - High (Production Ready)** | 32 | 0 | 0 | 32 ⚠️ |
-| **P2 - Medium (Enhancements)** | 65 | 58 | 0 | 7 |
+| **P2 - Medium (Enhancements)** | 65 | 59 | 0 | 6 |
 | **P3 - Low (Post-MVD)** | 66 | 42 | 0 | 24 |
 
 **Note:** Sprint 9 (Validator Service) expanded significantly for decentralized consensus architecture.

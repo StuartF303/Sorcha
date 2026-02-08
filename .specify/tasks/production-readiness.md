@@ -199,6 +199,18 @@ The solution must provide an interactive setup process that:
 
 **Note:** OPS-002 already implemented via .NET Aspire health checks
 
+### OPS-004: Monitoring & Alerting (BP-11.3)
+
+✅ **Complete (2026-02-08)** — Service metric alerting in System Health dashboard
+- ✅ AlertAggregationService in API Gateway evaluates validator/peer metrics against configurable thresholds
+- ✅ 9 threshold rules: TotalFailed, SuccessRate, ConsensusFailures, DocketsAbandoned, TotalExceptions, PeerHealthPercentage, AverageLatency, plus service reachability for both
+- ✅ GET /api/alerts endpoint with AlertsResponse (severity counts, sorted alerts)
+- ✅ AlertService in UI with change detection (new/resolved alert events)
+- ✅ AlertsPanel component in System Health page between KPI panel and health cards
+- ✅ Per-service alerts in ServiceHealthCard detail dialog
+- ✅ Active Alerts KPI card, snackbar notifications for Warning+ alerts
+- ✅ 13 tests across 2 test projects
+
 ---
 
 ## Data Management (P1)
