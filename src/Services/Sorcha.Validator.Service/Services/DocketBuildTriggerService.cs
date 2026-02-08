@@ -27,6 +27,9 @@ public class DocketBuildTriggerService : BackgroundService
     // Track registers that have had genesis dockets written (prevent re-creation)
     private readonly ConcurrentDictionary<string, bool> _genesisWritten = new();
 
+    // Track genesis docket write retry attempts per register (max 3)
+    private readonly ConcurrentDictionary<string, int> _genesisRetryCount = new();
+
     public DocketBuildTriggerService(
         IServiceScopeFactory scopeFactory,
         IRegisterMonitoringRegistry registry,
@@ -139,17 +142,28 @@ public class DocketBuildTriggerService : BackgroundService
                     try
                     {
                         await WriteDocketAndTransactionsAsync(scope, docket, cancellationToken);
+
+                        // Only mark genesis as written on successful write
+                        if (docket.DocketNumber == 0)
+                            _genesisWritten[registerId] = true;
                     }
                     catch (Exception ex) when (docket.DocketNumber == 0)
                     {
-                        // Genesis docket write failed — likely already exists (DuplicateKey)
-                        _logger.LogInformation(
-                            "Genesis docket write failed for register {RegisterId} (may already exist): {Message}",
-                            registerId, ex.Message);
+                        var retryCount = _genesisRetryCount.AddOrUpdate(registerId, 1, (_, count) => count + 1);
+                        if (retryCount >= 3)
+                        {
+                            _logger.LogWarning(
+                                "Genesis docket write failed {RetryCount} times for register {RegisterId}. Unmonitoring register. Admin attention needed. Error: {Message}",
+                                retryCount, registerId, ex.Message);
+                            _registry.UnregisterFromMonitoring(registerId);
+                        }
+                        else
+                        {
+                            _logger.LogInformation(
+                                "Genesis docket write failed for register {RegisterId} (attempt {RetryCount}/3, will retry): {Message}",
+                                registerId, retryCount, ex.Message);
+                        }
                     }
-
-                    if (docket.DocketNumber == 0)
-                        _genesisWritten[registerId] = true;
                 }
                 else
                 {
@@ -165,16 +179,28 @@ public class DocketBuildTriggerService : BackgroundService
                 try
                 {
                     await WriteDocketAndTransactionsAsync(scope, docket, cancellationToken);
+
+                    // Only mark genesis as written on successful write
+                    if (docket.DocketNumber == 0)
+                        _genesisWritten[registerId] = true;
                 }
                 catch (Exception ex) when (docket.DocketNumber == 0)
                 {
-                    _logger.LogInformation(
-                        "Genesis docket write failed for register {RegisterId} (may already exist): {Message}",
-                        registerId, ex.Message);
+                    var retryCount = _genesisRetryCount.AddOrUpdate(registerId, 1, (_, count) => count + 1);
+                    if (retryCount >= 3)
+                    {
+                        _logger.LogWarning(
+                            "Genesis docket write failed {RetryCount} times for register {RegisterId}. Unmonitoring register. Admin attention needed. Error: {Message}",
+                            retryCount, registerId, ex.Message);
+                        _registry.UnregisterFromMonitoring(registerId);
+                    }
+                    else
+                    {
+                        _logger.LogInformation(
+                            "Genesis docket write failed for register {RegisterId} (attempt {RetryCount}/3, will retry): {Message}",
+                            registerId, retryCount, ex.Message);
+                    }
                 }
-
-                if (docket.DocketNumber == 0)
-                    _genesisWritten[registerId] = true;
             }
         }
         else
@@ -219,7 +245,6 @@ public class DocketBuildTriggerService : BackgroundService
         try
         {
             // Convert docket to DocketModel  (Sorcha.ServiceClients.Register.DocketModel)
-            // Note: Transactions list is simplified - Register Service will fetch full transaction data
             var docketModel = new DocketModel
             {
                 DocketId = docket.DocketId,
@@ -228,16 +253,54 @@ public class DocketBuildTriggerService : BackgroundService
                 PreviousHash = docket.PreviousHash,
                 DocketHash = docket.DocketHash,
                 CreatedAt = docket.CreatedAt,
-                Transactions = docket.Transactions.Select(t => new Sorcha.Register.Models.TransactionModel
+                Transactions = docket.Transactions.Select(t =>
                 {
-                    TxId = t.TransactionId,
-                    RegisterId = docket.RegisterId,
-                    TimeStamp = docket.CreatedAt.DateTime,
-                    SenderWallet = "system",  // Will be populated by Register Service
-                    RecipientsWallets = [],
-                    Payloads = [],
-                    PayloadCount = 0,
-                    Signature = string.Empty
+                    var firstSig = t.Signatures.FirstOrDefault();
+                    var payloadData = t.Payload.ValueKind != System.Text.Json.JsonValueKind.Undefined
+                        ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(t.Payload.GetRawText()))
+                        : string.Empty;
+
+                    // Extract transaction type from metadata
+                    var txType = Sorcha.Register.Models.Enums.TransactionType.Action;
+                    if (t.Metadata.TryGetValue("Type", out var typeStr)
+                        && Enum.TryParse<Sorcha.Register.Models.Enums.TransactionType>(typeStr, ignoreCase: true, out var parsed))
+                    {
+                        txType = parsed;
+                    }
+
+                    return new Sorcha.Register.Models.TransactionModel
+                    {
+                        TxId = t.TransactionId,
+                        RegisterId = t.RegisterId,
+                        PrevTxId = t.PreviousTransactionId ?? string.Empty,
+                        TimeStamp = t.CreatedAt.UtcDateTime,
+                        SenderWallet = firstSig != null
+                            ? Convert.ToBase64String(firstSig.PublicKey)
+                            : "system",
+                        Signature = firstSig != null
+                            ? Convert.ToBase64String(firstSig.SignatureValue)
+                            : string.Empty,
+                        PayloadCount = 1,
+                        Payloads = new[]
+                        {
+                            new Sorcha.Register.Models.PayloadModel
+                            {
+                                Data = payloadData,
+                                Hash = t.PayloadHash,
+                                PayloadSize = (ulong)System.Text.Encoding.UTF8.GetByteCount(
+                                    t.Payload.ValueKind != System.Text.Json.JsonValueKind.Undefined
+                                        ? t.Payload.GetRawText()
+                                        : string.Empty)
+                            }
+                        },
+                        MetaData = new Sorcha.Register.Models.TransactionMetaData
+                        {
+                            RegisterId = t.RegisterId,
+                            BlueprintId = t.BlueprintId,
+                            ActionId = uint.TryParse(t.ActionId, out var actionId) ? actionId : null,
+                            TransactionType = txType
+                        }
+                    };
                 }).ToList(),
                 ProposerValidatorId = docket.ProposerValidatorId,
                 MerkleRoot = docket.MerkleRoot

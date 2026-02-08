@@ -46,6 +46,14 @@ public class ResetResponse
 }
 
 /// <summary>
+/// Request body for advertising or removing advertisement of a register.
+/// </summary>
+public class AdvertiseRegisterRequest
+{
+    public bool IsPublic { get; set; }
+}
+
+/// <summary>
 /// Request body for subscribing to a register.
 /// </summary>
 public class SubscribeRequest

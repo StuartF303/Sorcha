@@ -56,6 +56,12 @@ public class InitiateRegisterCreationRequest
     /// </summary>
     [JsonPropertyName("metadata")]
     public Dictionary<string, string>? Metadata { get; set; }
+
+    /// <summary>
+    /// Whether to advertise this register to the peer network (default: false/private)
+    /// </summary>
+    [JsonPropertyName("advertise")]
+    public bool Advertise { get; set; }
 }
 
 /// <summary>
@@ -402,6 +408,11 @@ public class PendingRegistration
     /// attestation data during finalization, avoiding canonicalization fragility.
     /// </remarks>
     public Dictionary<string, byte[]> AttestationHashes { get; set; } = new();
+
+    /// <summary>
+    /// Whether to advertise this register to the peer network
+    /// </summary>
+    public bool Advertise { get; set; }
 
     /// <summary>
     /// Checks if this pending registration has expired

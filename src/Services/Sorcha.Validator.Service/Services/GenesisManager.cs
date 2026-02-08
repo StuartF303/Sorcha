@@ -136,22 +136,14 @@ public class GenesisManager : IGenesisManager
     /// </summary>
     public async Task<bool> NeedsGenesisDocketAsync(string registerId, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var height = await _registerClient.GetRegisterHeightAsync(registerId, cancellationToken);
-            var needsGenesis = height == 0;
+        var height = await _registerClient.GetRegisterHeightAsync(registerId, cancellationToken);
+        var needsGenesis = height == 0;
 
-            if (needsGenesis)
-            {
-                _logger.LogInformation("Register {RegisterId} needs genesis docket (height = 0)", registerId);
-            }
-
-            return needsGenesis;
-        }
-        catch (Exception ex)
+        if (needsGenesis)
         {
-            _logger.LogError(ex, "Failed to check if register {RegisterId} needs genesis docket", registerId);
-            return false;
+            _logger.LogInformation("Register {RegisterId} needs genesis docket (height = 0)", registerId);
         }
+
+        return needsGenesis;
     }
 }

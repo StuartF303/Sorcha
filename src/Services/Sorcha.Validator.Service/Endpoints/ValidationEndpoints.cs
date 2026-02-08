@@ -8,6 +8,7 @@ using Sorcha.Validator.Service.Services;
 using Sorcha.Validator.Core.Validators;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.ServiceClients.Wallet;
+using Sorcha.Register.Models.Constants;
 
 namespace Sorcha.Validator.Service.Endpoints;
 
@@ -314,8 +315,8 @@ public static class ValidationEndpoints
             {
                 TransactionId = request.TransactionId,
                 RegisterId = request.RegisterId,
-                BlueprintId = "genesis", // Special marker for genesis transactions
-                ActionId = "register-creation",
+                BlueprintId = GenesisConstants.BlueprintId,
+                ActionId = GenesisConstants.ActionId,
                 Payload = request.ControlRecordPayload,
                 CreatedAt = request.CreatedAt,
                 ExpiresAt = null, // Genesis transactions don't expire

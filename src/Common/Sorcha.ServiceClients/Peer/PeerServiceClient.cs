@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Net.Http.Json;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Configuration;
@@ -19,6 +20,7 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
     private readonly GrpcChannel _channel;
     private readonly PeerDiscovery.PeerDiscoveryClient _discoveryClient;
     private readonly PeerCommunication.PeerCommunicationClient _communicationClient;
+    private readonly HttpClient _httpClient;
     private readonly string _localPeerId;
     private bool _disposed;
     private bool _peerServiceUnavailableLogged;
@@ -41,6 +43,9 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
         _channel = GrpcChannel.ForAddress(_serviceAddress);
         _discoveryClient = new PeerDiscovery.PeerDiscoveryClient(_channel);
         _communicationClient = new PeerCommunication.PeerCommunicationClient(_channel);
+
+        // Create HttpClient for REST API calls (same address serves both gRPC and HTTP)
+        _httpClient = new HttpClient { BaseAddress = new Uri(_serviceAddress.TrimEnd('/') + "/") };
 
         _logger.LogInformation("PeerServiceClient initialized (Address: {Address}, PeerId: {PeerId})", _serviceAddress, _localPeerId);
     }
@@ -292,11 +297,57 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
         }
     }
 
+    public async Task AdvertiseRegisterAsync(
+        string registerId,
+        bool isPublic,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug(
+                "Advertising register {RegisterId} (isPublic={IsPublic}) to Peer Service",
+                registerId, isPublic);
+
+            var response = await _httpClient.PostAsJsonAsync(
+                $"api/registers/{registerId}/advertise",
+                new { isPublic },
+                cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation(
+                    "Successfully advertised register {RegisterId} (isPublic={IsPublic})",
+                    registerId, isPublic);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Failed to advertise register {RegisterId}: {StatusCode}",
+                    registerId, response.StatusCode);
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Peer Service unavailable - cannot advertise register {RegisterId}",
+                registerId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to advertise register {RegisterId} to Peer Service",
+                registerId);
+        }
+    }
+
     public void Dispose()
     {
         if (!_disposed)
         {
             _channel.Dispose();
+            _httpClient.Dispose();
             _disposed = true;
         }
     }

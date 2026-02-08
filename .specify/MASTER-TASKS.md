@@ -21,6 +21,18 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-08:**
+- ✅ 026-FIX-REGISTER-CREATION-PIPELINE COMPLETE: Fix 8 issues in register creation flow (38 tasks, 9 phases)
+  - CRITICAL: Fixed payload data lost in docket write — DocketBuildTriggerService transaction mapping now populates Payloads, PayloadCount, SenderWallet, Signature, MetaData, PrevTxId, TimeStamp
+  - CRITICAL: Fixed genesis write failure preventing retry — _genesisWritten flag only set on success, retry count with max 3 attempts before unregistering
+  - HIGH: Advertise flag threaded through two-phase creation (InitiateRegisterCreationRequest → PendingRegistration → FinalizeAsync)
+  - HIGH: Peer Service integration — IPeerServiceClient.AdvertiseRegisterAsync, POST /api/registers/{id}/advertise endpoint, fire-and-forget notifications from Register Service
+  - HIGH: GenesisManager.NeedsGenesisDocketAsync no longer silently swallows exceptions
+  - MEDIUM: Validator monitoring endpoint — GET /api/admin/validators/monitoring exposes RegisterMonitoringRegistry.GetAll()
+  - MEDIUM: Register.Service.Tests restored — fixed 26 compilation errors across 4 files (xUnit v3 ValueTask, constructor changes, property renames)
+  - MEDIUM: GenesisConstants.BlueprintId replaces magic string "genesis" in ValidationEndpoints.cs
+  - AppHost.cs: peerService declared before registerService, WithReference(peerService) added
+  - RegisterManager.CreateRegisterAsync made virtual for testability
+  - Test results: Register Service Unit 18 pass, Validator Service baseline maintained
 - ✅ BP-11.3 COMPLETE: Monitoring and alerting for System Health dashboard
   - AlertAggregationService in API Gateway evaluates validator/peer metrics against configurable thresholds (9 rules)
   - GET /api/alerts endpoint with AlertsResponse (severity counts, sorted alerts)

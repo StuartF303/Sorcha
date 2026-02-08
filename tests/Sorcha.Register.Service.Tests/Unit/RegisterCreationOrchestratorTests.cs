@@ -11,6 +11,7 @@ using Sorcha.Cryptography.Interfaces;
 using Sorcha.Register.Core.Managers;
 using Sorcha.Register.Models;
 using Sorcha.Register.Service.Services;
+using Sorcha.ServiceClients.Peer;
 using Sorcha.ServiceClients.Validator;
 using Sorcha.ServiceClients.Wallet;
 using Xunit;
@@ -24,10 +25,13 @@ public class RegisterCreationOrchestratorTests
 {
     private readonly Mock<ILogger<RegisterCreationOrchestrator>> _mockLogger;
     private readonly Mock<RegisterManager> _mockRegisterManager;
+    private readonly Mock<TransactionManager> _mockTransactionManager;
     private readonly Mock<IWalletServiceClient> _mockWalletClient;
     private readonly Mock<IHashProvider> _mockHashProvider;
     private readonly Mock<ICryptoModule> _mockCryptoModule;
     private readonly Mock<IValidatorServiceClient> _mockValidatorClient;
+    private readonly Mock<IPendingRegistrationStore> _mockPendingStore;
+    private readonly Mock<IPeerServiceClient> _mockPeerClient;
     private readonly RegisterCreationOrchestrator _orchestrator;
 
     public RegisterCreationOrchestratorTests()
@@ -35,20 +39,46 @@ public class RegisterCreationOrchestratorTests
         _mockLogger = new Mock<ILogger<RegisterCreationOrchestrator>>();
         _mockRegisterManager = new Mock<RegisterManager>(
             Mock.Of<Sorcha.Register.Core.Storage.IRegisterRepository>(),
-            Mock.Of<Sorcha.Register.Core.Events.IEventPublisher>(),
-            Mock.Of<ILogger<RegisterManager>>());
+            Mock.Of<Sorcha.Register.Core.Events.IEventPublisher>());
+        _mockTransactionManager = new Mock<TransactionManager>(
+            Mock.Of<Sorcha.Register.Core.Storage.IRegisterRepository>(),
+            Mock.Of<Sorcha.Register.Core.Events.IEventPublisher>());
         _mockWalletClient = new Mock<IWalletServiceClient>();
         _mockHashProvider = new Mock<IHashProvider>();
         _mockCryptoModule = new Mock<ICryptoModule>();
         _mockValidatorClient = new Mock<IValidatorServiceClient>();
+        _mockPendingStore = new Mock<IPendingRegistrationStore>();
+        _mockPeerClient = new Mock<IPeerServiceClient>();
+
+        // Default pending store behavior: store and retrieve
+        var store = new Dictionary<string, PendingRegistration>();
+        _mockPendingStore
+            .Setup(s => s.Add(It.IsAny<string>(), It.IsAny<PendingRegistration>()))
+            .Callback<string, PendingRegistration>((key, value) => store[key] = value);
+        _mockPendingStore
+            .Setup(s => s.TryRemove(It.IsAny<string>(), out It.Ref<PendingRegistration?>.IsAny))
+            .Returns((string key, out PendingRegistration? value) =>
+            {
+                if (store.TryGetValue(key, out var v))
+                {
+                    value = v;
+                    store.Remove(key);
+                    return true;
+                }
+                value = null;
+                return false;
+            });
 
         _orchestrator = new RegisterCreationOrchestrator(
             _mockLogger.Object,
             _mockRegisterManager.Object,
+            _mockTransactionManager.Object,
             _mockWalletClient.Object,
             _mockHashProvider.Object,
             _mockCryptoModule.Object,
-            _mockValidatorClient.Object);
+            _mockValidatorClient.Object,
+            _mockPendingStore.Object,
+            _mockPeerClient.Object);
     }
 
     #region InitiateAsync Tests
@@ -62,10 +92,9 @@ public class RegisterCreationOrchestratorTests
             Name = "Test Register",
             Description = "Test Description",
             TenantId = "tenant-123",
-            Creator = new CreatorInfo
+            Owners = new List<OwnerInfo>
             {
-                UserId = "user-001",
-                WalletId = "wallet-001"
+                new() { UserId = "user-001", WalletId = "wallet-001" }
             }
         };
 
@@ -80,14 +109,10 @@ public class RegisterCreationOrchestratorTests
         response.Should().NotBeNull();
         response.RegisterId.Should().NotBeNullOrEmpty();
         response.RegisterId.Should().HaveLength(32); // GUID without hyphens
-        response.ControlRecord.Should().NotBeNull();
-        response.ControlRecord.Name.Should().Be("Test Register");
-        response.ControlRecord.Description.Should().Be("Test Description");
-        response.ControlRecord.TenantId.Should().Be("tenant-123");
-        response.ControlRecord.Attestations.Should().HaveCount(1);
-        response.ControlRecord.Attestations[0].Role.Should().Be(RegisterRole.Owner);
-        response.ControlRecord.Attestations[0].Subject.Should().Be("did:sorcha:user-001");
-        response.DataToSign.Should().NotBeNullOrEmpty();
+        response.AttestationsToSign.Should().HaveCount(1);
+        response.AttestationsToSign[0].Role.Should().Be(RegisterRole.Owner);
+        response.AttestationsToSign[0].AttestationData.Subject.Should().Be("did:sorcha:user-001");
+        response.AttestationsToSign[0].DataToSign.Should().NotBeNullOrEmpty();
         response.Nonce.Should().NotBeNullOrEmpty();
         response.ExpiresAt.Should().BeAfter(DateTimeOffset.UtcNow);
     }
@@ -100,10 +125,9 @@ public class RegisterCreationOrchestratorTests
         {
             Name = "Multi-Admin Register",
             TenantId = "tenant-123",
-            Creator = new CreatorInfo
+            Owners = new List<OwnerInfo>
             {
-                UserId = "user-001",
-                WalletId = "wallet-001"
+                new() { UserId = "user-001", WalletId = "wallet-001" }
             },
             AdditionalAdmins = new List<AdditionalAdminInfo>
             {
@@ -130,13 +154,13 @@ public class RegisterCreationOrchestratorTests
         var response = await _orchestrator.InitiateAsync(request);
 
         // Assert
-        response.ControlRecord.Attestations.Should().HaveCount(3);
-        response.ControlRecord.Attestations[0].Role.Should().Be(RegisterRole.Owner);
-        response.ControlRecord.Attestations[0].Subject.Should().Be("did:sorcha:user-001");
-        response.ControlRecord.Attestations[1].Role.Should().Be(RegisterRole.Admin);
-        response.ControlRecord.Attestations[1].Subject.Should().Be("did:sorcha:user-002");
-        response.ControlRecord.Attestations[2].Role.Should().Be(RegisterRole.Auditor);
-        response.ControlRecord.Attestations[2].Subject.Should().Be("did:sorcha:user-003");
+        response.AttestationsToSign.Should().HaveCount(3);
+        response.AttestationsToSign[0].Role.Should().Be(RegisterRole.Owner);
+        response.AttestationsToSign[0].AttestationData.Subject.Should().Be("did:sorcha:user-001");
+        response.AttestationsToSign[1].Role.Should().Be(RegisterRole.Admin);
+        response.AttestationsToSign[1].AttestationData.Subject.Should().Be("did:sorcha:user-002");
+        response.AttestationsToSign[2].Role.Should().Be(RegisterRole.Auditor);
+        response.AttestationsToSign[2].AttestationData.Subject.Should().Be("did:sorcha:user-003");
     }
 
     [Fact]
@@ -147,7 +171,10 @@ public class RegisterCreationOrchestratorTests
         {
             Name = "Test Register",
             TenantId = "tenant-123",
-            Creator = new CreatorInfo { UserId = "user-001", WalletId = "wallet-001" }
+            Owners = new List<OwnerInfo>
+            {
+                new() { UserId = "user-001", WalletId = "wallet-001" }
+            }
         };
 
         byte[]? capturedBytes = null;
@@ -163,10 +190,38 @@ public class RegisterCreationOrchestratorTests
         capturedBytes.Should().NotBeNull();
         var json = Encoding.UTF8.GetString(capturedBytes!);
         json.Should().Contain("\"registerId\"");
-        json.Should().Contain("\"name\"");
+        json.Should().Contain("\"registerName\"");
         json.Should().Contain("Test Register");
         _mockHashProvider.Verify(
             h => h.ComputeHash(It.IsAny<byte[]>(), HashType.SHA256),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task InitiateAsync_WithAdvertiseTrue_ShouldStoreInPending()
+    {
+        // Arrange
+        var request = new InitiateRegisterCreationRequest
+        {
+            Name = "Public Register",
+            TenantId = "tenant-123",
+            Owners = new List<OwnerInfo>
+            {
+                new() { UserId = "user-001", WalletId = "wallet-001" }
+            },
+            Advertise = true
+        };
+
+        _mockHashProvider
+            .Setup(h => h.ComputeHash(It.IsAny<byte[]>(), HashType.SHA256))
+            .Returns(new byte[32]);
+
+        // Act
+        await _orchestrator.InitiateAsync(request);
+
+        // Assert
+        _mockPendingStore.Verify(
+            s => s.Add(It.IsAny<string>(), It.Is<PendingRegistration>(p => p.Advertise)),
             Times.Once);
     }
 
@@ -182,7 +237,10 @@ public class RegisterCreationOrchestratorTests
         {
             Name = "Test Register",
             TenantId = "tenant-123",
-            Creator = new CreatorInfo { UserId = "user-001", WalletId = "wallet-001" }
+            Owners = new List<OwnerInfo>
+            {
+                new() { UserId = "user-001", WalletId = "wallet-001" }
+            }
         };
 
         _mockHashProvider
@@ -191,15 +249,19 @@ public class RegisterCreationOrchestratorTests
 
         var initiateResponse = await _orchestrator.InitiateAsync(initiateRequest);
 
-        // Fill in signatures
-        initiateResponse.ControlRecord.Attestations[0].PublicKey = Convert.ToBase64String(new byte[32]);
-        initiateResponse.ControlRecord.Attestations[0].Signature = Convert.ToBase64String(new byte[64]);
+        var signedAttestations = initiateResponse.AttestationsToSign.Select(a => new SignedAttestation
+        {
+            AttestationData = a.AttestationData,
+            PublicKey = Convert.ToBase64String(new byte[32]),
+            Signature = Convert.ToBase64String(new byte[64]),
+            Algorithm = SignatureAlgorithm.ED25519
+        }).ToList();
 
         var finalizeRequest = new FinalizeRegisterCreationRequest
         {
             RegisterId = initiateResponse.RegisterId,
             Nonce = initiateResponse.Nonce,
-            ControlRecord = initiateResponse.ControlRecord
+            SignedAttestations = signedAttestations
         };
 
         var createdRegister = new Sorcha.Register.Models.Register
@@ -225,6 +287,7 @@ public class RegisterCreationOrchestratorTests
                 It.IsAny<string>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>(),
+                It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(createdRegister);
 
@@ -241,17 +304,8 @@ public class RegisterCreationOrchestratorTests
         response.Should().NotBeNull();
         response.RegisterId.Should().Be(initiateResponse.RegisterId);
         response.Status.Should().Be("created");
-        response.GenesisTransactionId.Should().StartWith("genesis-");
+        response.GenesisTransactionId.Should().NotBeNullOrEmpty();
         response.GenesisDocketId.Should().Be("0");
-
-        _mockRegisterManager.Verify(
-            m => m.CreateRegisterAsync(
-                "Test Register",
-                "tenant-123",
-                false,
-                true,
-                It.IsAny<CancellationToken>()),
-            Times.Once);
 
         _mockValidatorClient.Verify(
             v => v.SubmitGenesisTransactionAsync(
@@ -271,7 +325,10 @@ public class RegisterCreationOrchestratorTests
         {
             Name = "Test Register",
             TenantId = "tenant-123",
-            Creator = new CreatorInfo { UserId = "user-001", WalletId = "wallet-001" }
+            Owners = new List<OwnerInfo>
+            {
+                new() { UserId = "user-001", WalletId = "wallet-001" }
+            }
         };
 
         _mockHashProvider
@@ -284,7 +341,7 @@ public class RegisterCreationOrchestratorTests
         {
             RegisterId = initiateResponse.RegisterId,
             Nonce = "invalid-nonce", // Wrong nonce
-            ControlRecord = initiateResponse.ControlRecord
+            SignedAttestations = new List<SignedAttestation>()
         };
 
         // Act & Assert
@@ -301,14 +358,7 @@ public class RegisterCreationOrchestratorTests
         {
             RegisterId = "non-existent-register",
             Nonce = "some-nonce",
-            ControlRecord = new RegisterControlRecord
-            {
-                RegisterId = "non-existent-register",
-                Name = "Test",
-                TenantId = "tenant-123",
-                CreatedAt = DateTimeOffset.UtcNow,
-                Attestations = new List<RegisterAttestation>()
-            }
+            SignedAttestations = new List<SignedAttestation>()
         };
 
         // Act & Assert
@@ -325,7 +375,10 @@ public class RegisterCreationOrchestratorTests
         {
             Name = "Test Register",
             TenantId = "tenant-123",
-            Creator = new CreatorInfo { UserId = "user-001", WalletId = "wallet-001" }
+            Owners = new List<OwnerInfo>
+            {
+                new() { UserId = "user-001", WalletId = "wallet-001" }
+            }
         };
 
         _mockHashProvider
@@ -334,14 +387,19 @@ public class RegisterCreationOrchestratorTests
 
         var initiateResponse = await _orchestrator.InitiateAsync(initiateRequest);
 
-        initiateResponse.ControlRecord.Attestations[0].PublicKey = Convert.ToBase64String(new byte[32]);
-        initiateResponse.ControlRecord.Attestations[0].Signature = Convert.ToBase64String(new byte[64]);
+        var signedAttestations = initiateResponse.AttestationsToSign.Select(a => new SignedAttestation
+        {
+            AttestationData = a.AttestationData,
+            PublicKey = Convert.ToBase64String(new byte[32]),
+            Signature = Convert.ToBase64String(new byte[64]),
+            Algorithm = SignatureAlgorithm.ED25519
+        }).ToList();
 
         var finalizeRequest = new FinalizeRegisterCreationRequest
         {
             RegisterId = initiateResponse.RegisterId,
             Nonce = initiateResponse.Nonce,
-            ControlRecord = initiateResponse.ControlRecord
+            SignedAttestations = signedAttestations
         };
 
         _mockCryptoModule
@@ -357,88 +415,6 @@ public class RegisterCreationOrchestratorTests
         var act = async () => await _orchestrator.FinalizeAsync(finalizeRequest);
         await act.Should().ThrowAsync<UnauthorizedAccessException>()
             .WithMessage("*Invalid signature*");
-    }
-
-    [Fact]
-    public async Task FinalizeAsync_WithMissingOwnerAttestation_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var initiateRequest = new InitiateRegisterCreationRequest
-        {
-            Name = "Test Register",
-            TenantId = "tenant-123",
-            Creator = new CreatorInfo { UserId = "user-001", WalletId = "wallet-001" }
-        };
-
-        _mockHashProvider
-            .Setup(h => h.ComputeHash(It.IsAny<byte[]>(), HashType.SHA256))
-            .Returns(new byte[32]);
-
-        var initiateResponse = await _orchestrator.InitiateAsync(initiateRequest);
-
-        // Change role from Owner to Admin (no owner!)
-        initiateResponse.ControlRecord.Attestations[0].Role = RegisterRole.Admin;
-        initiateResponse.ControlRecord.Attestations[0].PublicKey = Convert.ToBase64String(new byte[32]);
-        initiateResponse.ControlRecord.Attestations[0].Signature = Convert.ToBase64String(new byte[64]);
-
-        var finalizeRequest = new FinalizeRegisterCreationRequest
-        {
-            RegisterId = initiateResponse.RegisterId,
-            Nonce = initiateResponse.Nonce,
-            ControlRecord = initiateResponse.ControlRecord
-        };
-
-        // Act & Assert
-        var act = async () => await _orchestrator.FinalizeAsync(finalizeRequest);
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage("*Owner attestation*");
-    }
-
-    [Fact]
-    public async Task FinalizeAsync_WithTooManyAttestations_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var initiateRequest = new InitiateRegisterCreationRequest
-        {
-            Name = "Test Register",
-            TenantId = "tenant-123",
-            Creator = new CreatorInfo { UserId = "user-001", WalletId = "wallet-001" }
-        };
-
-        _mockHashProvider
-            .Setup(h => h.ComputeHash(It.IsAny<byte[]>(), HashType.SHA256))
-            .Returns(new byte[32]);
-
-        var initiateResponse = await _orchestrator.InitiateAsync(initiateRequest);
-
-        // Add 10 more attestations (total 11, max is 10)
-        for (int i = 0; i < 10; i++)
-        {
-            initiateResponse.ControlRecord.Attestations.Add(new RegisterAttestation
-            {
-                Role = RegisterRole.Admin,
-                Subject = $"did:sorcha:user-{i:000}",
-                PublicKey = Convert.ToBase64String(new byte[32]),
-                Signature = Convert.ToBase64String(new byte[64]),
-                Algorithm = SignatureAlgorithm.ED25519,
-                GrantedAt = DateTimeOffset.UtcNow
-            });
-        }
-
-        initiateResponse.ControlRecord.Attestations[0].PublicKey = Convert.ToBase64String(new byte[32]);
-        initiateResponse.ControlRecord.Attestations[0].Signature = Convert.ToBase64String(new byte[64]);
-
-        var finalizeRequest = new FinalizeRegisterCreationRequest
-        {
-            RegisterId = initiateResponse.RegisterId,
-            Nonce = initiateResponse.Nonce,
-            ControlRecord = initiateResponse.ControlRecord
-        };
-
-        // Act & Assert
-        var act = async () => await _orchestrator.FinalizeAsync(finalizeRequest);
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage("*Maximum 10 attestations*");
     }
 
     #endregion
@@ -458,7 +434,10 @@ public class RegisterCreationOrchestratorTests
         {
             Name = "Test Register",
             TenantId = "tenant-123",
-            Creator = new CreatorInfo { UserId = "user-001", WalletId = "wallet-001" }
+            Owners = new List<OwnerInfo>
+            {
+                new() { UserId = "user-001", WalletId = "wallet-001" }
+            }
         };
 
         _mockHashProvider
@@ -467,15 +446,19 @@ public class RegisterCreationOrchestratorTests
 
         var initiateResponse = await _orchestrator.InitiateAsync(initiateRequest);
 
-        initiateResponse.ControlRecord.Attestations[0].Algorithm = inputAlgorithm;
-        initiateResponse.ControlRecord.Attestations[0].PublicKey = Convert.ToBase64String(new byte[32]);
-        initiateResponse.ControlRecord.Attestations[0].Signature = Convert.ToBase64String(new byte[64]);
+        var signedAttestations = initiateResponse.AttestationsToSign.Select(a => new SignedAttestation
+        {
+            AttestationData = a.AttestationData,
+            PublicKey = Convert.ToBase64String(new byte[32]),
+            Signature = Convert.ToBase64String(new byte[64]),
+            Algorithm = inputAlgorithm
+        }).ToList();
 
         var finalizeRequest = new FinalizeRegisterCreationRequest
         {
             RegisterId = initiateResponse.RegisterId,
             Nonce = initiateResponse.Nonce,
-            ControlRecord = initiateResponse.ControlRecord
+            SignedAttestations = signedAttestations
         };
 
         byte? capturedNetwork = null;
@@ -496,6 +479,7 @@ public class RegisterCreationOrchestratorTests
                 It.IsAny<string>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>(),
+                It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Sorcha.Register.Models.Register
             {

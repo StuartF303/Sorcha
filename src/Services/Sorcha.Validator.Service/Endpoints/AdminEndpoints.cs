@@ -144,6 +144,23 @@ public static class AdminEndpoints
         .WithDescription("Triggers a single validation pipeline iteration for testing/debugging")
         .Produces(StatusCodes.Status200OK);
 
+        // Query monitored registers
+        group.MapGet("/validators/monitoring", (
+            IRegisterMonitoringRegistry registry) =>
+        {
+            var registerIds = registry.GetAll().ToList();
+
+            return Results.Ok(new
+            {
+                RegisterIds = registerIds,
+                Count = registerIds.Count
+            });
+        })
+        .WithName("GetMonitoredRegisters")
+        .WithSummary("Get monitored registers")
+        .WithDescription("Returns the list of register IDs currently being monitored for docket building")
+        .Produces(StatusCodes.Status200OK);
+
         return app;
     }
 }
