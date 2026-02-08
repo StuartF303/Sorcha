@@ -417,24 +417,32 @@ $elapsed = 0
 
 while (-not $docketFound -and $elapsed -lt $maxWaitSeconds) {
     try {
-        $docketListResponse = Invoke-RestMethod `
+        # Use Invoke-WebRequest (not Invoke-RestMethod) to avoid PowerShell array unwrapping issues
+        $rawResponse = Invoke-WebRequest `
             -Uri "$RegisterDirectUrl/api/registers/$registerId/dockets/" `
             -Method GET `
             -Headers @{ Authorization = "Bearer $adminToken" } `
             -UseBasicParsing
 
-        # Check if we got any dockets back
-        $docketList = if ($docketListResponse -is [array]) { $docketListResponse } else { @($docketListResponse) }
-
-        if ($docketList.Count -gt 0 -and $docketList[0]) {
-            $docketFound = $true
-            $docketResponse = $docketList[0]
-            Write-Host ""
-            Write-Success "Genesis docket appeared after ${elapsed}s!"
-            break
+        $responseBody = $rawResponse.Content
+        if ($responseBody -and $responseBody.Trim().Length -gt 2) {
+            # Parse the JSON array manually
+            $docketList = $responseBody | ConvertFrom-Json
+            if ($docketList -and ($docketList | Measure-Object).Count -gt 0) {
+                $docketFound = $true
+                $docketResponse = if ($docketList -is [array]) { $docketList[0] } else { $docketList }
+                Write-Host ""
+                Write-Success "Genesis docket appeared after ${elapsed}s!"
+                break
+            }
         }
     } catch {
-        # 404 or empty is expected while waiting
+        # 404 is expected while waiting; log other errors for debugging
+        $statusCode = $null
+        if ($_.Exception.Response) { $statusCode = [int]$_.Exception.Response.StatusCode }
+        if ($statusCode -and $statusCode -ne 404) {
+            Write-Host "`r  Poll error: HTTP $statusCode - $($_.Exception.Message)" -ForegroundColor DarkYellow
+        }
     }
 
     $remaining = $maxWaitSeconds - $elapsed
@@ -448,13 +456,14 @@ Write-Host ""
 if (-not $docketFound) {
     # Try the /latest endpoint as fallback
     try {
-        $docketResponse = Invoke-RestMethod `
+        $latestRaw = Invoke-WebRequest `
             -Uri "$RegisterDirectUrl/api/registers/$registerId/dockets/latest" `
             -Method GET `
             -Headers @{ Authorization = "Bearer $adminToken" } `
             -UseBasicParsing
 
-        if ($docketResponse) {
+        if ($latestRaw.Content -and $latestRaw.Content.Trim().Length -gt 2) {
+            $docketResponse = $latestRaw.Content | ConvertFrom-Json
             $docketFound = $true
             Write-Success "Genesis docket found via /latest endpoint!"
         }
