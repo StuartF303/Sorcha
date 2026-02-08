@@ -206,6 +206,8 @@ services:
       ServiceClients__WalletService__UseGrpc: "false"
       ServiceClients__ValidatorService__Address: http://sorcha-validator-service:8080
       ServiceClients__ValidatorService__UseGrpc: "false"
+      ServiceClients__PeerService__Address: http://sorcha-peer-service:5000
+      ServiceClients__PeerService__HttpAddress: http://sorcha-peer-service:8080
       # Service-to-service auth for Wallet Service calls
       ServiceAuth__ClientId: register-service
       ServiceAuth__ClientSecret: register-service-secret

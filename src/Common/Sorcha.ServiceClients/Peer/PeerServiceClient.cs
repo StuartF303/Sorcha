@@ -33,27 +33,49 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
 
         _serviceAddress = configuration["ServiceClients:PeerService:Address"]
             ?? configuration["GrpcClients:PeerService:Address"]
-            ?? throw new InvalidOperationException("Peer Service address not configured");
+            ?? "";
+
+        // Separate HTTP address for REST API calls (may differ from gRPC port in Docker)
+        var httpAddress = configuration["ServiceClients:PeerService:HttpAddress"]
+            ?? _serviceAddress;
+
+        if (string.IsNullOrEmpty(_serviceAddress) && string.IsNullOrEmpty(httpAddress))
+        {
+            _logger.LogWarning("Peer Service address not configured — peer operations will be unavailable");
+        }
 
         _localPeerId = configuration["Validator:ValidatorId"]
             ?? configuration["ServiceClients:PeerId"]
             ?? Environment.MachineName;
 
-        // Create gRPC channel
-        _channel = GrpcChannel.ForAddress(_serviceAddress);
-        _discoveryClient = new PeerDiscovery.PeerDiscoveryClient(_channel);
-        _communicationClient = new PeerCommunication.PeerCommunicationClient(_channel);
+        // Create gRPC channel (if address configured)
+        if (!string.IsNullOrEmpty(_serviceAddress))
+        {
+            _channel = GrpcChannel.ForAddress(_serviceAddress);
+            _discoveryClient = new PeerDiscovery.PeerDiscoveryClient(_channel);
+            _communicationClient = new PeerCommunication.PeerCommunicationClient(_channel);
+        }
 
-        // Create HttpClient for REST API calls (same address serves both gRPC and HTTP)
-        _httpClient = new HttpClient { BaseAddress = new Uri(_serviceAddress.TrimEnd('/') + "/") };
+        // Create HttpClient for REST API calls
+        if (!string.IsNullOrEmpty(httpAddress))
+        {
+            _httpClient = new HttpClient { BaseAddress = new Uri(httpAddress.TrimEnd('/') + "/") };
+        }
 
-        _logger.LogInformation("PeerServiceClient initialized (Address: {Address}, PeerId: {PeerId})", _serviceAddress, _localPeerId);
+        _logger.LogInformation("PeerServiceClient initialized (gRPC: {Address}, HTTP: {HttpAddress}, PeerId: {PeerId})",
+            _serviceAddress, httpAddress, _localPeerId);
     }
 
     public async Task<List<ValidatorInfo>> QueryValidatorsAsync(
         string registerId,
         CancellationToken cancellationToken = default)
     {
+        if (_discoveryClient is null)
+        {
+            _logger.LogDebug("Peer Service not configured — returning empty validator list");
+            return [];
+        }
+
         try
         {
             _logger.LogDebug("Querying validators for register {RegisterId}", registerId);
@@ -111,6 +133,8 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
         byte[] docketData,
         CancellationToken cancellationToken = default)
     {
+        if (_communicationClient is null) return;
+
         try
         {
             _logger.LogDebug(
@@ -180,6 +204,8 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
         byte[] docketData,
         CancellationToken cancellationToken = default)
     {
+        if (_communicationClient is null) return;
+
         try
         {
             _logger.LogDebug(
@@ -239,6 +265,8 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
         string details,
         CancellationToken cancellationToken = default)
     {
+        if (_communicationClient is null) return;
+
         try
         {
             _logger.LogDebug(
@@ -308,6 +336,12 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
                 "Advertising register {RegisterId} (isPublic={IsPublic}) to Peer Service",
                 registerId, isPublic);
 
+            if (_httpClient is null)
+            {
+                _logger.LogDebug("Peer Service HTTP not configured — skipping register advertisement");
+                return;
+            }
+
             var response = await _httpClient.PostAsJsonAsync(
                 $"api/registers/{registerId}/advertise",
                 new { isPublic },
@@ -346,8 +380,8 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
     {
         if (!_disposed)
         {
-            _channel.Dispose();
-            _httpClient.Dispose();
+            _channel?.Dispose();
+            _httpClient?.Dispose();
             _disposed = true;
         }
     }
