@@ -342,97 +342,314 @@ try {
     exit 1
 }
 
-# Step 6: Verify Genesis Transaction (if available)
-if ($genesisTransactionId) {
-    Write-Step "Step 6: Verify Genesis Transaction"
+# ==================================================================================
+# PIPELINE MONITORING: Watch genesis transaction flow through Validator → Docket → Register
+# ==================================================================================
 
+# Direct service URLs for monitoring (gateway routing doesn't cover /api/validators/ or /api/admin/)
+$ValidatorDirectUrl = if ($Profile -eq 'gateway') { "http://localhost:5800" } else { $ValidatorServiceUrl }
+$RegisterDirectUrl = if ($Profile -eq 'gateway') { "http://localhost:5380" } else { $RegisterServiceUrl }
+
+# Step 6: Check Validator Mempool
+Write-Step "Step 6: Check Validator Mempool"
+
+$mempoolFound = $false
+try {
+    Write-Info "Querying mempool for register $registerId..."
+    $mempoolResponse = Invoke-RestMethod `
+        -Uri "$ValidatorDirectUrl/api/validators/mempool/$registerId" `
+        -Method GET `
+        -UseBasicParsing
+
+    Write-Success "Mempool stats retrieved"
+    Write-Host ""
+    Write-Host "Mempool Statistics:" -ForegroundColor Yellow
+    Write-Host ($mempoolResponse | ConvertTo-Json -Depth 5) -ForegroundColor DarkGray
+    $mempoolFound = $true
+} catch {
+    Write-Info "Mempool query returned error (transaction may already be processed)"
+    Write-Host "  $($_.Exception.Message)" -ForegroundColor DarkGray
+}
+
+# Step 7: Check Validator Monitoring
+Write-Step "Step 7: Check Validator Monitoring Registry"
+
+$registerMonitored = $false
+try {
+    Write-Info "Querying monitored registers..."
+    $monitoringResponse = Invoke-RestMethod `
+        -Uri "$ValidatorDirectUrl/api/admin/validators/monitoring" `
+        -Method GET `
+        -UseBasicParsing
+
+    Write-Host ""
+    Write-Host "Monitored Registers:" -ForegroundColor Yellow
+    Write-Host "  Count: $($monitoringResponse.count)" -ForegroundColor White
+    Write-Host "  Register IDs:" -ForegroundColor White
+    foreach ($rid in $monitoringResponse.registerIds) {
+        $marker = if ($rid -eq $registerId) { " <-- OUR REGISTER" } else { "" }
+        Write-Host "    - $rid$marker" -ForegroundColor $(if ($rid -eq $registerId) { "Green" } else { "Gray" })
+    }
+
+    if ($monitoringResponse.registerIds -contains $registerId) {
+        Write-Success "Our register IS being monitored by the Validator"
+        $registerMonitored = $true
+    } else {
+        Write-Info "Our register is not yet in the monitoring list"
+    }
+} catch {
+    Write-Info "Could not query monitoring endpoint"
+    Write-Host "  $($_.Exception.Message)" -ForegroundColor DarkGray
+}
+
+# Step 8: Wait for Docket to Appear in Register Service
+Write-Step "Step 8: Wait for Genesis Docket (Validator Pipeline)"
+
+Write-Info "The DocketBuildTriggerService runs on a 10-second timer."
+Write-Info "It will: pick up genesis tx from mempool -> build docket -> write to Register Service"
+Write-Host ""
+
+$docketFound = $false
+$docketResponse = $null
+$maxWaitSeconds = 90
+$pollIntervalSeconds = 5
+$elapsed = 0
+
+while (-not $docketFound -and $elapsed -lt $maxWaitSeconds) {
     try {
-        Write-Info "Checking genesis transaction in validator..."
-
-        $txResponse = Invoke-RestMethod `
-            -Uri "$ValidatorServiceUrl/transactions/$genesisTransactionId" `
+        $docketListResponse = Invoke-RestMethod `
+            -Uri "$RegisterDirectUrl/api/registers/$registerId/dockets/" `
             -Method GET `
+            -Headers @{ Authorization = "Bearer $adminToken" } `
             -UseBasicParsing
 
-        Write-Success "Genesis transaction found in validator!"
+        # Check if we got any dockets back
+        $docketList = if ($docketListResponse -is [array]) { $docketListResponse } else { @($docketListResponse) }
+
+        if ($docketList.Count -gt 0 -and $docketList[0]) {
+            $docketFound = $true
+            $docketResponse = $docketList[0]
+            Write-Host ""
+            Write-Success "Genesis docket appeared after ${elapsed}s!"
+            break
+        }
+    } catch {
+        # 404 or empty is expected while waiting
+    }
+
+    $remaining = $maxWaitSeconds - $elapsed
+    Write-Host "`r  Waiting for docket... ${elapsed}s / ${maxWaitSeconds}s (next poll in ${pollIntervalSeconds}s)" -ForegroundColor DarkGray -NoNewline
+    Start-Sleep -Seconds $pollIntervalSeconds
+    $elapsed += $pollIntervalSeconds
+}
+
+Write-Host ""
+
+if (-not $docketFound) {
+    # Try the /latest endpoint as fallback
+    try {
+        $docketResponse = Invoke-RestMethod `
+            -Uri "$RegisterDirectUrl/api/registers/$registerId/dockets/latest" `
+            -Method GET `
+            -Headers @{ Authorization = "Bearer $adminToken" } `
+            -UseBasicParsing
+
+        if ($docketResponse) {
+            $docketFound = $true
+            Write-Success "Genesis docket found via /latest endpoint!"
+        }
+    } catch {
+        # Still not found
+    }
+}
+
+if ($docketFound -and $docketResponse) {
+    Write-Host ""
+    Write-Host "Genesis Docket Details:" -ForegroundColor Yellow
+    Write-Host "  Docket ID: $($docketResponse.id)" -ForegroundColor White
+    Write-Host "  Register ID: $($docketResponse.registerId)" -ForegroundColor White
+    Write-Host "  Hash: $($docketResponse.hash)" -ForegroundColor White
+    Write-Host "  Previous Hash: $($docketResponse.previousHash)" -ForegroundColor White
+    Write-Host "  Transaction Count: $($docketResponse.transactionIds.Count)" -ForegroundColor White
+    Write-Host "  Timestamp: $($docketResponse.timeStamp)" -ForegroundColor White
+    Write-Host "  State: $($docketResponse.state)" -ForegroundColor White
+
+    if ($ShowJson) {
         Write-Host ""
-        Write-Host "Transaction Details:" -ForegroundColor Yellow
-        Write-Host "  Transaction ID: $($txResponse.id)" -ForegroundColor White
-        Write-Host "  Type: $($txResponse.type)" -ForegroundColor White
-        Write-Host "  Register ID: $($txResponse.registerId)" -ForegroundColor White
-        Write-Host "  Status: $($txResponse.status)" -ForegroundColor White
+        Write-Host "================================================================================" -ForegroundColor Magenta
+        Write-Host "  FULL DOCKET JSON" -ForegroundColor Magenta
+        Write-Host "================================================================================" -ForegroundColor Magenta
+        Write-Host ""
+        Write-Host ($docketResponse | ConvertTo-Json -Depth 10) -ForegroundColor Gray
+        Write-Host ""
+    }
+} else {
+    Write-Host ""
+    Write-Host "[!] Docket did not appear within ${maxWaitSeconds}s" -ForegroundColor Yellow
+    Write-Info "The DocketBuildTriggerService may not have processed the register yet."
+    Write-Info "Possible reasons:"
+    Write-Host "  - Register not registered for monitoring with Validator" -ForegroundColor Gray
+    Write-Host "  - DocketBuildTriggerService timer hasn't fired yet" -ForegroundColor Gray
+    Write-Host "  - Genesis transaction still being validated" -ForegroundColor Gray
+    Write-Host "  - Consensus not yet reached (single-node should be instant)" -ForegroundColor Gray
+}
 
-        # Show full JSON if requested
-        if ($ShowJson) {
-            Write-Host ""
-            Write-Host "================================================================================" -ForegroundColor Magenta
-            Write-Host "  FULL GENESIS TRANSACTION JSON" -ForegroundColor Magenta
-            Write-Host "================================================================================" -ForegroundColor Magenta
-            Write-Host ""
-            Write-Host ($txResponse | ConvertTo-Json -Depth 10) -ForegroundColor Gray
-            Write-Host ""
+# Step 9: Verify Docket Transactions (Genesis Payload Integrity)
+if ($docketFound) {
+    Write-Step "Step 9: Verify Genesis Transaction in Docket"
 
-            # Extract and display control record if available
-            if ($txResponse.controlRecord) {
-                Write-Host "================================================================================" -ForegroundColor Cyan
-                Write-Host "  REGISTER CONTROL RECORD" -ForegroundColor Cyan
-                Write-Host "================================================================================" -ForegroundColor Cyan
-                Write-Host ""
-                Write-Host ($txResponse.controlRecord | ConvertTo-Json -Depth 10) -ForegroundColor Gray
-                Write-Host ""
+    $docketId = $docketResponse.id
+    $txVerified = $false
 
-                # Show attestations
-                if ($txResponse.controlRecord.attestations) {
-                    Write-Host "Attestations (Verified Owner Signatures):" -ForegroundColor Yellow
-                    foreach ($attestation in $txResponse.controlRecord.attestations) {
-                        Write-Host "  - Subject: $($attestation.subject)" -ForegroundColor White
-                        Write-Host "    Role: $($attestation.role)" -ForegroundColor Gray
-                        Write-Host "    Public Key: $($attestation.publicKey)" -ForegroundColor Gray
-                        Write-Host "    Algorithm: $($attestation.algorithm)" -ForegroundColor Gray
-                        Write-Host "    Signature: $($attestation.signature)" -ForegroundColor DarkGray
-                        Write-Host ""
+    try {
+        Write-Info "Fetching transactions sealed in docket $docketId..."
+        $docketTxResponse = Invoke-RestMethod `
+            -Uri "$RegisterDirectUrl/api/registers/$registerId/dockets/$docketId/transactions" `
+            -Method GET `
+            -Headers @{ Authorization = "Bearer $adminToken" } `
+            -UseBasicParsing
+
+        $txList = if ($docketTxResponse -is [array]) { $docketTxResponse } else { @($docketTxResponse) }
+
+        Write-Success "Retrieved $($txList.Count) transaction(s) from docket"
+        Write-Host ""
+
+        foreach ($tx in $txList) {
+            Write-Host "Transaction in Docket:" -ForegroundColor Yellow
+            Write-Host "  TxId: $($tx.txId)" -ForegroundColor White
+            Write-Host "  Register: $($tx.registerId)" -ForegroundColor White
+            Write-Host "  Sender: $($tx.senderWallet)" -ForegroundColor White
+            Write-Host "  Timestamp: $($tx.timeStamp)" -ForegroundColor White
+            Write-Host "  Payload Count: $($tx.payloadCount)" -ForegroundColor White
+            Write-Host "  Signature: $(if ($tx.signature) { $tx.signature.Substring(0, [Math]::Min(40, $tx.signature.Length)) + '...' } else { '(none)' })" -ForegroundColor White
+
+            # Check payload integrity - this is the key fix from issue #1
+            if ($tx.payloads -and $tx.payloads.Count -gt 0) {
+                Write-Success "PAYLOAD DATA PRESERVED! ($($tx.payloads.Count) payload(s))"
+                $txVerified = $true
+
+                foreach ($payload in $tx.payloads) {
+                    Write-Host ""
+                    Write-Host "  Payload Details:" -ForegroundColor Cyan
+                    Write-Host "    Data Length: $(if ($payload.data) { $payload.data.Length } else { 0 }) chars" -ForegroundColor White
+                    Write-Host "    Hash: $($payload.hash)" -ForegroundColor White
+                    Write-Host "    Size: $($payload.payloadSize) bytes" -ForegroundColor White
+
+                    # Try to decode the payload data (Base64 of control record JSON)
+                    if ($payload.data) {
+                        try {
+                            $decodedBytes = [Convert]::FromBase64String($payload.data)
+                            $decodedJson = [System.Text.Encoding]::UTF8.GetString($decodedBytes)
+                            $controlRecord = $decodedJson | ConvertFrom-Json
+
+                            Write-Host ""
+                            Write-Success "Control record decoded from payload!"
+                            Write-Host "    Register ID: $($controlRecord.registerId)" -ForegroundColor Green
+                            Write-Host "    Register Name: $($controlRecord.registerName)" -ForegroundColor Green
+                            Write-Host "    Tenant ID: $($controlRecord.tenantId)" -ForegroundColor Green
+
+                            if ($controlRecord.attestations) {
+                                Write-Host "    Attestations: $($controlRecord.attestations.Count)" -ForegroundColor Green
+                                foreach ($att in $controlRecord.attestations) {
+                                    Write-Host "      - $($att.role): $($att.subject) [$($att.algorithm)]" -ForegroundColor Cyan
+                                }
+                            }
+
+                            if ($ShowJson) {
+                                Write-Host ""
+                                Write-Host "================================================================================" -ForegroundColor Cyan
+                                Write-Host "  DECODED CONTROL RECORD (from docket payload)" -ForegroundColor Cyan
+                                Write-Host "================================================================================" -ForegroundColor Cyan
+                                Write-Host ""
+                                Write-Host ($controlRecord | ConvertTo-Json -Depth 10) -ForegroundColor Gray
+                                Write-Host ""
+                            }
+                        } catch {
+                            Write-Info "Payload data present but could not decode as Base64 JSON"
+                            Write-Host "    Raw (first 100 chars): $($payload.data.Substring(0, [Math]::Min(100, $payload.data.Length)))..." -ForegroundColor DarkGray
+                        }
                     }
                 }
+            } else {
+                Write-Host ""
+                Write-Host "[!] PAYLOAD DATA MISSING - payloads array is empty!" -ForegroundColor Red
+                Write-Host "    PayloadCount: $($tx.payloadCount)" -ForegroundColor Red
+                Write-Host "    This indicates the payload mapping fix (Issue #1) may not be working." -ForegroundColor Red
             }
 
-            # Extract and display signed docket if available
-            if ($txResponse.signedDocket) {
-                Write-Host "================================================================================" -ForegroundColor Green
-                Write-Host "  SIGNED DOCKET (System Wallet Signature)" -ForegroundColor Green
-                Write-Host "================================================================================" -ForegroundColor Green
+            # Check metadata
+            if ($tx.metaData) {
                 Write-Host ""
-                Write-Host ($txResponse.signedDocket | ConvertTo-Json -Depth 10) -ForegroundColor Gray
-                Write-Host ""
+                Write-Host "  Transaction Metadata:" -ForegroundColor Yellow
+                Write-Host "    Blueprint ID: $($tx.metaData.blueprintId)" -ForegroundColor White
+                Write-Host "    Action ID: $($tx.metaData.actionId)" -ForegroundColor White
+                Write-Host "    Register ID: $($tx.metaData.registerId)" -ForegroundColor White
+                Write-Host "    Transaction Type: $($tx.metaData.transactionType)" -ForegroundColor White
+            }
 
-                Write-Host "Docket Signature Details:" -ForegroundColor Yellow
-                Write-Host "  Algorithm: $($txResponse.signedDocket.algorithm)" -ForegroundColor White
-                Write-Host "  Public Key: $($txResponse.signedDocket.publicKey)" -ForegroundColor Gray
-                Write-Host "  Signature: $($txResponse.signedDocket.signature)" -ForegroundColor DarkGray
+            if ($ShowJson) {
+                Write-Host ""
+                Write-Host "================================================================================" -ForegroundColor Magenta
+                Write-Host "  FULL TRANSACTION JSON (from docket)" -ForegroundColor Magenta
+                Write-Host "================================================================================" -ForegroundColor Magenta
+                Write-Host ""
+                Write-Host ($tx | ConvertTo-Json -Depth 10) -ForegroundColor Gray
                 Write-Host ""
             }
         }
 
     } catch {
-        $statusCode = $_.Exception.Response.StatusCode.value__
+        Write-Host "[!] Failed to fetch docket transactions" -ForegroundColor Yellow
+        Write-Host "  $($_.Exception.Message)" -ForegroundColor DarkGray
+    }
 
-        if ($statusCode -eq 404) {
-            Write-Info "Genesis transaction not yet in validator mempool"
-            Write-Info "This may be expected if transaction processing is asynchronous"
-        } else {
-            Write-Error "Failed to retrieve genesis transaction"
-            Write-Host "  Status: $statusCode" -ForegroundColor Red
+    # Step 10: Verify Register Height Updated
+    Write-Step "Step 10: Verify Register State"
+
+    try {
+        Write-Info "Checking register state after docket write..."
+        $registerResponse = Invoke-RestMethod `
+            -Uri "$RegisterDirectUrl/api/registers/$registerId" `
+            -Method GET `
+            -Headers @{ Authorization = "Bearer $adminToken" } `
+            -UseBasicParsing
+
+        Write-Success "Register retrieved"
+        Write-Host ""
+        Write-Host "Register State:" -ForegroundColor Yellow
+        Write-Host "  ID: $($registerResponse.id)" -ForegroundColor White
+        Write-Host "  Name: $($registerResponse.name)" -ForegroundColor White
+        Write-Host "  Height: $($registerResponse.height)" -ForegroundColor White
+        Write-Host "  Status: $($registerResponse.status)" -ForegroundColor White
+        Write-Host "  Advertise: $($registerResponse.advertise)" -ForegroundColor White
+        Write-Host "  Tenant: $($registerResponse.tenantId)" -ForegroundColor White
+        Write-Host "  Created: $($registerResponse.createdAt)" -ForegroundColor White
+
+        if ($registerResponse.height -ge 0) {
+            Write-Success "Register height is $($registerResponse.height) (genesis docket applied)"
         }
+
+        if ($ShowJson) {
+            Write-Host ""
+            Write-Host ($registerResponse | ConvertTo-Json -Depth 10) -ForegroundColor Gray
+        }
+    } catch {
+        Write-Host "[!] Could not retrieve register state" -ForegroundColor Yellow
+        Write-Host "  $($_.Exception.Message)" -ForegroundColor DarkGray
     }
 }
 
-# Summary
+# ==================================================================================
+# SUMMARY
+# ==================================================================================
+
 Write-Host ""
 Write-Host "================================================================================" -ForegroundColor Cyan
-Write-Host "  Complete Register Creation: SUCCESS!" -ForegroundColor Green
+Write-Host "  Complete Register Creation: PIPELINE RESULTS" -ForegroundColor Green
 Write-Host "================================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Host "Test Results:" -ForegroundColor Yellow
+Write-Host "Phase 1 - Register Creation:" -ForegroundColor Yellow
 Write-Host "  [OK] Admin authentication" -ForegroundColor Green
 Write-Host "  [OK] Wallet creation ($Algorithm)" -ForegroundColor Green
 Write-Host "  [OK] Register creation initiation (attestation-based)" -ForegroundColor Green
@@ -441,11 +658,40 @@ Write-Host "  [OK] Individual attestation signature verification" -ForegroundCol
 Write-Host "  [OK] Register creation finalized" -ForegroundColor Green
 
 if ($genesisTransactionId) {
-    Write-Host "  [OK] Genesis transaction submitted" -ForegroundColor Green
+    Write-Host "  [OK] Genesis transaction submitted (TX: $($genesisTransactionId.Substring(0, 16))...)" -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "Register Created Successfully!" -ForegroundColor Green
+Write-Host "Phase 2 - Docket Pipeline:" -ForegroundColor Yellow
+
+if ($mempoolFound) {
+    Write-Host "  [OK] Validator mempool queried" -ForegroundColor Green
+} else {
+    Write-Host "  [--] Validator mempool (tx may already be processed)" -ForegroundColor DarkGray
+}
+
+if ($registerMonitored) {
+    Write-Host "  [OK] Register monitored by Validator" -ForegroundColor Green
+} else {
+    Write-Host "  [--] Register monitoring (not confirmed)" -ForegroundColor DarkGray
+}
+
+if ($docketFound) {
+    Write-Host "  [OK] Genesis docket written to Register Service" -ForegroundColor Green
+} else {
+    Write-Host "  [!!] Genesis docket NOT found within timeout" -ForegroundColor Red
+}
+
+if ($txVerified) {
+    Write-Host "  [OK] Payload data preserved through pipeline (Issue #1 FIXED)" -ForegroundColor Green
+} elseif ($docketFound) {
+    Write-Host "  [!!] Payload data MISSING in docket transaction" -ForegroundColor Red
+} else {
+    Write-Host "  [--] Payload verification skipped (no docket)" -ForegroundColor DarkGray
+}
+
+Write-Host ""
+Write-Host "Register Details:" -ForegroundColor Yellow
 Write-Host "  Name: $registerName" -ForegroundColor White
 Write-Host "  Register ID: $registerId" -ForegroundColor White
 Write-Host "  Owner Wallet: $walletAddress" -ForegroundColor White
@@ -454,36 +700,32 @@ Write-Host "  Profile: $Profile" -ForegroundColor White
 Write-Host ""
 
 Write-Host "================================================================================" -ForegroundColor Cyan
-Write-Host "  End-to-End Workflow Verified with Real Cryptographic Signatures!" -ForegroundColor Green
+
+if ($docketFound -and $txVerified) {
+    Write-Host "  FULL PIPELINE VERIFIED: Create -> Sign -> Validate -> Docket -> Store" -ForegroundColor Green
+} elseif ($docketFound) {
+    Write-Host "  PARTIAL: Docket created but payload integrity needs investigation" -ForegroundColor Yellow
+} else {
+    Write-Host "  PARTIAL: Register created, docket pipeline did not complete in time" -ForegroundColor Yellow
+}
+
 Write-Host "================================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Host "What was tested:" -ForegroundColor Yellow
-Write-Host "  - Tenant Service: Admin authentication via service-auth/token" -ForegroundColor Gray
-Write-Host "  - Wallet Service: Create HD wallet with $Algorithm" -ForegroundColor Gray
-Write-Host "  - Wallet Service: Sign pre-hashed attestations with derivation path (sorcha:register-attestation, isPreHashed)" -ForegroundColor Gray
-Write-Host "  - Register Service: Initiate register creation (generate individual attestations)" -ForegroundColor Gray
-Write-Host "  - Register Service: Verify individual attestation signatures" -ForegroundColor Gray
-Write-Host "  - Register Service: Construct control record from verified attestations" -ForegroundColor Gray
-Write-Host "  - Register Service: Submit genesis transaction to Validator" -ForegroundColor Gray
-Write-Host "  - Validator Service: Sign control record with system wallet (sorcha:register-control)" -ForegroundColor Gray
-Write-Host "  - Validator Service: Add genesis transaction to mempool" -ForegroundColor Gray
-Write-Host ""
-Write-Host "Architectural Improvements:" -ForegroundColor Yellow
-Write-Host "  - Multi-owner support: Each owner signs individual attestation" -ForegroundColor Cyan
-Write-Host "  - Derivation paths: Uses Sorcha system paths for role-based signing" -ForegroundColor Cyan
-Write-Host "  - Two-phase signing: Owner attestations + system wallet control record" -ForegroundColor Cyan
-Write-Host "  - Hash-based signing: Hex SHA-256 hash signed with isPreHashed (no double-hashing)" -ForegroundColor Cyan
+Write-Host "Services tested:" -ForegroundColor Yellow
+Write-Host "  - Tenant Service: Admin authentication (JWT)" -ForegroundColor Gray
+Write-Host "  - Wallet Service: HD wallet creation + pre-hashed signing ($Algorithm)" -ForegroundColor Gray
+Write-Host "  - Register Service: Two-phase creation (initiate/finalize)" -ForegroundColor Gray
+Write-Host "  - Validator Service: Genesis tx acceptance + mempool + docket building" -ForegroundColor Gray
+Write-Host "  - Register Service: Docket storage + transaction persistence" -ForegroundColor Gray
 Write-Host ""
 
 Write-Host "Next Steps:" -ForegroundColor Yellow
 Write-Host "  1. Test with other algorithms:" -ForegroundColor Gray
 Write-Host "     pwsh test-register-creation-with-real-signing.ps1 -Algorithm NISTP256" -ForegroundColor DarkGray
 Write-Host "     pwsh test-register-creation-with-real-signing.ps1 -Algorithm RSA4096" -ForegroundColor DarkGray
-Write-Host "  2. Test via direct profile for debugging:" -ForegroundColor Gray
-Write-Host "     pwsh test-register-creation-with-real-signing.ps1 -Profile direct" -ForegroundColor DarkGray
-Write-Host "  3. View full JSON structures (control record, genesis transaction, signed docket):" -ForegroundColor Gray
+Write-Host "  2. View full JSON structures:" -ForegroundColor Gray
 Write-Host "     pwsh test-register-creation-with-real-signing.ps1 -ShowJson" -ForegroundColor DarkGray
-Write-Host "  4. Add transactions to the register" -ForegroundColor Gray
-Write-Host "  5. Verify transaction chain integrity" -ForegroundColor Gray
+Write-Host "  3. Add transactions to the register" -ForegroundColor Gray
+Write-Host "  4. Verify transaction chain integrity" -ForegroundColor Gray
 Write-Host ""
