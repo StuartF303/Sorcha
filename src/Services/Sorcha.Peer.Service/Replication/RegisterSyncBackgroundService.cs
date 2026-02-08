@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -21,7 +22,7 @@ public class RegisterSyncBackgroundService : BackgroundService
     private readonly RegisterReplicationService _replicationService;
     private readonly IDbContextFactory<PeerDbContext>? _dbContextFactory;
     private readonly RegisterSyncConfiguration _syncConfig;
-    private readonly Dictionary<string, RegisterSubscription> _subscriptions = new();
+    private readonly ConcurrentDictionary<string, RegisterSubscription> _subscriptions = new();
 
     public RegisterSyncBackgroundService(
         ILogger<RegisterSyncBackgroundService> logger,
@@ -74,10 +75,10 @@ public class RegisterSyncBackgroundService : BackgroundService
         ReplicationMode mode,
         CancellationToken cancellationToken = default)
     {
-        if (_subscriptions.ContainsKey(registerId))
+        if (_subscriptions.TryGetValue(registerId, out var existing))
         {
             _logger.LogWarning("Already subscribed to register {RegisterId}", registerId);
-            return _subscriptions[registerId];
+            return existing;
         }
 
         var subscription = new RegisterSubscription
@@ -102,7 +103,7 @@ public class RegisterSyncBackgroundService : BackgroundService
     /// </summary>
     public async Task UnsubscribeFromRegisterAsync(string registerId, CancellationToken cancellationToken = default)
     {
-        if (_subscriptions.Remove(registerId))
+        if (_subscriptions.TryRemove(registerId, out _))
         {
             await DeleteSubscriptionAsync(registerId, cancellationToken);
             _logger.LogInformation("Unsubscribed from register {RegisterId}", registerId);
@@ -128,7 +129,7 @@ public class RegisterSyncBackgroundService : BackgroundService
 
     private async Task ProcessSubscriptionsAsync(CancellationToken cancellationToken)
     {
-        foreach (var (registerId, subscription) in _subscriptions)
+        foreach (var (registerId, subscription) in _subscriptions.ToList())
         {
             try
             {

@@ -17,7 +17,8 @@ The Sorcha platform uses **JWT (JSON Web Token) Bearer authentication** for secu
 │  Protected Services                │
 │  ├─ Blueprint Service (validates) │
 │  ├─ Wallet Service (validates)    │
-│  └─ Register Service (validates)  │
+│  ├─ Register Service (validates)  │
+│  └─ Peer Service (validates)     │
 └────────────────────────────────────┘
 ```
 
@@ -53,6 +54,14 @@ The Sorcha platform uses **JWT (JSON Web Token) Bearer authentication** for secu
   - `CanSubmitTransactions` - Submit transactions
   - `CanReadTransactions` - Query transactions
   - `RequireService` - Service-to-service notifications
+
+### ✅ Peer Service
+- **Authentication**: JWT Bearer validation
+- **Authorization Policies**:
+  - `RequireAuthenticated` - Subscribe/unsubscribe/purge register replication
+  - `CanManagePeers` - Ban, unban, reset peer failure counts
+  - `RequireService` - Service-to-service operations
+- **Unauthenticated Endpoints**: Read-only monitoring (peer list, health, stats, cache stats)
 
 ## Configuration
 
@@ -272,6 +281,14 @@ curl https://localhost:7083/api/registers \
 | `CanReadTransactions` | Query transactions | Authenticated user |
 | `RequireService` | Notifications | `token_type=service` |
 
+### Peer Service
+
+| Policy | Description | Required Claims |
+|--------|-------------|-----------------|
+| `RequireAuthenticated` | Subscribe/unsubscribe/purge registers | Authenticated user |
+| `CanManagePeers` | Ban, unban, reset peers | `org_id` OR `token_type=service` |
+| `RequireService` | Service operations | `token_type=service` |
+
 ## Security Best Practices
 
 ### Development
@@ -359,5 +376,5 @@ After authentication is configured:
 ---
 
 **Status**: ✅ AUTH-002 Complete (All services integrated)
-**Last Updated**: 2025-12-12
-**Version**: 1.0
+**Last Updated**: 2026-02-08
+**Version**: 1.1

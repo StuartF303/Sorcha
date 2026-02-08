@@ -9,6 +9,7 @@ using Sorcha.Peer.Service.Connection;
 using Sorcha.Peer.Service.Core;
 using Sorcha.Peer.Service.Discovery;
 using Sorcha.Peer.Service.Distribution;
+using Sorcha.Peer.Service.Extensions;
 using Sorcha.Peer.Service.Monitoring;
 using Sorcha.Peer.Service.Network;
 using Sorcha.Peer.Service.Observability;
@@ -21,6 +22,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults (OpenTelemetry, health checks, service discovery)
 builder.AddServiceDefaults();
+
+// Add JWT authentication and authorization
+builder.AddJwtAuthentication();
+builder.Services.AddPeerServiceAuthorization();
 
 // Add rate limiting (SEC-002)
 builder.AddRateLimiting();
@@ -64,9 +69,9 @@ builder.WebHost.ConfigureKestrel(options =>
 // Add services
 builder.Services.AddGrpc(options =>
 {
-    // Allow gRPC to work without TLS in development
-    // This is necessary for cleartext HTTP/2
-    options.EnableDetailedErrors = true;
+    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    options.MaxReceiveMessageSize = 16 * 1024 * 1024; // 16 MB
+    options.MaxSendMessageSize = 16 * 1024 * 1024;    // 16 MB
 });
 builder.Services.AddGrpcReflection();
 
@@ -137,6 +142,10 @@ app.UseHttpsEnforcement();
 
 // Enable input validation (SEC-003)
 app.UseInputValidation();
+
+// Add authentication and authorization middleware
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Enable rate limiting (SEC-002)
 app.UseRateLimiting();
@@ -471,7 +480,7 @@ app.MapPost("/api/registers/{registerId}/subscribe", async (
     .WithSummary("Subscribe to a register for replication")
     .WithDescription("Creates a new subscription to replicate a register. Mode can be 'forward-only' (new transactions only) or 'full-replica' (complete docket chain pull).")
     .WithTags("Registers")
-    .RequireAuthorization();
+    .RequireAuthorization("RequireAuthenticated");
 
 // Unsubscribe from a register
 app.MapDelete("/api/registers/{registerId}/subscribe", async (
@@ -506,7 +515,7 @@ app.MapDelete("/api/registers/{registerId}/subscribe", async (
     .WithSummary("Unsubscribe from a register")
     .WithDescription("Stops replication for a register. Cached data is retained unless ?purge=true is specified.")
     .WithTags("Registers")
-    .RequireAuthorization();
+    .RequireAuthorization("RequireAuthenticated");
 
 // Purge cached data for a register
 app.MapDelete("/api/registers/{registerId}/cache", (string registerId, [FromServices] RegisterCache registerCache) =>
@@ -533,7 +542,7 @@ app.MapDelete("/api/registers/{registerId}/cache", (string registerId, [FromServ
     .WithSummary("Purge cached data for a register")
     .WithDescription("Deletes all locally cached transactions and dockets for a register.")
     .WithTags("Registers")
-    .RequireAuthorization();
+    .RequireAuthorization("RequireAuthenticated");
 
 // Peer management endpoints (ban/unban/reset)
 app.MapPost("/api/peers/{peerId}/ban", async (string peerId, BanRequest? request, PeerListManager peerListManager) =>
@@ -564,7 +573,7 @@ app.MapPost("/api/peers/{peerId}/ban", async (string peerId, BanRequest? request
     .WithSummary("Ban a peer from communication")
     .WithDescription("Bans a peer, preventing all gossip, sync, and heartbeat communication. Ban persists across restarts.")
     .WithTags("Management")
-    .RequireAuthorization();
+    .RequireAuthorization("CanManagePeers");
 
 app.MapDelete("/api/peers/{peerId}/ban", async (string peerId, PeerListManager peerListManager) =>
 {
@@ -591,7 +600,7 @@ app.MapDelete("/api/peers/{peerId}/ban", async (string peerId, PeerListManager p
     .WithSummary("Unban a peer, restoring communication")
     .WithDescription("Removes the ban on a peer. The peer's failure count is preserved (not reset).")
     .WithTags("Management")
-    .RequireAuthorization();
+    .RequireAuthorization("CanManagePeers");
 
 app.MapPost("/api/peers/{peerId}/reset", async (string peerId, PeerListManager peerListManager) =>
 {
@@ -614,7 +623,7 @@ app.MapPost("/api/peers/{peerId}/reset", async (string peerId, PeerListManager p
     .WithSummary("Reset a peer's failure count")
     .WithDescription("Resets the consecutive failure count for a peer to zero, making it eligible for normal communication.")
     .WithTags("Management")
-    .RequireAuthorization();
+    .RequireAuthorization("CanManagePeers");
 
 // Service health check with metrics (for admin dashboard)
 app.MapGet("/api/health", (PeerListManager peerListManager, StatisticsAggregator statisticsAggregator) =>

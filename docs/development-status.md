@@ -14,7 +14,7 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 - Blueprint-Action Service is 100% complete with full orchestration and JWT authentication (123 tests)
 - Wallet Service is 95% complete with full API implementation, JWT authentication, and EF Core persistence
 - Register Service is 100% complete with comprehensive testing and JWT authentication (112 tests, ~2,459 LOC)
-- **Peer Service 70% complete**: Central node connection, system register replication, heartbeat monitoring, and observability
+- **Peer Service 80% complete**: P2P topology, JWT auth, EF Core migrations, cache eviction, gRPC hardening
 - **Validator Service 95% complete**: Memory pool, docket building, consensus, gRPC peer communication
 - **Tenant Service 85% complete**: 67 integration tests (61 passing, 91% pass rate)
 - **AUTH-002 complete**: All services now have JWT Bearer authentication with authorization policies
@@ -34,7 +34,7 @@ For detailed implementation status, see the individual section files:
 | [Blueprint-Action Service](status/blueprint-service.md) | 100% | Full orchestration, SignalR, JWT auth |
 | [Wallet Service](status/wallet-service.md) | 95% | EF Core, API complete, HD wallets |
 | [Register Service](status/register-service.md) | 100% | 20 REST endpoints, OData, SignalR |
-| [Peer Service](status/peer-service.md) | 70% | Hub connection, replication, heartbeat |
+| [Peer Service](status/peer-service.md) | 80% | P2P topology, JWT auth, EF migrations |
 | [Validator Service](status/validator-service.md) | 95% | Consensus, memory pool, gRPC |
 | [Tenant Service](status/tenant-service.md) | 85% | Auth, orgs, service principals |
 | [Authentication (AUTH-002)](status/authentication.md) | 100% | JWT Bearer for all services |
@@ -54,7 +54,7 @@ For detailed implementation status, see the individual section files:
 | **Blueprint.Service** | 100% | Complete | None |
 | **Wallet.Service** | 95% | Nearly Complete | Azure Key Vault |
 | **Register.Service** | 100% | Complete | None |
-| **Peer.Service** | 70% | Functional | Tests, Polish |
+| **Peer.Service** | 80% | Functional | Tests, Polish |
 | **Validator.Service** | 95% | Nearly Complete | Enclave support |
 | **Tenant.Service** | 85% | Nearly Complete | 6 failing tests |
 | **Authentication (AUTH-002)** | 100% | Complete | None |
@@ -89,6 +89,11 @@ For detailed implementation status, see the individual section files:
 ## Recent Completions
 
 ### 2026-02-08
+- **PR #110 P2P Review Fixes** (12 issues resolved — 3 critical, 4 high, 5 medium)
+  - CRITICAL: Race condition fix (Dictionary → ConcurrentDictionary), EF Core migration, hardcoded password removal
+  - HIGH: JWT authentication added, gRPC channel idle timeout, RegisterCache eviction limits, replication timeouts, batched docket pulls
+  - MEDIUM: Magic numbers replaced with named constants, seed node reconnection, gRPC message size limits, idle connection cleanup wired into heartbeat
+  - 504 tests passing (4 new eviction tests)
 - **UI Modernization 100% complete** (92/94 tasks, 13 phases — 2 Docker E2E tasks remain)
   - Admin: Organization management, validator admin panel, service principal management, flattened navigation
   - Core Workflows: Real workflow instance management and action execution pages
@@ -155,7 +160,7 @@ For detailed implementation status, see the individual section files:
 
 1. **Persistent Storage** - MongoDB for Register, full production PostgreSQL
 2. **API Gateway JWT validation** - Not yet implemented
-3. **Peer Service tests** - 30% remaining (tests and polish)
+3. **Peer Service tests** - 20% remaining (integration tests, E2E validation)
 4. **Validator Service** - 5% remaining (enclave support, persistence)
 5. **Tenant Service** - 15% remaining (6 failing tests, Azure AD B2C)
 6. **UI Consolidation** - Complete (Sorcha.Admin removed from solution)

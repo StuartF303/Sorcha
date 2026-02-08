@@ -3,6 +3,7 @@
 
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Sorcha.Peer.Service.Connection;
 using Sorcha.Peer.Service.Core;
 using Sorcha.Peer.Service.Discovery;
@@ -22,17 +23,20 @@ public class RegisterReplicationService
     private readonly PeerConnectionPool _connectionPool;
     private readonly PeerListManager _peerListManager;
     private readonly RegisterCache _registerCache;
+    private readonly RegisterSyncConfiguration _syncConfig;
 
     public RegisterReplicationService(
         ILogger<RegisterReplicationService> logger,
         PeerConnectionPool connectionPool,
         PeerListManager peerListManager,
-        RegisterCache registerCache)
+        RegisterCache registerCache,
+        IOptions<PeerServiceConfiguration>? configuration = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _connectionPool = connectionPool ?? throw new ArgumentNullException(nameof(connectionPool));
         _peerListManager = peerListManager ?? throw new ArgumentNullException(nameof(peerListManager));
         _registerCache = registerCache ?? throw new ArgumentNullException(nameof(registerCache));
+        _syncConfig = configuration?.Value?.RegisterSync ?? new RegisterSyncConfiguration();
     }
 
     /// <summary>
@@ -66,6 +70,11 @@ public class RegisterReplicationService
         var totalDockets = 0L;
         var totalTransactions = 0L;
 
+        // Apply overall replication timeout
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromMinutes(_syncConfig.ReplicationTimeoutMinutes));
+        var replicationToken = timeoutCts.Token;
+
         foreach (var sourcePeer in sourcePeers)
         {
             var channel = _connectionPool.GetChannel(sourcePeer.PeerId);
@@ -74,61 +83,70 @@ public class RegisterReplicationService
             try
             {
                 var client = new RegisterSync.RegisterSyncClient(channel);
+                var fromVersion = subscription.LastSyncedDocketVersion;
+                var batchSize = _syncConfig.DocketPullBatchSize;
+                var batchDocketCount = 0;
 
-                // Step 1: Pull docket chain
-                var docketRequest = new DocketChainRequest
+                // Pull dockets in batches
+                do
                 {
-                    RegisterId = registerId,
-                    PeerId = Environment.MachineName,
-                    FromVersion = subscription.LastSyncedDocketVersion,
-                    MaxDockets = 0 // unlimited
-                };
+                    batchDocketCount = 0;
 
-                using var docketStream = client.PullDocketChain(docketRequest, cancellationToken: cancellationToken);
-
-                await foreach (var docketEntry in docketStream.ResponseStream.ReadAllAsync(cancellationToken))
-                {
-                    // Cache the docket
-                    cacheEntry.AddOrUpdateDocket(new CachedDocket
+                    var docketRequest = new DocketChainRequest
                     {
                         RegisterId = registerId,
-                        Version = docketEntry.Version,
-                        Data = docketEntry.DocketData.ToByteArray(),
-                        DocketHash = docketEntry.DocketHash,
-                        PreviousHash = docketEntry.PreviousHash,
-                        TransactionIds = docketEntry.TransactionIds.ToList(),
-                        CreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(docketEntry.CreatedAt)
-                    });
+                        PeerId = Environment.MachineName,
+                        FromVersion = fromVersion,
+                        MaxDockets = batchSize
+                    };
 
-                    totalDockets++;
+                    using var docketStream = client.PullDocketChain(docketRequest, cancellationToken: replicationToken);
 
-                    // Step 2: Pull transactions for this docket
-                    if (docketEntry.TransactionIds.Count > 0)
+                    await foreach (var docketEntry in docketStream.ResponseStream.ReadAllAsync(replicationToken))
                     {
-                        var txRequest = new DocketTransactionRequest
+                        cacheEntry.AddOrUpdateDocket(new CachedDocket
                         {
                             RegisterId = registerId,
-                            PeerId = Environment.MachineName
-                        };
-                        txRequest.TransactionIds.AddRange(docketEntry.TransactionIds);
+                            Version = docketEntry.Version,
+                            Data = docketEntry.DocketData.ToByteArray(),
+                            DocketHash = docketEntry.DocketHash,
+                            PreviousHash = docketEntry.PreviousHash,
+                            TransactionIds = docketEntry.TransactionIds.ToList(),
+                            CreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(docketEntry.CreatedAt)
+                        });
 
-                        using var txStream = client.PullDocketTransactions(txRequest, cancellationToken: cancellationToken);
+                        batchDocketCount++;
+                        totalDockets++;
+                        fromVersion = docketEntry.Version;
 
-                        await foreach (var txEntry in txStream.ResponseStream.ReadAllAsync(cancellationToken))
+                        // Pull transactions for this docket
+                        if (docketEntry.TransactionIds.Count > 0)
                         {
-                            cacheEntry.AddOrUpdateTransaction(new CachedTransaction
+                            var txRequest = new DocketTransactionRequest
                             {
-                                TransactionId = txEntry.TransactionId,
                                 RegisterId = registerId,
-                                Data = txEntry.TransactionData.ToByteArray(),
-                                Checksum = txEntry.Checksum,
-                                CreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(txEntry.CreatedAt)
-                            });
+                                PeerId = Environment.MachineName
+                            };
+                            txRequest.TransactionIds.AddRange(docketEntry.TransactionIds);
 
-                            totalTransactions++;
+                            using var txStream = client.PullDocketTransactions(txRequest, cancellationToken: replicationToken);
+
+                            await foreach (var txEntry in txStream.ResponseStream.ReadAllAsync(replicationToken))
+                            {
+                                cacheEntry.AddOrUpdateTransaction(new CachedTransaction
+                                {
+                                    TransactionId = txEntry.TransactionId,
+                                    RegisterId = registerId,
+                                    Data = txEntry.TransactionData.ToByteArray(),
+                                    Checksum = txEntry.Checksum,
+                                    CreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(txEntry.CreatedAt)
+                                });
+
+                                totalTransactions++;
+                            }
                         }
                     }
-                }
+                } while (batchDocketCount >= batchSize); // More batches if we got a full batch
 
                 // Update subscription state
                 subscription.TotalDocketsInChain = totalDockets;
@@ -149,6 +167,13 @@ public class RegisterReplicationService
                     TransactionsSynced = totalTransactions,
                     SourcePeerId = sourcePeer.PeerId
                 };
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(
+                    "Replication timeout ({Timeout}min) reached for register {RegisterId} from peer {PeerId}",
+                    _syncConfig.ReplicationTimeoutMinutes, registerId, sourcePeer.PeerId);
+                await _connectionPool.RecordFailureAsync(sourcePeer.PeerId);
             }
             catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable)
             {

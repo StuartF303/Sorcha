@@ -2,6 +2,8 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Sorcha.Peer.Service.Core;
 using System.Collections.Concurrent;
 
 namespace Sorcha.Peer.Service.Replication;
@@ -14,10 +16,17 @@ public class RegisterCache
 {
     private readonly ILogger<RegisterCache> _logger;
     private readonly ConcurrentDictionary<string, RegisterCacheEntry> _caches = new();
+    private readonly int _maxTransactionsPerRegister;
+    private readonly int _maxDocketsPerRegister;
 
-    public RegisterCache(ILogger<RegisterCache> logger)
+    public RegisterCache(
+        ILogger<RegisterCache> logger,
+        IOptions<PeerServiceConfiguration>? configuration = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        var syncConfig = configuration?.Value?.RegisterSync ?? new RegisterSyncConfiguration();
+        _maxTransactionsPerRegister = syncConfig.MaxCachedTransactionsPerRegister;
+        _maxDocketsPerRegister = syncConfig.MaxCachedDocketsPerRegister;
     }
 
     /// <summary>
@@ -25,7 +34,8 @@ public class RegisterCache
     /// </summary>
     public RegisterCacheEntry GetOrCreate(string registerId)
     {
-        return _caches.GetOrAdd(registerId, id => new RegisterCacheEntry(id));
+        return _caches.GetOrAdd(registerId, id =>
+            new RegisterCacheEntry(id, _maxTransactionsPerRegister, _maxDocketsPerRegister));
     }
 
     /// <summary>
@@ -72,15 +82,19 @@ public class RegisterCacheEntry
     private readonly ConcurrentDictionary<string, CachedTransaction> _transactions = new();
     private readonly ConcurrentDictionary<long, CachedDocket> _dockets = new();
     private readonly object _lock = new();
+    private readonly int _maxTransactions;
+    private readonly int _maxDockets;
     private long _latestTransactionVersion;
     private long _latestDocketVersion;
     private DateTime _lastUpdateTime = DateTime.MinValue;
 
     public string RegisterId { get; }
 
-    public RegisterCacheEntry(string registerId)
+    public RegisterCacheEntry(string registerId, int maxTransactions = 100_000, int maxDockets = 10_000)
     {
         RegisterId = registerId;
+        _maxTransactions = maxTransactions;
+        _maxDockets = maxDockets;
     }
 
     /// <summary>
@@ -95,6 +109,8 @@ public class RegisterCacheEntry
                 _latestTransactionVersion = tx.Version;
             _lastUpdateTime = DateTime.UtcNow;
         }
+
+        EvictOldTransactionsIfNeeded();
     }
 
     /// <summary>
@@ -108,6 +124,40 @@ public class RegisterCacheEntry
             if (docket.Version > _latestDocketVersion)
                 _latestDocketVersion = docket.Version;
             _lastUpdateTime = DateTime.UtcNow;
+        }
+
+        EvictOldDocketsIfNeeded();
+    }
+
+    private void EvictOldTransactionsIfNeeded()
+    {
+        if (_transactions.Count <= _maxTransactions) return;
+
+        var toRemove = _transactions
+            .OrderBy(t => t.Value.Version)
+            .Take(_transactions.Count - _maxTransactions)
+            .Select(t => t.Key)
+            .ToList();
+
+        foreach (var key in toRemove)
+        {
+            _transactions.TryRemove(key, out _);
+        }
+    }
+
+    private void EvictOldDocketsIfNeeded()
+    {
+        if (_dockets.Count <= _maxDockets) return;
+
+        var toRemove = _dockets
+            .OrderBy(d => d.Key)
+            .Take(_dockets.Count - _maxDockets)
+            .Select(d => d.Key)
+            .ToList();
+
+        foreach (var key in toRemove)
+        {
+            _dockets.TryRemove(key, out _);
         }
     }
 

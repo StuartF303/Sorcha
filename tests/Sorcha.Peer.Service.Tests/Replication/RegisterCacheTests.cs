@@ -223,3 +223,105 @@ public class RegisterCacheEntryTests
         TransactionIds = [$"tx-{version}"]
     };
 }
+
+public class RegisterCacheEvictionTests
+{
+    [Fact]
+    public void AddOrUpdateTransaction_ExceedsLimit_EvictsOldest()
+    {
+        var entry = new RegisterCacheEntry("reg-1", maxTransactions: 5, maxDockets: 100);
+
+        // Add 7 transactions (versions 1-7)
+        for (var i = 1; i <= 7; i++)
+        {
+            entry.AddOrUpdateTransaction(new CachedTransaction
+            {
+                TransactionId = $"tx-{i}",
+                RegisterId = "reg-1",
+                Version = i,
+                Data = [0x01]
+            });
+        }
+
+        var stats = entry.GetStatistics();
+        stats.TransactionCount.Should().BeLessThanOrEqualTo(5);
+
+        // Oldest versions should be evicted, newest retained
+        entry.GetTransaction("tx-7").Should().NotBeNull();
+        entry.GetTransaction("tx-6").Should().NotBeNull();
+    }
+
+    [Fact]
+    public void AddOrUpdateDocket_ExceedsLimit_EvictsOldest()
+    {
+        var entry = new RegisterCacheEntry("reg-1", maxTransactions: 100, maxDockets: 3);
+
+        // Add 5 dockets (versions 1-5)
+        for (var i = 1; i <= 5; i++)
+        {
+            entry.AddOrUpdateDocket(new CachedDocket
+            {
+                RegisterId = "reg-1",
+                Version = i,
+                Data = [0x01],
+                DocketHash = $"hash-{i}",
+                TransactionIds = [$"tx-{i}"]
+            });
+        }
+
+        var stats = entry.GetStatistics();
+        stats.DocketCount.Should().BeLessThanOrEqualTo(3);
+
+        // Newest dockets should be retained
+        entry.GetDocket(5).Should().NotBeNull();
+        entry.GetDocket(4).Should().NotBeNull();
+
+        // Oldest should be evicted
+        entry.GetDocket(1).Should().BeNull();
+    }
+
+    [Fact]
+    public void AddOrUpdateTransaction_UnderLimit_NoEviction()
+    {
+        var entry = new RegisterCacheEntry("reg-1", maxTransactions: 10, maxDockets: 10);
+
+        for (var i = 1; i <= 5; i++)
+        {
+            entry.AddOrUpdateTransaction(new CachedTransaction
+            {
+                TransactionId = $"tx-{i}",
+                RegisterId = "reg-1",
+                Version = i,
+                Data = [0x01]
+            });
+        }
+
+        entry.GetStatistics().TransactionCount.Should().Be(5);
+
+        // All should still be present
+        for (var i = 1; i <= 5; i++)
+        {
+            entry.GetTransaction($"tx-{i}").Should().NotBeNull();
+        }
+    }
+
+    [Fact]
+    public void AddOrUpdateDocket_UnderLimit_NoEviction()
+    {
+        var entry = new RegisterCacheEntry("reg-1", maxTransactions: 10, maxDockets: 10);
+
+        for (var i = 1; i <= 5; i++)
+        {
+            entry.AddOrUpdateDocket(new CachedDocket
+            {
+                RegisterId = "reg-1",
+                Version = i,
+                Data = [0x01],
+                DocketHash = $"hash-{i}",
+                TransactionIds = [$"tx-{i}"]
+            });
+        }
+
+        entry.GetStatistics().DocketCount.Should().Be(5);
+    }
+}

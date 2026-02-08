@@ -270,7 +270,7 @@ public class PeerConnectionPool : IAsyncDisposable
                 "Peer {PeerId} failure count: {Count}",
                 peerId, connection.ConsecutiveFailures);
 
-            if (connection.ConsecutiveFailures >= 5)
+            if (connection.ConsecutiveFailures >= PeerServiceConstants.MaxConsecutiveFailuresBeforeDisconnect)
             {
                 var peer = _peerListManager.GetPeer(peerId);
                 if (peer is { IsSeedNode: true })
@@ -328,6 +328,35 @@ public class PeerConnectionPool : IAsyncDisposable
     }
 
     /// <summary>
+    /// Attempts to reconnect to any disconnected seed nodes.
+    /// Seed nodes are critical infrastructure and should be reconnected promptly.
+    /// </summary>
+    public async Task ReconnectDisconnectedSeedNodesAsync(CancellationToken cancellationToken = default)
+    {
+        var disconnectedSeeds = _connections
+            .Where(c => !c.Value.IsConnected)
+            .Where(c => _peerListManager.GetPeer(c.Key) is { IsSeedNode: true })
+            .ToList();
+
+        foreach (var (peerId, connection) in disconnectedSeeds)
+        {
+            try
+            {
+                var reconnected = await ConnectToPeerAsync(peerId, connection.Address, cancellationToken);
+                if (reconnected)
+                {
+                    _logger.LogInformation("Reconnected to seed node {PeerId}", peerId);
+                    connection.ConsecutiveFailures = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to reconnect to seed node {PeerId}", peerId);
+            }
+        }
+    }
+
+    /// <summary>
     /// Gets the connection status for all peers.
     /// </summary>
     public IReadOnlyDictionary<string, bool> GetConnectionStatuses()
@@ -342,7 +371,7 @@ public class PeerConnectionPool : IAsyncDisposable
         {
             HttpHandler = new SocketsHttpHandler
             {
-                PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan,
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5),
                 KeepAlivePingDelay = TimeSpan.FromSeconds(60),
                 KeepAlivePingTimeout = TimeSpan.FromSeconds(30),
                 EnableMultipleHttp2Connections = true

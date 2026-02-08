@@ -50,10 +50,10 @@ public class PeerExchangeService
                 return 0;
             }
 
-            // Select random peers for exchange (up to 3)
+            // Select random peers for exchange
             var peersToExchange = activeChannels
                 .OrderBy(_ => Random.Shared.Next())
-                .Take(3)
+                .Take(PeerServiceConstants.GossipExchangePeerCount)
                 .ToList();
 
             var totalDiscovered = 0;
@@ -179,7 +179,7 @@ public class PeerExchangeService
                 };
 
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(TimeSpan.FromSeconds(10));
+                cts.CancelAfter(TimeSpan.FromSeconds(_configuration.Communication.ConnectionTimeout));
 
                 var response = await client.FindPeersForRegisterAsync(request, cancellationToken: cts.Token);
                 foreach (var peerInfo in response.Peers)
