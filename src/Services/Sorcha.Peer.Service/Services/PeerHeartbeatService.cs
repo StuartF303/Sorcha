@@ -29,6 +29,7 @@ public class PeerHeartbeatBackgroundService : BackgroundService
     private readonly PeerServiceActivitySource _activitySource;
     private readonly RegisterSyncConfiguration _syncConfig;
     private long _sequenceNumber;
+    private int _heartbeatCycleCount;
 
     public PeerHeartbeatBackgroundService(
         ILogger<PeerHeartbeatBackgroundService> logger,
@@ -63,6 +64,17 @@ public class PeerHeartbeatBackgroundService : BackgroundService
             {
                 await timer.WaitForNextTickAsync(stoppingToken);
                 await SendHeartbeatsToAllPeersAsync(stoppingToken);
+
+                _heartbeatCycleCount++;
+
+                // Reconnect disconnected seed nodes every heartbeat cycle
+                await _connectionPool.ReconnectDisconnectedSeedNodesAsync(stoppingToken);
+
+                // Cleanup idle connections every 10th cycle (~5 minutes at 30s interval)
+                if (_heartbeatCycleCount % 10 == 0)
+                {
+                    await _connectionPool.CleanupIdleConnectionsAsync(TimeSpan.FromMinutes(15));
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

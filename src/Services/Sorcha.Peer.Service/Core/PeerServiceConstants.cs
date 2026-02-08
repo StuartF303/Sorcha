@@ -89,6 +89,21 @@ public static class PeerServiceConstants
     public const int MaxRegisterSubscriptionsPerPeer = 100;
 
     /// <summary>
+    /// Maximum consecutive failures before disconnecting a non-seed peer
+    /// </summary>
+    public const int MaxConsecutiveFailuresBeforeDisconnect = 5;
+
+    /// <summary>
+    /// Maximum consecutive failures before transitioning subscription to Error state
+    /// </summary>
+    public const int MaxConsecutiveFailuresBeforeError = 10;
+
+    /// <summary>
+    /// Number of peers to select for gossip exchange
+    /// </summary>
+    public const int GossipExchangePeerCount = 3;
+
+    /// <summary>
     /// Expected retry backoff sequence (in seconds): 1, 2, 4, 8, 16, 32, 60, 60, 60, 60
     /// </summary>
     public static readonly TimeSpan[] RetryBackoffSequence =

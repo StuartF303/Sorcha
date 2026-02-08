@@ -124,7 +124,7 @@ public class RegisterSubscription
         ConsecutiveFailures++;
         ErrorMessage = errorMessage;
 
-        if (ConsecutiveFailures >= 10)
+        if (ConsecutiveFailures >= PeerServiceConstants.MaxConsecutiveFailuresBeforeError)
         {
             SyncState = RegisterSyncState.Error;
         }

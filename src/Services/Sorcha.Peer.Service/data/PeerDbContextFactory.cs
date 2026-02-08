@@ -7,7 +7,8 @@ using Microsoft.EntityFrameworkCore.Design;
 namespace Sorcha.Peer.Service.Data;
 
 /// <summary>
-/// Design-time factory for PeerDbContext (used by EF Core migrations tooling)
+/// Design-time factory for PeerDbContext used by EF Core migrations tooling.
+/// Development-only defaults are used when the PEER_DB_CONNECTION environment variable is not set.
 /// </summary>
 public class PeerDbContextFactory : IDesignTimeDbContextFactory<PeerDbContext>
 {
@@ -15,8 +16,11 @@ public class PeerDbContextFactory : IDesignTimeDbContextFactory<PeerDbContext>
     {
         var optionsBuilder = new DbContextOptionsBuilder<PeerDbContext>();
 
+        var connectionString = Environment.GetEnvironmentVariable("PEER_DB_CONNECTION")
+            ?? "Host=localhost;Database=sorcha_peer;Username=postgres;Password=postgres";
+
         optionsBuilder.UseNpgsql(
-            "Host=localhost;Database=sorcha_peer;Username=postgres;Password=postgres",
+            connectionString,
             npgsqlOptions =>
             {
                 npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "peer");

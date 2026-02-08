@@ -57,4 +57,22 @@ public class RegisterSyncConfiguration
     /// </summary>
     [Range(10, 1000)]
     public int DocketPullBatchSize { get; set; } = 100;
+
+    /// <summary>
+    /// Maximum number of cached transactions per register before eviction
+    /// </summary>
+    [Range(100, 1_000_000)]
+    public int MaxCachedTransactionsPerRegister { get; set; } = 100_000;
+
+    /// <summary>
+    /// Maximum number of cached dockets per register before eviction
+    /// </summary>
+    [Range(100, 100_000)]
+    public int MaxCachedDocketsPerRegister { get; set; } = 10_000;
+
+    /// <summary>
+    /// Overall replication timeout in minutes for full replica sync
+    /// </summary>
+    [Range(5, 120)]
+    public int ReplicationTimeoutMinutes { get; set; } = 30;
 }

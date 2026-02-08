@@ -21,6 +21,11 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-08:**
+- ✅ PR-110-REVIEW-FIXES COMPLETE: Address 12 P2P code review issues (3 critical, 4 high, 5 medium)
+  - CRITICAL: Race condition (Dictionary → ConcurrentDictionary), EF Core InitialPeerSchema migration, hardcoded password → env var
+  - HIGH: JWT auth with CanManagePeers/RequireAuthenticated policies, gRPC idle timeout (5min), RegisterCache eviction (100K tx / 10K dockets), replication timeout (30min), batched docket pulls
+  - MEDIUM: Named constants (MaxConsecutiveFailuresBeforeDisconnect etc.), seed node reconnection, gRPC 16MB message limits, idle connection cleanup in heartbeat loop
+  - 504 tests passing (4 new eviction tests), 0 warnings
 - ✅ UI-MODERNIZATION COMPLETE: Comprehensive overhaul of Sorcha.UI Blazor WASM application (92/94 tasks, 13 phases)
   - Admin: Organization management, validator admin panel (mempool, consensus), service principal management
   - Flattened navigation with direct links to admin tools (System Health, Validator, Service Principals)
