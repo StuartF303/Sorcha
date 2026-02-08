@@ -35,7 +35,7 @@ public class SigningVerificationTests
 
         // Act - Create and sign transaction
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .WithMetadata("{\"action\": \"transfer\"}")
             .SignAsync(wallet.PrivateKeyWif);
@@ -60,7 +60,7 @@ public class SigningVerificationTests
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .WithMetadata("{\"test\": true}")
             .SignAsync(wallet.PrivateKeyWif);
@@ -87,7 +87,7 @@ public class SigningVerificationTests
         var ed25519Builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         var ed25519Result = await ed25519Builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .SignAsync(ed25519Wallet.PrivateKeyWif);
 
@@ -125,7 +125,7 @@ public class SigningVerificationTests
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .WithMetadata("{\"amount\": 100}")
             .SignAsync(wallet.PrivateKeyWif);
@@ -229,7 +229,7 @@ public class SigningVerificationTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .WithMetadata("{\"type\": \"multi_payload\"}")
             .AddPayload(payload1, new[] { "ws1recipient" })
@@ -260,14 +260,14 @@ public class SigningVerificationTests
 
         // Act - Sign same transaction data twice
         var tx1 = (await builder1
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients(recipients)
             .WithMetadata(metadata)
             .SignAsync(wallet.PrivateKeyWif))
             .Build().Value!;
 
         var tx2 = (await builder2
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients(recipients)
             .WithMetadata(metadata)
             .SignAsync(wallet.PrivateKeyWif))
@@ -287,7 +287,7 @@ public class SigningVerificationTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .WithMetadata("{\"note\": \"testing double SHA-256\"}")
             .SignAsync(wallet.PrivateKeyWif);

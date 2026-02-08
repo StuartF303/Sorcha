@@ -91,7 +91,7 @@ public class TransactionBuilderService : ITransactionBuilderService
             _cryptoModule,
             _hashProvider,
             payloadManager,
-            TransactionVersion.V4)
+            TransactionVersion.V1)
         {
             Recipients = encryptedPayloads.Keys.ToArray(),
             Metadata = JsonSerializer.Serialize(metadata),
@@ -162,7 +162,7 @@ public class TransactionBuilderService : ITransactionBuilderService
             _cryptoModule,
             _hashProvider,
             payloadManager,
-            TransactionVersion.V4)
+            TransactionVersion.V1)
         {
             Recipients = Array.Empty<string>(), // Rejection is sent back, recipients determined by routing
             Metadata = JsonSerializer.Serialize(metadata),
@@ -242,7 +242,7 @@ public class TransactionBuilderService : ITransactionBuilderService
                 _cryptoModule,
                 _hashProvider,
                 payloadManager,
-                TransactionVersion.V4)
+                TransactionVersion.V1)
             {
                 Recipients = Array.Empty<string>(), // Files are linked to parent transaction
                 Metadata = JsonSerializer.Serialize(metadata),

@@ -35,7 +35,7 @@ public class TransactionBuilder : ITransactionBuilder
     }
 
     /// <inheritdoc/>
-    public ITransactionBuilder Create(TransactionVersion version = TransactionVersion.V4)
+    public ITransactionBuilder Create(TransactionVersion version = TransactionVersion.V1)
     {
         var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         _transaction = new Transaction(_cryptoModule, _hashProvider, payloadManager, version);

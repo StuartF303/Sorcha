@@ -44,7 +44,7 @@ public class MultiRecipientTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients(recipients)
             .WithMetadata("{\"type\": \"multi_transfer\"}")
             .SignAsync(wallet.PrivateKeyWif);
@@ -76,7 +76,7 @@ public class MultiRecipientTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients(recipients)
             .AddPayload(payloadData, recipients)
             .SignAsync(wallet.PrivateKeyWif);
@@ -113,7 +113,7 @@ public class MultiRecipientTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients(allRecipients)
             .AddPayload(payload1Data, payload1Recipients)
             .AddPayload(payload2Data, payload2Recipients)
@@ -161,7 +161,7 @@ public class MultiRecipientTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients(recipients)
             .WithMetadata("{\"type\": \"bulk_transfer\"}")
             .SignAsync(wallet.PrivateKeyWif);
@@ -186,7 +186,7 @@ public class MultiRecipientTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients(singleRecipient)
             .AddPayload(payloadData, singleRecipient)
             .SignAsync(wallet.PrivateKeyWif);
@@ -222,7 +222,7 @@ public class MultiRecipientTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients(recipientsWithDuplicates)
             .SignAsync(wallet.PrivateKeyWif);
 
@@ -251,7 +251,7 @@ public class MultiRecipientTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients(allRecipients)
             .WithMetadata("{\"type\": \"smart_contract\", \"parties\": 3, \"auditors\": 2}")
             .AddPayload(contractData, contractParties) // Only parties see contract

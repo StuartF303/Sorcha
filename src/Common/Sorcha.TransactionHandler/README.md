@@ -52,7 +52,7 @@ var builder = new TransactionBuilder(cryptoModule, hashProvider);
 
 // Create and sign a transaction
 var result = await builder
-    .Create(TransactionVersion.V4)
+    .Create(TransactionVersion.V1)
     .WithRecipients("ws1recipient1", "ws1recipient2")
     .WithMetadata("{\"type\": \"transfer\", \"amount\": 100}")
     .SignAsync(privateKeyWif);

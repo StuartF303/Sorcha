@@ -21,6 +21,11 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-08:**
+- ✅ 023-CONSOLIDATE-TX-VERSIONING COMPLETE: Collapse TransactionVersion V1-V4 into single V1 with all V4 capabilities
+  - Removed V2/V3/V4 from enum, factory, version detector
+  - Updated 6 source files + 12 test/benchmark files across 4 projects
+  - 127 TransactionHandler tests + 194 Blueprint Service tests passing
+  - Zero remaining V2/V3/V4 references in source/test code
 - ✅ PR-110-REVIEW-FIXES COMPLETE: Address 12 P2P code review issues (3 critical, 4 high, 5 medium)
   - CRITICAL: Race condition (Dictionary → ConcurrentDictionary), EF Core InitialPeerSchema migration, hardcoded password → env var
   - HIGH: JWT auth with CanManagePeers/RequireAuthenticated policies, gRPC idle timeout (5min), RegisterCache eviction (100K tx / 10K dockets), replication timeout (30min), batched docket pulls

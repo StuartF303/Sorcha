@@ -31,7 +31,7 @@ public class Transaction : ITransaction
         ICryptoModule cryptoModule,
         IHashProvider hashProvider,
         IPayloadManager payloadManager,
-        TransactionVersion version = TransactionVersion.V4)
+        TransactionVersion version = TransactionVersion.V1)
     {
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));

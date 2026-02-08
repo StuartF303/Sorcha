@@ -70,7 +70,7 @@ public class TransactionBuilderServiceTests
         result.Recipients.Should().Contain("wallet-bob");
         result.PreviousTxHash.Should().Be(previousTxHash);
         result.RegisterId.Should().Be(registerAddress);
-        result.Version.Should().Be(TransactionVersion.V4);
+        result.Version.Should().Be(TransactionVersion.V1);
 
         // Verify metadata
         result.Metadata.Should().NotBeNullOrEmpty();

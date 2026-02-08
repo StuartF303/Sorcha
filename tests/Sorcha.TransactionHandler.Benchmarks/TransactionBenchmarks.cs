@@ -43,7 +43,7 @@ public class TransactionBenchmarks
         // Create a signed transaction for benchmarking
         var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient1", "ws1recipient2")
             .WithMetadata("{\"type\": \"transfer\", \"amount\": 1000}")
             .AddPayload(new byte[1024], new[] { "ws1recipient1" })
@@ -61,7 +61,7 @@ public class TransactionBenchmarks
     {
         var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var result = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .SignAsync(_privateKeyWif);
 
@@ -73,7 +73,7 @@ public class TransactionBenchmarks
     {
         var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var result = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .WithMetadata("{\"type\": \"test\"}")
             .SignAsync(_privateKeyWif);
@@ -88,7 +88,7 @@ public class TransactionBenchmarks
         var payloadData = new byte[1024]; // 1KB payload
 
         var result = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .AddPayload(payloadData, new[] { "ws1recipient" })
             .SignAsync(_privateKeyWif);
@@ -144,7 +144,7 @@ public class TransactionBenchmarks
         var payloadData = new byte[512];
 
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .WithMetadata("{\"type\": \"benchmark\"}")
             .AddPayload(payloadData, new[] { "ws1recipient" })
