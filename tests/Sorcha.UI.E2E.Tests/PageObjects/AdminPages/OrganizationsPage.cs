@@ -16,7 +16,7 @@ public class OrganizationsPage
     public OrganizationsPage(IPage page) => _page = page;
 
     // Page elements
-    public ILocator PageTitle => _page.GetByRole(AriaRole.Heading, new() { Name = "Organizations" });
+    public ILocator PageTitle => _page.Locator("h4:has-text('Organizations'), h5:has-text('Organizations')");
     public ILocator CreateButton => _page.GetByRole(AriaRole.Button, new() { Name = "Create Organization" });
     public ILocator OrgTable => _page.Locator("[data-testid='organization-list']");
     public ILocator OrgFormDialog => _page.Locator(".mud-dialog");

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Scalar.AspNetCore;
@@ -174,6 +175,12 @@ try
 
     // Add controllers and minimal API support
     builder.Services.AddEndpointsApiExplorer();
+
+    // Configure JSON serialization to use string enum values
+    builder.Services.ConfigureHttpJsonOptions(options =>
+    {
+        options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
     // Add CORS
     builder.Services.AddCors(options =>
