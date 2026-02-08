@@ -1,0 +1,76 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Admin
+
+<MudTable Items="Principals" Dense="true" Hover="true" Striped="true" Loading="IsLoading">
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Last Used</MudTh>
+        <MudTh>Expires</MudTh>
+        <MudTh>Permissions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Name</MudTd>
+        <MudTd>
+            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                @context.Status
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            @if (context.LastUsedAt.HasValue)
+            {
+                @context.LastUsedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Never</MudText>
+            }
+        </MudTd>
+        <MudTd>
+            @if (context.ExpiresAt.HasValue)
+            {
+                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                    @if (context.IsNearExpiration)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Small" />
+                    }
+                    <MudText Typo="Typo.body2" Color="@(context.IsNearExpiration ? Color.Warning : Color.Default)">
+                        @context.ExpiresAt.Value.ToLocalTime().ToString("yyyy-MM-dd")
+                    </MudText>
+                </MudStack>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">No expiration</MudText>
+            }
+        </MudTd>
+        <MudTd>
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+                @context.Permissions.Count permissions
+            </MudChip>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <EmptyState Icon="@Icons.Material.Filled.VpnKey"
+                    Title="No service principals"
+                    Description="No service-to-service credentials configured" />
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    [Parameter]
+    public List<ServicePrincipalViewModel> Principals { get; set; } = [];
+
+    [Parameter]
+    public bool IsLoading { get; set; } = true;
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "active" => Color.Success,
+        "expired" => Color.Error,
+        "revoked" => Color.Dark,
+        _ => Color.Default
+    };
+}

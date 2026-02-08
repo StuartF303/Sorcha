@@ -1,0 +1,133 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Workflows
+@using Sorcha.UI.Core.Services
+@inject IWorkflowService WorkflowService
+
+@if (_isLoading)
+{
+    <MudProgressCircular Indeterminate="true" Class="d-block mx-auto my-8" />
+}
+else if (_workflow is null)
+{
+    <ServiceUnavailable ServiceName="Workflow" OnRetry="LoadWorkflowAsync" />
+}
+else
+{
+    <MudStack Spacing="4">
+        @* Header *@
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudStack Spacing="1">
+                <MudText Typo="Typo.h5">@_workflow.BlueprintName</MudText>
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                    <TruncatedId Value="@_workflow.InstanceId" />
+                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(_workflow.Status)">
+                        @_workflow.Status
+                    </MudChip>
+                </MudStack>
+            </MudStack>
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => OnClose.InvokeAsync())"
+                       StartIcon="@Icons.Material.Filled.ArrowBack" Size="Size.Small">
+                Back
+            </MudButton>
+        </MudStack>
+
+        @* Progress *@
+        <MudCard>
+            <MudCardContent>
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+                    <MudText Typo="Typo.subtitle1">Progress</MudText>
+                    <MudText Typo="Typo.body2">Step @_workflow.CurrentStepNumber of @_workflow.TotalSteps</MudText>
+                </MudStack>
+                <MudProgressLinear Value="@GetProgress()" Color="Color.Primary" Size="Size.Medium" Rounded="true" />
+                @if (!string.IsNullOrEmpty(_workflow.CurrentActionName))
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                        Current: @_workflow.CurrentActionName
+                    </MudText>
+                }
+            </MudCardContent>
+        </MudCard>
+
+        @* Details *@
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudCard>
+                    <MudCardContent>
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Blueprint</MudText>
+                        <TruncatedId Value="@_workflow.BlueprintId" />
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudCard>
+                    <MudCardContent>
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Participants</MudText>
+                        <MudText Typo="Typo.h6">@_workflow.ParticipantCount</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+
+        @* Timeline *@
+        <MudText Typo="Typo.h6" Class="mt-2">Activity</MudText>
+        <MudTimeline TimelineOrientation="TimelineOrientation.Vertical" TimelinePosition="TimelinePosition.Start">
+            <MudTimelineItem Color="Color.Success" Size="Size.Small">
+                <MudText Typo="Typo.body2">
+                    <strong>Created</strong> — @_workflow.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                </MudText>
+            </MudTimelineItem>
+            @if (_workflow.Status == "active" && !string.IsNullOrEmpty(_workflow.CurrentActionName))
+            {
+                <MudTimelineItem Color="Color.Info" Size="Size.Small">
+                    <MudText Typo="Typo.body2">
+                        <strong>Awaiting:</strong> @_workflow.CurrentActionName
+                    </MudText>
+                </MudTimelineItem>
+            }
+            @if (_workflow.Status == "completed")
+            {
+                <MudTimelineItem Color="Color.Success" Size="Size.Small">
+                    <MudText Typo="Typo.body2">
+                        <strong>Completed</strong> — @_workflow.UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                    </MudText>
+                </MudTimelineItem>
+            }
+        </MudTimeline>
+    </MudStack>
+}
+
+@code {
+    [Parameter]
+    public string InstanceId { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private WorkflowInstanceViewModel? _workflow;
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWorkflowAsync();
+    }
+
+    private async Task LoadWorkflowAsync()
+    {
+        _isLoading = true;
+        _workflow = await WorkflowService.GetWorkflowAsync(InstanceId);
+        _isLoading = false;
+    }
+
+    private double GetProgress() =>
+        _workflow?.TotalSteps > 0 ? (double)_workflow.CurrentStepNumber / _workflow.TotalSteps * 100 : 0;
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "active" => Color.Info,
+        "completed" => Color.Success,
+        "failed" => Color.Error,
+        _ => Color.Default
+    };
+}

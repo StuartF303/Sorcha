@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 4.7 - UPDATED
-**Last Updated:** 2026-02-07
-**Status:** Active - P2P Topology Refactor Complete
+**Version:** 4.8 - UPDATED
+**Last Updated:** 2026-02-08
+**Status:** Active - UI Modernization Complete
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -19,6 +19,23 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ---
 
 ## Recent Updates
+
+**2026-02-08:**
+- ✅ UI-MODERNIZATION COMPLETE: Comprehensive overhaul of Sorcha.UI Blazor WASM application (92/94 tasks, 13 phases)
+  - Admin: Organization management, validator admin panel (mempool, consensus), service principal management
+  - Flattened navigation with direct links to admin tools (System Health, Validator, Service Principals)
+  - Core Workflows: Replaced placeholder MyWorkflows and MyActions pages with real workflow instance management
+  - Blueprint Cloud Persistence: Designer and Blueprints pages backed by Blueprint Service API, publishing flow, version management
+  - Dashboard: Live stat cards wired to gateway /api/dashboard endpoint (DashboardService + IDashboardService)
+  - User Pages: Real Wallet Service integration (CRUD, addresses, signing) and Register Service transaction queries
+  - Template Library: Backend template API integration (CRUD, evaluate, validate) replacing hardcoded templates
+  - Explorer: Docket/chain inspection, advanced OData query builder for cross-register searches
+  - UX: Consistent TruncatedId component for all long identifiers — first 6 + last 6 chars with ellipsis (e.g. "0x3f8a...b4c2e1")
+  - Shared: EmptyState, ServiceUnavailable reusable components with retry actions
+  - 10 new services, 8+ new model files, 12+ new components
+  - E2E: 7 new Docker test files, 4 new page objects, 0 warnings across all UI and E2E projects
+  - LoadBlueprintDialog refactored to self-load via IBlueprintApiService
+  - Fixed NUnit1033 warnings (42 occurrences) across pre-existing E2E test files
 
 **2026-02-07:**
 - ✅ P2P-TOPOLOGY-REFACTOR COMPLETE: Refactor Peer Service from hub-and-spoke to true P2P topology (10 phases)
@@ -391,6 +408,6 @@ PEER-024 (Peer Network Management & Observability) ✅ COMPLETE
 
 ---
 
-**Last Updated:** 2026-02-07
+**Last Updated:** 2026-02-08
 **Next Review:** Weekly
 **Document Owner:** Sorcha Architecture Team

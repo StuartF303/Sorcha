@@ -226,7 +226,7 @@ public class ChatDesignerPageTests : DockerTestBase
         {
             // Welcome message didn't appear - session may not have started completely
             // This is acceptable as long as the page loads and connection establishes
-            TestContext.WriteLine("Welcome message did not appear - session may still be initializing");
+            TestContext.Out.WriteLine("Welcome message did not appear - session may still be initializing");
         }
     }
 

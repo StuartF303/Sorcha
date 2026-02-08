@@ -2,6 +2,7 @@
 @* Copyright (c) 2025 Sorcha Contributors *@
 
 @using Sorcha.UI.Core.Models.Registers
+@using Sorcha.UI.Core.Components.Shared
 
 <MudPaper Elevation="2"
           Class="pa-4 register-card"
@@ -14,9 +15,9 @@
             <MudText Typo="Typo.subtitle1" data-testid="register-name">
                 <strong>@Register.Name</strong>
             </MudText>
-            <MudText Typo="Typo.caption" Color="Color.Secondary" data-testid="register-id">
-                ID: @Register.Id[..8]...
-            </MudText>
+            <span data-testid="register-id">
+                <TruncatedId Value="@Register.Id" />
+            </span>
         </MudStack>
         <RegisterStatusBadge Status="@Register.Status" />
     </MudStack>

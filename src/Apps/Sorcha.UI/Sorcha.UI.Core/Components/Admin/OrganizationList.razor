@@ -34,6 +34,11 @@
                  Class="organization-list"
                  data-testid="organization-list">
         <Columns>
+            <TemplateColumn Title="ID" CellStyle="width: 160px">
+                <CellTemplate>
+                    <TruncatedId Value="@context.Item.Id.ToString()" />
+                </CellTemplate>
+            </TemplateColumn>
             <PropertyColumn Property="x => x.Name" Title="Name" />
             <PropertyColumn Property="x => x.Subdomain" Title="Subdomain" />
             <TemplateColumn Title="Status">

@@ -1,5 +1,13 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
 @using Sorcha.Blueprint.Models
+@using Sorcha.UI.Core.Models.Blueprints
+@using Sorcha.UI.Core.Components.Shared
+@using Sorcha.UI.Core.Services
 @using System.Text.Json
+
+@inject IBlueprintApiService BlueprintApi
 
 <MudDialog>
     <TitleContent>
@@ -22,7 +30,15 @@
             Select a blueprint to load into the designer
         </MudText>
 
-        @if (Blueprints != null && Blueprints.Any())
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Class="mb-4" />
+        }
+        else if (_error)
+        {
+            <ServiceUnavailable ServiceName="Blueprint Service" OnRetry="LoadBlueprintsFromApiAsync" />
+        }
+        else if (Blueprints != null && Blueprints.Any())
         {
             <MudList T="string" @bind-SelectedValue="selectedBlueprintId">
                 @foreach (var blueprint in Blueprints)
@@ -31,17 +47,23 @@
                         <div class="d-flex flex-column pa-2">
                             <div class="d-flex align-center justify-space-between mb-2">
                                 <MudText Typo="Typo.h6">@blueprint.Title</MudText>
-                                <MudChip T="string" Size="Size.Small" Color="Color.Info">v@blueprint.Version</MudChip>
+                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                    <MudChip T="string" Size="Size.Small"
+                                             Color="@(blueprint.Status == "published" ? Color.Success : Color.Default)">
+                                        @blueprint.Status
+                                    </MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info">v@blueprint.Version</MudChip>
+                                </MudStack>
                             </div>
                             <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
                                 @blueprint.Description
                             </MudText>
                             <div class="d-flex gap-3 flex-wrap">
                                 <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.People" Color="Color.Default">
-                                    @blueprint.Participants.Count Participants
+                                    @blueprint.ParticipantCount Participants
                                 </MudChip>
                                 <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Default">
-                                    @blueprint.Actions.Count Actions
+                                    @blueprint.ActionCount Actions
                                 </MudChip>
                                 <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.CalendarToday" Color="Color.Default">
                                     Updated: @blueprint.UpdatedAt.ToString("MMM d, yyyy")
@@ -76,9 +98,39 @@
     MudBlazor.IDialogReference? MudDialog { get; set; }
 
     [Parameter]
-    public List<Blueprint> Blueprints { get; set; } = new();
+    public List<BlueprintListItemViewModel> Blueprints { get; set; } = new();
 
     private string? selectedBlueprintId;
+    private bool _loading;
+    private bool _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Blueprints.Count == 0)
+        {
+            await LoadBlueprintsFromApiAsync();
+        }
+    }
+
+    private async Task LoadBlueprintsFromApiAsync()
+    {
+        _loading = true;
+        _error = false;
+
+        try
+        {
+            var result = await BlueprintApi.GetBlueprintsAsync(1, 50);
+            Blueprints = result.Items.ToList();
+        }
+        catch
+        {
+            _error = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
 
     private void SelectBlueprint(string blueprintId)
     {

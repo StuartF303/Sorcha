@@ -1,0 +1,206 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Templates
+@using Sorcha.UI.Core.Services
+
+@inject ITemplateApiService TemplateApi
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Tune" Class="mr-2" />
+            Configure Template: @Template?.Name
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (Template == null)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                @Template.Description
+            </MudText>
+
+            @if (Template.Parameters.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">
+                    This template has no configurable parameters.
+                </MudAlert>
+            }
+            else
+            {
+                @foreach (var param in Template.Parameters)
+                {
+                    <div class="mb-3">
+                        @switch (param.Type.ToLower())
+                        {
+                            case "number":
+                            case "integer":
+                                <MudNumericField T="double"
+                                                 Label="@param.Name"
+                                                 HelperText="@param.Description"
+                                                 Required="@param.Required"
+                                                 Value="GetNumericValue(param.Name, param.DefaultValue)"
+                                                 ValueChanged="v => SetParameterValue(param.Name, v)" />
+                                break;
+                            case "boolean":
+                                <MudSwitch T="bool"
+                                           Label="@param.Name"
+                                           Color="Color.Primary"
+                                           Value="GetBoolValue(param.Name, param.DefaultValue)"
+                                           ValueChanged="v => SetParameterValue(param.Name, v)" />
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@param.Description</MudText>
+                                break;
+                            default:
+                                <MudTextField T="string"
+                                              Label="@param.Name"
+                                              HelperText="@param.Description"
+                                              Required="@param.Required"
+                                              Value="GetStringValue(param.Name, param.DefaultValue)"
+                                              ValueChanged="v => SetParameterValue(param.Name, v)" />
+                                break;
+                        }
+                    </div>
+                }
+            }
+
+            @if (_validationError != null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-2">@_validationError</MudAlert>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="Validate" Color="Color.Secondary" Variant="Variant.Outlined"
+                   Disabled="@_processing" StartIcon="@Icons.Material.Filled.CheckCircle">
+            Validate
+        </MudButton>
+        <MudButton OnClick="UseTemplate" Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@_processing" StartIcon="@Icons.Material.Filled.PlayArrow">
+            @if (_processing)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Use Template
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudBlazor.IDialogReference? MudDialog { get; set; }
+
+    [Parameter]
+    public TemplateListItemViewModel? Template { get; set; }
+
+    private Dictionary<string, object> _parameters = new();
+    private string? _validationError;
+    private bool _processing;
+
+    protected override void OnParametersSet()
+    {
+        if (Template != null)
+        {
+            foreach (var param in Template.Parameters)
+            {
+                if (!_parameters.ContainsKey(param.Name) && param.DefaultValue != null)
+                {
+                    _parameters[param.Name] = param.DefaultValue;
+                }
+            }
+        }
+    }
+
+    private void SetParameterValue(string name, object value)
+    {
+        _parameters[name] = value;
+        _validationError = null;
+    }
+
+    private string GetStringValue(string name, object? defaultValue) =>
+        _parameters.TryGetValue(name, out var val) ? val?.ToString() ?? "" : defaultValue?.ToString() ?? "";
+
+    private double GetNumericValue(string name, object? defaultValue)
+    {
+        if (_parameters.TryGetValue(name, out var val) && val is double d) return d;
+        if (double.TryParse(defaultValue?.ToString(), out var parsed)) return parsed;
+        return 0;
+    }
+
+    private bool GetBoolValue(string name, object? defaultValue)
+    {
+        if (_parameters.TryGetValue(name, out var val) && val is bool b) return b;
+        if (bool.TryParse(defaultValue?.ToString(), out var parsed)) return parsed;
+        return false;
+    }
+
+    private async Task Validate()
+    {
+        if (Template == null) return;
+
+        _processing = true;
+        _validationError = null;
+
+        try
+        {
+            var isValid = await TemplateApi.ValidateParametersAsync(Template.Id, _parameters);
+            if (isValid)
+            {
+                Snackbar.Add("Parameters are valid", Severity.Success);
+            }
+            else
+            {
+                _validationError = "Parameter validation failed. Please check your inputs.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _validationError = $"Validation error: {ex.Message}";
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+
+    private async Task UseTemplate()
+    {
+        if (Template == null) return;
+
+        _processing = true;
+        _validationError = null;
+
+        try
+        {
+            var result = await TemplateApi.EvaluateTemplateAsync(Template.Id, _parameters);
+            if (result != null)
+            {
+                Snackbar.Add("Template evaluated successfully. Opening in Designer.", Severity.Success);
+                MudDialog?.Close(DialogResult.Ok(result));
+            }
+            else
+            {
+                _validationError = "Failed to evaluate template. Please check your parameters.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _validationError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Close();
+    }
+}

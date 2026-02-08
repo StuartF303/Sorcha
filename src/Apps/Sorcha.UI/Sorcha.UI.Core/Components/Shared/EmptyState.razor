@@ -1,0 +1,38 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+
+<div class="d-flex flex-column align-center justify-center pa-8" style="min-height: 200px;">
+    <MudIcon Icon="@Icon" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="opacity: 0.4;" />
+    <MudText Typo="Typo.h6" Color="Color.Default" Class="mb-2" Style="opacity: 0.6;">@Title</MudText>
+    @if (!string.IsNullOrEmpty(Description))
+    {
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Align="Align.Center" Style="max-width: 400px;">
+            @Description
+        </MudText>
+    }
+    @if (!string.IsNullOrEmpty(ActionText) && OnAction.HasDelegate)
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnAction" StartIcon="@Icons.Material.Filled.Add">
+            @ActionText
+        </MudButton>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Icon { get; set; } = Icons.Material.Filled.Inbox;
+
+    [Parameter]
+    public string Title { get; set; } = "Nothing here yet";
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public string? ActionText { get; set; }
+
+    [Parameter]
+    public EventCallback OnAction { get; set; }
+}

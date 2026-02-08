@@ -3,6 +3,8 @@
 
 @page "/registers/query"
 @using Sorcha.UI.Core.Components.Registers
+@using Sorcha.UI.Core.Components.Explorer
+@using Sorcha.UI.Core.Components.Shared
 @using Sorcha.UI.Core.Models.Registers
 @using Sorcha.UI.Core.Services
 
@@ -22,14 +24,26 @@
         <MudStack Spacing="0">
             <MudText Typo="Typo.h4">Query Transactions</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Search transactions by wallet address across all registers
+                Search transactions by wallet address or build advanced OData queries
             </MudText>
         </MudStack>
     </MudStack>
 
-    @* Query Form *@
-    <TransactionQueryForm IsLoading="@_state.IsLoading"
-                          OnSearch="ExecuteQueryAsync" />
+    @* Tabbed query modes *@
+    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4">
+        <MudTabPanel Text="Wallet Search" Icon="@Icons.Material.Filled.AccountBalanceWallet">
+            <div class="pa-3">
+                @* Query Form *@
+                <TransactionQueryForm IsLoading="@_state.IsLoading"
+                                      OnSearch="ExecuteQueryAsync" />
+            </div>
+        </MudTabPanel>
+        <MudTabPanel Text="OData Query Builder" Icon="@Icons.Material.Filled.FilterList">
+            <div class="pa-3">
+                <ODataQueryBuilder />
+            </div>
+        </MudTabPanel>
+    </MudTabs>
 
     @* Results Section *@
     @if (_state.ErrorMessage is not null)
@@ -90,16 +104,12 @@
                         {
                             <tr class="cursor-pointer" @onclick="() => NavigateToTransaction(item)" data-testid="result-row">
                                 <td>
-                                    <MudText Typo="Typo.body2" Class="monospace-text">
-                                        @item.Transaction.TxIdTruncated
-                                    </MudText>
+                                    <TruncatedId Value="@item.Transaction.TxId" />
                                 </td>
                                 <td>
                                     <MudStack Spacing="0">
                                         <MudText Typo="Typo.body2">@item.RegisterName</MudText>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="monospace-text">
-                                            @TruncateId(item.RegisterId)
-                                        </MudText>
+                                        <TruncatedId Value="@item.RegisterId" />
                                     </MudStack>
                                 </td>
                                 <td>
@@ -234,9 +244,6 @@
     {
         Navigation.NavigateTo($"registers/{item.RegisterId}?tx={item.Transaction.TxId}");
     }
-
-    private static string TruncateId(string id) =>
-        id.Length > 16 ? $"{id[..8]}..." : id;
 
     private static Color GetTypeColor(string transactionType) => transactionType switch
     {

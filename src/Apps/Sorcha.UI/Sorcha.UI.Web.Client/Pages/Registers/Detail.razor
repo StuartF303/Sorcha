@@ -3,6 +3,8 @@
 
 @page "/registers/{RegisterId}"
 @using Sorcha.UI.Core.Components.Registers
+@using Sorcha.UI.Core.Components.Explorer
+@using Sorcha.UI.Core.Components.Shared
 @using Sorcha.UI.Core.Models.Registers
 @using Sorcha.UI.Core.Services
 @implements IAsyncDisposable
@@ -109,44 +111,54 @@
             </MudGrid>
         </MudPaper>
 
-        @* Main content area *@
-        <MudGrid Spacing="3">
-            @* Transaction list (takes full width when no selection, or 60% when selected) *@
-            <MudItem xs="12" md="@(_selectedTransaction is not null ? 7 : 12)">
-                <MudPaper Elevation="1" Class="transaction-list-paper" data-testid="transaction-list">
-                    <MudStack Row="true"
-                              Justify="Justify.SpaceBetween"
-                              AlignItems="AlignItems.Center"
-                              Class="pa-3 border-bottom">
-                        <MudText Typo="Typo.h6">Transactions</MudText>
-                        <MudStack Row="true" Spacing="1">
-                            @if (!_connectionState.IsHealthy)
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.Refresh"
-                                               Size="Size.Small"
-                                               OnClick="RefreshTransactionsAsync"
-                                               aria-label="Refresh transactions" />
-                            }
-                        </MudStack>
-                    </MudStack>
-                    <div class="transaction-list-content">
-                        <TransactionList RegisterId="@RegisterId"
-                                         @ref="_transactionListRef"
-                                         @bind-SelectedTransaction="_selectedTransaction"
-                                         OnTransactionsLoaded="OnTransactionsLoaded" />
-                    </div>
-                </MudPaper>
-            </MudItem>
+        @* Tabbed content area *@
+        <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4">
+            <MudTabPanel Text="Transactions" Icon="@Icons.Material.Filled.Receipt">
+                <MudGrid Spacing="3" Class="pa-3">
+                    @* Transaction list (takes full width when no selection, or 60% when selected) *@
+                    <MudItem xs="12" md="@(_selectedTransaction is not null ? 7 : 12)">
+                        <MudPaper Elevation="0" Class="transaction-list-paper" data-testid="transaction-list">
+                            <MudStack Row="true"
+                                      Justify="Justify.SpaceBetween"
+                                      AlignItems="AlignItems.Center"
+                                      Class="pa-3 border-bottom">
+                                <MudText Typo="Typo.h6">Transactions</MudText>
+                                <MudStack Row="true" Spacing="1">
+                                    @if (!_connectionState.IsHealthy)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                                       Size="Size.Small"
+                                                       OnClick="RefreshTransactionsAsync"
+                                                       aria-label="Refresh transactions" />
+                                    }
+                                </MudStack>
+                            </MudStack>
+                            <div class="transaction-list-content">
+                                <TransactionList RegisterId="@RegisterId"
+                                                 @ref="_transactionListRef"
+                                                 @bind-SelectedTransaction="_selectedTransaction"
+                                                 OnTransactionsLoaded="OnTransactionsLoaded" />
+                            </div>
+                        </MudPaper>
+                    </MudItem>
 
-            @* Transaction detail panel (shows when a transaction is selected) *@
-            @if (_selectedTransaction is not null)
-            {
-                <MudItem xs="12" md="5">
-                    <TransactionDetail Transaction="@_selectedTransaction"
-                                       OnClose="ClearSelection" />
-                </MudItem>
-            }
-        </MudGrid>
+                    @* Transaction detail panel (shows when a transaction is selected) *@
+                    @if (_selectedTransaction is not null)
+                    {
+                        <MudItem xs="12" md="5">
+                            <TransactionDetail Transaction="@_selectedTransaction"
+                                               OnClose="ClearSelection" />
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Docket Chain" Icon="@Icons.Material.Filled.Link">
+                <div class="pa-3">
+                    <DocketChain RegisterId="@RegisterId" />
+                </div>
+            </MudTabPanel>
+        </MudTabs>
     }
 </MudContainer>
 

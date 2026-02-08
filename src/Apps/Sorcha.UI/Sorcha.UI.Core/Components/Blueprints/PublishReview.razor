@@ -1,0 +1,110 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Blueprints
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Publish" Class="mr-2" />
+            Publish Blueprint
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (Review == null)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else
+        {
+            <MudText Typo="Typo.body1" Class="mb-3">
+                Review validation results before publishing <strong>@Review.Title</strong>
+            </MudText>
+
+            @if (Review.IsValid)
+            {
+                <MudAlert Severity="Severity.Success" Class="mb-3">
+                    <MudText Typo="Typo.body2">All validation checks passed. Blueprint is ready to publish.</MudText>
+                </MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3">
+                    <MudText Typo="Typo.body2">Blueprint has validation errors that must be fixed before publishing.</MudText>
+                </MudAlert>
+            }
+
+            @if (Review.ValidationResults.Count > 0)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Validation Issues</MudText>
+                <MudList T="string" Dense="true">
+                    @foreach (var issue in Review.ValidationResults)
+                    {
+                        <MudListItem Icon="@GetSeverityIcon(issue.Severity)" IconColor="@GetSeverityColor(issue.Severity)">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body2">@issue.Message</MudText>
+                                @if (!string.IsNullOrEmpty(issue.Location))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@issue.Location</MudText>
+                                }
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+
+            @if (Review.Warnings.Count > 0)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">Warnings</MudText>
+                @foreach (var warning in Review.Warnings)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-1">
+                        <MudText Typo="Typo.body2">@warning</MudText>
+                    </MudAlert>
+                }
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="Publish"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(Review == null || !Review.IsValid)"
+                   StartIcon="@Icons.Material.Filled.Publish">
+            Publish
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudBlazor.IDialogReference? MudDialog { get; set; }
+
+    [Parameter]
+    public PublishReviewViewModel? Review { get; set; }
+
+    private string GetSeverityIcon(string severity) => severity.ToLower() switch
+    {
+        "error" => Icons.Material.Filled.Error,
+        "warning" => Icons.Material.Filled.Warning,
+        _ => Icons.Material.Filled.Info
+    };
+
+    private Color GetSeverityColor(string severity) => severity.ToLower() switch
+    {
+        "error" => Color.Error,
+        "warning" => Color.Warning,
+        _ => Color.Info
+    };
+
+    private void Publish()
+    {
+        MudDialog?.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Close();
+    }
+}

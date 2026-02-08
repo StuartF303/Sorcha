@@ -484,15 +484,6 @@
     {
         try
         {
-            // Fetch blueprints from API
-            var response = await Http.GetFromJsonAsync<BlueprintListResponse>("/api/blueprints?pageSize=50");
-            var blueprints = response?.Items?.ToList() ?? [];
-
-            var parameters = new DialogParameters<Sorcha.UI.Core.Components.Designer.LoadBlueprintDialog>
-            {
-                { x => x.Blueprints, blueprints }
-            };
-
             var options = new DialogOptions
             {
                 MaxWidth = MaxWidth.Medium,
@@ -500,7 +491,7 @@
             };
 
             var dialog = await DialogService.ShowAsync<Sorcha.UI.Core.Components.Designer.LoadBlueprintDialog>(
-                "Load Blueprint", parameters, options);
+                "Load Blueprint", new DialogParameters(), options);
             var result = await dialog.Result;
 
             if (result is { Canceled: false, Data: string blueprintId })
@@ -514,8 +505,6 @@
             Snackbar.Add($"Failed to load blueprints: {ex.Message}", Severity.Error);
         }
     }
-
-    private record BlueprintListResponse(IEnumerable<BlueprintModel>? Items, int TotalCount, int Page, int PageSize);
 
     public async ValueTask DisposeAsync()
     {

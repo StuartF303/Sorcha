@@ -1,7 +1,19 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
 @page "/blueprints"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @attribute [Authorize]
-@inject ILocalStorageService LocalStorage
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@using Sorcha.UI.Core.Models.Blueprints
+@using Sorcha.UI.Core.Models.Common
+@using Sorcha.UI.Core.Components.Blueprints
+@using Sorcha.UI.Core.Components.Shared
+@using Sorcha.UI.Core.Services
+@inject IBlueprintApiService BlueprintApi
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
 <PageTitle>Blueprint Library - Sorcha Platform</PageTitle>
@@ -15,103 +27,262 @@
         Browse and manage your blueprint definitions
     </MudText>
 
-    <MudGrid>
-        <MudItem xs="12">
-            <MudPaper Class="pa-4 mb-4" Elevation="2">
-                <div class="d-flex justify-space-between align-center">
-                    <MudTextField T="string" @bind-Value="searchText" Placeholder="Search blueprints..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Class="flex-grow-1 mr-3" />
-                    <MudButton Href="designer" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add">
-                        Create Blueprint
-                    </MudButton>
-                </div>
-            </MudPaper>
-        </MudItem>
+    @if (_serviceError)
+    {
+        <ServiceUnavailable ServiceName="Blueprint Service" OnRetry="LoadBlueprintsAsync" />
+    }
+    else
+    {
+        <MudPaper Class="pa-4 mb-4" Elevation="2">
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudTextField T="string" @bind-Value="_searchText" Placeholder="Search blueprints..."
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-grow-1"
+                              TextChanged="OnSearchChanged" />
+                <MudSelect T="string" Value="_statusFilter" Label="Status"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 150px;"
+                           ValueChanged="OnStatusFilterChanged">
+                    <MudSelectItem Value="@("")">All</MudSelectItem>
+                    <MudSelectItem Value="@("draft")">Draft</MudSelectItem>
+                    <MudSelectItem Value="@("published")">Published</MudSelectItem>
+                </MudSelect>
+                <MudButton Href="designer" Color="Color.Primary" Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.Add">
+                    Create Blueprint
+                </MudButton>
+            </MudStack>
+        </MudPaper>
 
-        @if (filteredBlueprints.Any())
+        @if (_loading)
         {
-            @foreach (var blueprint in filteredBlueprints)
-            {
-                <MudItem xs="12" md="6" lg="4">
-                    <MudCard Elevation="2">
-                        <MudCardHeader>
-                            <CardHeaderContent>
-                                <MudText Typo="Typo.h6">@blueprint.Title</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    Version @blueprint.Version
-                                </MudText>
-                            </CardHeaderContent>
-                            <CardHeaderActions>
-                                <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" />
-                            </CardHeaderActions>
-                        </MudCardHeader>
-                        <MudCardContent>
-                            <MudText Typo="Typo.body2" Class="mb-2">@blueprint.Description</MudText>
-                            <MudDivider Class="my-2" />
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" /> @blueprint.Actions.Count actions
-                            </MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                <MudIcon Icon="@Icons.Material.Filled.Update" Size="Size.Small" /> Updated @blueprint.UpdatedAt.ToString("MMM dd, yyyy")
-                            </MudText>
-                        </MudCardContent>
-                        <MudCardActions>
-                            <MudButton Color="Color.Primary" Variant="Variant.Text" Href="@($"designer?id={blueprint.Id}")">Open</MudButton>
-                            <MudButton Color="Color.Default" Variant="Variant.Text">Execute</MudButton>
-                        </MudCardActions>
-                    </MudCard>
-                </MudItem>
-            }
+            <MudGrid>
+                @for (var i = 0; i < 6; i++)
+                {
+                    <MudItem xs="12" md="6" lg="4">
+                        <MudCard Elevation="2">
+                            <MudCardContent>
+                                <MudSkeleton Width="70%" Height="24px" Class="mb-2" />
+                                <MudSkeleton Width="40%" Height="16px" Class="mb-3" />
+                                <MudSkeleton Width="100%" Height="16px" Class="mb-2" />
+                                <MudSkeleton Width="60%" Height="16px" />
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+        else if (_blueprints.Count == 0)
+        {
+            <EmptyState Icon="@Icons.Material.Filled.FolderOpen"
+                        Title="No Blueprints Found"
+                        Description="Get started by creating your first blueprint"
+                        ActionText="Create Blueprint"
+                        OnAction="@(() => Navigation.NavigateTo("designer"))" />
         }
         else
         {
-            <MudItem xs="12">
-                <MudPaper Class="pa-8 text-center" Elevation="2">
-                    <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Size="Size.Large" Color="Color.Secondary" Class="mb-3" />
-                    <MudText Typo="Typo.h6" Class="mb-2">No Blueprints Found</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-                        Get started by creating your first blueprint
-                    </MudText>
-                    <MudButton Href="designer" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add">
-                        Create Blueprint
-                    </MudButton>
-                </MudPaper>
-            </MudItem>
-        }
+            <MudGrid>
+                @foreach (var blueprint in _blueprints)
+                {
+                    <MudItem xs="12" md="6" lg="4">
+                        <MudCard Elevation="2">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.h6">@blueprint.Title</MudText>
+                                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                        <TruncatedId Value="@blueprint.Id" />
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@(blueprint.Status == "published" ? Color.Success : Color.Default)">
+                                            @blueprint.Status
+                                        </MudChip>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">v@blueprint.Version</MudText>
+                                    </MudStack>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudText Typo="Typo.body2" Class="mb-2">@blueprint.Description</MudText>
+                                <MudDivider Class="my-2" />
+                                <MudStack Row="true" Spacing="3">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" /> @blueprint.ActionCount actions
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" /> @blueprint.ParticipantCount participants
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        <MudIcon Icon="@Icons.Material.Filled.Update" Size="Size.Small" /> @blueprint.UpdatedAt.ToString("MMM dd, yyyy")
+                                    </MudText>
+                                </MudStack>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Color="Color.Primary" Variant="Variant.Text"
+                                           Href="@($"designer?id={blueprint.Id}")">Open</MudButton>
+                                @if (blueprint.Status == "draft")
+                                {
+                                    <MudButton Color="Color.Success" Variant="Variant.Text"
+                                               OnClick="() => PublishBlueprint(blueprint)">Publish</MudButton>
+                                }
+                                else
+                                {
+                                    <MudButton Color="Color.Info" Variant="Variant.Text"
+                                               OnClick="() => ShowVersionHistory(blueprint)">Versions</MudButton>
+                                }
+                                <MudSpacer />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                               OnClick="() => DeleteBlueprint(blueprint)" />
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
 
-        <MudItem xs="12">
-            <MudAlert Severity="Severity.Info">
-                <MudText Typo="Typo.body2">
-                    This page loads blueprints from browser LocalStorage. Server-side blueprint management will be implemented in future versions.
-                </MudText>
-            </MudAlert>
-        </MudItem>
-    </MudGrid>
+            @* Pagination *@
+            @if (_totalPages > 1)
+            {
+                <MudStack Row="true" Justify="Justify.Center" Class="mt-4">
+                    <MudPagination Count="@_totalPages" Selected="@_currentPage"
+                                   SelectedChanged="OnPageChanged" Color="Color.Primary" />
+                </MudStack>
+            }
+        }
+    }
 </MudContainer>
 
 @code {
-    private string searchText = "";
-    private List<Blueprint> blueprints = new();
+    private IReadOnlyList<BlueprintListItemViewModel> _blueprints = [];
+    private string _searchText = "";
+    private string _statusFilter = "";
+    private int _currentPage = 1;
+    private int _totalPages = 1;
+    private bool _loading = true;
+    private bool _serviceError;
 
-    private IEnumerable<Blueprint> filteredBlueprints => string.IsNullOrWhiteSpace(searchText)
-        ? blueprints
-        : blueprints.Where(b =>
-            b.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-            (b.Description?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false));
+    private const int PageSize = 12;
 
     protected override async Task OnInitializedAsync()
     {
-        // Load blueprints from LocalStorage (same as designer page)
+        await LoadBlueprintsAsync();
+    }
+
+    private async Task LoadBlueprintsAsync()
+    {
+        _loading = true;
+        _serviceError = false;
+
         try
         {
-            var blueprintsJson = await LocalStorage.GetItemAsStringAsync("sorcha:blueprints");
-            if (!string.IsNullOrEmpty(blueprintsJson))
+            var result = await BlueprintApi.GetBlueprintsAsync(
+                _currentPage, PageSize,
+                string.IsNullOrWhiteSpace(_searchText) ? null : _searchText,
+                string.IsNullOrWhiteSpace(_statusFilter) ? null : _statusFilter);
+            _blueprints = result.Items;
+            _totalPages = Math.Max(1, result.TotalPages);
+        }
+        catch
+        {
+            _serviceError = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        _searchText = value;
+        _currentPage = 1;
+        await LoadBlueprintsAsync();
+    }
+
+    private async Task OnStatusFilterChanged(string value)
+    {
+        _statusFilter = value;
+        _currentPage = 1;
+        await LoadBlueprintsAsync();
+    }
+
+    private async Task OnPageChanged(int page)
+    {
+        _currentPage = page;
+        await LoadBlueprintsAsync();
+    }
+
+    private async Task PublishBlueprint(BlueprintListItemViewModel blueprint)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Review"] = new PublishReviewViewModel
             {
-                blueprints = System.Text.Json.JsonSerializer.Deserialize<List<Blueprint>>(blueprintsJson) ?? new();
+                BlueprintId = blueprint.Id,
+                Title = blueprint.Title,
+                IsValid = true,
+                ValidationResults = [],
+                Warnings = []
+            }
+        };
+        var dialog = await DialogService.ShowAsync<PublishReview>("Publish Blueprint", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                var publishResult = await BlueprintApi.PublishBlueprintAsync(blueprint.Id);
+                if (publishResult != null)
+                {
+                    Snackbar.Add($"Blueprint '{blueprint.Title}' published successfully", Severity.Success);
+                    await LoadBlueprintsAsync();
+                }
+                else
+                {
+                    Snackbar.Add("Failed to publish blueprint", Severity.Error);
+                }
+            }
+            catch
+            {
+                Snackbar.Add("Error publishing blueprint", Severity.Error);
             }
         }
-        catch (Exception ex)
+    }
+
+    private async Task ShowVersionHistory(BlueprintListItemViewModel blueprint)
+    {
+        var versions = await BlueprintApi.GetVersionsAsync(blueprint.Id);
+        var parameters = new DialogParameters
         {
-            Console.WriteLine($"Error loading blueprints: {ex.Message}");
+            ["Versions"] = versions
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        await DialogService.ShowAsync<VersionHistoryDialog>("Version History", parameters, options);
+    }
+
+    private async Task DeleteBlueprint(BlueprintListItemViewModel blueprint)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Delete Blueprint",
+            $"Are you sure you want to delete '{blueprint.Title}'? This action cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                var success = await BlueprintApi.DeleteBlueprintAsync(blueprint.Id);
+                if (success)
+                {
+                    Snackbar.Add($"Blueprint '{blueprint.Title}' deleted", Severity.Success);
+                    await LoadBlueprintsAsync();
+                }
+                else
+                {
+                    Snackbar.Add("Failed to delete blueprint", Severity.Error);
+                }
+            }
+            catch
+            {
+                Snackbar.Add("Error deleting blueprint", Severity.Error);
+            }
         }
     }
 }

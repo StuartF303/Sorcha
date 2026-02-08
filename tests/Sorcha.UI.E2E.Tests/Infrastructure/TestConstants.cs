@@ -95,6 +95,11 @@ public static class TestConstants
         public const string Registers = $"{AppBase}/registers";
         public const string Participants = $"{AppBase}/participants";
         public const string Admin = $"{AppBase}/admin";
+        public const string AdminHealth = $"{AppBase}/admin/health";
+        public const string AdminPeers = $"{AppBase}/admin/peers";
+        public const string AdminOrganizations = $"{AppBase}/admin/organizations";
+        public const string AdminValidator = $"{AppBase}/admin/validator";
+        public const string AdminPrincipals = $"{AppBase}/admin/principals";
         public const string Settings = $"{AppBase}/settings";
         public const string Help = $"{AppBase}/help";
     }

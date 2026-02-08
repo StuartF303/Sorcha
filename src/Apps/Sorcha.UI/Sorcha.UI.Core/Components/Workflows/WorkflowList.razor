@@ -1,0 +1,70 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Workflows
+
+<MudTable Items="Workflows" Dense="true" Hover="true" Striped="true" Loading="IsLoading"
+          OnRowClick="HandleRowClick" T="WorkflowInstanceViewModel">
+    <HeaderContent>
+        <MudTh>Instance</MudTh>
+        <MudTh>Blueprint</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Progress</MudTh>
+        <MudTh>Created</MudTh>
+        <MudTh>Last Activity</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd><TruncatedId Value="@context.InstanceId" /></MudTd>
+        <MudTd>@context.BlueprintName</MudTd>
+        <MudTd>
+            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                @context.Status
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                <MudProgressLinear Value="@GetProgress(context)" Color="Color.Primary" Size="Size.Small" Style="width: 80px;" />
+                <MudText Typo="Typo.caption">@context.CurrentStepNumber/@context.TotalSteps</MudText>
+            </MudStack>
+        </MudTd>
+        <MudTd>
+            <MudText Typo="Typo.body2">@context.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</MudText>
+        </MudTd>
+        <MudTd>
+            <MudText Typo="Typo.body2">@context.UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</MudText>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <EmptyState Icon="@Icons.Material.Filled.AccountTree"
+                    Title="No workflows yet"
+                    Description="Workflows will appear here when blueprints are executed" />
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    [Parameter]
+    public List<WorkflowInstanceViewModel> Workflows { get; set; } = [];
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public EventCallback<WorkflowInstanceViewModel> OnSelect { get; set; }
+
+    private void HandleRowClick(TableRowClickEventArgs<WorkflowInstanceViewModel> args)
+    {
+        if (args.Item != null)
+            OnSelect.InvokeAsync(args.Item);
+    }
+
+    private static double GetProgress(WorkflowInstanceViewModel wf) =>
+        wf.TotalSteps > 0 ? (double)wf.CurrentStepNumber / wf.TotalSteps * 100 : 0;
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "active" => Color.Info,
+        "completed" => Color.Success,
+        "failed" => Color.Error,
+        _ => Color.Default
+    };
+}

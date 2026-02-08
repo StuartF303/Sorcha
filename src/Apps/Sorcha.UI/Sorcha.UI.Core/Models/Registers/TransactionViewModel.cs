@@ -75,18 +75,6 @@ public record TransactionViewModel
     public uint? ActionId { get; init; }
 
     /// <summary>
-    /// Computed: Truncated transaction ID (first 8 chars + "...")
-    /// </summary>
-    public string TxIdTruncated => TxId.Length > 8 ? $"{TxId[..8]}..." : TxId;
-
-    /// <summary>
-    /// Computed: Truncated sender address (first 8 + "..." + last 4)
-    /// </summary>
-    public string SenderTruncated => SenderWallet.Length > 12
-        ? $"{SenderWallet[..8]}...{SenderWallet[^4..]}"
-        : SenderWallet;
-
-    /// <summary>
     /// Computed: Formatted timestamp (relative or absolute)
     /// </summary>
     public string TimeStampFormatted => GetFormattedTime(TimeStamp);
