@@ -72,6 +72,24 @@ public class ConsensusEngine : IConsensusEngine
 
             if (validators.Count == 0)
             {
+                if (_consensusConfig.SingleValidatorAutoApprove)
+                {
+                    stopwatch.Stop();
+                    _logger.LogDebug(
+                        "No peer validators found for register {RegisterId} — auto-approving in single-validator mode",
+                        docket.RegisterId);
+
+                    return new ConsensusResult
+                    {
+                        Achieved = true,
+                        Docket = docket,
+                        Votes = Array.Empty<Models.ConsensusVote>(),
+                        TotalValidators = 1,
+                        Duration = stopwatch.Elapsed,
+                        CompletedAt = DateTimeOffset.UtcNow
+                    };
+                }
+
                 _logger.LogWarning("No validators found for register {RegisterId}", docket.RegisterId);
                 return new ConsensusResult
                 {

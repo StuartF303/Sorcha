@@ -24,7 +24,13 @@ public class ConsensusConfiguration
     public int MaxRetries { get; set; } = 3;
 
     /// <summary>
-    /// Whether to require quorum (fail if <50% validators reachable)
+    /// Whether to require quorum (fail if &lt;50% validators reachable)
     /// </summary>
     public bool RequireQuorum { get; set; } = true;
+
+    /// <summary>
+    /// When true, auto-approve dockets if no other validators are found in the peer network.
+    /// Enables single-node operation without requiring a peer network for consensus.
+    /// </summary>
+    public bool SingleValidatorAutoApprove { get; set; } = true;
 }

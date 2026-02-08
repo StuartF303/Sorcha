@@ -21,8 +21,8 @@ public class HashProvider : IHashProvider
     /// </summary>
     public byte[] ComputeHash(byte[] data, HashType hashType = HashType.SHA256)
     {
-        if (data == null || data.Length == 0)
-            throw new ArgumentException("Data cannot be null or empty", nameof(data));
+        if (data == null)
+            throw new ArgumentNullException(nameof(data));
 
         return hashType switch
         {

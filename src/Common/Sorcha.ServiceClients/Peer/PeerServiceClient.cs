@@ -21,6 +21,7 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
     private readonly PeerCommunication.PeerCommunicationClient _communicationClient;
     private readonly string _localPeerId;
     private bool _disposed;
+    private bool _peerServiceUnavailableLogged;
 
     public PeerServiceClient(
         IConfiguration configuration,
@@ -62,6 +63,9 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
                 request,
                 cancellationToken: cancellationToken);
 
+            // Reset unavailable flag on successful connection
+            _peerServiceUnavailableLogged = false;
+
             var validators = response.Peers
                 .Where(p => p.Capabilities?.SupportsTransactionDistribution == true)
                 .Select(p => new ValidatorInfo
@@ -78,7 +82,15 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable)
         {
-            _logger.LogWarning("Peer Service unavailable - returning empty validator list");
+            if (!_peerServiceUnavailableLogged)
+            {
+                _logger.LogWarning("Peer Service unavailable - returning empty validator list");
+                _peerServiceUnavailableLogged = true;
+            }
+            else
+            {
+                _logger.LogDebug("Peer Service still unavailable - returning empty validator list");
+            }
             return [];
         }
         catch (Exception ex)
@@ -128,17 +140,32 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable)
         {
-            _logger.LogWarning(
-                "Peer Service unavailable - cannot publish proposed docket {DocketId}",
-                docketId);
+            if (!_peerServiceUnavailableLogged)
+            {
+                _logger.LogWarning(
+                    "Peer Service unavailable - cannot publish proposed docket {DocketId}",
+                    docketId);
+                _peerServiceUnavailableLogged = true;
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "Peer Service still unavailable - cannot publish proposed docket {DocketId}",
+                    docketId);
+            }
+        }
+        catch (RpcException ex)
+        {
+            _logger.LogDebug(
+                "Peer Service gRPC error publishing proposed docket {DocketId}: {Status}",
+                docketId, ex.StatusCode);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            _logger.LogDebug(
                 ex,
                 "Failed to publish proposed docket {DocketId} for register {RegisterId}",
                 docketId, registerId);
-            throw;
         }
     }
 
@@ -182,17 +209,22 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Peer Service unavailable - cannot broadcast confirmed docket {DocketId}",
                 docketId);
         }
+        catch (RpcException ex)
+        {
+            _logger.LogDebug(
+                "Peer Service gRPC error broadcasting confirmed docket {DocketId}: {Status}",
+                docketId, ex.StatusCode);
+        }
         catch (Exception ex)
         {
-            _logger.LogError(
+            _logger.LogDebug(
                 ex,
                 "Failed to broadcast confirmed docket {DocketId} for register {RegisterId}",
                 docketId, registerId);
-            throw;
         }
     }
 
@@ -241,17 +273,22 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Peer Service unavailable - cannot report validator {ValidatorId} behavior",
                 validatorId);
         }
+        catch (RpcException ex)
+        {
+            _logger.LogDebug(
+                "Peer Service gRPC error reporting validator {ValidatorId} behavior: {Status}",
+                validatorId, ex.StatusCode);
+        }
         catch (Exception ex)
         {
-            _logger.LogError(
+            _logger.LogDebug(
                 ex,
                 "Failed to report behavior for validator {ValidatorId}",
                 validatorId);
-            throw;
         }
     }
 

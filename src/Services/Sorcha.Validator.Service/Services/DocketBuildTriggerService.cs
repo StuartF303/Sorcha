@@ -24,6 +24,9 @@ public class DocketBuildTriggerService : BackgroundService
     // Track last build time per register
     private readonly ConcurrentDictionary<string, DateTimeOffset> _lastBuildTimes = new();
 
+    // Track registers that have had genesis dockets written (prevent re-creation)
+    private readonly ConcurrentDictionary<string, bool> _genesisWritten = new();
+
     public DocketBuildTriggerService(
         IServiceScopeFactory scopeFactory,
         IRegisterMonitoringRegistry registry,
@@ -88,6 +91,19 @@ public class DocketBuildTriggerService : BackgroundService
         // Get last build time (or use epoch if never built)
         var lastBuildTime = _lastBuildTimes.GetOrAdd(registerId, DateTimeOffset.UnixEpoch);
 
+        // Skip if genesis was already written — subsequent dockets only needed when
+        // there are pending transactions, which the normal ShouldBuild check handles
+        if (_genesisWritten.ContainsKey(registerId))
+        {
+            var memPool = scope.ServiceProvider.GetRequiredService<IMemPoolManager>();
+            var txCount = await memPool.GetTransactionCountAsync(registerId, cancellationToken);
+            if (txCount == 0)
+            {
+                _logger.LogTrace("Register {RegisterId} has genesis docket and no pending transactions", registerId);
+                return;
+            }
+        }
+
         // Check if we should build
         var shouldBuild = await docketBuilder.ShouldBuildDocketAsync(registerId, lastBuildTime, cancellationToken);
 
@@ -119,7 +135,21 @@ public class DocketBuildTriggerService : BackgroundService
                 {
                     _logger.LogInformation("Consensus achieved for docket {DocketNumber}, writing to Register Service",
                         docket.DocketNumber);
-                    await WriteDocketAndTransactionsAsync(scope, docket, cancellationToken);
+
+                    try
+                    {
+                        await WriteDocketAndTransactionsAsync(scope, docket, cancellationToken);
+                    }
+                    catch (Exception ex) when (docket.DocketNumber == 0)
+                    {
+                        // Genesis docket write failed — likely already exists (DuplicateKey)
+                        _logger.LogInformation(
+                            "Genesis docket write failed for register {RegisterId} (may already exist): {Message}",
+                            registerId, ex.Message);
+                    }
+
+                    if (docket.DocketNumber == 0)
+                        _genesisWritten[registerId] = true;
                 }
                 else
                 {
@@ -131,7 +161,20 @@ public class DocketBuildTriggerService : BackgroundService
             {
                 // No consensus engine registered — write directly (single-validator mode)
                 _logger.LogDebug("No consensus engine available — writing docket directly (single-validator mode)");
-                await WriteDocketAndTransactionsAsync(scope, docket, cancellationToken);
+
+                try
+                {
+                    await WriteDocketAndTransactionsAsync(scope, docket, cancellationToken);
+                }
+                catch (Exception ex) when (docket.DocketNumber == 0)
+                {
+                    _logger.LogInformation(
+                        "Genesis docket write failed for register {RegisterId} (may already exist): {Message}",
+                        registerId, ex.Message);
+                }
+
+                if (docket.DocketNumber == 0)
+                    _genesisWritten[registerId] = true;
             }
         }
         else

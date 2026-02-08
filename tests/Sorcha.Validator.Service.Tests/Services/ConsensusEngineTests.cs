@@ -201,9 +201,9 @@ public class ConsensusEngineTests
     }
 
     [Fact]
-    public async Task AchieveConsensusAsync_WithNoValidators_FailsConsensus()
+    public async Task AchieveConsensusAsync_WithNoValidators_AutoApprovesInSingleValidatorMode()
     {
-        // Arrange
+        // Arrange — SingleValidatorAutoApprove defaults to true
         var docket = CreateTestDocket("register-1", 5);
 
         _mockPeerClient
@@ -216,6 +216,45 @@ public class ConsensusEngineTests
 
         // Act
         var result = await _engine.AchieveConsensusAsync(docket);
+
+        // Assert
+        result.Achieved.Should().BeTrue();
+        result.TotalValidators.Should().Be(1);
+        result.FailureReason.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task AchieveConsensusAsync_WithNoValidatorsAndAutoApproveDisabled_FailsConsensus()
+    {
+        // Arrange — disable single-validator auto-approve
+        var config = new ConsensusConfiguration
+        {
+            ApprovalThreshold = 0.50,
+            VoteTimeout = TimeSpan.FromSeconds(10),
+            MaxRetries = 3,
+            SingleValidatorAutoApprove = false
+        };
+        var engine = new ConsensusEngine(
+            _mockPeerClient.Object,
+            _mockWalletClient.Object,
+            _mockRegisterClient.Object,
+            _mockTransactionValidator.Object,
+            Options.Create(config),
+            Options.Create(_validatorConfig),
+            _mockLogger.Object);
+
+        var docket = CreateTestDocket("register-1", 5);
+
+        _mockPeerClient
+            .Setup(p => p.PublishProposedDocketAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        _mockPeerClient
+            .Setup(p => p.QueryValidatorsAsync(docket.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ValidatorInfo>());
+
+        // Act
+        var result = await engine.AchieveConsensusAsync(docket);
 
         // Assert
         result.Achieved.Should().BeFalse();

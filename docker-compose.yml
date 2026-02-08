@@ -315,6 +315,7 @@ services:
       ServiceClients__WalletService__Address: http://wallet-service:8080
       ServiceClients__TenantService__Address: http://tenant-service:8080
       ServiceClients__RegisterService__Address: http://sorcha-register-service:8080
+      ServiceClients__PeerService__Address: http://peer-service:5000
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
