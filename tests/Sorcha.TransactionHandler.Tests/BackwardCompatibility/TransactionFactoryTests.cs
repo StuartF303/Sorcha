@@ -28,30 +28,26 @@ public class TransactionFactoryTests
         _factory = new TransactionFactory(_cryptoModule, _hashProvider, _symmetricCrypto, _versionDetector);
     }
 
-    [Theory]
-    [InlineData(TransactionVersion.V1)]
-    [InlineData(TransactionVersion.V2)]
-    [InlineData(TransactionVersion.V3)]
-    [InlineData(TransactionVersion.V4)]
-    public void Create_AllVersions_ShouldCreateTransaction(TransactionVersion version)
+    [Fact]
+    public void Create_V1_ShouldCreateTransaction()
     {
         // Act
-        var transaction = _factory.Create(version);
+        var transaction = _factory.Create(TransactionVersion.V1);
 
         // Assert
         Assert.NotNull(transaction);
-        Assert.Equal(version, transaction.Version);
+        Assert.Equal(TransactionVersion.V1, transaction.Version);
     }
 
     [Fact]
-    public async Task Deserialize_V4BinaryTransaction_ShouldSucceed()
+    public async Task Deserialize_V1BinaryTransaction_ShouldSucceed()
     {
-        // Arrange - Create a V4 transaction
+        // Arrange - Create a V1 transaction
         var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .SignAsync(wallet.PrivateKeyWif);
 
@@ -66,18 +62,18 @@ public class TransactionFactoryTests
 
         // Assert
         Assert.NotNull(deserializedTransaction);
-        Assert.Equal(TransactionVersion.V4, deserializedTransaction.Version);
+        Assert.Equal(TransactionVersion.V1, deserializedTransaction.Version);
     }
 
     [Fact]
-    public async Task Deserialize_V4JsonTransaction_ShouldSucceed()
+    public async Task Deserialize_V1JsonTransaction_ShouldSucceed()
     {
-        // Arrange - Create a V4 transaction
+        // Arrange - Create a V1 transaction
         var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .SignAsync(wallet.PrivateKeyWif);
 
@@ -92,40 +88,18 @@ public class TransactionFactoryTests
 
         // Assert
         Assert.NotNull(deserializedTransaction);
-        Assert.Equal(TransactionVersion.V4, deserializedTransaction.Version);
+        Assert.Equal(TransactionVersion.V1, deserializedTransaction.Version);
     }
 
-    [Fact]
-    public void Create_V1Transaction_ShouldCreateWithV1Marker()
+    [Theory]
+    [InlineData((TransactionVersion)2)]
+    [InlineData((TransactionVersion)3)]
+    [InlineData((TransactionVersion)4)]
+    [InlineData((TransactionVersion)99)]
+    public void Create_UnsupportedVersion_ShouldThrow(TransactionVersion version)
     {
-        // Act
-        var transaction = _factory.Create(TransactionVersion.V1);
-
-        // Assert
-        Assert.NotNull(transaction);
-        Assert.Equal(TransactionVersion.V1, transaction.Version);
-    }
-
-    [Fact]
-    public void Create_V2Transaction_ShouldCreateWithV2Marker()
-    {
-        // Act
-        var transaction = _factory.Create(TransactionVersion.V2);
-
-        // Assert
-        Assert.NotNull(transaction);
-        Assert.Equal(TransactionVersion.V2, transaction.Version);
-    }
-
-    [Fact]
-    public void Create_V3Transaction_ShouldCreateWithV3Marker()
-    {
-        // Act
-        var transaction = _factory.Create(TransactionVersion.V3);
-
-        // Assert
-        Assert.NotNull(transaction);
-        Assert.Equal(TransactionVersion.V3, transaction.Version);
+        // Act & Assert
+        Assert.Throws<NotSupportedException>(() => _factory.Create(version));
     }
 
     [Fact]

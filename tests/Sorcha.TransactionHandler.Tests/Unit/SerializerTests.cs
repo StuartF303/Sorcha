@@ -176,7 +176,7 @@ public class SerializerTests
             _cryptoModule,
             _hashProvider,
             payloadManager,
-            TransactionVersion.V4);
+            TransactionVersion.V1);
 
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 

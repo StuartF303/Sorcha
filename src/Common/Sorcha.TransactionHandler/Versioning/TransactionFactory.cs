@@ -38,9 +38,6 @@ public class TransactionFactory : ITransactionFactory
     {
         return version switch
         {
-            TransactionVersion.V4 => CreateV4Transaction(),
-            TransactionVersion.V3 => CreateV3Transaction(),
-            TransactionVersion.V2 => CreateV2Transaction(),
             TransactionVersion.V1 => CreateV1Transaction(),
             _ => throw new NotSupportedException($"Transaction version {version} is not supported")
         };
@@ -80,41 +77,14 @@ public class TransactionFactory : ITransactionFactory
 
     #region Private Helper Methods
 
-    private ITransaction CreateV4Transaction()
-    {
-        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
-        return new Transaction(_cryptoModule, _hashProvider, payloadManager, TransactionVersion.V4);
-    }
-
-    private ITransaction CreateV3Transaction()
-    {
-        // V3→V4 adapter: V3 is structurally identical to V4, only version marker differs.
-        // All V4 fields are present; no field defaults needed.
-        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
-        return new Transaction(_cryptoModule, _hashProvider, payloadManager, TransactionVersion.V3);
-    }
-
-    private ITransaction CreateV2Transaction()
-    {
-        // V2→V4 adapter: V2 transactions lack metadata support.
-        // Create V4-compatible transaction with V2 marker; metadata defaults to null.
-        var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
-        return new Transaction(_cryptoModule, _hashProvider, payloadManager, TransactionVersion.V2);
-    }
-
     private ITransaction CreateV1Transaction()
     {
-        // V1→V4 adapter: V1 transactions lack metadata and multi-recipient support.
-        // Create V4-compatible transaction with V1 marker; metadata and recipients default to null.
         var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         return new Transaction(_cryptoModule, _hashProvider, payloadManager, TransactionVersion.V1);
     }
 
     private ITransactionSerializer GetSerializer(TransactionVersion version)
     {
-        // All versions share the same binary wire format — the version field in the first 4 bytes
-        // identifies the version. The BinaryTransactionSerializer reads/writes all fields regardless
-        // of version; older versions simply have null/empty optional fields.
         return new BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
     }
 

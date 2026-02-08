@@ -40,7 +40,7 @@ public class EndToEndTransactionTests
 
         // Act - Build and sign transaction
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients(recipient)
             .WithMetadata("{\"type\": \"test_transaction\", \"amount\": 100}")
             .AddPayload(payloadData, new[] { recipient })
@@ -56,7 +56,7 @@ public class EndToEndTransactionTests
         Assert.NotNull(transaction.TxId);
         Assert.NotNull(transaction.Signature);
         Assert.NotNull(transaction.SenderWallet);
-        Assert.Equal(TransactionVersion.V4, transaction.Version);
+        Assert.Equal(TransactionVersion.V1, transaction.Version);
 
         // Verify the transaction signature
         var verifyStatus = await transaction.VerifyAsync();
@@ -71,7 +71,7 @@ public class EndToEndTransactionTests
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient1", "ws1recipient2")
             .WithMetadata("{\"test\": true}")
             .WithPreviousTransaction("previous_tx_hash_123")
@@ -104,7 +104,7 @@ public class EndToEndTransactionTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients(recipients)
             .AddPayload(payload1, recipients)
             .AddPayload(payload2, recipients)
@@ -129,7 +129,7 @@ public class EndToEndTransactionTests
         var wallet1 = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var tx1Result = await builder1
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .SignAsync(wallet1.PrivateKeyWif);
 
@@ -140,7 +140,7 @@ public class EndToEndTransactionTests
         var wallet2 = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var tx2Result = await builder2
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithPreviousTransaction(transaction1.TxId!)
             .WithRecipients("ws1recipient2")
             .SignAsync(wallet2.PrivateKeyWif);
@@ -160,7 +160,7 @@ public class EndToEndTransactionTests
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .WithMetadata("{\"type\": \"document\", \"size\": 1024}")
             .SignAsync(wallet.PrivateKeyWif);
@@ -190,7 +190,7 @@ public class EndToEndTransactionTests
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .SignAsync(wallet.PrivateKeyWif);
 
@@ -219,7 +219,7 @@ public class EndToEndTransactionTests
         var wallet = await TestHelpers.GenerateTestWalletAsync(WalletNetworks.ED25519);
 
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .SignAsync(wallet.PrivateKeyWif);
 
@@ -234,7 +234,7 @@ public class EndToEndTransactionTests
 
         // Assert
         Assert.NotNull(deserializedTransaction);
-        Assert.Equal(TransactionVersion.V4, deserializedTransaction.Version);
+        Assert.Equal(TransactionVersion.V1, deserializedTransaction.Version);
     }
 
     [Fact]
@@ -259,7 +259,7 @@ public class EndToEndTransactionTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .WithMetadata(metadata)
             .SignAsync(wallet.PrivateKeyWif);
@@ -287,7 +287,7 @@ public class EndToEndTransactionTests
 
         // Act
         var builderResult = await builder
-            .Create(TransactionVersion.V4)
+            .Create(TransactionVersion.V1)
             .WithRecipients("ws1recipient")
             .AddPayload(largePayload, new[] { "ws1recipient" })
             .SignAsync(wallet.PrivateKeyWif);

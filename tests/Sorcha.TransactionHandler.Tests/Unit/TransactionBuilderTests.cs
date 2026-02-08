@@ -31,7 +31,7 @@ public class TransactionBuilderTests
         var builder = new TransactionBuilder(_cryptoModule, _hashProvider, _symmetricCrypto);
 
         // Act
-        var result = builder.Create(TransactionVersion.V4);
+        var result = builder.Create(TransactionVersion.V1);
 
         // Assert
         Assert.NotNull(result);

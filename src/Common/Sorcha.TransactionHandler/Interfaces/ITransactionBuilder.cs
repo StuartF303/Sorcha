@@ -13,9 +13,9 @@ public interface ITransactionBuilder
     /// <summary>
     /// Creates a new transaction with the specified version.
     /// </summary>
-    /// <param name="version">The transaction version (default: V4)</param>
+    /// <param name="version">The transaction version (default: V1)</param>
     /// <returns>The builder instance for chaining</returns>
-    ITransactionBuilder Create(TransactionVersion version = TransactionVersion.V4);
+    ITransactionBuilder Create(TransactionVersion version = TransactionVersion.V1);
 
     /// <summary>
     /// Sets the previous transaction hash for chaining.

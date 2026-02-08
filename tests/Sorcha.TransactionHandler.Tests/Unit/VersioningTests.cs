@@ -25,46 +25,18 @@ public class VersioningTests
         Assert.Equal(TransactionVersion.V1, version);
     }
 
-    [Fact]
-    public void DetectVersion_FromBinary_ShouldDetectV2()
+    [Theory]
+    [InlineData((uint)2)]
+    [InlineData((uint)3)]
+    [InlineData((uint)4)]
+    public void DetectVersion_FromBinary_UnsupportedVersions_ShouldThrow(uint versionNumber)
     {
         // Arrange
         var detector = new VersionDetector();
-        var data = BitConverter.GetBytes((uint)2);
+        var data = BitConverter.GetBytes(versionNumber);
 
-        // Act
-        var version = detector.DetectVersion(data);
-
-        // Assert
-        Assert.Equal(TransactionVersion.V2, version);
-    }
-
-    [Fact]
-    public void DetectVersion_FromBinary_ShouldDetectV3()
-    {
-        // Arrange
-        var detector = new VersionDetector();
-        var data = BitConverter.GetBytes((uint)3);
-
-        // Act
-        var version = detector.DetectVersion(data);
-
-        // Assert
-        Assert.Equal(TransactionVersion.V3, version);
-    }
-
-    [Fact]
-    public void DetectVersion_FromBinary_ShouldDetectV4()
-    {
-        // Arrange
-        var detector = new VersionDetector();
-        var data = BitConverter.GetBytes((uint)4);
-
-        // Act
-        var version = detector.DetectVersion(data);
-
-        // Assert
-        Assert.Equal(TransactionVersion.V4, version);
+        // Act & Assert
+        Assert.Throws<NotSupportedException>(() => detector.DetectVersion(data));
     }
 
     [Fact]
@@ -99,21 +71,30 @@ public class VersioningTests
         Assert.Throws<NotSupportedException>(() => detector.DetectVersion(data));
     }
 
-    [Theory]
-    [InlineData("{\"version\": 1}", TransactionVersion.V1)]
-    [InlineData("{\"version\": 2}", TransactionVersion.V2)]
-    [InlineData("{\"version\": 3}", TransactionVersion.V3)]
-    [InlineData("{\"version\": 4}", TransactionVersion.V4)]
-    public void DetectVersion_FromJson_ShouldDetectVersion(string json, TransactionVersion expected)
+    [Fact]
+    public void DetectVersion_FromJson_ShouldDetectV1()
     {
         // Arrange
         var detector = new VersionDetector();
 
         // Act
-        var version = detector.DetectVersion(json);
+        var version = detector.DetectVersion("{\"version\": 1}");
 
         // Assert
-        Assert.Equal(expected, version);
+        Assert.Equal(TransactionVersion.V1, version);
+    }
+
+    [Theory]
+    [InlineData("{\"version\": 2}")]
+    [InlineData("{\"version\": 3}")]
+    [InlineData("{\"version\": 4}")]
+    public void DetectVersion_FromJson_UnsupportedVersions_ShouldThrow(string json)
+    {
+        // Arrange
+        var detector = new VersionDetector();
+
+        // Act & Assert
+        Assert.Throws<NotSupportedException>(() => detector.DetectVersion(json));
     }
 
     [Fact]

@@ -31,11 +31,11 @@ public class TransactionTests
             _cryptoModule,
             _hashProvider,
             payloadManager,
-            TransactionVersion.V4);
+            TransactionVersion.V1);
 
         // Assert
         Assert.NotNull(transaction);
-        Assert.Equal(TransactionVersion.V4, transaction.Version);
+        Assert.Equal(TransactionVersion.V1, transaction.Version);
         Assert.NotNull(transaction.Timestamp);
     }
 
@@ -152,22 +152,17 @@ public class TransactionTests
         Assert.Equal(TransactionStatus.NotSigned, status);
     }
 
-    [Theory]
-    [InlineData(TransactionVersion.V1)]
-    [InlineData(TransactionVersion.V2)]
-    [InlineData(TransactionVersion.V3)]
-    [InlineData(TransactionVersion.V4)]
-    public void Constructor_ShouldSupportAllVersions(TransactionVersion version)
+    [Fact]
+    public void Constructor_ShouldDefaultToV1()
     {
         // Arrange & Act
         var payloadManager = new PayloadManager(_symmetricCrypto, _cryptoModule, _hashProvider);
         var transaction = new Transaction(
             _cryptoModule,
             _hashProvider,
-            payloadManager,
-            version);
+            payloadManager);
 
         // Assert
-        Assert.Equal(version, transaction.Version);
+        Assert.Equal(TransactionVersion.V1, transaction.Version);
     }
 }

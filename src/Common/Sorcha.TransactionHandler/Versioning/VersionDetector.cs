@@ -25,9 +25,6 @@ public class VersionDetector : IVersionDetector
         return version switch
         {
             1 => TransactionVersion.V1,
-            2 => TransactionVersion.V2,
-            3 => TransactionVersion.V3,
-            4 => TransactionVersion.V4,
             _ => throw new NotSupportedException($"Transaction version {version} is not supported")
         };
     }
@@ -50,9 +47,6 @@ public class VersionDetector : IVersionDetector
             return version switch
             {
                 1 => TransactionVersion.V1,
-                2 => TransactionVersion.V2,
-                3 => TransactionVersion.V3,
-                4 => TransactionVersion.V4,
                 _ => throw new NotSupportedException($"Transaction version {version} is not supported")
             };
         }
