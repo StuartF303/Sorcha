@@ -1,140 +1,136 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
 @page "/my-wallet"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
 @using MudBlazor
+@using Sorcha.UI.Core.Models.Wallet
+@using Sorcha.UI.Core.Components.Shared
+@using Sorcha.UI.Core.Services.Wallet
+@inject IWalletApiService WalletApi
 @inject ISnackbar Snackbar
-@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 
 <PageTitle>My Wallet - Sorcha Platform</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-2">
-        <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="mr-2" />
-        My Wallet
-    </MudText>
-    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
-        Manage your cryptographic wallet and identity
-    </MudText>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h4">
+                <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="mr-2" />
+                My Wallet
+            </MudText>
+            <MudText Typo="Typo.body1" Color="Color.Secondary">
+                Manage your cryptographic wallets and identity
+            </MudText>
+        </MudStack>
+        <MudButton Href="/wallets/create" Color="Color.Primary" Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Add">
+            Create Wallet
+        </MudButton>
+    </MudStack>
 
-    <MudGrid>
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.h6" Class="mb-3">Wallet Information</MudText>
+    @if (_serviceError)
+    {
+        <ServiceUnavailable ServiceName="Wallet Service" OnRetry="LoadWalletsAsync" />
+    }
+    else if (_loading)
+    {
+        <MudGrid>
+            @for (var i = 0; i < 3; i++)
+            {
+                <MudItem xs="12" md="6" lg="4">
+                    <MudCard Elevation="2">
+                        <MudCardContent>
+                            <MudSkeleton Width="60%" Height="24px" Class="mb-2" />
+                            <MudSkeleton Width="100%" Height="16px" Class="mb-2" />
+                            <MudSkeleton Width="40%" Height="16px" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else if (_wallets.Count == 0)
+    {
+        <EmptyState Icon="@Icons.Material.Filled.AccountBalanceWallet"
+                    Title="No Wallets"
+                    Description="Create your first wallet to start participating in workflows."
+                    ActionText="Create Wallet"
+                    OnAction="@(() => Navigation.NavigateTo("/wallets/create"))" />
+    }
+    else
+    {
+        <MudGrid>
+            @foreach (var wallet in _wallets)
+            {
+                <MudItem xs="12" md="6" lg="4">
+                    <MudCard Elevation="2" Style="cursor: pointer" @onclick="() => NavigateToWallet(wallet)">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">@wallet.Name</MudText>
+                            </CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary">@wallet.Algorithm</MudChip>
+                            </CardHeaderActions>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudField Label="Address" Variant="Variant.Text">
+                                <TruncatedId Value="@wallet.Address" />
+                            </MudField>
+                            <MudDivider Class="my-2" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" />
+                                Created: @wallet.CreatedAt.ToString("MMM dd, yyyy")
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
 
-                <MudField Label="Wallet Address" Variant="Variant.Outlined" Class="mb-3">
-                    <MudText Typo="Typo.body2" Style="font-family: monospace;">@_walletAddress</MudText>
-                </MudField>
-
-                <MudField Label="Algorithm" Variant="Variant.Outlined" Class="mb-3">
-                    <MudChip T="string" Color="Color.Primary" Size="Size.Small">ED25519</MudChip>
-                </MudField>
-
-                <MudField Label="Created" Variant="Variant.Outlined" Class="mb-3">
-                    <MudText Typo="Typo.body2">@_createdDate.ToString("MMMM dd, yyyy")</MudText>
-                </MudField>
-
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true" Class="mt-2"
-                           StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyWalletAddress">
-                    Copy Wallet Address
-                </MudButton>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.h6" Class="mb-3">Key Management</MudText>
-
-                <MudList T="string">
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.Key">
-                        <MudText Typo="Typo.body1">Public Key</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary" Style="font-family: monospace; font-size: 0.75rem; word-break: break-all;">
-                            @_publicKey
-                        </MudText>
-                    </MudListItem>
-                    <MudDivider />
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.Security">
-                        <MudText Typo="Typo.body1">Private Key</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            <MudChip T="string" Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Warning">Encrypted</MudChip>
-                            Never shared or displayed
-                        </MudText>
-                    </MudListItem>
-                    <MudDivider />
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.Fingerprint">
-                        <MudText Typo="Typo.body1">Signature Count</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            <strong>@_signatureCount</strong> transactions signed
-                        </MudText>
-                    </MudListItem>
-                </MudList>
-
-                <MudButton Color="Color.Secondary" Variant="Variant.Outlined" FullWidth="true" Class="mt-2"
-                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportPublicKey">
-                    Export Public Key
-                </MudButton>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.h6" Class="mb-3">Security Settings</MudText>
-
-                <MudGrid>
-                    <MudItem xs="12" md="6">
-                        <MudSwitch T="bool" Color="Color.Primary" @bind-Value="_requireConfirmation" Label="Require confirmation for transactions" />
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudSwitch T="bool" Color="Color.Primary" @bind-Value="_enableNotifications" Label="Enable transaction notifications" />
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudSwitch T="bool" Color="Color.Primary" @bind-Value="_allowHardwareWallet" Label="Allow hardware wallet integration" />
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudSwitch T="bool" Color="Color.Primary" @bind-Value="_autoBackup" Label="Auto-backup wallet metadata" />
-                    </MudItem>
-                </MudGrid>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12">
-            <MudAlert Severity="Severity.Info">
-                <MudText Typo="Typo.body2">
-                    This is a placeholder page. Full wallet management and integration with Wallet Service will be implemented in future versions.
-                </MudText>
-            </MudAlert>
-        </MudItem>
-    </MudGrid>
+        <MudStack Row="true" Justify="Justify.Center" Class="mt-4">
+            <MudButton Href="/wallets" Color="Color.Primary" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.ManageAccounts">
+                Manage All Wallets
+            </MudButton>
+        </MudStack>
+    }
 </MudContainer>
 
 @code {
-    // Sample data - in production this would come from the wallet service
-    private string _walletAddress = "0xAbCdEf1234567890AbCdEf1234567890AbCdEf12";
-    private string _publicKey = "0xPublicKey123456789012345678901234567890...";
-    private DateTime _createdDate = new DateTime(2025, 1, 15);
-    private int _signatureCount = 47;
+    private List<WalletDto> _wallets = [];
+    private bool _loading = true;
+    private bool _serviceError;
 
-    // Security settings
-    private bool _requireConfirmation = true;
-    private bool _enableNotifications = true;
-    private bool _allowHardwareWallet = false;
-    private bool _autoBackup = true;
-
-    private async Task CopyWalletAddress()
+    protected override async Task OnInitializedAsync()
     {
+        await LoadWalletsAsync();
+    }
+
+    private async Task LoadWalletsAsync()
+    {
+        _loading = true;
+        _serviceError = false;
+
         try
         {
-            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _walletAddress);
-            Snackbar.Add("Wallet address copied to clipboard", Severity.Success);
+            _wallets = await WalletApi.GetWalletsAsync();
         }
         catch
         {
-            Snackbar.Add("Failed to copy wallet address", Severity.Error);
+            _serviceError = true;
+        }
+        finally
+        {
+            _loading = false;
         }
     }
 
-    private void ExportPublicKey()
+    private void NavigateToWallet(WalletDto wallet)
     {
-        Snackbar.Add("Public key export will be available in a future version", Severity.Info);
+        Navigation.NavigateTo($"/wallets/{wallet.Address}");
     }
 }

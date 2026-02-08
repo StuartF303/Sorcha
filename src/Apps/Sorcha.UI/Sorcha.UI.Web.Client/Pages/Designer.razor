@@ -315,20 +315,13 @@
 
     private async Task ShowLoadBlueprintDialog()
     {
-        await RefreshBlueprintList();
-
-        var parameters = new DialogParameters<LoadBlueprintDialog>
-        {
-            { x => x.Blueprints, savedBlueprints }
-        };
-
         var options = new DialogOptions
         {
             MaxWidth = MaxWidth.Medium,
             FullWidth = true
         };
 
-        var dialog = await DialogService.ShowAsync<LoadBlueprintDialog>("Load Blueprint", parameters, options);
+        var dialog = await DialogService.ShowAsync<LoadBlueprintDialog>("Load Blueprint", new DialogParameters(), options);
         var result = await dialog.Result;
 
         if (result is not null && !result.Canceled && result.Data is string blueprintId)

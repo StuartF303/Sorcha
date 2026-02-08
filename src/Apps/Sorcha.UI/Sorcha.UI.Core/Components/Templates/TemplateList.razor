@@ -1,0 +1,99 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Templates
+@using Sorcha.UI.Core.Components.Shared
+
+@if (Templates == null || Templates.Count == 0)
+{
+    <EmptyState Icon="@Icons.Material.Filled.ContentCopy"
+                Title="No Templates Available"
+                Description="No blueprint templates are available at this time."  />
+}
+else
+{
+    @if (Categories.Any())
+    {
+        <MudStack Row="true" Spacing="2" Class="mb-4">
+            <MudChip T="string" Color="@(string.IsNullOrEmpty(_selectedCategory) ? Color.Primary : Color.Default)"
+                     Variant="@(string.IsNullOrEmpty(_selectedCategory) ? Variant.Filled : Variant.Outlined)"
+                     OnClick="() => _selectedCategory = string.Empty">All</MudChip>
+            @foreach (var category in Categories)
+            {
+                <MudChip T="string" Color="@(_selectedCategory == category ? Color.Primary : Color.Default)"
+                         Variant="@(_selectedCategory == category ? Variant.Filled : Variant.Outlined)"
+                         OnClick="@(() => _selectedCategory = category)">@category</MudChip>
+            }
+        </MudStack>
+    }
+
+    <MudGrid>
+        @foreach (var template in FilteredTemplates)
+        {
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Elevation="2" Class="template-card">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">@template.Name</MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            @if (!string.IsNullOrEmpty(template.Category))
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info">@template.Category</MudChip>
+                            }
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Class="mb-2">@template.Description</MudText>
+                        <MudDivider Class="my-2" />
+                        <MudStack Row="true" Spacing="3">
+                            @if (template.Parameters.Count > 0)
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    <MudIcon Icon="@Icons.Material.Filled.Tune" Size="Size.Small" /> @template.Parameters.Count parameters
+                                </MudText>
+                            }
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> @template.UsageCount uses
+                            </MudText>
+                        </MudStack>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Color="Color.Primary" Variant="Variant.Text"
+                                   OnClick="() => OnSelect.InvokeAsync(template)">
+                            Use Template
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+<style>
+    .template-card:hover {
+        transform: translateY(-2px);
+        transition: transform 0.2s ease-in-out;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public List<TemplateListItemViewModel> Templates { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<TemplateListItemViewModel> OnSelect { get; set; }
+
+    private string _selectedCategory = "";
+
+    private IEnumerable<string> Categories => Templates
+        .Where(t => !string.IsNullOrEmpty(t.Category))
+        .Select(t => t.Category)
+        .Distinct()
+        .OrderBy(c => c);
+
+    private IEnumerable<TemplateListItemViewModel> FilteredTemplates =>
+        string.IsNullOrEmpty(_selectedCategory)
+            ? Templates
+            : Templates.Where(t => t.Category == _selectedCategory);
+}

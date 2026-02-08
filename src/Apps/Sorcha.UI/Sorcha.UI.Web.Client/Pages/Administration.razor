@@ -1,96 +1,16 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
 @page "/admin"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @attribute [Authorize]
-@using Microsoft.AspNetCore.Components.Authorization
-@using System.Security.Claims
-@using Sorcha.UI.Core.Components.Admin
-@using Sorcha.UI.Core.Services
+@inject NavigationManager Navigation
 
-<PageTitle>Administration - Sorcha Platform</PageTitle>
-
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-2">
-        <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Class="mr-2" />
-        Administration
-    </MudText>
-    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
-        Monitor and manage Sorcha platform services
-    </MudText>
-
-    @if (_selectedOrganization != null)
-    {
-        @* Show User Management when an organization is selected *@
-        <UserList Organization="_selectedOrganization"
-                  IsReadOnly="!_isOrgAdmin"
-                  CurrentUserId="_currentUserId"
-                  OnBackToOrganizations="OnBackToOrganizations" />
-    }
-    else
-    {
-        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4" @bind-ActivePanelIndex="_activeTabIndex">
-            <MudTabPanel Text="System Health" Icon="@Icons.Material.Filled.HealthAndSafety">
-                <ServiceHealthDashboard />
-            </MudTabPanel>
-            @if (_isSystemAdmin)
-            {
-                <MudTabPanel Text="Organizations" Icon="@Icons.Material.Filled.Business">
-                    <OrganizationList OnOrganizationSelected="OnOrganizationSelected" />
-                </MudTabPanel>
-            }
-            <MudTabPanel Text="Blueprint Service" Icon="@Icons.Material.Filled.Api">
-                <BlueprintServiceAdmin />
-            </MudTabPanel>
-            <MudTabPanel Text="Peer Service" Icon="@Icons.Material.Filled.Hub">
-                <PeerServiceAdmin />
-            </MudTabPanel>
-            <MudTabPanel Text="Audit Log" Icon="@Icons.Material.Filled.History">
-                <MudAlert Severity="Severity.Info">
-                    Audit logging will be implemented in a future version.
-                </MudAlert>
-            </MudTabPanel>
-        </MudTabs>
-    }
-</MudContainer>
+@* Redirect to the new standalone System Health page for backwards compatibility *@
 
 @code {
-    [CascadingParameter]
-    private Task<AuthenticationState>? AuthenticationState { get; set; }
-
-    private int _activeTabIndex = 0;
-    private OrganizationDto? _selectedOrganization;
-    private bool _isSystemAdmin;
-    private bool _isOrgAdmin;
-    private Guid? _currentUserId;
-
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        if (AuthenticationState != null)
-        {
-            var authState = await AuthenticationState;
-            _isSystemAdmin = authState.User.Claims
-                .Any(c => c.Type == ClaimTypes.Role && c.Value == "Administrator");
-
-            // Org admins can also manage users within their organization
-            _isOrgAdmin = _isSystemAdmin || authState.User.Claims
-                .Any(c => c.Type == ClaimTypes.Role && c.Value == "OrganizationAdmin");
-
-            // Get current user ID from claims for self-removal prevention
-            var userIdClaim = authState.User.Claims
-                .FirstOrDefault(c => c.Type == "sub" || c.Type == ClaimTypes.NameIdentifier);
-            if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
-            {
-                _currentUserId = userId;
-            }
-        }
-    }
-
-    private void OnOrganizationSelected(OrganizationDto organization)
-    {
-        _selectedOrganization = organization;
-    }
-
-    private void OnBackToOrganizations()
-    {
-        _selectedOrganization = null;
+        Navigation.NavigateTo("admin/health", replace: true);
     }
 }

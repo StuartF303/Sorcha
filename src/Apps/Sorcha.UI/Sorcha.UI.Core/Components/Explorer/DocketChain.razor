@@ -1,0 +1,118 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Explorer
+@using Sorcha.UI.Core.Components.Shared
+@using Sorcha.UI.Core.Services
+
+@inject IDocketService DocketService
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Class="mb-4" />
+}
+else if (_error)
+{
+    <ServiceUnavailable ServiceName="Docket Service" Message="Unable to load docket chain." OnRetry="LoadDocketsAsync" />
+}
+else if (_dockets.Count == 0)
+{
+    <EmptyState Icon="@Icons.Material.Filled.LinkOff"
+                Title="No Dockets"
+                Description="This register has no dockets yet." />
+}
+else
+{
+    <MudTimeline TimelinePosition="TimelinePosition.Start">
+        @foreach (var docket in _dockets.OrderByDescending(d => d.Version))
+        {
+            <MudTimelineItem Color="@(docket.IsIntegrityValid ? Color.Primary : Color.Error)" Size="Size.Small"
+                             Variant="Variant.Filled">
+                <ItemContent>
+                    <MudCard Elevation="0" Outlined="true" Class="@($"mb-2 {(_selectedDocketId == docket.DocketId ? "mud-border-primary" : "")}")"
+                             @onclick="() => SelectDocket(docket)">
+                        <MudCardContent Class="pa-3" Style="cursor: pointer">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <MudText Typo="Typo.subtitle2">Docket v@docket.Version</MudText>
+                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                    @if (!docket.IsIntegrityValid)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Error">Invalid</MudChip>
+                                    }
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @docket.TransactionCount txs
+                                    </MudText>
+                                </MudStack>
+                            </MudStack>
+                            <MudStack Row="true" Spacing="2" Class="mt-1">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    Hash: <TruncatedId Value="@docket.Hash" />
+                                </MudText>
+                            </MudStack>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @docket.CreatedAt.ToString("MMM dd, yyyy HH:mm")
+                            </MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </ItemContent>
+            </MudTimelineItem>
+        }
+    </MudTimeline>
+
+    @if (_selectedDocket != null)
+    {
+        <DocketDetail Docket="_selectedDocket" />
+    }
+}
+
+@code {
+    [Parameter]
+    public string RegisterId { get; set; } = "";
+
+    private List<DocketViewModel> _dockets = [];
+    private DocketViewModel? _selectedDocket;
+    private string? _selectedDocketId;
+    private bool _loading = true;
+    private bool _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(RegisterId))
+        {
+            await LoadDocketsAsync();
+        }
+    }
+
+    private async Task LoadDocketsAsync()
+    {
+        _loading = true;
+        _error = false;
+
+        try
+        {
+            _dockets = await DocketService.GetDocketsAsync(RegisterId);
+        }
+        catch
+        {
+            _error = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void SelectDocket(DocketViewModel docket)
+    {
+        if (_selectedDocketId == docket.DocketId)
+        {
+            _selectedDocket = null;
+            _selectedDocketId = null;
+        }
+        else
+        {
+            _selectedDocket = docket;
+            _selectedDocketId = docket.DocketId;
+        }
+    }
+}

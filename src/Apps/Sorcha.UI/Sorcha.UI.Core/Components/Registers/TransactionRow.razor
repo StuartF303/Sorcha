@@ -2,6 +2,7 @@
 @* Copyright (c) 2025 Sorcha Contributors *@
 
 @using Sorcha.UI.Core.Models.Registers
+@using Sorcha.UI.Core.Components.Shared
 
 <MudPaper Elevation="0"
           Class="@GetRowClass()"
@@ -9,11 +10,7 @@
           data-testid="transaction-row">
     <MudGrid Spacing="2" Class="align-center">
         <MudItem xs="3" sm="2">
-            <MudTooltip Text="@Transaction.TxId">
-                <MudText Typo="Typo.body2" Class="transaction-id">
-                    @Transaction.TxIdTruncated
-                </MudText>
-            </MudTooltip>
+            <TruncatedId Value="@Transaction.TxId" />
         </MudItem>
         <MudItem xs="3" sm="2">
             <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -21,11 +18,7 @@
             </MudText>
         </MudItem>
         <MudItem xs="4" sm="3">
-            <MudTooltip Text="@Transaction.SenderWallet">
-                <MudText Typo="Typo.body2" Class="sender-address">
-                    @Transaction.SenderTruncated
-                </MudText>
-            </MudTooltip>
+            <TruncatedId Value="@Transaction.SenderWallet" />
         </MudItem>
         <MudItem xs="2" sm="2">
             <MudChip T="string"

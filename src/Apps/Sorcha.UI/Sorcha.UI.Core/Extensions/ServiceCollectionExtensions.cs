@@ -83,6 +83,96 @@ public static class ServiceCollectionExtensions
             return new ParticipantApiService(httpClient);
         });
 
+        // Dashboard Service
+        services.AddScoped<IDashboardService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var logger = sp.GetRequiredService<ILogger<DashboardService>>();
+            return new DashboardService(httpClient, logger);
+        });
+
+        // Workflow Service
+        services.AddScoped<IWorkflowService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var logger = sp.GetRequiredService<ILogger<WorkflowService>>();
+            return new WorkflowService(httpClient, logger);
+        });
+
+        // Blueprint API Service
+        services.AddScoped<IBlueprintApiService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var logger = sp.GetRequiredService<ILogger<BlueprintApiService>>();
+            return new BlueprintApiService(httpClient, logger);
+        });
+
+        // Template API Service
+        services.AddScoped<ITemplateApiService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var logger = sp.GetRequiredService<ILogger<TemplateApiService>>();
+            return new TemplateApiService(httpClient, logger);
+        });
+
+        // Docket Service
+        services.AddScoped<IDocketService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var logger = sp.GetRequiredService<ILogger<DocketService>>();
+            return new DocketService(httpClient, logger);
+        });
+
+        // OData Query Service
+        services.AddScoped<IODataQueryService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var logger = sp.GetRequiredService<ILogger<ODataQueryService>>();
+            return new ODataQueryService(httpClient, logger);
+        });
+
         // Admin Services
         services.AddAdminServices(baseAddress);
 
@@ -203,6 +293,21 @@ public static class ServiceCollectionExtensions
             var auditService = sp.GetRequiredService<IAuditService>();
             var logger = sp.GetRequiredService<ILogger<OrganizationAdminService>>();
             return new OrganizationAdminService(httpClient, auditService, logger);
+        });
+
+        // Validator Admin Service
+        services.AddScoped<IValidatorAdminService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var logger = sp.GetRequiredService<ILogger<ValidatorAdminService>>();
+            return new ValidatorAdminService(httpClient, logger);
         });
 
         return services;

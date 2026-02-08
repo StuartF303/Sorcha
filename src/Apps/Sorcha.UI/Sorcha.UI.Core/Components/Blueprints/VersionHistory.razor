@@ -1,0 +1,54 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Blueprints
+
+@if (Versions == null || Versions.Count == 0)
+{
+    <MudText Typo="Typo.body2" Color="Color.Secondary">No version history available.</MudText>
+}
+else
+{
+    <MudTimeline TimelinePosition="TimelinePosition.Start">
+        @foreach (var version in Versions.OrderByDescending(v => v.PublishedAt))
+        {
+            <MudTimelineItem Color="Color.Primary" Size="Size.Small">
+                <ItemContent>
+                    <MudCard Elevation="0" Outlined="true" Class="mb-2">
+                        <MudCardContent Class="pa-3">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <MudText Typo="Typo.subtitle2">Version @version.Version</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @version.PublishedAt.ToString("MMM dd, yyyy HH:mm")
+                                </MudText>
+                            </MudStack>
+                            <MudStack Row="true" Spacing="3" Class="mt-1">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" /> @version.ActionCount actions
+                                </MudText>
+                            </MudStack>
+                            @if (!string.IsNullOrEmpty(version.ChangeDescription))
+                            {
+                                <MudText Typo="Typo.body2" Class="mt-1">@version.ChangeDescription</MudText>
+                            }
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Size="Size.Small" Color="Color.Primary" Variant="Variant.Text"
+                                       OnClick="() => OnViewVersion.InvokeAsync(version)">
+                                View
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </ItemContent>
+            </MudTimelineItem>
+        }
+    </MudTimeline>
+}
+
+@code {
+    [Parameter]
+    public List<BlueprintVersionViewModel> Versions { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<BlueprintVersionViewModel> OnViewVersion { get; set; }
+}

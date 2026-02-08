@@ -1,0 +1,37 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Blueprints
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />
+            Version History
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <VersionHistory Versions="@Versions" OnViewVersion="ViewVersion" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Color="Color.Default">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudBlazor.IDialogReference? MudDialog { get; set; }
+
+    [Parameter]
+    public List<BlueprintVersionViewModel> Versions { get; set; } = [];
+
+    private void ViewVersion(BlueprintVersionViewModel version)
+    {
+        MudDialog?.Close(DialogResult.Ok(version));
+    }
+
+    private void Close()
+    {
+        MudDialog?.Close();
+    }
+}

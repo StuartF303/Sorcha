@@ -1,0 +1,86 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Explorer
+@using Sorcha.UI.Core.Components.Shared
+
+@if (Docket != null)
+{
+    <MudPaper Elevation="1" Class="pa-4 mt-3">
+        <MudText Typo="Typo.h6" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" />
+            Docket v@Docket.Version Details
+        </MudText>
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudField Label="Docket ID" Variant="Variant.Text">
+                    <TruncatedId Value="@Docket.DocketId" />
+                </MudField>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudField Label="Integrity" Variant="Variant.Text">
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(Docket.IsIntegrityValid ? Color.Success : Color.Error)"
+                             Icon="@(Docket.IsIntegrityValid ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Error)">
+                        @(Docket.IsIntegrityValid ? "Valid" : "Invalid")
+                    </MudChip>
+                </MudField>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudField Label="Hash" Variant="Variant.Text">
+                    <TruncatedId Value="@Docket.Hash" />
+                </MudField>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudField Label="Previous Hash" Variant="Variant.Text">
+                    @if (!string.IsNullOrEmpty(Docket.PreviousHash))
+                    {
+                        <TruncatedId Value="@Docket.PreviousHash" />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Genesis docket</MudText>
+                    }
+                </MudField>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudField Label="Transaction Count" Variant="Variant.Text">
+                    @Docket.TransactionCount
+                </MudField>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudField Label="Created" Variant="Variant.Text">
+                    @Docket.CreatedAt.ToString("MMM dd, yyyy HH:mm:ss")
+                </MudField>
+            </MudItem>
+        </MudGrid>
+
+        @if (Docket.TransactionIds.Count > 0)
+        {
+            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Transactions in this Docket</MudText>
+            <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Transaction ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Docket.TransactionIds.Count; i++)
+                    {
+                        <tr>
+                            <td>@(i + 1)</td>
+                            <td><TruncatedId Value="@Docket.TransactionIds[i]" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+    </MudPaper>
+}
+
+@code {
+    [Parameter]
+    public DocketViewModel? Docket { get; set; }
+}

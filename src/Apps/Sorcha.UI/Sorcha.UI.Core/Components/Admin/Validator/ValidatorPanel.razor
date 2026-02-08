@@ -1,0 +1,161 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Services
+@using Sorcha.UI.Core.Models.Admin
+@inject IValidatorAdminService ValidatorService
+
+@if (!_status.IsLoaded && !_isLoading)
+{
+    <ServiceUnavailable ServiceName="Validator Service" OnRetry="LoadStatusAsync" />
+}
+else
+{
+    <MudStack Spacing="4">
+        @* Summary Cards *@
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard>
+                    <MudCardContent Class="d-flex flex-column align-center pa-4">
+                        @if (_isLoading)
+                        {
+                            <MudSkeleton Width="60px" Height="32px" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.h4">@_status.TotalPendingTransactions</MudText>
+                        }
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Pending Transactions</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard>
+                    <MudCardContent Class="d-flex flex-column align-center pa-4">
+                        @if (_isLoading)
+                        {
+                            <MudSkeleton Width="60px" Height="32px" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.h4">@FormatAge(_status.OldestPendingAge)</MudText>
+                        }
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Oldest Pending</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard>
+                    <MudCardContent Class="d-flex flex-column align-center pa-4">
+                        @if (_isLoading)
+                        {
+                            <MudSkeleton Width="60px" Height="32px" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.h4">@_status.RegisterMempoolStats.Count</MudText>
+                        }
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Active Registers</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard>
+                    <MudCardContent Class="d-flex flex-column align-center pa-4">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Last Updated</MudText>
+                        <MudText Typo="Typo.body2">@_status.LastUpdated.ToLocalTime().ToString("HH:mm:ss")</MudText>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="LoadStatusAsync"
+                                   StartIcon="@Icons.Material.Filled.Refresh" Disabled="_isLoading">
+                            Refresh
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+
+        @* Per-Register Breakdown *@
+        @if (_status.RegisterMempoolStats.Count > 0)
+        {
+            <MudText Typo="Typo.h6" Class="mt-4">Per-Register Mempool</MudText>
+            <MudTable Items="_status.RegisterMempoolStats" Dense="true" Hover="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>Register ID</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Pending</MudTh>
+                    <MudTh>Oldest Entry</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd><TruncatedId Value="@context.RegisterId" /></MudTd>
+                    <MudTd>@context.RegisterName</MudTd>
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Color="@GetPendingColor(context.PendingCount)">
+                            @context.PendingCount
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>@FormatAge(context.OldestEntryAge)</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+        else if (!_isLoading)
+        {
+            <EmptyState Icon="@Icons.Material.Filled.CheckCircle"
+                        Title="Mempool is empty"
+                        Description="No pending transactions across any registers" />
+        }
+    </MudStack>
+}
+
+@code {
+    private ValidatorStatusViewModel _status = new();
+    private bool _isLoading = true;
+    private System.Threading.Timer? _refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStatusAsync();
+        _refreshTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadStatusAsync();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadStatusAsync()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        _status = await ValidatorService.GetMempoolStatusAsync();
+        if (_status.IsLoaded || _status.TotalPendingTransactions >= 0)
+        {
+            _status = _status with { IsLoaded = true };
+        }
+
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+    private static string FormatAge(TimeSpan? age)
+    {
+        if (age is null) return "—";
+        if (age.Value.TotalHours >= 1) return $"{age.Value.TotalHours:F0}h";
+        if (age.Value.TotalMinutes >= 1) return $"{age.Value.TotalMinutes:F0}m";
+        return $"{age.Value.TotalSeconds:F0}s";
+    }
+
+    private static Color GetPendingColor(int count) => count switch
+    {
+        0 => Color.Success,
+        < 10 => Color.Info,
+        < 100 => Color.Warning,
+        _ => Color.Error
+    };
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}

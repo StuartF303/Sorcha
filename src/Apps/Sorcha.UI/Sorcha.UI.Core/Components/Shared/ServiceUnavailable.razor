@@ -1,0 +1,32 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+
+<MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="my-4">
+    <div class="d-flex flex-column align-start">
+        <MudText Typo="Typo.subtitle1" Class="mb-1">
+            @(string.IsNullOrEmpty(ServiceName) ? "Service unavailable" : $"{ServiceName} is currently unavailable")
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+            @(string.IsNullOrEmpty(Message) ? "Please try again in a moment." : Message)
+        </MudText>
+        @if (OnRetry.HasDelegate)
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Warning" Size="Size.Small" OnClick="OnRetry" StartIcon="@Icons.Material.Filled.Refresh">
+                Retry
+            </MudButton>
+        }
+    </div>
+</MudAlert>
+
+@code {
+    [Parameter]
+    public string? ServiceName { get; set; }
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public EventCallback OnRetry { get; set; }
+}

@@ -1,0 +1,75 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Workflows
+
+<MudTable Items="Actions" Dense="true" Hover="true" Striped="true" Loading="IsLoading"
+          OnRowClick="HandleRowClick" T="PendingActionViewModel">
+    <HeaderContent>
+        <MudTh>Action</MudTh>
+        <MudTh>Blueprint</MudTh>
+        <MudTh>Priority</MudTh>
+        <MudTh>Assigned</MudTh>
+        <MudTh>Due</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.body1">@context.ActionName</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+            </MudStack>
+        </MudTd>
+        <MudTd>@context.BlueprintName</MudTd>
+        <MudTd>
+            <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(context.Priority)">
+                @context.Priority
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            <MudText Typo="Typo.body2">@context.AssignedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</MudText>
+        </MudTd>
+        <MudTd>
+            @if (context.DueAt.HasValue)
+            {
+                var isOverdue = context.DueAt.Value < DateTimeOffset.UtcNow;
+                <MudText Typo="Typo.body2" Color="@(isOverdue ? Color.Error : Color.Default)">
+                    @context.DueAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                </MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">—</MudText>
+            }
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <EmptyState Icon="@Icons.Material.Filled.Task"
+                    Title="No pending actions"
+                    Description="You don't have any pending actions at this time" />
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    [Parameter]
+    public List<PendingActionViewModel> Actions { get; set; } = [];
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public EventCallback<PendingActionViewModel> OnSelect { get; set; }
+
+    private void HandleRowClick(TableRowClickEventArgs<PendingActionViewModel> args)
+    {
+        if (args.Item != null)
+            OnSelect.InvokeAsync(args.Item);
+    }
+
+    private static Color GetPriorityColor(string priority) => priority switch
+    {
+        "high" => Color.Error,
+        "normal" => Color.Default,
+        "low" => Color.Info,
+        _ => Color.Default
+    };
+}

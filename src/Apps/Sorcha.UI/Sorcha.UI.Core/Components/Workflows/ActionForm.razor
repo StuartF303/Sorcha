@@ -1,0 +1,130 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using System.Text.Json
+@using Sorcha.UI.Core.Models.Workflows
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.subtitle1">@Action.ActionName</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@Action.Description</MudText>
+
+            @if (Action.DataSchema.HasValue)
+            {
+                @foreach (var prop in GetSchemaProperties())
+                {
+                    @switch (prop.Type)
+                    {
+                        case "number":
+                        case "integer":
+                            <MudNumericField T="double" Label="@prop.Label" @bind-Value="@_numericValues[prop.Name]" />
+                            break;
+                        case "boolean":
+                            <MudSwitch T="bool" Label="@prop.Label" @bind-Value="@_boolValues[prop.Name]" />
+                            break;
+                        default:
+                            <MudTextField T="string" Label="@prop.Label" @bind-Value="@_stringValues[prop.Name]" />
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">This action does not require any input data.</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="HandleReject" Color="Color.Error" Variant="Variant.Text">Reject</MudButton>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton OnClick="HandleSubmit" Color="Color.Primary" Variant="Variant.Filled">Submit</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public PendingActionViewModel Action { get; set; } = new();
+
+    private readonly Dictionary<string, string> _stringValues = new();
+    private readonly Dictionary<string, double> _numericValues = new();
+    private readonly Dictionary<string, bool> _boolValues = new();
+
+    protected override void OnInitialized()
+    {
+        foreach (var prop in GetSchemaProperties())
+        {
+            switch (prop.Type)
+            {
+                case "number":
+                case "integer":
+                    _numericValues[prop.Name] = 0;
+                    break;
+                case "boolean":
+                    _boolValues[prop.Name] = false;
+                    break;
+                default:
+                    _stringValues[prop.Name] = string.Empty;
+                    break;
+            }
+        }
+    }
+
+    private List<SchemaProperty> GetSchemaProperties()
+    {
+        if (!Action.DataSchema.HasValue) return [];
+
+        var props = new List<SchemaProperty>();
+        try
+        {
+            var schema = Action.DataSchema.Value;
+            if (schema.TryGetProperty("properties", out var properties))
+            {
+                foreach (var prop in properties.EnumerateObject())
+                {
+                    var type = prop.Value.TryGetProperty("type", out var typeEl) ? typeEl.GetString() ?? "string" : "string";
+                    var title = prop.Value.TryGetProperty("title", out var titleEl) ? titleEl.GetString() : null;
+                    props.Add(new SchemaProperty(prop.Name, title ?? prop.Name, type));
+                }
+            }
+        }
+        catch
+        {
+            // Gracefully handle malformed schemas
+        }
+
+        return props;
+    }
+
+    private void HandleSubmit()
+    {
+        var data = new Dictionary<string, object>();
+        foreach (var kvp in _stringValues)
+            data[kvp.Key] = kvp.Value;
+        foreach (var kvp in _numericValues)
+            data[kvp.Key] = kvp.Value;
+        foreach (var kvp in _boolValues)
+            data[kvp.Key] = kvp.Value;
+
+        var submission = new ActionSubmissionViewModel
+        {
+            ActionId = Action.ActionId,
+            InstanceId = Action.InstanceId,
+            Data = data
+        };
+
+        MudDialog?.Close(DialogResult.Ok(submission));
+    }
+
+    private void HandleReject()
+    {
+        MudDialog?.Close(DialogResult.Ok("reject"));
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+
+    private record SchemaProperty(string Name, string Label, string Type);
+}
