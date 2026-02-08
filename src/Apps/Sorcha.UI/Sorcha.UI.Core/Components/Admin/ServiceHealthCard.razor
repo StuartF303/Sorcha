@@ -99,6 +99,22 @@
                 }
             </tbody>
         </MudSimpleTable>
+
+        @if (ServiceAlerts != null && ServiceAlerts.Count > 0)
+        {
+            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="mr-1" />
+                Alerts (@ServiceAlerts.Count)
+            </MudText>
+            <MudStack Spacing="1">
+                @foreach (var alert in ServiceAlerts)
+                {
+                    <MudAlert Severity="@MapAlertSeverity(alert.Severity)" Dense="true" Variant="Variant.Outlined">
+                        @alert.Message
+                    </MudAlert>
+                }
+            </MudStack>
+        }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="CloseDialog">Close</MudButton>
@@ -108,6 +124,9 @@
 @code {
     [Parameter]
     public required ServiceHealthStatus Status { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<ServiceAlert>? ServiceAlerts { get; set; }
 
     private bool _dialogVisible;
 
@@ -144,4 +163,13 @@
     {
         _dialogVisible = false;
     }
+
+    private static Severity MapAlertSeverity(AlertSeverity severity) => severity switch
+    {
+        AlertSeverity.Info => Severity.Info,
+        AlertSeverity.Warning => Severity.Warning,
+        AlertSeverity.Error => Severity.Error,
+        AlertSeverity.Critical => Severity.Error,
+        _ => Severity.Normal
+    };
 }

@@ -187,6 +187,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.ServiceClients.Tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.Blueprint.Schemas.Core.Tests", "tests\Sorcha.Blueprint.Schemas.Core.Tests\Sorcha.Blueprint.Schemas.Core.Tests.csproj", "{DA5130CE-06F6-4645-8725-D0C22F25F98C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sorcha.ApiGateway.Tests", "tests\Sorcha.ApiGateway.Tests\Sorcha.ApiGateway.Tests.csproj", "{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -953,6 +955,18 @@ Global
 		{DA5130CE-06F6-4645-8725-D0C22F25F98C}.Release|x64.Build.0 = Release|Any CPU
 		{DA5130CE-06F6-4645-8725-D0C22F25F98C}.Release|x86.ActiveCfg = Release|Any CPU
 		{DA5130CE-06F6-4645-8725-D0C22F25F98C}.Release|x86.Build.0 = Release|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Debug|x64.Build.0 = Debug|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Debug|x86.Build.0 = Debug|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Release|x64.ActiveCfg = Release|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Release|x64.Build.0 = Release|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Release|x86.ActiveCfg = Release|Any CPU
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -1026,5 +1040,6 @@ Global
 		{DEF31FA5-6980-4764-AE4A-1A83A03BD188} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{CDD5D595-2E4B-42F8-A14F-D84234EB73A1} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{DA5130CE-06F6-4645-8725-D0C22F25F98C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{C85DC9E8-6DEA-4C4F-A01D-F666CF950B4B} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

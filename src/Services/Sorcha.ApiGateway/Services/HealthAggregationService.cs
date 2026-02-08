@@ -161,16 +161,23 @@ public class HealthAggregationService
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(5);
 
-            // Use Aspire default health endpoint
-            var healthUrl = $"{endpoint}/health";
-            var response = await client.GetAsync(healthUrl, cancellationToken);
+            // Route to the appropriate metrics endpoint per service
+            var metricsUrl = serviceName switch
+            {
+                "validator" => $"{endpoint}/api/metrics/",
+                "peer" => $"{endpoint}/api/peers/stats",
+                _ => null
+            };
 
+            if (metricsUrl == null)
+                return null;
+
+            var response = await client.GetAsync(metricsUrl, cancellationToken);
             if (response.IsSuccessStatusCode)
             {
-                // Aspire health endpoint returns plain text, not JSON with metrics
-                // Metrics would need a separate dedicated endpoint
-                // For now, return null as metrics are not available
-                return null;
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var doc = System.Text.Json.JsonDocument.Parse(content);
+                return System.Text.Json.JsonSerializer.Deserialize<object>(doc.RootElement.GetRawText());
             }
 
             return null;

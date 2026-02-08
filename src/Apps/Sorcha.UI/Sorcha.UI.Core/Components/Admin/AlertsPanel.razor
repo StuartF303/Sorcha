@@ -1,0 +1,96 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Admin
+
+<MudPaper Elevation="2" Class="pa-4" data-testid="alerts-panel">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+            <MudIcon Icon="@Icons.Material.Filled.NotificationsActive" />
+            <MudText Typo="Typo.h6">Active Alerts</MudText>
+            @if (Alerts != null && Alerts.Count > 0)
+            {
+                <MudBadge Content="@Alerts.Count" Color="@GetBadgeColor()" Overlap="false">
+                    <span></span>
+                </MudBadge>
+            }
+        </MudStack>
+        @if (OnRefresh.HasDelegate)
+        {
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                           OnClick="OnRefresh"
+                           Size="Size.Small"
+                           Color="Color.Primary"
+                           aria-label="Refresh alerts" />
+        }
+    </MudStack>
+
+    @if (Alerts == null || Alerts.Count == 0)
+    {
+        <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Dense="true">
+            No active alerts - all systems operating normally
+        </MudAlert>
+    }
+    else
+    {
+        <MudStack Spacing="2">
+            @foreach (var alert in Alerts)
+            {
+                <MudAlert Severity="@MapSeverity(alert.Severity)"
+                          Variant="Variant.Outlined"
+                          Dense="true"
+                          data-testid="alert-item">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.body2">
+                                <strong>@FormatSource(alert.Source):</strong> @alert.Message
+                            </MudText>
+                            @if (alert.MetricName != null)
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @alert.MetricName: @alert.CurrentValue?.ToString("F1") (threshold: @alert.Threshold?.ToString("F1"))
+                                </MudText>
+                            }
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="white-space: nowrap">
+                            @alert.Timestamp.ToString("HH:mm:ss")
+                        </MudText>
+                    </MudStack>
+                </MudAlert>
+            }
+        </MudStack>
+    }
+</MudPaper>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ServiceAlert>? Alerts { get; set; }
+
+    [Parameter]
+    public EventCallback OnRefresh { get; set; }
+
+    private static Severity MapSeverity(AlertSeverity severity) => severity switch
+    {
+        AlertSeverity.Info => Severity.Info,
+        AlertSeverity.Warning => Severity.Warning,
+        AlertSeverity.Error => Severity.Error,
+        AlertSeverity.Critical => Severity.Error,
+        _ => Severity.Normal
+    };
+
+    private Color GetBadgeColor()
+    {
+        if (Alerts == null || Alerts.Count == 0) return Color.Success;
+        if (Alerts.Any(a => a.Severity == AlertSeverity.Critical)) return Color.Error;
+        if (Alerts.Any(a => a.Severity == AlertSeverity.Error)) return Color.Error;
+        if (Alerts.Any(a => a.Severity == AlertSeverity.Warning)) return Color.Warning;
+        return Color.Info;
+    }
+
+    private static string FormatSource(string source) => source switch
+    {
+        "validator" => "Validator Service",
+        "peer" => "Peer Service",
+        _ => source
+    };
+}

@@ -310,6 +310,21 @@ public static class ServiceCollectionExtensions
             return new ValidatorAdminService(httpClient, logger);
         });
 
+        // Alert Service
+        services.AddScoped<IAlertService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var logger = sp.GetRequiredService<ILogger<AlertService>>();
+            return new AlertService(httpClient, logger);
+        });
+
         return services;
     }
 

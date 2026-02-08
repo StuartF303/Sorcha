@@ -27,6 +27,11 @@ builder.Services.AddSingleton<HealthAggregationService>();
 // Add dashboard statistics service
 builder.Services.AddSingleton<DashboardStatisticsService>();
 
+// Add alert aggregation service
+builder.Services.Configure<Sorcha.ApiGateway.Models.AlertThresholdConfig>(
+    builder.Configuration.GetSection("AlertThresholds"));
+builder.Services.AddSingleton<AlertAggregationService>();
+
 // Add client download service
 builder.Services.AddSingleton<ClientDownloadService>();
 
@@ -119,6 +124,19 @@ app.MapGet("/api/dashboard", async (DashboardStatisticsService dashboardService)
 .WithName("DashboardStatistics")
 .WithSummary("Get dashboard statistics from all backend services (blueprints, wallets, registers, etc.)")
 .WithTags("Dashboard");
+
+// ===========================
+// Alerts Endpoint
+// ===========================
+
+app.MapGet("/api/alerts", async (AlertAggregationService alertService) =>
+{
+    var alerts = await alertService.GetAlertsAsync();
+    return Results.Ok(alerts);
+})
+.WithName("Alerts")
+.WithSummary("Get active alerts from service metric evaluation")
+.WithTags("Monitoring");
 
 // ===========================
 // API Documentation Index

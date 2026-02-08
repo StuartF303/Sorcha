@@ -5,6 +5,8 @@
 @using Sorcha.UI.Core.Services
 @inject IHealthCheckService HealthService
 @inject IOrganizationAdminService OrganizationService
+@inject IAlertService AlertService
+@inject ISnackbar Snackbar
 @implements IDisposable
 
 <MudStack Spacing="4">
@@ -31,12 +33,15 @@
     @* KPI Summary Panel *@
     @if (_kpis != null)
     {
-        <KpiSummaryPanel Kpis="_kpis" />
+        <KpiSummaryPanel Kpis="_kpis" ActiveAlertCount="_activeAlertCount" />
     }
     else
     {
         <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="150px" />
     }
+
+    @* Alerts Panel *@
+    <AlertsPanel Alerts="_alerts" OnRefresh="RefreshAlertsAsync" />
 
     @* Service Health Cards Grid *@
     @if (_error != null)
@@ -62,7 +67,8 @@
             @foreach (var serviceStatus in HealthService.ServiceStatuses)
             {
                 <MudItem xs="12" sm="6" md="4">
-                    <ServiceHealthCard Status="serviceStatus" />
+                    <ServiceHealthCard Status="serviceStatus"
+                                       ServiceAlerts="GetAlertsForService(serviceStatus.ServiceKey)" />
                 </MudItem>
             }
         </MudGrid>
@@ -83,6 +89,8 @@
     private bool _isLoading = true;
     private bool _pollingActive;
     private string? _error;
+    private IReadOnlyList<ServiceAlert>? _alerts;
+    private int _activeAlertCount;
 
     protected override async Task OnInitializedAsync()
     {
@@ -103,11 +111,22 @@
 
         try
         {
-            // Load platform KPIs
-            _kpis = await OrganizationService.GetPlatformStatsAsync();
+            // Load platform KPIs and alerts in parallel
+            var kpiTask = OrganizationService.GetPlatformStatsAsync();
+            var alertTask = AlertService.GetAlertsAsync();
+
+            await Task.WhenAll(kpiTask, alertTask);
+
+            _kpis = kpiTask.Result;
+            var alertsResponse = alertTask.Result;
+            _alerts = alertsResponse.Alerts;
+            _activeAlertCount = alertsResponse.TotalCount;
 
             // Update KPIs with health service data
             UpdateKpisFromHealthService();
+
+            // Subscribe to alert changes for snackbar notifications
+            AlertService.AlertsChanged += OnAlertsChanged;
         }
         catch (Exception ex)
         {
@@ -140,8 +159,16 @@
 
         try
         {
-            await HealthService.RefreshAsync();
-            _kpis = await OrganizationService.GetPlatformStatsAsync();
+            var healthTask = HealthService.RefreshAsync();
+            var kpiTask = OrganizationService.GetPlatformStatsAsync();
+            var alertTask = AlertService.GetAlertsAsync();
+
+            await Task.WhenAll(healthTask, kpiTask, alertTask);
+
+            _kpis = kpiTask.Result;
+            var alertsResponse = alertTask.Result;
+            _alerts = alertsResponse.Alerts;
+            _activeAlertCount = alertsResponse.TotalCount;
             UpdateKpisFromHealthService();
         }
         catch (Exception ex)
@@ -181,9 +208,49 @@
         };
     }
 
+    private async Task RefreshAlertsAsync()
+    {
+        var alertsResponse = await AlertService.GetAlertsAsync();
+        _alerts = alertsResponse.Alerts;
+        _activeAlertCount = alertsResponse.TotalCount;
+        StateHasChanged();
+    }
+
+    private void OnAlertsChanged(object? sender, AlertsChangedEventArgs e)
+    {
+        InvokeAsync(() =>
+        {
+            foreach (var alert in e.NewAlerts)
+            {
+                if (alert.Severity >= AlertSeverity.Warning)
+                {
+                    var severity = alert.Severity switch
+                    {
+                        AlertSeverity.Critical => MudBlazor.Severity.Error,
+                        AlertSeverity.Error => MudBlazor.Severity.Error,
+                        AlertSeverity.Warning => MudBlazor.Severity.Warning,
+                        _ => MudBlazor.Severity.Info
+                    };
+                    Snackbar.Add($"{alert.Source}: {alert.Message}", severity);
+                }
+            }
+            StateHasChanged();
+        });
+    }
+
+    private IReadOnlyList<ServiceAlert>? GetAlertsForService(string serviceKey)
+    {
+        if (_alerts == null || _alerts.Count == 0)
+            return null;
+
+        var filtered = _alerts.Where(a => string.Equals(a.Source, serviceKey, StringComparison.OrdinalIgnoreCase)).ToList();
+        return filtered.Count > 0 ? filtered : null;
+    }
+
     public void Dispose()
     {
         HealthService.HealthStatusChanged -= OnHealthStatusChanged;
+        AlertService.AlertsChanged -= OnAlertsChanged;
         _ = HealthService.StopAsync();
     }
 }

@@ -41,6 +41,15 @@
                 <MudText Typo="Typo.caption" Color="Color.Secondary">Total Services</MudText>
             </MudStack>
         </MudItem>
+
+        <MudItem xs="6" sm="3">
+            <MudStack AlignItems="AlignItems.Center" Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.NotificationsActive" Size="Size.Large"
+                         Color="@(ActiveAlertCount > 0 ? Color.Warning : Color.Success)" />
+                <MudText Typo="Typo.h4" Color="@(ActiveAlertCount > 0 ? Color.Warning : Color.Success)">@ActiveAlertCount</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Active Alerts</MudText>
+            </MudStack>
+        </MudItem>
     </MudGrid>
 
     @if (Kpis.TotalServices > 0)
@@ -61,6 +70,9 @@
 @code {
     [Parameter]
     public required PlatformKpis Kpis { get; set; }
+
+    [Parameter]
+    public int ActiveAlertCount { get; set; }
 
     private Color GetHealthColor()
     {
