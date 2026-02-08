@@ -12,6 +12,7 @@ namespace Sorcha.Blueprint.Service.Tests.Services;
 
 /// <summary>
 /// Tests for graph cycle detection in blueprint publish validation.
+/// Cycles produce warnings (not errors) — cyclic blueprints publish successfully.
 /// Exercises the DetectCycles/DfsCycleDetect methods through PublishService.PublishAsync().
 /// </summary>
 public class CycleDetectionTests
@@ -55,12 +56,13 @@ public class CycleDetectionTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Errors.Should().BeEmpty();
+        result.Warnings.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task PublishAsync_SimpleCycle_ReturnsCycleError()
+    public async Task PublishAsync_SimpleCycle_ReturnsSuccessWithWarnings()
     {
-        // Arrange: 1 → 2 → 1 (cycle)
+        // Arrange: 1 → 2 → 1 (cycle — valid for ping-pong workflows)
         var blueprint = CreateBlueprint(
             new ActionModel
             {
@@ -78,16 +80,70 @@ public class CycleDetectionTests
         // Act
         var result = await _publishService.PublishAsync(blueprint.Id);
 
-        // Assert
-        result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.Contains("Circular dependency detected"));
-        result.Errors.Should().Contain(e => e.Contains("Action 1") && e.Contains("Action 2"));
+        // Assert — cycles now produce warnings, not errors
+        result.IsSuccess.Should().BeTrue();
+        result.Errors.Should().BeEmpty();
+        result.Warnings.Should().Contain(w => w.Contains("Cyclic route detected"));
+        result.Warnings.Should().Contain(w => w.Contains("Action 1") && w.Contains("Action 2"));
     }
 
     [Fact]
-    public async Task PublishAsync_SelfReference_ReturnsSelfReferenceError()
+    public async Task PublishAsync_SimpleCycle_SetsHasCyclesMetadata()
     {
-        // Arrange: Action 1 routes to itself
+        // Arrange: 1 → 2 → 1 (cycle)
+        var blueprint = CreateBlueprint(
+            new ActionModel
+            {
+                Id = 1, Title = "Ping", Sender = "p1", IsStartingAction = true,
+                Routes = [new RouteModel { NextActionIds = [2], IsDefault = true }]
+            },
+            new ActionModel
+            {
+                Id = 2, Title = "Pong", Sender = "p2",
+                Routes = [new RouteModel { NextActionIds = [1], IsDefault = true }]
+            });
+
+        SetupStore(blueprint);
+
+        // Act
+        var result = await _publishService.PublishAsync(blueprint.Id);
+
+        // Assert — hasCycles metadata is set on the published blueprint
+        result.IsSuccess.Should().BeTrue();
+        blueprint.Metadata.Should().ContainKey("hasCycles");
+        blueprint.Metadata!["hasCycles"].Should().Be("true");
+    }
+
+    [Fact]
+    public async Task PublishAsync_NoCycles_DoesNotSetHasCyclesMetadata()
+    {
+        // Arrange: 1 → 2 (no cycle)
+        var blueprint = CreateBlueprint(
+            new ActionModel
+            {
+                Id = 1, Title = "Start", Sender = "p1", IsStartingAction = true,
+                Routes = [new RouteModel { NextActionIds = [2], IsDefault = true }]
+            },
+            new ActionModel
+            {
+                Id = 2, Title = "End", Sender = "p2"
+            });
+
+        SetupStore(blueprint);
+
+        // Act
+        var result = await _publishService.PublishAsync(blueprint.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Warnings.Should().BeEmpty();
+        (blueprint.Metadata == null || !blueprint.Metadata.ContainsKey("hasCycles")).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PublishAsync_SelfReference_ReturnsSuccessWithWarning()
+    {
+        // Arrange: Action 1 routes to itself (self-cycle — still a warning)
         var blueprint = CreateBlueprint(
             new ActionModel
             {
@@ -104,13 +160,13 @@ public class CycleDetectionTests
         // Act
         var result = await _publishService.PublishAsync(blueprint.Id);
 
-        // Assert
-        result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.Contains("Self-referencing route detected: Action 1 routes to itself"));
+        // Assert — self-reference is a cycle warning, not an error
+        result.IsSuccess.Should().BeTrue();
+        result.Warnings.Should().Contain(w => w.Contains("Self-referencing route detected: Action 1 routes to itself"));
     }
 
     [Fact]
-    public async Task PublishAsync_ComplexCycleWithBranches_DetectsCycle()
+    public async Task PublishAsync_ComplexCycleWithBranches_DetectsCycleWarning()
     {
         // Arrange: 1 → 2, 1 → 3, 2 → 4, 3 → 4, 4 → 1 (cycle through branches)
         var blueprint = CreateBlueprint(
@@ -140,9 +196,9 @@ public class CycleDetectionTests
         // Act
         var result = await _publishService.PublishAsync(blueprint.Id);
 
-        // Assert
-        result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.Contains("Circular dependency detected"));
+        // Assert — cycle detected as warning, publishes successfully
+        result.IsSuccess.Should().BeTrue();
+        result.Warnings.Should().Contain(w => w.Contains("Cyclic route detected"));
     }
 
     [Fact]
@@ -172,13 +228,13 @@ public class CycleDetectionTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Errors.Should().BeEmpty();
+        result.Warnings.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task PublishAsync_RejectionConfigCycle_DetectedViaRejectionTarget()
+    public async Task PublishAsync_RejectionConfigCycle_DetectedAsWarning()
     {
-        // Arrange: 1 → 2, but 2 rejects back to 1, and 1 routes to 2 (creates cycle via rejection)
-        // Since rejection targets are edges in the graph, 1 → 2 → 1 is a cycle
+        // Arrange: 1 → 2, but 2 rejects back to 1 (creates cycle via rejection)
         var blueprint = CreateBlueprint(
             new ActionModel
             {
@@ -200,9 +256,9 @@ public class CycleDetectionTests
         // Act
         var result = await _publishService.PublishAsync(blueprint.Id);
 
-        // Assert
-        result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.Contains("Circular dependency detected"));
+        // Assert — rejection cycles are valid (resubmission pattern)
+        result.IsSuccess.Should().BeTrue();
+        result.Warnings.Should().Contain(w => w.Contains("Cyclic route detected"));
     }
 
     [Fact]
@@ -261,6 +317,70 @@ public class CycleDetectionTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Errors.Should().BeEmpty();
+        result.Warnings.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PublishAsync_CycleWithOtherValidationErrors_StillFailsOnErrors()
+    {
+        // Arrange: Cycle present BUT also missing participants (hard error)
+        var blueprint = new BlueprintModel
+        {
+            Id = "test-invalid",
+            Title = "Invalid Blueprint",
+            Participants = [new ParticipantModel { Id = "p1", Name = "Only One" }], // < 2 participants
+            Actions =
+            [
+                new ActionModel
+                {
+                    Id = 1, Title = "Start", Sender = "p1", IsStartingAction = true,
+                    Routes = [new RouteModel { NextActionIds = [2], IsDefault = true }]
+                },
+                new ActionModel
+                {
+                    Id = 2, Title = "Loop", Sender = "p1",
+                    Routes = [new RouteModel { NextActionIds = [1], IsDefault = true }]
+                }
+            ]
+        };
+
+        _mockBlueprintStore.Setup(x => x.GetAsync(blueprint.Id)).ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _publishService.PublishAsync(blueprint.Id);
+
+        // Assert — hard validation error takes precedence, publish fails
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("at least 2 participants"));
+    }
+
+    [Fact]
+    public async Task PublishAsync_PingPongPattern_PublishesSuccessfully()
+    {
+        // Arrange: Ping-Pong pattern — 0 → 1 → 0 (the canonical use case)
+        var blueprint = CreateBlueprint(
+            new ActionModel
+            {
+                Id = 0, Title = "Ping", Sender = "p1", IsStartingAction = true,
+                Routes = [new RouteModel { Id = "ping-to-pong", NextActionIds = [1], IsDefault = true }]
+            },
+            new ActionModel
+            {
+                Id = 1, Title = "Pong", Sender = "p2",
+                Routes = [new RouteModel { Id = "pong-to-ping", NextActionIds = [0], IsDefault = true }]
+            });
+
+        SetupStore(blueprint);
+
+        // Act
+        var result = await _publishService.PublishAsync(blueprint.Id);
+
+        // Assert — ping-pong publishes with cycle warning
+        result.IsSuccess.Should().BeTrue();
+        result.Warnings.Should().NotBeEmpty();
+        result.Warnings.Should().Contain(w => w.Contains("Cyclic route detected"));
+        blueprint.Metadata.Should().ContainKey("hasCycles");
+        blueprint.Metadata!["hasCycles"].Should().Be("true");
     }
 
     #region Helpers
