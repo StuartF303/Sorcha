@@ -25,7 +25,7 @@
                 Blueprint Templates
             </MudText>
             <MudText Typo="Typo.body1" Color="Color.Secondary">
-                Quick start templates for common workflows
+                Quick start templates for common workflows. Select a template to view details or start a new instance.
             </MudText>
         </MudStack>
 
@@ -60,12 +60,85 @@
         @if (!FilteredTemplates.Any())
         {
             <EmptyState Icon="@Icons.Material.Filled.ContentCopy"
-                        Title="No Templates Found"
-                        Description="No templates match your search criteria." />
+                        Title="No Templates Available"
+                        Description="No templates are available. Contact your administrator to seed the template library." />
         }
         else
         {
-            <TemplateList Templates="@FilteredTemplates.ToList()" OnSelect="UseTemplate" />
+            <MudGrid>
+                <MudItem xs="12" md="@(_selectedTemplate != null ? 7 : 12)" lg="@(_selectedTemplate != null ? 8 : 12)">
+                    <TemplateList Templates="@FilteredTemplates.ToList()" OnSelect="SelectTemplate" />
+                </MudItem>
+
+                @if (_selectedTemplate != null)
+                {
+                    <MudItem xs="12" md="5" lg="4">
+                        <MudCard Elevation="3">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.h6">@_selectedTemplate.Name</MudText>
+                                    @if (!string.IsNullOrEmpty(_selectedTemplate.Category))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="mt-1">@_selectedTemplate.Category</MudChip>
+                                    }
+                                </CardHeaderContent>
+                                <CardHeaderActions>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="CloseDetail" />
+                                </CardHeaderActions>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudText Typo="Typo.body2" Class="mb-3">@_selectedTemplate.Description</MudText>
+
+                                @if (_selectedTemplate.Parameters.Count > 0)
+                                {
+                                    <MudText Typo="Typo.subtitle2" Class="mb-2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Tune" Size="Size.Small" Class="mr-1" />
+                                        Parameters (@_selectedTemplate.Parameters.Count)
+                                    </MudText>
+                                    <MudSimpleTable Dense="true" Hover="true" Class="mb-3">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Type</th>
+                                                <th>Required</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var param in _selectedTemplate.Parameters)
+                                            {
+                                                <tr>
+                                                    <td>@param.Name</td>
+                                                    <td><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@param.Type</MudChip></td>
+                                                    <td>@(param.Required ? "Yes" : "No")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </MudSimpleTable>
+                                }
+                                else
+                                {
+                                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                                        This template has no configurable parameters — it creates a fixed workflow structure.
+                                    </MudAlert>
+                                }
+
+                                <MudDivider Class="my-2" />
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    ID: @_selectedTemplate.Id
+                                </MudText>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                                           StartIcon="@Icons.Material.Filled.PlayArrow"
+                                           OnClick="@(() => UseTemplate(_selectedTemplate))"
+                                           FullWidth="true">
+                                    Use Template
+                                </MudButton>
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
         }
     }
 </MudContainer>
@@ -75,6 +148,7 @@
     private string _searchText = "";
     private bool _loading = true;
     private bool _serviceError;
+    private TemplateListItemViewModel? _selectedTemplate;
 
     private IEnumerable<TemplateListItemViewModel> FilteredTemplates =>
         string.IsNullOrWhiteSpace(_searchText)
@@ -106,6 +180,16 @@
         {
             _loading = false;
         }
+    }
+
+    private void SelectTemplate(TemplateListItemViewModel template)
+    {
+        _selectedTemplate = template;
+    }
+
+    private void CloseDetail()
+    {
+        _selectedTemplate = null;
     }
 
     private async Task UseTemplate(TemplateListItemViewModel template)

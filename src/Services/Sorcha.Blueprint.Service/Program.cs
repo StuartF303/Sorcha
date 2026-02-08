@@ -45,6 +45,10 @@ builder.Services.AddScoped<IPublishService, PublishService>();
 builder.Services.AddSingleton<Sorcha.Blueprint.Engine.Interfaces.IJsonEEvaluator, Sorcha.Blueprint.Engine.Implementation.JsonEEvaluator>();
 builder.Services.AddSingleton<Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService, Sorcha.Blueprint.Service.Templates.BlueprintTemplateService>();
 
+// Add Template seeding service — seeds built-in templates at startup
+builder.Services.AddSingleton<Sorcha.Blueprint.Service.Templates.TemplateSeedingService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Sorcha.Blueprint.Service.Templates.TemplateSeedingService>());
+
 // Add Cryptography services (required for transaction building)
 builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.ICryptoModule, Sorcha.Cryptography.Core.CryptoModule>();
 builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.IHashProvider, Sorcha.Cryptography.Core.HashProvider>();
@@ -295,6 +299,18 @@ blueprintGroup.MapPost("/{id}/publish", async (string id, IPublishService servic
     await cache.EvictByTagAsync("blueprints", default);
     await cache.EvictByTagAsync("published", default);
 
+    // Include warnings (e.g., cycle detection) in the response
+    if (result.Warnings.Length > 0)
+    {
+        return Results.Ok(new
+        {
+            blueprintId = result.PublishedBlueprint!.BlueprintId,
+            version = result.PublishedBlueprint.Version,
+            publishedAt = result.PublishedBlueprint.PublishedAt,
+            warnings = result.Warnings
+        });
+    }
+
     return Results.Ok(result.PublishedBlueprint);
 })
 .WithName("PublishBlueprint")
@@ -468,6 +484,26 @@ templateGroup.MapGet("/{id}/examples/{exampleName}", async (
 .WithName("EvaluateTemplateExample")
 .WithSummary("Evaluate template example")
 .WithDescription("Evaluate a predefined example from the template");
+
+/// <summary>
+/// Manually trigger re-seeding of built-in templates (admin only)
+/// </summary>
+templateGroup.MapPost("/seed", async (
+    Sorcha.Blueprint.Service.Templates.TemplateSeedingService seedingService,
+    CancellationToken ct) =>
+{
+    var result = await seedingService.SeedTemplatesAsync(ct);
+    return Results.Ok(new
+    {
+        seeded = result.Seeded,
+        skipped = result.Skipped,
+        errors = result.Errors
+    });
+})
+.WithName("SeedTemplates")
+.WithSummary("Seed built-in templates")
+.WithDescription("Manually trigger re-seeding of built-in blueprint templates")
+.RequireAuthorization("AdminPolicy");
 
 // ===========================
 // Action API Endpoints (Sprint 4)
@@ -1746,11 +1782,18 @@ public class PublishService(IBlueprintStore blueprintStore, IPublishedBlueprintS
             return PublishResult.Failed("Blueprint not found");
         }
 
-        // Validate blueprint
-        var errors = ValidateBlueprint(blueprint);
+        // Validate blueprint — cycle detections are warnings, not errors
+        var (errors, warnings) = ValidateBlueprint(blueprint);
         if (errors.Count > 0)
         {
             return PublishResult.Failed(errors.ToArray());
+        }
+
+        // Set hasCycles metadata if cycle warnings were detected
+        if (warnings.Count > 0)
+        {
+            blueprint.Metadata ??= new Dictionary<string, string>();
+            blueprint.Metadata["hasCycles"] = "true";
         }
 
         // Create published version (immutable snapshot)
@@ -1763,12 +1806,13 @@ public class PublishService(IBlueprintStore blueprintStore, IPublishedBlueprintS
 
         await _publishedStore.AddAsync(published);
 
-        return PublishResult.Success(published);
+        return PublishResult.Success(published, warnings.ToArray());
     }
 
-    private List<string> ValidateBlueprint(BlueprintModel blueprint)
+    private (List<string> Errors, List<string> Warnings) ValidateBlueprint(BlueprintModel blueprint)
     {
         var errors = new List<string>();
+        var warnings = new List<string>();
 
         // Rule 1: Must have at least 2 participants
         if (blueprint.Participants.Count < 2)
@@ -1799,11 +1843,21 @@ public class PublishService(IBlueprintStore blueprintStore, IPublishedBlueprintS
             }
         }
 
-        // Rule 4: No circular action dependencies
-        var cycleErrors = DetectCycles(blueprint);
-        errors.AddRange(cycleErrors);
+        // Rule 4: Detect cycles — produce warnings instead of errors
+        // Cycles are valid workflow patterns (ping-pong, review loops, resubmission flows)
+        var cycleDetections = DetectCycles(blueprint);
+        foreach (var detection in cycleDetections)
+        {
+            // Rewrite cycle errors as warnings with helpful context
+            var warning = detection.Replace("Circular dependency detected:", "Cyclic route detected:");
+            if (!warning.Contains("loop indefinitely"))
+            {
+                warning += ". This blueprint will loop indefinitely unless routing conditions provide a termination path.";
+            }
+            warnings.Add(warning);
+        }
 
-        return errors;
+        return (errors, warnings);
     }
 
     /// <summary>
@@ -1954,11 +2008,13 @@ public record PublishResult
     public bool IsSuccess { get; init; }
     public PublishedBlueprint? PublishedBlueprint { get; init; }
     public string[] Errors { get; init; } = [];
+    public string[] Warnings { get; init; } = [];
 
-    public static PublishResult Success(PublishedBlueprint published) => new()
+    public static PublishResult Success(PublishedBlueprint published, string[]? warnings = null) => new()
     {
         IsSuccess = true,
-        PublishedBlueprint = published
+        PublishedBlueprint = published,
+        Warnings = warnings ?? []
     };
 
     public static PublishResult Failed(params string[] errors) => new()

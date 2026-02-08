@@ -21,6 +21,14 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-08:**
+- ✅ 027-BLUEPRINT-TEMPLATE-LIBRARY COMPLETE: Blueprint Template Library & Ping-Pong Blueprint (31 tasks, 7 phases)
+  - Ping-Pong blueprint template (2 participants, cyclic routing) in examples/templates/
+  - Cycle detection changed from hard rejection to warning — cyclic blueprints now publish with hasCycles metadata
+  - TemplateSeedingService (IHostedService) seeds 4 built-in templates at startup
+  - Templates.razor page enhanced with detail panel and improved empty state
+  - POST /api/templates/seed admin endpoint for manual re-seeding
+  - Ping-Pong walkthrough script for end-to-end pipeline verification
+  - Test count: Blueprint Service 224 pass (was 214), Engine 323 pass (unchanged)
 - ✅ 026-FIX-REGISTER-CREATION-PIPELINE COMPLETE: Fix 8 issues in register creation flow (38 tasks, 9 phases)
   - CRITICAL: Fixed payload data lost in docket write — DocketBuildTriggerService transaction mapping now populates Payloads, PayloadCount, SenderWallet, Signature, MetaData, PrevTxId, TimeStamp
   - CRITICAL: Fixed genesis write failure preventing retry — _genesisWritten flag only set on success, retry count with max 3 attempts before unregistering
