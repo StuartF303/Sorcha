@@ -21,6 +21,11 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-08:**
+- ✅ FIX-TEMPLATE-SEEDING: Fix Docker template seeding + persist template storage
+  - Dockerfile now copies examples/templates/ into /app/templates for container runtime seeding
+  - BlueprintTemplateService migrated from raw Dictionary to IDocumentStore<BlueprintTemplate, string> (thread-safe, swappable)
+  - InMemoryDocumentStore registered in DI (consistent with Blueprint Service's in-memory storage pattern)
+  - Test count: Blueprint Service 224 pass (unchanged)
 - ✅ 027-BLUEPRINT-TEMPLATE-LIBRARY COMPLETE: Blueprint Template Library & Ping-Pong Blueprint (31 tasks, 7 phases)
   - Ping-Pong blueprint template (2 participants, cyclic routing) in examples/templates/
   - Cycle detection changed from hard rejection to warning — cyclic blueprints now publish with hasCycles metadata

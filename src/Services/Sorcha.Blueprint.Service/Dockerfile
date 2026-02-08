@@ -16,6 +16,9 @@ RUN dotnet restore "src/Services/Sorcha.Blueprint.Service/Sorcha.Blueprint.Servi
 # Copy source code
 COPY src/ ./src/
 
+# Copy template files for seeding
+COPY examples/templates/ ./examples/templates/
+
 # Build the application
 WORKDIR "/src/src/Services/Sorcha.Blueprint.Service"
 RUN dotnet build "Sorcha.Blueprint.Service.csproj" -c Release -o /app/build
@@ -42,6 +45,9 @@ EXPOSE 8081
 
 # Copy published application
 COPY --from=publish /app/publish .
+
+# Copy template files for runtime seeding
+COPY --from=build /src/examples/templates /app/templates
 
 # Set environment variables
 ENV ASPNETCORE_URLS=http://+:8080

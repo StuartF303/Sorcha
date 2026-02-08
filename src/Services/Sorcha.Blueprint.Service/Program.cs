@@ -42,6 +42,8 @@ builder.Services.AddScoped<IBlueprintService, BlueprintService>();
 builder.Services.AddScoped<IPublishService, PublishService>();
 
 // Add Template services
+builder.Services.AddSingleton<Sorcha.Storage.Abstractions.IDocumentStore<Sorcha.Blueprint.Models.BlueprintTemplate, string>>(
+    new Sorcha.Storage.InMemory.InMemoryDocumentStore<Sorcha.Blueprint.Models.BlueprintTemplate, string>(t => t.Id));
 builder.Services.AddSingleton<Sorcha.Blueprint.Engine.Interfaces.IJsonEEvaluator, Sorcha.Blueprint.Engine.Implementation.JsonEEvaluator>();
 builder.Services.AddSingleton<Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService, Sorcha.Blueprint.Service.Templates.BlueprintTemplateService>();
 

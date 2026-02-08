@@ -6,6 +6,7 @@ using System.Text.Json;
 using Json.Schema;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Models;
+using Sorcha.Storage.Abstractions;
 using ValidationResult = Sorcha.Blueprint.Engine.Interfaces.TemplateValidationResult;
 
 namespace Sorcha.Blueprint.Service.Templates;
@@ -16,14 +17,16 @@ namespace Sorcha.Blueprint.Service.Templates;
 /// </summary>
 public class BlueprintTemplateService : IBlueprintTemplateService
 {
-    private readonly Dictionary<string, BlueprintTemplate> _templates = new();
+    private readonly IDocumentStore<BlueprintTemplate, string> _store;
     private readonly IJsonEEvaluator _jsonEEvaluator;
     private readonly ILogger<BlueprintTemplateService> _logger;
 
     public BlueprintTemplateService(
+        IDocumentStore<BlueprintTemplate, string> store,
         IJsonEEvaluator jsonEEvaluator,
         ILogger<BlueprintTemplateService> logger)
     {
+        _store = store;
         _jsonEEvaluator = jsonEEvaluator;
         _logger = logger;
     }
@@ -31,58 +34,55 @@ public class BlueprintTemplateService : IBlueprintTemplateService
     /// <inheritdoc />
     public Task<BlueprintTemplate?> GetTemplateAsync(string templateId, CancellationToken ct = default)
     {
-        _templates.TryGetValue(templateId, out var template);
-        return Task.FromResult(template);
+        return _store.GetAsync(templateId, ct);
     }
 
     /// <inheritdoc />
-    public Task<IEnumerable<BlueprintTemplate>> GetPublishedTemplatesAsync(CancellationToken ct = default)
+    public async Task<IEnumerable<BlueprintTemplate>> GetPublishedTemplatesAsync(CancellationToken ct = default)
     {
-        var published = _templates.Values.Where(t => t.Published).ToList();
-        return Task.FromResult<IEnumerable<BlueprintTemplate>>(published);
+        return await _store.QueryAsync(t => t.Published, cancellationToken: ct);
     }
 
     /// <inheritdoc />
-    public Task<IEnumerable<BlueprintTemplate>> GetTemplatesByCategoryAsync(
+    public async Task<IEnumerable<BlueprintTemplate>> GetTemplatesByCategoryAsync(
         string category,
         CancellationToken ct = default)
     {
-        var templates = _templates.Values
-            .Where(t => t.Published && t.Category?.Equals(category, StringComparison.OrdinalIgnoreCase) == true)
-            .ToList();
-        return Task.FromResult<IEnumerable<BlueprintTemplate>>(templates);
+        var all = await _store.QueryAsync(t => t.Published, cancellationToken: ct);
+        return all.Where(t => t.Category != null && t.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <inheritdoc />
-    public Task<BlueprintTemplate> SaveTemplateAsync(BlueprintTemplate template, CancellationToken ct = default)
+    public async Task<BlueprintTemplate> SaveTemplateAsync(BlueprintTemplate template, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(template);
 
         template.UpdatedAt = DateTimeOffset.UtcNow;
 
-        if (!_templates.ContainsKey(template.Id))
+        var existing = await _store.GetAsync(template.Id, ct);
+        if (existing == null)
         {
             template.CreatedAt = DateTimeOffset.UtcNow;
         }
 
-        _templates[template.Id] = template;
+        var saved = await _store.UpsertAsync(template.Id, template, ct);
 
         _logger.LogInformation("Saved template {TemplateId}: {TemplateTitle}", template.Id, template.Title);
 
-        return Task.FromResult(template);
+        return saved;
     }
 
     /// <inheritdoc />
-    public Task<bool> DeleteTemplateAsync(string templateId, CancellationToken ct = default)
+    public async Task<bool> DeleteTemplateAsync(string templateId, CancellationToken ct = default)
     {
-        var removed = _templates.Remove(templateId);
+        var removed = await _store.DeleteAsync(templateId, ct);
 
         if (removed)
         {
             _logger.LogInformation("Deleted template {TemplateId}", templateId);
         }
 
-        return Task.FromResult(removed);
+        return removed;
     }
 
     /// <inheritdoc />

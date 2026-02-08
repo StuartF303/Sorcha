@@ -2,7 +2,7 @@
 
 **Overall Status:** 100% COMPLETE ✅
 **Location:** `src/Services/Sorcha.Blueprint.Service/`
-**Last Updated:** 2025-12-04
+**Last Updated:** 2026-02-08
 
 ---
 
@@ -172,6 +172,24 @@
    - Mock HTTP handlers
 
 **Test Results:** 123 tests passing (98 pre-existing + 25 new)
+
+---
+
+## Template Library Storage - COMPLETE ✅
+
+**Completed 2026-02-08:**
+
+1. **Docker Template Seeding Fix**
+   - ✅ Dockerfile now copies `examples/templates/` into `/app/templates` during build
+   - ✅ `FindTemplatesDirectory()` already checks `Path.Combine(baseDir, "templates")` — resolves immediately in Docker
+
+2. **IDocumentStore Migration**
+   - ✅ `BlueprintTemplateService` migrated from `Dictionary<string, BlueprintTemplate>` to `IDocumentStore<BlueprintTemplate, string>`
+   - ✅ Thread-safe via `InMemoryDocumentStore` (uses `ConcurrentDictionary` internally)
+   - ✅ Swappable to MongoDB with a single DI registration change
+   - ✅ Consistent with Blueprint Service's in-memory storage pattern (line 36: "later: replace with EF Core + PostgreSQL")
+
+**Test Results:** 224 tests passing (all unchanged)
 
 ---
 
