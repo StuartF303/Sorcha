@@ -85,9 +85,9 @@ public class DockerAuthenticationTests : PageTest
         {
             await Expect(profileSelector.First).ToBeVisibleAsync();
 
-            // Should have Development and Docker options
+            // Should have local, docker, and production options
             var options = await profileSelector.First.Locator("option").AllTextContentsAsync();
-            Assert.That(options, Has.Some.Contain("Development").Or.Contain("Docker"));
+            Assert.That(options, Has.Some.Contain("docker").Or.Contain("local"));
         }
     }
 
@@ -141,7 +141,7 @@ public class DockerAuthenticationTests : PageTest
         {
             try
             {
-                await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "Docker" });
+                await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "docker" });
             }
             catch
             {
@@ -205,7 +205,7 @@ public class DockerAuthenticationTests : PageTest
         {
             try
             {
-                await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "Docker" });
+                await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "docker" });
             }
             catch
             {
@@ -407,13 +407,8 @@ public class DockerAuthenticationTests : PageTest
 
         // Filter out known acceptable errors
         var criticalErrors = jsErrors.Where(e =>
-            !e.Contains("WASM", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("Blazor", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("dotnet", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("404", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("Content Security Policy", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("fonts.googleapis", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("CSP", StringComparison.OrdinalIgnoreCase)).ToList();
+            !Infrastructure.TestConstants.KnownConsoleErrorPatterns.Any(
+                pattern => e.Contains(pattern, StringComparison.OrdinalIgnoreCase))).ToList();
 
         Assert.That(criticalErrors, Is.Empty,
             $"Should have no critical JS errors. Found: {string.Join(", ", criticalErrors)}");
@@ -436,14 +431,8 @@ public class DockerAuthenticationTests : PageTest
         await Page.WaitForTimeoutAsync(3000);
 
         var criticalErrors = jsErrors.Where(e =>
-            !e.Contains("WASM", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("Blazor", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("dotnet", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("404", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("Content Security Policy", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("fonts.googleapis", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("CSP", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("500", StringComparison.OrdinalIgnoreCase)).ToList();
+            !Infrastructure.TestConstants.KnownConsoleErrorPatterns.Any(
+                pattern => e.Contains(pattern, StringComparison.OrdinalIgnoreCase))).ToList();
 
         Assert.That(criticalErrors, Is.Empty,
             $"Should have no critical JS errors on login. Found: {string.Join(", ", criticalErrors)}");
@@ -599,7 +588,7 @@ public class DockerAuthenticationTests : PageTest
         var profileSelector = Page.Locator("select");
         if (await profileSelector.CountAsync() > 0)
         {
-            try { await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "Docker" }); }
+            try { await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "docker" }); }
             catch { /* Continue if not available */ }
         }
 
@@ -656,7 +645,7 @@ public class DockerAuthenticationTests : PageTest
         var profileSelector = Page.Locator("select");
         if (await profileSelector.CountAsync() > 0)
         {
-            try { await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "Docker" }); }
+            try { await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "docker" }); }
             catch { /* Continue */ }
         }
 
@@ -669,18 +658,10 @@ public class DockerAuthenticationTests : PageTest
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
         await Page.WaitForTimeoutAsync(8000); // Allow time for schema fetching
 
-        // Filter out known acceptable errors
+        // Filter out known acceptable errors using shared patterns
         var criticalErrors = jsErrors.Where(e =>
-            !e.Contains("WASM", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("Blazor", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("dotnet", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("favicon", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("404", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("Content Security Policy", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("fonts.googleapis", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("CSP", StringComparison.OrdinalIgnoreCase) &&
-            !e.Contains("schemastore", StringComparison.OrdinalIgnoreCase) && // CSP will block these temporarily
-            !e.Contains("500", StringComparison.OrdinalIgnoreCase)).ToList();
+            !Infrastructure.TestConstants.KnownConsoleErrorPatterns.Any(
+                pattern => e.Contains(pattern, StringComparison.OrdinalIgnoreCase))).ToList();
 
         Assert.That(criticalErrors, Is.Empty,
             $"Should have no critical JS errors on schemas page. Found: {string.Join(", ", criticalErrors)}");
@@ -714,7 +695,7 @@ public class DockerAuthenticationTests : PageTest
         var profileSelector = Page.Locator("select");
         if (await profileSelector.CountAsync() > 0)
         {
-            try { await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "Docker" }); }
+            try { await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "docker" }); }
             catch { /* Continue */ }
         }
 
@@ -792,7 +773,7 @@ public class DockerAuthenticationTests : PageTest
         var profileSelector = Page.Locator("select");
         if (await profileSelector.CountAsync() > 0)
         {
-            try { await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "Docker" }); }
+            try { await profileSelector.First.SelectOptionAsync(new SelectOptionValue { Label = "docker" }); }
             catch { /* Continue */ }
         }
 
@@ -805,8 +786,8 @@ public class DockerAuthenticationTests : PageTest
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
         await Page.WaitForTimeoutAsync(5000);
 
-        // Look for search input
-        var searchInput = Page.Locator("input[type='text'], input[placeholder*='search' i], input[placeholder*='Search' i]");
+        // Look for search input (MudBlazor uses .mud-input-text wrapper around input elements)
+        var searchInput = Page.Locator("input[placeholder*='search' i], input[placeholder*='Search' i], .mud-input-text input, input[type='search']");
         if (await searchInput.CountAsync() > 0)
         {
             await searchInput.First.FillAsync("installation");

@@ -48,7 +48,7 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
                 }
             }
 
-            var identity = new ClaimsIdentity(claims, "jwt");
+            var identity = new ClaimsIdentity(claims, "jwt", ClaimTypes.Name, "role");
             var user = new ClaimsPrincipal(identity);
 
             return new AuthenticationState(user);
