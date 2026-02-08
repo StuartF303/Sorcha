@@ -20,6 +20,7 @@ using Microsoft.Extensions.Options;
 using Sorcha.Register.Storage.InMemory;
 using Sorcha.Register.Storage.MongoDB;
 using Sorcha.ServiceClients.Extensions;
+using Sorcha.ServiceClients.Peer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -482,12 +483,16 @@ registersGroup.MapGet("/{id}", async (
 /// </summary>
 registersGroup.MapPut("/{id}", async (
     RegisterManager manager,
+    IPeerServiceClient peerClient,
+    ILogger<Program> logger,
     string id,
     UpdateRegisterRequest request) =>
 {
     var register = await manager.GetRegisterAsync(id);
     if (register is null)
         return Results.NotFound();
+
+    var advertiseChanged = request.Advertise is not null && register.Advertise != request.Advertise.Value;
 
     if (request.Name is not null)
         register.Name = request.Name;
@@ -497,6 +502,25 @@ registersGroup.MapPut("/{id}", async (
         register.Advertise = request.Advertise.Value;
 
     var updated = await manager.UpdateRegisterAsync(register);
+
+    // Notify Peer Service when advertise flag changes (fire-and-forget)
+    if (advertiseChanged)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await peerClient.AdvertiseRegisterAsync(register.Id, register.Advertise);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex,
+                    "Failed to notify Peer Service about advertise change for register {RegisterId}",
+                    register.Id);
+            }
+        });
+    }
+
     return Results.Ok(updated);
 })
 .WithName("UpdateRegister")

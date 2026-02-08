@@ -45,6 +45,17 @@ public interface IPeerServiceClient
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Notifies the Peer Service to advertise or remove advertisement for a register
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="isPublic">True to advertise, false to remove advertisement</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task AdvertiseRegisterAsync(
+        string registerId,
+        bool isPublic,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Reports validator behavior to Peer Service for reputation scoring
     /// </summary>
     /// <param name="validatorId">Validator ID to report</param>

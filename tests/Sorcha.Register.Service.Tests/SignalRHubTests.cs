@@ -23,7 +23,7 @@ public class SignalRHubTests : IClassFixture<WebApplicationFactory<Program>>, IA
         _client = factory.CreateClient();
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         var hubUrl = _factory.Server.BaseAddress + "hubs/register";
         _hubConnection = new HubConnectionBuilder()
@@ -36,7 +36,7 @@ public class SignalRHubTests : IClassFixture<WebApplicationFactory<Program>>, IA
         await _hubConnection.StartAsync();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_hubConnection != null)
         {

@@ -113,8 +113,9 @@ public class QueryApiTests : IClassFixture<WebApplicationFactory<Program>>
         if (result!.Items.Count > 0)
         {
             result.Items.Should().OnlyContain(t =>
-                t.MetaData?.BlueprintId == blueprintId &&
-                t.MetaData?.InstanceId == instanceId);
+                t.MetaData != null &&
+                t.MetaData.BlueprintId == blueprintId &&
+                t.MetaData.InstanceId == instanceId);
         }
     }
 

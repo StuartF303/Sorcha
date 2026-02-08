@@ -49,18 +49,19 @@ var walletService = builder.AddProject<Projects.Sorcha_Wallet_Service>("wallet-s
     .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
     .WithEnvironment("JwtSettings__Audience", "https://sorcha.local");
 
-// Add Register Service with MongoDB and Redis reference
+// Add Peer Service with Redis reference (internal only)
+var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service")
+    .WithReference(redis);
+
+// Add Register Service with MongoDB, Redis, and Peer Service reference
 var registerService = builder.AddProject<Projects.Sorcha_Register_Service>("register-service")
     .WithReference(registerDb)
     .WithReference(redis)
+    .WithReference(peerService)
     .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey)
     .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
     .WithEnvironment("JwtSettings__Audience", "https://sorcha.local")
     .WithExternalHttpEndpoints(); // Exposed for walkthrough testing
-
-// Add Peer Service with Redis reference (internal only)
-var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service")
-    .WithReference(redis);
 
 // Add Validator Service with dependencies
 var validatorService = builder.AddProject<Projects.Sorcha_Validator_Service>("validator-service")

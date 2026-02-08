@@ -9,6 +9,7 @@ using Sorcha.Register.Core.Managers;
 using Sorcha.Register.Models;
 using Sorcha.Register.Models.Enums;
 using Sorcha.ServiceClients.Wallet;
+using Sorcha.ServiceClients.Peer;
 using Sorcha.ServiceClients.Validator;
 
 namespace Sorcha.Register.Service.Services;
@@ -26,6 +27,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     private readonly ICryptoModule _cryptoModule;
     private readonly IValidatorServiceClient _validatorClient;
     private readonly IPendingRegistrationStore _pendingStore;
+    private readonly IPeerServiceClient _peerClient;
 
     private readonly TimeSpan _pendingExpirationTime = TimeSpan.FromMinutes(5);
     private readonly JsonSerializerOptions _canonicalJsonOptions;
@@ -38,7 +40,8 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         IHashProvider hashProvider,
         ICryptoModule cryptoModule,
         IValidatorServiceClient validatorClient,
-        IPendingRegistrationStore pendingStore)
+        IPendingRegistrationStore pendingStore,
+        IPeerServiceClient peerClient)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _registerManager = registerManager ?? throw new ArgumentNullException(nameof(registerManager));
@@ -48,6 +51,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
         _validatorClient = validatorClient ?? throw new ArgumentNullException(nameof(validatorClient));
         _pendingStore = pendingStore ?? throw new ArgumentNullException(nameof(pendingStore));
+        _peerClient = peerClient ?? throw new ArgumentNullException(nameof(peerClient));
 
         // Configure JSON serialization for canonical form (RFC 8785)
         _canonicalJsonOptions = new JsonSerializerOptions
@@ -183,7 +187,8 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             CreatedAt = createdAt,
             ExpiresAt = expiresAt,
             Nonce = nonce,
-            AttestationHashes = attestationHashes
+            AttestationHashes = attestationHashes,
+            Advertise = request.Advertise
         };
 
         _pendingStore.Add(registerId, pending);
@@ -329,12 +334,30 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         var register = await _registerManager.CreateRegisterAsync(
             controlRecord.Name,
             controlRecord.TenantId,
-            advertise: false,
+            advertise: pending.Advertise,
             isFullReplica: true,
             registerId: pending.RegisterId,
             cancellationToken);
 
         _logger.LogInformation("Created register {RegisterId} in database after genesis success", register.Id);
+
+        // Notify Peer Service to advertise register if requested (fire-and-forget)
+        if (pending.Advertise)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _peerClient.AdvertiseRegisterAsync(register.Id, isPublic: true);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Failed to notify Peer Service about register {RegisterId} advertisement. Register was created successfully.",
+                        register.Id);
+                }
+            });
+        }
 
         // NOTE: Genesis transaction remains in Validator memory pool
         // It will be written to Register Service database after docket creation

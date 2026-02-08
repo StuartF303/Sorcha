@@ -32,7 +32,7 @@ public class RegisterManager
     /// <param name="isFullReplica">Whether this is a full replica</param>
     /// <param name="registerId">Optional pre-generated register ID (used by two-phase creation flow)</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    public async Task<Models.Register> CreateRegisterAsync(
+    public virtual async Task<Models.Register> CreateRegisterAsync(
         string name,
         string tenantId,
         bool advertise = false,

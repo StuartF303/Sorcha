@@ -437,6 +437,28 @@ app.MapGet("/api/registers/available", ([FromServices] RegisterAdvertisementServ
     .WithDescription("Returns aggregated register information from all known peer advertisements. Only public registers are included.")
     .WithTags("Registers");
 
+// Advertise or remove advertisement for a register
+app.MapPost("/api/registers/{registerId}/advertise", (
+    string registerId,
+    [FromBody] AdvertiseRegisterRequest request,
+    [FromServices] RegisterAdvertisementService advertisementService) =>
+{
+    if (request.IsPublic)
+    {
+        advertisementService.AdvertiseRegister(registerId, RegisterSyncState.Active, isPublic: true);
+    }
+    else
+    {
+        advertisementService.RemoveAdvertisement(registerId);
+    }
+
+    return Results.Ok(new { registerId, isPublic = request.IsPublic });
+})
+    .WithName("AdvertiseRegister")
+    .WithSummary("Advertise or remove advertisement for a register")
+    .WithDescription("Called by Register Service when a register's advertise flag changes. Sets or removes the register's public advertisement in the peer network.")
+    .WithTags("Registers");
+
 // Subscribe to a register
 app.MapPost("/api/registers/{registerId}/subscribe", async (
     string registerId,
