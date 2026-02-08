@@ -23,11 +23,22 @@ COPY src/ .
 WORKDIR "/src/Apps/Sorcha.UI/Sorcha.UI.Web"
 RUN dotnet publish "Sorcha.UI.Web.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
+# Permissions stage - Create directory structure for non-root user
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS permissions
+RUN mkdir -p /home/app/.aspnet/DataProtection-Keys && \
+    chown -R 1654:1654 /home/app/.aspnet
+
 # Runtime stage - use ASP.NET Core runtime for Blazor Web App
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+# Note: UI Web uses non-chiseled image because Blazor WASM requires full ICU and globalization support
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS final
 WORKDIR /app
+
+# Copy directory structure with permissions from permissions stage
+COPY --from=permissions --chown=1654:1654 /home/app/.aspnet /home/app/.aspnet
+
+# Expose ports
 EXPOSE 8080
-EXPOSE 8081
+EXPOSE 8443
 
 # Copy published application
 COPY --from=build /app/publish .
@@ -36,5 +47,7 @@ COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
-# Run the application
+# Run as non-root user (UID 1654 matches chiseled image $APP_UID)
+USER 1654
+
 ENTRYPOINT ["dotnet", "Sorcha.UI.Web.dll"]

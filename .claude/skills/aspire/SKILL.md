@@ -1,14 +1,30 @@
 ---
 name: aspire
 description: |
-  Configures .NET Aspire orchestration, service discovery, and telemetry.
-  Use when: Adding services to AppHost, configuring service defaults, setting up health checks, or troubleshooting service discovery.
+  Configures .NET Aspire 13.x orchestration, service discovery, and telemetry.
+  Use when: Adding services to AppHost, configuring service defaults, setting up health checks, troubleshooting service discovery, or using Aspire CLI commands.
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash, mcp__context7__resolve-library-id, mcp__context7__query-docs
 ---
 
-# .NET Aspire Skill
+# .NET Aspire 13.x Skill
 
-.NET Aspire provides orchestration for this distributed ledger platform. The AppHost (`src/Apps/Sorcha.AppHost/AppHost.cs`) orchestrates 7 microservices with PostgreSQL, MongoDB, and Redis. Services use `AddServiceDefaults()` for consistent OpenTelemetry, health checks, and service discovery. JWT signing keys are generated once and shared across all services via environment variables.
+.NET Aspire 13.x provides orchestration for this distributed ledger platform. The AppHost (`src/Apps/Sorcha.AppHost/AppHost.cs`) orchestrates 7 microservices with PostgreSQL, MongoDB, and Redis. Services use `AddServiceDefaults()` for consistent OpenTelemetry, health checks, and service discovery. JWT signing keys are generated once and shared across all services via environment variables.
+
+## Version Info
+
+| Component | Version | Notes |
+|-----------|---------|-------|
+| Aspire.AppHost.Sdk | 13.0.0 | SDK in `.csproj` — legacy dual-SDK format |
+| Aspire.Hosting.* | 13.1.0 | AppHost hosting packages |
+| Aspire.StackExchange.Redis | 13.1.0 | Service-level Redis integration |
+| Aspire.Hosting.Testing | 13.1.0 | Integration/E2E test infrastructure |
+| Aspire Dashboard | 9.0.0 | Docker image (separate versioning) |
+
+**Sorcha Package Locations:**
+- AppHost: `src/Apps/Sorcha.AppHost/Sorcha.AppHost.csproj`
+- ServiceDefaults: `src/Common/Sorcha.ServiceDefaults/Extensions.cs`
+- Services: Blueprint, Register, Wallet, Validator (each has `Aspire.StackExchange.Redis`)
+- Tests: Gateway Integration, Wallet Integration, UI E2E (each has `Aspire.Hosting.Testing`)
 
 ## Quick Start
 
@@ -20,6 +36,14 @@ var myService = builder.AddProject<Projects.Sorcha_MyService>("my-service")
     .WithReference(redis)                                    // Service discovery
     .WithReference(walletDb)                                // Database connection
     .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey); // Shared config
+```
+
+### Named References (v13+)
+
+```csharp
+// Control the environment variable prefix for a resource reference
+var myService = builder.AddProject<Projects.Sorcha_MyService>("my-service")
+    .WithReference(postgres.AddDatabase("mydb"), "primary-db");  // ConnectionStrings__primary-db
 ```
 
 ### Consuming Aspire in a Service
@@ -42,9 +66,60 @@ app.MapDefaultEndpoints();                       // /health and /alive
 |---------|-------|---------|
 | Resource Name | Identifier for service discovery | `"redis"`, `"tenant-service"` |
 | WithReference | Injects connection string/URL | `.WithReference(postgres)` |
+| Named Reference | Custom env var prefix (v13+) | `.WithReference(db, "mydb")` |
 | WithEnvironment | Pass config to service | `.WithEnvironment("Key", value)` |
 | WithExternalHttpEndpoints | Expose outside Aspire network | `.WithExternalHttpEndpoints()` |
 | AddServiceDefaults | Shared Aspire configuration | `builder.AddServiceDefaults()` |
+| Connection Properties | Access individual fields (v13+) | `resource.GetConnectionProperty("HostName")` |
+| WithHttpsCertificate | TLS termination (v13.1+) | `.WithHttpsCertificate(cert)` |
+| ContainerRegistryResource | Registry config (v13.1+ exp.) | `builder.AddContainerRegistry(...)` |
+
+## What's New in Aspire 13.x
+
+### v13.0 Highlights
+- **New SDK format**: Single `<Project Sdk="Aspire.AppHost.Sdk/13.0.0">` replaces dual-SDK
+- **Polyglot connections**: Resources expose `HostName`, `Port`, `JdbcConnectionString`
+- **Named references**: `WithReference(resource, "customName")` for env var prefixes
+- **MCP dashboard**: Aspire dashboard exposes MCP endpoints for AI assistants
+- **Container file artifacts**: `PublishWithContainerFiles()` for frontend-in-backend
+- **Pipeline system**: `aspire do` for coordinated build/publish/deploy
+- **aspire init**: Interactive solution initialization and discovery
+- **VS Code extension**: Native project creation, debugging, deployment
+
+### v13.1 Highlights
+- **aspire mcp init**: Configure MCP for AI coding agents
+- **TLS termination**: `WithHttpsCertificate()` for YARP, Redis, Keycloak, Vite
+- **Container registry**: Experimental `ContainerRegistryResource`
+- **Dashboard Parameters tab**: Dedicated parameter inspection
+- **GenAI visualizer**: Tool definitions, evaluations, preview media
+- **Azure Managed Redis**: Replaces `AddAzureRedisEnterprise()`
+- **DevTunnels stabilized**: No longer preview
+
+### Breaking Changes (v9 -> v13)
+| Old API | New API | Notes |
+|---------|---------|-------|
+| `AddNpmApp()` | `AddJavaScriptApp()` | Removed in v13 |
+| `AddNodeApp()` | Refactored | Different parameter ordering |
+| `Aspire.Hosting.NodeJs` | `Aspire.Hosting.JavaScript` | Package renamed |
+| `.Model` property | `.ModelName` | OpenAI/GitHub models |
+| `.Database` property | `.DatabaseName` | Milvus/MongoDB/MySQL/Oracle |
+| Dual-SDK `.csproj` | Single SDK `.csproj` | Optional migration |
+
+## Sorcha AppHost Architecture
+
+```
+AppHost.cs orchestrates:
+  postgres ──┬── tenant-db ───── tenant-service
+             └── wallet-db ───── wallet-service
+  mongodb ───── register-db ──── register-service
+  redis ────── (shared by all services)
+
+  tenant-service ──── (JWT issuer, auth provider)
+  blueprint-service ─── (workflow engine)
+  validator-service ──── wallet-service, register-service, peer-service, blueprint-service
+  api-gateway ──── (routes to all services, external HTTP)
+  ui-web ──── api-gateway (Blazor WASM frontend)
+```
 
 ## Common Patterns
 
@@ -87,10 +162,22 @@ app.MapHealthChecks("/alive", new HealthCheckOptions
 });
 ```
 
+### TLS Termination (v13.1+)
+
+```csharp
+// Configure HTTPS certificates on containers
+var redis = builder.AddRedis("redis")
+    .WithHttpsCertificate(cert);
+
+// YARP with TLS
+var gateway = builder.AddProject<Projects.Sorcha_ApiGateway>("api-gateway")
+    .WithHttpsCertificate();
+```
+
 ## See Also
 
-- [patterns](references/patterns.md) - AppHost patterns, resource configuration
-- [workflows](references/workflows.md) - Adding services, debugging, deployment
+- [patterns](references/patterns.md) - AppHost patterns, SDK format, named references, TLS, MCP
+- [workflows](references/workflows.md) - CLI commands, testing, deployment, troubleshooting
 
 ## Related Skills
 
@@ -117,3 +204,6 @@ app.MapHealthChecks("/alive", new HealthCheckOptions
 - "service discovery WithReference patterns"
 - "OpenTelemetry observability setup"
 - "health checks readiness liveness"
+- "aspire 13 breaking changes migration"
+- "TLS termination WithHttpsCertificate"
+- "MCP model context protocol dashboard"
