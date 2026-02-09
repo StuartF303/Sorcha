@@ -137,6 +137,15 @@ public class GenesisManager : IGenesisManager
     public async Task<bool> NeedsGenesisDocketAsync(string registerId, CancellationToken cancellationToken = default)
     {
         var height = await _registerClient.GetRegisterHeightAsync(registerId, cancellationToken);
+
+        if (height < 0)
+        {
+            _logger.LogWarning(
+                "Register {RegisterId} not found or unreachable (height={Height}), treating as needs genesis",
+                registerId, height);
+            return true;
+        }
+
         var needsGenesis = height == 0;
 
         if (needsGenesis)

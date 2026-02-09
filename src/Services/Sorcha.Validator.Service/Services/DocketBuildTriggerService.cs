@@ -311,9 +311,8 @@ public class DocketBuildTriggerService : BackgroundService
 
             if (!written)
             {
-                _logger.LogError("Failed to write docket {DocketNumber} to Register Service for register {RegisterId}",
-                    docket.DocketNumber, docket.RegisterId);
-                return;
+                throw new InvalidOperationException(
+                    $"Failed to write docket {docket.DocketNumber} to Register Service for register {docket.RegisterId}");
             }
 
             _logger.LogInformation("Wrote docket {DocketNumber} to Register Service for register {RegisterId}",

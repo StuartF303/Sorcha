@@ -94,8 +94,18 @@ public class DocketBuilder : IDocketBuilder
 
             // Get previous docket info
             var latestDocket = await _registerClient.ReadLatestDocketAsync(registerId, cancellationToken);
-            var docketNumber = (latestDocket?.DocketNumber ?? -1) + 1;
-            var previousHash = latestDocket?.DocketHash;
+
+            if (latestDocket == null)
+            {
+                _logger.LogWarning(
+                    "Register {RegisterId} passed genesis check but ReadLatestDocketAsync returned null. " +
+                    "Cannot determine next docket number. Skipping docket build.",
+                    registerId);
+                return null;
+            }
+
+            var docketNumber = latestDocket.DocketNumber + 1;
+            var previousHash = latestDocket.DocketHash;
 
             _logger.LogInformation("Building docket {DocketNumber} for register {RegisterId} with {TransactionCount} transactions",
                 docketNumber, registerId, pendingTransactions.Count);

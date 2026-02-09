@@ -387,7 +387,7 @@ public class DocketBuilderTests
     }
 
     [Fact]
-    public async Task BuildDocketAsync_WhenRegisterHasNoDockets_StartsAtDocketNumberZero()
+    public async Task BuildDocketAsync_WhenLatestDocketNull_AfterGenesisCheck_ReturnsNull()
     {
         // Arrange
         var registerId = "register-1";
@@ -403,17 +403,15 @@ public class DocketBuilderTests
 
         _mockRegisterClient
             .Setup(r => r.ReadLatestDocketAsync(registerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((DocketModel?)null); // No previous docket
+            .ReturnsAsync((DocketModel?)null); // No previous docket — inconsistent state
 
         SetupCryptoMocks("merkle-root", "docket-hash", "signature");
 
         // Act
         var result = await _builder.BuildDocketAsync(registerId);
 
-        // Assert
-        result.Should().NotBeNull();
-        result!.DocketNumber.Should().Be(0);
-        result.PreviousHash.Should().BeNull();
+        // Assert — should abort, not create a duplicate Docket 0
+        result.Should().BeNull();
     }
 
     [Fact]
