@@ -265,7 +265,7 @@ try {
         if ($statusCode -eq 409) {
             Write-Warning "Organization already exists (409 Conflict) — falling back to login"
 
-            $loginBody = "grant_type=password&username=$AdminEmail&password=$AdminPassword&client_id=sorcha-cli"
+            $loginBody = "grant_type=password" + "&username=$AdminEmail" + "&password=$AdminPassword" + "&client_id=sorcha-cli"
             $loginResponse = Invoke-RestMethod `
                 -Uri "$TenantUrl/service-auth/token" `
                 -Method POST `
@@ -429,7 +429,7 @@ try {
 # Phase 4: Create Register (2-phase flow)
 # ============================================================================
 
-Write-Step "Phase 4: Create Register (2-phase initiate + finalize)"
+Write-Step "Phase 4: Create Register - 2-phase initiate and finalize"
 $totalSteps++
 
 $timestamp = Get-Date -Format "yyyyMMddHHmmss"
