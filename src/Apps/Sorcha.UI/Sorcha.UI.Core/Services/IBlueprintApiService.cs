@@ -13,6 +13,7 @@ public interface IBlueprintApiService
 {
     Task<PaginatedList<BlueprintListItemViewModel>> GetBlueprintsAsync(int page = 1, int pageSize = 20, string? search = null, string? status = null, CancellationToken cancellationToken = default);
     Task<BlueprintListItemViewModel?> GetBlueprintAsync(string id, CancellationToken cancellationToken = default);
+    Task<Sorcha.Blueprint.Models.Blueprint?> GetBlueprintDetailAsync(string id, CancellationToken cancellationToken = default);
     Task<BlueprintListItemViewModel?> SaveBlueprintAsync(object blueprint, CancellationToken cancellationToken = default);
     Task<bool> DeleteBlueprintAsync(string id, CancellationToken cancellationToken = default);
     Task<PublishReviewViewModel?> PublishBlueprintAsync(string id, CancellationToken cancellationToken = default);

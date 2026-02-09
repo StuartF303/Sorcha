@@ -3,6 +3,7 @@
 
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
+using Sorcha.Blueprint.Models;
 using Sorcha.UI.Core.Models.Blueprints;
 using Sorcha.UI.Core.Models.Common;
 
@@ -49,6 +50,19 @@ public class BlueprintApiService : IBlueprintApiService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching blueprint {Id}", id);
+            return null;
+        }
+    }
+
+    public async Task<Sorcha.Blueprint.Models.Blueprint?> GetBlueprintDetailAsync(string id, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<Sorcha.Blueprint.Models.Blueprint>($"/api/blueprints/{id}", cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching blueprint detail {Id}", id);
             return null;
         }
     }

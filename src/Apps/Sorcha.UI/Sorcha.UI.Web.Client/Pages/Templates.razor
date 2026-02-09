@@ -9,6 +9,7 @@
 @using Sorcha.UI.Core.Models.Templates
 @using Sorcha.UI.Core.Components.Templates
 @using Sorcha.UI.Core.Components.Shared
+@using Sorcha.UI.Core.Components.Designer
 @using Sorcha.UI.Core.Services
 @inject ITemplateApiService TemplateApi
 @inject IDialogService DialogService
@@ -122,6 +123,26 @@
                                     </MudAlert>
                                 }
 
+                                <!-- Visual Diagram Preview -->
+                                <MudDivider Class="my-3" />
+                                <MudText Typo="Typo.subtitle2" Class="mb-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Class="mr-1" />
+                                    Workflow Preview
+                                </MudText>
+                                @if (_previewLoading)
+                                {
+                                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2" />
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Loading preview...</MudText>
+                                }
+                                else if (_previewBlueprint is not null)
+                                {
+                                    <BlueprintViewerDiagram Blueprint="@_previewBlueprint" Height="350px" />
+                                }
+                                else if (_previewError is not null)
+                                {
+                                    <MudAlert Severity="Severity.Warning" Dense="true">@_previewError</MudAlert>
+                                }
+
                                 <MudDivider Class="my-2" />
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                                     ID: @_selectedTemplate.Id
@@ -149,6 +170,9 @@
     private bool _loading = true;
     private bool _serviceError;
     private TemplateListItemViewModel? _selectedTemplate;
+    private Sorcha.Blueprint.Models.Blueprint? _previewBlueprint;
+    private bool _previewLoading;
+    private string? _previewError;
 
     private IEnumerable<TemplateListItemViewModel> FilteredTemplates =>
         string.IsNullOrWhiteSpace(_searchText)
@@ -182,14 +206,51 @@
         }
     }
 
-    private void SelectTemplate(TemplateListItemViewModel template)
+    private async Task SelectTemplate(TemplateListItemViewModel template)
     {
         _selectedTemplate = template;
+        await LoadTemplatePreviewAsync(template);
     }
 
     private void CloseDetail()
     {
         _selectedTemplate = null;
+        _previewBlueprint = null;
+        _previewError = null;
+    }
+
+    private async Task LoadTemplatePreviewAsync(TemplateListItemViewModel template)
+    {
+        _previewBlueprint = null;
+        _previewError = null;
+        _previewLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Build default parameters for preview evaluation
+            var defaultParams = new Dictionary<string, object>();
+            foreach (var param in template.Parameters)
+            {
+                if (param.DefaultValue is not null)
+                    defaultParams[param.Name] = param.DefaultValue;
+            }
+
+            _previewBlueprint = await TemplateApi.EvaluateTemplateForPreviewAsync(
+                template.Id, defaultParams);
+
+            if (_previewBlueprint is null)
+                _previewError = "Preview unavailable — could not evaluate template.";
+        }
+        catch
+        {
+            _previewError = "Preview unavailable — template evaluation failed.";
+        }
+        finally
+        {
+            _previewLoading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task UseTemplate(TemplateListItemViewModel template)

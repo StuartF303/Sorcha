@@ -34,6 +34,9 @@ builder.Services.AddBlazoredLocalStorage();
 // Add blueprint serialization service for export/import
 builder.Services.AddScoped<BlueprintSerializationService>();
 
+// Add blueprint layout service for visual diagram rendering
+builder.Services.AddScoped<BlueprintLayoutService>();
+
 // Add schema library service with caching (for designer and schema library pages)
 builder.Services.AddScoped<ISchemaCacheService, LocalStorageSchemaCacheService>();
 builder.Services.AddScoped<SchemaLibraryService>(sp =>

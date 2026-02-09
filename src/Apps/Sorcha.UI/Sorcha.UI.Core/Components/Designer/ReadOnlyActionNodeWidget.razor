@@ -1,0 +1,98 @@
+@using Blazor.Diagrams.Core.Models
+@using Sorcha.UI.Core.Models.Designer
+
+<div class="readonly-action-node @GetNodeClasses()">
+    <!-- Header Bar -->
+    <div class="readonly-node-header" style="@GetHeaderStyle()">
+        @if (Node.Action.IsStartingAction)
+        {
+            <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Size="Size.Small" Class="mr-1" />
+        }
+        else
+        {
+            <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" Class="mr-1" />
+        }
+        <span class="readonly-node-title">@Node.Action.Title</span>
+        <MudChip T="string" Size="Size.Small" Class="readonly-id-chip">@Node.Action.Id</MudChip>
+    </div>
+
+    <!-- Badges Row -->
+    <div class="readonly-badges">
+        @if (Node.Action.IsStartingAction)
+        {
+            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">START</MudChip>
+        }
+        @if (IsTerminal)
+        {
+            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled">END</MudChip>
+        }
+        @if (IsCycleTarget)
+        {
+            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Loop">CYCLE</MudChip>
+        }
+    </div>
+
+    <!-- Sender -->
+    @if (!string.IsNullOrWhiteSpace(Node.Action.Sender))
+    {
+        <div class="readonly-node-section">
+            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="readonly-section-icon" />
+            <span class="readonly-sender">@GetSenderLabel()</span>
+        </div>
+    }
+
+    <!-- Summary -->
+    @if (!string.IsNullOrWhiteSpace(DetailSummary))
+    {
+        <div class="readonly-node-section readonly-summary">
+            <MudText Typo="Typo.caption">@DetailSummary</MudText>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ActionNodeModel Node { get; set; } = null!;
+
+    [CascadingParameter(Name = "ParticipantLegend")]
+    public List<ParticipantInfo>? ParticipantLegend { get; set; }
+
+    [CascadingParameter(Name = "DiagramLayout")]
+    public DiagramLayout? Layout { get; set; }
+
+    private bool IsTerminal => Layout?.Nodes.FirstOrDefault(n => n.ActionId == Node.Action.Id)?.IsTerminal ?? false;
+    private bool IsCycleTarget => Layout?.Nodes.FirstOrDefault(n => n.ActionId == Node.Action.Id)?.IsCycleTarget ?? false;
+    private string DetailSummary => Layout?.Nodes.FirstOrDefault(n => n.ActionId == Node.Action.Id)?.DetailSummary ?? string.Empty;
+
+    private string GetNodeClasses()
+    {
+        var classes = new List<string>();
+        if (Node.Selected) classes.Add("selected");
+        if (Node.Action.IsStartingAction) classes.Add("starting-action");
+        if (IsTerminal) classes.Add("terminal-action");
+        if (IsCycleTarget) classes.Add("cycle-target");
+        return string.Join(" ", classes);
+    }
+
+    private string GetHeaderStyle()
+    {
+        var colour = GetParticipantColour();
+        return $"background: linear-gradient(135deg, {colour} 0%, {colour}dd 100%)";
+    }
+
+    private string GetParticipantColour()
+    {
+        if (ParticipantLegend is null || string.IsNullOrWhiteSpace(Node.Action.Sender))
+            return "#1976d2";
+
+        return ParticipantLegend.FirstOrDefault(p => p.Id == Node.Action.Sender)?.Colour ?? "#1976d2";
+    }
+
+    private string GetSenderLabel()
+    {
+        if (ParticipantLegend is null || string.IsNullOrWhiteSpace(Node.Action.Sender))
+            return Node.Action.Sender ?? "Unknown";
+
+        return ParticipantLegend.FirstOrDefault(p => p.Id == Node.Action.Sender)?.Name ?? Node.Action.Sender;
+    }
+}

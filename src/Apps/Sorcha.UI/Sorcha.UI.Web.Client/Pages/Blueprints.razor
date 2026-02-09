@@ -10,6 +10,7 @@
 @using Sorcha.UI.Core.Models.Common
 @using Sorcha.UI.Core.Components.Blueprints
 @using Sorcha.UI.Core.Components.Shared
+@using Sorcha.UI.Core.Components.Designer
 @using Sorcha.UI.Core.Services
 @inject IBlueprintApiService BlueprintApi
 @inject IDialogService DialogService
@@ -115,6 +116,9 @@
                                 </MudStack>
                             </MudCardContent>
                             <MudCardActions>
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary"
+                                               Size="Size.Small" OnClick="() => ViewBlueprint(blueprint)"
+                                               title="View Diagram" />
                                 <MudButton Color="Color.Primary" Variant="Variant.Text"
                                            Href="@($"designer?id={blueprint.Id}")">Open</MudButton>
                                 @if (blueprint.Status == "draft")
@@ -255,6 +259,24 @@
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         await DialogService.ShowAsync<VersionHistoryDialog>("Version History", parameters, options);
+    }
+
+    private async Task ViewBlueprint(BlueprintListItemViewModel blueprint)
+    {
+        var fullBlueprint = await BlueprintApi.GetBlueprintDetailAsync(blueprint.Id);
+        if (fullBlueprint is null)
+        {
+            Snackbar.Add("Could not load blueprint details", Severity.Warning);
+            return;
+        }
+
+        var parameters = new DialogParameters
+        {
+            ["Blueprint"] = fullBlueprint,
+            ["Title"] = blueprint.Title
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
+        await DialogService.ShowAsync<BlueprintViewerDialog>("Blueprint Viewer", parameters, options);
     }
 
     private async Task DeleteBlueprint(BlueprintListItemViewModel blueprint)
