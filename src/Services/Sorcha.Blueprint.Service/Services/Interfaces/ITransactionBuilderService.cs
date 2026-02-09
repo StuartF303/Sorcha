@@ -233,14 +233,22 @@ public class BuiltTransaction
     /// <returns>An ActionTransactionSubmission ready for Validator Service submission</returns>
     public ActionTransactionSubmission ToActionTransactionSubmission(Sorcha.ServiceClients.Wallet.WalletSignResult signResult)
     {
+        var payloadElement = JsonSerializer.Deserialize<JsonElement>(TransactionData);
+
+        // Compute PayloadHash the same way the Validator does:
+        // Serialize the JsonElement with WriteIndented=false, then SHA-256 the UTF-8 bytes
+        var payloadJson = JsonSerializer.Serialize(payloadElement, new JsonSerializerOptions { WriteIndented = false });
+        var payloadHashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(payloadJson));
+        var payloadHash = Convert.ToHexString(payloadHashBytes).ToLowerInvariant();
+
         return new ActionTransactionSubmission
         {
             TransactionId = TxId,
             RegisterId = RegisterId,
             BlueprintId = Metadata.GetValueOrDefault("blueprintId")?.ToString() ?? string.Empty,
             ActionId = Metadata.GetValueOrDefault("actionId")?.ToString() ?? string.Empty,
-            Payload = JsonSerializer.Deserialize<JsonElement>(TransactionData),
-            PayloadHash = TxId,
+            Payload = payloadElement,
+            PayloadHash = payloadHash,
             Signatures =
             [
                 new SignatureInfo

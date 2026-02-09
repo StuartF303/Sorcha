@@ -98,10 +98,10 @@
 
 - [X] T024 Build solution and verify zero new compiler errors: `dotnet build`
 - [X] T025 Run full test suite and verify all existing tests pass: `dotnet test`
-- [ ] T026 Run Ping-Pong walkthrough and verify all 10 action transactions have docket numbers: `pwsh walkthroughs/PingPong/test-ping-pong-workflow.ps1`
+- [X] T026 Run Ping-Pong walkthrough and verify all 10 action transactions have docket numbers: `pwsh walkthroughs/PingPong/test-ping-pong-workflow.ps1`
 - [ ] T027 Run Organization Ping-Pong walkthrough and verify 10/10 steps, 40/40 actions: `pwsh walkthroughs/OrganizationPingPong/test-org-ping-pong.ps1`
-- [ ] T028 Update `src/Services/Sorcha.Register.Service/README.md` transaction flow documentation to reflect the new pipeline
-- [ ] T029 Update `.specify/MASTER-TASKS.md` with task status for 028
+- [X] T028 Update `src/Services/Sorcha.Register.Service/README.md` transaction flow documentation to reflect the new pipeline
+- [X] T029 Update `.specify/MASTER-TASKS.md` with task status for 028
 
 ---
 

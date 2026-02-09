@@ -117,14 +117,20 @@ public class TransactionBuilderExtensionsTests
     }
 
     [Fact]
-    public void ToActionTransactionSubmission_MapsPayloadHashAsTxId()
+    public void ToActionTransactionSubmission_ComputesPayloadHashFromSerializedPayload()
     {
         var tx = CreateTestTransaction();
         var signResult = CreateTestSignResult();
 
         var result = tx.ToActionTransactionSubmission(signResult);
 
-        result.PayloadHash.Should().Be(tx.TxId);
+        // PayloadHash should be SHA-256 of the compact JSON serialization of the Payload
+        var expectedJson = JsonSerializer.Serialize(result.Payload, new JsonSerializerOptions { WriteIndented = false });
+        var expectedBytes = System.Text.Encoding.UTF8.GetBytes(expectedJson);
+        var expectedHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(expectedBytes)).ToLowerInvariant();
+
+        result.PayloadHash.Should().Be(expectedHash);
+        result.PayloadHash.Should().HaveLength(64); // SHA-256 hex string
     }
 
     [Fact]

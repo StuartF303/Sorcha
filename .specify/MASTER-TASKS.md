@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 4.8 - UPDATED
-**Last Updated:** 2026-02-08
-**Status:** Active - UI Modernization Complete
+**Version:** 4.9 - UPDATED
+**Last Updated:** 2026-02-09
+**Status:** Active - Transaction Pipeline Fixed
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -19,6 +19,21 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ---
 
 ## Recent Updates
+
+**2026-02-09:**
+- ✅ 028-FIX-TRANSACTION-PIPELINE: Fix transaction submission pipeline — route action transactions through Validator Service (29 tasks, 5 phases)
+  - CRITICAL: Action transactions now flow Blueprint Service → Validator mempool → docket sealing → Register write-back (was bypassing Validator entirely)
+  - Added IValidatorServiceClient.SubmitTransactionAsync + BuiltTransaction.ToActionTransactionSubmission mapper
+  - ActionExecutionService routes through Validator with 30s confirmation polling against Register
+  - Register monitoring: IRegisterMonitoringRegistry.RegisterForMonitoring called after mempool addition
+  - Direct POST /transactions endpoint restricted to CanWriteDockets (internal/diagnostic only)
+  - Fixed PayloadHash computation to match Validator's canonical JSON serialization
+  - Fixed RegisterServiceClient.GetTransactionAsync missing auth header
+  - Fixed register height tracking: count-based (Height = DocketNumber + 1) so genesis docket properly increments
+  - Fixed GetLatestDocket endpoint to use Height - 1 for count-based convention
+  - Idempotent docket write-back: handles duplicate key errors on transaction/docket inserts
+  - Ping-Pong walkthrough verified: 10/10 actions, 10 properly chained dockets (0-9), 11 transactions
+  - Test count: Blueprint Service 235 pass, Validator Service 597 pass, ServiceClients 9 pass, Register Core 148 pass
 
 **2026-02-08:**
 - ✅ FIX-TEMPLATE-SEEDING: Fix Docker template seeding + persist template storage

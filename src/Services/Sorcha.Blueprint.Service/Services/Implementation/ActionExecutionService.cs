@@ -184,7 +184,7 @@ public class ActionExecutionService : IActionExecutionService
             var confirmedTx = await _registerClient.GetTransactionAsync(
                 instance.RegisterId, confirmedTxId, cancellationToken);
 
-            if (confirmedTx != null && confirmedTx.DocketNumber > 0)
+            if (confirmedTx != null)
             {
                 _logger.LogInformation(
                     "Transaction {TxId} confirmed in docket {DocketNumber} for register {RegisterId}",
@@ -333,7 +333,7 @@ public class ActionExecutionService : IActionExecutionService
             var confirmedTx = await _registerClient.GetTransactionAsync(
                 instance.RegisterId, transaction.TxId, cancellationToken);
 
-            if (confirmedTx != null && confirmedTx.DocketNumber > 0)
+            if (confirmedTx != null)
                 break;
 
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);

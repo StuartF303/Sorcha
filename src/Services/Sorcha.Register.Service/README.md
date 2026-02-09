@@ -74,18 +74,22 @@ Register Service
 ```
 Client → Register API → [Create Register]
       ↓
-Blueprint Service → Transaction API → [Submit Transaction]
+Blueprint Service → Validator Service → [Submit Transaction to Mempool]
       ↓
-TransactionManager → [Validate Chain, Store Transaction]
+Validator Mempool → DocketBuildTrigger → [Build Docket from Pending Transactions]
       ↓
-EventPublisher → [Publish TransactionConfirmed Event]
+Consensus → [Achieve Consensus (single-validator auto-approve)]
       ↓
-Validator Service → [Validate Consensus, Create Docket]
+DocketDistributor → Register Docket API → [Write Docket + Transactions, Update Height]
       ↓
-Docket API → [Store Docket, Update Register Height]
+Blueprint Service → Register Transaction API → [Poll for Confirmation]
       ↓
 SignalR Hub → [Notify Clients: DocketSealed, RegisterHeightUpdated]
 ```
+
+> **Note:** Action transactions are NOT submitted directly to the Register Service.
+> They flow through the Validator Service pipeline (mempool → docket sealing → Register write-back).
+> The direct `POST /api/registers/{id}/transactions` endpoint is restricted to internal/diagnostic use only.
 
 ### Blockchain-Style Chain Integrity
 
@@ -236,9 +240,11 @@ REGISTER__EVENTPROVIDER="AspireMessaging"
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/registers/{registerId}/transactions` | Submit transaction to register |
+| POST | `/api/registers/{registerId}/transactions` | Submit transaction (internal/diagnostic only, requires `CanWriteDockets`) |
 | GET | `/api/registers/{registerId}/transactions/{txId}` | Get transaction by ID |
 | GET | `/api/registers/{registerId}/transactions` | Get all transactions (paginated) |
+
+> **Pipeline change:** Action transactions should be submitted to the Validator Service (`POST /api/v1/transactions/validate`), not directly to this endpoint. The Validator queues transactions in the mempool, builds dockets, and writes confirmed transactions back to the Register via the docket endpoint.
 
 ### Query API (Advanced)
 
@@ -370,13 +376,13 @@ Open `coverage/index.html` in your browser.
 ### Validator Service Integration
 
 The Register Service integrates with the Validator Service for:
-- **Chain Validation**: Delegate cryptographic chain validation
-- **Consensus**: Receive consensus-approved dockets for sealing
-- **Docket Creation**: Validator creates dockets, Register stores them
+- **Docket Write-Back**: Validator builds dockets from mempool transactions and writes sealed dockets (with transactions) back to the Register via `POST /api/registers/{id}/dockets`
+- **Register Height Tracking**: Height is updated on each docket write (count-based: height = number of dockets written)
+- **Idempotent Writes**: Duplicate docket/transaction inserts are handled gracefully for retry safety
+- **Register Monitoring**: Validator queries register height and latest docket to determine next docket number and chain from previous hash
 
-**Communication**: Event-driven messaging
-**Events Subscribed**: `DocketConfirmed`, `TransactionValidationCompleted`
-**Events Published**: `TransactionConfirmed`, `DocketProposed`
+**Communication**: HTTP REST API (Validator → Register for writes, Register → Validator for genesis submission)
+**Key Endpoints**: `POST /dockets` (write-back), `GET /dockets/latest` (chain info), `GET /registers/{id}` (height)
 
 ### Wallet Service Integration
 
@@ -391,13 +397,13 @@ The Register Service integrates with the Wallet Service for:
 ### Blueprint Service Integration
 
 The Register Service integrates with the Blueprint Service for:
-- **Transaction Storage**: Receive action transactions from blueprint workflows
-- **Blueprint Tracking**: Store blueprint metadata in transactions
+- **Transaction Confirmation**: Blueprint Service polls `GET /api/registers/{id}/transactions/{txId}` to confirm action transactions have been sealed in a docket
+- **Blueprint Tracking**: Store blueprint metadata in transactions (via Validator docket write-back)
 - **Workflow Queries**: Query transactions by blueprint ID and instance ID
 
-**Communication**: HTTP REST API + Events
-**Endpoints Used**: Register endpoints for transaction submission
-**Events Published**: `TransactionConfirmed` (Blueprint listens for confirmation)
+**Communication**: HTTP REST API
+**Endpoints Used**: `GET /transactions/{txId}` (confirmation polling), `GET /transactions` (queries)
+**Flow**: Blueprint Service submits action transactions to the **Validator Service** (not directly to Register), then polls Register for confirmation after docket sealing
 
 ### SignalR Client Example
 
