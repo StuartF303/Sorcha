@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Text.Json;
 using Sorcha.Blueprint.Service.Models;
 using Sorcha.Blueprint.Service.Models.Requests;
+using Sorcha.ServiceClients.Validator;
 using Sorcha.TransactionHandler.Core;
 using ActionModel = Sorcha.Blueprint.Models.Action;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
@@ -222,6 +224,40 @@ public class BuiltTransaction
     /// Transaction metadata
     /// </summary>
     public Dictionary<string, object> Metadata { get; init; } = new();
+
+    /// <summary>
+    /// Converts to an ActionTransactionSubmission for submission to the Validator Service.
+    /// Maps BuiltTransaction fields to the Validator's expected format per data-model.md.
+    /// </summary>
+    /// <param name="signResult">The wallet sign result containing signature and public key bytes</param>
+    /// <returns>An ActionTransactionSubmission ready for Validator Service submission</returns>
+    public ActionTransactionSubmission ToActionTransactionSubmission(Sorcha.ServiceClients.Wallet.WalletSignResult signResult)
+    {
+        return new ActionTransactionSubmission
+        {
+            TransactionId = TxId,
+            RegisterId = RegisterId,
+            BlueprintId = Metadata.GetValueOrDefault("blueprintId")?.ToString() ?? string.Empty,
+            ActionId = Metadata.GetValueOrDefault("actionId")?.ToString() ?? string.Empty,
+            Payload = JsonSerializer.Deserialize<JsonElement>(TransactionData),
+            PayloadHash = TxId,
+            Signatures =
+            [
+                new SignatureInfo
+                {
+                    PublicKey = Convert.ToBase64String(signResult.PublicKey),
+                    SignatureValue = Convert.ToBase64String(signResult.Signature),
+                    Algorithm = signResult.Algorithm
+                }
+            ],
+            CreatedAt = DateTimeOffset.UtcNow,
+            Metadata = new Dictionary<string, string>
+            {
+                ["instanceId"] = Metadata.GetValueOrDefault("instanceId")?.ToString() ?? string.Empty,
+                ["Type"] = "Action"
+            }
+        };
+    }
 
     /// <summary>
     /// Converts to a TransactionModel for submission to the Register Service

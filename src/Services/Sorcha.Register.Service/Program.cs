@@ -721,7 +721,7 @@ an immutable audit trail of register creation and ownership.
 
 var transactionsGroup = app.MapGroup("/api/registers/{registerId}/transactions")
     .WithTags("Transactions")
-    .RequireAuthorization("CanSubmitTransactions");
+    .RequireAuthorization("CanWriteDockets"); // Restricted: action transactions must go through Validator Service pipeline
 
 /// <summary>
 /// Submit a transaction
@@ -750,8 +750,8 @@ transactionsGroup.MapPost("/", async (
     }
 })
 .WithName("SubmitTransaction")
-.WithSummary("Submit a transaction")
-.WithDescription("Stores a validated transaction in the register.");
+.WithSummary("Submit a transaction (internal/diagnostic only)")
+.WithDescription("Stores a transaction directly in the register. Action transactions should be submitted via the Validator Service pipeline.");
 
 /// <summary>
 /// Get transaction by ID
