@@ -31,7 +31,7 @@ These models are referenced directly from the shared library. No CLI-local copie
 | RegisterId | string | Owning register |
 | TxId | string (64-char hex) | Transaction hash |
 | PrevTxId | string (64-char hex) | Previous transaction hash |
-| BlockNumber | ulong? | Docket ID |
+| DocketNumber | ulong? | Docket ID |
 | Version | uint | Transaction version |
 | SenderWallet | string | Base58 sender address |
 | RecipientsWallets | string[] | Base58 recipient addresses |

@@ -144,7 +144,7 @@ public class DocketManager
 
             if (transaction != null)
             {
-                transaction.BlockNumber = docket.Id;
+                transaction.DocketNumber = docket.Id;
                 // Note: In a real implementation, you'd need an UpdateTransaction method
             }
         }

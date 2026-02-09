@@ -121,10 +121,10 @@
                                     <MudText Typo="Typo.caption">@item.Transaction.TimeStampFormatted</MudText>
                                 </td>
                                 <td>
-                                    @if (item.Transaction.BlockNumber.HasValue)
+                                    @if (item.Transaction.DocketNumber.HasValue)
                                     {
                                         <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">
-                                            Block @item.Transaction.BlockNumber
+                                            Docket @item.Transaction.DocketNumber
                                         </MudChip>
                                     }
                                     else

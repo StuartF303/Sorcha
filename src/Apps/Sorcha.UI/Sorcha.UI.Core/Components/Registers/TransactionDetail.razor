@@ -43,7 +43,7 @@
             <MudItem xs="6">
                 <MudStack Spacing="0">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">Status</MudText>
-                    @if (Transaction.BlockNumber.HasValue)
+                    @if (Transaction.DocketNumber.HasValue)
                     {
                         <MudChip T="string"
                                  Size="Size.Small"
@@ -75,14 +75,14 @@
             </MudItem>
         </MudGrid>
 
-        @* Block Information *@
-        @if (Transaction.BlockNumber.HasValue)
+        @* Docket Information *@
+        @if (Transaction.DocketNumber.HasValue)
         {
             <MudStack Spacing="0">
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Block Number</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Docket Number</MudText>
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                     <MudIcon Icon="@Icons.Material.Filled.Layers" Size="Size.Small" Color="Color.Secondary" />
-                    <MudText Typo="Typo.body1">@Transaction.BlockNumber</MudText>
+                    <MudText Typo="Typo.body1">@Transaction.DocketNumber</MudText>
                 </MudStack>
             </MudStack>
         }

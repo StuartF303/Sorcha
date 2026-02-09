@@ -28,13 +28,13 @@
             </MudChip>
         </MudItem>
         <MudItem xs="12" sm="3" Class="d-none d-sm-flex justify-end">
-            @if (Transaction.BlockNumber.HasValue)
+            @if (Transaction.DocketNumber.HasValue)
             {
                 <MudChip T="string"
                          Size="Size.Small"
                          Icon="@Icons.Material.Filled.Layers"
                          Color="Color.Default">
-                    Block @Transaction.BlockNumber
+                    Docket @Transaction.DocketNumber
                 </MudChip>
             }
             else

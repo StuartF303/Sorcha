@@ -31,7 +31,7 @@ public class TransactionModel
 {
     public string TxId { get; set; } = string.Empty;
     public string RegisterId { get; set; } = string.Empty;
-    public ulong? BlockNumber { get; set; }
+    public ulong? DocketNumber { get; set; }
     public uint Version { get; set; }
     public string SenderWallet { get; set; } = string.Empty;
     public string[] RecipientsWallets { get; set; } = Array.Empty<string>();

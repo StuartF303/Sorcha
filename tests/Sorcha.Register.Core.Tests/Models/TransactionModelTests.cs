@@ -23,7 +23,7 @@ public class TransactionModelTests
         transaction.RegisterId.Should().BeEmpty();
         transaction.TxId.Should().BeEmpty();
         transaction.PrevTxId.Should().BeEmpty();
-        transaction.BlockNumber.Should().BeNull();
+        transaction.DocketNumber.Should().BeNull();
         transaction.Version.Should().Be(1u);
         transaction.SenderWallet.Should().BeEmpty();
         transaction.RecipientsWallets.Should().BeEmpty();
@@ -51,7 +51,7 @@ public class TransactionModelTests
             RegisterId = registerId,
             TxId = txId,
             PrevTxId = prevTxId,
-            BlockNumber = 5,
+            DocketNumber = 5,
             Version = 2,
             SenderWallet = senderWallet,
             RecipientsWallets = recipients,
@@ -64,7 +64,7 @@ public class TransactionModelTests
         transaction.RegisterId.Should().Be(registerId);
         transaction.TxId.Should().Be(txId);
         transaction.PrevTxId.Should().Be(prevTxId);
-        transaction.BlockNumber.Should().Be(5ul);
+        transaction.DocketNumber.Should().Be(5ul);
         transaction.Version.Should().Be(2u);
         transaction.SenderWallet.Should().Be(senderWallet);
         transaction.RecipientsWallets.Should().BeEquivalentTo(recipients);
@@ -300,7 +300,7 @@ public class TransactionModelTests
             RegisterId = Guid.NewGuid().ToString("N"),
             TxId = new string('a', 64),
             PrevTxId = new string('b', 64),
-            BlockNumber = 10,
+            DocketNumber = 10,
             Version = 1,
             SenderWallet = "sender-wallet-address",
             RecipientsWallets = new[] { "recipient1", "recipient2" },

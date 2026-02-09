@@ -40,7 +40,7 @@ The `Transaction` entity retains all fields. The only change is the default vers
 | Signature      | byte[]?          | Yes                |
 | PayloadManager | IPayloadManager  | Yes                |
 | RegisterId     | string?          | Yes                |
-| BlockNumber    | ulong?           | Yes                |
+| DocketNumber    | ulong?           | Yes                |
 
 ### TransactionModel (No Change)
 

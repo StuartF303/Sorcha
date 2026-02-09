@@ -221,7 +221,7 @@ public class InMemoryRegisterRepository : IRegisterRepository
         }
 
         return registerTransactions.Values
-            .Where(t => t.BlockNumber == docketId)
+            .Where(t => t.DocketNumber == docketId)
             .OrderBy(t => t.TimeStamp)
             .ToList();
     }

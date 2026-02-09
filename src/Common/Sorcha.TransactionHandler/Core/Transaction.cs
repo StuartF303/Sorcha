@@ -74,9 +74,9 @@ public class Transaction : ITransaction
     public string? RegisterId { get; set; }
 
     /// <summary>
-    /// Block number (docket ID) this transaction is sealed in
+    /// Docket number this transaction is sealed in
     /// </summary>
-    public ulong? BlockNumber { get; set; }
+    public ulong? DocketNumber { get; set; }
 
     /// <inheritdoc/>
     public async Task<TransactionStatus> SignAsync(
@@ -323,9 +323,9 @@ public class Transaction : ITransaction
             jsonLd["previousTxHash"] = PreviousTxHash;
         }
 
-        if (BlockNumber.HasValue)
+        if (DocketNumber.HasValue)
         {
-            jsonLd["blockNumber"] = BlockNumber.Value;
+            jsonLd["docketNumber"] = DocketNumber.Value;
         }
 
         jsonLd["version"] = (uint)Version;

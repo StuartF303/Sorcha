@@ -80,7 +80,7 @@
                         <MudTh>Register</MudTh>
                         <MudTh>Sender</MudTh>
                         <MudTh>Timestamp</MudTh>
-                        <MudTh>Block</MudTh>
+                        <MudTh>Docket</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Transaction ID">
@@ -95,8 +95,8 @@
                         <MudTd DataLabel="Timestamp">
                             @context.Transaction.TimeStamp.ToString("MMM dd, yyyy HH:mm")
                         </MudTd>
-                        <MudTd DataLabel="Block">
-                            @context.Transaction.BlockNumber
+                        <MudTd DataLabel="Docket">
+                            @context.Transaction.DocketNumber
                         </MudTd>
                     </RowTemplate>
                     <PagerContent>

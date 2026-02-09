@@ -108,7 +108,7 @@ See [Validator Service Design](../../docs/validator-service-design.md) for compl
 
 A **Register** is a distributed ledger instance that stores transactions and dockets. Each register:
 - Has a unique identifier (GUID without hyphens)
-- Maintains a current height (block number)
+- Maintains a current height (docket number)
 - Tracks status (OFFLINE, ONLINE, CHECKING, RECOVERY)
 - Can be advertised to the network or private
 - May be a full replica or partial node
@@ -467,9 +467,9 @@ public class TransactionModel
     public string PrevTxId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Block number (docket ID) this transaction is sealed in
+    /// Docket number (docket ID) this transaction is sealed in
     /// </summary>
-    public ulong? BlockNumber { get; set; }
+    public ulong? DocketNumber { get; set; }
 
     /// <summary>
     /// Transaction format version
@@ -823,7 +823,7 @@ public class BlockchainTransactionResult
     public bool Success { get; set; }
     public string? BlockchainTransactionId { get; set; }
     public string? BlockHash { get; set; }
-    public ulong? BlockNumber { get; set; }
+    public ulong? DocketNumber { get; set; }
     public string? ErrorMessage { get; set; }
     public Dictionary<string, string>? Metadata { get; set; }
 }

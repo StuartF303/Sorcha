@@ -13,13 +13,13 @@ As a platform developer, I want the transaction system to have a single version 
 
 **Why this priority**: This is the core purpose of the feature. Without a clean single-version baseline, future version management becomes increasingly complex with dead code paths and unused adapters.
 
-**Independent Test**: Can be fully tested by creating a transaction, serializing it, and verifying the version field reads as `1` while retaining all fields (sender, recipients, metadata, register ID, block number, payloads). Delivers immediate value by eliminating version confusion.
+**Independent Test**: Can be fully tested by creating a transaction, serializing it, and verifying the version field reads as `1` while retaining all fields (sender, recipients, metadata, register ID, docket number, payloads). Delivers immediate value by eliminating version confusion.
 
 **Acceptance Scenarios**:
 
 1. **Given** a developer creates a new transaction using the builder with default settings, **When** the transaction is serialized to binary, **Then** the first 4 bytes encode version `1` (little-endian uint32)
 2. **Given** a developer creates a new transaction using the builder with default settings, **When** the transaction is serialized to JSON, **Then** the `version` field is `1`
-3. **Given** a developer creates a transaction with all fields populated (sender wallet, recipients, metadata, register ID, block number, payloads), **When** the transaction is built and serialized, **Then** all fields are present and correctly preserved in both binary and JSON formats
+3. **Given** a developer creates a transaction with all fields populated (sender wallet, recipients, metadata, register ID, docket number, payloads), **When** the transaction is built and serialized, **Then** all fields are present and correctly preserved in both binary and JSON formats
 4. **Given** a developer attempts to create a transaction with a version other than V1, **When** the factory or builder is called, **Then** the system rejects the request with a clear error indicating only V1 is supported
 
 ---
@@ -70,7 +70,7 @@ As a quality engineer, I want the test suite to validate that V1 is the only sup
 1. **Given** the updated test suite, **When** all tests are executed, **Then** every test passes
 2. **Given** versioning tests, **When** V1 binary detection is tested, **Then** it succeeds
 3. **Given** versioning tests, **When** version 2, 3, or 4 detection is tested (binary or JSON), **Then** `NotSupportedException` is thrown
-4. **Given** serialization round-trip tests, **When** a V1 transaction is serialized and deserialized, **Then** all fields are preserved (including recipients, metadata, register ID, and block number)
+4. **Given** serialization round-trip tests, **When** a V1 transaction is serialized and deserialized, **Then** all fields are preserved (including recipients, metadata, register ID, and docket number)
 
 ---
 
@@ -89,7 +89,7 @@ As a quality engineer, I want the test suite to validate that V1 is the only sup
 - **FR-002**: The transaction factory MUST create transactions only for version V1, rejecting all other version values
 - **FR-003**: The version detector MUST recognize only version `1` from both binary and JSON data, throwing `NotSupportedException` for any other value
 - **FR-004**: The transaction builder MUST default to `TransactionVersion.V1` when no version is specified
-- **FR-005**: V1 transactions MUST support all fields: TxId, Timestamp, PreviousTxHash, SenderWallet, Recipients, Metadata, Signature, Payloads, RegisterId, and BlockNumber
+- **FR-005**: V1 transactions MUST support all fields: TxId, Timestamp, PreviousTxHash, SenderWallet, Recipients, Metadata, Signature, Payloads, RegisterId, and DocketNumber
 - **FR-006**: The binary wire format MUST remain structurally identical to the current format (field order, encoding, VarInt usage) with only the version bytes changing from `4` to `1`
 - **FR-007**: The JSON serialization format MUST remain structurally identical to the current format with only the `version` field value changing from `4` to `1`
 - **FR-008**: The JSON-LD serialization MUST continue to function identically, writing version `1` in the output

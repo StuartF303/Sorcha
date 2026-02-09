@@ -117,7 +117,7 @@ public class TxListCommand : Command
                 foreach (var tx in transactions)
                 {
                     var timestamp = tx.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss");
-                    var block = tx.BlockNumber?.ToString() ?? "-";
+                    var block = tx.DocketNumber?.ToString() ?? "-";
                     Console.WriteLine($"{tx.TxId,-66} {tx.SenderWallet,-40} {block,8} {tx.PayloadCount,8} {timestamp}");
                 }
 
@@ -232,7 +232,7 @@ public class TxGetCommand : Command
                 Console.WriteLine();
                 Console.WriteLine($"  Transaction ID:  {tx.TxId}");
                 Console.WriteLine($"  Register ID:     {tx.RegisterId}");
-                Console.WriteLine($"  Block Number:    {tx.BlockNumber?.ToString() ?? "Pending"}");
+                Console.WriteLine($"  Docket Number:   {tx.DocketNumber?.ToString() ?? "Pending"}");
                 Console.WriteLine($"  Version:         {tx.Version}");
                 Console.WriteLine($"  Sender Wallet:   {tx.SenderWallet}");
                 Console.WriteLine($"  Timestamp:       {tx.TimeStamp:yyyy-MM-dd HH:mm:ss}");

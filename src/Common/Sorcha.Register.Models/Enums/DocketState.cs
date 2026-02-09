@@ -4,7 +4,7 @@
 namespace Sorcha.Register.Models.Enums;
 
 /// <summary>
-/// Represents the lifecycle state of a docket (block)
+/// Represents the lifecycle state of a docket
 /// </summary>
 public enum DocketState
 {

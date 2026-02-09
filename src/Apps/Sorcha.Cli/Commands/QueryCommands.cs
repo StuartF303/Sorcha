@@ -117,7 +117,7 @@ public class QueryWalletCommand : Command
                 foreach (var tx in response.Items)
                 {
                     var timestamp = tx.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss");
-                    var block = tx.BlockNumber?.ToString() ?? "-";
+                    var block = tx.DocketNumber?.ToString() ?? "-";
                     Console.WriteLine($"{tx.TxId,-66} {tx.RegisterId,-34} {block,8} {timestamp}");
                 }
 
@@ -243,7 +243,7 @@ public class QuerySenderCommand : Command
                 foreach (var tx in response.Items)
                 {
                     var timestamp = tx.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss");
-                    var block = tx.BlockNumber?.ToString() ?? "-";
+                    var block = tx.DocketNumber?.ToString() ?? "-";
                     Console.WriteLine($"{tx.TxId,-66} {tx.RegisterId,-34} {block,8} {timestamp}");
                 }
 

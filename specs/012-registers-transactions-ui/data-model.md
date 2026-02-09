@@ -54,7 +54,7 @@ TransactionViewModel
 ├── SenderWallet: string (Base58, from backend)
 ├── RecipientsWallets: string[] (from backend)
 ├── TimeStamp: DateTime (from backend)
-├── BlockNumber: ulong? (from backend)
+├── DocketNumber: ulong? (from backend)
 ├── PayloadCount: ulong (from backend)
 ├── Signature: string (from backend)
 ├── MetaData: TransactionMetaData? (from backend)

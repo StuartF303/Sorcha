@@ -196,8 +196,8 @@ public class MongoRegisterRepository : IRegisterRepository
             // Index for timestamp-based queries
             new(Builders<TransactionModel>.IndexKeys.Descending(t => t.TimeStamp)),
 
-            // Index for block number queries
-            new(Builders<TransactionModel>.IndexKeys.Ascending(t => t.BlockNumber)),
+            // Index for docket number queries
+            new(Builders<TransactionModel>.IndexKeys.Ascending(t => t.DocketNumber)),
 
             // Index for blueprint queries
             new(Builders<TransactionModel>.IndexKeys
@@ -425,7 +425,7 @@ public class MongoRegisterRepository : IRegisterRepository
         CancellationToken cancellationToken = default)
     {
         var transactions = GetTransactionsCollection(registerId);
-        var filter = Builders<TransactionModel>.Filter.Eq(t => t.BlockNumber, docketId);
+        var filter = Builders<TransactionModel>.Filter.Eq(t => t.DocketNumber, docketId);
         return await transactions.Find(filter)
             .SortBy(t => t.TimeStamp)
             .ToListAsync(cancellationToken);

@@ -50,9 +50,9 @@ public class TransactionModel
     public string PrevTxId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Block number (docket ID) this transaction is sealed in
+    /// Docket number this transaction is sealed in
     /// </summary>
-    public ulong? BlockNumber { get; set; }
+    public ulong? DocketNumber { get; set; }
 
     /// <summary>
     /// Transaction format version

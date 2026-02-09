@@ -98,7 +98,7 @@ public class TransactionModel
     public string RegisterId { get; set; }      // Parent register
     public string TxId { get; set; }            // 64-char hex hash
     public string PrevTxId { get; set; }        // Chain link
-    public ulong? BlockNumber { get; set; }     // Docket ID
+    public ulong? DocketNumber { get; set; }     // Docket ID
     public string SenderWallet { get; set; }
     public IEnumerable<string> RecipientsWallets { get; set; }
     public DateTime TimeStamp { get; set; }

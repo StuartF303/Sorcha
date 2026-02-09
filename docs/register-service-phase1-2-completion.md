@@ -64,7 +64,7 @@ Created the following projects following the Sorcha 4-layer architecture:
   - Validation attributes included
 
 - `TransactionModel` - Signed transaction with JSON-LD support
-  - Properties: Context, Type, Id (DID URI), RegisterId, TxId, PrevTxId, BlockNumber, Version
+  - Properties: Context, Type, Id (DID URI), RegisterId, TxId, PrevTxId, DocketNumber, Version
   - Wallet addresses (sender/recipients), timestamp, metadata, payloads, signature
   - Method: `GenerateDidUri()` - creates DID URI format
 

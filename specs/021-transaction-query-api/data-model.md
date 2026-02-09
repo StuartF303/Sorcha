@@ -14,7 +14,7 @@ The `TransactionModel` already contains the `PrevTxId` field used for chain link
 | TxId | string (64 hex chars) | Yes | Unique transaction identifier (hash) |
 | PrevTxId | string (64 hex chars) | No | Previous transaction ID for chain linkage. Empty for genesis transactions |
 | RegisterId | string | Yes | Register this transaction belongs to |
-| BlockNumber | ulong? | No | Docket number if transaction has been sealed |
+| DocketNumber | ulong? | No | Docket number if transaction has been sealed |
 | SenderWallet | string | Yes | Sender wallet address |
 | RecipientsWallets | IEnumerable\<string\> | No | Recipient wallet addresses |
 | TimeStamp | DateTime | Yes | UTC timestamp of creation |
@@ -78,7 +78,7 @@ This joins the existing indexes:
 - TxId (unique ascending)
 - SenderWallet (ascending)
 - TimeStamp (descending)
-- BlockNumber (ascending)
+- DocketNumber (ascending)
 - MetaData.BlueprintId + MetaData.InstanceId (compound ascending)
 
 ## Validation Rules

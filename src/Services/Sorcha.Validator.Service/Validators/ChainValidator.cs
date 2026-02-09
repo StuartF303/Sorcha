@@ -157,7 +157,7 @@ public class ChainValidator
         }
 
         // Validate orphaned transactions (not in any docket)
-        var orphanedCount = transactions.Count(t => !t.BlockNumber.HasValue);
+        var orphanedCount = transactions.Count(t => !t.DocketNumber.HasValue);
         if (orphanedCount > 0)
         {
             result.AddInfo($"{orphanedCount} orphaned transactions (not sealed in any docket)");

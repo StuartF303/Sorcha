@@ -7,12 +7,12 @@ using Sorcha.Register.Models.Enums;
 namespace Sorcha.Register.Models;
 
 /// <summary>
-/// Represents a sealed block of transactions (docket)
+/// Represents a sealed docket of transactions
 /// </summary>
 public class Docket
 {
     /// <summary>
-    /// Docket identifier (block height)
+    /// Docket identifier (docket height)
     /// </summary>
     public ulong Id { get; set; }
 

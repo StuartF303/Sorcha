@@ -35,9 +35,9 @@ public record TransactionViewModel
     public DateTime TimeStamp { get; init; }
 
     /// <summary>
-    /// Block number (docket ID) this transaction is sealed in
+    /// Docket number this transaction is sealed in
     /// </summary>
-    public ulong? BlockNumber { get; init; }
+    public ulong? DocketNumber { get; init; }
 
     /// <summary>
     /// Number of payloads in transaction
@@ -92,6 +92,18 @@ public record TransactionViewModel
         : !string.IsNullOrEmpty(BlueprintId)
             ? "Blueprint"
             : "Transfer";
+
+    /// <summary>
+    /// Computed: Truncated TxId for compact display (first 8 chars + ellipsis)
+    /// </summary>
+    public string TxIdTruncated => TxId.Length > 8 ? $"{TxId[..8]}..." : TxId;
+
+    /// <summary>
+    /// Computed: Truncated sender wallet for compact display (first 8 + last 4 chars)
+    /// </summary>
+    public string SenderTruncated => SenderWallet.Length > 12
+        ? $"{SenderWallet[..8]}...{SenderWallet[^4..]}"
+        : SenderWallet;
 
     /// <summary>
     /// Computed: Full DID URI for this transaction

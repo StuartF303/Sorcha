@@ -484,7 +484,7 @@ public class TransactionModel
     public string RegisterId { get; set; }      // Parent register
     public string TxId { get; set; }            // 64 char hex hash
     public string PrevTxId { get; set; }        // Previous transaction (chain link)
-    public ulong? BlockNumber { get; set; }     // Docket ID (block height)
+    public ulong? DocketNumber { get; set; }     // Docket number
     public uint Version { get; set; }           // Transaction format version
     public string SenderWallet { get; set; }    // Sender address
     public IEnumerable<string> RecipientsWallets { get; set; }  // Recipient addresses

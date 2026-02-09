@@ -280,17 +280,17 @@ public abstract class RegisterRepositoryContractTests
         await sut.InsertDocketAsync(CreateDocket(1, "contract-tx-docket"));
 
         var tx = CreateTransaction("tx-in-docket", "contract-tx-docket");
-        tx.BlockNumber = 1;
+        tx.DocketNumber = 1;
         await sut.InsertTransactionAsync(tx);
 
         var txOther = CreateTransaction("tx-no-docket", "contract-tx-docket");
-        txOther.BlockNumber = 2;
+        txOther.DocketNumber = 2;
         await sut.InsertTransactionAsync(txOther);
 
         var result = (await sut.GetTransactionsByDocketAsync("contract-tx-docket", 1)).ToList();
 
         result.Should().ContainSingle();
-        result[0].BlockNumber.Should().Be(1);
+        result[0].DocketNumber.Should().Be(1);
     }
 
     // ===========================

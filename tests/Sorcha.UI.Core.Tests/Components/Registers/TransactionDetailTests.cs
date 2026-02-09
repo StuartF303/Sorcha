@@ -28,7 +28,7 @@ public class TransactionDetailTests
             SenderWallet = "5Hq3wP8d5Zr7wJ9k4Ls6mN2xC1vB0nM8",
             Signature = "sig12345678901234567890123456789012345678901234567890",
             TimeStamp = DateTime.UtcNow.AddMinutes(-5),
-            BlockNumber = blockNumber,
+            DocketNumber = blockNumber,
             PayloadCount = 2,
             ActionId = actionId,
             BlueprintId = blueprintId,
@@ -39,24 +39,24 @@ public class TransactionDetailTests
     #region Transaction Status Tests (Confirmed vs Pending)
 
     [Fact]
-    public void TransactionDetail_ShowsConfirmed_WhenBlockNumberExists()
+    public void TransactionDetail_ShowsConfirmed_WhenDocketNumberExists()
     {
         // Arrange
         var tx = CreateTestTransaction(blockNumber: 100);
 
         // Assert
-        tx.BlockNumber.Should().NotBeNull();
-        tx.BlockNumber.Should().Be(100);
+        tx.DocketNumber.Should().NotBeNull();
+        tx.DocketNumber.Should().Be(100);
     }
 
     [Fact]
-    public void TransactionDetail_ShowsPending_WhenBlockNumberIsNull()
+    public void TransactionDetail_ShowsPending_WhenDocketNumberIsNull()
     {
         // Arrange
         var tx = CreateTestTransaction(blockNumber: null);
 
         // Assert
-        tx.BlockNumber.Should().BeNull();
+        tx.DocketNumber.Should().BeNull();
     }
 
     #endregion
@@ -166,13 +166,13 @@ public class TransactionDetailTests
     }
 
     [Fact]
-    public void TransactionDetail_DisplaysBlockNumber_WhenConfirmed()
+    public void TransactionDetail_DisplaysDocketNumber_WhenConfirmed()
     {
         // Arrange
         var tx = CreateTestTransaction(blockNumber: 42);
 
         // Assert
-        tx.BlockNumber.Should().Be(42);
+        tx.DocketNumber.Should().Be(42);
     }
 
     #endregion

@@ -934,7 +934,7 @@ docketsGroup.MapGet("/", async (
 })
 .WithName("GetDockets")
 .WithSummary("Get all dockets")
-.WithDescription("Retrieves all dockets (blocks) for a register.");
+.WithDescription("Retrieves all dockets for a register.");
 
 /// <summary>
 /// Get docket by ID
@@ -949,7 +949,7 @@ docketsGroup.MapGet("/{docketId}", async (
 })
 .WithName("GetDocket")
 .WithSummary("Get docket by ID")
-.WithDescription("Retrieves a specific docket by its ID (block height).");
+.WithDescription("Retrieves a specific docket by its ID (docket height).");
 
 /// <summary>
 /// Get transactions in a docket
@@ -1028,8 +1028,8 @@ docketsGroup.MapPost("/", async (
     {
         foreach (var tx in request.Transactions)
         {
-            // Set block number for each transaction
-            tx.BlockNumber = (ulong)request.DocketNumber;
+            // Set docket number for each transaction
+            tx.DocketNumber = (ulong)request.DocketNumber;
             await repository.InsertTransactionAsync(tx);
         }
     }

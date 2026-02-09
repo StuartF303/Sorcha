@@ -26,7 +26,7 @@ public class Register
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Current block height (number of sealed dockets)
+    /// Current docket height (number of sealed dockets)
     /// </summary>
     public uint Height { get; set; }
 

@@ -144,7 +144,7 @@ public class TransactionModel
     public string RegisterId { get; set; }
     public string TxId { get; set; }         // 64-char hex hash
     public string PrevTxId { get; set; }
-    public ulong? BlockNumber { get; set; }
+    public ulong? DocketNumber { get; set; }
     public string SenderWallet { get; set; } // Base58
     public IEnumerable<string> RecipientsWallets { get; set; }
     public DateTime TimeStamp { get; set; }

@@ -362,11 +362,11 @@ public class MongoRegisterRepositoryIntegrationTests : IAsyncLifetime
         await _sut.InsertRegisterAsync(CreateTestRegister("docket-tx-reg"));
 
         var tx1 = CreateTestTransaction("dtx-1", "docket-tx-reg");
-        tx1.BlockNumber = 1;
+        tx1.DocketNumber = 1;
         var tx2 = CreateTestTransaction("dtx-2", "docket-tx-reg");
-        tx2.BlockNumber = 1;
+        tx2.DocketNumber = 1;
         var tx3 = CreateTestTransaction("dtx-3", "docket-tx-reg");
-        tx3.BlockNumber = 2;
+        tx3.DocketNumber = 2;
 
         await _sut.InsertTransactionAsync(tx1);
         await _sut.InsertTransactionAsync(tx2);
@@ -377,7 +377,7 @@ public class MongoRegisterRepositoryIntegrationTests : IAsyncLifetime
 
         // Assert
         result.Should().HaveCount(2);
-        result.Should().OnlyContain(t => t.BlockNumber == 1);
+        result.Should().OnlyContain(t => t.DocketNumber == 1);
     }
 
     [Fact]

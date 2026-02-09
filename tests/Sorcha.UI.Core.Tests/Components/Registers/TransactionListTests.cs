@@ -22,7 +22,7 @@ public class TransactionListTests
             SenderWallet = "5Hq3wP8d5Zr7wJ9k4Ls6mN2xC1vB0nM8",
             Signature = "sig12345678901234567890123456789012345678901234567890",
             TimeStamp = DateTime.UtcNow.AddMinutes(-5),
-            BlockNumber = 100,
+            DocketNumber = 100,
             PayloadCount = 2
         };
     }

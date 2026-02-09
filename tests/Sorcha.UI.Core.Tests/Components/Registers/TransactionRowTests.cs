@@ -27,7 +27,7 @@ public class TransactionRowTests
             SenderWallet = "5Hq3wP8d5Zr7wJ9k4Ls6mN2xC1vB0nM8",
             Signature = "sig12345678901234567890123456789012345678901234567890",
             TimeStamp = timeStamp ?? DateTime.UtcNow.AddMinutes(-5),
-            BlockNumber = blockNumber,
+            DocketNumber = blockNumber,
             PayloadCount = 2,
             ActionId = actionId,
             BlueprintId = blueprintId
@@ -55,23 +55,23 @@ public class TransactionRowTests
     }
 
     [Fact]
-    public void TransactionViewModel_BlockNumber_IsAvailable()
+    public void TransactionViewModel_DocketNumber_IsAvailable()
     {
         // Arrange
         var tx = CreateTestTransaction(blockNumber: 42);
 
         // Assert
-        tx.BlockNumber.Should().Be(42);
+        tx.DocketNumber.Should().Be(42);
     }
 
     [Fact]
-    public void TransactionViewModel_BlockNumber_CanBeNull()
+    public void TransactionViewModel_DocketNumber_CanBeNull()
     {
         // Arrange
         var tx = CreateTestTransaction(blockNumber: null);
 
         // Assert
-        tx.BlockNumber.Should().BeNull();
+        tx.DocketNumber.Should().BeNull();
     }
 
     [Fact]
@@ -235,7 +235,7 @@ public class TransactionRowTests
 
         // Assert
         tx.RecipientsWallets.Should().BeEmpty();
-        tx.BlockNumber.Should().BeNull();
+        tx.DocketNumber.Should().BeNull();
         tx.PayloadCount.Should().Be(0);
         tx.PrevTxId.Should().BeNull();
         tx.Version.Should().Be(1);

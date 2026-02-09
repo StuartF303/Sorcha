@@ -165,7 +165,7 @@ public class TransactionService : ITransactionService
             SenderWallet = transaction.SenderWallet,
             RecipientsWallets = transaction.RecipientsWallets?.ToList() ?? [],
             TimeStamp = transaction.TimeStamp,
-            BlockNumber = transaction.BlockNumber,
+            DocketNumber = transaction.DocketNumber,
             PayloadCount = transaction.PayloadCount,
             Signature = transaction.Signature,
             PrevTxId = transaction.PrevTxId,
