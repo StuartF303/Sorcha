@@ -106,10 +106,182 @@ try {
 $headers = @{ Authorization = "Bearer $adminToken" }
 
 # ============================================================================
-# Phase 2: Create Blueprint from Ping-Pong Template JSON
+# Phase 2: Create Wallets
 # ============================================================================
 
-Write-Step "Step 2: Load Ping-Pong Blueprint Template"
+Write-Step "Step 2: Create Wallets (2 ED25519 wallets)"
+$totalSteps++
+
+$pingWalletAddress = ""
+$pongWalletAddress = ""
+
+try {
+    $walletDefs = @(
+        @{ name = "Ping Wallet"; varName = "ping" },
+        @{ name = "Pong Wallet"; varName = "pong" }
+    )
+
+    foreach ($w in $walletDefs) {
+        Write-Info "Creating wallet: $($w.name)..."
+
+        $walletBody = @{
+            name = $w.name
+            algorithm = "ED25519"
+            wordCount = 12
+        } | ConvertTo-Json -Depth 5
+
+        $walletResponse = Invoke-RestMethod `
+            -Uri "$ApiGatewayUrl/api/v1/wallets" `
+            -Method POST `
+            -ContentType "application/json" `
+            -Headers $headers `
+            -Body $walletBody `
+            -UseBasicParsing
+
+        $address = $walletResponse.wallet.address
+
+        switch ($w.varName) {
+            "ping" { $pingWalletAddress = $address }
+            "pong" { $pongWalletAddress = $address }
+        }
+
+        Write-Success "$($w.name) created: $address"
+    }
+
+    Write-Info "Ping wallet: $pingWalletAddress"
+    Write-Info "Pong wallet: $pongWalletAddress"
+    $stepsPassed++
+} catch {
+    Write-Fail "Wallet creation failed"
+    Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  Check that Wallet Service is accessible via API Gateway" -ForegroundColor Yellow
+    exit 1
+}
+
+# ============================================================================
+# Phase 3: Create Register - 2-phase initiate and finalize
+# ============================================================================
+
+Write-Step "Step 3: Create Register - 2-phase initiate and finalize"
+$totalSteps++
+
+$registerId = ""
+
+try {
+    # Decode JWT to get user/org info
+    $jwtParts = $adminToken.Split('.')
+    $jwtBase64 = $jwtParts[1].Replace('-', '+').Replace('_', '/')
+    switch ($jwtBase64.Length % 4) {
+        1 { $jwtBase64 += '===' }
+        2 { $jwtBase64 += '==' }
+        3 { $jwtBase64 += '=' }
+    }
+    $jwtPayload = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($jwtBase64)) | ConvertFrom-Json
+    $userId = $jwtPayload.sub
+    $orgId = $jwtPayload.org_id
+    $tenantId = if ($orgId) { $orgId } else { "default" }
+
+    # Phase 3a: Initiate
+    Write-Info "Initiating register creation..."
+
+    $initiateBody = @{
+        name = "Simple Ping-Pong Register"
+        description = "Register for the simple ping-pong walkthrough"
+        tenantId = $tenantId
+        owners = @(
+            @{
+                userId = if ($userId) { $userId } else { "admin" }
+                walletId = $pingWalletAddress
+            }
+        )
+        metadata = @{
+            source = "walkthrough"
+            createdBy = "test-ping-pong-workflow.ps1"
+        }
+    } | ConvertTo-Json -Depth 10
+
+    $initiateResponse = Invoke-RestMethod `
+        -Uri "$BlueprintServiceUrl/registers/initiate" `
+        -Method POST `
+        -ContentType "application/json" `
+        -Headers $headers `
+        -Body $initiateBody `
+        -UseBasicParsing
+
+    $registerId = $initiateResponse.registerId
+    $nonce = $initiateResponse.nonce
+    $attestations = $initiateResponse.attestationsToSign
+
+    Write-Success "Register initiation received"
+    Write-Info "Register ID: $registerId"
+    Write-Info "Attestations to sign: $(($attestations | Measure-Object).Count)"
+
+    # Phase 3b: Sign attestations
+    $signedAttestations = @()
+
+    foreach ($att in $attestations) {
+        $dataToSignHex = $att.dataToSign
+        Write-Info "Signing attestation for $($att.role) with wallet $($att.walletId)..."
+
+        $hashBytes = [byte[]]::new($dataToSignHex.Length / 2)
+        for ($i = 0; $i -lt $hashBytes.Length; $i++) {
+            $hashBytes[$i] = [Convert]::ToByte($dataToSignHex.Substring($i * 2, 2), 16)
+        }
+        $dataToSignBase64 = [Convert]::ToBase64String($hashBytes)
+
+        $signBody = @{
+            transactionData = $dataToSignBase64
+            isPreHashed = $true
+        } | ConvertTo-Json -Depth 5
+
+        $signResponse = Invoke-RestMethod `
+            -Uri "$ApiGatewayUrl/api/v1/wallets/$($att.walletId)/sign" `
+            -Method POST `
+            -ContentType "application/json" `
+            -Headers $headers `
+            -Body $signBody `
+            -UseBasicParsing
+
+        $signedAttestations += @{
+            attestationData = $att.attestationData
+            publicKey = $signResponse.publicKey
+            signature = $signResponse.signature
+            algorithm = "ED25519"
+        }
+
+        Write-Success "Attestation signed"
+    }
+
+    # Phase 3c: Finalize
+    Write-Info "Finalizing register creation..."
+
+    $finalizeBody = @{
+        registerId = $registerId
+        nonce = $nonce
+        signedAttestations = $signedAttestations
+    } | ConvertTo-Json -Depth 10
+
+    $finalizeResponse = Invoke-RestMethod `
+        -Uri "$BlueprintServiceUrl/registers/finalize" `
+        -Method POST `
+        -ContentType "application/json" `
+        -Headers $headers `
+        -Body $finalizeBody `
+        -UseBasicParsing
+
+    Write-Success "Register created and finalized: $registerId"
+    $stepsPassed++
+} catch {
+    Write-Fail "Register creation failed"
+    Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+# ============================================================================
+# Phase 4: Create Blueprint from Ping-Pong Template JSON
+# ============================================================================
+
+Write-Step "Step 4: Load Ping-Pong Blueprint Template"
 $totalSteps++
 
 try {
@@ -139,7 +311,7 @@ try {
     exit 1
 }
 
-Write-Step "Step 3: Create Blueprint in Service"
+Write-Step "Step 5: Create Blueprint in Service"
 $totalSteps++
 
 try {
@@ -170,7 +342,7 @@ try {
 # Phase 3: Publish Blueprint (expect cycle warning, not error)
 # ============================================================================
 
-Write-Step "Step 4: Publish Blueprint (Expect Cycle Warning)"
+Write-Step "Step 6: Publish Blueprint - Expect Cycle Warning"
 $totalSteps++
 
 try {
@@ -225,7 +397,7 @@ try {
 # Phase 4: Create Workflow Instance
 # ============================================================================
 
-Write-Step "Step 5: Create Workflow Instance"
+Write-Step "Step 7: Create Workflow Instance"
 $totalSteps++
 
 try {
@@ -233,8 +405,8 @@ try {
 
     $instanceBody = @{
         blueprintId = $blueprintId
-        registerId = "ping-pong-demo-register"
-        tenantId = "default"
+        registerId = $registerId
+        tenantId = $tenantId
         metadata = @{
             source = "walkthrough"
             createdBy = "test-ping-pong-workflow.ps1"
@@ -276,7 +448,7 @@ try {
 # Phase 5: Execute Ping-Pong Round-Trips
 # ============================================================================
 
-Write-Step "Step 6: Execute $RoundTrips Ping-Pong Round-Trips ($($RoundTrips * 2) actions total)"
+Write-Step "Step 8: Execute $RoundTrips Ping-Pong Round-Trips ($($RoundTrips * 2) actions total)"
 $totalSteps++
 
 $counter = 1
@@ -293,8 +465,8 @@ for ($round = 1; $round -le $RoundTrips; $round++) {
         blueprintId = $blueprintId
         actionId = "0"
         instanceId = $instanceId
-        senderWallet = "wallet-ping-001"
-        registerAddress = "ping-pong-demo-register"
+        senderWallet = $pingWalletAddress
+        registerAddress = $registerId
         payloadData = @{
             message = $pingMessage
             counter = $counter
@@ -351,8 +523,8 @@ for ($round = 1; $round -le $RoundTrips; $round++) {
         blueprintId = $blueprintId
         actionId = "1"
         instanceId = $instanceId
-        senderWallet = "wallet-pong-001"
-        registerAddress = "ping-pong-demo-register"
+        senderWallet = $pongWalletAddress
+        registerAddress = $registerId
         payloadData = @{
             message = $pongMessage
             counter = $counter
@@ -415,7 +587,7 @@ if ($allActionsSucceeded) {
 # Phase 6: Verify Instance State
 # ============================================================================
 
-Write-Step "Step 7: Verify Instance State"
+Write-Step "Step 9: Verify Instance State"
 $totalSteps++
 
 try {
