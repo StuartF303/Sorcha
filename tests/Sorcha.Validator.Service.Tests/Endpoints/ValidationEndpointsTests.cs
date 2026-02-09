@@ -32,12 +32,14 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
     private readonly WebApplicationFactory<Program> _factory;
     private readonly Mock<ITransactionValidator> _mockTransactionValidator;
     private readonly Mock<IMemPoolManager> _mockMemPoolManager;
+    private readonly Mock<IRegisterMonitoringRegistry> _mockMonitoringRegistry;
     private readonly Mock<IHashProvider> _mockHashProvider;
 
     public ValidationEndpointsTests(WebApplicationFactory<Program> factory)
     {
         _mockTransactionValidator = new Mock<ITransactionValidator>();
         _mockMemPoolManager = new Mock<IMemPoolManager>();
+        _mockMonitoringRegistry = new Mock<IRegisterMonitoringRegistry>();
         _mockHashProvider = new Mock<IHashProvider>();
 
         _factory = factory.WithWebHostBuilder(builder =>
@@ -60,8 +62,10 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
                 RemoveService<IPeerServiceClient>(services);
 
                 // Add mocks for services used by ValidationEndpoints
+                RemoveService<IRegisterMonitoringRegistry>(services);
                 services.AddScoped<ITransactionValidator>(_ => _mockTransactionValidator.Object);
                 services.AddSingleton<IMemPoolManager>(_ => _mockMemPoolManager.Object);
+                services.AddSingleton<IRegisterMonitoringRegistry>(_ => _mockMonitoringRegistry.Object);
                 services.AddScoped<IHashProvider>(_ => _mockHashProvider.Object);
 
                 // Add mocks for dependencies of other services
@@ -355,6 +359,80 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+    }
+
+    [Fact]
+    public async Task ValidateTransaction_WhenAddedToMemPool_RegistersForMonitoring()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var request = CreateValidTransactionRequest();
+
+        // All validations pass and mempool add succeeds
+        _mockTransactionValidator
+            .Setup(v => v.ValidateTransactionStructure(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<JsonElement>(), It.IsAny<string>(),
+                It.IsAny<List<TransactionSignature>>(), It.IsAny<DateTimeOffset>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockTransactionValidator
+            .Setup(v => v.ValidatePayloadHash(It.IsAny<JsonElement>(), It.IsAny<string>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockTransactionValidator
+            .Setup(v => v.ValidateSignatures(It.IsAny<List<TransactionSignature>>(), It.IsAny<string>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockMemPoolManager
+            .Setup(m => m.AddTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/v1/transactions/validate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        _mockMonitoringRegistry.Verify(
+            m => m.RegisterForMonitoring(request.RegisterId),
+            Times.Once,
+            "RegisterForMonitoring should be called after successful mempool addition");
+    }
+
+    [Fact]
+    public async Task ValidateTransaction_WhenMemPoolFull_DoesNotRegisterForMonitoring()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var request = CreateValidTransactionRequest();
+
+        _mockTransactionValidator
+            .Setup(v => v.ValidateTransactionStructure(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<JsonElement>(), It.IsAny<string>(),
+                It.IsAny<List<TransactionSignature>>(), It.IsAny<DateTimeOffset>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockTransactionValidator
+            .Setup(v => v.ValidatePayloadHash(It.IsAny<JsonElement>(), It.IsAny<string>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockTransactionValidator
+            .Setup(v => v.ValidateSignatures(It.IsAny<List<TransactionSignature>>(), It.IsAny<string>()))
+            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+
+        _mockMemPoolManager
+            .Setup(m => m.AddTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        // Act
+        await client.PostAsJsonAsync("/api/v1/transactions/validate", request);
+
+        // Assert
+        _mockMonitoringRegistry.Verify(
+            m => m.RegisterForMonitoring(It.IsAny<string>()),
+            Times.Never,
+            "RegisterForMonitoring should NOT be called when mempool addition fails");
     }
 
     #endregion

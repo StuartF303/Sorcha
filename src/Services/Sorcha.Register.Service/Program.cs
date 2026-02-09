@@ -720,8 +720,7 @@ an immutable audit trail of register creation and ownership.
 // ===========================
 
 var transactionsGroup = app.MapGroup("/api/registers/{registerId}/transactions")
-    .WithTags("Transactions")
-    .RequireAuthorization("CanSubmitTransactions");
+    .WithTags("Transactions");
 
 /// <summary>
 /// Submit a transaction
@@ -750,8 +749,9 @@ transactionsGroup.MapPost("/", async (
     }
 })
 .WithName("SubmitTransaction")
-.WithSummary("Submit a transaction")
-.WithDescription("Stores a validated transaction in the register.");
+.WithSummary("Submit a transaction (internal/diagnostic only)")
+.WithDescription("Stores a transaction directly in the register. Action transactions should be submitted via the Validator Service pipeline.")
+.RequireAuthorization("CanWriteDockets");
 
 /// <summary>
 /// Get transaction by ID
@@ -766,7 +766,8 @@ transactionsGroup.MapGet("/{txId}", async (
 })
 .WithName("GetTransaction")
 .WithSummary("Get transaction by ID")
-.WithDescription("Retrieves a specific transaction by its ID.");
+.WithDescription("Retrieves a specific transaction by its ID.")
+.RequireAuthorization("CanReadTransactions");
 
 /// <summary>
 /// Get all transactions for a register (queryable)
@@ -794,7 +795,8 @@ transactionsGroup.MapGet("/", async (
 })
 .WithName("GetTransactions")
 .WithSummary("Get all transactions")
-.WithDescription("Retrieves all transactions for a register with pagination.");
+.WithDescription("Retrieves all transactions for a register with pagination.")
+.RequireAuthorization("CanReadTransactions");
 
 // ===========================
 // Query API
@@ -984,7 +986,9 @@ docketsGroup.MapGet("/latest", async (
         return Results.Ok<Docket?>(null);
     }
 
-    var docket = await repository.GetDocketAsync(registerId, register.Height);
+    // Height is count-based (1 = genesis docket written, 2 = two dockets, etc.)
+    // Latest docket ID = Height - 1
+    var docket = await repository.GetDocketAsync(registerId, (ulong)(register.Height - 1));
     return docket is not null ? Results.Ok(docket) : Results.NotFound();
 })
 .WithName("GetLatestDocket")
@@ -1030,15 +1034,32 @@ docketsGroup.MapPost("/", async (
         {
             // Set docket number for each transaction
             tx.DocketNumber = (ulong)request.DocketNumber;
-            await repository.InsertTransactionAsync(tx);
+            try
+            {
+                await repository.InsertTransactionAsync(tx);
+            }
+            catch (MongoDB.Driver.MongoWriteException ex) when (ex.WriteError?.Category == MongoDB.Driver.ServerErrorCategory.DuplicateKey)
+            {
+                // Transaction already exists (e.g., genesis transactions stored during register creation).
+                // This is expected for docket write-back of transactions that were pre-persisted.
+            }
         }
     }
 
-    // Insert docket
-    var inserted = await repository.InsertDocketAsync(docket);
+    // Insert docket (handle idempotent retries)
+    Docket inserted;
+    try
+    {
+        inserted = await repository.InsertDocketAsync(docket);
+    }
+    catch (MongoDB.Driver.MongoWriteException ex) when (ex.WriteError?.Category == MongoDB.Driver.ServerErrorCategory.DuplicateKey)
+    {
+        // Docket already written (idempotent retry from Validator). Return success.
+        inserted = docket;
+    }
 
-    // Update register height
-    await repository.UpdateRegisterHeightAsync(registerId, (uint)request.DocketNumber);
+    // Update register height (height = number of dockets written, i.e., DocketNumber + 1)
+    await repository.UpdateRegisterHeightAsync(registerId, (uint)(request.DocketNumber + 1));
 
     return Results.Created($"/api/registers/{registerId}/dockets/{inserted.Id}", inserted);
 })

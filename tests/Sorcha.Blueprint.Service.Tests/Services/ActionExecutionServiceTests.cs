@@ -4,6 +4,7 @@
 using Microsoft.Extensions.Logging;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Register;
+using Sorcha.ServiceClients.Validator;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Service.Models;
 using Sorcha.Blueprint.Service.Models.Requests;
@@ -27,6 +28,7 @@ public class ActionExecutionServiceTests
     private readonly Mock<IStateReconstructionService> _mockStateReconstruction;
     private readonly Mock<ITransactionBuilderService> _mockTransactionBuilder;
     private readonly Mock<IRegisterServiceClient> _mockRegisterClient;
+    private readonly Mock<IValidatorServiceClient> _mockValidatorClient;
     private readonly Mock<IWalletServiceClient> _mockWalletClient;
     private readonly Mock<INotificationService> _mockNotificationService;
     private readonly Mock<IInstanceStore> _mockInstanceStore;
@@ -40,6 +42,7 @@ public class ActionExecutionServiceTests
         _mockStateReconstruction = new Mock<IStateReconstructionService>();
         _mockTransactionBuilder = new Mock<ITransactionBuilderService>();
         _mockRegisterClient = new Mock<IRegisterServiceClient>();
+        _mockValidatorClient = new Mock<IValidatorServiceClient>();
         _mockWalletClient = new Mock<IWalletServiceClient>();
         _mockNotificationService = new Mock<INotificationService>();
         _mockInstanceStore = new Mock<IInstanceStore>();
@@ -51,6 +54,7 @@ public class ActionExecutionServiceTests
             _mockStateReconstruction.Object,
             _mockTransactionBuilder.Object,
             _mockRegisterClient.Object,
+            _mockValidatorClient.Object,
             _mockWalletClient.Object,
             _mockNotificationService.Object,
             _mockInstanceStore.Object,
@@ -69,6 +73,7 @@ public class ActionExecutionServiceTests
                 _mockStateReconstruction.Object,
                 _mockTransactionBuilder.Object,
                 _mockRegisterClient.Object,
+                _mockValidatorClient.Object,
                 _mockWalletClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
@@ -85,6 +90,7 @@ public class ActionExecutionServiceTests
                 null!,
                 _mockTransactionBuilder.Object,
                 _mockRegisterClient.Object,
+                _mockValidatorClient.Object,
                 _mockWalletClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
@@ -101,6 +107,7 @@ public class ActionExecutionServiceTests
                 _mockStateReconstruction.Object,
                 null!,
                 _mockRegisterClient.Object,
+                _mockValidatorClient.Object,
                 _mockWalletClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
@@ -116,6 +123,24 @@ public class ActionExecutionServiceTests
                 _mockActionResolver.Object,
                 _mockStateReconstruction.Object,
                 _mockTransactionBuilder.Object,
+                null!,
+                _mockValidatorClient.Object,
+                _mockWalletClient.Object,
+                _mockNotificationService.Object,
+                _mockInstanceStore.Object,
+                _mockExecutionEngine.Object,
+                _mockLogger.Object));
+    }
+
+    [Fact]
+    public void Constructor_WithNullValidatorClient_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new ActionExecutionService(
+                _mockActionResolver.Object,
+                _mockStateReconstruction.Object,
+                _mockTransactionBuilder.Object,
+                _mockRegisterClient.Object,
                 null!,
                 _mockWalletClient.Object,
                 _mockNotificationService.Object,
@@ -133,6 +158,7 @@ public class ActionExecutionServiceTests
                 _mockStateReconstruction.Object,
                 _mockTransactionBuilder.Object,
                 _mockRegisterClient.Object,
+                _mockValidatorClient.Object,
                 null!,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
@@ -149,6 +175,7 @@ public class ActionExecutionServiceTests
                 _mockStateReconstruction.Object,
                 _mockTransactionBuilder.Object,
                 _mockRegisterClient.Object,
+                _mockValidatorClient.Object,
                 _mockWalletClient.Object,
                 null!,
                 _mockInstanceStore.Object,
@@ -165,6 +192,7 @@ public class ActionExecutionServiceTests
                 _mockStateReconstruction.Object,
                 _mockTransactionBuilder.Object,
                 _mockRegisterClient.Object,
+                _mockValidatorClient.Object,
                 _mockWalletClient.Object,
                 _mockNotificationService.Object,
                 null!,
@@ -181,6 +209,7 @@ public class ActionExecutionServiceTests
                 _mockStateReconstruction.Object,
                 _mockTransactionBuilder.Object,
                 _mockRegisterClient.Object,
+                _mockValidatorClient.Object,
                 _mockWalletClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
@@ -197,6 +226,7 @@ public class ActionExecutionServiceTests
                 _mockStateReconstruction.Object,
                 _mockTransactionBuilder.Object,
                 _mockRegisterClient.Object,
+                _mockValidatorClient.Object,
                 _mockWalletClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
@@ -326,12 +356,13 @@ public class ActionExecutionServiceTests
     [Fact]
     public void Constructor_WithAllDependencies_CreatesInstance()
     {
-        // Verify we can construct with the new IExecutionEngine dependency
+        // Verify we can construct with all dependencies
         var service = new ActionExecutionService(
             _mockActionResolver.Object,
             _mockStateReconstruction.Object,
             _mockTransactionBuilder.Object,
             _mockRegisterClient.Object,
+            _mockValidatorClient.Object,
             _mockWalletClient.Object,
             _mockNotificationService.Object,
             _mockInstanceStore.Object,

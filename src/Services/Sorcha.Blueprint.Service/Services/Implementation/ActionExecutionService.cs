@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Register;
+using Sorcha.ServiceClients.Validator;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Service.Models;
 using Sorcha.Blueprint.Service.Models.Requests;
@@ -26,6 +27,7 @@ public class ActionExecutionService : IActionExecutionService
     private readonly IStateReconstructionService _stateReconstruction;
     private readonly ITransactionBuilderService _transactionBuilder;
     private readonly IRegisterServiceClient _registerClient;
+    private readonly IValidatorServiceClient _validatorClient;
     private readonly IWalletServiceClient _walletClient;
     private readonly INotificationService _notificationService;
     private readonly IInstanceStore _instanceStore;
@@ -38,6 +40,7 @@ public class ActionExecutionService : IActionExecutionService
         IStateReconstructionService stateReconstruction,
         ITransactionBuilderService transactionBuilder,
         IRegisterServiceClient registerClient,
+        IValidatorServiceClient validatorClient,
         IWalletServiceClient walletClient,
         INotificationService notificationService,
         IInstanceStore instanceStore,
@@ -48,6 +51,7 @@ public class ActionExecutionService : IActionExecutionService
         _stateReconstruction = stateReconstruction ?? throw new ArgumentNullException(nameof(stateReconstruction));
         _transactionBuilder = transactionBuilder ?? throw new ArgumentNullException(nameof(transactionBuilder));
         _registerClient = registerClient ?? throw new ArgumentNullException(nameof(registerClient));
+        _validatorClient = validatorClient ?? throw new ArgumentNullException(nameof(validatorClient));
         _walletClient = walletClient ?? throw new ArgumentNullException(nameof(walletClient));
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
         _instanceStore = instanceStore ?? throw new ArgumentNullException(nameof(instanceStore));
@@ -155,27 +159,63 @@ public class ActionExecutionService : IActionExecutionService
         transaction.SenderWallet = request.SenderWallet;
         transaction.Signature = signResult.Signature;
 
-        // 12. Submit to Register
-        var submittedTx = await _registerClient.SubmitTransactionAsync(
-            instance.RegisterId,
-            transaction.ToTransactionModel(),
-            cancellationToken);
+        // 12. Submit to Validator Service (mempool → docket → Register)
+        var submission = transaction.ToActionTransactionSubmission(signResult);
+        var validatorResult = await _validatorClient.SubmitTransactionAsync(submission, cancellationToken);
 
-        // 13. Update instance state
+        if (!validatorResult.Success)
+        {
+            throw new InvalidOperationException(
+                $"Validator rejected transaction {transaction.TxId}: [{validatorResult.ErrorCode}] {validatorResult.ErrorMessage}");
+        }
+
+        _logger.LogInformation(
+            "Transaction {TxId} submitted to Validator for register {RegisterId}. Waiting for docket confirmation...",
+            transaction.TxId, instance.RegisterId);
+
+        // 13. Poll Register Service until transaction appears with a DocketNumber (confirmation)
+        var confirmedTxId = transaction.TxId;
+        var pollTimeout = TimeSpan.FromSeconds(30);
+        var pollInterval = TimeSpan.FromSeconds(1);
+        var deadline = DateTimeOffset.UtcNow + pollTimeout;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var confirmedTx = await _registerClient.GetTransactionAsync(
+                instance.RegisterId, confirmedTxId, cancellationToken);
+
+            if (confirmedTx != null)
+            {
+                _logger.LogInformation(
+                    "Transaction {TxId} confirmed in docket {DocketNumber} for register {RegisterId}",
+                    confirmedTxId, confirmedTx.DocketNumber, instance.RegisterId);
+                break;
+            }
+
+            await Task.Delay(pollInterval, cancellationToken);
+        }
+
+        if (DateTimeOffset.UtcNow >= deadline)
+        {
+            throw new TimeoutException(
+                $"Transaction {confirmedTxId} was not confirmed within {pollTimeout.TotalSeconds}s for register {instance.RegisterId}");
+        }
+
+        // 14. Update instance state
         instance = await UpdateInstanceAfterExecutionAsync(
             instance,
             actionId,
-            submittedTx.TxId,
+            confirmedTxId,
             routingResult,
             cancellationToken);
 
-        // 14. Notify participants via SignalR
+        // 15. Notify participants via SignalR
         await NotifyParticipantsAsync(instance, actionDef, routingResult, cancellationToken);
 
-        // 15. Build response
+        // 16. Build response
         var response = new ActionSubmissionResponse
         {
-            TransactionId = submittedTx.TxId,
+            TransactionId = confirmedTxId,
             InstanceId = instanceId,
             NextActions = routingResult.NextActions.Select(na => new NextActionResponse
             {
@@ -191,7 +231,7 @@ public class ActionExecutionService : IActionExecutionService
 
         _logger.LogInformation(
             "Action {ActionId} executed successfully for instance {InstanceId}. Transaction: {TxId}, Complete: {IsComplete}",
-            actionId, instanceId, submittedTx.TxId, response.IsComplete);
+            actionId, instanceId, confirmedTxId, response.IsComplete);
 
         return response;
     }
@@ -266,11 +306,38 @@ public class ActionExecutionService : IActionExecutionService
             instance.LastTransactionId,
             cancellationToken);
 
-        // 8. Submit to Register
-        var submittedTx = await _registerClient.SubmitTransactionAsync(
-            instance.RegisterId,
-            transaction.ToTransactionModel(),
+        // 8. Sign and submit to Validator Service
+        var rejectSignResult = await _walletClient.SignTransactionAsync(
+            request.SenderWallet ?? instance.ParticipantWallets.Values.FirstOrDefault() ?? "",
+            transaction.TransactionData,
+            derivationPath: null,
+            isPreHashed: false,
             cancellationToken);
+
+        transaction.SenderWallet = request.SenderWallet ?? instance.ParticipantWallets.Values.FirstOrDefault() ?? "";
+        transaction.Signature = rejectSignResult.Signature;
+
+        var rejectSubmission = transaction.ToActionTransactionSubmission(rejectSignResult);
+        var rejectResult = await _validatorClient.SubmitTransactionAsync(rejectSubmission, cancellationToken);
+
+        if (!rejectResult.Success)
+        {
+            throw new InvalidOperationException(
+                $"Validator rejected transaction {transaction.TxId}: [{rejectResult.ErrorCode}] {rejectResult.ErrorMessage}");
+        }
+
+        // Poll for confirmation
+        var rejectDeadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(30);
+        while (DateTimeOffset.UtcNow < rejectDeadline)
+        {
+            var confirmedTx = await _registerClient.GetTransactionAsync(
+                instance.RegisterId, transaction.TxId, cancellationToken);
+
+            if (confirmedTx != null)
+                break;
+
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+        }
 
         // 9. Update instance state
         if (actionDef.RejectionConfig.IsTerminal)
@@ -283,7 +350,7 @@ public class ActionExecutionService : IActionExecutionService
             // Route to target action
             instance.CurrentActionIds = [actionDef.RejectionConfig.TargetActionId];
         }
-        instance.LastTransactionId = submittedTx.TxId;
+        instance.LastTransactionId = transaction.TxId;
         instance = await _instanceStore.UpdateAsync(instance, cancellationToken);
 
         // 10. Notify participants
@@ -298,7 +365,7 @@ public class ActionExecutionService : IActionExecutionService
 
         return new ActionRejectionResponse
         {
-            TransactionId = submittedTx.TxId,
+            TransactionId = transaction.TxId,
             InstanceId = instanceId,
             TargetAction = new TargetActionResponse
             {

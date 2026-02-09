@@ -49,6 +49,7 @@ public static class ValidationEndpoints
         [FromBody] ValidateTransactionRequest request,
         [FromServices] ITransactionValidator validator,
         [FromServices] IMemPoolManager memPoolManager,
+        [FromServices] IRegisterMonitoringRegistry monitoringRegistry,
         [FromServices] IHashProvider hashProvider,
         [FromServices] ILogger<Program> logger,
         CancellationToken cancellationToken)
@@ -142,6 +143,9 @@ public static class ValidationEndpoints
             }
 
             logger.LogInformation("Transaction {TransactionId} validated and added to memory pool", request.TransactionId);
+
+            // Register for docket building so DocketBuildTriggerService polls this register
+            monitoringRegistry.RegisterForMonitoring(request.RegisterId);
 
             return Results.Ok(new
             {

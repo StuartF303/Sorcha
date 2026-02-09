@@ -341,6 +341,8 @@ public class RegisterServiceClient : IRegisterServiceClient
                 "Getting transaction {TransactionId} from register {RegisterId}",
                 transactionId, registerId);
 
+            await SetAuthHeaderAsync(cancellationToken);
+
             var response = await _httpClient.GetAsync(
                 $"api/registers/{Uri.EscapeDataString(registerId)}/transactions/{Uri.EscapeDataString(transactionId)}",
                 cancellationToken);
