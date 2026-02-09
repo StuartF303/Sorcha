@@ -123,6 +123,24 @@ walkthroughs/
 - **Phase 1:** Single user with default wallet ✅ Planned
 - **Phase 2:** Multi-user blueprint sharing 🚧 Future
 
+### [DistributedRegister](./DistributedRegister/)
+**Status:** ✅ Complete
+**Date:** 2026-02-09
+**Purpose:** Cross-machine register creation, peer discovery, subscription, and transaction replication between two Sorcha nodes
+
+**What you'll learn:**
+- Two-machine peer seeding and network setup (SSL certs, SSH keys, seed nodes)
+- Cross-machine service authentication via temporary service principals
+- Register advertisement and discovery on the peer network
+- Full-replica subscription and replication monitoring
+- Ping-pong blueprint execution with distributed transaction verification
+
+**Key files:**
+- `test-distributed-register.ps1` - Main 14-step walkthrough script
+- `README.md` - Complete setup guide (SSH, certs, peer seeding, YARP routes)
+
+**Prerequisites:** Two networked machines running Docker, PowerShell 7+
+
 ### [OrganizationPingPong](./OrganizationPingPong/)
 **Status:** ✅ Complete
 **Date:** 2026-02-09

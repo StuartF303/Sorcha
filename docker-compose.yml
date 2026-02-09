@@ -28,7 +28,7 @@ services:
     container_name: sorcha-redis
     restart: unless-stopped
     ports:
-      - "16379:6379"
+      - "${REDIS_PORT:-16379}:6379"
     volumes:
       - redis-data:/data
     networks:
@@ -44,7 +44,7 @@ services:
     container_name: sorcha-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: sorcha
       POSTGRES_PASSWORD: sorcha_dev_password
@@ -66,7 +66,7 @@ services:
     container_name: sorcha-mongodb
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "${MONGODB_PORT:-27017}:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: sorcha
       MONGO_INITDB_ROOT_PASSWORD: sorcha_dev_password
@@ -90,9 +90,9 @@ services:
     container_name: sorcha-aspire-dashboard
     restart: unless-stopped
     ports:
-      - "18888:18888"  # Dashboard UI
-      - "4317:18889"   # OTLP gRPC endpoint (mapped to external 4317)
-      - "4318:18890"   # OTLP HTTP endpoint
+      - "${ASPIRE_UI_PORT:-18888}:18888"    # Dashboard UI
+      - "${OTLP_GRPC_PORT:-4317}:18889"     # OTLP gRPC endpoint
+      - "${OTLP_HTTP_PORT:-4318}:18890"     # OTLP HTTP endpoint
     environment:
       - DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true
       - DASHBOARD__OTLP__AUTHMODE=Unsecured
@@ -111,7 +111,7 @@ services:
     container_name: sorcha-blueprint-service
     restart: unless-stopped
     ports:
-      - "5000:8080"
+      - "${BLUEPRINT_PORT:-5000}:8080"
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: blueprint-service
@@ -188,7 +188,7 @@ services:
     container_name: sorcha-register-service
     restart: unless-stopped
     ports:
-      - "5380:8080"  # Exposed for walkthrough testing (5290 is in Windows excluded range)
+      - "${REGISTER_PORT:-5380}:8080"  # Exposed for walkthrough testing
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: register-service
@@ -236,7 +236,7 @@ services:
     container_name: sorcha-tenant-service
     restart: unless-stopped
     ports:
-      - "5450:8080"  # Exposed for direct access during development/bootstrap (5110 is in Windows excluded range)
+      - "${TENANT_PORT:-5450}:8080"  # Exposed for direct access during development/bootstrap
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: tenant-service
@@ -267,9 +267,9 @@ services:
     container_name: sorcha-peer-service
     restart: unless-stopped
     ports:
-      - "50051:5000"  # gRPC for external P2P connections
+      - "${PEER_GRPC_PORT:-50051}:5000"  # gRPC for external P2P connections
     environment:
-      <<: *otel-env
+      <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: peer-service
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -277,11 +277,16 @@ services:
       ConnectionStrings__Redis: redis:6379
       MongoDB__ConnectionString: mongodb://sorcha:sorcha_dev_password@mongodb:27017
       MongoDB__DatabaseName: sorcha_system_register
-      # Standalone node configuration (no hub dependency for local dev)
-      PeerService__NodeId: "local-peer.sorcha.dev"
-      PeerService__PublicAddress: ""
+      # Node identity and network configuration
+      PeerService__NodeId: "${PEER_NODE_ID:-local-peer.sorcha.dev}"
+      PeerService__PublicAddress: "${PEER_PUBLIC_ADDRESS:-}"
       PeerService__Port: "5000"
       PeerService__EnableTls: "false"
+      # Cross-machine seed node (configured via .env for each machine)
+      PeerService__SeedNodes__SeedNodes__0__NodeId: "${SEED_PEER_NODE_ID:-}"
+      PeerService__SeedNodes__SeedNodes__0__Hostname: "${SEED_PEER_HOST:-}"
+      PeerService__SeedNodes__SeedNodes__0__Port: "${SEED_PEER_PORT:-50051}"
+      PeerService__SeedNodes__SeedNodes__0__EnableTls: "false"
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
@@ -302,8 +307,8 @@ services:
     container_name: sorcha-validator-service
     restart: unless-stopped
     ports:
-      - "5800:8080"        # HTTP REST API and health checks (5100/5460 in Windows excluded ranges)
-      - "5801:8081"        # gRPC endpoint
+      - "${VALIDATOR_HTTP_PORT:-5800}:8080"   # HTTP REST API and health checks
+      - "${VALIDATOR_GRPC_PORT:-5801}:8081"   # gRPC endpoint
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: validator-service
@@ -341,8 +346,8 @@ services:
     container_name: sorcha-ui-web
     restart: unless-stopped
     ports:
-      - "5400:8080"  # HTTP - Map to localhost:5400 (5173 is in Windows excluded range)
-      - "5401:8443"  # HTTPS - Map to localhost:5401
+      - "${UI_HTTP_PORT:-5400}:8080"   # HTTP
+      - "${UI_HTTPS_PORT:-5401}:8443"  # HTTPS
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: ui-web
@@ -372,8 +377,8 @@ services:
     container_name: sorcha-api-gateway
     restart: unless-stopped
     ports:
-      - "80:8080"      # HTTP ingress
-      - "443:8443"     # HTTPS ingress (requires certificate)
+      - "${GATEWAY_HTTP_PORT:-80}:8080"    # HTTP ingress
+      - "${GATEWAY_HTTPS_PORT:-443}:8443"  # HTTPS ingress
     environment:
       <<: [*otel-env, *jwt-env]
       OTEL_SERVICE_NAME: api-gateway
