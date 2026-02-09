@@ -151,7 +151,8 @@ public class ActionExecutionService : IActionExecutionService
             isPreHashed: false,
             cancellationToken);
 
-        // Use raw signature bytes from wallet sign result
+        // Set sender wallet and raw signature bytes from wallet sign result
+        transaction.SenderWallet = request.SenderWallet;
         transaction.Signature = signResult.Signature;
 
         // 12. Submit to Register

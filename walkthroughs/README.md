@@ -123,6 +123,26 @@ walkthroughs/
 - **Phase 1:** Single user with default wallet ✅ Planned
 - **Phase 2:** Multi-user blueprint sharing 🚧 Future
 
+### [OrganizationPingPong](./OrganizationPingPong/)
+**Status:** ✅ Complete
+**Date:** 2026-02-09
+**Purpose:** Full-stack pipeline: organization bootstrap, participants, real wallets, signed register, blueprint publish, and 20 round-trip ping-pong executions
+
+**What you'll learn:**
+- Organization bootstrapping (Tenant Service)
+- Multi-participant user creation
+- ED25519 wallet creation (Wallet Service via API Gateway)
+- Two-phase register creation with attestation signing
+- Blueprint template loading and wallet address patching
+- Blueprint publishing with cycle warning handling
+- Workflow instance creation and 40-action execution pipeline
+
+**Key files:**
+- `README.md` - Walkthrough overview, parameters, troubleshooting
+- `test-org-ping-pong.ps1` - Main 10-phase script
+
+**Profiles:** `gateway` (default), `direct`, `aspire`
+
 ---
 
 ## Creating a New Walkthrough

@@ -125,6 +125,10 @@ services:
       ServiceClients__RegisterService__Address: http://register-service:8080
       ServiceClients__WalletService__Address: http://wallet-service:8080
       ServiceClients__ValidatorService__Address: http://validator-service:8080
+      ServiceClients__TenantService__Address: http://tenant-service:8080
+      # Service-to-service auth for Wallet/Register Service calls during action execution
+      ServiceAuth__ClientId: service-blueprint
+      ServiceAuth__ClientSecret: blueprint-service-secret
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:

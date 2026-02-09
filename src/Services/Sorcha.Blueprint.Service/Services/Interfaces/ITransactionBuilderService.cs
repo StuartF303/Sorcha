@@ -97,7 +97,6 @@ public static class TransactionBuilderServiceExtensions
         string? previousTransactionId,
         CancellationToken cancellationToken = default)
     {
-        var txId = Guid.NewGuid().ToString();
         var metadata = new Dictionary<string, object>
         {
             ["blueprintId"] = blueprint.Id,
@@ -109,7 +108,6 @@ public static class TransactionBuilderServiceExtensions
         // Serialize the disclosed payloads into transaction data bytes
         var transactionPayload = new
         {
-            txId,
             type = "action",
             blueprintId = blueprint.Id,
             actionId = action.Id,
@@ -121,10 +119,15 @@ public static class TransactionBuilderServiceExtensions
 
         var transactionData = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(transactionPayload);
 
+        // Generate TxId as SHA-256 hash of transaction data (64 hex chars)
+        var hashBytes = System.Security.Cryptography.SHA256.HashData(transactionData);
+        var txId = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
         return Task.FromResult(new BuiltTransaction
         {
             TransactionData = transactionData,
             TxId = txId,
+            RegisterId = instance.RegisterId,
             Metadata = metadata
         });
     }
@@ -142,7 +145,6 @@ public static class TransactionBuilderServiceExtensions
         string? previousTransactionId,
         CancellationToken cancellationToken = default)
     {
-        var txId = Guid.NewGuid().ToString();
         var metadata = new Dictionary<string, object>
         {
             ["blueprintId"] = blueprint.Id,
@@ -155,7 +157,6 @@ public static class TransactionBuilderServiceExtensions
         // Serialize the rejection data into transaction data bytes
         var transactionPayload = new
         {
-            txId,
             type = "rejection",
             blueprintId = blueprint.Id,
             actionId = action.Id,
@@ -167,11 +168,16 @@ public static class TransactionBuilderServiceExtensions
 
         var transactionData = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(transactionPayload);
 
+        // Generate TxId as SHA-256 hash of transaction data (64 hex chars)
+        var hashBytes = System.Security.Cryptography.SHA256.HashData(transactionData);
+        var txId = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
         return Task.FromResult(new BuiltTransaction
         {
             TransactionData = transactionData,
             TxId = txId,
             TransactionType = "rejection",
+            RegisterId = instance.RegisterId,
             Metadata = metadata
         });
     }
@@ -188,7 +194,7 @@ public class BuiltTransaction
     public required byte[] TransactionData { get; init; }
 
     /// <summary>
-    /// The transaction ID
+    /// The transaction ID (64-char SHA-256 hex hash)
     /// </summary>
     public required string TxId { get; init; }
 
@@ -196,6 +202,16 @@ public class BuiltTransaction
     /// Transaction type (action, rejection, file)
     /// </summary>
     public string TransactionType { get; init; } = "action";
+
+    /// <summary>
+    /// The register this transaction belongs to
+    /// </summary>
+    public string RegisterId { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The sender wallet address (set by caller after building)
+    /// </summary>
+    public string SenderWallet { get; set; } = string.Empty;
 
     /// <summary>
     /// The signature (populated after signing)
@@ -208,7 +224,7 @@ public class BuiltTransaction
     public Dictionary<string, object> Metadata { get; init; } = new();
 
     /// <summary>
-    /// Converts to a TransactionModel for submission
+    /// Converts to a TransactionModel for submission to the Register Service
     /// </summary>
     public Sorcha.Register.Models.TransactionModel ToTransactionModel()
     {
@@ -226,7 +242,12 @@ public class BuiltTransaction
         return new Sorcha.Register.Models.TransactionModel
         {
             TxId = TxId,
+            RegisterId = RegisterId,
+            SenderWallet = SenderWallet,
+            Signature = Signature != null ? Convert.ToBase64String(Signature) : string.Empty,
             MetaData = metaData,
+            PayloadCount = 0,
+            Payloads = Array.Empty<Sorcha.Register.Models.PayloadModel>(),
             TimeStamp = DateTime.UtcNow
         };
     }

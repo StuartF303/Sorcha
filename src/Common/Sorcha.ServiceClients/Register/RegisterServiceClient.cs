@@ -293,6 +293,8 @@ public class RegisterServiceClient : IRegisterServiceClient
                 "Submitting transaction {TransactionId} to register {RegisterId}",
                 transaction.Id, registerId);
 
+            await SetAuthHeaderAsync(cancellationToken);
+
             var response = await _httpClient.PostAsJsonAsync(
                 $"api/registers/{Uri.EscapeDataString(registerId)}/transactions",
                 transaction,
