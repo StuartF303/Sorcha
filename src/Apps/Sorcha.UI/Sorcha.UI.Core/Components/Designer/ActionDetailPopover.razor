@@ -1,0 +1,174 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.Blueprint.Models
+@using System.Text.Json
+@using BlueprintAction = Sorcha.Blueprint.Models.Action
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Info" />
+            <MudText Typo="Typo.h6">@Action.Title</MudText>
+            <MudChip T="string" Size="MudBlazor.Size.Small" Color="Color.Primary">ID: @Action.Id</MudChip>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <!-- Description -->
+        @if (!string.IsNullOrWhiteSpace(Action.Description))
+        {
+            <MudText Typo="Typo.body2" Class="mb-3">@Action.Description</MudText>
+        }
+
+        <!-- Sender -->
+        @if (!string.IsNullOrWhiteSpace(Action.Sender))
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-1">
+                <MudIcon Icon="@Icons.Material.Filled.Person" Size="MudBlazor.Size.Small" Class="mr-1" />
+                Sender
+            </MudText>
+            <MudText Typo="Typo.body2" Class="mb-3">
+                @GetParticipantName(Action.Sender) (@Action.Sender)
+            </MudText>
+        }
+
+        <!-- Data Schemas -->
+        @if (Action.DataSchemas is not null && Action.DataSchemas.Any())
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-1">
+                <MudIcon Icon="@Icons.Material.Filled.Schema" Size="MudBlazor.Size.Small" Class="mr-1" />
+                Data Schemas (@Action.DataSchemas.Count())
+            </MudText>
+            <MudSimpleTable Dense="true" Hover="true" Class="mb-3">
+                <thead>
+                    <tr><th>Schema</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var schema in Action.DataSchemas)
+                    {
+                        <tr>
+                            <td>
+                                <MudText Typo="Typo.body2">@GetSchemaTitle(schema)</MudText>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+
+        <!-- Disclosures -->
+        @if (Action.Disclosures is not null && Action.Disclosures.Any())
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-1">
+                <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="MudBlazor.Size.Small" Class="mr-1" />
+                Disclosures (@Action.Disclosures.Count())
+            </MudText>
+            <MudSimpleTable Dense="true" Hover="true" Class="mb-3">
+                <thead>
+                    <tr><th>Participant</th><th>Data Pointers</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var disclosure in Action.Disclosures)
+                    {
+                        <tr>
+                            <td>@GetParticipantName(disclosure.ParticipantAddress)</td>
+                            <td>@string.Join(", ", disclosure.DataPointers)</td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+
+        <!-- Routes -->
+        @if (Action.Routes is not null && Action.Routes.Any())
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-1">
+                <MudIcon Icon="@Icons.Material.Filled.AltRoute" Size="MudBlazor.Size.Small" Class="mr-1" />
+                Routes (@Action.Routes.Count())
+            </MudText>
+            <MudSimpleTable Dense="true" Hover="true" Class="mb-3">
+                <thead>
+                    <tr><th>Route</th><th>Condition</th><th>Next Actions</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var route in Action.Routes)
+                    {
+                        <tr>
+                            <td>@route.Id @(route.IsDefault ? "(default)" : "")</td>
+                            <td>@(route.Description ?? (route.Condition is not null ? "Conditional" : "Always"))</td>
+                            <td>@(route.NextActionIds.Any() ? string.Join(", ", route.NextActionIds) : "END")</td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+
+        <!-- Calculations -->
+        @if (Action.Calculations is not null && Action.Calculations.Any())
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-1">
+                <MudIcon Icon="@Icons.Material.Filled.Calculate" Size="MudBlazor.Size.Small" Class="mr-1" />
+                Calculations (@Action.Calculations.Count)
+            </MudText>
+            @foreach (var calc in Action.Calculations)
+            {
+                <MudText Typo="Typo.caption" Class="mb-1">@calc.Key</MudText>
+            }
+        }
+
+        <!-- Rejection Config -->
+        @if (Action.RejectionConfig is not null)
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-1">
+                <MudIcon Icon="@Icons.Material.Filled.Block" Size="MudBlazor.Size.Small" Class="mr-1" />
+                Rejection Config
+            </MudText>
+            <MudText Typo="Typo.body2" Class="mb-1">
+                Target Action: @Action.RejectionConfig.TargetActionId
+                @if (Action.RejectionConfig.RequireReason) { <span> (reason required)</span> }
+            </MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="OnClose" Color="Color.Default">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired]
+    public BlueprintAction Action { get; set; } = null!;
+
+    [Parameter]
+    public List<Participant> Participants { get; set; } = [];
+
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private void OnClose() => MudDialog.Close();
+
+    private string GetParticipantName(string address)
+    {
+        var participant = Participants.FirstOrDefault(p => p.Id == address || p.WalletAddress == address);
+        return participant?.Name ?? address;
+    }
+
+    private static string GetSchemaTitle(JsonDocument schema)
+    {
+        try
+        {
+            var root = schema.RootElement;
+            if (root.TryGetProperty("title", out var title))
+                return title.GetString() ?? "Schema";
+            if (root.TryGetProperty("$id", out var id))
+                return id.GetString()?.Split('/').LastOrDefault() ?? "Schema";
+            if (root.TryGetProperty("$ref", out var refEl))
+                return refEl.GetString()?.Split('/').LastOrDefault() ?? "Schema";
+            return "Schema";
+        }
+        catch
+        {
+            return "Schema";
+        }
+    }
+}

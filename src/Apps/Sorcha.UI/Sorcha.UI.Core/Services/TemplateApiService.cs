@@ -3,6 +3,7 @@
 
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
+using Sorcha.Blueprint.Models;
 using Sorcha.UI.Core.Models.Blueprints;
 using Sorcha.UI.Core.Models.Templates;
 
@@ -67,6 +68,26 @@ public class TemplateApiService : ITemplateApiService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error evaluating template {Id}", id);
+            return null;
+        }
+    }
+
+    public async Task<Sorcha.Blueprint.Models.Blueprint?> EvaluateTemplateForPreviewAsync(string id, Dictionary<string, object> parameters, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/api/templates/evaluate",
+                new { templateId = id, parameters }, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<TemplateEvaluationResult>(cancellationToken: cancellationToken);
+                return result?.Blueprint;
+            }
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error evaluating template {Id} for preview", id);
             return null;
         }
     }

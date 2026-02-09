@@ -1,0 +1,50 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2025 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.UI.Core.Services
+@using BlueprintAction = Sorcha.Blueprint.Models.Action
+
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.AccountTree" />
+            <MudText Typo="Typo.h6">@(Title ?? Blueprint.Title)</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                @Blueprint.Actions.Count actions, @Blueprint.Participants.Count participants
+            </MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <BlueprintViewerDiagram Blueprint="@Blueprint" Height="600px" OnActionClicked="OnActionClicked" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Color="Color.Default">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired]
+    public Sorcha.Blueprint.Models.Blueprint Blueprint { get; set; } = null!;
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private void Close() => MudDialog.Close();
+
+    private async Task OnActionClicked(BlueprintAction action)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Action"] = action,
+            ["Participants"] = Blueprint.Participants
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        await DialogService.ShowAsync<ActionDetailPopover>(action.Title, parameters, options);
+    }
+}
