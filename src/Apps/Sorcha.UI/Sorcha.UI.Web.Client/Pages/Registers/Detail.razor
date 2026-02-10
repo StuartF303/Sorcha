@@ -73,6 +73,27 @@
         </MudAlert>
     }
 
+    @* New dockets notification banner *@
+    @if (_newDocketsCount > 0)
+    {
+        <MudAlert Severity="Severity.Info"
+                  Class="mb-4"
+                  Icon="@Icons.Material.Filled.Link"
+                  data-testid="new-dockets-alert">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudText>
+                    @_newDocketsCount new docket@(_newDocketsCount > 1 ? "s" : "") sealed
+                </MudText>
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Info"
+                           Size="Size.Small"
+                           OnClick="LoadNewDocketsAsync">
+                    Load Now
+                </MudButton>
+            </MudStack>
+        </MudAlert>
+    }
+
     @if (_registerError is not null)
     {
         <MudAlert Severity="Severity.Error" Class="mb-4">
@@ -116,6 +137,23 @@
             </MudGrid>
         </MudPaper>
 
+        @* Real-time indicator (visible on all tabs) *@
+        <MudStack Row="true"
+                  Justify="Justify.FlexEnd"
+                  AlignItems="AlignItems.Center"
+                  Class="mb-2">
+            <MudStack Row="true" Spacing="1">
+                <RealTimeIndicator ConnectionState="@_connectionState" />
+                @if (!_connectionState.IsHealthy)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                   Size="Size.Small"
+                                   OnClick="RefreshTransactionsAsync"
+                                   aria-label="Refresh" />
+                }
+            </MudStack>
+        </MudStack>
+
         @* Tabbed content area *@
         <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4">
             <MudTabPanel Text="Transactions" Icon="@Icons.Material.Filled.Receipt">
@@ -123,21 +161,6 @@
                     @* Transaction list (takes full width when no selection, or 60% when selected) *@
                     <MudItem xs="12" md="@(_selectedTransaction is not null ? 7 : 12)">
                         <MudPaper Elevation="0" Class="transaction-list-paper" data-testid="transaction-list">
-                            <MudStack Row="true"
-                                      Justify="Justify.FlexEnd"
-                                      AlignItems="AlignItems.Center"
-                                      Class="pa-3 border-bottom">
-                                <MudStack Row="true" Spacing="1">
-                                    <RealTimeIndicator ConnectionState="@_connectionState" />
-                                    @if (!_connectionState.IsHealthy)
-                                    {
-                                        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
-                                                       Size="Size.Small"
-                                                       OnClick="RefreshTransactionsAsync"
-                                                       aria-label="Refresh transactions" />
-                                    }
-                                </MudStack>
-                            </MudStack>
                             <div class="transaction-list-content">
                                 <TransactionList RegisterId="@RegisterId"
                                                  @ref="_transactionListRef"
@@ -160,7 +183,7 @@
 
             <MudTabPanel Text="Docket Chain" Icon="@Icons.Material.Filled.Link">
                 <div class="pa-3">
-                    <DocketChain RegisterId="@RegisterId" />
+                    <DocketChain RegisterId="@RegisterId" @ref="_docketChainRef" />
                 </div>
             </MudTabPanel>
         </MudTabs>
@@ -177,8 +200,10 @@
     private TransactionViewModel? _selectedTransaction;
     private int _totalTransactions;
     private TransactionList? _transactionListRef;
+    private DocketChain? _docketChainRef;
     private ConnectionState _connectionState = new();
     private int _newTransactionsCount;
+    private int _newDocketsCount;
     private List<string> _pendingTransactionIds = [];
 
     protected override async Task OnInitializedAsync()
@@ -187,6 +212,7 @@
         HubConnection.OnConnectionStateChanged += OnConnectionStateChanged;
         HubConnection.OnTransactionConfirmed += OnTransactionConfirmedAsync;
         HubConnection.OnRegisterHeightUpdated += OnRegisterHeightUpdatedAsync;
+        HubConnection.OnDocketSealed += OnDocketSealedAsync;
 
         await LoadRegisterAsync();
 
@@ -236,6 +262,15 @@
         await InvokeAsync(StateHasChanged);
     }
 
+    private async Task OnDocketSealedAsync(string registerId, ulong docketId, string hash)
+    {
+        if (registerId != RegisterId)
+            return;
+
+        _newDocketsCount++;
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task LoadNewTransactionsAsync()
     {
         if (_transactionListRef is null || _pendingTransactionIds.Count == 0)
@@ -253,6 +288,16 @@
 
         _pendingTransactionIds.Clear();
         _newTransactionsCount = 0;
+    }
+
+    private async Task LoadNewDocketsAsync()
+    {
+        if (_docketChainRef is not null)
+        {
+            await _docketChainRef.RefreshAsync();
+        }
+
+        _newDocketsCount = 0;
     }
 
     private async Task LoadRegisterAsync()
@@ -313,6 +358,7 @@
         HubConnection.OnConnectionStateChanged -= OnConnectionStateChanged;
         HubConnection.OnTransactionConfirmed -= OnTransactionConfirmedAsync;
         HubConnection.OnRegisterHeightUpdated -= OnRegisterHeightUpdatedAsync;
+        HubConnection.OnDocketSealed -= OnDocketSealedAsync;
 
         // Unsubscribe from register updates
         try

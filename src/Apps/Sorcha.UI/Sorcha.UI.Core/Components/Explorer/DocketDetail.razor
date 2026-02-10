@@ -2,20 +2,28 @@
 @* Copyright (c) 2025 Sorcha Contributors *@
 
 @using Sorcha.UI.Core.Models.Explorer
+@using Sorcha.UI.Core.Models.Registers
 @using Sorcha.UI.Core.Components.Shared
+@using Sorcha.UI.Core.Components.Registers
+@using Sorcha.UI.Core.Services
+@using Microsoft.JSInterop
+
+@inject IDocketService DocketService
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
 
 @if (Docket != null)
 {
     <MudPaper Elevation="1" Class="pa-4 mt-3">
         <MudText Typo="Typo.h6" Class="mb-3">
             <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" />
-            Docket v@Docket.Version Details
+            Docket #@Docket.Version Details
         </MudText>
 
         <MudGrid>
             <MudItem xs="12" md="6">
-                <MudField Label="Docket ID" Variant="Variant.Text">
-                    <TruncatedId Value="@Docket.DocketId" />
+                <MudField Label="Height" Variant="Variant.Text">
+                    @Docket.Version
                 </MudField>
             </MudItem>
             <MudItem xs="12" md="6">
@@ -27,55 +35,113 @@
                     </MudChip>
                 </MudField>
             </MudItem>
-            <MudItem xs="12" md="6">
-                <MudField Label="Hash" Variant="Variant.Text">
-                    <TruncatedId Value="@Docket.Hash" />
-                </MudField>
+            <MudItem xs="12">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Hash</MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.body2" Class="monospace-text" Style="word-break: break-all;">
+                            @Docket.Hash
+                        </MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                       Size="Size.Small"
+                                       OnClick="@(() => CopyToClipboardAsync(Docket.Hash))"
+                                       aria-label="Copy hash" />
+                    </MudStack>
+                </MudStack>
             </MudItem>
-            <MudItem xs="12" md="6">
-                <MudField Label="Previous Hash" Variant="Variant.Text">
+            <MudItem xs="12">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Previous Hash</MudText>
                     @if (!string.IsNullOrEmpty(Docket.PreviousHash))
                     {
-                        <TruncatedId Value="@Docket.PreviousHash" />
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudText Typo="Typo.body2" Class="monospace-text" Style="word-break: break-all;">
+                                @Docket.PreviousHash
+                            </MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                           Size="Size.Small"
+                                           OnClick="@(() => CopyToClipboardAsync(Docket.PreviousHash))"
+                                           aria-label="Copy previous hash" />
+                        </MudStack>
                     }
                     else
                     {
                         <MudText Typo="Typo.body2" Color="Color.Secondary">Genesis docket</MudText>
                     }
-                </MudField>
+                </MudStack>
             </MudItem>
-            <MudItem xs="12" md="6">
+            <MudItem xs="6" md="3">
                 <MudField Label="Transaction Count" Variant="Variant.Text">
                     @Docket.TransactionCount
                 </MudField>
             </MudItem>
-            <MudItem xs="12" md="6">
+            <MudItem xs="6" md="3">
                 <MudField Label="Created" Variant="Variant.Text">
                     @Docket.CreatedAt.ToString("MMM dd, yyyy HH:mm:ss")
                 </MudField>
             </MudItem>
+            @if (!string.IsNullOrEmpty(Docket.State))
+            {
+                <MudItem xs="6" md="3">
+                    <MudField Label="State" Variant="Variant.Text">
+                        @Docket.State
+                    </MudField>
+                </MudItem>
+            }
         </MudGrid>
 
         @if (Docket.TransactionIds.Count > 0)
         {
-            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Transactions in this Docket</MudText>
-            <MudSimpleTable Dense="true" Hover="true" Striped="true">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Transaction ID</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (var i = 0; i < Docket.TransactionIds.Count; i++)
+            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">
+                Transactions in this Docket (@Docket.TransactionCount)
+            </MudText>
+
+            @if (_loadingTransactions)
+            {
+                <MudProgressLinear Indeterminate="true" Class="mb-2" />
+            }
+            else
+            {
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" md="@(_selectedTransaction is not null ? 7 : 12)">
+                        @foreach (var tx in _transactions)
+                        {
+                            <TransactionRow Transaction="@tx"
+                                            IsSelected="@(_selectedTransaction?.TxId == tx.TxId)"
+                                            OnClick="SelectTransaction" />
+                        }
+                        @if (_transactions.Count == 0)
+                        {
+                            @* Fallback to TxID list if full transaction data unavailable *@
+                            <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Transaction ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (var i = 0; i < Docket.TransactionIds.Count; i++)
+                                    {
+                                        <tr>
+                                            <td>@(i + 1)</td>
+                                            <td class="monospace-text" style="word-break: break-all;">@Docket.TransactionIds[i]</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        }
+                    </MudItem>
+
+                    @if (_selectedTransaction is not null)
                     {
-                        <tr>
-                            <td>@(i + 1)</td>
-                            <td><TruncatedId Value="@Docket.TransactionIds[i]" /></td>
-                        </tr>
+                        <MudItem xs="12" md="5">
+                            <TransactionDetail Transaction="@_selectedTransaction"
+                                               OnClose="ClearSelection" />
+                        </MudItem>
                     }
-                </tbody>
-            </MudSimpleTable>
+                </MudGrid>
+            }
         }
     </MudPaper>
 }
@@ -83,4 +149,102 @@
 @code {
     [Parameter]
     public DocketViewModel? Docket { get; set; }
+
+    [Parameter]
+    public string RegisterId { get; set; } = "";
+
+    private List<TransactionViewModel> _transactions = [];
+    private TransactionViewModel? _selectedTransaction;
+    private bool _loadingTransactions;
+    private string? _lastLoadedDocketId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Docket is not null && Docket.DocketId != _lastLoadedDocketId && Docket.TransactionIds.Count > 0)
+        {
+            _lastLoadedDocketId = Docket.DocketId;
+            _selectedTransaction = null;
+            await LoadTransactionsAsync();
+        }
+        else if (Docket is null)
+        {
+            _transactions = [];
+            _selectedTransaction = null;
+            _lastLoadedDocketId = null;
+        }
+    }
+
+    private async Task LoadTransactionsAsync()
+    {
+        if (Docket is null || string.IsNullOrEmpty(RegisterId))
+            return;
+
+        _loadingTransactions = true;
+
+        try
+        {
+            _transactions = await DocketService.GetDocketTransactionsAsync(RegisterId, Docket.DocketId);
+        }
+        catch
+        {
+            _transactions = [];
+        }
+        finally
+        {
+            _loadingTransactions = false;
+        }
+    }
+
+    private void SelectTransaction(TransactionViewModel tx)
+    {
+        _selectedTransaction = _selectedTransaction?.TxId == tx.TxId ? null : tx;
+    }
+
+    private void ClearSelection()
+    {
+        _selectedTransaction = null;
+    }
+
+    private async Task CopyToClipboardAsync(string text)
+    {
+        try
+        {
+            var success = await JSRuntime.InvokeAsync<bool>("clipboardInterop.copyText", text);
+            if (success)
+            {
+                Snackbar.Add("Copied to clipboard", Severity.Success, config =>
+                {
+                    config.VisibleStateDuration = 1500;
+                    config.ShowCloseIcon = false;
+                });
+            }
+            else
+            {
+                Snackbar.Add("Failed to copy to clipboard", Severity.Error);
+            }
+        }
+        catch
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+                Snackbar.Add("Copied to clipboard", Severity.Success, config =>
+                {
+                    config.VisibleStateDuration = 1500;
+                    config.ShowCloseIcon = false;
+                });
+            }
+            catch
+            {
+                Snackbar.Add("Failed to copy to clipboard", Severity.Error);
+            }
+        }
+    }
 }
+
+<style>
+    .monospace-text {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 0.85rem;
+    }
+</style>

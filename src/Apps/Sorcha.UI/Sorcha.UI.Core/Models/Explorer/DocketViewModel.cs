@@ -17,6 +17,7 @@ public record DocketViewModel
     public List<string> TransactionIds { get; init; } = [];
     public DateTimeOffset CreatedAt { get; init; }
     public bool IsIntegrityValid { get; init; }
+    public string State { get; init; } = string.Empty;
 }
 
 /// <summary>

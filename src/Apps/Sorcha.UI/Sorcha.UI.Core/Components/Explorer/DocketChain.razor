@@ -33,23 +33,42 @@ else
                              @onclick="() => SelectDocket(docket)">
                         <MudCardContent Class="pa-3" Style="cursor: pointer">
                             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                <MudText Typo="Typo.subtitle2">Docket v@docket.Version</MudText>
+                                <MudText Typo="Typo.subtitle2">Docket #@docket.Version</MudText>
                                 <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                                    @if (!docket.IsIntegrityValid)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Error">Invalid</MudChip>
-                                    }
+                                    <MudChip T="string" Size="Size.Small"
+                                             Color="@(docket.IsIntegrityValid ? Color.Success : Color.Error)"
+                                             Icon="@(docket.IsIntegrityValid ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Error)">
+                                        @(docket.IsIntegrityValid ? "Valid" : "Invalid")
+                                    </MudChip>
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
                                         @docket.TransactionCount txs
                                     </MudText>
                                 </MudStack>
                             </MudStack>
-                            <MudStack Row="true" Spacing="2" Class="mt-1">
+                            <MudStack Spacing="1" Class="mt-2">
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    Hash: <TruncatedId Value="@docket.Hash" />
+                                    Hash:
                                 </MudText>
+                                <MudText Typo="Typo.caption" Class="monospace-text" Style="word-break: break-all;">
+                                    @docket.Hash
+                                </MudText>
+                                @if (!string.IsNullOrEmpty(docket.PreviousHash))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Previous Hash:
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Class="monospace-text" Style="word-break: break-all;">
+                                        @docket.PreviousHash
+                                    </MudText>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Genesis docket
+                                    </MudText>
+                                }
                             </MudStack>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
                                 @docket.CreatedAt.ToString("MMM dd, yyyy HH:mm")
                             </MudText>
                         </MudCardContent>
@@ -61,7 +80,7 @@ else
 
     @if (_selectedDocket != null)
     {
-        <DocketDetail Docket="_selectedDocket" />
+        <DocketDetail Docket="_selectedDocket" RegisterId="@RegisterId" />
     }
 }
 
@@ -81,6 +100,12 @@ else
         {
             await LoadDocketsAsync();
         }
+    }
+
+    public async Task RefreshAsync()
+    {
+        await LoadDocketsAsync();
+        StateHasChanged();
     }
 
     private async Task LoadDocketsAsync()
@@ -116,3 +141,10 @@ else
         }
     }
 }
+
+<style>
+    .monospace-text {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 0.8rem;
+    }
+</style>

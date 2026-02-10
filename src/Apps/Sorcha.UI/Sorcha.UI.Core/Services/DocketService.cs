@@ -2,7 +2,9 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Sorcha.Register.Models;
 using Sorcha.UI.Core.Models.Explorer;
 using Sorcha.UI.Core.Models.Registers;
 
@@ -16,6 +18,12 @@ public class DocketService : IDocketService
     private readonly HttpClient _httpClient;
     private readonly ILogger<DocketService> _logger;
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     public DocketService(HttpClient httpClient, ILogger<DocketService> logger)
     {
         _httpClient = httpClient;
@@ -26,9 +34,26 @@ public class DocketService : IDocketService
     {
         try
         {
-            var dockets = await _httpClient.GetFromJsonAsync<List<DocketViewModel>>(
-                $"/api/registers/{registerId}/dockets", cancellationToken);
-            return dockets ?? [];
+            var dtos = await _httpClient.GetFromJsonAsync<List<DocketDto>>(
+                $"/api/registers/{registerId}/dockets", JsonOptions, cancellationToken);
+
+            if (dtos is null or { Count: 0 })
+                return [];
+
+            var sorted = dtos.OrderBy(d => d.Id).ToList();
+            var viewModels = new List<DocketViewModel>(sorted.Count);
+
+            for (var i = 0; i < sorted.Count; i++)
+            {
+                var dto = sorted[i];
+                var isIntegrityValid = i == 0
+                    ? string.IsNullOrEmpty(dto.PreviousHash)
+                    : dto.PreviousHash == sorted[i - 1].Hash;
+
+                viewModels.Add(MapToViewModel(dto, isIntegrityValid));
+            }
+
+            return viewModels;
         }
         catch (Exception ex)
         {
@@ -41,8 +66,10 @@ public class DocketService : IDocketService
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<DocketViewModel>(
-                $"/api/registers/{registerId}/dockets/{docketId}", cancellationToken);
+            var dto = await _httpClient.GetFromJsonAsync<DocketDto>(
+                $"/api/registers/{registerId}/dockets/{docketId}", JsonOptions, cancellationToken);
+
+            return dto is not null ? MapToViewModel(dto, true) : null;
         }
         catch (Exception ex)
         {
@@ -55,9 +82,10 @@ public class DocketService : IDocketService
     {
         try
         {
-            var txs = await _httpClient.GetFromJsonAsync<List<TransactionViewModel>>(
-                $"/api/registers/{registerId}/dockets/{docketId}/transactions", cancellationToken);
-            return txs ?? [];
+            var transactions = await _httpClient.GetFromJsonAsync<List<TransactionModel>>(
+                $"/api/registers/{registerId}/dockets/{docketId}/transactions", JsonOptions, cancellationToken);
+
+            return transactions?.Select(MapTransactionToViewModel).ToList() ?? [];
         }
         catch (Exception ex)
         {
@@ -70,13 +98,85 @@ public class DocketService : IDocketService
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<DocketViewModel>(
-                $"/api/registers/{registerId}/dockets/latest", cancellationToken);
+            var dto = await _httpClient.GetFromJsonAsync<DocketDto>(
+                $"/api/registers/{registerId}/dockets/latest", JsonOptions, cancellationToken);
+
+            return dto is not null ? MapToViewModel(dto, true) : null;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching latest docket for register {RegisterId}", registerId);
             return null;
         }
+    }
+
+    private static DocketViewModel MapToViewModel(DocketDto dto, bool isIntegrityValid)
+    {
+        return new DocketViewModel
+        {
+            DocketId = dto.Id.ToString(),
+            RegisterId = dto.RegisterId,
+            Version = (int)dto.Id,
+            Hash = dto.Hash,
+            PreviousHash = dto.PreviousHash,
+            TransactionCount = dto.TransactionIds.Count,
+            TransactionIds = dto.TransactionIds,
+            CreatedAt = new DateTimeOffset(dto.TimeStamp, TimeSpan.Zero),
+            IsIntegrityValid = isIntegrityValid,
+            State = dto.State
+        };
+    }
+
+    private static TransactionViewModel MapTransactionToViewModel(TransactionModel tx)
+    {
+        return new TransactionViewModel
+        {
+            TxId = tx.TxId,
+            RegisterId = tx.RegisterId,
+            SenderWallet = tx.SenderWallet,
+            RecipientsWallets = tx.RecipientsWallets?.ToList() ?? [],
+            TimeStamp = tx.TimeStamp,
+            DocketNumber = tx.DocketNumber,
+            PayloadCount = tx.PayloadCount,
+            Payloads = MapPayloads(tx.Payloads),
+            Signature = tx.Signature,
+            PrevTxId = tx.PrevTxId,
+            Version = tx.Version,
+            BlueprintId = tx.MetaData?.BlueprintId,
+            InstanceId = tx.MetaData?.InstanceId,
+            ActionId = tx.MetaData?.ActionId
+        };
+    }
+
+    private static IReadOnlyList<PayloadViewModel> MapPayloads(PayloadModel[]? payloads)
+    {
+        if (payloads is null or { Length: 0 })
+            return [];
+
+        return payloads.Select((p, i) => new PayloadViewModel
+        {
+            Index = i,
+            Hash = p.Hash,
+            PayloadSize = p.PayloadSize,
+            WalletAccess = p.WalletAccess?.ToList() ?? [],
+            PayloadFlags = p.PayloadFlags,
+            HasIV = p.IV is not null,
+            ChallengeCount = p.Challenges?.Length ?? 0,
+            Data = p.Data
+        }).ToList();
+    }
+
+    /// <summary>
+    /// DTO matching the backend Docket JSON (camelCase serialization).
+    /// </summary>
+    private record DocketDto
+    {
+        public ulong Id { get; init; }
+        public string RegisterId { get; init; } = "";
+        public string PreviousHash { get; init; } = "";
+        public string Hash { get; init; } = "";
+        public List<string> TransactionIds { get; init; } = [];
+        public DateTime TimeStamp { get; init; }
+        public string State { get; init; } = "";
     }
 }
