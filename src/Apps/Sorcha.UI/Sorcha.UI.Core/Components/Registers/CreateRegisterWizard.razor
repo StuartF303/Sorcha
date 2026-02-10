@@ -82,6 +82,15 @@
                                           HelperText="A unique name to identify your register"
                                           data-testid="register-name-input" />
 
+                            <MudTextField @bind-Value="_description"
+                                          Label="Description"
+                                          Placeholder="Describe the purpose of this register (optional)"
+                                          Lines="3"
+                                          MaxLength="500"
+                                          Counter="500"
+                                          HelperText="A brief description visible to participants"
+                                          data-testid="register-description-input" />
+
                             <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
                                 <MudText Typo="Typo.body2">
                                     The register name will be visible to all participants with access to the register.
@@ -122,6 +131,7 @@
                                            Required="true"
                                            RequiredError="Please select a wallet"
                                            Variant="Variant.Outlined"
+                                           FullWidth="true"
                                            AnchorOrigin="Origin.BottomCenter"
                                            data-testid="wallet-select">
                                     @foreach (var wallet in _wallets)
@@ -211,6 +221,16 @@
                                         <MudText Typo="Typo.body1" data-testid="review-name">@_name</MudText>
                                     </MudStack>
                                     <MudDivider />
+                                    @if (!string.IsNullOrWhiteSpace(_description))
+                                    {
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">Description</MudText>
+                                            <MudText Typo="Typo.body2" data-testid="review-description" Style="max-width: 60%; text-align: right;">
+                                                @_description
+                                            </MudText>
+                                        </MudStack>
+                                        <MudDivider />
+                                    }
                                     <MudStack Row="true" Justify="Justify.SpaceBetween">
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">Signing Wallet</MudText>
                                         <MudStack Spacing="0" AlignItems="AlignItems.End">
@@ -317,6 +337,7 @@
 
     private int _activeStep = 0;
     private string _name = string.Empty;
+    private string _description = string.Empty;
     private string? _selectedWalletAddress;
     private bool _advertise;
     private bool _isFullReplica = true;
@@ -455,6 +476,7 @@
             var initiateRequest = new CreateRegisterRequest
             {
                 Name = _name,
+                Description = string.IsNullOrWhiteSpace(_description) ? null : _description.Trim(),
                 TenantId = TenantId,
                 Owners = new List<OwnerInfo>
                 {
@@ -560,6 +582,7 @@
             {
                 Id = finalizeResponse.RegisterId,
                 Name = _name,
+                Description = string.IsNullOrWhiteSpace(_description) ? null : _description.Trim(),
                 Status = status,
                 Advertise = _advertise,
                 IsFullReplica = _isFullReplica,
