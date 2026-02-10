@@ -1337,9 +1337,14 @@ instancesGroup.MapPost("/{instanceId}/actions/{actionId}/execute", async (
             instanceId,
             actionId,
             request,
-            delegationToken);
+            delegationToken,
+            context.User);
 
         return Results.Ok(response);
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 403);
     }
     catch (InvalidOperationException ex)
     {
@@ -1382,9 +1387,14 @@ instancesGroup.MapPost("/{instanceId}/actions/{actionId}/reject", async (
             instanceId,
             actionId,
             request,
-            delegationToken);
+            delegationToken,
+            context.User);
 
         return Results.Ok(response);
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 403);
     }
     catch (InvalidOperationException ex)
     {

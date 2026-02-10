@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Security.Claims;
 using Microsoft.Extensions.Logging;
+using Sorcha.ServiceClients.Participant;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Register;
 using Sorcha.ServiceClients.Validator;
@@ -30,6 +32,7 @@ public class ActionExecutionServiceTests
     private readonly Mock<IRegisterServiceClient> _mockRegisterClient;
     private readonly Mock<IValidatorServiceClient> _mockValidatorClient;
     private readonly Mock<IWalletServiceClient> _mockWalletClient;
+    private readonly Mock<IParticipantServiceClient> _mockParticipantClient;
     private readonly Mock<INotificationService> _mockNotificationService;
     private readonly Mock<IInstanceStore> _mockInstanceStore;
     private readonly Mock<IExecutionEngine> _mockExecutionEngine;
@@ -44,6 +47,7 @@ public class ActionExecutionServiceTests
         _mockRegisterClient = new Mock<IRegisterServiceClient>();
         _mockValidatorClient = new Mock<IValidatorServiceClient>();
         _mockWalletClient = new Mock<IWalletServiceClient>();
+        _mockParticipantClient = new Mock<IParticipantServiceClient>();
         _mockNotificationService = new Mock<INotificationService>();
         _mockInstanceStore = new Mock<IInstanceStore>();
         _mockExecutionEngine = new Mock<IExecutionEngine>();
@@ -56,6 +60,7 @@ public class ActionExecutionServiceTests
             _mockRegisterClient.Object,
             _mockValidatorClient.Object,
             _mockWalletClient.Object,
+            _mockParticipantClient.Object,
             _mockNotificationService.Object,
             _mockInstanceStore.Object,
             _mockExecutionEngine.Object,
@@ -75,6 +80,7 @@ public class ActionExecutionServiceTests
                 _mockRegisterClient.Object,
                 _mockValidatorClient.Object,
                 _mockWalletClient.Object,
+                _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
                 _mockExecutionEngine.Object,
@@ -92,6 +98,7 @@ public class ActionExecutionServiceTests
                 _mockRegisterClient.Object,
                 _mockValidatorClient.Object,
                 _mockWalletClient.Object,
+                _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
                 _mockExecutionEngine.Object,
@@ -109,6 +116,7 @@ public class ActionExecutionServiceTests
                 _mockRegisterClient.Object,
                 _mockValidatorClient.Object,
                 _mockWalletClient.Object,
+                _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
                 _mockExecutionEngine.Object,
@@ -126,6 +134,7 @@ public class ActionExecutionServiceTests
                 null!,
                 _mockValidatorClient.Object,
                 _mockWalletClient.Object,
+                _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
                 _mockExecutionEngine.Object,
@@ -143,6 +152,7 @@ public class ActionExecutionServiceTests
                 _mockRegisterClient.Object,
                 null!,
                 _mockWalletClient.Object,
+                _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
                 _mockExecutionEngine.Object,
@@ -159,6 +169,25 @@ public class ActionExecutionServiceTests
                 _mockTransactionBuilder.Object,
                 _mockRegisterClient.Object,
                 _mockValidatorClient.Object,
+                null!,
+                _mockParticipantClient.Object,
+                _mockNotificationService.Object,
+                _mockInstanceStore.Object,
+                _mockExecutionEngine.Object,
+                _mockLogger.Object));
+    }
+
+    [Fact]
+    public void Constructor_WithNullParticipantClient_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new ActionExecutionService(
+                _mockActionResolver.Object,
+                _mockStateReconstruction.Object,
+                _mockTransactionBuilder.Object,
+                _mockRegisterClient.Object,
+                _mockValidatorClient.Object,
+                _mockWalletClient.Object,
                 null!,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
@@ -177,6 +206,7 @@ public class ActionExecutionServiceTests
                 _mockRegisterClient.Object,
                 _mockValidatorClient.Object,
                 _mockWalletClient.Object,
+                _mockParticipantClient.Object,
                 null!,
                 _mockInstanceStore.Object,
                 _mockExecutionEngine.Object,
@@ -194,6 +224,7 @@ public class ActionExecutionServiceTests
                 _mockRegisterClient.Object,
                 _mockValidatorClient.Object,
                 _mockWalletClient.Object,
+                _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 null!,
                 _mockExecutionEngine.Object,
@@ -211,6 +242,7 @@ public class ActionExecutionServiceTests
                 _mockRegisterClient.Object,
                 _mockValidatorClient.Object,
                 _mockWalletClient.Object,
+                _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
                 null!,
@@ -228,6 +260,7 @@ public class ActionExecutionServiceTests
                 _mockRegisterClient.Object,
                 _mockValidatorClient.Object,
                 _mockWalletClient.Object,
+                _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
                 _mockExecutionEngine.Object,
@@ -364,6 +397,7 @@ public class ActionExecutionServiceTests
             _mockRegisterClient.Object,
             _mockValidatorClient.Object,
             _mockWalletClient.Object,
+            _mockParticipantClient.Object,
             _mockNotificationService.Object,
             _mockInstanceStore.Object,
             _mockExecutionEngine.Object,
@@ -761,6 +795,317 @@ public class ActionExecutionServiceTests
 
     #endregion
 
+    #region Wallet Ownership Validation Tests
+
+    [Fact]
+    public async Task ExecuteAsync_WithServicePrincipal_SkipsWalletValidation()
+    {
+        // Arrange
+        var instanceId = "test-instance";
+        var actionId = 1;
+        var request = CreateTestRequest();
+        var delegationToken = "test-token";
+        var instance = CreateTestInstance(instanceId, "blueprint-1");
+        var blueprint = CreateTestBlueprint();
+        var action = blueprint.Actions!.First(a => a.Id == actionId);
+        var caller = CreateServicePrincipal();
+
+        SetupCommonMocks(instanceId, instance, blueprint, action);
+
+        // Act — will throw later at transaction building, but wallet validation should be skipped
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            _service.ExecuteAsync(instanceId, actionId, request, delegationToken, caller));
+
+        // Assert — participant client should never be called
+        _mockParticipantClient.Verify(
+            x => x.GetByUserAndOrgAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithNullCaller_SkipsWalletValidation()
+    {
+        // Arrange
+        var instanceId = "test-instance";
+        var actionId = 1;
+        var request = CreateTestRequest();
+        var delegationToken = "test-token";
+        var instance = CreateTestInstance(instanceId, "blueprint-1");
+        var blueprint = CreateTestBlueprint();
+        var action = blueprint.Actions!.First(a => a.Id == actionId);
+
+        SetupCommonMocks(instanceId, instance, blueprint, action);
+
+        // Act — null caller should skip validation (backward compat)
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            _service.ExecuteAsync(instanceId, actionId, request, delegationToken, caller: null));
+
+        // Assert — participant client should never be called
+        _mockParticipantClient.Verify(
+            x => x.GetByUserAndOrgAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithParticipantNotFound_ThrowsUnauthorizedAccessException()
+    {
+        // Arrange
+        var instanceId = "test-instance";
+        var actionId = 1;
+        var request = CreateTestRequest();
+        var delegationToken = "test-token";
+        var instance = CreateTestInstance(instanceId, "blueprint-1");
+        var blueprint = CreateTestBlueprint();
+        var action = blueprint.Actions!.First(a => a.Id == actionId);
+        var userId = Guid.NewGuid();
+        var orgId = Guid.NewGuid();
+        var caller = CreateUserPrincipal(userId, orgId);
+
+        SetupCommonMocks(instanceId, instance, blueprint, action);
+
+        _mockParticipantClient
+            .Setup(x => x.GetByUserAndOrgAsync(userId, orgId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ParticipantInfo?)null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _service.ExecuteAsync(instanceId, actionId, request, delegationToken, caller));
+
+        Assert.Contains("No participant profile found", ex.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithInactiveParticipant_ThrowsUnauthorizedAccessException()
+    {
+        // Arrange
+        var instanceId = "test-instance";
+        var actionId = 1;
+        var request = CreateTestRequest();
+        var delegationToken = "test-token";
+        var instance = CreateTestInstance(instanceId, "blueprint-1");
+        var blueprint = CreateTestBlueprint();
+        var action = blueprint.Actions!.First(a => a.Id == actionId);
+        var userId = Guid.NewGuid();
+        var orgId = Guid.NewGuid();
+        var caller = CreateUserPrincipal(userId, orgId);
+
+        SetupCommonMocks(instanceId, instance, blueprint, action);
+
+        _mockParticipantClient
+            .Setup(x => x.GetByUserAndOrgAsync(userId, orgId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ParticipantInfo
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                OrganizationId = orgId,
+                DisplayName = "Test User",
+                Email = "test@example.com",
+                Status = "Suspended"
+            });
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _service.ExecuteAsync(instanceId, actionId, request, delegationToken, caller));
+
+        Assert.Contains("Participant status is Suspended", ex.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithUnlinkedWallet_ThrowsUnauthorizedAccessException()
+    {
+        // Arrange
+        var instanceId = "test-instance";
+        var actionId = 1;
+        var request = CreateTestRequest();
+        var delegationToken = "test-token";
+        var instance = CreateTestInstance(instanceId, "blueprint-1");
+        var blueprint = CreateTestBlueprint();
+        var action = blueprint.Actions!.First(a => a.Id == actionId);
+        var userId = Guid.NewGuid();
+        var orgId = Guid.NewGuid();
+        var participantId = Guid.NewGuid();
+        var caller = CreateUserPrincipal(userId, orgId);
+
+        SetupCommonMocks(instanceId, instance, blueprint, action);
+
+        _mockParticipantClient
+            .Setup(x => x.GetByUserAndOrgAsync(userId, orgId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ParticipantInfo
+            {
+                Id = participantId,
+                UserId = userId,
+                OrganizationId = orgId,
+                DisplayName = "Test User",
+                Email = "test@example.com",
+                Status = "Active"
+            });
+
+        _mockParticipantClient
+            .Setup(x => x.GetLinkedWalletsAsync(participantId, true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<LinkedWalletInfo>
+            {
+                new LinkedWalletInfo
+                {
+                    Id = Guid.NewGuid(),
+                    WalletAddress = "different-wallet-address",
+                    Algorithm = "ED25519",
+                    Status = "Active"
+                }
+            });
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _service.ExecuteAsync(instanceId, actionId, request, delegationToken, caller));
+
+        Assert.Contains("is not linked to your participant account", ex.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithLinkedWallet_ProceedsSuccessfully()
+    {
+        // Arrange — wallet validation should pass, then it proceeds to transaction building
+        var instanceId = "test-instance";
+        var actionId = 1;
+        var request = CreateTestRequest();
+        var delegationToken = "test-token";
+        var instance = CreateTestInstance(instanceId, "blueprint-1");
+        var blueprint = CreateTestBlueprint();
+        var action = blueprint.Actions!.First(a => a.Id == actionId);
+        var userId = Guid.NewGuid();
+        var orgId = Guid.NewGuid();
+        var participantId = Guid.NewGuid();
+        var caller = CreateUserPrincipal(userId, orgId);
+
+        SetupCommonMocks(instanceId, instance, blueprint, action);
+        SetupWalletValidationMocks(userId, orgId, participantId, request.SenderWallet);
+
+        _mockExecutionEngine
+            .Setup(x => x.DetermineRoutingAsync(blueprint, action, It.IsAny<Dictionary<string, object>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Sorcha.Blueprint.Engine.Models.RoutingResult.Complete());
+
+        _mockExecutionEngine
+            .Setup(x => x.ApplyDisclosures(It.IsAny<Dictionary<string, object>>(), action))
+            .Returns(new List<Sorcha.Blueprint.Engine.Models.DisclosureResult>());
+
+        // Act — will throw at transaction building (which is after wallet validation)
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            _service.ExecuteAsync(instanceId, actionId, request, delegationToken, caller));
+
+        // Assert — wallet validation completed (participant was looked up)
+        _mockParticipantClient.Verify(
+            x => x.GetByUserAndOrgAsync(userId, orgId, It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mockParticipantClient.Verify(
+            x => x.GetLinkedWalletsAsync(participantId, true, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task RejectAsync_WithUnlinkedWallet_ThrowsUnauthorizedAccessException()
+    {
+        // Arrange
+        var instanceId = "test-instance";
+        var actionId = 2;
+        var request = new ActionRejectionRequest
+        {
+            Reason = "Test rejection",
+            SenderWallet = "unlinked-wallet"
+        };
+        var delegationToken = "test-token";
+        var instance = CreateTestInstance(instanceId, "blueprint-1");
+        var blueprint = CreateTestBlueprintWithRejection();
+        var action = blueprint.Actions!.First(a => a.Id == actionId);
+        var targetAction = blueprint.Actions!.First(a => a.Id == 1);
+        var userId = Guid.NewGuid();
+        var orgId = Guid.NewGuid();
+        var participantId = Guid.NewGuid();
+        var caller = CreateUserPrincipal(userId, orgId);
+
+        _mockInstanceStore
+            .Setup(x => x.GetAsync(instanceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(instance);
+
+        _mockActionResolver
+            .Setup(x => x.GetBlueprintAsync("blueprint-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        _mockActionResolver
+            .Setup(x => x.GetActionDefinition(blueprint, "2"))
+            .Returns(action);
+
+        _mockActionResolver
+            .Setup(x => x.GetActionDefinition(blueprint, "1"))
+            .Returns(targetAction);
+
+        _mockParticipantClient
+            .Setup(x => x.GetByUserAndOrgAsync(userId, orgId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ParticipantInfo
+            {
+                Id = participantId,
+                UserId = userId,
+                OrganizationId = orgId,
+                DisplayName = "Test User",
+                Email = "test@example.com",
+                Status = "Active"
+            });
+
+        _mockParticipantClient
+            .Setup(x => x.GetLinkedWalletsAsync(participantId, true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<LinkedWalletInfo>());
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _service.RejectAsync(instanceId, actionId, request, delegationToken, caller));
+
+        Assert.Contains("is not linked to your participant account", ex.Message);
+    }
+
+    [Fact]
+    public async Task RejectAsync_WithServicePrincipal_SkipsWalletValidation()
+    {
+        // Arrange
+        var instanceId = "test-instance";
+        var actionId = 2;
+        var request = new ActionRejectionRequest
+        {
+            Reason = "Test rejection",
+            SenderWallet = "any-wallet"
+        };
+        var delegationToken = "test-token";
+        var instance = CreateTestInstance(instanceId, "blueprint-1");
+        var blueprint = CreateTestBlueprintWithRejection();
+        var action = blueprint.Actions!.First(a => a.Id == actionId);
+        var targetAction = blueprint.Actions!.First(a => a.Id == 1);
+        var caller = CreateServicePrincipal();
+
+        _mockInstanceStore
+            .Setup(x => x.GetAsync(instanceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(instance);
+
+        _mockActionResolver
+            .Setup(x => x.GetBlueprintAsync("blueprint-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        _mockActionResolver
+            .Setup(x => x.GetActionDefinition(blueprint, "2"))
+            .Returns(action);
+
+        _mockActionResolver
+            .Setup(x => x.GetActionDefinition(blueprint, "1"))
+            .Returns(targetAction);
+
+        // Act — will throw later at transaction building, but wallet validation should be skipped
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            _service.RejectAsync(instanceId, actionId, request, delegationToken, caller));
+
+        // Assert — participant client should never be called
+        _mockParticipantClient.Verify(
+            x => x.GetByUserAndOrgAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private void SetupCommonMocks(string instanceId, Instance instance, BlueprintModel blueprint, ActionModel action)
@@ -887,6 +1232,56 @@ public class ActionExecutionServiceTests
         return blueprint;
     }
 
+    private static ClaimsPrincipal CreateUserPrincipal(Guid userId, Guid orgId)
+    {
+        var claims = new[]
+        {
+            new Claim("sub", userId.ToString()),
+            new Claim("org_id", orgId.ToString()),
+            new Claim("token_type", "user")
+        };
+        var identity = new ClaimsIdentity(claims, "test");
+        return new ClaimsPrincipal(identity);
+    }
+
+    private static ClaimsPrincipal CreateServicePrincipal()
+    {
+        var claims = new[]
+        {
+            new Claim("sub", "service-blueprint"),
+            new Claim("token_type", "service")
+        };
+        var identity = new ClaimsIdentity(claims, "test");
+        return new ClaimsPrincipal(identity);
+    }
+
+    private void SetupWalletValidationMocks(Guid userId, Guid orgId, Guid participantId, string walletAddress)
+    {
+        _mockParticipantClient
+            .Setup(x => x.GetByUserAndOrgAsync(userId, orgId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ParticipantInfo
+            {
+                Id = participantId,
+                UserId = userId,
+                OrganizationId = orgId,
+                DisplayName = "Test User",
+                Email = "test@example.com",
+                Status = "Active"
+            });
+
+        _mockParticipantClient
+            .Setup(x => x.GetLinkedWalletsAsync(participantId, true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<LinkedWalletInfo>
+            {
+                new LinkedWalletInfo
+                {
+                    Id = Guid.NewGuid(),
+                    WalletAddress = walletAddress,
+                    Algorithm = "ED25519",
+                    Status = "Active"
+                }
+            });
+    }
 
     #endregion
 }

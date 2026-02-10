@@ -2,7 +2,9 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Diagnostics;
+using System.Security.Claims;
 using System.Text.Json;
+using Sorcha.ServiceClients.Participant;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Register;
 using Sorcha.ServiceClients.Validator;
@@ -29,6 +31,7 @@ public class ActionExecutionService : IActionExecutionService
     private readonly IRegisterServiceClient _registerClient;
     private readonly IValidatorServiceClient _validatorClient;
     private readonly IWalletServiceClient _walletClient;
+    private readonly IParticipantServiceClient _participantClient;
     private readonly INotificationService _notificationService;
     private readonly IInstanceStore _instanceStore;
     private readonly IExecutionEngine _executionEngine;
@@ -42,6 +45,7 @@ public class ActionExecutionService : IActionExecutionService
         IRegisterServiceClient registerClient,
         IValidatorServiceClient validatorClient,
         IWalletServiceClient walletClient,
+        IParticipantServiceClient participantClient,
         INotificationService notificationService,
         IInstanceStore instanceStore,
         IExecutionEngine executionEngine,
@@ -53,6 +57,7 @@ public class ActionExecutionService : IActionExecutionService
         _registerClient = registerClient ?? throw new ArgumentNullException(nameof(registerClient));
         _validatorClient = validatorClient ?? throw new ArgumentNullException(nameof(validatorClient));
         _walletClient = walletClient ?? throw new ArgumentNullException(nameof(walletClient));
+        _participantClient = participantClient ?? throw new ArgumentNullException(nameof(participantClient));
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
         _instanceStore = instanceStore ?? throw new ArgumentNullException(nameof(instanceStore));
         _executionEngine = executionEngine ?? throw new ArgumentNullException(nameof(executionEngine));
@@ -65,6 +70,7 @@ public class ActionExecutionService : IActionExecutionService
         int actionId,
         ActionSubmissionRequest request,
         string delegationToken,
+        ClaimsPrincipal? caller = null,
         CancellationToken cancellationToken = default)
     {
         using var activity = ActivitySource.StartActivity("ExecuteAction");
@@ -99,6 +105,9 @@ public class ActionExecutionService : IActionExecutionService
         {
             throw new InvalidOperationException($"Action {actionId} is not a current action for instance {instanceId}");
         }
+
+        // 4b. Validate wallet ownership (SEC-006)
+        await ValidateWalletOwnershipAsync(request.SenderWallet, caller, cancellationToken);
 
         // 5. Reconstruct accumulated state from prior transactions
         var accumulatedState = await _stateReconstruction.ReconstructAsync(
@@ -242,6 +251,7 @@ public class ActionExecutionService : IActionExecutionService
         int actionId,
         ActionRejectionRequest request,
         string delegationToken,
+        ClaimsPrincipal? caller = null,
         CancellationToken cancellationToken = default)
     {
         using var activity = ActivitySource.StartActivity("RejectAction");
@@ -289,6 +299,10 @@ public class ActionExecutionService : IActionExecutionService
         {
             throw new InvalidOperationException($"Rejection target action {actionDef.RejectionConfig.TargetActionId} not found");
         }
+
+        // 6b. Validate wallet ownership (SEC-006)
+        var rejectWallet = request.SenderWallet ?? instance.ParticipantWallets.Values.FirstOrDefault() ?? "";
+        await ValidateWalletOwnershipAsync(rejectWallet, caller, cancellationToken);
 
         // 7. Build rejection transaction
         var rejectionData = new Dictionary<string, object>
@@ -586,6 +600,62 @@ public class ActionExecutionService : IActionExecutionService
                 instance.Id,
                 cancellationToken);
         }
+    }
+
+    private async Task ValidateWalletOwnershipAsync(
+        string senderWallet,
+        ClaimsPrincipal? caller,
+        CancellationToken cancellationToken)
+    {
+        // Skip validation for null caller (backward compat / internal calls)
+        if (caller == null)
+            return;
+
+        // Skip validation for service principals (service-to-service calls)
+        var tokenType = caller.FindFirst("token_type")?.Value;
+        if (tokenType == "service")
+        {
+            _logger.LogDebug("Skipping wallet ownership validation for service principal");
+            return;
+        }
+
+        var subClaim = caller.FindFirst("sub")?.Value;
+        var orgClaim = caller.FindFirst("org_id")?.Value;
+
+        if (string.IsNullOrEmpty(subClaim) || !Guid.TryParse(subClaim, out var userId))
+        {
+            throw new UnauthorizedAccessException("Missing or invalid user identity claim");
+        }
+
+        if (string.IsNullOrEmpty(orgClaim) || !Guid.TryParse(orgClaim, out var orgId))
+        {
+            throw new UnauthorizedAccessException("Missing or invalid organization claim");
+        }
+
+        // Look up participant for this user + org
+        var participant = await _participantClient.GetByUserAndOrgAsync(userId, orgId, cancellationToken);
+        if (participant == null)
+        {
+            throw new UnauthorizedAccessException("No participant profile found for authenticated user");
+        }
+
+        if (!string.Equals(participant.Status, "Active", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException($"Participant status is {participant.Status}");
+        }
+
+        // Verify the sender wallet is linked to this participant
+        var linkedWallets = await _participantClient.GetLinkedWalletsAsync(participant.Id, activeOnly: true, cancellationToken);
+        var walletMatch = linkedWallets.Any(w =>
+            string.Equals(w.WalletAddress, senderWallet, StringComparison.OrdinalIgnoreCase));
+
+        if (!walletMatch)
+        {
+            throw new UnauthorizedAccessException($"Wallet {senderWallet} is not linked to your participant account");
+        }
+
+        _logger.LogDebug("Wallet ownership validated: {Wallet} belongs to participant {ParticipantId}",
+            senderWallet, participant.Id);
     }
 }
 

@@ -95,7 +95,7 @@
 | SEC-002 | API rate limiting and throttling | P1 | 8h | ✅ Complete | 2026-01-30 |
 | SEC-003 | Input validation hardening (OWASP compliance) | P1 | 12h | ✅ Complete | 2026-01-30 |
 | SEC-004 | Security headers (CSP, HSTS, X-Frame-Options) | P1 | 4h | ✅ Complete | 2025-12-09 |
-| SEC-006 | Enforce wallet-to-user binding in Blueprint Service | P1 | 12h | 📋 Not Started | - |
+| SEC-006 | Enforce wallet-to-user binding in Blueprint Service | P1 | 12h | ✅ Complete | 2026-02-10 |
 
 **Related:** BP-8.2 Security hardening task (promoted from P1 in Phase 1)
 
@@ -111,18 +111,19 @@
 
 ### SEC-006: Enforce Wallet-to-User Binding in Blueprint Service
 
-📋 **Not Started** — Security enforcement for wallet ownership
+✅ **Complete (2026-02-10)** — Security enforcement for wallet ownership
 
-**Problem:** The Blueprint Service currently validates JWT roles but does **not** verify that the `senderWallet` in an action submission belongs to the authenticated user. Any authenticated user can submit actions using any wallet address.
+**Problem:** The Blueprint Service validated JWT roles but did **not** verify that the `senderWallet` in an action submission belongs to the authenticated user.
 
-**Impact:** In production, this allows impersonation — a user could submit actions on behalf of another participant by using their wallet address with a valid JWT.
+**Solution:** Added `ValidateWalletOwnershipAsync` in `ActionExecutionService` that validates wallet ownership via `IParticipantServiceClient` before any signing occurs.
 
 **Requirements:**
-- [ ] On action execution (`POST /api/instances/{id}/actions/{actionId}/execute`), validate that `senderWallet` is linked to the authenticated user via Participant Identity Registry
-- [ ] Cross-reference `IParticipantServiceClient.ValidateSigningCapabilityAsync()` to confirm the user owns the wallet
-- [ ] Return 403 Forbidden if wallet does not belong to the authenticated user
-- [ ] Add bypass for service principal tokens (service-to-service calls)
-- [ ] Add integration tests for wallet ownership validation
+- [x] On action execution (`POST /api/instances/{id}/actions/{actionId}/execute`), validate that `senderWallet` is linked to the authenticated user via Participant Identity Registry
+- [x] Cross-reference `IParticipantServiceClient.GetLinkedWalletsAsync()` to confirm the user owns the wallet
+- [x] Return 403 Forbidden if wallet does not belong to the authenticated user
+- [x] Add bypass for service principal tokens (service-to-service calls) and null caller (backward compat)
+- [x] Add unit tests for wallet ownership validation (8 new tests)
+- [x] Also enforced on reject endpoint (`POST /api/instances/{id}/actions/{actionId}/reject`)
 
 **Related:** AUTH-001, SEC-005, Participant Identity API
 

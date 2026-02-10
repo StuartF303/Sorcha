@@ -20,6 +20,13 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 ## Recent Updates
 
+**2026-02-10:**
+- ✅ SEC-006: Enforce wallet-to-user binding in Blueprint Service
+  - Added `ValidateWalletOwnershipAsync` in `ActionExecutionService` — validates sender wallet ownership via `IParticipantServiceClient`
+  - Enforced on both execute and reject endpoints; returns 403 for unauthorized wallets
+  - Service principal bypass (token_type=service) and null caller backward compat
+  - 8 new unit tests; Blueprint Service test count: 244 pass
+
 **2026-02-09:**
 - ✅ 028-FIX-TRANSACTION-PIPELINE: Fix transaction submission pipeline — route action transactions through Validator Service (29 tasks, 5 phases)
   - CRITICAL: Action transactions now flow Blueprint Service → Validator mempool → docket sealing → Register write-back (was bypassing Validator entirely)

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Security.Claims;
 using Sorcha.Blueprint.Service.Models.Requests;
 using Sorcha.Blueprint.Service.Models.Responses;
 
@@ -31,12 +32,14 @@ public interface IActionExecutionService
     /// <param name="request">The action submission request</param>
     /// <param name="delegationToken">The credential token for delegated operations</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <param name="caller">The authenticated caller's claims principal (null skips wallet validation)</param>
     /// <returns>The action submission response</returns>
     Task<ActionSubmissionResponse> ExecuteAsync(
         string instanceId,
         int actionId,
         ActionSubmissionRequest request,
         string delegationToken,
+        ClaimsPrincipal? caller = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -46,6 +49,7 @@ public interface IActionExecutionService
     /// <param name="actionId">The action ID being rejected</param>
     /// <param name="request">The rejection request</param>
     /// <param name="delegationToken">The credential token for delegated operations</param>
+    /// <param name="caller">The authenticated caller's claims principal (null skips wallet validation)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The rejection response</returns>
     Task<ActionRejectionResponse> RejectAsync(
@@ -53,5 +57,6 @@ public interface IActionExecutionService
         int actionId,
         ActionRejectionRequest request,
         string delegationToken,
+        ClaimsPrincipal? caller = null,
         CancellationToken cancellationToken = default);
 }
