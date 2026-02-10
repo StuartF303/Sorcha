@@ -123,9 +123,19 @@ public class DocketService : IDocketService
             TransactionIds = dto.TransactionIds,
             CreatedAt = new DateTimeOffset(dto.TimeStamp, TimeSpan.Zero),
             IsIntegrityValid = isIntegrityValid,
-            State = dto.State
+            State = MapDocketState(dto.State)
         };
     }
+
+    private static string MapDocketState(int state) => state switch
+    {
+        0 => "Init",
+        1 => "Proposed",
+        2 => "Accepted",
+        3 => "Rejected",
+        4 => "Sealed",
+        _ => $"Unknown ({state})"
+    };
 
     private static TransactionViewModel MapTransactionToViewModel(TransactionModel tx)
     {
@@ -177,6 +187,6 @@ public class DocketService : IDocketService
         public string Hash { get; init; } = "";
         public List<string> TransactionIds { get; init; } = [];
         public DateTime TimeStamp { get; init; }
-        public string State { get; init; } = "";
+        public int State { get; init; }
     }
 }
