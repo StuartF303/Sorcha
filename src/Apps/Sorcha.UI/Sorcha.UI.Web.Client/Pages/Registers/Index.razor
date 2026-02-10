@@ -3,14 +3,17 @@
 
 @page "/registers"
 @using Microsoft.AspNetCore.Components.Authorization
+@using Sorcha.Register.Models.Enums
 @using Sorcha.UI.Core.Components.Registers
 @using Sorcha.UI.Core.Models.Registers
 @using Sorcha.UI.Core.Services
+@implements IAsyncDisposable
 
 @inject IRegisterService RegisterService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IDialogService DialogService
+@inject RegisterHubConnection HubConnection
 
 @* Filter state for client-side filtering *@
 
@@ -59,10 +62,10 @@
     @if (_isLoading)
     {
         <MudGrid Spacing="3">
-            @for (int i = 0; i < 6; i++)
+            @for (int i = 0; i < 4; i++)
             {
-                <MudItem xs="12" sm="6" md="4">
-                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="150px" />
+                <MudItem xs="12">
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" />
                 </MudItem>
             }
         </MudGrid>
@@ -132,7 +135,7 @@
             <MudGrid Spacing="3">
                 @foreach (var register in filteredRegisters)
                 {
-                    <MudItem xs="12" sm="6" md="4">
+                    <MudItem xs="12">
                         <RegisterCard Register="@register" OnClick="NavigateToRegister" />
                     </MudItem>
                 }
@@ -150,8 +153,52 @@
 
     protected override async Task OnInitializedAsync()
     {
+        HubConnection.OnRegisterCreated += OnRegisterCreatedViaSignalR;
+        HubConnection.OnRegisterStatusChanged += OnRegisterStatusChangedViaSignalR;
+
         await CheckAdminRole();
         await LoadRegistersAsync();
+        await StartRealtimeAsync();
+    }
+
+    private async Task StartRealtimeAsync()
+    {
+        try
+        {
+            await HubConnection.StartAsync();
+            await HubConnection.SubscribeToTenantAsync(GetCurrentTenantId());
+        }
+        catch
+        {
+            // Real-time is optional — list still works via HTTP
+        }
+    }
+
+    private async Task OnRegisterCreatedViaSignalR(string registerId, string name)
+    {
+        await InvokeAsync(async () =>
+        {
+            await LoadRegistersAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task OnRegisterStatusChangedViaSignalR(string registerId, string status)
+    {
+        await InvokeAsync(() =>
+        {
+            if (Enum.TryParse<RegisterStatus>(status, out var newStatus))
+            {
+                var match = _registers.FirstOrDefault(r => r.Id == registerId);
+                if (match is not null)
+                {
+                    var index = _registers.IndexOf(match);
+                    _registers[index] = match with { Status = newStatus };
+                }
+            }
+            StateHasChanged();
+            return Task.CompletedTask;
+        });
     }
 
     private async Task CheckAdminRole()
@@ -231,5 +278,20 @@
     {
         // Refresh the register list after creation
         await LoadRegistersAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        HubConnection.OnRegisterCreated -= OnRegisterCreatedViaSignalR;
+        HubConnection.OnRegisterStatusChanged -= OnRegisterStatusChangedViaSignalR;
+
+        try
+        {
+            await HubConnection.UnsubscribeFromTenantAsync(GetCurrentTenantId());
+        }
+        catch
+        {
+            // Ignore errors during cleanup
+        }
     }
 }

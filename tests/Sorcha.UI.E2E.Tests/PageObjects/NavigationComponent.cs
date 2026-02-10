@@ -39,20 +39,23 @@ public class NavigationComponent
     public ILocator MyTransactionsLink => _page.Locator(".mud-nav-link:has-text('My Transactions')");
     public ILocator MyWalletLink => _page.Locator(".mud-nav-link:has-text('My Wallet')");
     public ILocator AllBlueprintsLink => _page.Locator(".mud-nav-link:has-text('All Blueprints')");
-    public ILocator CreateBlueprintLink => _page.Locator(".mud-nav-link:has-text('Create Blueprint')");
+    public ILocator VisualDesignerLink => _page.Locator(".mud-nav-link:has-text('Visual Designer')");
+    public ILocator AiChatDesignerLink => _page.Locator(".mud-nav-link:has-text('AI Chat Designer')");
     public ILocator TemplatesLink => _page.Locator(".mud-nav-link:has-text('Templates')");
     public ILocator SchemaLibraryLink => _page.Locator(".mud-nav-link:has-text('Schema Library')");
     public ILocator AllWalletsLink => _page.Locator(".mud-nav-link:has-text('All Wallets')");
     public ILocator CreateWalletLink => _page.Locator(".mud-nav-link:has-text('Create Wallet')");
     public ILocator RecoverWalletLink => _page.Locator(".mud-nav-link:has-text('Recover Wallet')");
     public ILocator RegistersLink => _page.Locator(".mud-nav-link:has-text('Registers')");
-    public ILocator AdministrationLink => _page.Locator(".mud-nav-link:has-text('Administration')");
+    public ILocator SystemHealthLink => _page.Locator(".mud-nav-link:has-text('System Health')");
+    public ILocator PeerNetworkLink => _page.Locator(".mud-nav-link:has-text('Peer Network')");
     public ILocator SettingsLink => _page.Locator(".mud-nav-link:has-text('Settings')");
     public ILocator HelpLink => _page.Locator(".mud-nav-link:has-text('Help')");
 
     // Nav groups (expandable)
     public ILocator BlueprintsGroup => _page.Locator(".mud-nav-group:has-text('Blueprints')");
     public ILocator WalletsGroup => _page.Locator(".mud-nav-group:has-text('Wallets')");
+    public ILocator AdministrationGroup => _page.Locator(".mud-nav-group:has-text('Administration')");
 
     // Section headers
     public ILocator MyActivitySection => _page.Locator(".mud-text-secondary:has-text('MY ACTIVITY')");

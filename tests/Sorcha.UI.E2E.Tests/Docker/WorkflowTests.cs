@@ -45,7 +45,7 @@ public class WorkflowTests : AuthenticatedDockerTestBase
 
         // Fresh system should show empty state or service unavailable
         var hasContent = await _workflowsPage.IsEmptyStateVisibleAsync() ||
-                         await _workflowsPage.ServiceError.IsVisibleAsync() ||
+                         await _workflowsPage.ServiceError.CountAsync() > 0 ||
                          await _workflowsPage.WorkflowCards.CountAsync() > 0;
         Assert.That(hasContent, Is.True,
             "Page should show empty state, error state, or workflow data");

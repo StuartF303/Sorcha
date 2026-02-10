@@ -364,10 +364,21 @@ public static class ServiceCollectionExtensions
         });
 
         // Register Hub Connection (SignalR)
+        // Strip the /app/ path prefix — SignalR hubs are at the API Gateway root
         services.AddScoped<RegisterHubConnection>(sp =>
         {
+            string hubBaseUrl;
+            if (Uri.TryCreate(baseAddress, UriKind.Absolute, out var uri))
+            {
+                hubBaseUrl = $"{uri.Scheme}://{uri.Authority}";
+            }
+            else
+            {
+                hubBaseUrl = "";
+            }
+
             var logger = sp.GetRequiredService<ILogger<RegisterHubConnection>>();
-            return new RegisterHubConnection(baseAddress, logger);
+            return new RegisterHubConnection(hubBaseUrl, logger);
         });
 
         return services;

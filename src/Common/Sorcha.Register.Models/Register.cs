@@ -26,6 +26,12 @@ public class Register
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
+    /// Purpose and scope of the register
+    /// </summary>
+    [StringLength(2048)]
+    public string? Description { get; set; }
+
+    /// <summary>
     /// Current docket height (number of sealed dockets)
     /// </summary>
     public uint Height { get; set; }

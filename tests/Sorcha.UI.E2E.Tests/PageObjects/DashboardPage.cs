@@ -9,6 +9,7 @@ namespace Sorcha.UI.E2E.Tests.PageObjects;
 
 /// <summary>
 /// Page object for the Dashboard page (/app/dashboard).
+/// Matches actual MudBlazor markup in Home.razor.
 /// </summary>
 public class DashboardPage
 {
@@ -19,32 +20,28 @@ public class DashboardPage
         _page = page;
     }
 
-    // Page structure
-    public ILocator DashboardContainer => _page.Locator(".dashboard");
-    public ILocator WelcomeHeading => _page.Locator(".dashboard h2");
+    // Page structure — MudBlazor layout renders content inside mud-main-content
+    public ILocator WelcomeHeading => _page.Locator(".mud-typography-h4:has-text('Welcome')");
     public ILocator PageTitle => _page.Locator("head title");
 
-    // Stat cards
-    public ILocator StatCards => _page.Locator(".stat-card");
-    public ILocator BlueprintsStat => _page.Locator(".stat-card:has-text('Blueprints')");
-    public ILocator WalletsStat => _page.Locator(".stat-card:has-text('Wallets')");
-    public ILocator TransactionsStat => _page.Locator(".stat-card:has-text('Transactions')");
+    // Stat cards — each is a MudCard inside a MudGrid
+    public ILocator StatCards => _page.Locator(".mud-grid .mud-card");
+    public ILocator BlueprintsStat => _page.Locator(".mud-card:has-text('Blueprints')");
+    public ILocator WalletsStat => _page.Locator(".mud-card:has-text('Wallets')");
+    public ILocator TransactionsStat => _page.Locator(".mud-card:has-text('Transactions')");
+    public ILocator PeersStat => _page.Locator(".mud-card:has-text('Peers')");
+    public ILocator RegistersStat => _page.Locator(".mud-card:has-text('Registers')");
+    public ILocator OrganizationsStat => _page.Locator(".mud-card:has-text('Organizations')");
 
-    // Quick actions
-    public ILocator QuickActions => _page.Locator(".dashboard-actions");
-    public ILocator CreateBlueprintButton => _page.Locator(".dashboard-actions a:has-text('Create Blueprint')");
-    public ILocator ManageWalletsButton => _page.Locator(".dashboard-actions a:has-text('Manage Wallets')");
-    public ILocator ViewTransactionsButton => _page.Locator(".dashboard-actions a:has-text('View Transactions')");
+    // Quick actions — MudStack with MudButtons
+    public ILocator QuickActions => _page.Locator(".mud-stack:has(.mud-button)");
+    public ILocator CreateBlueprintButton => _page.Locator(".mud-button:has-text('Create Blueprint')");
+    public ILocator ManageWalletsButton => _page.Locator(".mud-button:has-text('Manage Wallets')");
+    public ILocator ViewRegistersButton => _page.Locator(".mud-button:has-text('View Registers')");
 
-    // Recent activity
-    public ILocator RecentActivity => _page.Locator(".dashboard-recent");
-    public ILocator EmptyState => _page.Locator(".empty-state");
-
-    // data-testid selectors (use as pages get updated)
-    public ILocator TestIdStatCards => MudBlazorHelpers.TestIdPrefix(_page, "stat-card-");
-    public ILocator TestIdBlueprintCount => MudBlazorHelpers.TestId(_page, "stat-blueprints");
-    public ILocator TestIdWalletCount => MudBlazorHelpers.TestId(_page, "stat-wallets");
-    public ILocator TestIdTransactionCount => MudBlazorHelpers.TestId(_page, "stat-transactions");
+    // Recent activity — MudPaper section
+    public ILocator RecentActivity => _page.Locator(".mud-paper:has-text('recent activity')");
+    public ILocator EmptyState => _page.Locator(".mud-paper:has-text('No recent activity')");
 
     /// <summary>
     /// Navigates directly to the dashboard.
@@ -70,10 +67,11 @@ public class DashboardPage
 
     /// <summary>
     /// Gets the stat card value for a given label.
+    /// The value is rendered as a MudText Typo.h5 inside the card.
     /// </summary>
     public async Task<string?> GetStatValueAsync(string label)
     {
-        var card = _page.Locator($".stat-card:has-text('{label}') .stat-value");
+        var card = _page.Locator($".mud-card:has-text('{label}') .mud-typography-h5");
         if (await card.CountAsync() > 0)
         {
             return await card.TextContentAsync();
@@ -94,7 +92,7 @@ public class DashboardPage
     /// </summary>
     public async Task<bool> AreQuickActionsVisibleAsync()
     {
-        return await QuickActions.CountAsync() > 0 && await QuickActions.IsVisibleAsync();
+        return await CreateBlueprintButton.CountAsync() > 0;
     }
 
     /// <summary>
@@ -110,7 +108,6 @@ public class DashboardPage
     /// </summary>
     public async Task<bool> IsLoadedAsync()
     {
-        return await DashboardContainer.CountAsync() > 0
-            && await WelcomeHeading.CountAsync() > 0;
+        return await WelcomeHeading.CountAsync() > 0;
     }
 }

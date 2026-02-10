@@ -119,7 +119,7 @@ public class NavigationTests : AuthenticatedDockerTestBase
 
         await Expect(_nav.WalletsGroup).ToBeVisibleAsync();
         await Expect(_nav.RegistersLink).ToBeVisibleAsync();
-        await Expect(_nav.AdministrationLink).ToBeVisibleAsync();
+        await Expect(_nav.AdministrationGroup).ToBeVisibleAsync();
     }
 
     [Test]
@@ -200,7 +200,8 @@ public class NavigationTests : AuthenticatedDockerTestBase
     public async Task Nav_AdministrationLink_NavigatesCorrectly()
     {
         await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Dashboard);
-        await _nav.NavigateToAsync(_nav.AdministrationLink);
+        await _nav.ExpandNavGroupAsync(_nav.AdministrationGroup);
+        await _nav.NavigateToAsync(_nav.SystemHealthLink);
 
         Assert.That(Page.Url, Does.Contain("admin"),
             "Should navigate to administration");
@@ -218,7 +219,7 @@ public class NavigationTests : AuthenticatedDockerTestBase
         await _nav.ExpandNavGroupAsync(_nav.BlueprintsGroup);
 
         await Expect(_nav.AllBlueprintsLink).ToBeVisibleAsync();
-        await Expect(_nav.CreateBlueprintLink).ToBeVisibleAsync();
+        await Expect(_nav.VisualDesignerLink).ToBeVisibleAsync();
     }
 
     [Test]

@@ -185,6 +185,7 @@ public class RegisterService : IRegisterService
         {
             Id = register.Id,
             Name = register.Name,
+            Description = register.Description,
             Height = register.Height,
             Status = register.Status,
             Advertise = register.Advertise,

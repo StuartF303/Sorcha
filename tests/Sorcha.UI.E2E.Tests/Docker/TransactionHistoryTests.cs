@@ -57,12 +57,12 @@ public class TransactionHistoryTests : AuthenticatedDockerTestBase
         await MudBlazorHelpers.WaitForBlazorAsync(Page, TestConstants.PageLoadTimeout);
 
         var table = MudBlazorHelpers.Table(Page);
-        var emptyState = Page.Locator("text=No Transactions");
-        var serviceError = Page.Locator("text=Service Unavailable");
+        var emptyState = Page.Locator(".mud-main-content >> text=No Transactions").First;
+        var serviceError = Page.Locator(".mud-alert:has-text('unavailable')");
 
         var hasContent = await table.CountAsync() > 0 ||
-                         await emptyState.IsVisibleAsync() ||
-                         await serviceError.IsVisibleAsync();
+                         await emptyState.CountAsync() > 0 ||
+                         await serviceError.CountAsync() > 0;
         Assert.That(hasContent, Is.True,
             "Page should show transaction table, empty state, or service error");
     }

@@ -2,7 +2,6 @@
 @* Copyright (c) 2025 Sorcha Contributors *@
 
 @using Sorcha.UI.Core.Models.Registers
-@using Sorcha.UI.Core.Components.Shared
 
 <MudPaper Elevation="2"
           Class="pa-4 register-card"
@@ -11,50 +10,38 @@
           data-testid="register-card"
           data-register-id="@Register.Id">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-        <MudStack Spacing="1">
+        <MudStack Spacing="0" Style="flex: 1; min-width: 0;">
             <MudText Typo="Typo.subtitle1" data-testid="register-name">
                 <strong>@Register.Name</strong>
             </MudText>
-            <span data-testid="register-id">
-                <TruncatedId Value="@Register.Id" />
-            </span>
+            @if (!string.IsNullOrWhiteSpace(Register.Description))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="text-truncate" data-testid="register-description">
+                    @Register.Description
+                </MudText>
+            }
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="monospace-text" data-testid="register-id">
+                @Register.Id
+            </MudText>
         </MudStack>
-        <RegisterStatusBadge Status="@Register.Status" />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="flex-shrink: 0;">
+            @if (Register.Advertise)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Public" Size="Size.Small" Color="Color.Info" />
+                    <MudText Typo="Typo.caption" Color="Color.Info">Public</MudText>
+                </MudStack>
+            }
+            else
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Secondary" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Private</MudText>
+                </MudStack>
+            }
+            <RegisterStatusBadge Status="@Register.Status" />
+        </MudStack>
     </MudStack>
-
-    <MudDivider Class="my-2" />
-
-    <MudGrid Spacing="2">
-        <MudItem xs="6">
-            <MudStack Spacing="0">
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Height</MudText>
-                <MudText Typo="Typo.body2" data-testid="register-height">
-                    <MudIcon Icon="@Icons.Material.Filled.Layers" Size="Size.Small" Class="mr-1" />
-                    @Register.HeightFormatted
-                </MudText>
-            </MudStack>
-        </MudItem>
-        <MudItem xs="6">
-            <MudStack Spacing="0">
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Last Update</MudText>
-                <MudText Typo="Typo.body2" data-testid="register-updated">
-                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
-                    @Register.LastUpdateFormatted
-                </MudText>
-            </MudStack>
-        </MudItem>
-    </MudGrid>
-
-    @if (Register.Advertise)
-    {
-        <MudChip T="string"
-                 Color="Color.Info"
-                 Size="Size.Small"
-                 Icon="@Icons.Material.Filled.Public"
-                 Class="mt-2">
-            Public
-        </MudChip>
-    }
 </MudPaper>
 
 @code {
@@ -84,5 +71,16 @@
     .register-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .monospace-text {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 0.8rem;
+    }
+
+    .text-truncate {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 </style>

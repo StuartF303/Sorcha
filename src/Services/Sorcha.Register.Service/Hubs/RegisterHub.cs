@@ -60,6 +60,7 @@ public interface IRegisterHubClient
 {
     Task RegisterCreated(string registerId, string name);
     Task RegisterDeleted(string registerId);
+    Task RegisterStatusChanged(string registerId, string status);
     Task TransactionConfirmed(string registerId, string transactionId);
     Task DocketSealed(string registerId, ulong docketId, string hash);
     Task RegisterHeightUpdated(string registerId, uint newHeight);

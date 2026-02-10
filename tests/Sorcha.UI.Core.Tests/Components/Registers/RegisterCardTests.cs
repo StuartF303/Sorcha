@@ -61,7 +61,7 @@ public class RegisterCardTests : BunitContext
     }
 
     [Fact]
-    public void RegisterCard_DisplaysTruncatedId()
+    public void RegisterCard_DisplaysFullId()
     {
         // Arrange
         var register = CreateTestRegister();
@@ -70,50 +70,50 @@ public class RegisterCardTests : BunitContext
         var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
-        // Assert
-        cut.Markup.Should().Contain("12345678...");
+        // Assert — full ID is now displayed (not truncated)
+        cut.Markup.Should().Contain("12345678901234567890123456789012");
     }
 
     [Fact]
-    public void RegisterCard_DisplaysHeightFormatted()
+    public void RegisterCard_DisplaysDescription_WhenPresent()
     {
         // Arrange
-        var register = CreateTestRegister(height: 1234);
+        var register = CreateTestRegister() with { Description = "A test description" };
 
         // Act
         var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert
-        cut.Markup.Should().Contain("1.2K");
+        cut.Markup.Should().Contain("A test description");
     }
 
     [Fact]
-    public void RegisterCard_DisplaysLargeHeightWithMillionSuffix()
+    public void RegisterCard_HidesDescription_WhenNull()
     {
         // Arrange
-        var register = CreateTestRegister(height: 1_500_000);
+        var register = CreateTestRegister();
+
+        // Act
+        var cut = Render<RegisterCard>(parameters => parameters
+            .Add(p => p.Register, register));
+
+        // Assert — no description element rendered
+        cut.FindAll("[data-testid='register-description']").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RegisterCard_ShowsPrivate_WhenAdvertiseIsFalse()
+    {
+        // Arrange
+        var register = CreateTestRegister(advertise: false);
 
         // Act
         var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
         // Assert
-        cut.Markup.Should().Contain("1.5M");
-    }
-
-    [Fact]
-    public void RegisterCard_DisplaysSmallHeightWithoutSuffix()
-    {
-        // Arrange
-        var register = CreateTestRegister(height: 42);
-
-        // Act
-        var cut = Render<RegisterCard>(parameters => parameters
-            .Add(p => p.Register, register));
-
-        // Assert
-        cut.Markup.Should().Contain("42");
+        cut.Markup.Should().Contain("Private");
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public class RegisterCardTests : BunitContext
     }
 
     [Fact]
-    public void RegisterCard_HidesPublicChip_WhenAdvertiseIsFalse()
+    public void RegisterCard_ShowsPrivateNotPublic_WhenAdvertiseIsFalse()
     {
         // Arrange
         var register = CreateTestRegister(advertise: false);
@@ -140,8 +140,9 @@ public class RegisterCardTests : BunitContext
         var cut = Render<RegisterCard>(parameters => parameters
             .Add(p => p.Register, register));
 
-        // Assert - "Public" text should not appear in the component
-        cut.Markup.Should().NotContain("Public");
+        // Assert - "Private" should appear, "Public" should not
+        cut.Markup.Should().Contain("Private");
+        cut.Markup.Should().NotContain(">Public<");
     }
 
     [Fact]

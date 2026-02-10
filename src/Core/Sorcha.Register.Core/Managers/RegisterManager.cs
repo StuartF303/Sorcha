@@ -31,6 +31,7 @@ public class RegisterManager
     /// <param name="advertise">Whether to advertise this register to peers</param>
     /// <param name="isFullReplica">Whether this is a full replica</param>
     /// <param name="registerId">Optional pre-generated register ID (used by two-phase creation flow)</param>
+    /// <param name="description">Optional register description</param>
     /// <param name="cancellationToken">Cancellation token</param>
     public virtual async Task<Models.Register> CreateRegisterAsync(
         string name,
@@ -38,6 +39,7 @@ public class RegisterManager
         bool advertise = false,
         bool isFullReplica = true,
         string? registerId = null,
+        string? description = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -52,6 +54,7 @@ public class RegisterManager
         {
             Id = registerId ?? Guid.NewGuid().ToString("N"), // Use provided ID or generate new one
             Name = name,
+            Description = description,
             Height = 0,
             Status = RegisterStatus.Offline,
             Advertise = advertise,
@@ -132,7 +135,7 @@ public class RegisterManager
     /// <summary>
     /// Updates register status
     /// </summary>
-    public async Task<Models.Register> UpdateRegisterStatusAsync(
+    public virtual async Task<Models.Register> UpdateRegisterStatusAsync(
         string registerId,
         RegisterStatus newStatus,
         CancellationToken cancellationToken = default)

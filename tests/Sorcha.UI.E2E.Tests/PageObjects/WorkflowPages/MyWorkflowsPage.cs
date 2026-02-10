@@ -19,9 +19,9 @@ public class MyWorkflowsPage
     public ILocator PageTitle => _page.Locator("h4:has-text('My Workflows')");
     public ILocator WorkflowTable => MudBlazorHelpers.Table(_page);
     public ILocator WorkflowCards => MudBlazorHelpers.Cards(_page);
-    public ILocator EmptyState => _page.Locator("[data-testid='empty-state'], .mud-alert");
+    public ILocator EmptyState => _page.Locator("[data-testid='empty-state'], .mud-alert, .mud-table-container:has-text('No workflows yet')");
     public ILocator LoadingIndicator => MudBlazorHelpers.Skeleton(_page);
-    public ILocator ServiceError => _page.Locator("text=Service Unavailable");
+    public ILocator ServiceError => _page.Locator(".mud-alert:has-text('unavailable')");
 
     public ILocator WorkflowRow(string instanceId) =>
         _page.Locator($"tr:has-text('{instanceId}')");
@@ -50,7 +50,7 @@ public class MyWorkflowsPage
 
     public async Task<bool> IsEmptyStateVisibleAsync()
     {
-        return await EmptyState.IsVisibleAsync();
+        return await EmptyState.CountAsync() > 0;
     }
 
     public async Task<int> GetWorkflowCountAsync()

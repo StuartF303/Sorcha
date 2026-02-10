@@ -71,8 +71,8 @@ public class DashboardTests : AuthenticatedDockerTestBase
         await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Dashboard);
 
         var cardCount = await _dashboard.GetStatCardCountAsync();
-        Assert.That(cardCount, Is.EqualTo(3),
-            "Dashboard should show 3 stat cards (Blueprints, Wallets, Transactions)");
+        Assert.That(cardCount, Is.EqualTo(6),
+            "Dashboard should show 6 stat cards (Blueprints, Wallets, Transactions, Peers, Registers, Organizations)");
     }
 
     [Test]
@@ -136,11 +136,11 @@ public class DashboardTests : AuthenticatedDockerTestBase
     }
 
     [Test]
-    public async Task Dashboard_ViewTransactionsLink_IsPresent()
+    public async Task Dashboard_ViewRegistersLink_IsPresent()
     {
         await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Dashboard);
 
-        await Expect(_dashboard.ViewTransactionsButton).ToBeVisibleAsync();
+        await Expect(_dashboard.ViewRegistersButton).ToBeVisibleAsync();
     }
 
     #endregion

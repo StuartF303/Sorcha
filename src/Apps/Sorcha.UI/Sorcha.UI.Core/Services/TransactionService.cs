@@ -167,6 +167,7 @@ public class TransactionService : ITransactionService
             TimeStamp = transaction.TimeStamp,
             DocketNumber = transaction.DocketNumber,
             PayloadCount = transaction.PayloadCount,
+            Payloads = MapPayloads(transaction.Payloads),
             Signature = transaction.Signature,
             PrevTxId = transaction.PrevTxId,
             Version = transaction.Version,
@@ -174,6 +175,24 @@ public class TransactionService : ITransactionService
             InstanceId = transaction.MetaData?.InstanceId,
             ActionId = transaction.MetaData?.ActionId
         };
+    }
+
+    private static IReadOnlyList<PayloadViewModel> MapPayloads(PayloadModel[]? payloads)
+    {
+        if (payloads is null or { Length: 0 })
+            return [];
+
+        return payloads.Select((p, i) => new PayloadViewModel
+        {
+            Index = i,
+            Hash = p.Hash,
+            PayloadSize = p.PayloadSize,
+            WalletAccess = p.WalletAccess?.ToList() ?? [],
+            PayloadFlags = p.PayloadFlags,
+            HasIV = p.IV is not null,
+            ChallengeCount = p.Challenges?.Length ?? 0,
+            Data = p.Data
+        }).ToList();
     }
 
     /// <summary>

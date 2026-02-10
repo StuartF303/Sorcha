@@ -22,6 +22,11 @@ public record RegisterViewModel
     public required string Name { get; init; }
 
     /// <summary>
+    /// Purpose and scope of the register
+    /// </summary>
+    public string? Description { get; init; }
+
+    /// <summary>
     /// Current docket height (number of sealed dockets)
     /// </summary>
     public uint Height { get; init; }

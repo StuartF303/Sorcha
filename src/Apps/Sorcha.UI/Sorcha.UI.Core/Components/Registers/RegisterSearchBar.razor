@@ -25,6 +25,7 @@
             <MudChipSet T="RegisterStatus"
                         SelectionMode="SelectionMode.MultiSelection"
                         @bind-SelectedValues="_selectedStatuses"
+                        @bind-SelectedValues:after="OnStatusSelectionChanged"
                         CheckMark="true"
                         data-testid="status-filter-chips">
                 @foreach (var status in _availableStatuses)

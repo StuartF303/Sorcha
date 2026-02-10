@@ -45,6 +45,11 @@ public record TransactionViewModel
     public ulong PayloadCount { get; init; }
 
     /// <summary>
+    /// Payload details for expandable display
+    /// </summary>
+    public IReadOnlyList<PayloadViewModel> Payloads { get; init; } = [];
+
+    /// <summary>
     /// Cryptographic signature of transaction
     /// </summary>
     public required string Signature { get; init; }
