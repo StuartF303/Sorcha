@@ -566,6 +566,7 @@ try {
         name = "Ping-Pong Register"
         description = "Register for the ping-pong walkthrough"
         tenantId = if ($organizationId) { $organizationId } else { "default" }
+        advertise = $true
         owners = @(
             @{
                 userId = if ($adminUserId) { $adminUserId } else { "designer" }
