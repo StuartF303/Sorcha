@@ -371,8 +371,8 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% | [View Tasks](tasks/phase4-enhancements.md) |
 | **Production Readiness** | 10 | 6 | 0 | 4 | **60%** | [View Tasks](tasks/production-readiness.md) |
 | **CLI Admin Tool** | 60 | 0 | 0 | 60 | 0% | [View Tasks](tasks/cli-admin-tool.md) |
-| **Deferred** | 10 | 0 | 0 | 10 | 0% | [View Tasks](tasks/deferred-tasks.md) |
-| **TOTAL** | **270** | **122** | **0** | **148** | **45%** | |
+| **Deferred** | 24 | 0 | 0 | 24 | 0% | [View Tasks](tasks/deferred-tasks.md) |
+| **TOTAL** | **284** | **122** | **0** | **162** | **43%** | |
 
 ### By Priority
 
