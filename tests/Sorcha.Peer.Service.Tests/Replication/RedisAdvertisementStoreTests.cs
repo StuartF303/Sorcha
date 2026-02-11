@@ -15,7 +15,6 @@ public class RedisAdvertisementStoreTests
 {
     private readonly Mock<IConnectionMultiplexer> _mockRedis;
     private readonly Mock<IDatabase> _mockDb;
-    private readonly Mock<IServer> _mockServer;
     private readonly RedisAdvertisementStore _store;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -27,12 +26,9 @@ public class RedisAdvertisementStoreTests
     {
         _mockRedis = new Mock<IConnectionMultiplexer>();
         _mockDb = new Mock<IDatabase>();
-        _mockServer = new Mock<IServer>();
 
         _mockRedis.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
             .Returns(_mockDb.Object);
-        _mockRedis.Setup(r => r.GetServers())
-            .Returns([_mockServer.Object]);
 
         _store = new RedisAdvertisementStore(
             _mockRedis.Object,
@@ -79,6 +75,28 @@ public class RedisAdvertisementStoreTests
     }
 
     [Fact]
+    public async Task SetLocalAsync_AddsToLocalIndex()
+    {
+        var ad = new LocalRegisterAdvertisement
+        {
+            RegisterId = "reg-1",
+            SyncState = RegisterSyncState.Active
+        };
+
+        await _store.SetLocalAsync(ad);
+
+        _mockDb.Verify(db => db.SetAddAsync(
+            (RedisKey)"peer:advert:local:_index",
+            (RedisValue)"reg-1",
+            It.IsAny<CommandFlags>()), Times.Once);
+        _mockDb.Verify(db => db.KeyExpireAsync(
+            (RedisKey)"peer:advert:local:_index",
+            TimeSpan.FromMinutes(5),
+            It.IsAny<ExpireWhen>(),
+            It.IsAny<CommandFlags>()), Times.Once);
+    }
+
+    [Fact]
     public async Task SetLocalAsync_RedisUnavailable_LogsWarningAndDoesNotThrow()
     {
         _mockDb.Setup(db => db.StringSetAsync(
@@ -94,6 +112,18 @@ public class RedisAdvertisementStoreTests
 
         var act = () => _store.SetLocalAsync(ad);
         await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task SetLocalAsync_CancellationRequested_ThrowsOperationCanceled()
+    {
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var ad = new LocalRegisterAdvertisement { RegisterId = "reg-1", SyncState = RegisterSyncState.Active };
+
+        var act = () => _store.SetLocalAsync(ad, cts.Token);
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     #endregion
@@ -122,17 +152,56 @@ public class RedisAdvertisementStoreTests
             It.IsAny<CommandFlags>()), Times.Once);
     }
 
+    [Fact]
+    public async Task SetRemoteAsync_UpdatesIndexSets()
+    {
+        var info = new PeerRegisterInfo
+        {
+            RegisterId = "reg-1",
+            SyncState = RegisterSyncState.Active,
+            IsPublic = true
+        };
+
+        await _store.SetRemoteAsync("peer-42", info);
+
+        // Per-peer index
+        _mockDb.Verify(db => db.SetAddAsync(
+            (RedisKey)"peer:advert:remote:peer-42:_index",
+            (RedisValue)"reg-1",
+            It.IsAny<CommandFlags>()), Times.Once);
+        _mockDb.Verify(db => db.KeyExpireAsync(
+            (RedisKey)"peer:advert:remote:peer-42:_index",
+            TimeSpan.FromMinutes(5),
+            It.IsAny<ExpireWhen>(),
+            It.IsAny<CommandFlags>()), Times.Once);
+
+        // Master peer set
+        _mockDb.Verify(db => db.SetAddAsync(
+            (RedisKey)"peer:advert:remote:_peers",
+            (RedisValue)"peer-42",
+            It.IsAny<CommandFlags>()), Times.Once);
+        _mockDb.Verify(db => db.KeyExpireAsync(
+            (RedisKey)"peer:advert:remote:_peers",
+            TimeSpan.FromMinutes(5),
+            It.IsAny<ExpireWhen>(),
+            It.IsAny<CommandFlags>()), Times.Once);
+    }
+
     #endregion
 
     #region RemoveLocalAsync
 
     [Fact]
-    public async Task RemoveLocalAsync_DeletesKey()
+    public async Task RemoveLocalAsync_DeletesKeyAndRemovesFromIndex()
     {
         await _store.RemoveLocalAsync("reg-1");
 
         _mockDb.Verify(db => db.KeyDeleteAsync(
             (RedisKey)"peer:advert:local:reg-1",
+            It.IsAny<CommandFlags>()), Times.Once);
+        _mockDb.Verify(db => db.SetRemoveAsync(
+            (RedisKey)"peer:advert:local:_index",
+            (RedisValue)"reg-1",
             It.IsAny<CommandFlags>()), Times.Once);
     }
 
@@ -156,14 +225,21 @@ public class RedisAdvertisementStoreTests
         var ad1 = new LocalRegisterAdvertisement { RegisterId = "reg-1", SyncState = RegisterSyncState.Active, IsPublic = true };
         var ad2 = new LocalRegisterAdvertisement { RegisterId = "reg-2", SyncState = RegisterSyncState.FullyReplicated, IsPublic = true };
 
-        var keys = new RedisKey[] { "peer:advert:local:reg-1", "peer:advert:local:reg-2" };
-        _mockServer.Setup(s => s.Keys(It.IsAny<int>(), It.IsAny<RedisValue>(), It.IsAny<int>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CommandFlags>()))
-            .Returns(keys);
+        // Mock SMEMBERS on local index
+        _mockDb.Setup(db => db.SetMembersAsync((RedisKey)"peer:advert:local:_index", It.IsAny<CommandFlags>()))
+            .ReturnsAsync([
+                (RedisValue)"reg-1",
+                (RedisValue)"reg-2"
+            ]);
 
-        _mockDb.Setup(db => db.StringGetAsync((RedisKey)"peer:advert:local:reg-1", It.IsAny<CommandFlags>()))
-            .ReturnsAsync((RedisValue)JsonSerializer.Serialize(ad1, JsonOptions));
-        _mockDb.Setup(db => db.StringGetAsync((RedisKey)"peer:advert:local:reg-2", It.IsAny<CommandFlags>()))
-            .ReturnsAsync((RedisValue)JsonSerializer.Serialize(ad2, JsonOptions));
+        // Mock batch StringGetAsync
+        _mockDb.Setup(db => db.StringGetAsync(
+                It.Is<RedisKey[]>(k => k.Length == 2),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync([
+                (RedisValue)JsonSerializer.Serialize(ad1, JsonOptions),
+                (RedisValue)JsonSerializer.Serialize(ad2, JsonOptions)
+            ]);
 
         var results = await _store.GetAllLocalAsync();
 
@@ -172,9 +248,20 @@ public class RedisAdvertisementStoreTests
     }
 
     [Fact]
+    public async Task GetAllLocalAsync_EmptyIndex_ReturnsEmpty()
+    {
+        _mockDb.Setup(db => db.SetMembersAsync((RedisKey)"peer:advert:local:_index", It.IsAny<CommandFlags>()))
+            .ReturnsAsync([]);
+
+        var results = await _store.GetAllLocalAsync();
+        results.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task GetAllLocalAsync_RedisUnavailable_ReturnsEmpty()
     {
-        _mockRedis.Setup(r => r.GetServers()).Throws(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
+        _mockDb.Setup(db => db.SetMembersAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "down"));
 
         var results = await _store.GetAllLocalAsync();
         results.Should().BeEmpty();
@@ -190,19 +277,40 @@ public class RedisAdvertisementStoreTests
         var info1 = new PeerRegisterInfo { RegisterId = "reg-1", SyncState = RegisterSyncState.Active, IsPublic = true };
         var info2 = new PeerRegisterInfo { RegisterId = "reg-2", SyncState = RegisterSyncState.FullyReplicated, IsPublic = true };
 
-        var keys = new RedisKey[] { "peer:advert:remote:peer-A:reg-1", "peer:advert:remote:peer-A:reg-2" };
-        _mockServer.Setup(s => s.Keys(It.IsAny<int>(), It.IsAny<RedisValue>(), It.IsAny<int>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CommandFlags>()))
-            .Returns(keys);
+        // Mock master peer set
+        _mockDb.Setup(db => db.SetMembersAsync((RedisKey)"peer:advert:remote:_peers", It.IsAny<CommandFlags>()))
+            .ReturnsAsync([(RedisValue)"peer-A"]);
 
-        _mockDb.Setup(db => db.StringGetAsync((RedisKey)"peer:advert:remote:peer-A:reg-1", It.IsAny<CommandFlags>()))
-            .ReturnsAsync((RedisValue)JsonSerializer.Serialize(info1, JsonOptions));
-        _mockDb.Setup(db => db.StringGetAsync((RedisKey)"peer:advert:remote:peer-A:reg-2", It.IsAny<CommandFlags>()))
-            .ReturnsAsync((RedisValue)JsonSerializer.Serialize(info2, JsonOptions));
+        // Mock per-peer index
+        _mockDb.Setup(db => db.SetMembersAsync((RedisKey)"peer:advert:remote:peer-A:_index", It.IsAny<CommandFlags>()))
+            .ReturnsAsync([
+                (RedisValue)"reg-1",
+                (RedisValue)"reg-2"
+            ]);
+
+        // Mock batch read
+        _mockDb.Setup(db => db.StringGetAsync(
+                It.Is<RedisKey[]>(k => k.Length == 2),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync([
+                (RedisValue)JsonSerializer.Serialize(info1, JsonOptions),
+                (RedisValue)JsonSerializer.Serialize(info2, JsonOptions)
+            ]);
 
         var results = await _store.GetAllRemoteAsync();
 
         results.Should().ContainKey("peer-A");
         results["peer-A"].Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task GetAllRemoteAsync_NoPeers_ReturnsEmpty()
+    {
+        _mockDb.Setup(db => db.SetMembersAsync((RedisKey)"peer:advert:remote:_peers", It.IsAny<CommandFlags>()))
+            .ReturnsAsync([]);
+
+        var results = await _store.GetAllRemoteAsync();
+        results.Should().BeEmpty();
     }
 
     #endregion
@@ -212,9 +320,13 @@ public class RedisAdvertisementStoreTests
     [Fact]
     public async Task RemoveLocalExceptAsync_RemovesKeysNotInSet()
     {
-        var keys = new RedisKey[] { "peer:advert:local:reg-1", "peer:advert:local:reg-2", "peer:advert:local:reg-3" };
-        _mockServer.Setup(s => s.Keys(It.IsAny<int>(), It.IsAny<RedisValue>(), It.IsAny<int>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CommandFlags>()))
-            .Returns(keys);
+        // Mock SMEMBERS on local index
+        _mockDb.Setup(db => db.SetMembersAsync((RedisKey)"peer:advert:local:_index", It.IsAny<CommandFlags>()))
+            .ReturnsAsync([
+                (RedisValue)"reg-1",
+                (RedisValue)"reg-2",
+                (RedisValue)"reg-3"
+            ]);
 
         var keepSet = new HashSet<string> { "reg-1" };
         var removed = await _store.RemoveLocalExceptAsync(keepSet);
@@ -223,14 +335,23 @@ public class RedisAdvertisementStoreTests
         _mockDb.Verify(db => db.KeyDeleteAsync((RedisKey)"peer:advert:local:reg-2", It.IsAny<CommandFlags>()), Times.Once);
         _mockDb.Verify(db => db.KeyDeleteAsync((RedisKey)"peer:advert:local:reg-3", It.IsAny<CommandFlags>()), Times.Once);
         _mockDb.Verify(db => db.KeyDeleteAsync((RedisKey)"peer:advert:local:reg-1", It.IsAny<CommandFlags>()), Times.Never);
+
+        // Verify SREM on index for removed entries
+        _mockDb.Verify(db => db.SetRemoveAsync(
+            (RedisKey)"peer:advert:local:_index",
+            (RedisValue)"reg-2",
+            It.IsAny<CommandFlags>()), Times.Once);
+        _mockDb.Verify(db => db.SetRemoveAsync(
+            (RedisKey)"peer:advert:local:_index",
+            (RedisValue)"reg-3",
+            It.IsAny<CommandFlags>()), Times.Once);
     }
 
     [Fact]
     public async Task RemoveLocalExceptAsync_AllInKeepSet_RemovesNothing()
     {
-        var keys = new RedisKey[] { "peer:advert:local:reg-1" };
-        _mockServer.Setup(s => s.Keys(It.IsAny<int>(), It.IsAny<RedisValue>(), It.IsAny<int>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CommandFlags>()))
-            .Returns(keys);
+        _mockDb.Setup(db => db.SetMembersAsync((RedisKey)"peer:advert:local:_index", It.IsAny<CommandFlags>()))
+            .ReturnsAsync([(RedisValue)"reg-1"]);
 
         var removed = await _store.RemoveLocalExceptAsync(new HashSet<string> { "reg-1" });
 
@@ -244,14 +365,29 @@ public class RedisAdvertisementStoreTests
     [Fact]
     public async Task RemoveRemoteByPeerAsync_DeletesAllKeysForPeer()
     {
-        var keys = new RedisKey[] { "peer:advert:remote:peer-A:reg-1", "peer:advert:remote:peer-A:reg-2" };
-        _mockServer.Setup(s => s.Keys(It.IsAny<int>(), It.IsAny<RedisValue>(), It.IsAny<int>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CommandFlags>()))
-            .Returns(keys);
+        // Mock per-peer index
+        _mockDb.Setup(db => db.SetMembersAsync((RedisKey)"peer:advert:remote:peer-A:_index", It.IsAny<CommandFlags>()))
+            .ReturnsAsync([
+                (RedisValue)"reg-1",
+                (RedisValue)"reg-2"
+            ]);
 
         await _store.RemoveRemoteByPeerAsync("peer-A");
 
+        // Data keys deleted in batch
         _mockDb.Verify(db => db.KeyDeleteAsync(
             It.Is<RedisKey[]>(k => k.Length == 2),
+            It.IsAny<CommandFlags>()), Times.Once);
+
+        // Per-peer index deleted
+        _mockDb.Verify(db => db.KeyDeleteAsync(
+            (RedisKey)"peer:advert:remote:peer-A:_index",
+            It.IsAny<CommandFlags>()), Times.Once);
+
+        // Removed from master peer set
+        _mockDb.Verify(db => db.SetRemoveAsync(
+            (RedisKey)"peer:advert:remote:_peers",
+            (RedisValue)"peer-A",
             It.IsAny<CommandFlags>()), Times.Once);
     }
 
