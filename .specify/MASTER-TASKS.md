@@ -20,6 +20,17 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 ## Recent Updates
 
+**2026-02-11:**
+- ✅ TOKEN-AUTO-REFRESH: Fix token refresh lifecycle in Blazor WASM UI
+  - BUG FIX: `GetAccessTokenAsync` now attempts refresh when token is expired (was returning null without trying)
+  - BUG FIX: `AuthenticatedHttpMessageHandler` 401 handler now attempts refresh even when initial token was null
+  - Added `CloneRequestAsync` helper — `HttpRequestMessage` can't be resent, retry creates fresh request
+  - New `TokenRefreshService` with timer-based proactive refresh (fires 5 min before expiry)
+  - New `tokenLifecycle.js` — tab visibility change detection triggers immediate token check
+  - Server-side logout call (best-effort POST to `/api/auth/logout` before clearing cache)
+  - 14 new unit tests in `TokenRefreshServiceTests`
+  - Added 4 future auth hardening tasks to deferred-tasks.md (rotation, cross-tab sync, expiry warning, sliding window)
+
 **2026-02-10:**
 - ✅ SEC-006: Enforce wallet-to-user binding in Blueprint Service
   - Added `ValidateWalletOwnershipAsync` in `ActionExecutionService` — validates sender wallet ownership via `IParticipantServiceClient`

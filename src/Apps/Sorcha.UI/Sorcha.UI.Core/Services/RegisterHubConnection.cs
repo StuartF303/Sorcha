@@ -18,6 +18,8 @@ public class RegisterHubConnection : IAsyncDisposable
     private ConnectionState _connectionState = new();
     private readonly HashSet<string> _subscribedRegisters = [];
     private string? _subscribedTenant;
+    private CancellationTokenSource? _retryCts;
+    private bool _disposed;
 
     /// <summary>
     /// Event raised when a new transaction is confirmed.
@@ -66,15 +68,21 @@ public class RegisterHubConnection : IAsyncDisposable
     }
 
     /// <summary>
-    /// Starts the SignalR connection.
+    /// Starts the SignalR connection. If a dead connection exists, it is disposed first.
     /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
-        if (_hubConnection != null)
+        if (_hubConnection is not null)
         {
-            return;
+            // Already connected and healthy — nothing to do
+            if (_hubConnection.State == HubConnectionState.Connected)
+                return;
+
+            // Connection exists but is dead/disconnected — tear it down
+            await DisposeHubConnectionAsync();
         }
 
+        CancelBackgroundRetry();
         UpdateConnectionState(ConnectionStatus.Connecting);
 
         try
@@ -163,11 +171,13 @@ public class RegisterHubConnection : IAsyncDisposable
                 await ResubscribeAsync();
             };
 
-            _hubConnection.Closed += error =>
+            _hubConnection.Closed += async error =>
             {
                 _logger.LogWarning("SignalR connection closed: {Error}", error?.Message);
                 UpdateConnectionState(ConnectionStatus.Disconnected, error?.Message);
-                return Task.CompletedTask;
+
+                // Start background retry — the built-in reconnect has been exhausted
+                _ = BackgroundRetryAsync();
             };
 
             await _hubConnection.StartAsync(cancellationToken);
@@ -184,10 +194,12 @@ public class RegisterHubConnection : IAsyncDisposable
     }
 
     /// <summary>
-    /// Stops the SignalR connection.
+    /// Stops the SignalR connection and cancels any background retry.
     /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+        CancelBackgroundRetry();
+
         if (_hubConnection == null)
         {
             return;
@@ -196,13 +208,33 @@ public class RegisterHubConnection : IAsyncDisposable
         try
         {
             await _hubConnection.StopAsync(cancellationToken);
-            UpdateConnectionState(ConnectionStatus.Disconnected);
             _logger.LogInformation("SignalR disconnected");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error stopping SignalR connection");
         }
+        finally
+        {
+            await DisposeHubConnectionAsync();
+            UpdateConnectionState(ConnectionStatus.Disconnected);
+        }
+    }
+
+    /// <summary>
+    /// Tears down the current connection and establishes a fresh one,
+    /// re-subscribing to all previously active registers and tenant.
+    /// </summary>
+    public async Task ReconnectAsync(CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Manual reconnect requested");
+        CancelBackgroundRetry();
+
+        await DisposeHubConnectionAsync();
+        await StartAsync(cancellationToken);
+
+        // Re-subscribe after fresh connection
+        await ResubscribeAsync();
     }
 
     /// <summary>
@@ -355,14 +387,86 @@ public class RegisterHubConnection : IAsyncDisposable
         OnConnectionStateChanged?.Invoke(newState);
     }
 
+    /// <summary>
+    /// Background retry loop that fires after built-in WithAutomaticReconnect is exhausted.
+    /// Retries every 60s up to 10 times, then gives up.
+    /// </summary>
+    private async Task BackgroundRetryAsync()
+    {
+        CancelBackgroundRetry();
+        _retryCts = new CancellationTokenSource();
+        var token = _retryCts.Token;
+
+        const int maxAttempts = 10;
+        var delay = TimeSpan.FromSeconds(60);
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await Task.Delay(delay, token);
+            }
+            catch (TaskCanceledException)
+            {
+                return; // Cancelled — manual reconnect or dispose took over
+            }
+
+            if (_disposed || token.IsCancellationRequested)
+                return;
+
+            _logger.LogInformation("Background retry attempt {Attempt}/{Max}", attempt, maxAttempts);
+
+            try
+            {
+                await DisposeHubConnectionAsync();
+                await StartAsync(token);
+                await ResubscribeAsync();
+                _logger.LogInformation("Background retry succeeded on attempt {Attempt}", attempt);
+                return; // Success
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Background retry attempt {Attempt}/{Max} failed", attempt, maxAttempts);
+            }
+        }
+
+        _logger.LogError("Background retry exhausted after {Max} attempts", maxAttempts);
+    }
+
+    private void CancelBackgroundRetry()
+    {
+        if (_retryCts is not null)
+        {
+            _retryCts.Cancel();
+            _retryCts.Dispose();
+            _retryCts = null;
+        }
+    }
+
+    private async Task DisposeHubConnectionAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            try
+            {
+                await _hubConnection.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Error disposing hub connection");
+            }
+
+            _hubConnection = null;
+        }
+    }
+
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        if (_hubConnection != null)
-        {
-            await _hubConnection.DisposeAsync();
-            _hubConnection = null;
-        }
+        _disposed = true;
+        CancelBackgroundRetry();
+
+        await DisposeHubConnectionAsync();
 
         GC.SuppressFinalize(this);
     }

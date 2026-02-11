@@ -142,15 +142,14 @@
                   Justify="Justify.FlexEnd"
                   AlignItems="AlignItems.Center"
                   Class="mb-2">
-            <MudStack Row="true" Spacing="1">
-                <RealTimeIndicator ConnectionState="@_connectionState" />
-                @if (!_connectionState.IsHealthy)
-                {
-                    <MudIconButton Icon="@Icons.Material.Filled.Refresh"
-                                   Size="Size.Small"
-                                   OnClick="RefreshTransactionsAsync"
-                                   aria-label="Refresh" />
-                }
+            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                               Size="Size.Small"
+                               OnClick="RefreshAllAsync"
+                               aria-label="Refresh" />
+                <RealTimeIndicator ConnectionState="@_connectionState"
+                                   IsEnabled="@_realtimeEnabled"
+                                   IsEnabledChanged="OnRealtimeToggled" />
             </MudStack>
         </MudStack>
 
@@ -202,6 +201,7 @@
     private TransactionList? _transactionListRef;
     private DocketChain? _docketChainRef;
     private ConnectionState _connectionState = new();
+    private bool _realtimeEnabled = true;
     private int _newTransactionsCount;
     private int _newDocketsCount;
     private List<string> _pendingTransactionIds = [];
@@ -213,6 +213,9 @@
         HubConnection.OnTransactionConfirmed += OnTransactionConfirmedAsync;
         HubConnection.OnRegisterHeightUpdated += OnRegisterHeightUpdatedAsync;
         HubConnection.OnDocketSealed += OnDocketSealedAsync;
+
+        // Sync with actual hub state (may already be connected from previous navigation)
+        _connectionState = HubConnection.ConnectionState;
 
         await LoadRegisterAsync();
 
@@ -226,11 +229,15 @@
         {
             await HubConnection.StartAsync();
             await HubConnection.SubscribeToRegisterAsync(RegisterId);
+
+            // Sync state after start (StartAsync may return without firing event if already connected)
+            _connectionState = HubConnection.ConnectionState;
         }
         catch (Exception ex)
         {
             // Log but don't fail - the UI still works without real-time updates
             Console.WriteLine($"Failed to start real-time connection: {ex.Message}");
+            _connectionState = HubConnection.ConnectionState;
         }
     }
 
@@ -238,6 +245,31 @@
     {
         _connectionState = state;
         InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnRealtimeToggled(bool enabled)
+    {
+        _realtimeEnabled = enabled;
+
+        if (_realtimeEnabled)
+        {
+            // Re-start connection and subscribe
+            await StartRealtimeAsync();
+        }
+        else
+        {
+            // Stop the connection — pauses all real-time updates
+            try
+            {
+                await HubConnection.StopAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to stop connection: {ex.Message}");
+            }
+
+            _connectionState = HubConnection.ConnectionState;
+        }
     }
 
     private async Task OnTransactionConfirmedAsync(string registerId, string txId)
@@ -329,16 +361,27 @@
         Navigation.NavigateTo("registers");
     }
 
-    private async Task RefreshTransactionsAsync()
+    private async Task RefreshAllAsync()
     {
+        // Refresh transaction list
         if (_transactionListRef is not null)
         {
             await _transactionListRef.RefreshAsync();
         }
 
-        // Clear any pending notifications since we're doing a full refresh
+        // Refresh docket chain
+        if (_docketChainRef is not null)
+        {
+            await _docketChainRef.RefreshAsync();
+        }
+
+        // Reload register metadata
+        await LoadRegisterAsync();
+
+        // Clear pending notifications since we did a full refresh
         _pendingTransactionIds.Clear();
         _newTransactionsCount = 0;
+        _newDocketsCount = 0;
     }
 
     private void OnTransactionsLoaded(int total)

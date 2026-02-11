@@ -181,6 +181,31 @@ public static class ParticipantEndpoints
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status409Conflict);
 
+        // Service-internal endpoints (used by Blueprint Service for wallet ownership validation)
+        var serviceGroup = app.MapGroup("/api/organizations/{organizationId:guid}/participants")
+            .WithTags("Participants (Service)")
+            .RequireAuthorization();
+
+        serviceGroup.MapGet("/by-user/{userId:guid}", GetParticipantByUser)
+            .WithName("GetParticipantByUser")
+            .WithSummary("Get participant by user ID (service-to-service)")
+            .WithDescription("Looks up a participant by user ID and organization. Used for wallet ownership validation.")
+            .Produces<ParticipantDetailResponse>()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized);
+
+        var serviceParticipantGroup = app.MapGroup("/api/participants")
+            .WithTags("Participants (Service)");
+
+        serviceParticipantGroup.MapGet("/{participantId:guid}/wallet-links", GetParticipantWalletLinks)
+            .WithName("GetParticipantWalletLinks")
+            .WithSummary("Get wallet links by participant ID (service-to-service)")
+            .WithDescription("Gets linked wallet addresses for a participant. Used for wallet ownership validation.")
+            .RequireAuthorization()
+            .Produces<List<LinkedWalletAddressResponse>>()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized);
+
         return app;
     }
 
@@ -517,6 +542,35 @@ public static class ParticipantEndpoints
         {
             return TypedResults.Conflict(ex.Message);
         }
+    }
+
+    #endregion
+
+    #region Service-Internal Handlers
+
+    private static async Task<Results<Ok<ParticipantDetailResponse>, NotFound>> GetParticipantByUser(
+        Guid organizationId,
+        Guid userId,
+        IParticipantService participantService)
+    {
+        var result = await participantService.GetByUserAndOrgAsync(userId, organizationId);
+        return result != null ? TypedResults.Ok(result) : TypedResults.NotFound();
+    }
+
+    private static async Task<Results<Ok<List<LinkedWalletAddressResponse>>, NotFound>> GetParticipantWalletLinks(
+        Guid participantId,
+        IWalletVerificationService walletVerificationService,
+        IParticipantService participantService,
+        bool includeRevoked = false)
+    {
+        var participant = await participantService.GetByIdAsync(participantId);
+        if (participant == null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        var result = await walletVerificationService.ListLinksAsync(participantId, includeRevoked);
+        return TypedResults.Ok(result);
     }
 
     #endregion

@@ -4,6 +4,7 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Sorcha.ServiceClients.Auth;
 
 namespace Sorcha.ServiceClients.Participant;
 
@@ -13,15 +14,18 @@ namespace Sorcha.ServiceClients.Participant;
 public class ParticipantServiceClient : IParticipantServiceClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IServiceAuthClient _serviceAuth;
     private readonly ILogger<ParticipantServiceClient> _logger;
     private readonly string _baseAddress;
 
     public ParticipantServiceClient(
         HttpClient httpClient,
+        IServiceAuthClient serviceAuth,
         IConfiguration configuration,
         ILogger<ParticipantServiceClient> logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _serviceAuth = serviceAuth ?? throw new ArgumentNullException(nameof(serviceAuth));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         _baseAddress = configuration["ServiceClients:TenantService:Address"]
@@ -41,6 +45,8 @@ public class ParticipantServiceClient : IParticipantServiceClient
         try
         {
             _logger.LogDebug("Getting participant {ParticipantId}", participantId);
+
+            await SetAuthHeaderAsync(cancellationToken);
 
             var response = await _httpClient.GetAsync(
                 $"/api/participants/{participantId}",
@@ -81,6 +87,8 @@ public class ParticipantServiceClient : IParticipantServiceClient
                 "Getting participant for user {UserId} in org {OrganizationId}",
                 userId, organizationId);
 
+            await SetAuthHeaderAsync(cancellationToken);
+
             var response = await _httpClient.GetAsync(
                 $"/api/organizations/{organizationId}/participants/by-user/{userId}",
                 cancellationToken);
@@ -118,6 +126,8 @@ public class ParticipantServiceClient : IParticipantServiceClient
         try
         {
             _logger.LogDebug("Getting participant by wallet address {WalletAddress}", walletAddress);
+
+            await SetAuthHeaderAsync(cancellationToken);
 
             var response = await _httpClient.GetAsync(
                 $"/api/participants/by-wallet/{Uri.EscapeDataString(walletAddress)}",
@@ -219,6 +229,8 @@ public class ParticipantServiceClient : IParticipantServiceClient
                 "Getting linked wallets for participant {ParticipantId} (activeOnly: {ActiveOnly})",
                 participantId, activeOnly);
 
+            await SetAuthHeaderAsync(cancellationToken);
+
             var includeRevoked = !activeOnly;
             var response = await _httpClient.GetAsync(
                 $"/api/participants/{participantId}/wallet-links?includeRevoked={includeRevoked}",
@@ -239,6 +251,20 @@ public class ParticipantServiceClient : IParticipantServiceClient
         {
             _logger.LogError(ex, "Error getting linked wallets for participant {ParticipantId}", participantId);
             return [];
+        }
+    }
+
+    private async Task SetAuthHeaderAsync(CancellationToken cancellationToken)
+    {
+        var token = await _serviceAuth.GetTokenAsync(cancellationToken);
+        if (token is not null)
+        {
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+        else
+        {
+            _logger.LogWarning("No auth token available for Participant Service call");
         }
     }
 }

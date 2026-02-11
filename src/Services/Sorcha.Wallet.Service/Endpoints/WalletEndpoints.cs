@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
-using Sorcha.Wallet.Service.Mappers;
-using Sorcha.Wallet.Service.Models;
-using Sorcha.Wallet.Core.Domain.ValueObjects;
+using Sorcha.Cryptography.Enums;
+using Sorcha.Cryptography.Interfaces;
 using Sorcha.Wallet.Core.Domain;
 using Sorcha.Wallet.Core.Domain.Entities;
+using Sorcha.Wallet.Core.Domain.ValueObjects;
 using Sorcha.Wallet.Core.Services.Implementation;
-using System.Security.Claims;
+using Sorcha.Wallet.Service.Mappers;
+using Sorcha.Wallet.Service.Models;
 
 namespace Sorcha.Wallet.Service.Endpoints;
 
@@ -130,6 +133,12 @@ public static class WalletEndpoints
             .WithName("GetGapStatus")
             .WithSummary("Get gap limit status")
             .WithDescription("Check BIP44 gap limit compliance for all accounts. Shows unused address counts and warnings.");
+
+        // POST /api/v1/wallets/verify - Verify a signature (service-to-service)
+        walletGroup.MapPost("/verify", VerifySignature)
+            .WithName("VerifySignature")
+            .WithSummary("Verify a cryptographic signature")
+            .WithDescription("Verify a signature against data using the provided public key and algorithm. Used by services for wallet link verification.");
 
         return app;
     }
@@ -273,8 +282,9 @@ public static class WalletEndpoints
             return Results.NotFound();
         }
 
-        // Authorization: caller must be owner or have delegated access
-        if (wallet.Owner != currentUser)
+        // Authorization: service tokens bypass ownership checks (trusted service-to-service calls)
+        var isService = context.User.Claims.Any(c => c.Type == "token_type" && c.Value == "service");
+        if (!isService && wallet.Owner != currentUser)
         {
             var hasAccess = await delegationService.HasAccessAsync(
                 address, currentUser, AccessRight.ReadOnly, cancellationToken);
@@ -1053,6 +1063,80 @@ public static class WalletEndpoints
             logger.LogError(ex, "Failed to create/retrieve system wallet");
             return Results.Problem(
                 title: "System Wallet Creation Failed",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    /// <summary>
+    /// Verify a cryptographic signature (service-to-service endpoint)
+    /// </summary>
+    private static async Task<IResult> VerifySignature(
+        [FromBody] VerifySignatureRequest request,
+        ICryptoModule cryptoModule,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.PublicKey) ||
+                string.IsNullOrWhiteSpace(request.Data) ||
+                string.IsNullOrWhiteSpace(request.Signature) ||
+                string.IsNullOrWhiteSpace(request.Algorithm))
+            {
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Request",
+                    Detail = "publicKey, data, signature, and algorithm are all required",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            var publicKeyBytes = Convert.FromBase64String(request.PublicKey);
+            var signatureBytes = Convert.FromBase64String(request.Signature);
+
+            // Hash the data (UTF-8 string → SHA-256) to match how sign works with isPreHashed=false
+            var dataBytes = System.Text.Encoding.UTF8.GetBytes(request.Data);
+            var dataHash = SHA256.HashData(dataBytes);
+
+            var network = request.Algorithm.ToUpperInvariant() switch
+            {
+                "ED25519" => WalletNetworks.ED25519,
+                "NISTP256" or "NIST-P256" or "P-256" => WalletNetworks.NISTP256,
+                "RSA4096" or "RSA-4096" => WalletNetworks.RSA4096,
+                _ => (WalletNetworks?)null
+            };
+
+            if (network is null)
+            {
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Algorithm",
+                    Detail = $"Unsupported algorithm: {request.Algorithm}",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            var status = await cryptoModule.VerifyAsync(
+                signatureBytes, dataHash, (byte)network.Value, publicKeyBytes, cancellationToken);
+
+            return Results.Ok(new { isValid = status == CryptoStatus.Success });
+        }
+        catch (FormatException ex)
+        {
+            logger.LogWarning(ex, "Invalid base64 in verify request");
+            return Results.BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Request",
+                Detail = "publicKey and signature must be valid base64",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Signature verification failed");
+            return Results.Problem(
+                title: "Verification Failed",
                 detail: ex.Message,
                 statusCode: StatusCodes.Status500InternalServerError);
         }

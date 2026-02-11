@@ -442,16 +442,9 @@ public class DocketChainTests : PageTest
             return;
         }
 
-        var pageContent = await Page.TextContentAsync("body");
-
-        // RealTimeIndicator should be visible (it's above tabs now)
-        // It shows connection status text like "Connected", "Connecting", "Disconnected"
-        var hasIndicator = pageContent?.Contains("Connected") == true ||
-                           pageContent?.Contains("Connecting") == true ||
-                           pageContent?.Contains("Disconnected") == true ||
-                           pageContent?.Contains("Reconnecting") == true;
-
-        Assert.That(hasIndicator, Is.True,
+        // RealTimeIndicator chip should be visible (it's above tabs, displays "Update")
+        var indicator = Page.Locator("[data-testid='realtime-indicator']");
+        Assert.That(await indicator.IsVisibleAsync(), Is.True,
             "Real-time indicator should be visible on the Docket Chain tab");
     }
 

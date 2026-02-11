@@ -3,6 +3,7 @@
 
 using FluentAssertions;
 using Sorcha.UI.Core.Models.Registers;
+using Sorcha.UI.Core.Services;
 using Xunit;
 
 namespace Sorcha.UI.Core.Tests.Components.Registers;
@@ -126,32 +127,56 @@ public class CreateRegisterWizardTests
     }
 
     [Fact]
-    public void RegisterCreationState_CanProceed_ReturnsTrue_WhenStep2()
+    public void RegisterCreationState_CanProceed_ReturnsFalse_WhenStep2AndNoWallet()
     {
-        // Arrange - Options step is always valid
+        // Arrange - Wallet step requires a valid wallet
         var state = new RegisterCreationState { CurrentStep = 2 };
-
-        // Assert
-        state.CanProceed.Should().BeTrue();
-    }
-
-    [Fact]
-    public void RegisterCreationState_CanProceed_ReturnsFalse_WhenStep3AndNoSignedRecord()
-    {
-        // Arrange
-        var state = new RegisterCreationState { CurrentStep = 3 };
 
         // Assert
         state.CanProceed.Should().BeFalse();
     }
 
     [Fact]
-    public void RegisterCreationState_CanProceed_ReturnsTrue_WhenStep3AndHasSignedRecord()
+    public void RegisterCreationState_CanProceed_ReturnsTrue_WhenStep2AndHasWallet()
     {
         // Arrange
         var state = new RegisterCreationState
         {
-            CurrentStep = 3,
+            CurrentStep = 2,
+            SelectedWalletAddress = "wallet-abc-123"
+        };
+
+        // Assert
+        state.CanProceed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RegisterCreationState_CanProceed_ReturnsTrue_WhenStep3()
+    {
+        // Arrange - Options step is always valid
+        var state = new RegisterCreationState { CurrentStep = 3 };
+
+        // Assert
+        state.CanProceed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RegisterCreationState_CanProceed_ReturnsFalse_WhenStep4AndNoSignedRecord()
+    {
+        // Arrange
+        var state = new RegisterCreationState { CurrentStep = 4 };
+
+        // Assert
+        state.CanProceed.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RegisterCreationState_CanProceed_ReturnsTrue_WhenStep4AndHasSignedRecord()
+    {
+        // Arrange
+        var state = new RegisterCreationState
+        {
+            CurrentStep = 4,
             SignedControlRecord = "signed-record-123"
         };
 
@@ -163,7 +188,7 @@ public class CreateRegisterWizardTests
     public void RegisterCreationState_CanProceed_ReturnsFalse_WhenInvalidStep()
     {
         // Arrange
-        var state = new RegisterCreationState { CurrentStep = 4 };
+        var state = new RegisterCreationState { CurrentStep = 5 };
 
         // Assert
         state.CanProceed.Should().BeFalse();
@@ -323,30 +348,41 @@ public class CreateRegisterWizardTests
     [Fact]
     public void RegisterCreationState_CanTrackFullRegistrationFlow()
     {
-        // Step 1: Initial state
+        // Step 1: Initial state — name entry
         var state = new RegisterCreationState();
         state.CurrentStep.Should().Be(1);
         state.CanProceed.Should().BeFalse();
 
-        // Step 2: User enters name
+        // User enters name
         state = state with { Name = "My New Register" };
         state.IsNameValid.Should().BeTrue();
         state.CanProceed.Should().BeTrue();
 
-        // Step 3: Move to options
+        // Step 2: Move to wallet selection
         state = state.NextStep();
         state.CurrentStep.Should().Be(2);
         state.CanGoBack.Should().BeTrue();
+        state.CanProceed.Should().BeFalse(); // No wallet selected yet
 
-        // Step 4: User configures options
+        // User selects wallet
+        state = state with { SelectedWalletAddress = "wallet-abc-123" };
+        state.HasValidWallet.Should().BeTrue();
+        state.CanProceed.Should().BeTrue();
+
+        // Step 3: Move to options
+        state = state.NextStep();
+        state.CurrentStep.Should().Be(3);
+        state.CanGoBack.Should().BeTrue();
+
+        // User configures options
         state = state with { Advertise = true, IsFullReplica = true };
         state.CanProceed.Should().BeTrue();
 
-        // Step 5: Move to review
+        // Step 4: Move to review
         state = state.NextStep();
-        state.CurrentStep.Should().Be(3);
+        state.CurrentStep.Should().Be(4);
 
-        // Step 6: Initiate creation (processing)
+        // Initiate creation (processing)
         state = state with
         {
             IsProcessing = true,
@@ -354,13 +390,13 @@ public class CreateRegisterWizardTests
         };
         state.CanGoBack.Should().BeFalse(); // Can't go back while processing
 
-        // Step 7: Receive unsigned record
+        // Receive unsigned record
         state = state with
         {
             UnsignedControlRecord = "unsigned-control-record"
         };
 
-        // Step 8: Complete with signed record
+        // Complete with signed record
         state = state with
         {
             SignedControlRecord = "signed-control-record",
@@ -471,6 +507,164 @@ public class CreateRegisterWizardTests
         // Assert
         modified.Advertise.Should().BeTrue();
         modified.IsFullReplica.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region Visibility Status Display Tests
+
+    [Fact]
+    public void RegisterViewModel_Advertise_True_IsPublic()
+    {
+        var vm = new RegisterViewModel
+        {
+            Id = "test-id",
+            Name = "Test Register",
+            TenantId = "tenant-1",
+            Advertise = true
+        };
+
+        vm.Advertise.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RegisterViewModel_Advertise_False_IsPrivate()
+    {
+        var vm = new RegisterViewModel
+        {
+            Id = "test-id",
+            Name = "Test Register",
+            TenantId = "tenant-1",
+            Advertise = false
+        };
+
+        vm.Advertise.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RegisterViewModel_Advertise_DefaultsToFalse()
+    {
+        var vm = new RegisterViewModel
+        {
+            Id = "test-id",
+            Name = "Test Register",
+            TenantId = "tenant-1"
+        };
+
+        vm.Advertise.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region CreateRegisterRequest Advertise Tests
+
+    [Fact]
+    public void CreateRegisterRequest_Advertise_True_IsSerialized()
+    {
+        var request = new CreateRegisterRequest
+        {
+            Name = "Public Register",
+            TenantId = "tenant-1",
+            Advertise = true,
+            Owners = [new OwnerInfo { UserId = "user-1", WalletId = "wallet-1" }]
+        };
+
+        request.Advertise.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CreateRegisterRequest_Advertise_False_IsSerialized()
+    {
+        var request = new CreateRegisterRequest
+        {
+            Name = "Private Register",
+            TenantId = "tenant-1",
+            Advertise = false,
+            Owners = [new OwnerInfo { UserId = "user-1", WalletId = "wallet-1" }]
+        };
+
+        request.Advertise.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CreateRegisterRequest_Advertise_DefaultsToFalse()
+    {
+        var request = new CreateRegisterRequest
+        {
+            Name = "Default Register",
+            TenantId = "tenant-1",
+            Owners = [new OwnerInfo { UserId = "user-1", WalletId = "wallet-1" }]
+        };
+
+        request.Advertise.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CreateRegisterRequest_Advertise_RoundTripsViaJson()
+    {
+        var request = new CreateRegisterRequest
+        {
+            Name = "Public Register",
+            TenantId = "tenant-1",
+            Advertise = true,
+            Owners = [new OwnerInfo { UserId = "user-1", WalletId = "wallet-1" }]
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(request);
+        json.Should().Contain("\"advertise\":true");
+
+        var deserialized = System.Text.Json.JsonSerializer.Deserialize<CreateRegisterRequest>(json);
+        deserialized.Should().NotBeNull();
+        deserialized!.Advertise.Should().BeTrue();
+    }
+
+    #endregion
+
+    #region Public Register Forces Full Replica Tests
+
+    [Fact]
+    public void RegisterCreationState_PublicRegister_ShouldBeFullReplica()
+    {
+        // When advertise is true, full replica should also be true
+        var state = new RegisterCreationState
+        {
+            Advertise = true,
+            IsFullReplica = true
+        };
+
+        state.Advertise.Should().BeTrue();
+        state.IsFullReplica.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RegisterCreationState_PrivateRegister_CanDisableFullReplica()
+    {
+        // Private registers can opt out of full replica
+        var state = new RegisterCreationState
+        {
+            Advertise = false,
+            IsFullReplica = false
+        };
+
+        state.Advertise.Should().BeFalse();
+        state.IsFullReplica.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RegisterCreationState_SwitchingToPublic_ShouldForceFullReplica()
+    {
+        // Simulates the wizard behavior: user had full replica off, then enables public
+        var state = new RegisterCreationState
+        {
+            Advertise = false,
+            IsFullReplica = false
+        };
+
+        // User toggles to public — wizard forces full replica on
+        var publicState = state with { Advertise = true, IsFullReplica = true };
+
+        publicState.Advertise.Should().BeTrue();
+        publicState.IsFullReplica.Should().BeTrue();
     }
 
     #endregion

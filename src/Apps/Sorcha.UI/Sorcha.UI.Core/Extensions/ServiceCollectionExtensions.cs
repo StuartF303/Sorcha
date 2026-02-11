@@ -46,6 +46,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AuthenticationStateProvider>(sp =>
             sp.GetRequiredService<CustomAuthenticationStateProvider>());
 
+        // Proactive background token refresh (timer + tab visibility)
+        services.AddScoped<ITokenRefreshService, TokenRefreshService>();
+
         // Auth state sync service (for SSR -> WASM token handoff)
         services.AddScoped<AuthStateSync>();
 

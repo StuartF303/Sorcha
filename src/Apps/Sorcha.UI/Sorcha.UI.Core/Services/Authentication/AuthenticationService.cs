@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using Sorcha.UI.Core.Models.Authentication;
@@ -79,19 +80,24 @@ public class AuthenticationService : IAuthenticationService
     {
         var entry = await _tokenCache.GetTokenAsync(profileName);
 
-        if (entry == null || entry.IsExpired)
-        {
+        if (entry == null)
             return null;
-        }
 
-        // Auto-refresh if near expiration
-        if (entry.IsNearExpiration && !string.IsNullOrEmpty(entry.RefreshToken))
+        // Attempt refresh if expired or near expiration
+        if ((entry.IsExpired || entry.IsNearExpiration) && !string.IsNullOrEmpty(entry.RefreshToken))
         {
-            await RefreshTokenAsync(profileName);
-            entry = await _tokenCache.GetTokenAsync(profileName);
+            var refreshed = await RefreshTokenAsync(profileName);
+            if (refreshed)
+            {
+                entry = await _tokenCache.GetTokenAsync(profileName);
+                return entry?.AccessToken;
+            }
+
+            // Refresh failed — if token was expired, return null; if near-expiry, return stale token
+            return entry.IsExpired ? null : entry.AccessToken;
         }
 
-        return entry?.AccessToken;
+        return entry.AccessToken;
     }
 
     /// <inheritdoc />
@@ -162,6 +168,25 @@ public class AuthenticationService : IAuthenticationService
     /// <inheritdoc />
     public async Task LogoutAsync(string profileName)
     {
+        var entry = await _tokenCache.GetTokenAsync(profileName);
+        if (entry != null && !string.IsNullOrEmpty(entry.AccessToken))
+        {
+            try
+            {
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", entry.AccessToken);
+                await _httpClient.PostAsync("/api/auth/logout", null);
+            }
+            catch
+            {
+                // Best-effort server-side revocation — don't fail logout if server is unreachable
+            }
+            finally
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = null;
+            }
+        }
+
         await _tokenCache.RemoveTokenAsync(profileName);
     }
 

@@ -246,6 +246,11 @@ services:
       Redis__ConnectionString: redis:6379
       # Tenant service is the JWT authority - it issues tokens using the installation name
       JwtSettings__SigningKeySource: Configuration
+      # Service-to-service auth for Wallet Service calls during wallet link verification
+      ServiceAuth__ClientId: tenant-service
+      ServiceAuth__ClientSecret: tenant-service-secret
+      ServiceClients__WalletService__Address: http://wallet-service:8080
+      ServiceClients__TenantService__Address: http://tenant-service:8080
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:

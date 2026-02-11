@@ -188,6 +188,7 @@ try {
         name = "Simple Ping-Pong Register"
         description = "Register for the simple ping-pong walkthrough"
         tenantId = $tenantId
+        advertise = $true
         owners = @(
             @{
                 userId = if ($userId) { $userId } else { "admin" }

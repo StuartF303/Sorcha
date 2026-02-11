@@ -3,55 +3,84 @@
 
 @using Sorcha.UI.Core.Models.Registers
 
-<MudTooltip Text="@ConnectionState.StatusText">
+<MudTooltip Text="@GetTooltipText()">
     <MudChip T="string"
              Size="Size.Small"
              Color="@GetColor()"
              Icon="@GetIcon()"
+             OnClick="HandleClick"
+             Style="cursor: pointer"
              data-testid="realtime-indicator">
-        @GetDisplayText()
+        Update
     </MudChip>
 </MudTooltip>
 
 @code {
     /// <summary>
-    /// Current connection state
+    /// Whether the real-time feed is currently enabled by the user.
+    /// </summary>
+    [Parameter]
+    public bool IsEnabled { get; set; }
+
+    /// <summary>
+    /// Callback when the user toggles the feed on or off.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> IsEnabledChanged { get; set; }
+
+    /// <summary>
+    /// Current SignalR connection state (used for connecting/reconnecting display).
     /// </summary>
     [Parameter]
     public required ConnectionState ConnectionState { get; set; }
 
-    /// <summary>
-    /// Whether to show the full status text or just an icon
-    /// </summary>
-    [Parameter]
-    public bool ShowText { get; set; } = true;
-
-    private Color GetColor() => ConnectionState.Status switch
+    private async Task HandleClick()
     {
-        ConnectionStatus.Connected => Color.Success,
-        ConnectionStatus.Connecting => Color.Info,
-        ConnectionStatus.Reconnecting => Color.Warning,
-        ConnectionStatus.Disconnected => Color.Error,
-        _ => Color.Default
-    };
+        await IsEnabledChanged.InvokeAsync(!IsEnabled);
+    }
 
-    private string GetIcon() => ConnectionState.Status switch
+    private string GetTooltipText()
     {
-        ConnectionStatus.Connected => Icons.Material.Filled.SignalCellularAlt,
-        ConnectionStatus.Connecting => Icons.Material.Filled.Sync,
-        ConnectionStatus.Reconnecting => Icons.Material.Filled.SyncProblem,
-        ConnectionStatus.Disconnected => Icons.Material.Filled.SignalCellularOff,
-        _ => Icons.Material.Filled.HelpOutline
-    };
+        if (!IsEnabled)
+            return "Click to enable live updates";
 
-    private string GetDisplayText() => ShowText
-        ? ConnectionState.Status switch
+        return ConnectionState.Status switch
         {
-            ConnectionStatus.Connected => "Live",
+            ConnectionStatus.Connected => "Live updates active — click to pause",
             ConnectionStatus.Connecting => "Connecting...",
             ConnectionStatus.Reconnecting => "Reconnecting...",
-            ConnectionStatus.Disconnected => "Offline",
-            _ => "Unknown"
-        }
-        : string.Empty;
+            ConnectionStatus.Disconnected => "Disconnected — click to retry",
+            _ => "Click to toggle live updates"
+        };
+    }
+
+    private Color GetColor()
+    {
+        if (!IsEnabled)
+            return Color.Default;
+
+        return ConnectionState.Status switch
+        {
+            ConnectionStatus.Connected => Color.Success,
+            ConnectionStatus.Connecting => Color.Info,
+            ConnectionStatus.Reconnecting => Color.Warning,
+            ConnectionStatus.Disconnected => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string GetIcon()
+    {
+        if (!IsEnabled)
+            return Icons.Material.Filled.PauseCircleOutline;
+
+        return ConnectionState.Status switch
+        {
+            ConnectionStatus.Connected => Icons.Material.Filled.SignalCellularAlt,
+            ConnectionStatus.Connecting => Icons.Material.Filled.Sync,
+            ConnectionStatus.Reconnecting => Icons.Material.Filled.SyncProblem,
+            ConnectionStatus.Disconnected => Icons.Material.Filled.SignalCellularOff,
+            _ => Icons.Material.Filled.HelpOutline
+        };
+    }
 }
