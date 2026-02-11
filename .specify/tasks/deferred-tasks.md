@@ -37,10 +37,21 @@
 
 ---
 
+## Authentication & Session Hardening
+
+| ID | Task | Priority | Effort | Status | Notes |
+|----|------|----------|--------|--------|-------|
+| AUTH-H1 | Refresh token rotation | P2 | 8h | 📋 Deferred | Issue new refresh token on each refresh — limits replay window |
+| AUTH-H2 | Cross-tab token synchronization | P2 | 6h | 📋 Deferred | localStorage event listener to sync token state across browser tabs |
+| AUTH-H3 | Session expiry warning UI | P3 | 4h | 📋 Deferred | Toast/dialog warning user before session expires, "Extend Session" button |
+| AUTH-H4 | Sliding window refresh token extension | P3 | 6h | 📋 Deferred | Extend refresh token TTL on activity — avoids hard 24h logout for active users |
+
+---
+
 ## Summary
 
-**Total Deferred Tasks:** 10
-**Total Deferred Effort:** 204 hours (~5 weeks)
+**Total Deferred Tasks:** 14
+**Total Deferred Effort:** 228 hours (~6 weeks)
 
 These tasks represent features that enhance the platform but are not critical for the Minimum Viable Deliverable (MVD). They can be prioritized for post-MVD development based on user feedback and business requirements.
 

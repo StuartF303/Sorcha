@@ -1,8 +1,12 @@
 @inherits LayoutComponentBase
+@implements IAsyncDisposable
 @using Microsoft.AspNetCore.Components.Authorization
 @using MudBlazor
+@using Sorcha.UI.Core.Services.Authentication
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
+@inject ITokenRefreshService TokenRefreshService
+@inject IJSRuntime JSRuntime
 
 <MudThemeProvider Theme="_theme" />
 <MudPopoverProvider />
@@ -151,6 +155,21 @@
 
 @code {
     private bool _drawerOpen = true;
+    private bool _tokenRefreshStarted;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_tokenRefreshStarted)
+        {
+            _tokenRefreshStarted = true;
+            await TokenRefreshService.StartAsync(JSRuntime);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await TokenRefreshService.StopAsync();
+    }
 
     private readonly MudTheme _theme = new()
     {
