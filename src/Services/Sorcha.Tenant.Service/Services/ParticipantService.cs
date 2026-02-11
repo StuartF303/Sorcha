@@ -264,6 +264,21 @@ public class ParticipantService : IParticipantService
         return responses;
     }
 
+    /// <inheritdoc />
+    public async Task<ParticipantDetailResponse?> GetByUserAndOrgAsync(
+        Guid userId,
+        Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        var participant = await _participantRepository.GetByUserAndOrgAsync(userId, organizationId, cancellationToken);
+        if (participant == null)
+        {
+            return null;
+        }
+
+        return await MapToDetailResponseAsync(participant, cancellationToken);
+    }
+
     #endregion
 
     #region Update Operations

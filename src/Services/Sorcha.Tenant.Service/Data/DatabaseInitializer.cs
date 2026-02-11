@@ -27,6 +27,7 @@ public class DatabaseInitializer
     public static readonly Guid RegisterServicePrincipalId = new("00000000-0000-0000-0002-000000000003");
     public static readonly Guid PeerServicePrincipalId = new("00000000-0000-0000-0002-000000000004");
     public static readonly Guid ValidatorServicePrincipalId = new("00000000-0000-0000-0002-000000000005");
+    public static readonly Guid TenantServicePrincipalId = new("00000000-0000-0000-0002-000000000006");
 
     // Default credentials (can be overridden via configuration)
     public const string DefaultAdminEmail = "admin@sorcha.local";
@@ -236,6 +237,13 @@ public class DatabaseInitializer
                 "validator-service",
                 "validator-service-secret",
                 new[] { "validator:read", "validator:write", "wallets:sign", "registers:read" }
+            ),
+            (
+                TenantServicePrincipalId,
+                "Tenant Service",
+                "tenant-service",
+                "tenant-service-secret",
+                new[] { "wallets:read", "wallets:sign", "wallets:verify" }
             )
         };
 

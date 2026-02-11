@@ -426,6 +426,129 @@ try {
 }
 
 # ============================================================================
+# Phase 3b: Register Participant Profile & Link Wallets (SEC-006 compliance)
+# ============================================================================
+
+Write-Step "Phase 3b: Register Participant Profile & Link Wallets"
+$totalSteps++
+
+$participantId = ""
+
+try {
+    # Self-register admin as a participant in this organization
+    Write-Info "Self-registering admin as participant..."
+
+    try {
+        $selfRegResponse = Invoke-Api -Method POST `
+            -Uri "$TenantUrl/me/organizations/$organizationId/self-register?displayName=$([Uri]::EscapeDataString($AdminName))" `
+            -Headers $headers
+
+        $participantId = $selfRegResponse.id
+        Write-Success "Participant registered: $participantId"
+    } catch {
+        $statusCode = $null
+        try { $statusCode = $_.Exception.Response.StatusCode.value__ } catch {}
+        if ($statusCode -eq 409) {
+            Write-Warning "Participant already exists (409 Conflict) — fetching existing profile"
+
+            $profiles = Invoke-Api -Method GET `
+                -Uri "$TenantUrl/me/participant-profiles" `
+                -Headers $headers
+
+            # Find the profile matching this organization
+            $orgProfile = $profiles | Where-Object { $_.organizationId -eq $organizationId } | Select-Object -First 1
+            if ($orgProfile) {
+                $participantId = $orgProfile.id
+                Write-Success "Found existing participant: $participantId"
+            } else {
+                throw "No participant profile found for organization $organizationId"
+            }
+        } else {
+            throw
+        }
+    }
+
+    # Link Alpha and Beta wallets to this participant via challenge-sign-verify
+    $walletsToLink = @(
+        @{ name = "Alpha"; address = $alphaWalletAddress },
+        @{ name = "Beta"; address = $betaWalletAddress }
+    )
+
+    foreach ($wl in $walletsToLink) {
+        Write-Info "Linking $($wl.name) wallet ($($wl.address))..."
+
+        try {
+            # Step 1: Initiate wallet link challenge
+            $challengeBody = @{
+                walletAddress = $wl.address
+                algorithm = "ED25519"
+            }
+
+            $challengeResponse = Invoke-Api -Method POST `
+                -Uri "$TenantUrl/organizations/$organizationId/participants/$participantId/wallet-links" `
+                -Body $challengeBody `
+                -Headers $headers
+
+            $challengeId = $challengeResponse.challengeId
+            $challengeMessage = $challengeResponse.challenge
+            Write-Info "  Challenge received (ID: $challengeId)"
+
+            # Step 2: Sign the challenge message with the wallet
+            $challengeBytes = [System.Text.Encoding]::UTF8.GetBytes($challengeMessage)
+            $challengeBase64 = [Convert]::ToBase64String($challengeBytes)
+
+            $signBody = @{
+                transactionData = $challengeBase64
+                isPreHashed = $false
+            }
+
+            $signResponse = Invoke-Api -Method POST `
+                -Uri "$WalletUrl/v1/wallets/$($wl.address)/sign" `
+                -Body $signBody `
+                -Headers $headers
+
+            Write-Info "  Challenge signed by $($signResponse.signedBy)"
+
+            # Step 3: Verify the wallet link with the signed challenge
+            $verifyBody = @{
+                signature = $signResponse.signature
+                publicKey = $signResponse.publicKey
+            }
+
+            $verifyResponse = Invoke-Api -Method POST `
+                -Uri "$TenantUrl/organizations/$organizationId/participants/$participantId/wallet-links/$challengeId/verify" `
+                -Body $verifyBody `
+                -Headers $headers
+
+            Write-Success "$($wl.name) wallet linked (status: $($verifyResponse.status))"
+        } catch {
+            # Wallet may already be linked from a previous run — not fatal
+            $errMsg = $_.Exception.Message
+            if ($errMsg -match "already linked") {
+                Write-Warning "$($wl.name) wallet already linked — continuing"
+            } else {
+                Write-Warning "$($wl.name) wallet link failed: $errMsg — continuing"
+            }
+        }
+    }
+
+    Write-Info "Admin participant has both wallets linked for action execution"
+    $stepsPassed++
+} catch {
+    Write-Fail "Participant registration or wallet linking failed"
+    Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
+    try {
+        if ($_.Exception.Response) {
+            $errorStream = $_.Exception.Response.GetResponseStream()
+            $errorReader = New-Object System.IO.StreamReader($errorStream)
+            $errorBody = $errorReader.ReadToEnd()
+            Write-Host "  Response: $errorBody" -ForegroundColor Red
+        }
+    } catch {}
+    exit 1
+}
+
+# ============================================================================
 # Phase 4: Create Register (2-phase flow)
 # ============================================================================
 

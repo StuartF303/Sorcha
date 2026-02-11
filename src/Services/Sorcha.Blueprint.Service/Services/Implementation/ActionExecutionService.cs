@@ -619,7 +619,8 @@ public class ActionExecutionService : IActionExecutionService
             return;
         }
 
-        var subClaim = caller.FindFirst("sub")?.Value;
+        var subClaim = caller.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? caller.FindFirst("sub")?.Value;
         var orgClaim = caller.FindFirst("org_id")?.Value;
 
         if (string.IsNullOrEmpty(subClaim) || !Guid.TryParse(subClaim, out var userId))

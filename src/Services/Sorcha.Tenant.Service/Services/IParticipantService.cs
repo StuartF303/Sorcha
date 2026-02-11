@@ -109,6 +109,18 @@ public interface IParticipantService
         Guid userId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Gets a participant by user ID and organization ID (service-to-service lookup).
+    /// </summary>
+    /// <param name="userId">User ID from Tenant Service.</param>
+    /// <param name="organizationId">Organization ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The participant detail response or null if not found.</returns>
+    Task<ParticipantDetailResponse?> GetByUserAndOrgAsync(
+        Guid userId,
+        Guid organizationId,
+        CancellationToken cancellationToken = default);
+
     #endregion
 
     #region Update Operations
