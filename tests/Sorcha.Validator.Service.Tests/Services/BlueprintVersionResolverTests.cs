@@ -506,7 +506,7 @@ public class BlueprintVersionResolverTests
             {
                 BlueprintId = blueprintId,
                 ActionId = null, // null ActionId indicates blueprint publication
-                TransactionType = TransactionType.System
+                TransactionType = TransactionType.Control
             }
         };
     }

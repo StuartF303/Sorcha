@@ -299,7 +299,7 @@ public class ValidatorRegistry : IValidatorRegistry
                     MetaData = new Sorcha.Register.Models.TransactionMetaData
                     {
                         RegisterId = registerId,
-                        TransactionType = Sorcha.Register.Models.Enums.TransactionType.System
+                        TransactionType = Sorcha.Register.Models.Enums.TransactionType.Control
                     }
                 };
                 var submitted = await _registerClient.SubmitTransactionAsync(registerId, regTx, ct);
@@ -477,7 +477,7 @@ public class ValidatorRegistry : IValidatorRegistry
                     MetaData = new Sorcha.Register.Models.TransactionMetaData
                     {
                         RegisterId = registerId,
-                        TransactionType = Sorcha.Register.Models.Enums.TransactionType.System
+                        TransactionType = Sorcha.Register.Models.Enums.TransactionType.Control
                     }
                 };
                 var submitted = await _registerClient.SubmitTransactionAsync(registerId, approvalTx, ct);

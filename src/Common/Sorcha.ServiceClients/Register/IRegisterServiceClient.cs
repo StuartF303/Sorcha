@@ -164,6 +164,24 @@ public interface IRegisterServiceClient
         CancellationToken cancellationToken = default);
 
     // =========================================================================
+    // Governance Operations
+    // =========================================================================
+
+    /// <summary>
+    /// Gets all Control transactions for a register (governance operations)
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="page">Page number (1-based)</param>
+    /// <param name="pageSize">Number of transactions per page</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated list of Control transactions</returns>
+    Task<TransactionPage> GetControlTransactionsAsync(
+        string registerId,
+        int page = 1,
+        int pageSize = 100,
+        CancellationToken cancellationToken = default);
+
+    // =========================================================================
     // Register Management (All Services)
     // =========================================================================
 

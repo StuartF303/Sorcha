@@ -588,6 +588,65 @@ public class RegisterServiceClient : IRegisterServiceClient
     }
 
     // =========================================================================
+    // Governance Operations
+    // =========================================================================
+
+    public async Task<TransactionPage> GetControlTransactionsAsync(
+        string registerId,
+        int page = 1,
+        int pageSize = 100,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug(
+                "Getting Control transactions from register {RegisterId} (page {Page})",
+                registerId, page);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var response = await _httpClient.GetAsync(
+                $"api/registers/{Uri.EscapeDataString(registerId)}/transactions?type=Control&page={page}&pageSize={pageSize}",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    _logger.LogDebug(
+                        "No Control transactions found for register {RegisterId}",
+                        registerId);
+                    return new TransactionPage { Page = page, PageSize = pageSize };
+                }
+
+                _logger.LogWarning(
+                    "Failed to get Control transactions from register {RegisterId}: {StatusCode}",
+                    registerId, response.StatusCode);
+                return new TransactionPage { Page = page, PageSize = pageSize };
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<TransactionPage>(JsonOptions, cancellationToken);
+            return result ?? new TransactionPage { Page = page, PageSize = pageSize };
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(
+                ex,
+                "HTTP error getting Control transactions from register {RegisterId}",
+                registerId);
+            return new TransactionPage { Page = page, PageSize = pageSize };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to get Control transactions from register {RegisterId}",
+                registerId);
+            throw;
+        }
+    }
+
+    // =========================================================================
     // Register Management
     // =========================================================================
 

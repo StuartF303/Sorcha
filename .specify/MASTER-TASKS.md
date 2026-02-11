@@ -21,6 +21,18 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-11:**
+- ✅ 031-REGISTER-GOVERNANCE: Genesis Blueprint — Register Governance (80 tasks, 9 phases)
+  - Renamed TransactionType.Genesis → Control (value 0 preserved), removed System=3
+  - Governance models: GovernanceOperation, ApprovalSignature, ControlTransactionPayload, AdminRoster
+  - DID scheme: `did:sorcha:w:{walletAddress}` (wallet) + `did:sorcha:r:{registerId}:t:{txId}` (register)
+  - GovernanceRosterService: roster reconstruction from Control TX chain, quorum validation, proposal validation, apply operations
+  - DIDResolver: wallet + register DID resolution with cross-instance support
+  - Quorum: floor(m/2)+1, removal excludes target from pool, Owner bypass for Add/Remove
+  - Ownership transfer: Owner→Admin swap (always additive, target must be existing Admin)
+  - RightsEnforcementService: validator pipeline stage 4b between signatures and chain validation
+  - Governance endpoints: GET /api/registers/{id}/governance/roster, GET .../history (paginated)
+  - Register governance blueprint JSON template (register-governance-v1)
+  - Test counts: Register Core 234 pass, Validator Service 620 pass (3 skipped pre-existing)
 - ✅ TOKEN-AUTO-REFRESH: Fix token refresh lifecycle in Blazor WASM UI
   - BUG FIX: `GetAccessTokenAsync` now attempts refresh when token is expired (was returning null without trying)
   - BUG FIX: `AuthenticatedHttpMessageHandler` 401 handler now attempts refresh even when initial token was null

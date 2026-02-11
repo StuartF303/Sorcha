@@ -21,6 +21,7 @@ public class SystemRegisterService
     private readonly ISystemRegisterRepository _repository;
     private readonly ILogger<SystemRegisterService> _logger;
     private const string DefaultBlueprintId = "register-creation-v1";
+    private const string GovernanceBlueprintId = "register-governance-v1";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SystemRegisterService"/> class
@@ -99,6 +100,24 @@ public class SystemRegisterService
             cancellationToken: cancellationToken);
 
         _logger.LogInformation("Seeded default blueprint: {BlueprintId}", DefaultBlueprintId);
+
+        // Create register-governance-v1 blueprint
+        var governanceBlueprint = CreateGovernanceBlueprintDocument();
+
+        await _repository.PublishBlueprintAsync(
+            blueprintId: GovernanceBlueprintId,
+            blueprintDocument: governanceBlueprint,
+            publishedBy: "system",
+            metadata: new Dictionary<string, string>
+            {
+                { "category", "governance" },
+                { "type", "register-governance" },
+                { "isSystem", "true" },
+                { "hasCycles", "true" }
+            },
+            cancellationToken: cancellationToken);
+
+        _logger.LogInformation("Seeded governance blueprint: {BlueprintId}", GovernanceBlueprintId);
     }
 
     /// <summary>
@@ -135,6 +154,96 @@ public class SystemRegisterService
                         { "name", "Publish Register Creation Transaction" },
                         { "type", "transaction" }
                     }
+                }
+            }
+        };
+
+        return blueprint;
+    }
+
+    /// <summary>
+    /// Creates the register-governance-v1 blueprint document
+    /// </summary>
+    /// <returns>BSON document representing the governance blueprint</returns>
+    private static BsonDocument CreateGovernanceBlueprintDocument()
+    {
+        var blueprint = new BsonDocument
+        {
+            { "@context", "https://sorcha.dev/blueprints/v1" },
+            { "id", "register-governance-v1" },
+            { "title", "Register Governance" },
+            { "version", "1.0.0" },
+            { "description", "Manages admin roster changes for a register via multi-sig quorum workflow" },
+            { "participants", new BsonArray
+                {
+                    new BsonDocument { { "id", "proposer" }, { "name", "Proposer" }, { "organisation", "Register Admin" } },
+                    new BsonDocument { { "id", "voter" }, { "name", "Voter" }, { "organisation", "Register Admin" } },
+                    new BsonDocument { { "id", "target" }, { "name", "Target" }, { "organisation", "New/Departing Admin" } }
+                }
+            },
+            { "actions", new BsonArray
+                {
+                    new BsonDocument
+                    {
+                        { "id", 0 },
+                        { "title", "Assert Ownership" },
+                        { "sender", "proposer" },
+                        { "isStartingAction", true },
+                        { "routes", new BsonArray { new BsonDocument { { "id", "genesis-to-propose" }, { "nextActionIds", new BsonArray { 1 } }, { "isDefault", true } } } }
+                    },
+                    new BsonDocument
+                    {
+                        { "id", 1 },
+                        { "title", "Propose Change" },
+                        { "sender", "proposer" },
+                        { "routes", new BsonArray
+                            {
+                                new BsonDocument { { "id", "transfer-skip-quorum" }, { "nextActionIds", new BsonArray { 3 } }, { "condition", new BsonDocument { { "==", new BsonArray { new BsonDocument { { "var", "operationType" } }, "Transfer" } } } } },
+                                new BsonDocument { { "id", "owner-override" }, { "nextActionIds", new BsonArray { 3 } }, { "condition", new BsonDocument { { "==", new BsonArray { new BsonDocument { { "var", "ownerOverride" } }, true } } } } },
+                                new BsonDocument { { "id", "to-quorum" }, { "nextActionIds", new BsonArray { 2 } }, { "isDefault", true } }
+                            }
+                        }
+                    },
+                    new BsonDocument
+                    {
+                        { "id", 2 },
+                        { "title", "Collect Quorum" },
+                        { "sender", "voter" },
+                        { "routes", new BsonArray
+                            {
+                                new BsonDocument { { "id", "quorum-met" }, { "nextActionIds", new BsonArray { 3 } }, { "condition", new BsonDocument { { ">=", new BsonArray { new BsonDocument { { "var", "approvalPercentage" } }, 50.01 } } } } },
+                                new BsonDocument { { "id", "quorum-blocked" }, { "nextActionIds", new BsonArray { 1 } }, { "condition", new BsonDocument { { "==", new BsonArray { new BsonDocument { { "var", "quorumBlocked" } }, true } } } } },
+                                new BsonDocument { { "id", "collect-more" }, { "nextActionIds", new BsonArray { 2 } }, { "isDefault", true } }
+                            }
+                        }
+                    },
+                    new BsonDocument
+                    {
+                        { "id", 3 },
+                        { "title", "Accept Role" },
+                        { "sender", "target" },
+                        { "routes", new BsonArray
+                            {
+                                new BsonDocument { { "id", "accepted" }, { "nextActionIds", new BsonArray { 4 } }, { "condition", new BsonDocument { { "==", new BsonArray { new BsonDocument { { "var", "accepted" } }, true } } } } },
+                                new BsonDocument { { "id", "declined" }, { "nextActionIds", new BsonArray { 1 } }, { "isDefault", true } }
+                            }
+                        }
+                    },
+                    new BsonDocument
+                    {
+                        { "id", 4 },
+                        { "title", "Record Control Transaction" },
+                        { "sender", "proposer" },
+                        { "routes", new BsonArray { new BsonDocument { { "id", "loop-back" }, { "nextActionIds", new BsonArray { 1 } }, { "isDefault", true } } } }
+                    }
+                }
+            },
+            { "metadata", new BsonDocument
+                {
+                    { "category", "governance" },
+                    { "type", "register-governance" },
+                    { "isSystem", "true" },
+                    { "hasCycles", "true" }
                 }
             }
         };

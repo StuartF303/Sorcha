@@ -9,9 +9,9 @@ namespace Sorcha.Register.Models.Enums;
 public enum TransactionType
 {
     /// <summary>
-    /// Genesis transaction (first transaction in a register)
+    /// Control transaction (register governance — genesis + admin operations)
     /// </summary>
-    Genesis = 0,
+    Control = 0,
 
     /// <summary>
     /// Action transaction (blueprint workflow action)
@@ -21,10 +21,5 @@ public enum TransactionType
     /// <summary>
     /// Docket transaction (block sealing)
     /// </summary>
-    Docket = 2,
-
-    /// <summary>
-    /// System transaction (administrative)
-    /// </summary>
-    System = 3
+    Docket = 2
 }

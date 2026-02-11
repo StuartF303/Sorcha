@@ -60,7 +60,7 @@ public class RegisterControlRecord
     /// </summary>
     [Required]
     [MinLength(1, ErrorMessage = "At least one attestation (owner) is required")]
-    [MaxLength(10, ErrorMessage = "Maximum 10 attestations allowed")]
+    [MaxLength(25, ErrorMessage = "Maximum 25 attestations allowed")]
     [JsonPropertyName("attestations")]
     public List<RegisterAttestation> Attestations { get; set; } = new();
 
@@ -86,6 +86,33 @@ public class RegisterControlRecord
         return Attestations
             .Where(a => a.Role == role)
             .Select(a => a.Subject);
+    }
+
+    /// <summary>
+    /// Gets all voting members (Owner + Admin roles only)
+    /// </summary>
+    public IEnumerable<RegisterAttestation> GetVotingMembers()
+    {
+        return Attestations.Where(a => a.Role is RegisterRole.Owner or RegisterRole.Admin);
+    }
+
+    /// <summary>
+    /// Calculates the quorum threshold (strict majority: floor(m/2) + 1)
+    /// for a given voting pool size.
+    /// </summary>
+    /// <param name="excludeDid">Optional DID to exclude from the voting pool (e.g., removal target)</param>
+    /// <returns>The number of approvals required for quorum</returns>
+    public int GetQuorumThreshold(string? excludeDid = null)
+    {
+        var votingMembers = GetVotingMembers();
+        if (excludeDid is not null)
+        {
+            votingMembers = votingMembers.Where(a => a.Subject != excludeDid);
+        }
+
+        var m = votingMembers.Count();
+        if (m <= 0) return 1;
+        return (m / 2) + 1;
     }
 }
 

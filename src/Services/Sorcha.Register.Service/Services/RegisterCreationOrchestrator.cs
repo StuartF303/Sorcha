@@ -103,7 +103,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             var attestationData = new AttestationSigningData
             {
                 Role = RegisterRole.Owner,
-                Subject = $"did:sorcha:{owner.UserId}",
+                Subject = $"did:sorcha:w:{owner.WalletId}",
                 RegisterId = registerId,
                 RegisterName = request.Name,
                 GrantedAt = createdAt
@@ -142,7 +142,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
                 var attestationData = new AttestationSigningData
                 {
                     Role = admin.Role,
-                    Subject = $"did:sorcha:{admin.UserId}",
+                    Subject = $"did:sorcha:w:{admin.WalletId}",
                     RegisterId = registerId,
                     RegisterName = request.Name,
                     GrantedAt = createdAt
@@ -556,7 +556,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             MetaData = new TransactionMetaData
             {
                 RegisterId = registerId,
-                TransactionType = TransactionType.Genesis
+                TransactionType = TransactionType.Control
             },
             Version = 1,
             Signature = string.Empty // Signed by Validator Service system wallet

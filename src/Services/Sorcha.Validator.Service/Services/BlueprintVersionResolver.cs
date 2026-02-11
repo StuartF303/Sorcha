@@ -316,7 +316,7 @@ public class BlueprintVersionResolver : IBlueprintVersionResolver
         // A blueprint publication has:
         // - BlueprintId matching our target
         // - No ActionId (or ActionId = 0 for initialization, but that's an action, not publication)
-        // - Could be TransactionType.System or have specific markers
+        // - Could be TransactionType.Control or have specific markers
 
         // For now, we identify blueprint publications as transactions with:
         // - The correct BlueprintId
@@ -332,7 +332,7 @@ public class BlueprintVersionResolver : IBlueprintVersionResolver
             return true;
 
         // If it's the genesis transaction with this blueprint, it could be the initial publication
-        if (tx.MetaData.TransactionType == TransactionType.Genesis)
+        if (tx.MetaData.TransactionType == TransactionType.Control)
             return true;
 
         return false;
