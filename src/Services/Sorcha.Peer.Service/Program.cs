@@ -16,6 +16,7 @@ using Sorcha.Peer.Service.Observability;
 using Microsoft.AspNetCore.Mvc;
 using Sorcha.Peer.Service.Models;
 using Sorcha.Peer.Service.Replication;
+using Sorcha.ServiceClients.Peer;
 using Sorcha.Peer.Service.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -66,6 +67,9 @@ builder.WebHost.ConfigureKestrel(options =>
     }
 });
 
+// Add Redis for advertisement persistence
+builder.AddRedisClient("redis");
+
 // Add services
 builder.Services.AddGrpc(options =>
 {
@@ -106,6 +110,7 @@ builder.Services.AddSingleton<PeerServiceActivitySource>();
 // Register P2P replication services
 builder.Services.AddSingleton<RegisterCache>();
 builder.Services.AddSingleton<RegisterReplicationService>();
+builder.Services.AddSingleton<IRedisAdvertisementStore, RedisAdvertisementStore>();
 builder.Services.AddSingleton<RegisterAdvertisementService>();
 
 // Register P2P connection pool (Phase 4)
@@ -130,6 +135,10 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<RegisterSyncBackgr
 builder.Services.AddHttpClient();
 
 var app = builder.Build();
+
+// Load persisted advertisements from Redis on startup (FR-002)
+var advertisementService = app.Services.GetRequiredService<RegisterAdvertisementService>();
+await advertisementService.LoadFromRedisAsync();
 
 // Map default endpoints (health checks)
 app.MapDefaultEndpoints();
@@ -435,6 +444,79 @@ app.MapGet("/api/registers/available", ([FromServices] RegisterAdvertisementServ
     .WithName("GetAvailableRegisters")
     .WithSummary("List registers advertised across the peer network")
     .WithDescription("Returns aggregated register information from all known peer advertisements. Only public registers are included.")
+    .WithTags("Registers");
+
+// Bulk advertise registers (called by Register Service on startup/resync)
+app.MapPost("/api/registers/bulk-advertise", async (
+    [FromBody] BulkAdvertiseRequest request,
+    [FromServices] RegisterAdvertisementService advertisementService,
+    [FromServices] IRedisAdvertisementStore store,
+    ILogger<Program> logger) =>
+{
+    var added = 0;
+    var updated = 0;
+    var removed = 0;
+
+    var advertisedIds = new HashSet<string>();
+
+    foreach (var item in request.Advertisements)
+    {
+        advertisedIds.Add(item.RegisterId);
+
+        var existing = advertisementService.GetAdvertisement(item.RegisterId);
+        if (existing != null)
+        {
+            advertisementService.UpdateRegisterVersion(item.RegisterId, item.LatestVersion, item.LatestDocketVersion);
+            updated++;
+        }
+        else
+        {
+            advertisementService.AdvertiseRegister(
+                item.RegisterId,
+                RegisterSyncState.Active,
+                latestVersion: item.LatestVersion,
+                latestDocketVersion: item.LatestDocketVersion,
+                isPublic: item.IsPublic);
+            added++;
+        }
+    }
+
+    // Full-sync mode: remove stale local ads not in the request
+    if (request.FullSync)
+    {
+        try
+        {
+            removed = await store.RemoveLocalExceptAsync(advertisedIds);
+            // Also remove from in-memory state
+            foreach (var ad in advertisementService.GetLocalAdvertisements())
+            {
+                if (!advertisedIds.Contains(ad.RegisterId))
+                {
+                    advertisementService.RemoveAdvertisement(ad.RegisterId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to remove stale advertisements during full-sync");
+        }
+    }
+
+    logger.LogInformation(
+        "Bulk advertise processed: {Processed} total, {Added} added, {Updated} updated, {Removed} removed (FullSync={FullSync})",
+        request.Advertisements.Count, added, updated, removed, request.FullSync);
+
+    return Results.Ok(new BulkAdvertiseResponse
+    {
+        Processed = request.Advertisements.Count,
+        Added = added,
+        Updated = updated,
+        Removed = removed
+    });
+})
+    .WithName("BulkAdvertiseRegisters")
+    .WithSummary("Bulk advertise or sync register advertisements")
+    .WithDescription("Called by Register Service on startup and during periodic resync. When FullSync is true, removes any local advertisements not included in the request.")
     .WithTags("Registers");
 
 // Advertise or remove advertisement for a register

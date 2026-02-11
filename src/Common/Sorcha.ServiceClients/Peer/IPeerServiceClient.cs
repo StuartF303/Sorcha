@@ -56,6 +56,17 @@ public interface IPeerServiceClient
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Bulk advertises or syncs register advertisements with the Peer Service.
+    /// Used on startup and during periodic reconciliation.
+    /// </summary>
+    /// <param name="request">Bulk advertise request with advertisements and full-sync flag</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Response with processed/added/updated/removed counts, or null if unavailable</returns>
+    Task<BulkAdvertiseResponse?> BulkAdvertiseAsync(
+        BulkAdvertiseRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Reports validator behavior to Peer Service for reputation scoring
     /// </summary>
     /// <param name="validatorId">Validator ID to report</param>
@@ -93,4 +104,35 @@ public record ValidatorInfo
     /// Whether validator is currently active
     /// </summary>
     public bool IsActive { get; init; } = true;
+}
+
+/// <summary>
+/// Request body for bulk advertising multiple registers at once.
+/// </summary>
+public class BulkAdvertiseRequest
+{
+    public List<AdvertisementItem> Advertisements { get; set; } = [];
+    public bool FullSync { get; set; }
+}
+
+/// <summary>
+/// A single advertisement entry within a bulk request.
+/// </summary>
+public class AdvertisementItem
+{
+    public string RegisterId { get; set; } = string.Empty;
+    public bool IsPublic { get; set; }
+    public long LatestVersion { get; set; }
+    public long LatestDocketVersion { get; set; }
+}
+
+/// <summary>
+/// Response from the bulk advertisement endpoint.
+/// </summary>
+public class BulkAdvertiseResponse
+{
+    public int Processed { get; set; }
+    public int Added { get; set; }
+    public int Updated { get; set; }
+    public int Removed { get; set; }
 }

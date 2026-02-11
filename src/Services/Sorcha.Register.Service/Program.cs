@@ -391,6 +391,9 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 builder.Services.AddSingleton<ISystemRegisterRepository, MongoSystemRegisterRepository>();
 builder.Services.AddSingleton<SystemRegisterService>();
 
+// Register advertisement resync background service (FR-003, FR-004)
+builder.Services.AddHostedService<AdvertisementResyncService>();
+
 // Add JWT authentication and authorization (AUTH-002)
 // JWT authentication is now configured via shared ServiceDefaults with auto-key generation
 builder.AddJwtAuthentication();

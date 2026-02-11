@@ -325,6 +325,57 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
         }
     }
 
+    public async Task<BulkAdvertiseResponse?> BulkAdvertiseAsync(
+        BulkAdvertiseRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug(
+                "Sending bulk advertise request with {Count} advertisements (FullSync={FullSync})",
+                request.Advertisements.Count, request.FullSync);
+
+            if (_httpClient is null)
+            {
+                _logger.LogDebug("Peer Service HTTP not configured — skipping bulk advertisement");
+                return null;
+            }
+
+            var response = await _httpClient.PostAsJsonAsync(
+                "api/registers/bulk-advertise",
+                request,
+                cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<BulkAdvertiseResponse>(cancellationToken);
+                _logger.LogInformation(
+                    "Bulk advertise completed: {Processed} processed, {Added} added, {Updated} updated, {Removed} removed",
+                    result?.Processed, result?.Added, result?.Updated, result?.Removed);
+                return result;
+            }
+
+            _logger.LogWarning(
+                "Bulk advertise failed: {StatusCode}",
+                response.StatusCode);
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Peer Service unavailable - cannot bulk advertise registers");
+            throw; // Let caller handle retry
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to bulk advertise registers to Peer Service");
+            return null;
+        }
+    }
+
     public async Task AdvertiseRegisterAsync(
         string registerId,
         bool isPublic,
