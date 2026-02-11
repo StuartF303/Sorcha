@@ -18,9 +18,10 @@ public class BlueprintTemplateServiceTests
 
     public BlueprintTemplateServiceTests()
     {
+        var store = new Sorcha.Storage.InMemory.InMemoryDocumentStore<BlueprintTemplate, string>(t => t.Id);
         var evaluator = new JsonEEvaluator();
         var logger = NullLogger<BlueprintTemplateService>.Instance;
-        _service = new BlueprintTemplateService(evaluator, logger);
+        _service = new BlueprintTemplateService(store, evaluator, logger);
     }
 
     [Fact]

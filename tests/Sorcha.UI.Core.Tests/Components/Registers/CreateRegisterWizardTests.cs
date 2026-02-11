@@ -127,32 +127,56 @@ public class CreateRegisterWizardTests
     }
 
     [Fact]
-    public void RegisterCreationState_CanProceed_ReturnsTrue_WhenStep2()
+    public void RegisterCreationState_CanProceed_ReturnsFalse_WhenStep2AndNoWallet()
     {
-        // Arrange - Options step is always valid
+        // Arrange - Wallet step requires a valid wallet
         var state = new RegisterCreationState { CurrentStep = 2 };
-
-        // Assert
-        state.CanProceed.Should().BeTrue();
-    }
-
-    [Fact]
-    public void RegisterCreationState_CanProceed_ReturnsFalse_WhenStep3AndNoSignedRecord()
-    {
-        // Arrange
-        var state = new RegisterCreationState { CurrentStep = 3 };
 
         // Assert
         state.CanProceed.Should().BeFalse();
     }
 
     [Fact]
-    public void RegisterCreationState_CanProceed_ReturnsTrue_WhenStep3AndHasSignedRecord()
+    public void RegisterCreationState_CanProceed_ReturnsTrue_WhenStep2AndHasWallet()
     {
         // Arrange
         var state = new RegisterCreationState
         {
-            CurrentStep = 3,
+            CurrentStep = 2,
+            SelectedWalletAddress = "wallet-abc-123"
+        };
+
+        // Assert
+        state.CanProceed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RegisterCreationState_CanProceed_ReturnsTrue_WhenStep3()
+    {
+        // Arrange - Options step is always valid
+        var state = new RegisterCreationState { CurrentStep = 3 };
+
+        // Assert
+        state.CanProceed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RegisterCreationState_CanProceed_ReturnsFalse_WhenStep4AndNoSignedRecord()
+    {
+        // Arrange
+        var state = new RegisterCreationState { CurrentStep = 4 };
+
+        // Assert
+        state.CanProceed.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RegisterCreationState_CanProceed_ReturnsTrue_WhenStep4AndHasSignedRecord()
+    {
+        // Arrange
+        var state = new RegisterCreationState
+        {
+            CurrentStep = 4,
             SignedControlRecord = "signed-record-123"
         };
 
@@ -164,7 +188,7 @@ public class CreateRegisterWizardTests
     public void RegisterCreationState_CanProceed_ReturnsFalse_WhenInvalidStep()
     {
         // Arrange
-        var state = new RegisterCreationState { CurrentStep = 4 };
+        var state = new RegisterCreationState { CurrentStep = 5 };
 
         // Assert
         state.CanProceed.Should().BeFalse();
@@ -324,30 +348,41 @@ public class CreateRegisterWizardTests
     [Fact]
     public void RegisterCreationState_CanTrackFullRegistrationFlow()
     {
-        // Step 1: Initial state
+        // Step 1: Initial state — name entry
         var state = new RegisterCreationState();
         state.CurrentStep.Should().Be(1);
         state.CanProceed.Should().BeFalse();
 
-        // Step 2: User enters name
+        // User enters name
         state = state with { Name = "My New Register" };
         state.IsNameValid.Should().BeTrue();
         state.CanProceed.Should().BeTrue();
 
-        // Step 3: Move to options
+        // Step 2: Move to wallet selection
         state = state.NextStep();
         state.CurrentStep.Should().Be(2);
         state.CanGoBack.Should().BeTrue();
+        state.CanProceed.Should().BeFalse(); // No wallet selected yet
 
-        // Step 4: User configures options
+        // User selects wallet
+        state = state with { SelectedWalletAddress = "wallet-abc-123" };
+        state.HasValidWallet.Should().BeTrue();
+        state.CanProceed.Should().BeTrue();
+
+        // Step 3: Move to options
+        state = state.NextStep();
+        state.CurrentStep.Should().Be(3);
+        state.CanGoBack.Should().BeTrue();
+
+        // User configures options
         state = state with { Advertise = true, IsFullReplica = true };
         state.CanProceed.Should().BeTrue();
 
-        // Step 5: Move to review
+        // Step 4: Move to review
         state = state.NextStep();
-        state.CurrentStep.Should().Be(3);
+        state.CurrentStep.Should().Be(4);
 
-        // Step 6: Initiate creation (processing)
+        // Initiate creation (processing)
         state = state with
         {
             IsProcessing = true,
@@ -355,13 +390,13 @@ public class CreateRegisterWizardTests
         };
         state.CanGoBack.Should().BeFalse(); // Can't go back while processing
 
-        // Step 7: Receive unsigned record
+        // Receive unsigned record
         state = state with
         {
             UnsignedControlRecord = "unsigned-control-record"
         };
 
-        // Step 8: Complete with signed record
+        // Complete with signed record
         state = state with
         {
             SignedControlRecord = "signed-control-record",
