@@ -344,6 +344,186 @@ public class RegisterAdvertisementServiceTests : IDisposable
         result.Should().BeEmpty();
     }
 
+    // === Idempotency Tests (FR-009) ===
+
+    [Fact]
+    public void AdvertiseRegister_Idempotent_SkipsUnchangedWrite()
+    {
+        // First call — new advertisement
+        _service.AdvertiseRegister("reg-1", RegisterSyncState.Active, 100, 10, true);
+        var firstAd = _service.GetAdvertisement("reg-1");
+        var firstTimestamp = firstAd!.LastUpdated;
+
+        // Small delay to ensure timestamp would differ
+        Thread.Sleep(10);
+
+        // Second call — same data → should be idempotent
+        _service.AdvertiseRegister("reg-1", RegisterSyncState.Active, 100, 10, true);
+        var secondAd = _service.GetAdvertisement("reg-1");
+
+        // Timestamp unchanged means the write was skipped
+        secondAd!.LastUpdated.Should().Be(firstTimestamp);
+    }
+
+    [Fact]
+    public void AdvertiseRegister_ChangedVersion_WritesThrough()
+    {
+        _service.AdvertiseRegister("reg-1", RegisterSyncState.Active, 100, 10, true);
+        var firstAd = _service.GetAdvertisement("reg-1");
+        var firstTimestamp = firstAd!.LastUpdated;
+
+        Thread.Sleep(10);
+
+        // Changed version → should update
+        _service.AdvertiseRegister("reg-1", RegisterSyncState.Active, 200, 10, true);
+        var secondAd = _service.GetAdvertisement("reg-1");
+
+        secondAd!.LatestVersion.Should().Be(200);
+        secondAd.LastUpdated.Should().BeAfter(firstTimestamp);
+    }
+
+    // === Redis Write-Through Tests ===
+
+    [Fact]
+    public void AdvertiseRegister_WithStore_CallsSetLocalAsync()
+    {
+        var mockStore = new Mock<IRedisAdvertisementStore>();
+        var service = new RegisterAdvertisementService(
+            new Mock<ILogger<RegisterAdvertisementService>>().Object,
+            _peerListManager,
+            mockStore.Object);
+
+        service.AdvertiseRegister("reg-1", RegisterSyncState.Active, 100, 10, true);
+
+        mockStore.Verify(s => s.SetLocalAsync(
+            It.Is<LocalRegisterAdvertisement>(a => a.RegisterId == "reg-1"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public void RemoveAdvertisement_WithStore_CallsRemoveLocalAsync()
+    {
+        var mockStore = new Mock<IRedisAdvertisementStore>();
+        var service = new RegisterAdvertisementService(
+            new Mock<ILogger<RegisterAdvertisementService>>().Object,
+            _peerListManager,
+            mockStore.Object);
+
+        service.AdvertiseRegister("reg-1", RegisterSyncState.Active);
+        service.RemoveAdvertisement("reg-1");
+
+        mockStore.Verify(s => s.RemoveLocalAsync(
+            "reg-1",
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task LoadFromRedisAsync_WithStore_PopulatesLocalAdvertisements()
+    {
+        var mockStore = new Mock<IRedisAdvertisementStore>();
+        mockStore.Setup(s => s.GetAllLocalAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<LocalRegisterAdvertisement>
+            {
+                new() { RegisterId = "reg-1", SyncState = RegisterSyncState.Active, IsPublic = true },
+                new() { RegisterId = "reg-2", SyncState = RegisterSyncState.FullyReplicated, IsPublic = true }
+            });
+        mockStore.Setup(s => s.GetAllRemoteAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<string, List<PeerRegisterInfo>>());
+
+        var service = new RegisterAdvertisementService(
+            new Mock<ILogger<RegisterAdvertisementService>>().Object,
+            _peerListManager,
+            mockStore.Object);
+
+        await service.LoadFromRedisAsync();
+
+        service.GetLocalAdvertisements().Should().HaveCount(2);
+        service.GetAdvertisement("reg-1").Should().NotBeNull();
+        service.GetAdvertisement("reg-2").Should().NotBeNull();
+    }
+
+    // === Remote Advertisement Persistence Tests (US4) ===
+
+    [Fact]
+    public async Task ProcessRemoteAdvertisementsAsync_WithStore_CallsSetRemoteAsync()
+    {
+        var mockStore = new Mock<IRedisAdvertisementStore>();
+        var service = new RegisterAdvertisementService(
+            new Mock<ILogger<RegisterAdvertisementService>>().Object,
+            _peerListManager,
+            mockStore.Object);
+
+        var peer = new PeerNode { PeerId = "peer-1", Address = "192.168.1.100", Port = 5001 };
+        await _peerListManager.AddOrUpdatePeerAsync(peer);
+
+        var ads = new List<PeerRegisterInfo>
+        {
+            new() { RegisterId = "reg-1", SyncState = RegisterSyncState.Active, LatestVersion = 100, IsPublic = true },
+            new() { RegisterId = "reg-2", SyncState = RegisterSyncState.FullyReplicated, LatestVersion = 200, IsPublic = true }
+        };
+
+        await service.ProcessRemoteAdvertisementsAsync("peer-1", ads);
+
+        mockStore.Verify(s => s.SetRemoteAsync(
+            "peer-1",
+            It.Is<PeerRegisterInfo>(r => r.RegisterId == "reg-1"),
+            It.IsAny<CancellationToken>()), Times.Once);
+        mockStore.Verify(s => s.SetRemoteAsync(
+            "peer-1",
+            It.Is<PeerRegisterInfo>(r => r.RegisterId == "reg-2"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public void GetNetworkAdvertisedRegisters_IncludesLocalPublicAds()
+    {
+        _service.AdvertiseRegister("local-reg", RegisterSyncState.Active, 100, 10, isPublic: true);
+
+        var result = _service.GetNetworkAdvertisedRegisters();
+
+        result.Should().ContainSingle().Which.RegisterId.Should().Be("local-reg");
+    }
+
+    [Fact]
+    public void GetNetworkAdvertisedRegisters_ExcludesLocalPrivateAds()
+    {
+        _service.AdvertiseRegister("private-reg", RegisterSyncState.Active, 100, 10, isPublic: false);
+
+        var result = _service.GetNetworkAdvertisedRegisters();
+
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task LoadFromRedisAsync_RestoresRemoteAdsFromRedis()
+    {
+        var peer = new PeerNode { PeerId = "peer-A", Address = "192.168.1.100", Port = 5001 };
+        await _peerListManager.AddOrUpdatePeerAsync(peer);
+
+        var mockStore = new Mock<IRedisAdvertisementStore>();
+        mockStore.Setup(s => s.GetAllLocalAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<LocalRegisterAdvertisement>());
+        mockStore.Setup(s => s.GetAllRemoteAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<string, List<PeerRegisterInfo>>
+            {
+                ["peer-A"] = new List<PeerRegisterInfo>
+                {
+                    new() { RegisterId = "remote-reg-1", SyncState = RegisterSyncState.Active, LatestVersion = 50, IsPublic = true }
+                }
+            });
+
+        var service = new RegisterAdvertisementService(
+            new Mock<ILogger<RegisterAdvertisementService>>().Object,
+            _peerListManager,
+            mockStore.Object);
+
+        await service.LoadFromRedisAsync();
+
+        var loadedPeer = _peerListManager.GetPeer("peer-A");
+        loadedPeer!.AdvertisedRegisters.Should().ContainSingle()
+            .Which.RegisterId.Should().Be("remote-reg-1");
+    }
+
     public void Dispose()
     {
         _peerListManager.Dispose();

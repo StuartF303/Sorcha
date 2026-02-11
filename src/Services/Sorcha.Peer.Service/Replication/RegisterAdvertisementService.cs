@@ -17,14 +17,56 @@ public class RegisterAdvertisementService
 {
     private readonly ILogger<RegisterAdvertisementService> _logger;
     private readonly PeerListManager _peerListManager;
+    private readonly IRedisAdvertisementStore? _store;
     private readonly ConcurrentDictionary<string, LocalRegisterAdvertisement> _localAdvertisements = new();
 
     public RegisterAdvertisementService(
         ILogger<RegisterAdvertisementService> logger,
-        PeerListManager peerListManager)
+        PeerListManager peerListManager,
+        IRedisAdvertisementStore? store = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _peerListManager = peerListManager ?? throw new ArgumentNullException(nameof(peerListManager));
+        _store = store;
+    }
+
+    /// <summary>
+    /// Loads previously persisted advertisements from Redis on startup.
+    /// Populates the in-memory cache so the service is immediately ready.
+    /// </summary>
+    public async Task LoadFromRedisAsync(CancellationToken cancellationToken = default)
+    {
+        if (_store == null) return;
+
+        try
+        {
+            // Load local advertisements
+            var localAds = await _store.GetAllLocalAsync(cancellationToken);
+            foreach (var ad in localAds)
+            {
+                _localAdvertisements[ad.RegisterId] = ad;
+            }
+
+            // Load remote advertisements and update peer state
+            var remoteAds = await _store.GetAllRemoteAsync(cancellationToken);
+            foreach (var (peerId, ads) in remoteAds)
+            {
+                var peer = _peerListManager.GetPeer(peerId);
+                if (peer != null)
+                {
+                    peer.AdvertisedRegisters = ads;
+                    await _peerListManager.AddOrUpdatePeerAsync(peer);
+                }
+            }
+
+            _logger.LogInformation(
+                "Loaded {LocalCount} local and {RemotePeerCount} remote peer advertisement sets from Redis",
+                localAds.Count, remoteAds.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load advertisements from Redis on startup — starting with empty state");
+        }
     }
 
     /// <summary>
@@ -37,6 +79,19 @@ public class RegisterAdvertisementService
         long latestDocketVersion = 0,
         bool isPublic = false)
     {
+        // Idempotency check: skip if unchanged (FR-009)
+        if (_localAdvertisements.TryGetValue(registerId, out var existing) &&
+            existing.SyncState == syncState &&
+            existing.LatestVersion == latestVersion &&
+            existing.LatestDocketVersion == latestDocketVersion &&
+            existing.IsPublic == isPublic)
+        {
+            _logger.LogDebug(
+                "Skipping unchanged advertisement for register {RegisterId}",
+                registerId);
+            return;
+        }
+
         var ad = new LocalRegisterAdvertisement
         {
             RegisterId = registerId,
@@ -48,6 +103,10 @@ public class RegisterAdvertisementService
         };
 
         _localAdvertisements[registerId] = ad;
+
+        // Write-through to Redis (fire-and-forget, FR-010 safe)
+        if (_store != null)
+            _ = _store.SetLocalAsync(ad);
 
         _logger.LogDebug(
             "Advertising register {RegisterId} with state {SyncState}, version {Version}",
@@ -67,6 +126,10 @@ public class RegisterAdvertisementService
             ad.LatestVersion = latestVersion;
             ad.LatestDocketVersion = latestDocketVersion;
             ad.LastUpdated = DateTimeOffset.UtcNow;
+
+            // Write-through to Redis (fire-and-forget, FR-010 safe)
+            if (_store != null)
+                _ = _store.SetLocalAsync(ad);
         }
     }
 
@@ -77,6 +140,10 @@ public class RegisterAdvertisementService
     {
         if (_localAdvertisements.TryRemove(registerId, out _))
         {
+            // Write-through to Redis (fire-and-forget, FR-010 safe)
+            if (_store != null)
+                _ = _store.RemoveLocalAsync(registerId);
+
             _logger.LogDebug("Removed advertisement for register {RegisterId}", registerId);
         }
     }
@@ -128,12 +195,22 @@ public class RegisterAdvertisementService
         }
 
         // Update the peer's advertised registers
-        peer.AdvertisedRegisters = remoteAdvertisements.ToList();
+        var adList = remoteAdvertisements.ToList();
+        peer.AdvertisedRegisters = adList;
         await _peerListManager.AddOrUpdatePeerAsync(peer);
+
+        // Write-through to Redis (fire-and-forget, FR-010 safe)
+        if (_store != null)
+        {
+            foreach (var ad in adList)
+            {
+                _ = _store.SetRemoteAsync(sourcePeerId, ad);
+            }
+        }
 
         _logger.LogDebug(
             "Updated {Count} register advertisements from peer {PeerId}",
-            peer.AdvertisedRegisters.Count, sourcePeerId);
+            adList.Count, sourcePeerId);
     }
 
     /// <summary>
@@ -153,7 +230,7 @@ public class RegisterAdvertisementService
     }
 
     /// <summary>
-    /// Aggregates registers advertised across all known peers (public only).
+    /// Aggregates registers advertised across all known peers and local advertisements (public only).
     /// Returns one entry per register with peer count, max versions, and full replica count.
     /// </summary>
     public IReadOnlyCollection<AvailableRegisterInfo> GetNetworkAdvertisedRegisters()
@@ -161,6 +238,23 @@ public class RegisterAdvertisementService
         var allPeers = _peerListManager.GetAllPeers();
         var registerMap = new Dictionary<string, AvailableRegisterInfo>();
 
+        // Include local public advertisements first
+        foreach (var localAd in _localAdvertisements.Values)
+        {
+            if (!localAd.IsPublic) continue;
+
+            registerMap[localAd.RegisterId] = new AvailableRegisterInfo
+            {
+                RegisterId = localAd.RegisterId,
+                IsPublic = true,
+                LatestVersion = localAd.LatestVersion,
+                LatestDocketVersion = localAd.LatestDocketVersion,
+                PeerCount = 0, // Local node doesn't count as a "peer"
+                FullReplicaPeerCount = 0
+            };
+        }
+
+        // Aggregate remote peer advertisements
         foreach (var peer in allPeers)
         {
             if (peer.IsBanned) continue;
@@ -187,22 +281,12 @@ public class RegisterAdvertisementService
             }
         }
 
-        // Also include docket version from local advertisements
+        // Update docket versions from local advertisements
         foreach (var (registerId, info) in registerMap)
         {
-            // Scan peers for max docket version
-            foreach (var peer in allPeers)
-            {
-                if (peer.IsBanned) continue;
-                var reg = peer.AdvertisedRegisters.FirstOrDefault(r => r.RegisterId == registerId);
-                if (reg != null)
-                {
-                    // PeerRegisterInfo doesn't track docket version, so use local advertisement if available
-                    var localAd = GetAdvertisement(registerId);
-                    if (localAd != null && localAd.LatestDocketVersion > info.LatestDocketVersion)
-                        info.LatestDocketVersion = localAd.LatestDocketVersion;
-                }
-            }
+            var localAd = GetAdvertisement(registerId);
+            if (localAd != null && localAd.LatestDocketVersion > info.LatestDocketVersion)
+                info.LatestDocketVersion = localAd.LatestDocketVersion;
         }
 
         return registerMap.Values.ToList().AsReadOnly();
