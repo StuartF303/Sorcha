@@ -1,7 +1,7 @@
 # Sorcha Platform - Development Status Report
 
-**Date:** 2026-02-08
-**Version:** 3.2 (Updated after UI Modernization)
+**Date:** 2026-02-11
+**Version:** 3.3 (Updated after Register Governance)
 **Overall Completion:** 98%
 
 ---
@@ -13,9 +13,9 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 **Key Findings:**
 - Blueprint-Action Service is 100% complete with full orchestration and JWT authentication (123 tests)
 - Wallet Service is 95% complete with full API implementation, JWT authentication, and EF Core persistence
-- Register Service is 100% complete with comprehensive testing and JWT authentication (112 tests, ~2,459 LOC)
+- Register Service is 100% complete with comprehensive testing, JWT authentication, and decentralized governance (234 tests)
 - **Peer Service 80% complete**: P2P topology, JWT auth, EF Core migrations, cache eviction, gRPC hardening
-- **Validator Service 95% complete**: Memory pool, docket building, consensus, gRPC peer communication
+- **Validator Service 95% complete**: Memory pool, docket building, consensus, gRPC peer communication, governance rights enforcement (620 tests)
 - **Tenant Service 85% complete**: 67 integration tests (61 passing, 91% pass rate)
 - **AUTH-002 complete**: All services now have JWT Bearer authentication with authorization policies
 - **UI Modernization 100% complete**: Comprehensive overhaul — admin panels, workflow management, cloud persistence, dashboard stats, wallet/transaction integration, template library, explorer enhancements, consistent ID truncation
@@ -87,6 +87,17 @@ For detailed implementation status, see the individual section files:
 ---
 
 ## Recent Completions
+
+### 2026-02-11
+- **031-Register-Governance** (80 tasks, 9 phases — decentralized register governance)
+  - TransactionType.Genesis renamed to Control (value 0 preserved), System=3 removed
+  - Governance models: GovernanceOperation, ApprovalSignature, ControlTransactionPayload, AdminRoster
+  - DID scheme: `did:sorcha:w:{walletAddress}` (wallet) + `did:sorcha:r:{registerId}:t:{txId}` (register)
+  - GovernanceRosterService: roster reconstruction, quorum validation (floor(m/2)+1), proposal validation
+  - DIDResolver: wallet + register DID resolution with cross-instance support
+  - RightsEnforcementService: validator pipeline stage 4b (governance rights check)
+  - Governance REST endpoints: roster + history (paginated)
+  - 56 new tests: Register Core 234 pass, Validator Service 620 pass
 
 ### 2026-02-08
 - **PR #110 P2P Review Fixes** (12 issues resolved — 3 critical, 4 high, 5 medium)

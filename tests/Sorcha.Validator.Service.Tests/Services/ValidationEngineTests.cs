@@ -25,6 +25,7 @@ public class ValidationEngineTests
     private readonly Mock<IHashProvider> _hashProviderMock;
     private readonly Mock<ICryptoModule> _cryptoModuleMock;
     private readonly Mock<IRegisterServiceClient> _registerClientMock;
+    private readonly Mock<IRightsEnforcementService> _rightsEnforcementMock;
     private readonly Mock<ILogger<ValidationEngine>> _loggerMock;
     private readonly ValidationEngineConfiguration _config;
     private readonly ValidationEngine _engine;
@@ -35,12 +36,19 @@ public class ValidationEngineTests
         _hashProviderMock = new Mock<IHashProvider>();
         _cryptoModuleMock = new Mock<ICryptoModule>();
         _registerClientMock = new Mock<IRegisterServiceClient>();
+        _rightsEnforcementMock = new Mock<IRightsEnforcementService>();
         _loggerMock = new Mock<ILogger<ValidationEngine>>();
 
         // Default: no existing successors (no fork)
         _registerClientMock.Setup(r => r.GetTransactionsByPrevTxIdAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TransactionPage { Page = 1, PageSize = 1 });
+
+        // Default: governance validation passes (non-governance transactions pass through)
+        _rightsEnforcementMock.Setup(r => r.ValidateGovernanceRightsAsync(
+                It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Transaction tx, CancellationToken _) =>
+                ValidationEngineResult.Success(tx.TransactionId, tx.RegisterId, TimeSpan.Zero));
 
         _config = new ValidationEngineConfiguration
         {
@@ -58,6 +66,7 @@ public class ValidationEngineTests
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
             _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
             _loggerMock.Object);
     }
 
@@ -70,6 +79,7 @@ public class ValidationEngineTests
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
             _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
             _loggerMock.Object);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("config");
@@ -84,6 +94,7 @@ public class ValidationEngineTests
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
             _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
             _loggerMock.Object);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("blueprintCache");
@@ -98,6 +109,7 @@ public class ValidationEngineTests
             null!,
             _cryptoModuleMock.Object,
             _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
             _loggerMock.Object);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("hashProvider");
@@ -112,6 +124,7 @@ public class ValidationEngineTests
             _hashProviderMock.Object,
             null!,
             _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
             _loggerMock.Object);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("cryptoModule");
@@ -126,9 +139,25 @@ public class ValidationEngineTests
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
             null!,
+            _rightsEnforcementMock.Object,
             _loggerMock.Object);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("registerClient");
+    }
+
+    [Fact]
+    public void Constructor_WithNullRightsEnforcement_ThrowsArgumentNullException()
+    {
+        var act = () => new ValidationEngine(
+            Options.Create(_config),
+            _blueprintCacheMock.Object,
+            _hashProviderMock.Object,
+            _cryptoModuleMock.Object,
+            _registerClientMock.Object,
+            null!,
+            _loggerMock.Object);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("rightsEnforcementService");
     }
 
     [Fact]
@@ -140,6 +169,7 @@ public class ValidationEngineTests
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
             _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
             null!);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("logger");
@@ -797,6 +827,7 @@ public class ValidationEngineTests
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
             _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
             _loggerMock.Object);
 
         var tx = CreateValidTransaction();
@@ -1043,6 +1074,7 @@ public class ValidationEngineTests
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
             _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
             _loggerMock.Object);
 
         var tx = CreateValidTransaction(previousTransactionId: "some-tx");
@@ -1289,6 +1321,7 @@ public class ValidationEngineTests
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
             _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
             _loggerMock.Object);
 
         var tx = CreateValidTransaction(previousTransactionId: "some-tx");

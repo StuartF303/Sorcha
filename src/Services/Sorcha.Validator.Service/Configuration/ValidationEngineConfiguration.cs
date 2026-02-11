@@ -77,4 +77,11 @@ public class ValidationEngineConfiguration
     /// Maximum age of a transaction before rejection
     /// </summary>
     public TimeSpan MaxTransactionAge { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Enable governance rights enforcement for Control transactions.
+    /// When enabled, Control transactions are validated against the register's
+    /// admin roster to ensure the submitter has the required role.
+    /// </summary>
+    public bool EnableGovernanceValidation { get; set; } = true;
 }

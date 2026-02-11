@@ -28,6 +28,7 @@ public class ValidationEngine : IValidationEngine
     private readonly IHashProvider _hashProvider;
     private readonly ICryptoModule _cryptoModule;
     private readonly IRegisterServiceClient _registerClient;
+    private readonly IRightsEnforcementService _rightsEnforcementService;
     private readonly ILogger<ValidationEngine> _logger;
 
     // Statistics
@@ -45,6 +46,7 @@ public class ValidationEngine : IValidationEngine
         IHashProvider hashProvider,
         ICryptoModule cryptoModule,
         IRegisterServiceClient registerClient,
+        IRightsEnforcementService rightsEnforcementService,
         ILogger<ValidationEngine> logger)
     {
         _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
@@ -52,6 +54,7 @@ public class ValidationEngine : IValidationEngine
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
         _registerClient = registerClient ?? throw new ArgumentNullException(nameof(registerClient));
+        _rightsEnforcementService = rightsEnforcementService ?? throw new ArgumentNullException(nameof(rightsEnforcementService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -103,6 +106,16 @@ public class ValidationEngine : IValidationEngine
                 if (!sigResult.IsValid)
                 {
                     errors.AddRange(sigResult.Errors);
+                }
+            }
+
+            // 4b. Validate governance rights for Control transactions (if enabled)
+            if (_config.EnableGovernanceValidation)
+            {
+                var govResult = await _rightsEnforcementService.ValidateGovernanceRightsAsync(transaction, ct);
+                if (!govResult.IsValid)
+                {
+                    errors.AddRange(govResult.Errors);
                 }
             }
 

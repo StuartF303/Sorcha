@@ -373,6 +373,12 @@ builder.Services.AddScoped<ICryptoModule, Sorcha.Cryptography.Core.CryptoModule>
 // Register wallet service client
 builder.Services.AddServiceClients(builder.Configuration);
 
+// Register governance roster service
+builder.Services.AddScoped<Sorcha.Register.Core.Services.IGovernanceRosterService,
+    Sorcha.Register.Core.Services.GovernanceRosterService>();
+builder.Services.AddScoped<Sorcha.Register.Core.Services.IDIDResolver,
+    Sorcha.Register.Core.Services.DIDResolver>();
+
 // Register MongoDB for system register
 builder.Services.AddSingleton<IMongoClient>(sp =>
 {
@@ -1070,6 +1076,84 @@ docketsGroup.MapPost("/", async (
 .WithSummary("Write a confirmed docket")
 .WithDescription("Writes a consensus-confirmed docket to the register. Used by Validator Service.")
 .RequireAuthorization("CanWriteDockets");
+
+// ===========================
+// Governance API
+// ===========================
+
+var governanceGroup = app.MapGroup("/api/registers/{registerId}/governance")
+    .WithTags("Governance")
+    .RequireAuthorization("CanReadTransactions");
+
+/// <summary>
+/// Get the current admin roster for a register
+/// </summary>
+governanceGroup.MapGet("/roster", async (
+    Sorcha.Register.Core.Services.IGovernanceRosterService rosterService,
+    string registerId) =>
+{
+    var roster = await rosterService.GetCurrentRosterAsync(registerId);
+    if (roster == null)
+    {
+        return Results.NotFound(new { error = $"No governance roster found for register '{registerId}'" });
+    }
+
+    return Results.Ok(new
+    {
+        roster.RegisterId,
+        Members = roster.ControlRecord.Attestations.Select(a => new
+        {
+            a.Subject,
+            Role = a.Role.ToString(),
+            a.Algorithm,
+            a.GrantedAt
+        }),
+        MemberCount = roster.ControlRecord.Attestations.Count,
+        roster.ControlTransactionCount,
+        roster.LastControlTxId
+    });
+})
+.WithName("GetGovernanceRoster")
+.WithSummary("Get current admin roster")
+.WithDescription("Reconstructs the current admin roster by replaying all Control transactions for the register.");
+
+/// <summary>
+/// Get governance history (Control transactions)
+/// </summary>
+governanceGroup.MapGet("/history", async (
+    IRegisterRepository repository,
+    string registerId,
+    int page = 1,
+    int pageSize = 20) =>
+{
+    var register = await repository.GetRegisterAsync(registerId);
+    if (register == null)
+    {
+        return Results.NotFound(new { error = "Register not found" });
+    }
+
+    var transactions = await repository.GetTransactionsAsync(registerId);
+    var controlTxs = transactions
+        .Where(t => t.MetaData != null && t.MetaData.TransactionType == Sorcha.Register.Models.Enums.TransactionType.Control)
+        .OrderByDescending(t => t.DocketNumber ?? 0)
+        .ToList();
+
+    var pagedTxs = controlTxs
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToList();
+
+    return Results.Ok(new
+    {
+        Page = page,
+        PageSize = pageSize,
+        Total = controlTxs.Count,
+        Transactions = pagedTxs
+    });
+})
+.WithName("GetGovernanceHistory")
+.WithSummary("Get governance history")
+.WithDescription("Retrieves paginated Control transactions that make up the governance history for a register.");
 
 app.Run();
 
