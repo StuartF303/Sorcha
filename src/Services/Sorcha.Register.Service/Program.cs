@@ -391,6 +391,10 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 builder.Services.AddSingleton<ISystemRegisterRepository, MongoSystemRegisterRepository>();
 builder.Services.AddSingleton<SystemRegisterService>();
 
+// Register advertisement reconciliation — re-advertises public registers to Peer Service on startup
+// and periodically, ensuring peer network visibility survives service restarts
+builder.Services.AddHostedService<RegisterAdvertisementReconciliationService>();
+
 // Add JWT authentication and authorization (AUTH-002)
 // JWT authentication is now configured via shared ServiceDefaults with auto-key generation
 builder.AddJwtAuthentication();
