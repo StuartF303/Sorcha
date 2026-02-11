@@ -143,13 +143,14 @@
                   AlignItems="AlignItems.Center"
                   Class="mb-2">
             <MudStack Row="true" Spacing="1">
-                <RealTimeIndicator ConnectionState="@_connectionState" />
+                <RealTimeIndicator ConnectionState="@_connectionState"
+                                   OnReconnect="ReconnectAsync" />
                 @if (!_connectionState.IsHealthy)
                 {
                     <MudIconButton Icon="@Icons.Material.Filled.Refresh"
                                    Size="Size.Small"
-                                   OnClick="RefreshTransactionsAsync"
-                                   aria-label="Refresh" />
+                                   OnClick="ReconnectAsync"
+                                   aria-label="Reconnect" />
                 }
             </MudStack>
         </MudStack>
@@ -327,6 +328,18 @@
     private void NavigateBack()
     {
         Navigation.NavigateTo("registers");
+    }
+
+    private async Task ReconnectAsync()
+    {
+        try
+        {
+            await HubConnection.ReconnectAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Reconnect failed: {ex.Message}");
+        }
     }
 
     private async Task RefreshTransactionsAsync()
