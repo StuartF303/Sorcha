@@ -401,6 +401,30 @@ public class RegisterAdvertisementServiceTests : IDisposable
     }
 
     [Fact]
+    public void UpdateRegisterVersion_WithStore_CallsSetLocalAsync()
+    {
+        var mockStore = new Mock<IRedisAdvertisementStore>();
+        var service = new RegisterAdvertisementService(
+            new Mock<ILogger<RegisterAdvertisementService>>().Object,
+            _peerListManager,
+            mockStore.Object);
+
+        service.AdvertiseRegister("reg-1", RegisterSyncState.Active, 100, 10, true);
+
+        // Reset so we only verify the UpdateRegisterVersion call
+        mockStore.Invocations.Clear();
+
+        service.UpdateRegisterVersion("reg-1", 200, 20);
+
+        mockStore.Verify(s => s.SetLocalAsync(
+            It.Is<LocalRegisterAdvertisement>(a =>
+                a.RegisterId == "reg-1" &&
+                a.LatestVersion == 200 &&
+                a.LatestDocketVersion == 20),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public void RemoveAdvertisement_WithStore_CallsRemoveLocalAsync()
     {
         var mockStore = new Mock<IRedisAdvertisementStore>();

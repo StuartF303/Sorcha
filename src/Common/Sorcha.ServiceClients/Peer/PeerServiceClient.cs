@@ -429,6 +429,8 @@ public class PeerServiceClient : IPeerServiceClient, IDisposable
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
+
         if (!_disposed)
         {
             _channel?.Dispose();

@@ -106,7 +106,7 @@ public class RegisterAdvertisementService
 
         // Write-through to Redis (fire-and-forget, FR-010 safe)
         if (_store != null)
-            _ = _store.SetLocalAsync(ad);
+            FireAndForgetRedis(_store.SetLocalAsync(ad), "SetLocalAsync");
 
         _logger.LogDebug(
             "Advertising register {RegisterId} with state {SyncState}, version {Version}",
@@ -115,21 +115,34 @@ public class RegisterAdvertisementService
 
     /// <summary>
     /// Updates the version information for an already-advertised register.
+    /// Uses compare-and-swap to avoid mutating a shared object in-place.
     /// </summary>
     public void UpdateRegisterVersion(
         string registerId,
         long latestVersion,
         long latestDocketVersion)
     {
-        if (_localAdvertisements.TryGetValue(registerId, out var ad))
+        // CAS loop: create a new object rather than mutating the existing one
+        while (_localAdvertisements.TryGetValue(registerId, out var existing))
         {
-            ad.LatestVersion = latestVersion;
-            ad.LatestDocketVersion = latestDocketVersion;
-            ad.LastUpdated = DateTimeOffset.UtcNow;
+            var updated = new LocalRegisterAdvertisement
+            {
+                RegisterId = existing.RegisterId,
+                SyncState = existing.SyncState,
+                LatestVersion = latestVersion,
+                LatestDocketVersion = latestDocketVersion,
+                IsPublic = existing.IsPublic,
+                LastUpdated = DateTimeOffset.UtcNow
+            };
 
-            // Write-through to Redis (fire-and-forget, FR-010 safe)
-            if (_store != null)
-                _ = _store.SetLocalAsync(ad);
+            if (_localAdvertisements.TryUpdate(registerId, updated, existing))
+            {
+                // Write-through to Redis (fire-and-forget, FR-010 safe)
+                if (_store != null)
+                    FireAndForgetRedis(_store.SetLocalAsync(updated), "SetLocalAsync");
+                return;
+            }
+            // TryUpdate failed — another thread changed the value; retry
         }
     }
 
@@ -142,7 +155,7 @@ public class RegisterAdvertisementService
         {
             // Write-through to Redis (fire-and-forget, FR-010 safe)
             if (_store != null)
-                _ = _store.RemoveLocalAsync(registerId);
+                FireAndForgetRedis(_store.RemoveLocalAsync(registerId), "RemoveLocalAsync");
 
             _logger.LogDebug("Removed advertisement for register {RegisterId}", registerId);
         }
@@ -204,7 +217,7 @@ public class RegisterAdvertisementService
         {
             foreach (var ad in adList)
             {
-                _ = _store.SetRemoteAsync(sourcePeerId, ad);
+                FireAndForgetRedis(_store.SetRemoteAsync(sourcePeerId, ad), "SetRemoteAsync");
             }
         }
 
@@ -313,6 +326,18 @@ public class RegisterAdvertisementService
         }
 
         return lagging.AsReadOnly();
+    }
+
+    /// <summary>
+    /// Safely observes a fire-and-forget Redis task, logging failures without
+    /// propagating exceptions to the caller (FR-010).
+    /// </summary>
+    private void FireAndForgetRedis(Task task, string operationName)
+    {
+        task.ContinueWith(
+            t => _logger.LogWarning(t.Exception?.InnerException ?? t.Exception,
+                "Fire-and-forget Redis {Operation} failed", operationName),
+            TaskContinuationOptions.OnlyOnFaulted);
     }
 }
 
