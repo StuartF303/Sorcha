@@ -82,6 +82,12 @@ public record CreateRegisterRequest
     public required List<OwnerInfo> Owners { get; init; }
 
     /// <summary>
+    /// Whether to advertise this register to the peer network (public visibility)
+    /// </summary>
+    [JsonPropertyName("advertise")]
+    public bool Advertise { get; init; }
+
+    /// <summary>
     /// Additional metadata
     /// </summary>
     [JsonPropertyName("metadata")]

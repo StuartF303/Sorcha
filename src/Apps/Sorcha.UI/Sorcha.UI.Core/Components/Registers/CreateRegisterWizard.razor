@@ -174,7 +174,9 @@
                                             Advertise this register to network peers
                                         </MudText>
                                     </MudStack>
-                                    <MudSwitch @bind-Value="_advertise"
+                                    <MudSwitch Value="_advertise"
+                                               ValueChanged="OnAdvertiseChanged"
+                                               T="bool"
                                                Color="Color.Primary"
                                                data-testid="advertise-switch" />
                                 </MudStack>
@@ -185,11 +187,19 @@
                                     <MudStack Spacing="0">
                                         <MudText Typo="Typo.body1">Full Replica</MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                            Maintain complete transaction history
+                                            @if (_advertise)
+                                            {
+                                                @:Required for public registers
+                                            }
+                                            else
+                                            {
+                                                @:Maintain complete transaction history
+                                            }
                                         </MudText>
                                     </MudStack>
                                     <MudSwitch @bind-Value="_isFullReplica"
                                                Color="Color.Primary"
+                                               Disabled="@_advertise"
                                                data-testid="full-replica-switch" />
                                 </MudStack>
                             </MudPaper>
@@ -198,7 +208,7 @@
                                 <MudText Typo="Typo.body2">
                                     @if (_advertise)
                                     {
-                                        <span><strong>Public:</strong> Other participants can discover and subscribe to this register.</span>
+                                        <span><strong>Public:</strong> Other participants can discover and subscribe to this register. Full replica is required until other peers replicate the data.</span>
                                     }
                                     else
                                     {
@@ -429,6 +439,15 @@
         _ => "Processing..."
     };
 
+    private void OnAdvertiseChanged(bool value)
+    {
+        _advertise = value;
+        if (_advertise)
+        {
+            _isFullReplica = true;
+        }
+    }
+
     private void NextStep()
     {
         if (CanProceed() && _activeStep < 3)
@@ -478,6 +497,7 @@
                 Name = _name,
                 Description = string.IsNullOrWhiteSpace(_description) ? null : _description.Trim(),
                 TenantId = TenantId,
+                Advertise = _advertise,
                 Owners = new List<OwnerInfo>
                 {
                     new OwnerInfo
@@ -488,7 +508,6 @@
                 },
                 Metadata = new Dictionary<string, string>
                 {
-                    ["advertise"] = _advertise.ToString().ToLowerInvariant(),
                     ["isFullReplica"] = _isFullReplica.ToString().ToLowerInvariant()
                 }
             };

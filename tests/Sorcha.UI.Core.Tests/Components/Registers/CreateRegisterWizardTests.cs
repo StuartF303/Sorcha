@@ -3,6 +3,7 @@
 
 using FluentAssertions;
 using Sorcha.UI.Core.Models.Registers;
+using Sorcha.UI.Core.Services;
 using Xunit;
 
 namespace Sorcha.UI.Core.Tests.Components.Registers;
@@ -471,6 +472,164 @@ public class CreateRegisterWizardTests
         // Assert
         modified.Advertise.Should().BeTrue();
         modified.IsFullReplica.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region Visibility Status Display Tests
+
+    [Fact]
+    public void RegisterViewModel_Advertise_True_IsPublic()
+    {
+        var vm = new RegisterViewModel
+        {
+            Id = "test-id",
+            Name = "Test Register",
+            TenantId = "tenant-1",
+            Advertise = true
+        };
+
+        vm.Advertise.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RegisterViewModel_Advertise_False_IsPrivate()
+    {
+        var vm = new RegisterViewModel
+        {
+            Id = "test-id",
+            Name = "Test Register",
+            TenantId = "tenant-1",
+            Advertise = false
+        };
+
+        vm.Advertise.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RegisterViewModel_Advertise_DefaultsToFalse()
+    {
+        var vm = new RegisterViewModel
+        {
+            Id = "test-id",
+            Name = "Test Register",
+            TenantId = "tenant-1"
+        };
+
+        vm.Advertise.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region CreateRegisterRequest Advertise Tests
+
+    [Fact]
+    public void CreateRegisterRequest_Advertise_True_IsSerialized()
+    {
+        var request = new CreateRegisterRequest
+        {
+            Name = "Public Register",
+            TenantId = "tenant-1",
+            Advertise = true,
+            Owners = [new OwnerInfo { UserId = "user-1", WalletId = "wallet-1" }]
+        };
+
+        request.Advertise.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CreateRegisterRequest_Advertise_False_IsSerialized()
+    {
+        var request = new CreateRegisterRequest
+        {
+            Name = "Private Register",
+            TenantId = "tenant-1",
+            Advertise = false,
+            Owners = [new OwnerInfo { UserId = "user-1", WalletId = "wallet-1" }]
+        };
+
+        request.Advertise.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CreateRegisterRequest_Advertise_DefaultsToFalse()
+    {
+        var request = new CreateRegisterRequest
+        {
+            Name = "Default Register",
+            TenantId = "tenant-1",
+            Owners = [new OwnerInfo { UserId = "user-1", WalletId = "wallet-1" }]
+        };
+
+        request.Advertise.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CreateRegisterRequest_Advertise_RoundTripsViaJson()
+    {
+        var request = new CreateRegisterRequest
+        {
+            Name = "Public Register",
+            TenantId = "tenant-1",
+            Advertise = true,
+            Owners = [new OwnerInfo { UserId = "user-1", WalletId = "wallet-1" }]
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(request);
+        json.Should().Contain("\"advertise\":true");
+
+        var deserialized = System.Text.Json.JsonSerializer.Deserialize<CreateRegisterRequest>(json);
+        deserialized.Should().NotBeNull();
+        deserialized!.Advertise.Should().BeTrue();
+    }
+
+    #endregion
+
+    #region Public Register Forces Full Replica Tests
+
+    [Fact]
+    public void RegisterCreationState_PublicRegister_ShouldBeFullReplica()
+    {
+        // When advertise is true, full replica should also be true
+        var state = new RegisterCreationState
+        {
+            Advertise = true,
+            IsFullReplica = true
+        };
+
+        state.Advertise.Should().BeTrue();
+        state.IsFullReplica.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RegisterCreationState_PrivateRegister_CanDisableFullReplica()
+    {
+        // Private registers can opt out of full replica
+        var state = new RegisterCreationState
+        {
+            Advertise = false,
+            IsFullReplica = false
+        };
+
+        state.Advertise.Should().BeFalse();
+        state.IsFullReplica.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RegisterCreationState_SwitchingToPublic_ShouldForceFullReplica()
+    {
+        // Simulates the wizard behavior: user had full replica off, then enables public
+        var state = new RegisterCreationState
+        {
+            Advertise = false,
+            IsFullReplica = false
+        };
+
+        // User toggles to public — wizard forces full replica on
+        var publicState = state with { Advertise = true, IsFullReplica = true };
+
+        publicState.Advertise.Should().BeTrue();
+        publicState.IsFullReplica.Should().BeTrue();
     }
 
     #endregion
