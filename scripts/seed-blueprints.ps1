@@ -5,18 +5,29 @@
     Reads all *.json files from the blueprints directory and uploads them
     to the Blueprint Service via the API Gateway. Idempotent — skips
     templates that already exist.
+
+    If no JWT token is provided, automatically logs in with the default
+    admin credentials to obtain one.
 .PARAMETER BaseUrl
     Base URL of the Sorcha API Gateway (default: http://localhost:80)
 .PARAMETER BlueprintsDir
     Directory containing blueprint template JSON files (default: ./blueprints)
 .PARAMETER JwtToken
-    JWT token for authentication. Falls back to $env:SORCHA_JWT_TOKEN if not provided.
+    JWT token for authentication. Falls back to $env:SORCHA_JWT_TOKEN,
+    then auto-login with default admin credentials.
+.PARAMETER Email
+    Admin email for auto-login (default: admin@sorcha.local)
+.PARAMETER Password
+    Admin password for auto-login (default: Dev_Pass_2025!)
 .EXAMPLE
     .\seed-blueprints.ps1
-    Seeds templates using defaults and SORCHA_JWT_TOKEN environment variable
+    Seeds templates — auto-login with default admin credentials
 .EXAMPLE
-    .\seed-blueprints.ps1 -BaseUrl "http://localhost:80" -JwtToken "eyJ..."
-    Seeds templates with explicit URL and token
+    .\seed-blueprints.ps1 -JwtToken "eyJ..."
+    Seeds templates with an explicit token
+.EXAMPLE
+    .\seed-blueprints.ps1 -Email "user@org.com" -Password "secret"
+    Seeds templates with custom login credentials
 #>
 
 [CmdletBinding()]
@@ -28,7 +39,13 @@ param(
     [string]$BlueprintsDir,
 
     [Parameter(Mandatory = $false)]
-    [string]$JwtToken
+    [string]$JwtToken,
+
+    [Parameter(Mandatory = $false)]
+    [string]$Email = "admin@sorcha.local",
+
+    [Parameter(Mandatory = $false)]
+    [string]$Password = "Dev_Pass_2025!"
 )
 
 $ErrorActionPreference = "Stop"
@@ -65,13 +82,29 @@ function Write-Info {
     Write-Host $Message -ForegroundColor White
 }
 
-# Resolve JWT token
+# Resolve JWT token: param → env var → auto-login
 if ([string]::IsNullOrEmpty($JwtToken)) {
     $JwtToken = $env:SORCHA_JWT_TOKEN
 }
 if ([string]::IsNullOrEmpty($JwtToken)) {
-    Write-Host "Error: JWT token is required. Provide -JwtToken or set SORCHA_JWT_TOKEN environment variable." -ForegroundColor Red
-    exit 1
+    Write-Info "No token provided — logging in as $Email"
+    try {
+        $loginBody = @{ email = $Email; password = $Password } | ConvertTo-Json
+        $loginResponse = Invoke-RestMethod -Uri "$BaseUrl/api/tenant/auth/login" `
+            -Method POST -ContentType "application/json" -Body $loginBody -ErrorAction Stop
+        if ($loginResponse.access_token) {
+            $JwtToken = $loginResponse.access_token
+            Write-Success "Authenticated successfully"
+        } else {
+            Write-ErrorMsg "Login response did not contain access_token"
+            exit 1
+        }
+    } catch {
+        Write-ErrorMsg "Auto-login failed: $($_.Exception.Message)"
+        Write-Info "Ensure services are running (docker-compose up -d) and tenant service is seeded"
+        Write-Info "Or provide a token: -JwtToken 'eyJ...' or `$env:SORCHA_JWT_TOKEN = 'eyJ...'"
+        exit 1
+    }
 }
 
 # Resolve blueprints directory
