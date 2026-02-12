@@ -1,6 +1,6 @@
 {
   "id": "supply-chain-order-001",
-  "title": "Supply Chain Order Workflow Template",
+  "title": "Supply Chain Order",
   "description": "Reusable template for multi-party supply chain workflows with quality checks, finance approval, and shipment tracking",
   "version": 1,
   "category": "supply-chain",

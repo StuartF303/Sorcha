@@ -1,6 +1,6 @@
 {
   "id": "approval-workflow-001",
-  "title": "Multi-Tier Approval Workflow Template",
+  "title": "Multi-Tier Approval Workflow",
   "description": "Flexible multi-tier approval workflow with configurable approval stages, escalation paths, and rejection handling",
   "version": 1,
   "category": "approval",

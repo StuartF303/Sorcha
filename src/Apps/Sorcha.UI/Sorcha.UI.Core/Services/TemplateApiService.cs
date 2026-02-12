@@ -2,6 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Sorcha.Blueprint.Models;
 using Sorcha.UI.Core.Models.Blueprints;
@@ -30,8 +31,8 @@ public class TemplateApiService : ITemplateApiService
             var url = "/api/templates";
             if (!string.IsNullOrEmpty(category)) url += $"?category={Uri.EscapeDataString(category)}";
 
-            var templates = await _httpClient.GetFromJsonAsync<List<TemplateListItemViewModel>>(url, cancellationToken);
-            return templates ?? [];
+            var templates = await _httpClient.GetFromJsonAsync<List<BlueprintTemplate>>(url, cancellationToken);
+            return templates?.Select(MapToViewModel).ToList() ?? [];
         }
         catch (Exception ex)
         {
@@ -44,7 +45,8 @@ public class TemplateApiService : ITemplateApiService
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<TemplateListItemViewModel>($"/api/templates/{id}", cancellationToken);
+            var template = await _httpClient.GetFromJsonAsync<BlueprintTemplate>($"/api/templates/{id}", cancellationToken);
+            return template is not null ? MapToViewModel(template) : null;
         }
         catch (Exception ex)
         {
@@ -105,5 +107,103 @@ public class TemplateApiService : ITemplateApiService
             _logger.LogError(ex, "Error validating template parameters {Id}", id);
             return false;
         }
+    }
+
+    public async Task IncrementUsageAsync(string templateId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _httpClient.PostAsync($"/api/templates/{templateId}/increment-usage", null, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error incrementing usage for template {Id}", templateId);
+        }
+    }
+
+    private static TemplateListItemViewModel MapToViewModel(BlueprintTemplate template)
+    {
+        return new TemplateListItemViewModel
+        {
+            Id = template.Id,
+            Title = template.Title,
+            Description = template.Description,
+            Category = template.Category ?? string.Empty,
+            Version = template.Version,
+            UsageCount = ExtractUsageCount(template.Metadata),
+            Parameters = ExtractParameters(template.ParameterSchema, template.DefaultParameters)
+        };
+    }
+
+    private static List<TemplateParameter> ExtractParameters(JsonDocument? parameterSchema, Dictionary<string, object>? defaultParameters)
+    {
+        if (parameterSchema is null)
+            return [];
+
+        var parameters = new List<TemplateParameter>();
+
+        try
+        {
+            var root = parameterSchema.RootElement;
+
+            if (!root.TryGetProperty("properties", out var properties))
+                return [];
+
+            var requiredSet = new HashSet<string>(StringComparer.Ordinal);
+            if (root.TryGetProperty("required", out var requiredArray) && requiredArray.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in requiredArray.EnumerateArray())
+                {
+                    if (item.GetString() is { } name)
+                        requiredSet.Add(name);
+                }
+            }
+
+            foreach (var prop in properties.EnumerateObject())
+            {
+                var paramName = prop.Name;
+                var paramDef = prop.Value;
+
+                var type = paramDef.TryGetProperty("type", out var typeProp) ? typeProp.GetString() ?? "string" : "string";
+                var description = paramDef.TryGetProperty("description", out var descProp) ? descProp.GetString() ?? string.Empty : string.Empty;
+
+                string? defaultValue = null;
+                if (defaultParameters is not null && defaultParameters.TryGetValue(paramName, out var defVal))
+                {
+                    defaultValue = defVal switch
+                    {
+                        JsonElement je => je.ToString(),
+                        _ => defVal?.ToString()
+                    };
+                }
+                else if (paramDef.TryGetProperty("default", out var schemaDef))
+                {
+                    defaultValue = schemaDef.ToString();
+                }
+
+                parameters.Add(new TemplateParameter
+                {
+                    Name = paramName,
+                    Description = description,
+                    Type = type,
+                    DefaultValue = defaultValue,
+                    Required = requiredSet.Contains(paramName)
+                });
+            }
+        }
+        catch
+        {
+            // If schema parsing fails, return empty list
+        }
+
+        return parameters;
+    }
+
+    private static int ExtractUsageCount(Dictionary<string, string>? metadata)
+    {
+        if (metadata is not null && metadata.TryGetValue("usageCount", out var countStr) && int.TryParse(countStr, out var count))
+            return count;
+
+        return 0;
     }
 }

@@ -483,6 +483,19 @@ templateGroup.MapGet("/{id}/examples/{exampleName}", async (
 .WithSummary("Evaluate template example")
 .WithDescription("Evaluate a predefined example from the template");
 
+templateGroup.MapPost("/{id}/increment-usage", async (
+    string id,
+    Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService service,
+    IOutputCacheStore cache) =>
+{
+    await service.IncrementUsageAsync(id);
+    await cache.EvictByTagAsync("templates", default);
+    return Results.Ok();
+})
+.WithName("IncrementTemplateUsage")
+.WithSummary("Increment template usage count")
+.WithDescription("Increments the usage counter for a template after it has been used to create a blueprint");
+
 // ===========================
 // Action API Endpoints (Sprint 4)
 // ===========================

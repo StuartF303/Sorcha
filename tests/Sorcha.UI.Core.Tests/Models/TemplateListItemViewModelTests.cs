@@ -28,8 +28,8 @@ public class TemplateListItemViewModelTests
     [Fact]
     public void RecordEquality_IncludesVersion()
     {
-        var a = new TemplateListItemViewModel { Id = "t1", Name = "Test", Version = 1 };
-        var c = new TemplateListItemViewModel { Id = "t1", Name = "Test", Version = 2 };
+        var a = new TemplateListItemViewModel { Id = "t1", Title = "Test", Version = 1 };
+        var c = new TemplateListItemViewModel { Id = "t1", Title = "Test", Version = 2 };
 
         // Records with List properties use reference equality for the list,
         // so test that Version is included in equality via with-expression

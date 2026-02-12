@@ -83,7 +83,7 @@
             <MudItem xs="12" lg="8">
                 <MudStack Spacing="0" Class="mb-4">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudText Typo="Typo.h4">@_selectedTemplate.Name</MudText>
+                        <MudText Typo="Typo.h4">@_selectedTemplate.Title</MudText>
                         @if (!string.IsNullOrEmpty(_selectedTemplate.Category))
                         {
                             <MudChip T="string" Size="Size.Small" Color="Color.Info">@_selectedTemplate.Category</MudChip>
@@ -93,6 +93,43 @@
                         @_selectedTemplate.Description
                     </MudText>
                 </MudStack>
+
+                @* Parameters section *@
+                @if (_selectedTemplate.Parameters.Count > 0)
+                {
+                    <MudText Typo="Typo.h6" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Tune" Size="Size.Small" Class="mr-1" />
+                        Parameters
+                    </MudText>
+                    <MudSimpleTable Dense="true" Hover="true" Class="mb-4">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Default</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var param in _selectedTemplate.Parameters)
+                            {
+                                <tr>
+                                    <td><code>@param.Name</code></td>
+                                    <td>@param.Type</td>
+                                    <td>
+                                        @if (param.Required)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Success" />
+                                        }
+                                    </td>
+                                    <td><code>@(param.DefaultValue ?? "—")</code></td>
+                                    <td>@param.Description</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                }
 
                 @* Participants section *@
                 @if (_previewBlueprint?.Participants?.Count > 0)
@@ -230,7 +267,7 @@
         string.IsNullOrWhiteSpace(_searchText)
             ? _templates
             : _templates.Where(t =>
-                t.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                t.Title.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                 t.Description.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                 t.Category.Contains(_searchText, StringComparison.OrdinalIgnoreCase));
 
@@ -316,7 +353,8 @@
             var saved = await BlueprintApi.SaveBlueprintAsync(_previewBlueprint);
             if (saved is not null)
             {
-                Snackbar.Add($"Blueprint created from '{_selectedTemplate.Name}'", Severity.Success);
+                Snackbar.Add($"Blueprint created from '{_selectedTemplate.Title}'", Severity.Success);
+                _ = TemplateApi.IncrementUsageAsync(_selectedTemplate.Id);
                 Navigation.NavigateTo($"blueprints?highlight={saved.Id}");
             }
             else

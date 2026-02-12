@@ -279,6 +279,27 @@ public class BlueprintTemplateService : IBlueprintTemplateService
     }
 
     /// <inheritdoc />
+    public async Task IncrementUsageAsync(string templateId, CancellationToken ct = default)
+    {
+        var template = await _store.GetAsync(templateId, ct);
+        if (template is null)
+            return;
+
+        template.Metadata ??= new Dictionary<string, string>();
+
+        var currentCount = 0;
+        if (template.Metadata.TryGetValue("usageCount", out var countStr))
+            int.TryParse(countStr, out currentCount);
+
+        template.Metadata["usageCount"] = (currentCount + 1).ToString();
+        template.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _store.UpsertAsync(template.Id, template, ct);
+
+        _logger.LogInformation("Incremented usage count for template {TemplateId} to {Count}", templateId, currentCount + 1);
+    }
+
+    /// <inheritdoc />
     public async Task<TemplateEvaluationResult> EvaluateExampleAsync(
         string templateId,
         string exampleName,

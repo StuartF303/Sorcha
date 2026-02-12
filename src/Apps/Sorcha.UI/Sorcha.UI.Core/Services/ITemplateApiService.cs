@@ -17,4 +17,5 @@ public interface ITemplateApiService
     Task<BlueprintListItemViewModel?> EvaluateTemplateAsync(string id, Dictionary<string, object> parameters, CancellationToken cancellationToken = default);
     Task<Sorcha.Blueprint.Models.Blueprint?> EvaluateTemplateForPreviewAsync(string id, Dictionary<string, object> parameters, CancellationToken cancellationToken = default);
     Task<bool> ValidateParametersAsync(string id, Dictionary<string, object> parameters, CancellationToken cancellationToken = default);
+    Task IncrementUsageAsync(string templateId, CancellationToken cancellationToken = default);
 }

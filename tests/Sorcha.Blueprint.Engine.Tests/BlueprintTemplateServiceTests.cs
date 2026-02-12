@@ -378,6 +378,56 @@ public class BlueprintTemplateServiceTests
         return template;
     }
 
+    #region IncrementUsageAsync Tests
+
+    [Fact]
+    public async Task IncrementUsageAsync_ExistingTemplate_IncrementsCount()
+    {
+        // Arrange
+        var template = CreateSimpleTemplate();
+        template.Metadata = new Dictionary<string, string> { ["usageCount"] = "5" };
+        await _service.SaveTemplateAsync(template);
+
+        // Act
+        await _service.IncrementUsageAsync(template.Id);
+
+        // Assert
+        var updated = await _service.GetTemplateAsync(template.Id);
+        updated.Should().NotBeNull();
+        updated!.Metadata.Should().ContainKey("usageCount");
+        updated.Metadata!["usageCount"].Should().Be("6");
+    }
+
+    [Fact]
+    public async Task IncrementUsageAsync_NonExistentTemplate_DoesNotThrow()
+    {
+        // Act
+        var act = () => _service.IncrementUsageAsync("nonexistent-id");
+
+        // Assert
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task IncrementUsageAsync_NullMetadata_InitializesAndIncrements()
+    {
+        // Arrange
+        var template = CreateSimpleTemplate();
+        template.Metadata = null;
+        await _service.SaveTemplateAsync(template);
+
+        // Act
+        await _service.IncrementUsageAsync(template.Id);
+
+        // Assert
+        var updated = await _service.GetTemplateAsync(template.Id);
+        updated.Should().NotBeNull();
+        updated!.Metadata.Should().NotBeNull();
+        updated.Metadata!["usageCount"].Should().Be("1");
+    }
+
+    #endregion
+
     #region Extended Validation Tests (Category 11)
 
     [Fact]

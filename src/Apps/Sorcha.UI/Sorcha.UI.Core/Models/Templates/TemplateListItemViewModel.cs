@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using System.Text.Json.Serialization;
+
 namespace Sorcha.UI.Core.Models.Templates;
 
 /// <summary>
@@ -8,12 +10,25 @@ namespace Sorcha.UI.Core.Models.Templates;
 /// </summary>
 public record TemplateListItemViewModel
 {
+    [JsonPropertyName("id")]
     public string Id { get; init; } = string.Empty;
-    public string Name { get; init; } = string.Empty;
+
+    [JsonPropertyName("title")]
+    public string Title { get; init; } = string.Empty;
+
+    [JsonPropertyName("description")]
     public string Description { get; init; } = string.Empty;
+
+    [JsonPropertyName("category")]
     public string Category { get; init; } = string.Empty;
+
+    [JsonPropertyName("version")]
     public int Version { get; init; } = 1;
+
+    [JsonPropertyName("usageCount")]
     public int UsageCount { get; init; }
+
+    [JsonPropertyName("parameters")]
     public List<TemplateParameter> Parameters { get; init; } = [];
 }
 

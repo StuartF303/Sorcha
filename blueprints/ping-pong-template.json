@@ -21,11 +21,13 @@
       {
         "id": "ping",
         "name": "Ping",
+        "organisation": "Demo",
         "description": "Initiates the exchange and responds to Pong"
       },
       {
         "id": "pong",
         "name": "Pong",
+        "organisation": "Demo",
         "description": "Responds to Ping and sends back"
       }
     ],

@@ -1,6 +1,6 @@
 {
   "id": "loan-application-001",
-  "title": "Loan Application Template",
+  "title": "Loan Application",
   "description": "Reusable template for creating loan application blueprints with configurable approval thresholds",
   "version": 1,
   "category": "finance",

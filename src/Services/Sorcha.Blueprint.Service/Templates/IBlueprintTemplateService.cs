@@ -54,6 +54,11 @@ public interface IBlueprintTemplateService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Increment the usage count for a template
+    /// </summary>
+    Task IncrementUsageAsync(string templateId, CancellationToken ct = default);
+
+    /// <summary>
     /// Evaluate a template example
     /// </summary>
     Task<TemplateEvaluationResult> EvaluateExampleAsync(
