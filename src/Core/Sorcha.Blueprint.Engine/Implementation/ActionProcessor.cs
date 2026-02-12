@@ -2,6 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using System.Text.Json.Nodes;
+using Sorcha.Blueprint.Engine.Credentials;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Engine.Models;
 
@@ -11,9 +12,9 @@ namespace Sorcha.Blueprint.Engine.Implementation;
 /// Action processor that orchestrates the complete action execution workflow.
 /// </summary>
 /// <remarks>
-/// Coordinates validation, calculation, routing, and disclosure processing
-/// using specialized components.
-/// 
+/// Coordinates credential verification, validation, calculation, routing,
+/// and disclosure processing using specialized components.
+///
 /// Thread-safe and can be used concurrently.
 /// </remarks>
 public class ActionProcessor : IActionProcessor
@@ -22,17 +23,23 @@ public class ActionProcessor : IActionProcessor
     private readonly IJsonLogicEvaluator _jsonLogicEvaluator;
     private readonly IDisclosureProcessor _disclosureProcessor;
     private readonly IRoutingEngine _routingEngine;
+    private readonly ICredentialVerifier? _credentialVerifier;
+    private readonly ICredentialIssuer? _credentialIssuer;
 
     public ActionProcessor(
         ISchemaValidator schemaValidator,
         IJsonLogicEvaluator jsonLogicEvaluator,
         IDisclosureProcessor disclosureProcessor,
-        IRoutingEngine routingEngine)
+        IRoutingEngine routingEngine,
+        ICredentialVerifier? credentialVerifier = null,
+        ICredentialIssuer? credentialIssuer = null)
     {
         _schemaValidator = schemaValidator ?? throw new ArgumentNullException(nameof(schemaValidator));
         _jsonLogicEvaluator = jsonLogicEvaluator ?? throw new ArgumentNullException(nameof(jsonLogicEvaluator));
         _disclosureProcessor = disclosureProcessor ?? throw new ArgumentNullException(nameof(disclosureProcessor));
         _routingEngine = routingEngine ?? throw new ArgumentNullException(nameof(routingEngine));
+        _credentialVerifier = credentialVerifier;
+        _credentialIssuer = credentialIssuer;
     }
 
     /// <summary>
@@ -48,6 +55,25 @@ public class ActionProcessor : IActionProcessor
 
         try
         {
+            // Step 0: Verify credential presentations against action requirements
+            if (context.Action.CredentialRequirements?.Any() == true && _credentialVerifier != null)
+            {
+                result.CredentialValidation = await _credentialVerifier.VerifyAsync(
+                    context.Action.CredentialRequirements,
+                    context.CredentialPresentations,
+                    ct);
+
+                if (!result.CredentialValidation.IsValid)
+                {
+                    result.Success = false;
+                    foreach (var error in result.CredentialValidation.Errors)
+                    {
+                        result.Errors.Add($"Credential verification failed: {error.Message}");
+                    }
+                    return result;
+                }
+            }
+
             // Step 1: Validate action data against schema
             if (context.Action.Form?.Schema != null)
             {
@@ -118,6 +144,21 @@ public class ActionProcessor : IActionProcessor
                 result.Disclosures = _disclosureProcessor.CreateDisclosures(
                     processedData,
                     context.Action.Disclosures);
+            }
+
+            // Step 5: Issue credential if action has issuance configuration
+            if (context.Action.CredentialIssuanceConfig != null
+                && _credentialIssuer != null
+                && context.IssuanceContext != null)
+            {
+                result.IssuedCredential = await _credentialIssuer.IssueAsync(
+                    context.Action.CredentialIssuanceConfig,
+                    processedData,
+                    context.IssuanceContext.IssuerDid,
+                    context.IssuanceContext.RecipientDid,
+                    context.IssuanceContext.SigningKey,
+                    context.IssuanceContext.Algorithm,
+                    ct);
             }
 
             // If we got here, execution succeeded

@@ -2,6 +2,7 @@
 // Copyright (c) 2025 Sorcha Contributors
 
 using Sorcha.Blueprint.Models;
+using Sorcha.Blueprint.Models.Credentials;
 
 namespace Sorcha.Blueprint.Engine.Models;
 
@@ -96,6 +97,48 @@ public class ExecutionContext
     /// - Full: Used server-side for complete workflow execution
     /// </remarks>
     public ExecutionMode Mode { get; init; } = ExecutionMode.Full;
+
+    /// <summary>
+    /// Credentials submitted by the participant to satisfy this action's credential requirements.
+    /// </summary>
+    /// <remarks>
+    /// Populated by the service layer from the action execution request.
+    /// Empty if the action has no credential requirements.
+    /// </remarks>
+    public IEnumerable<CredentialPresentation> CredentialPresentations { get; init; } = [];
+
+    /// <summary>
+    /// Signing context for credential issuance. Provided by the service layer
+    /// when the action has a CredentialIssuanceConfig.
+    /// Null when no issuance is configured or key is unavailable.
+    /// </summary>
+    public CredentialIssuanceContext? IssuanceContext { get; init; }
+}
+
+/// <summary>
+/// Signing context for credential issuance, populated by the service layer.
+/// </summary>
+public class CredentialIssuanceContext
+{
+    /// <summary>
+    /// DID URI or wallet address of the issuing authority participant.
+    /// </summary>
+    public required string IssuerDid { get; init; }
+
+    /// <summary>
+    /// DID URI or wallet address of the credential recipient participant.
+    /// </summary>
+    public required string RecipientDid { get; init; }
+
+    /// <summary>
+    /// Issuer's private key bytes for SD-JWT signing.
+    /// </summary>
+    public required byte[] SigningKey { get; init; }
+
+    /// <summary>
+    /// Signing algorithm (e.g., "ES256", "EdDSA").
+    /// </summary>
+    public required string Algorithm { get; init; }
 }
 
 /// <summary>

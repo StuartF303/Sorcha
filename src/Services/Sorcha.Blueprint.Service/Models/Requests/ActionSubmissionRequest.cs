@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Sorcha.Blueprint.Models.Credentials;
+
 namespace Sorcha.Blueprint.Service.Models.Requests;
 
 /// <summary>
@@ -42,6 +44,12 @@ public record ActionSubmissionRequest
     /// The action payload data
     /// </summary>
     public required Dictionary<string, object> PayloadData { get; init; }
+
+    /// <summary>
+    /// Credential presentations to satisfy action credential requirements.
+    /// Required when the action has credential requirements defined.
+    /// </summary>
+    public List<CredentialPresentation>? CredentialPresentations { get; init; }
 
     /// <summary>
     /// Optional file attachments

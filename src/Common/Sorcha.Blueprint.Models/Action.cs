@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using DataAnnotations = System.ComponentModel.DataAnnotations;
+using Sorcha.Blueprint.Models.Credentials;
 
 namespace Sorcha.Blueprint.Models;
 
@@ -186,4 +187,20 @@ public class Action
     [JsonPropertyName("routes")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IEnumerable<Route>? Routes { get; set; }
+
+    /// <summary>
+    /// Credential requirements that must be satisfied before this action can be executed.
+    /// All requirements are combined with AND logic — all must be satisfied.
+    /// </summary>
+    [JsonPropertyName("credentialRequirements")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IEnumerable<CredentialRequirement>? CredentialRequirements { get; set; }
+
+    /// <summary>
+    /// Configuration for minting a verifiable credential when this action is executed.
+    /// The credential is signed by the executing participant's wallet key.
+    /// </summary>
+    [JsonPropertyName("credentialIssuanceConfig")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CredentialIssuanceConfig? CredentialIssuanceConfig { get; set; }
 }

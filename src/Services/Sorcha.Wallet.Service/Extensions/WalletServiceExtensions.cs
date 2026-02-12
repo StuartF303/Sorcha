@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Npgsql;
 using Sorcha.Cryptography;
 using Sorcha.Cryptography.Core;
+using Sorcha.Cryptography.Extensions;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.Wallet.Core.Data;
 using Sorcha.Wallet.Core.Encryption.Configuration;
@@ -59,6 +60,13 @@ public static class WalletServiceExtensions
         services.AddScoped<IDelegationService>(sp => sp.GetRequiredService<DelegationService>());
 
         services.AddScoped<WalletManager>();
+
+        // Register SD-JWT service for credential issuance
+        services.AddSdJwtServices();
+
+        // Register credential services
+        services.AddScoped<Credentials.ICredentialStore, Credentials.CredentialStore>();
+        services.AddScoped<Credentials.CredentialMatcher>();
 
         return services;
     }

@@ -279,6 +279,7 @@ app.MapGrpcService<WalletGrpcService>();
 // Map Wallet API endpoints
 app.MapWalletEndpoints();
 app.MapDelegationEndpoints();
+app.MapCredentialEndpoints();
 
 app.Run();
 

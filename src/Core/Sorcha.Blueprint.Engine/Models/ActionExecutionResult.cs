@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorcha Contributors
 
+using Sorcha.Blueprint.Engine.Credentials;
+
 namespace Sorcha.Blueprint.Engine.Models;
 
 /// <summary>
@@ -95,8 +97,65 @@ public class ActionExecutionResult
     /// Examples:
     /// - "Calculation produced null value"
     /// - "No routing conditions matched (workflow complete)"
-    /// 
+    ///
     /// Warnings don't prevent execution but should be reviewed.
     /// </remarks>
     public List<string> Warnings { get; set; } = new();
+
+    /// <summary>
+    /// Result of credential verification for this action.
+    /// Null if the action has no credential requirements.
+    /// </summary>
+    public CredentialValidationResult? CredentialValidation { get; set; }
+
+    /// <summary>
+    /// Credential minted by this action, if the action has a credential issuance configuration.
+    /// </summary>
+    public IssuedCredentialInfo? IssuedCredential { get; set; }
+}
+
+/// <summary>
+/// Summary of a credential issued during action execution.
+/// </summary>
+public class IssuedCredentialInfo
+{
+    /// <summary>
+    /// Unique credential identifier (DID URI).
+    /// </summary>
+    public string CredentialId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Credential type (e.g., "LicenseCredential").
+    /// </summary>
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>
+    /// DID URI or wallet address of the issuer.
+    /// </summary>
+    public string IssuerDid { get; set; } = string.Empty;
+
+    /// <summary>
+    /// DID URI or wallet address of the recipient.
+    /// </summary>
+    public string SubjectDid { get; set; } = string.Empty;
+
+    /// <summary>
+    /// All credential claims.
+    /// </summary>
+    public Dictionary<string, object> Claims { get; set; } = new();
+
+    /// <summary>
+    /// When the credential was issued.
+    /// </summary>
+    public DateTimeOffset IssuedAt { get; set; }
+
+    /// <summary>
+    /// When the credential expires. Null if no expiry.
+    /// </summary>
+    public DateTimeOffset? ExpiresAt { get; set; }
+
+    /// <summary>
+    /// The complete SD-JWT VC token.
+    /// </summary>
+    public string RawToken { get; set; } = string.Empty;
 }

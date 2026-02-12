@@ -15,6 +15,7 @@
   <ItemGroup>
     <!-- Project References -->
     <ProjectReference Include="..\..\Common\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
+    <ProjectReference Include="..\..\Common\Sorcha.Cryptography\Sorcha.Cryptography.csproj" />
   </ItemGroup>
 
   <ItemGroup>
