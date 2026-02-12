@@ -13,8 +13,8 @@ using Sorcha.Wallet.Core.Data;
 namespace Sorcha.Wallet.Core.Migrations
 {
     [DbContext(typeof(WalletDbContext))]
-    [Migration("20251207234439_InitialWalletSchema")]
-    partial class InitialWalletSchema
+    [Migration("20260212200602_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -22,16 +22,96 @@ namespace Sorcha.Wallet.Core.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("wallet")
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.2")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Sorcha.Wallet.Core.Domain.Entities.CredentialEntity", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ClaimsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IssuanceBlueprintId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("IssuanceTxId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("IssuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IssuerDid")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("RawToken")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Active");
+
+                    b.Property<string>("SubjectDid")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("WalletAddress")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IssuerDid")
+                        .HasDatabaseName("IX_Credentials_IssuerDid");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_Credentials_Status");
+
+                    b.HasIndex("Type")
+                        .HasDatabaseName("IX_Credentials_Type");
+
+                    b.HasIndex("WalletAddress")
+                        .HasDatabaseName("IX_Credentials_WalletAddress");
+
+                    b.HasIndex("WalletAddress", "Type")
+                        .HasDatabaseName("IX_Credentials_Wallet_Type");
+
+                    b.ToTable("Credentials", "wallet");
+                });
+
             modelBuilder.Entity("Sorcha.Wallet.Core.Domain.Entities.Wallet", b =>
                 {
                     b.Property<string>("Address")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("text")
+                        .HasComment("Wallet address in Bech32m format (ws1...). Variable length by algorithm: ED25519 ~66 chars, NISTP256 ~107 chars, RSA4096 ~700 chars.");
 
                     b.Property<string>("Algorithm")
                         .IsRequired()
@@ -160,8 +240,7 @@ namespace Sorcha.Wallet.Core.Migrations
 
                     b.Property<string>("ParentWalletAddress")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Reason")
                         .HasMaxLength(1024)
@@ -208,8 +287,7 @@ namespace Sorcha.Wallet.Core.Migrations
 
                     b.Property<string>("Address")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -252,8 +330,7 @@ namespace Sorcha.Wallet.Core.Migrations
 
                     b.Property<string>("ParentWalletAddress")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("text");
 
                     b.Property<string>("PublicKey")
                         .HasMaxLength(1024)
@@ -307,8 +384,7 @@ namespace Sorcha.Wallet.Core.Migrations
 
                     b.Property<string>("ParentWalletAddress")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("text");
 
                     b.Property<string>("RawTransaction")
                         .HasColumnType("text");

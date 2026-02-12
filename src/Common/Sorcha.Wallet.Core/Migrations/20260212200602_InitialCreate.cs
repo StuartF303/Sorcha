@@ -1,4 +1,7 @@
-﻿using System;
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -7,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Sorcha.Wallet.Core.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialWalletSchema : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -16,11 +19,35 @@ namespace Sorcha.Wallet.Core.Migrations
                 name: "wallet");
 
             migrationBuilder.CreateTable(
+                name: "Credentials",
+                schema: "wallet",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    Type = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    IssuerDid = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    SubjectDid = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    ClaimsJson = table.Column<string>(type: "jsonb", nullable: false),
+                    IssuedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    ExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    RawToken = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, defaultValue: "Active"),
+                    IssuanceTxId = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    IssuanceBlueprintId = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    WalletAddress = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Credentials", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Wallets",
                 schema: "wallet",
                 columns: table => new
                 {
-                    Address = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    Address = table.Column<string>(type: "text", nullable: false, comment: "Wallet address in Bech32m format (ws1...). Variable length by algorithm: ED25519 ~66 chars, NISTP256 ~107 chars, RSA4096 ~700 chars."),
                     EncryptedPrivateKey = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: false),
                     EncryptionKeyId = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
                     Algorithm = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
@@ -50,7 +77,7 @@ namespace Sorcha.Wallet.Core.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
-                    ParentWalletAddress = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    ParentWalletAddress = table.Column<string>(type: "text", nullable: false),
                     Subject = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                     AccessRight = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     Reason = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
@@ -78,8 +105,8 @@ namespace Sorcha.Wallet.Core.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
-                    ParentWalletAddress = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    Address = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    ParentWalletAddress = table.Column<string>(type: "text", nullable: false),
+                    Address = table.Column<string>(type: "text", nullable: false),
                     DerivationPath = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                     Index = table.Column<int>(type: "integer", nullable: false),
                     IsChange = table.Column<bool>(type: "boolean", nullable: false),
@@ -112,7 +139,7 @@ namespace Sorcha.Wallet.Core.Migrations
                 columns: table => new
                 {
                     TransactionId = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    ParentWalletAddress = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    ParentWalletAddress = table.Column<string>(type: "text", nullable: false),
                     TransactionType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     Amount = table.Column<decimal>(type: "numeric(28,18)", precision: 28, scale: 18, nullable: true),
                     State = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, defaultValue: "Pending"),
@@ -133,6 +160,36 @@ namespace Sorcha.Wallet.Core.Migrations
                         principalColumn: "Address",
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Credentials_IssuerDid",
+                schema: "wallet",
+                table: "Credentials",
+                column: "IssuerDid");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Credentials_Status",
+                schema: "wallet",
+                table: "Credentials",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Credentials_Type",
+                schema: "wallet",
+                table: "Credentials",
+                column: "Type");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Credentials_Wallet_Type",
+                schema: "wallet",
+                table: "Credentials",
+                columns: new[] { "WalletAddress", "Type" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Credentials_WalletAddress",
+                schema: "wallet",
+                table: "Credentials",
+                column: "WalletAddress");
 
             migrationBuilder.CreateIndex(
                 name: "IX_WalletAccess_Parent_Subject",
@@ -248,6 +305,10 @@ namespace Sorcha.Wallet.Core.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "Credentials",
+                schema: "wallet");
+
             migrationBuilder.DropTable(
                 name: "WalletAccess",
                 schema: "wallet");
