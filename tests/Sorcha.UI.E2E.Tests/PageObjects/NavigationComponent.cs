@@ -35,7 +35,7 @@ public class NavigationComponent
     // Navigation links (authenticated)
     public ILocator DashboardLink => _page.Locator(".mud-nav-link:has-text('Dashboard')");
     public ILocator PendingActionsLink => _page.Locator(".mud-nav-link:has-text('Pending Actions')");
-    public ILocator MyWorkflowsLink => _page.Locator(".mud-nav-link:has-text('My Workflows')");
+    public ILocator NewSubmissionLink => _page.Locator(".mud-nav-link:has-text('New Submission')");
     public ILocator MyTransactionsLink => _page.Locator(".mud-nav-link:has-text('My Transactions')");
     public ILocator MyWalletLink => _page.Locator(".mud-nav-link:has-text('My Wallet')");
     public ILocator MyBlueprintsLink => _page.Locator(".mud-nav-link:has-text('My Blueprints')");

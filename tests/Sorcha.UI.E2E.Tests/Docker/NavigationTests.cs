@@ -97,9 +97,9 @@ public class NavigationTests : AuthenticatedDockerTestBase
 
         await Expect(_nav.DashboardLink).ToBeVisibleAsync();
         await Expect(_nav.PendingActionsLink).ToBeVisibleAsync();
-        await Expect(_nav.MyWorkflowsLink).ToBeVisibleAsync();
-        await Expect(_nav.MyTransactionsLink).ToBeVisibleAsync();
+        await Expect(_nav.NewSubmissionLink).ToBeVisibleAsync();
         await Expect(_nav.MyWalletLink).ToBeVisibleAsync();
+        await Expect(_nav.MyTransactionsLink).ToBeVisibleAsync();
     }
 
     [Test]
@@ -255,7 +255,7 @@ public class NavigationTests : AuthenticatedDockerTestBase
     [Test]
     [TestCase(TestConstants.AuthenticatedRoutes.Dashboard, "Dashboard")]
     [TestCase(TestConstants.AuthenticatedRoutes.MyActions, "Pending Actions")]
-    [TestCase(TestConstants.AuthenticatedRoutes.MyWorkflows, "My Workflows")]
+    [TestCase(TestConstants.AuthenticatedRoutes.MyWorkflows, "New Submission")]
     [TestCase(TestConstants.AuthenticatedRoutes.MyTransactions, "My Transactions")]
     [TestCase(TestConstants.AuthenticatedRoutes.MyWallet, "My Wallet")]
     [TestCase(TestConstants.AuthenticatedRoutes.Blueprints, "Blueprints")]

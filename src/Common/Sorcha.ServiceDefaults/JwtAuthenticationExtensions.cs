@@ -203,7 +203,9 @@ public static class JwtAuthenticationExtensions
                         // If the request is for a SignalR hub and has a token in the query string
                         var path = context.HttpContext.Request.Path;
                         if (!string.IsNullOrEmpty(accessToken) &&
-                            (path.StartsWithSegments("/hubs") || path.StartsWithSegments("/hub")))
+                            (path.StartsWithSegments("/hubs") ||
+                             path.StartsWithSegments("/hub") ||
+                             path.StartsWithSegments("/actionshub")))
                         {
                             // Extract the token from query string for SignalR
                             context.Token = accessToken;
