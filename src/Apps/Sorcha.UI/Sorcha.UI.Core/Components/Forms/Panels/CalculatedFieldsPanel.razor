@@ -1,0 +1,40 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using System.Text.Json.Nodes
+@using Sorcha.UI.Core.Models.Forms
+
+@if (FormContext?.CalculatedValues.Count > 0)
+{
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.subtitle2">Calculated Values</MudText>
+        @foreach (var (key, value) in FormContext.CalculatedValues)
+        {
+            <MudTextField T="string"
+                          Label="@HumanizeName(key)"
+                          Value="@(value?.ToString() ?? "")"
+                          ReadOnly="true"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Calculate" />
+        }
+    </MudStack>
+}
+
+@code {
+    [Parameter] public Dictionary<string, JsonNode>? Calculations { get; set; }
+    [Parameter] public FormContext? FormContext { get; set; }
+
+    private static string HumanizeName(string name)
+    {
+        var result = new System.Text.StringBuilder();
+        for (int i = 0; i < name.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(name[i]))
+                result.Append(' ');
+            result.Append(i == 0 ? char.ToUpper(name[i]) : name[i]);
+        }
+        return result.ToString();
+    }
+}

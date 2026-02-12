@@ -62,8 +62,23 @@ public class Control
     /// <summary>
     /// Conditional display rules based on JSON Logic
     /// </summary>
+    [Obsolete("Use Rule property instead. Conditions will be removed in a future version.")]
     [JsonPropertyName("conditions")]
     public List<JsonNode> Conditions { get; set; } = [];
+
+    /// <summary>
+    /// JSON Forms rule for conditional display (SHOW/HIDE/ENABLE/DISABLE)
+    /// </summary>
+    [JsonPropertyName("rule")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public FormRule? Rule { get; set; }
+
+    /// <summary>
+    /// Extensible options bag for renderer hints (JSON Forms convention)
+    /// </summary>
+    [JsonPropertyName("options")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonDocument? Options { get; set; }
 }
 
 /// <summary>

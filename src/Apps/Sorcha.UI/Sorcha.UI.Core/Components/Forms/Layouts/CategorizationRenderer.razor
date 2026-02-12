@@ -1,0 +1,49 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.Blueprint.Models
+@using Sorcha.UI.Core.Models.Forms
+
+<MudTabs Elevation="1" Rounded="true" PanelClass="pa-4" @bind-ActivePanelIndex="_activeTab">
+    @foreach (var element in Control.Elements)
+    {
+        var tabTitle = !string.IsNullOrEmpty(element.Title) ? element.Title : $"Tab {Control.Elements.IndexOf(element) + 1}";
+        var tabErrors = GetTabErrorCount(element);
+
+        <MudTabPanel Text="@tabTitle" BadgeData="@(tabErrors > 0 ? tabErrors : null)" BadgeColor="Color.Error">
+            <MudStack Spacing="3">
+                @foreach (var child in element.Elements)
+                {
+                    <ControlDispatcher Control="child" Depth="@(Depth + 1)" />
+                }
+            </MudStack>
+        </MudTabPanel>
+    }
+</MudTabs>
+
+@code {
+    [CascadingParameter] public FormContext? FormContext { get; set; }
+    [Parameter, EditorRequired] public Control Control { get; set; } = new();
+    [Parameter] public int Depth { get; set; }
+
+    private int _activeTab;
+
+    private int GetTabErrorCount(Control tabElement)
+    {
+        if (FormContext is null) return 0;
+
+        return CountErrors(tabElement);
+    }
+
+    private int CountErrors(Control control)
+    {
+        var count = 0;
+        if (!string.IsNullOrEmpty(control.Scope) && FormContext!.ValidationErrors.ContainsKey(control.Scope))
+            count++;
+
+        foreach (var child in control.Elements)
+            count += CountErrors(child);
+
+        return count;
+    }
+}

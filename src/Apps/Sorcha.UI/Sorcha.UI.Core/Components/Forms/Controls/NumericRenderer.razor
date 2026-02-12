@@ -1,0 +1,72 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.Blueprint.Models
+@using Sorcha.UI.Core.Models.Forms
+@using Sorcha.UI.Core.Services.Forms
+
+@inject IFormSchemaService SchemaService
+
+<MudNumericField T="decimal?"
+                 Label="@Control.Title"
+                 Value="@_value"
+                 ValueChanged="OnValueChanged"
+                 Disabled="@(IsDisabled || FormContext?.IsReadOnly == true)"
+                 Required="@_isRequired"
+                 ErrorText="@_errorText"
+                 Error="@(!string.IsNullOrEmpty(_errorText))"
+                 Min="@_min"
+                 Max="@_max"
+                 Variant="Variant.Outlined"
+                 Margin="Margin.Dense"
+                 OnBlur="OnBlur" />
+
+@code {
+    [CascadingParameter] public FormContext? FormContext { get; set; }
+    [Parameter, EditorRequired] public Control Control { get; set; } = new();
+    [Parameter] public bool IsDisabled { get; set; }
+
+    private decimal? _value;
+    private string _errorText = string.Empty;
+    private bool _isRequired;
+    private decimal? _min;
+    private decimal? _max;
+
+    protected override void OnParametersSet()
+    {
+        _value = FormContext?.GetValue<decimal?>(Control.Scope);
+        _isRequired = SchemaService.IsRequired(FormContext?.DataSchema, Control.Scope);
+
+        // Read min/max from schema
+        var fieldSchema = SchemaService.GetSchemaForScope(FormContext?.DataSchema, Control.Scope);
+        if (fieldSchema.HasValue)
+        {
+            if (fieldSchema.Value.TryGetProperty("minimum", out var minEl))
+                _min = minEl.GetDecimal();
+            if (fieldSchema.Value.TryGetProperty("maximum", out var maxEl))
+                _max = maxEl.GetDecimal();
+        }
+
+        UpdateErrors();
+    }
+
+    private void OnValueChanged(decimal? newValue)
+    {
+        _value = newValue;
+        FormContext?.SetValue(Control.Scope, newValue);
+    }
+
+    private void OnBlur()
+    {
+        if (FormContext is null) return;
+        var errors = SchemaService.ValidateField(FormContext.DataSchema, Control.Scope, _value);
+        FormContext.SetErrors(Control.Scope, errors);
+        UpdateErrors();
+    }
+
+    private void UpdateErrors()
+    {
+        var errors = FormContext?.GetErrors(Control.Scope) ?? [];
+        _errorText = errors.Count > 0 ? string.Join("; ", errors) : string.Empty;
+    }
+}

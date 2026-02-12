@@ -11,6 +11,7 @@ using Sorcha.UI.Core.Services.Encryption;
 using Sorcha.UI.Core.Services.Http;
 using Sorcha.UI.Core.Services.Navigation;
 using Sorcha.UI.Core.Services.Participants;
+using Sorcha.UI.Core.Services.Forms;
 using Sorcha.UI.Core.Services.Wallet;
 
 namespace Sorcha.UI.Core.Extensions;
@@ -54,6 +55,10 @@ public static class ServiceCollectionExtensions
 
         // Navigation service for authenticated redirects with return URL support
         services.AddScoped<INavigationService, NavigationService>();
+
+        // Form renderer services
+        services.AddScoped<IFormSchemaService, FormSchemaService>();
+        services.AddScoped<IFormSigningService, FormSigningService>();
 
         // HTTP message handler for authenticated API calls (registered but not used by AuthenticationService)
         services.AddTransient<AuthenticatedHttpMessageHandler>();

@@ -2,6 +2,8 @@
 @* Copyright (c) 2026 Sorcha Contributors *@
 
 @using System.Text.Json
+@using Sorcha.Blueprint.Models
+@using Sorcha.UI.Core.Models.Forms
 @using Sorcha.UI.Core.Models.Workflows
 
 <MudDialog>
@@ -10,36 +12,14 @@
             <MudText Typo="Typo.subtitle1">@Action.ActionName</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">@Action.Description</MudText>
 
-            @if (Action.DataSchema.HasValue)
-            {
-                @foreach (var prop in GetSchemaProperties())
-                {
-                    @switch (prop.Type)
-                    {
-                        case "number":
-                        case "integer":
-                            <MudNumericField T="double" Label="@prop.Label" @bind-Value="@_numericValues[prop.Name]" />
-                            break;
-                        case "boolean":
-                            <MudSwitch T="bool" Label="@prop.Label" @bind-Value="@_boolValues[prop.Name]" />
-                            break;
-                        default:
-                            <MudTextField T="string" Label="@prop.Label" @bind-Value="@_stringValues[prop.Name]" />
-                            break;
-                    }
-                }
-            }
-            else
-            {
-                <MudAlert Severity="Severity.Info">This action does not require any input data.</MudAlert>
-            }
+            <Forms.SorchaFormRenderer Action="_blueprintAction"
+                                     ParticipantAddress="@_participantAddress"
+                                     SigningWalletAddress="@_signingWallet"
+                                     OnSubmit="HandleFormSubmit"
+                                     OnReject="HandleReject"
+                                     OnCancel="HandleCancel" />
         </MudStack>
     </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="HandleReject" Color="Color.Error" Variant="Variant.Text">Reject</MudButton>
-        <MudButton OnClick="Cancel">Cancel</MudButton>
-        <MudButton OnClick="HandleSubmit" Color="Color.Primary" Variant="Variant.Filled">Submit</MudButton>
-    </DialogActions>
 </MudDialog>
 
 @code {
@@ -49,82 +29,52 @@
     [Parameter]
     public PendingActionViewModel Action { get; set; } = new();
 
-    private readonly Dictionary<string, string> _stringValues = new();
-    private readonly Dictionary<string, double> _numericValues = new();
-    private readonly Dictionary<string, bool> _boolValues = new();
+    private Sorcha.Blueprint.Models.Action _blueprintAction = new();
+    private string _participantAddress = string.Empty;
+    private string _signingWallet = string.Empty;
 
-    protected override void OnInitialized()
+    protected override void OnParametersSet()
     {
-        foreach (var prop in GetSchemaProperties())
+        // Map PendingActionViewModel to blueprint Action
+        _blueprintAction = new Sorcha.Blueprint.Models.Action
         {
-            switch (prop.Type)
-            {
-                case "number":
-                case "integer":
-                    _numericValues[prop.Name] = 0;
-                    break;
-                case "boolean":
-                    _boolValues[prop.Name] = false;
-                    break;
-                default:
-                    _stringValues[prop.Name] = string.Empty;
-                    break;
-            }
+            Id = int.TryParse(Action.ActionId, out var id) ? id : 0,
+            Title = Action.ActionName,
+            Description = Action.Description
+        };
+
+        // Map DataSchema if present
+        if (Action.DataSchema.HasValue)
+        {
+            var schemaJson = Action.DataSchema.Value.GetRawText();
+            _blueprintAction.DataSchemas = [JsonDocument.Parse(schemaJson)];
         }
     }
 
-    private List<SchemaProperty> GetSchemaProperties()
+    private Task HandleFormSubmit(FormSubmission submission)
     {
-        if (!Action.DataSchema.HasValue) return [];
-
-        var props = new List<SchemaProperty>();
-        try
-        {
-            var schema = Action.DataSchema.Value;
-            if (schema.TryGetProperty("properties", out var properties))
-            {
-                foreach (var prop in properties.EnumerateObject())
-                {
-                    var type = prop.Value.TryGetProperty("type", out var typeEl) ? typeEl.GetString() ?? "string" : "string";
-                    var title = prop.Value.TryGetProperty("title", out var titleEl) ? titleEl.GetString() : null;
-                    props.Add(new SchemaProperty(prop.Name, title ?? prop.Name, type));
-                }
-            }
-        }
-        catch
-        {
-            // Gracefully handle malformed schemas
-        }
-
-        return props;
-    }
-
-    private void HandleSubmit()
-    {
-        var data = new Dictionary<string, object>();
-        foreach (var kvp in _stringValues)
-            data[kvp.Key] = kvp.Value;
-        foreach (var kvp in _numericValues)
-            data[kvp.Key] = kvp.Value;
-        foreach (var kvp in _boolValues)
-            data[kvp.Key] = kvp.Value;
-
-        var submission = new ActionSubmissionViewModel
+        var submissionVm = new ActionSubmissionViewModel
         {
             ActionId = Action.ActionId,
             InstanceId = Action.InstanceId,
-            Data = data
+            Data = submission.Data.ToDictionary(
+                kvp => kvp.Key.TrimStart('/'),
+                kvp => kvp.Value ?? (object)string.Empty)
         };
 
-        MudDialog?.Close(DialogResult.Ok(submission));
+        MudDialog?.Close(DialogResult.Ok(submissionVm));
+        return Task.CompletedTask;
     }
 
-    private void HandleReject()
+    private Task HandleReject(string reason)
     {
         MudDialog?.Close(DialogResult.Ok("reject"));
+        return Task.CompletedTask;
     }
 
-    private void Cancel() => MudDialog?.Cancel();
-
-    private record SchemaProperty(string Name, string Label, string Type);
+    private Task HandleCancel()
+    {
+        MudDialog?.Cancel();
+        return Task.CompletedTask;
+    }
 }

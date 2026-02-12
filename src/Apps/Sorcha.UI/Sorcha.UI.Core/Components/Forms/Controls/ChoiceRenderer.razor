@@ -1,0 +1,55 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.Blueprint.Models
+@using Sorcha.UI.Core.Models.Forms
+@using Sorcha.UI.Core.Services.Forms
+
+@inject IFormSchemaService SchemaService
+
+<MudField Label="@Control.Title" Variant="Variant.Text" Margin="Margin.Dense">
+    <MudRadioGroup T="string"
+                   Value="@_value"
+                   ValueChanged="OnValueChanged">
+        @foreach (var option in _options)
+        {
+            <MudRadio Value="@option"
+                      Disabled="@(IsDisabled || FormContext?.IsReadOnly == true)"
+                      Color="Color.Primary">@option</MudRadio>
+        }
+    </MudRadioGroup>
+</MudField>
+
+@if (!string.IsNullOrEmpty(_errorText))
+{
+    <MudText Color="Color.Error" Typo="Typo.caption">@_errorText</MudText>
+}
+
+@code {
+    [CascadingParameter] public FormContext? FormContext { get; set; }
+    [Parameter, EditorRequired] public Control Control { get; set; } = new();
+    [Parameter] public bool IsDisabled { get; set; }
+
+    private string _value = string.Empty;
+    private string _errorText = string.Empty;
+    private List<string> _options = [];
+
+    protected override void OnParametersSet()
+    {
+        _value = FormContext?.GetValue<string>(Control.Scope) ?? string.Empty;
+        _options = SchemaService.GetEnumValues(FormContext?.DataSchema, Control.Scope);
+        UpdateErrors();
+    }
+
+    private void OnValueChanged(string newValue)
+    {
+        _value = newValue;
+        FormContext?.SetValue(Control.Scope, newValue);
+    }
+
+    private void UpdateErrors()
+    {
+        var errors = FormContext?.GetErrors(Control.Scope) ?? [];
+        _errorText = errors.Count > 0 ? string.Join("; ", errors) : string.Empty;
+    }
+}

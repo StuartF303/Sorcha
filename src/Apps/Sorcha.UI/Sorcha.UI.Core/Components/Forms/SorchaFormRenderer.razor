@@ -1,0 +1,249 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using System.Text.Json
+@using Sorcha.Blueprint.Models
+@using Sorcha.Blueprint.Models.Credentials
+@using Sorcha.UI.Core.Models.Forms
+@using Sorcha.UI.Core.Services.Forms
+
+@inject IFormSchemaService SchemaService
+
+<CascadingValue Value="_formContext">
+    <MudStack Spacing="4">
+        @* Previous Data Panel *@
+        @if (PreviousData is not null)
+        {
+            <Panels.PreviousDataPanel PreviousData="PreviousData" />
+            <MudDivider />
+        }
+
+        @* Credential Gate Panel *@
+        @if (_credentialRequirements.Any())
+        {
+            <Panels.CredentialGatePanel Requirements="_credentialRequirements"
+                                        WalletAddress="@SigningWalletAddress" />
+            <MudDivider />
+        }
+
+        @* Form Controls *@
+        @if (_formControl is not null)
+        {
+            <ControlDispatcher Control="_formControl" Depth="0" />
+        }
+
+        @* Calculated Fields Panel *@
+        @if (_hasCalculations)
+        {
+            <MudDivider />
+            <Panels.CalculatedFieldsPanel Calculations="Action?.Calculations"
+                                           FormContext="_formContext" />
+        }
+
+        @* Validation Summary *@
+        @if (_showValidationSummary && _formContext.HasErrors)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">
+                <MudText Typo="Typo.body2">Please fix the errors above before submitting.</MudText>
+            </MudAlert>
+        }
+
+        @* Form Actions *@
+        @if (!IsReadOnly)
+        {
+            <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd" Class="mt-4">
+                @if (OnCancel.HasDelegate)
+                {
+                    <MudButton OnClick="HandleCancel" Variant="Variant.Text">Cancel</MudButton>
+                }
+                @if (OnReject.HasDelegate && Action?.RejectionConfig is not null)
+                {
+                    <MudButton OnClick="HandleReject" Color="Color.Error" Variant="Variant.Text">Reject</MudButton>
+                }
+                <MudButton OnClick="HandleSubmit"
+                           Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           Disabled="_isSubmitting">
+                    @if (_isSubmitting)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Submit
+                </MudButton>
+            </MudStack>
+        }
+    </MudStack>
+</CascadingValue>
+
+@code {
+    [Parameter] public Sorcha.Blueprint.Models.Action? Action { get; set; }
+    [Parameter] public JsonDocument? PreviousData { get; set; }
+    [Parameter] public string ParticipantAddress { get; set; } = string.Empty;
+    [Parameter] public string SigningWalletAddress { get; set; } = string.Empty;
+    [Parameter] public EventCallback<FormSubmission> OnSubmit { get; set; }
+    [Parameter] public EventCallback<string> OnReject { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public bool IsReadOnly { get; set; }
+
+    private FormContext _formContext = new();
+    private Control? _formControl;
+    private List<CredentialRequirement> _credentialRequirements = [];
+    private bool _hasCalculations;
+    private bool _isSubmitting;
+    private bool _showValidationSummary;
+
+    protected override void OnParametersSet()
+    {
+        if (Action is null) return;
+
+        // Initialize FormContext
+        _formContext = new FormContext
+        {
+            DataSchema = SchemaService.MergeSchemas(Action.DataSchemas),
+            IsReadOnly = IsReadOnly,
+            SigningWalletAddress = SigningWalletAddress
+        };
+
+        // Build disclosure filter
+        BuildDisclosureFilter();
+
+        // Parse previous data
+        if (PreviousData is not null)
+        {
+            ParsePreviousData();
+        }
+
+        // Determine form control — use Action.Form or auto-generate
+        _formControl = Action.Form ?? SchemaService.AutoGenerateForm(Action.DataSchemas);
+
+        // Credential requirements
+        _credentialRequirements = Action.CredentialRequirements?.ToList() ?? [];
+
+        // Calculations
+        _hasCalculations = Action.Calculations?.Count > 0;
+    }
+
+    private void BuildDisclosureFilter()
+    {
+        if (Action is null) return;
+
+        var disclosures = Action.Disclosures?.ToList() ?? [];
+
+        // If the current participant is the sender, they see all fields
+        if (Action.Sender == ParticipantAddress)
+        {
+            _formContext.AllFieldsDisclosed = true;
+            return;
+        }
+
+        foreach (var disclosure in disclosures)
+        {
+            if (disclosure.ParticipantAddress == ParticipantAddress)
+            {
+                foreach (var pointer in disclosure.DataPointers)
+                {
+                    if (pointer == "/*")
+                    {
+                        _formContext.AllFieldsDisclosed = true;
+                        return;
+                    }
+                    _formContext.DisclosureFilter.Add(pointer);
+                }
+            }
+        }
+    }
+
+    private void ParsePreviousData()
+    {
+        if (PreviousData is null) return;
+
+        try
+        {
+            var root = PreviousData.RootElement;
+            if (root.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var prop in root.EnumerateObject())
+                {
+                    _formContext.PreviousData["/" + prop.Name] = prop.Value.ValueKind switch
+                    {
+                        JsonValueKind.String => prop.Value.GetString(),
+                        JsonValueKind.Number => prop.Value.GetDecimal(),
+                        JsonValueKind.True => true,
+                        JsonValueKind.False => false,
+                        _ => prop.Value.GetRawText()
+                    };
+                }
+            }
+        }
+        catch
+        {
+            // Gracefully handle malformed previous data
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _showValidationSummary = true;
+
+        // Validate
+        if (_formContext.DataSchema is not null)
+        {
+            var errors = SchemaService.ValidateData(_formContext.DataSchema, _formContext.FormData);
+            _formContext.ClearErrors();
+            foreach (var (scope, fieldErrors) in errors)
+            {
+                _formContext.SetErrors(scope, fieldErrors);
+            }
+        }
+
+        if (_formContext.HasErrors)
+        {
+            StateHasChanged();
+            return;
+        }
+
+        _isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var submission = new FormSubmission
+            {
+                Data = new Dictionary<string, object?>(_formContext.FormData),
+                CalculatedValues = new Dictionary<string, object?>(_formContext.CalculatedValues),
+                SigningWalletAddress = SigningWalletAddress,
+                FileAttachments = [.. _formContext.FileAttachments],
+                ProofAttachments = [.. _formContext.ProofAttachments]
+            };
+
+            // Map credential presentations
+            foreach (var cp in _formContext.CredentialPresentations)
+            {
+                submission.CredentialPresentations.Add(new CredentialPresentation
+                {
+                    CredentialId = cp.CredentialId,
+                    DisclosedClaims = cp.DisclosedClaims,
+                    RawPresentation = cp.RawPresentation,
+                    KeyBindingProof = cp.KeyBindingProof
+                });
+            }
+
+            await OnSubmit.InvokeAsync(submission);
+        }
+        finally
+        {
+            _isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleReject()
+    {
+        await OnReject.InvokeAsync("rejected");
+    }
+
+    private async Task HandleCancel()
+    {
+        await OnCancel.InvokeAsync();
+    }
+}

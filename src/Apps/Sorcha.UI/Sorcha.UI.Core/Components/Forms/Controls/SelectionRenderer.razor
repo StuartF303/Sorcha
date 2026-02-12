@@ -1,0 +1,62 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.Blueprint.Models
+@using Sorcha.UI.Core.Models.Forms
+@using Sorcha.UI.Core.Services.Forms
+
+@inject IFormSchemaService SchemaService
+
+<MudSelect T="string"
+           Label="@Control.Title"
+           Value="@_value"
+           ValueChanged="OnValueChanged"
+           Disabled="@(IsDisabled || FormContext?.IsReadOnly == true)"
+           Required="@_isRequired"
+           ErrorText="@_errorText"
+           Error="@(!string.IsNullOrEmpty(_errorText))"
+           Variant="Variant.Outlined"
+           Margin="Margin.Dense">
+    @foreach (var option in _options)
+    {
+        <MudSelectItem Value="@option">@option</MudSelectItem>
+    }
+</MudSelect>
+
+@code {
+    [CascadingParameter] public FormContext? FormContext { get; set; }
+    [Parameter, EditorRequired] public Control Control { get; set; } = new();
+    [Parameter] public bool IsDisabled { get; set; }
+
+    private string _value = string.Empty;
+    private string _errorText = string.Empty;
+    private bool _isRequired;
+    private List<string> _options = [];
+
+    protected override void OnParametersSet()
+    {
+        _value = FormContext?.GetValue<string>(Control.Scope) ?? string.Empty;
+        _isRequired = SchemaService.IsRequired(FormContext?.DataSchema, Control.Scope);
+        _options = SchemaService.GetEnumValues(FormContext?.DataSchema, Control.Scope);
+        UpdateErrors();
+    }
+
+    private void OnValueChanged(string newValue)
+    {
+        _value = newValue;
+        FormContext?.SetValue(Control.Scope, newValue);
+
+        if (FormContext is not null)
+        {
+            var errors = SchemaService.ValidateField(FormContext.DataSchema, Control.Scope, newValue);
+            FormContext.SetErrors(Control.Scope, errors);
+            UpdateErrors();
+        }
+    }
+
+    private void UpdateErrors()
+    {
+        var errors = FormContext?.GetErrors(Control.Scope) ?? [];
+        _errorText = errors.Count > 0 ? string.Join("; ", errors) : string.Empty;
+    }
+}

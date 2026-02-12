@@ -1,0 +1,79 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using System.Text.Json
+@using Sorcha.UI.Core.Models.Forms
+
+<MudExpansionPanels>
+    <MudExpansionPanel Text="Previous Submission Data" Expanded="false">
+        @if (PreviousData is not null)
+        {
+            <MudStack Spacing="2">
+                @foreach (var prop in GetDisplayProperties())
+                {
+                    <MudTextField T="string"
+                                  Label="@prop.Label"
+                                  Value="@prop.Value"
+                                  ReadOnly="true"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                }
+            </MudStack>
+        }
+    </MudExpansionPanel>
+</MudExpansionPanels>
+
+@code {
+    [CascadingParameter] public FormContext? FormContext { get; set; }
+    [Parameter] public JsonDocument? PreviousData { get; set; }
+
+    private List<(string Label, string Value)> GetDisplayProperties()
+    {
+        if (PreviousData is null)
+            return [];
+
+        var results = new List<(string Label, string Value)>();
+
+        try
+        {
+            var root = PreviousData.RootElement;
+            if (root.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var prop in root.EnumerateObject())
+                {
+                    // Check disclosure filter
+                    if (FormContext is not null && !FormContext.IsDisclosed("/" + prop.Name))
+                        continue;
+
+                    var label = HumanizeName(prop.Name);
+                    var value = prop.Value.ValueKind switch
+                    {
+                        JsonValueKind.String => prop.Value.GetString() ?? "",
+                        JsonValueKind.Number => prop.Value.GetRawText(),
+                        JsonValueKind.True => "Yes",
+                        JsonValueKind.False => "No",
+                        JsonValueKind.Null => "",
+                        _ => prop.Value.GetRawText()
+                    };
+
+                    results.Add((label, value));
+                }
+            }
+        }
+        catch { }
+
+        return results;
+    }
+
+    private static string HumanizeName(string name)
+    {
+        var result = new System.Text.StringBuilder();
+        for (int i = 0; i < name.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(name[i]))
+                result.Append(' ');
+            result.Append(i == 0 ? char.ToUpper(name[i]) : name[i]);
+        }
+        return result.ToString();
+    }
+}

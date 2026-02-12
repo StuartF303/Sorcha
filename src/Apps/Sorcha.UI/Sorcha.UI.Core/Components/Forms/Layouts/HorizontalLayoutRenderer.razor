@@ -1,0 +1,18 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.Blueprint.Models
+
+<MudStack Row="true" Spacing="3">
+    @foreach (var element in Control.Elements)
+    {
+        <div style="flex: 1; min-width: 0;">
+            <ControlDispatcher Control="element" Depth="@(Depth + 1)" />
+        </div>
+    }
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public Control Control { get; set; } = new();
+    [Parameter] public int Depth { get; set; }
+}
