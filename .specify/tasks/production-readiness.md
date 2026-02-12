@@ -212,7 +212,7 @@ The solution must provide an interactive setup process that:
 
 | ID | Task | Priority | Effort | Status | Assignee |
 |----|------|----------|--------|--------|----------|
-| OPS-001 | Production logging infrastructure (Serilog/ELK) | P1 | 8h | 🚧 Partial | - |
+| OPS-001 | Production logging infrastructure (Serilog/OTLP) | P1 | 8h | ✅ Complete | - |
 | OPS-002 | Health check endpoints (deep checks) | P1 | 4h | ✅ Complete | - |
 | OPS-003 | Deployment documentation and runbooks | P1 | 8h | 📋 Not Started | - |
 

@@ -198,8 +198,8 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 ### 8. Observability
 
 **Logging Standards**
-- Use structured logging (Serilog)
-- Log to centralized systems (Seq)
+- Use structured logging (Serilog) via shared `AddSerilogLogging()` extension
+- Log to Aspire Dashboard via OTLP (cloud: configure `OTEL_EXPORTER_OTLP_ENDPOINT`)
 - Include correlation IDs for distributed tracing
 - Log at appropriate levels (Debug, Info, Warning, Error)
 

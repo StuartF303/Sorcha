@@ -106,7 +106,7 @@ public class LogQueryToolTests
             Entries = new[]
             {
                 new { Timestamp = DateTimeOffset.UtcNow, Service = "Blueprint", Level = "Info", Message = "Test log 1", Exception = (string?)null, CorrelationId = "corr-1" },
-                new { Timestamp = DateTimeOffset.UtcNow, Service = "Register", Level = "Error", Message = "Test log 2", Exception = "Stack trace", CorrelationId = "corr-2" }
+                new { Timestamp = DateTimeOffset.UtcNow, Service = "Register", Level = "Error", Message = "Test log 2", Exception = (string?)"Stack trace", CorrelationId = "corr-2" }
             },
             TotalCount = 2
         };

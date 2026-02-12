@@ -214,8 +214,8 @@ Stub implementation provided for wallet service integration.
 - **RabbitMQ:** Message broker for service communication
 
 #### Observability Stack
-- **Serilog:** Structured logging library
-- **Seq:** Log aggregation and analysis
+- **Serilog:** Structured logging with enrichment (machine name, thread ID, application)
+- **OTLP → Aspire Dashboard:** Centralized log aggregation (cloud: Grafana/Datadog/Azure Monitor)
 - **Zipkin:** Distributed tracing
 - **Application Insights:** Azure monitoring (cloud deployments)
 

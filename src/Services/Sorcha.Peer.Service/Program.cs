@@ -24,6 +24,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults (OpenTelemetry, health checks, service discovery)
 builder.AddServiceDefaults();
 
+// Add structured logging with Serilog (OPS-001)
+builder.AddSerilogLogging();
+
 // Add JWT authentication and authorization
 builder.AddJwtAuthentication();
 builder.Services.AddPeerServiceAuthorization();
@@ -142,6 +145,9 @@ await advertisementService.LoadFromRedisAsync();
 
 // Map default endpoints (health checks)
 app.MapDefaultEndpoints();
+
+// Add Serilog HTTP request logging (OPS-001)
+app.UseSerilogLogging();
 
 // Add OWASP security headers (SEC-004)
 app.UseApiSecurityHeaders();
@@ -451,7 +457,7 @@ app.MapPost("/api/registers/bulk-advertise", async (
     [FromBody] BulkAdvertiseRequest request,
     [FromServices] RegisterAdvertisementService advertisementService,
     [FromServices] IRedisAdvertisementStore store,
-    ILogger<Program> logger) =>
+    ILogger<Sorcha.Peer.Service.Program> logger) =>
 {
     var added = 0;
     var updated = 0;

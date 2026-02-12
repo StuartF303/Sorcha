@@ -349,11 +349,11 @@ az webapp deployment source config-zip --name sorcha-tenant-service --resource-g
 
 ## Observability
 
-### Logging (Serilog + Seq)
+### Logging (Serilog + OTLP)
 
-- **Structured Logging**: All logs in JSON format
+- **Structured Logging**: Serilog with machine name, thread ID, application enrichment
 - **Correlation IDs**: Track requests across services
-- **Seq Dashboard**: http://localhost:5341
+- **Aspire Dashboard**: Centralized log viewer via OTLP (http://localhost:18888)
 
 ```csharp
 // Example log entry

@@ -138,7 +138,7 @@ The following CRITICAL tasks are NOT tracked in MASTER-TASKS.md:
 | **SEC-001** | HTTPS enforcement | P0 | 4h | 🚧 Partial | Required for production |
 | **SEC-002** | API rate limiting | P1 | 8h | 📋 Not Started | Prevent abuse |
 | **SEC-003** | Input validation hardening | P1 | 12h | 📋 Not Started | OWASP compliance |
-| **OPS-001** | Logging infrastructure | P1 | 8h | 🚧 Partial | Production monitoring |
+| **OPS-001** | Logging infrastructure | P1 | 8h | ✅ Complete | Serilog + OTLP to Aspire Dashboard |
 | **OPS-002** | Health check endpoints | P1 | 4h | ✅ Complete | Already implemented |
 | **OPS-003** | Deployment documentation | P1 | 8h | 📋 Not Started | Operations guide needed |
 | **DATA-001** | Database backup strategy | P1 | 6h | 📋 Not Started | Data loss prevention |

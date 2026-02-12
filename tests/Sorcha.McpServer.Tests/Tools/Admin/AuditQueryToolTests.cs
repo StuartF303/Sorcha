@@ -121,7 +121,7 @@ public class AuditQueryToolTests
             Items = new[]
             {
                 new { AuditId = "audit-1", Timestamp = DateTimeOffset.UtcNow.AddHours(-1), OrganizationId = "tenant-1", UserId = "user-1", UserEmail = "user1@test.com", EventType = "Login", ResourceType = (string?)null, ResourceId = (string?)null, Action = "User logged in", IpAddress = "192.168.1.1", UserAgent = "Mozilla/5.0", Details = "{}" },
-                new { AuditId = "audit-2", Timestamp = DateTimeOffset.UtcNow, OrganizationId = "tenant-1", UserId = "user-1", UserEmail = "user1@test.com", EventType = "Create", ResourceType = "Blueprint", ResourceId = "bp-123", Action = "Created blueprint", IpAddress = "192.168.1.1", UserAgent = "Mozilla/5.0", Details = "{\"blueprintName\":\"Test\"}" }
+                new { AuditId = "audit-2", Timestamp = DateTimeOffset.UtcNow, OrganizationId = "tenant-1", UserId = "user-1", UserEmail = "user1@test.com", EventType = "Create", ResourceType = (string?)"Blueprint", ResourceId = (string?)"bp-123", Action = "Created blueprint", IpAddress = "192.168.1.1", UserAgent = "Mozilla/5.0", Details = "{\"blueprintName\":\"Test\"}" }
             },
             TotalCount = 2,
             Page = 1,

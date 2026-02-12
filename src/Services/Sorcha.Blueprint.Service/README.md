@@ -419,8 +419,8 @@ Log.Information("Blueprint {BlueprintId} published to register {RegisterId}", bl
 ```
 
 **Log Sinks**:
-- Console (development)
-- Seq (production) - `http://localhost:5341`
+- Console (structured output via Serilog)
+- OTLP → Aspire Dashboard (centralized log aggregation)
 
 ### Tracing (OpenTelemetry + Zipkin)
 

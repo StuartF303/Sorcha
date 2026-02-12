@@ -11,6 +11,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add Aspire service defaults (health checks, OpenTelemetry, service discovery)
 builder.AddServiceDefaults();
 
+// Add structured logging with Serilog (OPS-001)
+builder.AddSerilogLogging();
+
 // Add rate limiting (SEC-002)
 builder.AddRateLimiting();
 
@@ -233,6 +236,9 @@ await app.Services.ApplyWalletDatabaseMigrationsAsync();
 
 // Map default Aspire endpoints (/health, /alive)
 app.MapDefaultEndpoints();
+
+// Add Serilog HTTP request logging (OPS-001)
+app.UseSerilogLogging();
 
 // Add OWASP security headers (SEC-004)
 app.UseApiSecurityHeaders();

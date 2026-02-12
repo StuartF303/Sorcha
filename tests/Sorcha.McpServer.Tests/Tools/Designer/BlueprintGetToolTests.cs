@@ -119,7 +119,7 @@ public class BlueprintGetToolTests
                     Name = "Applicant",
                     Organisation = "Test Org",
                     WalletAddress = "0xabc123",
-                    DidUri = "did:example:123",
+                    DidUri = (string?)"did:example:123",
                     UseStealthAddress = false
                 },
                 new
@@ -140,7 +140,7 @@ public class BlueprintGetToolTests
                     Title = "Submit Application",
                     Description = "Submit the initial application",
                     Sender = "participant-1",
-                    Target = "participant-2",
+                    Target = (string?)"participant-2",
                     IsStartingAction = true,
                     RequiredActionData = new[] { "form-data" },
                     AdditionalRecipients = Array.Empty<string>(),

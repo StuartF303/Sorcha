@@ -781,8 +781,8 @@ Log.Warning("Health check failed for service {Service}: {Error}", serviceName, e
 ```
 
 **Log Sinks**:
-- Console (development)
-- Seq (production) - `http://localhost:5341`
+- Console (structured output via Serilog)
+- OTLP → Aspire Dashboard (centralized log aggregation)
 
 ### Tracing (OpenTelemetry + Zipkin)
 

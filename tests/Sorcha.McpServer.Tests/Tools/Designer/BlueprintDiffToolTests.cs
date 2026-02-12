@@ -122,7 +122,7 @@ public class BlueprintDiffToolTests
             toVersion = 2,
             changes = new[]
             {
-                new { path = "/title", changeType = "Modified", oldValue = "Old Title", newValue = "New Title" },
+                new { path = "/title", changeType = "Modified", oldValue = (string?)"Old Title", newValue = "New Title" },
                 new { path = "/actions/1", changeType = "Added", oldValue = (string?)null, newValue = "New Action" }
             }
         };

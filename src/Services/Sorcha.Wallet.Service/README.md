@@ -579,8 +579,8 @@ Log.Information("Wallet {WalletAddress} created with algorithm {Algorithm}", add
 ```
 
 **Log Sinks**:
-- Console (development)
-- Seq (production) - `http://localhost:5341`
+- Console (structured output via Serilog)
+- OTLP → Aspire Dashboard (centralized log aggregation)
 
 **Security**: Private keys and mnemonics are NEVER logged.
 

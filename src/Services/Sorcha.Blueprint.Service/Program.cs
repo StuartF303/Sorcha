@@ -18,6 +18,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults (OpenTelemetry, health checks, service discovery)
 builder.AddServiceDefaults();
 
+// Add structured logging with Serilog (OPS-001)
+builder.AddSerilogLogging();
+
 // Add rate limiting (SEC-002)
 builder.AddRateLimiting();
 
@@ -126,6 +129,9 @@ var logger = app.Logger;
 
 // Configure the HTTP request pipeline
 app.MapDefaultEndpoints();
+
+// Add Serilog HTTP request logging (OPS-001)
+app.UseSerilogLogging();
 
 // Add OWASP security headers (SEC-004)
 app.UseApiSecurityHeaders();
