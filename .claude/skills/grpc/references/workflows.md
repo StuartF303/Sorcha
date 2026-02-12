@@ -77,7 +77,7 @@ dotnet build src/Services/Sorcha.MyService.Service
 ```csharp
 // src/Services/Sorcha.MyService.Service/GrpcServices/MyGrpcService.cs
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 using Grpc.Core;
 using Google.Protobuf.WellKnownTypes;

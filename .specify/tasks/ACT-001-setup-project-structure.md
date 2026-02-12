@@ -96,7 +96,7 @@ Add to all .cs files:
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 ```
 
 ### 7. Create README.md

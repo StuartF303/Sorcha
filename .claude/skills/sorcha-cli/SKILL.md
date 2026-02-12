@@ -27,7 +27,7 @@ src/Apps/Sorcha.Cli/
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 using System.CommandLine;
 using System.CommandLine.Parsing;

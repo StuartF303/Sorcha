@@ -410,7 +410,7 @@ With multiple developers after Phase 2:
 ## Notes
 
 - All new services must be registered in `Sorcha.UI.Core/Extensions/ServiceCollectionExtensions.cs`
-- All new pages need `// SPDX-License-Identifier: MIT` and `// Copyright (c) 2025 Sorcha Contributors` header
+- All new pages need `// SPDX-License-Identifier: MIT` and `// Copyright (c) 2026 Sorcha Contributors` header
 - Use existing `AuthenticatedHttpMessageHandler` for JWT tokens — no manual token handling
 - MudBlazor components throughout: MudTable, MudCard, MudDialog, MudChip, MudTooltip, MudSnackbar, MudTimeline, MudTextField, MudSelect, MudNumericField, MudSwitch
 - Existing components to reuse: `ConfirmDialog`, `JsonTreeView`, `TransactionList`, `TransactionDetail`, `RegisterCard`

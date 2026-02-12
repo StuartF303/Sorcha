@@ -553,7 +553,7 @@ public async Task<ValidationResult> ValidateAsync(
 **Format:**
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 using System;
 // ...
@@ -573,7 +573,7 @@ using System;
 **Example:**
 ```xml
 <!-- SPDX-License-Identifier: MIT -->
-<!-- Copyright (c) 2025 Sorcha Contributors -->
+<!-- Copyright (c) 2026 Sorcha Contributors -->
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>

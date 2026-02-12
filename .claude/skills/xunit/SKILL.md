@@ -16,7 +16,7 @@ xUnit 2.9.3 is the testing framework for all 30 test projects in Sorcha. Tests u
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 public class WalletManagerTests
 {

@@ -42,7 +42,7 @@ npx playwright test
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 namespace Sorcha.UI.Core.Utilities;
 
@@ -102,7 +102,7 @@ public static class UrlValidator
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 namespace Sorcha.UI.Core.Services.Navigation;
 
@@ -136,7 +136,7 @@ public interface INavigationService
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 using Microsoft.AspNetCore.Components;
 using Sorcha.UI.Core.Utilities;

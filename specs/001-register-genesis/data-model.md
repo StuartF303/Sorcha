@@ -795,7 +795,7 @@ db.sorcha_system_register_blueprints.find({ isActive: true }).sort({ publishedAt
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
@@ -915,7 +915,7 @@ public class CentralNodeInfo
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 using System.ComponentModel.DataAnnotations;
 using MongoDB.Bson;
@@ -1021,7 +1021,7 @@ public class SystemRegisterEntry
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 using System.ComponentModel.DataAnnotations;
 
@@ -1102,7 +1102,7 @@ public class HeartbeatMessage
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 using System.ComponentModel.DataAnnotations;
 
@@ -1196,7 +1196,7 @@ public class ActivePeerInfo
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
@@ -1279,7 +1279,7 @@ public class SyncCheckpoint
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 namespace Sorcha.Peer.Service.Core;
 
@@ -1373,7 +1373,7 @@ public enum NotificationType
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 namespace Sorcha.Peer.Service.Core;
 

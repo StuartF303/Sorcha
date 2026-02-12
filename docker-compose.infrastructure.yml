@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025 Sorcha Contributors
+# Copyright (c) 2026 Sorcha Contributors
 
 # Infrastructure-only Docker Compose
 # Use this for local development to run databases without building all services

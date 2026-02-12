@@ -233,7 +233,7 @@ SORCHA is a distributed ledger platform built on microservices architecture, pro
 **Copyright Notice Format**
 ```
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 ```
 

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025 Sorcha Contributors
+# Copyright (c) 2026 Sorcha Contributors
 
 # OpenTelemetry configuration for sending traces/metrics to Aspire Dashboard
 # The OTLP endpoint points to the aspire-dashboard container's gRPC port

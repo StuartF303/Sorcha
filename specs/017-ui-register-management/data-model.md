@@ -18,7 +18,7 @@ This document defines the new and enhanced ViewModels for the UI Register Manage
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 namespace Sorcha.UI.Core.Models.Registers;
 
@@ -99,7 +99,7 @@ public record RegisterFilterState
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 namespace Sorcha.UI.Core.Models.Registers;
 
@@ -211,7 +211,7 @@ public record TransactionQueryResult
 
 ```csharp
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2025 Sorcha Contributors
+// Copyright (c) 2026 Sorcha Contributors
 
 namespace Sorcha.UI.Core.Models.Registers;
 
