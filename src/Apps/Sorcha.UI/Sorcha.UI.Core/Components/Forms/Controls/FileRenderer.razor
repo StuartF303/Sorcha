@@ -1,0 +1,88 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Microsoft.AspNetCore.Components.Forms
+@using Sorcha.Blueprint.Models
+@using Sorcha.UI.Core.Models.Forms
+
+<MudStack Spacing="1">
+    <MudText Typo="Typo.body2">@Control.Title</MudText>
+
+    <InputFile OnChange="OnFileSelected" disabled="@(IsDisabled || FormContext?.IsReadOnly == true)" />
+
+    @if (_selectedFile is not null)
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" />
+            <MudText Typo="Typo.body2">@_fileDisplayText</MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.Close"
+                           Size="Size.Small"
+                           OnClick="RemoveFile" />
+        </MudStack>
+    }
+</MudStack>
+
+@code {
+    [CascadingParameter] public FormContext? FormContext { get; set; }
+    [Parameter, EditorRequired] public Control Control { get; set; } = new();
+    [Parameter] public bool IsDisabled { get; set; }
+
+    private FileAttachmentInfo? _selectedFile;
+    private string _fileDisplayText = string.Empty;
+    private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB default
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+
+        try
+        {
+            var scope = Control.Scope;
+            using var stream = file.OpenReadStream(MaxFileSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            _selectedFile = new FileAttachmentInfo
+            {
+                FileName = file.Name,
+                ContentType = file.ContentType,
+                Size = file.Size,
+                Content = ms.ToArray(),
+                Scope = scope
+            };
+
+            _fileDisplayText = $"{file.Name} ({FormatSize(file.Size)})";
+
+            // Remove any existing attachment for this scope and add new one
+            FormContext?.FileAttachments.RemoveAll(a => a.Scope == scope);
+            FormContext?.FileAttachments.Add(_selectedFile);
+            FormContext?.SetValue(scope, file.Name);
+        }
+        catch (Exception)
+        {
+            _selectedFile = null;
+        }
+    }
+
+    private void RemoveFile()
+    {
+        if (_selectedFile is not null)
+        {
+            var scope = Control.Scope;
+            FormContext?.FileAttachments.RemoveAll(a => a.Scope == scope);
+            FormContext?.SetValue(scope, null);
+            _selectedFile = null;
+            _fileDisplayText = string.Empty;
+        }
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes >= 1024 * 1024)
+            return $"{bytes / (1024.0 * 1024.0):F1} MB";
+        if (bytes >= 1024)
+            return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes} B";
+    }
+}

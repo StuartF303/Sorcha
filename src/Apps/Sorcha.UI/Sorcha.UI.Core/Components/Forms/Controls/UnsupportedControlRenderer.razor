@@ -1,0 +1,12 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.Blueprint.Models
+
+<MudAlert Severity="Severity.Warning" Dense="true">
+    Unsupported control type: @Control.ControlType
+</MudAlert>
+
+@code {
+    [Parameter, EditorRequired] public Control Control { get; set; } = new();
+}

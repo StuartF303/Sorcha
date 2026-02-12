@@ -1,0 +1,20 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.Blueprint.Models
+
+<MudStack Spacing="3">
+    @if (!string.IsNullOrEmpty(Control.Title))
+    {
+        <MudText Typo="Typo.h6">@Control.Title</MudText>
+    }
+    @foreach (var element in Control.Elements)
+    {
+        <ControlDispatcher Control="element" Depth="@(Depth + 1)" />
+    }
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public Control Control { get; set; } = new();
+    [Parameter] public int Depth { get; set; }
+}

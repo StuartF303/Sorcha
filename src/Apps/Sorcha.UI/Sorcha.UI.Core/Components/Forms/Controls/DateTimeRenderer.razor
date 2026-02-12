@@ -1,0 +1,64 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using System.Text.Json
+@using Sorcha.Blueprint.Models
+@using Sorcha.UI.Core.Models.Forms
+@using Sorcha.UI.Core.Services.Forms
+
+@inject IFormSchemaService SchemaService
+
+<MudDatePicker Label="@Control.Title"
+               Date="@_dateValue"
+               DateChanged="OnDateChanged"
+               Disabled="@(IsDisabled || FormContext?.IsReadOnly == true)"
+               Required="@_isRequired"
+               ErrorText="@_errorText"
+               Error="@(!string.IsNullOrEmpty(_errorText))"
+               Variant="Variant.Outlined"
+               Margin="Margin.Dense"
+               DateFormat="yyyy-MM-dd" />
+
+@code {
+    [CascadingParameter] public FormContext? FormContext { get; set; }
+    [Parameter, EditorRequired] public Control Control { get; set; } = new();
+    [Parameter] public bool IsDisabled { get; set; }
+
+    private DateTime? _dateValue;
+    private string _errorText = string.Empty;
+    private bool _isRequired;
+
+    protected override void OnParametersSet()
+    {
+        _isRequired = SchemaService.IsRequired(FormContext?.DataSchema, Control.Scope);
+
+        var strValue = FormContext?.GetValue<string>(Control.Scope);
+        if (!string.IsNullOrEmpty(strValue) && DateTime.TryParse(strValue, out var dt))
+        {
+            _dateValue = dt;
+        }
+
+        UpdateErrors();
+    }
+
+    private void OnDateChanged(DateTime? newDate)
+    {
+        _dateValue = newDate;
+        var isoValue = newDate?.ToString("yyyy-MM-dd");
+        FormContext?.SetValue(Control.Scope, isoValue);
+
+        // Validate on change
+        if (FormContext is not null)
+        {
+            var errors = SchemaService.ValidateField(FormContext.DataSchema, Control.Scope, isoValue);
+            FormContext.SetErrors(Control.Scope, errors);
+            UpdateErrors();
+        }
+    }
+
+    private void UpdateErrors()
+    {
+        var errors = FormContext?.GetErrors(Control.Scope) ?? [];
+        _errorText = errors.Count > 0 ? string.Join("; ", errors) : string.Empty;
+    }
+}

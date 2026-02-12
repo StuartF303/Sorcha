@@ -1,0 +1,31 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.Blueprint.Models
+@using Sorcha.UI.Core.Models.Forms
+
+<MudSwitch T="bool"
+           Label="@Control.Title"
+           Value="@_value"
+           ValueChanged="OnValueChanged"
+           Disabled="@(IsDisabled || FormContext?.IsReadOnly == true)"
+           Color="Color.Primary" />
+
+@code {
+    [CascadingParameter] public FormContext? FormContext { get; set; }
+    [Parameter, EditorRequired] public Control Control { get; set; } = new();
+    [Parameter] public bool IsDisabled { get; set; }
+
+    private bool _value;
+
+    protected override void OnParametersSet()
+    {
+        _value = FormContext?.GetValue<bool>(Control.Scope) ?? false;
+    }
+
+    private void OnValueChanged(bool newValue)
+    {
+        _value = newValue;
+        FormContext?.SetValue(Control.Scope, newValue);
+    }
+}

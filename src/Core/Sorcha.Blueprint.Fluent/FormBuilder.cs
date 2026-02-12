@@ -118,5 +118,14 @@ public class ControlBuilder
         return this;
     }
 
+    /// <summary>
+    /// Adds a JSON Forms rule for conditional display
+    /// </summary>
+    public ControlBuilder WithRule(FormRule rule)
+    {
+        _control.Rule = rule;
+        return this;
+    }
+
     internal Control Build() => _control;
 }
