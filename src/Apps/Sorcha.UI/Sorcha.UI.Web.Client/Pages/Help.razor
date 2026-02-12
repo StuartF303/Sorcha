@@ -10,33 +10,35 @@
         Help & Support
     </MudText>
     <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
-        Find answers and get assistance
+        Everything you need to get started with secure, multi-party workflows
     </MudText>
 
     <MudGrid>
+        <!-- Getting Started -->
         <MudItem xs="12" md="6">
             <MudPaper Class="pa-4 mb-4" Elevation="2">
                 <MudText Typo="Typo.h6" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.MenuBook" Class="mr-2" />
-                    Documentation
+                    <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Class="mr-2" />
+                    Getting Started
                 </MudText>
                 <MudList T="string">
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.Article" Href="#">
-                        <MudText Typo="Typo.subtitle2">Getting Started Guide</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">Learn the basics of Sorcha Platform</MudText>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.PlayCircle">
+                        <MudText Typo="Typo.subtitle2">1. Create a Wallet</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Generate an HD wallet with ED25519, P-256, or RSA-4096 keys. Your seed phrase is your backup — store it securely.</MudText>
                     </MudListItem>
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.Article" Href="#">
-                        <MudText Typo="Typo.subtitle2">Blueprint Designer Tutorial</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">Create your first workflow</MudText>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.PlayCircle">
+                        <MudText Typo="Typo.subtitle2">2. Design a Blueprint</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Use the Visual Designer to define participants, actions, data schemas, and disclosure rules for your workflow.</MudText>
                     </MudListItem>
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.Article" Href="#">
-                        <MudText Typo="Typo.subtitle2">API Reference</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">Complete API documentation</MudText>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.PlayCircle">
+                        <MudText Typo="Typo.subtitle2">3. Publish & Execute</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Publish your blueprint to a register. Participants submit actions, sign with their wallets, and the engine handles the rest.</MudText>
                     </MudListItem>
                 </MudList>
             </MudPaper>
         </MudItem>
 
+        <!-- Keyboard Shortcuts -->
         <MudItem xs="12" md="6">
             <MudPaper Class="pa-4 mb-4" Elevation="2">
                 <MudText Typo="Typo.h6" Class="mb-3">
@@ -52,23 +54,23 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td><MudChip T="string" Size="Size.Small">Ctrl + S</MudChip></td>
+                            <td><MudChip T="string" Size="@MudBlazor.Size.Small">Ctrl + S</MudChip></td>
                             <td>Save current blueprint</td>
                         </tr>
                         <tr>
-                            <td><MudChip T="string" Size="Size.Small">Ctrl + N</MudChip></td>
+                            <td><MudChip T="string" Size="@MudBlazor.Size.Small">Ctrl + N</MudChip></td>
                             <td>Create new action</td>
                         </tr>
                         <tr>
-                            <td><MudChip T="string" Size="Size.Small">Ctrl + O</MudChip></td>
+                            <td><MudChip T="string" Size="@MudBlazor.Size.Small">Ctrl + O</MudChip></td>
                             <td>Open blueprint</td>
                         </tr>
                         <tr>
-                            <td><MudChip T="string" Size="Size.Small">Delete</MudChip></td>
+                            <td><MudChip T="string" Size="@MudBlazor.Size.Small">Delete</MudChip></td>
                             <td>Delete selected element</td>
                         </tr>
                         <tr>
-                            <td><MudChip T="string" Size="Size.Small">Ctrl + Z</MudChip></td>
+                            <td><MudChip T="string" Size="@MudBlazor.Size.Small">Ctrl + Z</MudChip></td>
                             <td>Undo last action</td>
                         </tr>
                     </tbody>
@@ -76,6 +78,39 @@
             </MudPaper>
         </MudItem>
 
+        <!-- Core Concepts -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4 mb-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.School" Class="mr-2" />
+                    Core Concepts
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2" Style="font-weight: 600">DAD Security Model</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            <strong>Disclosure</strong> — field-level control over who sees what data.
+                            <strong>Alteration</strong> — cryptographically signed, immutable transaction history.
+                            <strong>Destruction</strong> — P2P replication ensures no single point of failure.
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2" Style="font-weight: 600">Blueprints & Actions</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Blueprints define multi-party workflows. Each action has a sender, data schema, routes (what happens next), and disclosures (who sees what). The engine validates, calculates, routes, and discloses automatically.
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2" Style="font-weight: 600">Registers & Dockets</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            A register is a ledger that stores transactions. Transactions are SHA-256 chain-linked and sealed into dockets (blocks) after validator consensus. Each register has its own governance roster.
+                        </MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <!-- FAQ -->
         <MudItem xs="12">
             <MudPaper Class="pa-4 mb-4" Elevation="2">
                 <MudText Typo="Typo.h6" Class="mb-3">
@@ -83,73 +118,99 @@
                     Frequently Asked Questions
                 </MudText>
                 <MudExpansionPanels>
-                    <MudExpansionPanel Text="What is a Blueprint?">
+                    <MudExpansionPanel Text="What is Sorcha?">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            A blueprint is a workflow definition that specifies the sequence of actions, participants, and data schemas required to execute a multi-party process on the distributed ledger.
+                            Sorcha is a distributed ledger platform for orchestrating secure, multi-party workflows. It implements the DAD security model (Disclosure, Alteration, Destruction) so that multiple organizations can collaborate on shared processes while each party controls exactly what data they reveal.
                         </MudText>
                     </MudExpansionPanel>
-                    <MudExpansionPanel Text="How do I create a workflow?">
+                    <MudExpansionPanel Text="What is a Blueprint?">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Use the Blueprint Designer to visually create workflows by adding actions, defining participants, and configuring data schemas. Then save and deploy your blueprint.
+                            A blueprint is a workflow definition that specifies the sequence of actions, participants, data schemas, routes, and disclosure rules. Think of it as a contract that defines how a multi-party process flows — who does what, what data is required, and who can see each piece of information. You can build blueprints visually with the Designer or define them as JSON/YAML.
+                        </MudText>
+                    </MudExpansionPanel>
+                    <MudExpansionPanel Text="How does selective disclosure work?">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Each action in a blueprint can define disclosure rules using JSON Pointers (RFC 6901). When a participant submits data, the engine evaluates the disclosure rules and reveals only the specified fields to each recipient. For example, a buyer might see product name and quantity, while a supplier sees product name and unit price — neither sees the other's sensitive fields.
+                        </MudText>
+                    </MudExpansionPanel>
+                    <MudExpansionPanel Text="What are Verifiable Credentials?">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Sorcha implements SD-JWT Verifiable Credentials aligned with eIDAS 2.0. These are cryptographically signed attestations that can be selectively disclosed — for example, proving you hold a valid certification without revealing its expiry date or issuing authority. Workflows can require credential presentation before allowing actions (credential gating), and can issue credentials as proof of workflow completion.
                         </MudText>
                     </MudExpansionPanel>
                     <MudExpansionPanel Text="What cryptographic algorithms are supported?">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Sorcha supports ED25519, NIST P-256, and RSA-4096 for cryptographic operations, with HD wallet support via BIP32/BIP39/BIP44.
+                            Sorcha supports three signing algorithms: <strong>ED25519</strong> (fastest, recommended), <strong>NIST P-256</strong> (FIPS-compliant, wide enterprise adoption), and <strong>RSA-4096</strong> (legacy compatibility). Payload encryption uses <strong>AES-256-GCM</strong>, and transaction hashing uses <strong>SHA-256</strong>. All wallets are BIP32/BIP39/BIP44 hierarchical deterministic wallets.
                         </MudText>
                     </MudExpansionPanel>
-                    <MudExpansionPanel Text="How do I manage my wallet?">
+                    <MudExpansionPanel Text="How does register governance work?">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Navigate to Wallets in the main menu to view your wallet addresses, manage keys, create new wallets, and configure security settings.
+                            Each register has a governance roster with three roles: <strong>Owner</strong> (full control), <strong>Admin</strong> (can vote), and <strong>Member</strong> (can submit transactions). Adding or removing admins requires quorum voting — a majority of existing voting members must approve. All governance operations are recorded as immutable Control Transactions on the ledger itself, creating a complete audit trail.
                         </MudText>
                     </MudExpansionPanel>
-                    <MudExpansionPanel Text="What happens when I'm offline?">
+                    <MudExpansionPanel Text="What happens when a node goes offline?">
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Sorcha supports offline operation. Changes made while offline are queued and automatically synced when connectivity is restored. Look for the sync indicator in the Designer toolbar.
+                            The P2P network ensures resilience through automatic replication. When a node comes back online, it syncs missed transactions from its peers. Pending transactions are queued locally and automatically flushed when connectivity is restored. The gossip protocol reaches 90% of the network in under 60 seconds for new updates.
+                        </MudText>
+                    </MudExpansionPanel>
+                    <MudExpansionPanel Text="What standards does Sorcha comply with?">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Sorcha implements: <strong>eIDAS 2.0</strong> (electronic attestations), <strong>SD-JWT VC</strong> (selective disclosure credentials), <strong>W3C DID</strong> (decentralized identifiers), <strong>BIP32/39/44</strong> (HD wallets), <strong>FIPS 186-4 &amp; 180-4</strong> (government-grade crypto), <strong>JSON Schema Draft 2020-12</strong> (data validation), and <strong>RFC 6901</strong> (JSON Pointer for field addressing).
                         </MudText>
                     </MudExpansionPanel>
                 </MudExpansionPanels>
             </MudPaper>
         </MudItem>
 
+        <!-- Contact & Links -->
         <MudItem xs="12">
             <MudPaper Class="pa-4 mb-4" Elevation="2">
                 <MudText Typo="Typo.h6" Class="mb-3">
                     <MudIcon Icon="@Icons.Material.Filled.ContactSupport" Class="mr-2" />
-                    Contact Support
+                    Resources & Support
                 </MudText>
                 <MudGrid>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.subtitle2" Class="mb-2">Email Support</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            support@sorcha.io
-                        </MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            Response time: 24 hours
-                        </MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.subtitle2" Class="mb-2">Community Forum</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            community.sorcha.io
-                        </MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            Ask questions and share knowledge
-                        </MudText>
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudText Typo="Typo.subtitle2" Class="mb-2">GitHub Issues</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            github.com/sorcha/platform
-                        </MudText>
+                    <MudItem xs="12" md="3">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">GitHub</MudText>
+                        <MudLink Href="https://github.com/StuartF303/Sorcha" Target="_blank" Typo="Typo.body2">
+                            Source Code & Issues
+                        </MudLink>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
                             Report bugs and request features
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">API Documentation</MudText>
+                        <MudLink Href="/api/scalar/v1" Target="_blank" Typo="Typo.body2">
+                            Scalar API Explorer
+                        </MudLink>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Interactive OpenAPI documentation
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">License</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            MIT License
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Free for commercial use
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Technology</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            .NET 10 + Aspire + Blazor
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Cloud-native microservices
                         </MudText>
                     </MudItem>
                 </MudGrid>
             </MudPaper>
         </MudItem>
 
+        <!-- About -->
         <MudItem xs="12">
             <MudPaper Class="pa-4" Elevation="2">
                 <MudText Typo="Typo.h6" Class="mb-3">
@@ -157,17 +218,23 @@
                     About Sorcha Platform
                 </MudText>
                 <MudText Typo="Typo.body2" Class="mb-2">
-                    <strong>Version:</strong> 1.0.0-preview
+                    <strong>Version:</strong> 2.0.0-preview
                 </MudText>
                 <MudText Typo="Typo.body2" Class="mb-2">
-                    <strong>Framework:</strong> .NET 10.0 / Blazor WebAssembly
+                    <strong>Framework:</strong> .NET 10.0 / Blazor WebAssembly / .NET Aspire
+                </MudText>
+                <MudText Typo="Typo.body2" Class="mb-2">
+                    <strong>Security Model:</strong> DAD (Disclosure, Alteration, Destruction)
+                </MudText>
+                <MudText Typo="Typo.body2" Class="mb-2">
+                    <strong>Standards:</strong> eIDAS 2.0, SD-JWT VC, W3C DID, BIP32/39/44, FIPS 186-4, JSON Schema 2020-12
                 </MudText>
                 <MudText Typo="Typo.body2">
-                    Sorcha is a distributed ledger platform designed for secure, multi-party workflows with cryptographic integrity and selective disclosure.
+                    Sorcha is enterprise-grade trust infrastructure for multi-party collaboration. Design secure workflows where disclosure is controlled, alteration is recorded, and destruction is prevented through peer network replication.
                 </MudText>
                 <MudDivider Class="my-3" />
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                    MIT License - Copyright (c) 2025 Sorcha Contributors
+                    MIT License - Copyright (c) 2026 Sorcha Contributors
                 </MudText>
             </MudPaper>
         </MudItem>

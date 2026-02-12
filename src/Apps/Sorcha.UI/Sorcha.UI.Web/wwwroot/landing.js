@@ -1,77 +1,7 @@
 // Sorcha Landing Page JavaScript
-// Optional: Fetch public statistics from the API
 
 (function() {
     'use strict';
-
-    // Try to fetch public stats from the API
-    async function loadStats() {
-        try {
-            const response = await fetch('/api/public/stats', {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const stats = await response.json();
-                updateStatDisplay('stat-blueprints', stats.blueprints ?? 0);
-                updateStatDisplay('stat-transactions', stats.transactions ?? 0);
-                updateStatDisplay('stat-peers', stats.activePeers ?? 0);
-            } else {
-                // If API not available, show placeholder values
-                setPlaceholderStats();
-            }
-        } catch (error) {
-            // Silently fail and show placeholder values
-            console.log('Stats API not available, using placeholders');
-            setPlaceholderStats();
-        }
-    }
-
-    function updateStatDisplay(elementId, value) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            // Animate the number
-            animateNumber(element, 0, value, 1000);
-        }
-    }
-
-    function animateNumber(element, start, end, duration) {
-        const startTime = performance.now();
-
-        function update(currentTime) {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
-
-            const current = Math.round(start + (end - start) * easeProgress);
-            element.textContent = formatNumber(current);
-
-            if (progress < 1) {
-                requestAnimationFrame(update);
-            }
-        }
-
-        requestAnimationFrame(update);
-    }
-
-    function formatNumber(num) {
-        if (num >= 1000000) {
-            return (num / 1000000).toFixed(1) + 'M';
-        } else if (num >= 1000) {
-            return (num / 1000).toFixed(1) + 'K';
-        }
-        return num.toString();
-    }
-
-    function setPlaceholderStats() {
-        // Show meaningful placeholder values indicating platform readiness
-        updateStatDisplay('stat-blueprints', 3);
-        updateStatDisplay('stat-transactions', 0);
-        updateStatDisplay('stat-peers', 1);
-    }
 
     // Smooth scroll for anchor links
     function setupSmoothScroll() {
@@ -80,38 +10,94 @@
                 e.preventDefault();
                 const target = document.querySelector(this.getAttribute('href'));
                 if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             });
         });
     }
 
-    // Add scroll-based effects
+    // Nav scroll effects
     function setupScrollEffects() {
         const nav = document.querySelector('.nav');
-        let lastScroll = 0;
-
         window.addEventListener('scroll', () => {
-            const currentScroll = window.pageYOffset;
-
-            // Add shadow to nav on scroll
-            if (currentScroll > 50) {
+            if (window.pageYOffset > 50) {
                 nav.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
             } else {
                 nav.style.boxShadow = 'none';
             }
+        });
+    }
 
-            lastScroll = currentScroll;
+    // Mobile nav toggle
+    function setupMobileNav() {
+        const toggle = document.querySelector('.nav-toggle');
+        const links = document.querySelector('.nav-links');
+        if (!toggle || !links) return;
+
+        toggle.addEventListener('click', () => {
+            const isOpen = links.style.display === 'flex';
+            links.style.display = isOpen ? 'none' : 'flex';
+            links.style.flexDirection = isOpen ? '' : 'column';
+            links.style.position = isOpen ? '' : 'absolute';
+            links.style.top = isOpen ? '' : '64px';
+            links.style.left = isOpen ? '' : '0';
+            links.style.right = isOpen ? '' : '0';
+            links.style.background = isOpen ? '' : 'white';
+            links.style.padding = isOpen ? '' : '16px 24px';
+            links.style.boxShadow = isOpen ? '' : '0 4px 12px rgba(0,0,0,0.1)';
+            links.style.gap = isOpen ? '' : '16px';
+        });
+
+        // Close on link click
+        links.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    links.style.display = 'none';
+                }
+            });
+        });
+
+        // Reset on resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                links.removeAttribute('style');
+            }
+        });
+    }
+
+    // Intersection Observer for fade-in animations
+    function setupScrollAnimations() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+        // Animate cards and sections
+        const selectors = [
+            '.dad-card', '.standard-card', '.use-case-card',
+            '.feature-card', '.security-layer', '.step-card', '.tech-item'
+        ];
+
+        selectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach((el, i) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+                el.style.transition = `opacity 0.5s ease ${i * 0.08}s, transform 0.5s ease ${i * 0.08}s`;
+                observer.observe(el);
+            });
         });
     }
 
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
-        loadStats();
         setupSmoothScroll();
         setupScrollEffects();
+        setupMobileNav();
+        setupScrollAnimations();
     });
 })();

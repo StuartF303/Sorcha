@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sorcha - Distributed Ledger Platform</title>
-    <meta name="description" content="A distributed ledger platform for secure, multi-participant data flow orchestration with cryptographic guarantees.">
+    <title>Sorcha - Trust Infrastructure for Multi-Party Collaboration</title>
+    <meta name="description" content="Sorcha is enterprise-grade trust infrastructure that lets organizations collaborate securely on shared workflows — with cryptographic proof, selective disclosure, and decentralized governance.">
+    <meta name="keywords" content="distributed ledger, multi-party workflows, selective disclosure, verifiable credentials, eIDAS, DAD security, enterprise blockchain, .NET">
+    <meta property="og:title" content="Sorcha - Trust Infrastructure for Multi-Party Collaboration">
+    <meta property="og:description" content="Orchestrate secure workflows across organizational boundaries. Every action signed, every disclosure controlled, every record immutable.">
+    <meta property="og:type" content="website">
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="landing.css">
 </head>
 <body>
@@ -20,48 +24,56 @@
                 <span class="brand-text">Sorcha</span>
             </a>
             <div class="nav-links">
+                <a href="#security" class="nav-link">Security</a>
+                <a href="#standards" class="nav-link">Standards</a>
+                <a href="#use-cases" class="nav-link">Use Cases</a>
                 <a href="#features" class="nav-link">Features</a>
-                <a href="#architecture" class="nav-link">Architecture</a>
+                <a href="/app/help" class="nav-link">Help</a>
                 <a href="/app/auth/login" class="btn btn-outline">Sign In</a>
                 <a href="/app/auth/login" class="btn btn-primary">Get Started</a>
             </div>
+            <button class="nav-toggle" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
         </div>
     </nav>
 
     <!-- Hero Section -->
     <section class="hero">
         <div class="hero-content">
+            <div class="hero-badge">Enterprise-Grade Trust Infrastructure</div>
             <h1 class="hero-title">
-                Secure Data Flow Orchestration
-                <span class="hero-highlight">for the Modern Enterprise</span>
+                Collaborate Across Boundaries.
+                <span class="hero-highlight">Control Every Disclosure.</span>
             </h1>
             <p class="hero-subtitle">
-                A distributed ledger platform implementing the DAD security model -
-                cryptographically secured registers where disclosure is managed through
-                defined schemas, alteration is recorded on immutable ledgers, and
-                destruction risk is eliminated through peer network replication.
+                Sorcha lets multiple organizations work together on shared workflows while
+                each party controls exactly what data they reveal. Every action is cryptographically
+                signed, every record is immutable, and every credential is verifiable.
             </p>
             <div class="hero-actions">
                 <a href="/app/auth/login" class="btn btn-primary btn-lg">
-                    Get Started
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M5 12h14M12 5l7 7-7 7"/>
-                    </svg>
+                    Start Building
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </a>
-                <a href="#features" class="btn btn-outline btn-lg">Learn More</a>
+                <a href="#security" class="btn btn-outline btn-lg">See How It Works</a>
             </div>
             <div class="hero-stats" id="stats">
                 <div class="stat-item">
-                    <span class="stat-value" id="stat-blueprints">--</span>
-                    <span class="stat-label">Blueprints</span>
+                    <span class="stat-value" id="stat-algorithms">3</span>
+                    <span class="stat-label">Crypto Algorithms</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-value" id="stat-transactions">--</span>
-                    <span class="stat-label">Transactions</span>
+                    <span class="stat-value" id="stat-services">7</span>
+                    <span class="stat-label">Microservices</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-value" id="stat-peers">--</span>
-                    <span class="stat-label">Active Peers</span>
+                    <span class="stat-value" id="stat-tests">2400+</span>
+                    <span class="stat-label">Tests Passing</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="stat-standards">6</span>
+                    <span class="stat-label">Standards</span>
                 </div>
             </div>
         </div>
@@ -71,25 +83,228 @@
                     <span class="visual-dot"></span>
                     <span class="visual-dot"></span>
                     <span class="visual-dot"></span>
+                    <span class="visual-title">Supply Chain Workflow</span>
                 </div>
                 <div class="visual-content">
                     <div class="visual-flow">
-                        <div class="flow-node flow-node-start">Apply</div>
+                        <div class="flow-node flow-node-start">
+                            <span class="flow-icon">1</span>
+                            Submit Order
+                        </div>
                         <div class="flow-arrow"></div>
-                        <div class="flow-node flow-node-middle">Evaluate</div>
+                        <div class="flow-node flow-node-middle">
+                            <span class="flow-icon">2</span>
+                            Verify & Sign
+                        </div>
                         <div class="flow-arrow"></div>
-                        <div class="flow-node flow-node-end">Respond</div>
+                        <div class="flow-node flow-node-end">
+                            <span class="flow-icon">3</span>
+                            Confirm
+                        </div>
                     </div>
-                    <div class="visual-code">
-<pre>{
-  "title": "Loan Workflow",
-  "participants": ["Applicant", "Bank"],
-  "actions": [
-    { "id": 0, "title": "Apply" },
-    { "id": 1, "title": "Evaluate" },
-    { "id": 2, "title": "Respond" }
-  ]
-}</pre>
+                    <div class="visual-disclosure">
+                        <div class="disclosure-label">Selective Disclosure</div>
+                        <div class="disclosure-row">
+                            <span class="disclosure-party">Buyer sees:</span>
+                            <span class="disclosure-field visible">Item</span>
+                            <span class="disclosure-field visible">Qty</span>
+                            <span class="disclosure-field hidden">Cost</span>
+                        </div>
+                        <div class="disclosure-row">
+                            <span class="disclosure-party">Seller sees:</span>
+                            <span class="disclosure-field visible">Item</span>
+                            <span class="disclosure-field hidden">Budget</span>
+                            <span class="disclosure-field visible">Price</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- DAD Security Model Section -->
+    <section id="security" class="dad-section">
+        <div class="container">
+            <div class="section-badge">Security Model</div>
+            <h2 class="section-title">The DAD Security Framework</h2>
+            <p class="section-subtitle">
+                Three pillars of data protection that eliminate the trust problem in multi-party collaboration
+            </p>
+            <div class="dad-grid">
+                <div class="dad-card dad-disclosure">
+                    <div class="dad-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </div>
+                    <h3>Disclosure</h3>
+                    <p class="dad-tagline">Every party sees only what they should</p>
+                    <p>JSON Schema-driven selective disclosure controls exactly which fields each participant can access. A buyer sees product and quantity. A supplier sees product and price. Neither sees the other's sensitive data.</p>
+                    <ul class="dad-features">
+                        <li>Field-level access control via JSON Pointers (RFC 6901)</li>
+                        <li>Schema-validated data at every step (JSON Schema Draft 2020-12)</li>
+                        <li>SD-JWT Verifiable Credentials for selective claim presentation</li>
+                    </ul>
+                </div>
+                <div class="dad-card dad-alteration">
+                    <div class="dad-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
+                    <h3>Alteration</h3>
+                    <p class="dad-tagline">Every change is permanent and provable</p>
+                    <p>All actions are cryptographically signed by participant wallets, hash-linked into an immutable chain, and sealed into dockets. You cannot alter history without detection.</p>
+                    <ul class="dad-features">
+                        <li>SHA-256 chain-linked transactions with docket sealing</li>
+                        <li>Multi-algorithm wallet signatures (ED25519, P-256, RSA-4096)</li>
+                        <li>Validator consensus before docket finalization</li>
+                    </ul>
+                </div>
+                <div class="dad-card dad-destruction">
+                    <div class="dad-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    </div>
+                    <h3>Destruction</h3>
+                    <p class="dad-tagline">Data survives because the network does</p>
+                    <p>Peer-to-peer replication across the network means no single point of failure can destroy records. If one node goes down, others maintain the complete ledger state.</p>
+                    <ul class="dad-features">
+                        <li>gRPC gossip protocol reaches 90% of network in under 60 seconds</li>
+                        <li>Automatic sync and recovery for offline nodes</li>
+                        <li>Bloom filter deduplication prevents network flooding</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Standards Compliance Section -->
+    <section id="standards" class="standards-section">
+        <div class="container">
+            <div class="section-badge">Compliance</div>
+            <h2 class="section-title">Built on Open Standards</h2>
+            <p class="section-subtitle">
+                Not a proprietary black box. Sorcha implements internationally recognized standards
+                so your data and credentials are portable, verifiable, and future-proof.
+            </p>
+            <div class="standards-grid">
+                <div class="standard-card">
+                    <div class="standard-header">
+                        <span class="standard-badge">EU Regulation</span>
+                    </div>
+                    <h3>eIDAS 2.0 Ready</h3>
+                    <p>Issue and verify electronic attestations that align with the European Digital Identity framework. Sorcha's credential system supports the trust model required for cross-border recognition.</p>
+                </div>
+                <div class="standard-card">
+                    <div class="standard-header">
+                        <span class="standard-badge">IETF RFC 9449</span>
+                    </div>
+                    <h3>SD-JWT Verifiable Credentials</h3>
+                    <p>Selective Disclosure JSON Web Tokens allow holders to present only the claims needed for a given interaction — proving you're over 18 without revealing your birth date.</p>
+                </div>
+                <div class="standard-card">
+                    <div class="standard-header">
+                        <span class="standard-badge">W3C Specification</span>
+                    </div>
+                    <h3>Decentralized Identifiers</h3>
+                    <p>Self-sovereign <code>did:sorcha</code> identifiers give every wallet and register a globally resolvable identity without relying on a central authority.</p>
+                </div>
+                <div class="standard-card">
+                    <div class="standard-header">
+                        <span class="standard-badge">Bitcoin Standard</span>
+                    </div>
+                    <h3>BIP32 / BIP39 / BIP44</h3>
+                    <p>Hierarchical deterministic wallets derived from a single seed phrase. Create unlimited addresses from one recovery phrase, just like leading cryptocurrency wallets.</p>
+                </div>
+                <div class="standard-card">
+                    <div class="standard-header">
+                        <span class="standard-badge">NIST / FIPS</span>
+                    </div>
+                    <h3>FIPS 186-4 & 180-4</h3>
+                    <p>Government-grade cryptographic standards. NIST P-256 elliptic curves for signing, SHA-256 for hashing, AES-256-GCM for payload encryption at rest.</p>
+                </div>
+                <div class="standard-card">
+                    <div class="standard-header">
+                        <span class="standard-badge">IETF RFC 6901</span>
+                    </div>
+                    <h3>JSON Pointer & JSON Schema</h3>
+                    <p>Fine-grained data addressing and validation using standardized JSON tools. Every payload is validated against its schema before it enters the ledger.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Use Cases Section -->
+    <section id="use-cases" class="use-cases-section">
+        <div class="container">
+            <div class="section-badge">Real-World Applications</div>
+            <h2 class="section-title">Where Trust Meets Workflow</h2>
+            <p class="section-subtitle">
+                Any process involving multiple organizations, sensitive data, and the need for an
+                auditable record is a perfect fit for Sorcha
+            </p>
+            <div class="use-case-grid">
+                <div class="use-case-card use-case-featured">
+                    <div class="use-case-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                    </div>
+                    <h3>Supply Chain</h3>
+                    <p>Coordinate purchase orders, shipments, and invoices across buyers, suppliers, and logistics providers. Each party signs their step. Competitors on the same network never see each other's pricing terms.</p>
+                    <div class="use-case-tags">
+                        <span>Selective Disclosure</span>
+                        <span>Multi-Party Signing</span>
+                        <span>Audit Trail</span>
+                    </div>
+                </div>
+                <div class="use-case-card">
+                    <div class="use-case-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    </div>
+                    <h3>Healthcare</h3>
+                    <p>Share patient referrals and claims between providers, insurers, and labs. Protected health information is encrypted and disclosed only to authorized parties via schema-controlled access.</p>
+                    <div class="use-case-tags">
+                        <span>Data Privacy</span>
+                        <span>Consent Management</span>
+                    </div>
+                </div>
+                <div class="use-case-card">
+                    <div class="use-case-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </div>
+                    <h3>Financial Services</h3>
+                    <p>Trade settlements, loan syndication, and cross-border payments with cryptographic proof of every step. Regulators get read access to the audit trail without accessing transaction details.</p>
+                    <div class="use-case-tags">
+                        <span>Immutable Records</span>
+                        <span>Regulatory Access</span>
+                    </div>
+                </div>
+                <div class="use-case-card">
+                    <div class="use-case-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    </div>
+                    <h3>Education & Credentials</h3>
+                    <p>Issue verifiable diplomas, certifications, and professional licenses as SD-JWT credentials. Graduates present proof to employers without exposing their full transcript.</p>
+                    <div class="use-case-tags">
+                        <span>Verifiable Credentials</span>
+                        <span>eIDAS Aligned</span>
+                    </div>
+                </div>
+                <div class="use-case-card">
+                    <div class="use-case-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                    </div>
+                    <h3>Government & Regulation</h3>
+                    <p>License issuance, permit approvals, and regulatory reporting with full audit trails. Citizens present verifiable attestations to any government service without redundant paperwork.</p>
+                    <div class="use-case-tags">
+                        <span>Governance</span>
+                        <span>Digital Identity</span>
+                    </div>
+                </div>
+                <div class="use-case-card">
+                    <div class="use-case-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <h3>Consortium Operations</h3>
+                    <p>Industry groups and multi-stakeholder initiatives coordinate through decentralized governance with quorum-based voting. No single entity controls the register.</p>
+                    <div class="use-case-tags">
+                        <span>Quorum Voting</span>
+                        <span>Decentralized</span>
                     </div>
                 </div>
             </div>
@@ -99,126 +314,179 @@
     <!-- Features Section -->
     <section id="features" class="features">
         <div class="container">
-            <h2 class="section-title">Platform Features</h2>
+            <div class="section-badge">Platform Capabilities</div>
+            <h2 class="section-title">Everything You Need to Orchestrate Trust</h2>
             <p class="section-subtitle">
-                Built on .NET 10 with microservices architecture, orchestrated by .NET Aspire
+                Seven microservices, one unified platform. From visual workflow design to
+                cryptographic verification, every capability is built in.
             </p>
             <div class="feature-grid">
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                            <polyline points="10 9 9 9 8 9"/>
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     </div>
-                    <h3>Blueprint Workflows</h3>
-                    <p>Design and execute complex multi-party workflows with a visual designer. Define actions, conditions, disclosures, and data flows with ease.</p>
+                    <h3>Visual Blueprint Designer</h3>
+                    <p>Drag-and-drop workflow builder with live preview. Define actions, participants, routes, conditions, and data schemas — then deploy directly to the ledger.</p>
                 </div>
-
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
-                    <h3>Cryptographic Wallets</h3>
-                    <p>Secure HD wallets supporting ED25519, NIST P-256, and RSA-4096. BIP32/39/44 compliant with hardware security module integration.</p>
+                    <h3>HD Cryptographic Wallets</h3>
+                    <p>Hierarchical deterministic wallets with ED25519, NIST P-256, and RSA-4096 support. One seed phrase, unlimited addresses, full BIP32/39/44 compliance.</p>
                 </div>
-
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                     </div>
-                    <h3>Distributed Ledger</h3>
-                    <p>Immutable transaction registry with peer-to-peer verification. Every action is cryptographically signed and permanently recorded.</p>
+                    <h3>Verifiable Credentials</h3>
+                    <p>Issue, store, and present eIDAS-aligned SD-JWT credentials. Gate workflow actions on credential proof. Chain credentials across multiple blueprints.</p>
                 </div>
-
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="2" y1="12" x2="22" y2="12"/>
-                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                     </div>
-                    <h3>Peer Networking</h3>
-                    <p>Decentralized peer-to-peer network using gRPC for transaction propagation and ledger synchronization across nodes.</p>
+                    <h3>Immutable Ledger</h3>
+                    <p>SHA-256 chain-linked transactions sealed into dockets. Every action cryptographically signed by participant wallets. Validator consensus before finalization.</p>
                 </div>
-
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     </div>
-                    <h3>Real-time Updates</h3>
-                    <p>SignalR-powered real-time notifications for workflow status, transaction confirmations, and system events with Redis backplane.</p>
+                    <h3>Decentralized Governance</h3>
+                    <p>Quorum-based register governance with role hierarchy. Add admins, transfer ownership, or modify access — all recorded as immutable control transactions.</p>
                 </div>
-
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                            <path d="M2 17l10 5 10-5"/>
-                            <path d="M2 12l10 5 10-5"/>
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                     </div>
-                    <h3>Modern Architecture</h3>
-                    <p>Built on .NET 10 with microservices architecture, orchestrated by .NET Aspire for scalability, resilience, and observability.</p>
+                    <h3>Real-Time Collaboration</h3>
+                    <p>SignalR-powered live notifications for action submissions, workflow progress, and transaction confirmations. Know instantly when it's your turn to act.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Architecture Section -->
-    <section id="architecture" class="architecture">
+    <!-- Security Architecture Section -->
+    <section class="security-section">
         <div class="container">
-            <h2 class="section-title">Architecture Overview</h2>
+            <div class="section-badge">Security Architecture</div>
+            <h2 class="section-title">Defence in Depth</h2>
             <p class="section-subtitle">
-                Seven microservices working together to provide a complete distributed ledger solution
+                Multiple independent layers of protection ensure that compromising one component
+                cannot compromise the system
             </p>
-            <div class="arch-diagram">
-                <div class="arch-layer arch-layer-apps">
-                    <div class="arch-label">Applications</div>
-                    <div class="arch-items">
-                        <div class="arch-item">Admin UI</div>
-                        <div class="arch-item">Main UI</div>
-                        <div class="arch-item">CLI</div>
+            <div class="security-layers">
+                <div class="security-layer">
+                    <div class="layer-number">1</div>
+                    <div class="layer-content">
+                        <h3>Wallet Signatures</h3>
+                        <p>Every transaction is signed by the sender's private key. Multi-algorithm support (ED25519, P-256, RSA-4096) means organizations choose the algorithm that matches their security requirements.</p>
                     </div>
                 </div>
-                <div class="arch-arrow-down"></div>
-                <div class="arch-layer arch-layer-gateway">
-                    <div class="arch-label">Gateway</div>
-                    <div class="arch-items">
-                        <div class="arch-item arch-item-highlight">API Gateway (YARP)</div>
+                <div class="security-layer">
+                    <div class="layer-number">2</div>
+                    <div class="layer-content">
+                        <h3>Payload Encryption</h3>
+                        <p>AES-256-GCM encrypts all payload data at rest. Each payload gets a unique key and initialization vector. Even database administrators cannot read transaction content.</p>
                     </div>
                 </div>
-                <div class="arch-arrow-down"></div>
-                <div class="arch-layer arch-layer-services">
-                    <div class="arch-label">Services</div>
-                    <div class="arch-items">
-                        <div class="arch-item">Blueprint</div>
-                        <div class="arch-item">Register</div>
-                        <div class="arch-item">Wallet</div>
-                        <div class="arch-item">Tenant</div>
-                        <div class="arch-item">Validator</div>
-                        <div class="arch-item">Peer</div>
+                <div class="security-layer">
+                    <div class="layer-number">3</div>
+                    <div class="layer-content">
+                        <h3>Chain Integrity</h3>
+                        <p>Transactions are hash-linked into an immutable chain. Sealed dockets (blocks) are verified by the validator service before finalization. Fork detection catches any attempt at ledger manipulation.</p>
                     </div>
                 </div>
-                <div class="arch-arrow-down"></div>
-                <div class="arch-layer arch-layer-data">
-                    <div class="arch-label">Data</div>
-                    <div class="arch-items">
-                        <div class="arch-item">PostgreSQL</div>
-                        <div class="arch-item">MongoDB</div>
-                        <div class="arch-item">Redis</div>
+                <div class="security-layer">
+                    <div class="layer-number">4</div>
+                    <div class="layer-content">
+                        <h3>Governance Enforcement</h3>
+                        <p>Role-based access control at the register level. Only authorized wallets — verified through the governance roster and quorum voting — can submit transactions to a given register.</p>
                     </div>
+                </div>
+                <div class="security-layer">
+                    <div class="layer-number">5</div>
+                    <div class="layer-content">
+                        <h3>Network Replication</h3>
+                        <p>Peer-to-peer replication across the network ensures data survives node failures. The gossip protocol distributes updates efficiently with O(log N) message complexity.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works">
+        <div class="container">
+            <div class="section-badge">Workflow</div>
+            <h2 class="section-title">From Design to Execution in Four Steps</h2>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-number">01</div>
+                    <h3>Design Your Blueprint</h3>
+                    <p>Use the visual designer or JSON/YAML to define participants, actions, data schemas, routes, and disclosure rules for your multi-party workflow.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">02</div>
+                    <h3>Publish to the Ledger</h3>
+                    <p>The blueprint is validated for schema correctness and cycle-free routing, then published to a register. Participants are notified in real time via SignalR.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">03</div>
+                    <h3>Execute Actions</h3>
+                    <p>Each participant submits their action data, signs it with their wallet, and the engine validates, calculates, routes, and discloses — all in a single atomic operation.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">04</div>
+                    <h3>Verify and Audit</h3>
+                    <p>Every step is recorded on the immutable ledger. Verifiable credentials can be issued as proof of completion. The full audit trail is always available.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Technology Section -->
+    <section class="tech-section">
+        <div class="container">
+            <div class="section-badge">Technology</div>
+            <h2 class="section-title">Cloud-Native. Enterprise-Ready.</h2>
+            <p class="section-subtitle">
+                Built on .NET 10 with .NET Aspire orchestration. Seven microservices
+                with full observability, health checks, and horizontal scaling.
+            </p>
+            <div class="tech-grid">
+                <div class="tech-item">
+                    <div class="tech-label">.NET 10</div>
+                    <div class="tech-desc">LTS Runtime</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">Aspire</div>
+                    <div class="tech-desc">Orchestration</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">PostgreSQL</div>
+                    <div class="tech-desc">Relational Data</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">MongoDB</div>
+                    <div class="tech-desc">Document Store</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">Redis</div>
+                    <div class="tech-desc">Cache & Sync</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">gRPC</div>
+                    <div class="tech-desc">P2P Network</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">SignalR</div>
+                    <div class="tech-desc">Real-Time</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">Blazor</div>
+                    <div class="tech-desc">WASM UI</div>
                 </div>
             </div>
         </div>
@@ -227,32 +495,54 @@
     <!-- CTA Section -->
     <section class="cta">
         <div class="container">
-            <h2>Ready to get started?</h2>
-            <p>Sign in to start building secure, multi-party workflows with cryptographic guarantees.</p>
-            <a href="/app/auth/login" class="btn btn-primary btn-lg">
-                Sign In
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-            </a>
+            <h2>Ready to Build Trust Into Your Workflows?</h2>
+            <p>Start designing secure, multi-party processes with cryptographic guarantees and verifiable credentials — no blockchain expertise required.</p>
+            <div class="cta-actions">
+                <a href="/app/auth/login" class="btn btn-primary btn-lg">
+                    Get Started Free
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </a>
+                <a href="/app/help" class="btn btn-outline-light btn-lg">View Documentation</a>
+            </div>
         </div>
     </section>
 
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <div class="footer-content">
-                <div class="footer-brand">
-                    <span class="brand-icon">S</span>
-                    <span class="brand-text">Sorcha</span>
+            <div class="footer-grid">
+                <div class="footer-brand-col">
+                    <div class="footer-brand">
+                        <span class="brand-icon">S</span>
+                        <span class="brand-text">Sorcha</span>
+                    </div>
+                    <p class="footer-tagline">Trust infrastructure for multi-party collaboration. Open source under the MIT License.</p>
                 </div>
-                <div class="footer-links">
+                <div class="footer-col">
+                    <h4>Platform</h4>
+                    <a href="#features">Features</a>
+                    <a href="#security">Security</a>
+                    <a href="#standards">Standards</a>
+                    <a href="#use-cases">Use Cases</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Resources</h4>
+                    <a href="/app/help">Documentation</a>
                     <a href="https://github.com/StuartF303/Sorcha" target="_blank" rel="noopener">GitHub</a>
                     <a href="/app/auth/login">Sign In</a>
                 </div>
+                <div class="footer-col">
+                    <h4>Standards</h4>
+                    <a href="#standards">eIDAS 2.0</a>
+                    <a href="#standards">SD-JWT VC</a>
+                    <a href="#standards">W3C DID</a>
+                    <a href="#standards">BIP32/39/44</a>
+                </div>
             </div>
-            <div class="footer-copyright">
-                Built with .NET 10 and .NET Aspire
+            <div class="footer-bottom">
+                <div class="footer-copyright">
+                    MIT License &middot; Copyright &copy; 2025 Sorcha Contributors &middot; Built with .NET 10 and .NET Aspire
+                </div>
             </div>
         </div>
     </footer>
