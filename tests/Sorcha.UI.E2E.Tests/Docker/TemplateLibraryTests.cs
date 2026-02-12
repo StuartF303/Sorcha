@@ -7,7 +7,7 @@ using Sorcha.UI.E2E.Tests.PageObjects.Shared;
 namespace Sorcha.UI.E2E.Tests.Docker;
 
 /// <summary>
-/// E2E tests for Template Library page with backend API integration.
+/// E2E tests for the Catalogue (template library) page with backend API integration.
 /// </summary>
 [TestFixture]
 [Category("Docker")]
@@ -28,8 +28,8 @@ public class TemplateLibraryTests : AuthenticatedDockerTestBase
         await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Templates);
 
         var content = await Page.TextContentAsync("body") ?? "";
-        Assert.That(content, Does.Contain("Template"),
-            "Templates page should render template-related content");
+        Assert.That(content, Does.Contain("Catalogue"),
+            "Templates page should render Catalogue content");
     }
 
     [Test]
@@ -73,5 +73,78 @@ public class TemplateLibraryTests : AuthenticatedDockerTestBase
         var criticalErrors = GetCriticalConsoleErrors();
         Assert.That(criticalErrors, Is.Empty,
             "Templates page should not have critical console errors");
+    }
+
+    [Test]
+    [Retry(2)]
+    public async Task Templates_UseButton_ShowsWizardView()
+    {
+        await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Templates);
+        await MudBlazorHelpers.WaitForBlazorAsync(Page, TestConstants.PageLoadTimeout);
+
+        // If template cards exist, click the first Use button
+        var useButton = Page.Locator(".mud-button-filled:has-text('Use')").First;
+        if (await useButton.CountAsync() > 0)
+        {
+            await useButton.ClickAsync();
+            await Page.WaitForTimeoutAsync(TestConstants.ShortWait);
+
+            // Verify wizard view elements
+            var backButton = Page.Locator("button:has-text('Back to Catalogue')");
+            Assert.That(await backButton.CountAsync(), Is.GreaterThan(0),
+                "Wizard view should show Back to Catalogue button");
+        }
+    }
+
+    [Test]
+    [Retry(2)]
+    public async Task Templates_BackButton_ReturnsToList()
+    {
+        await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Templates);
+        await MudBlazorHelpers.WaitForBlazorAsync(Page, TestConstants.PageLoadTimeout);
+
+        var useButton = Page.Locator(".mud-button-filled:has-text('Use')").First;
+        if (await useButton.CountAsync() > 0)
+        {
+            await useButton.ClickAsync();
+            await Page.WaitForTimeoutAsync(TestConstants.ShortWait);
+
+            // Click back button
+            var backButton = Page.Locator("button:has-text('Back to Catalogue')");
+            await backButton.ClickAsync();
+            await Page.WaitForTimeoutAsync(TestConstants.ShortWait);
+
+            // Verify list view is back
+            var searchInput = Page.Locator("input[placeholder*='Search']");
+            Assert.That(await searchInput.CountAsync(), Is.GreaterThan(0),
+                "After clicking back, search bar should be visible again");
+        }
+    }
+
+    [Test]
+    [Retry(2)]
+    public async Task Templates_UseTemplate_SavesAndNavigatesToBlueprints()
+    {
+        await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Templates);
+        await MudBlazorHelpers.WaitForBlazorAsync(Page, TestConstants.PageLoadTimeout);
+
+        var useButton = Page.Locator(".mud-button-filled:has-text('Use')").First;
+        if (await useButton.CountAsync() > 0)
+        {
+            await useButton.ClickAsync();
+            await Page.WaitForTimeoutAsync(TestConstants.ShortWait);
+
+            // Click "Use This Template" in the wizard
+            var useTemplateButton = Page.Locator("button:has-text('Use This Template')");
+            if (await useTemplateButton.CountAsync() > 0)
+            {
+                await useTemplateButton.ClickAsync();
+                await Page.WaitForLoadStateAsync(Microsoft.Playwright.LoadState.NetworkIdle);
+                await Page.WaitForTimeoutAsync(TestConstants.ShortWait);
+
+                Assert.That(Page.Url, Does.Contain("blueprints"),
+                    "Should navigate to blueprints page after using template");
+            }
+        }
     }
 }

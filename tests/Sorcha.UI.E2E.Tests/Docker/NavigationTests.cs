@@ -107,9 +107,10 @@ public class NavigationTests : AuthenticatedDockerTestBase
     {
         await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Dashboard);
 
-        await Expect(_nav.BlueprintsGroup).ToBeVisibleAsync();
-        await Expect(_nav.TemplatesLink).ToBeVisibleAsync();
-        await Expect(_nav.SchemaLibraryLink).ToBeVisibleAsync();
+        await Expect(_nav.MyBlueprintsLink).ToBeVisibleAsync();
+        await Expect(_nav.VisualDesignerLink).ToBeVisibleAsync();
+        await Expect(_nav.CatalogueLink).ToBeVisibleAsync();
+        await Expect(_nav.DataSchemasLink).ToBeVisibleAsync();
     }
 
     [Test]
@@ -177,13 +178,13 @@ public class NavigationTests : AuthenticatedDockerTestBase
     }
 
     [Test]
-    public async Task Nav_SchemaLibraryLink_NavigatesCorrectly()
+    public async Task Nav_DataSchemasLink_NavigatesCorrectly()
     {
         await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Dashboard);
-        await _nav.NavigateToAsync(_nav.SchemaLibraryLink);
+        await _nav.NavigateToAsync(_nav.DataSchemasLink);
 
         Assert.That(Page.Url, Does.Contain("schemas"),
-            "Should navigate to schema library");
+            "Should navigate to data schemas");
     }
 
     [Test]
@@ -210,17 +211,6 @@ public class NavigationTests : AuthenticatedDockerTestBase
     #endregion
 
     #region Expandable Nav Group Tests
-
-    [Test]
-    public async Task Nav_BlueprintsGroup_ExpandsAndShowsLinks()
-    {
-        await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Dashboard);
-
-        await _nav.ExpandNavGroupAsync(_nav.BlueprintsGroup);
-
-        await Expect(_nav.AllBlueprintsLink).ToBeVisibleAsync();
-        await Expect(_nav.VisualDesignerLink).ToBeVisibleAsync();
-    }
 
     [Test]
     public async Task Nav_WalletsGroup_ExpandsAndShowsLinks()
@@ -271,7 +261,7 @@ public class NavigationTests : AuthenticatedDockerTestBase
     [TestCase(TestConstants.AuthenticatedRoutes.Blueprints, "Blueprints")]
     [TestCase(TestConstants.AuthenticatedRoutes.Designer, "Designer")]
     [TestCase(TestConstants.AuthenticatedRoutes.Templates, "Templates")]
-    [TestCase(TestConstants.AuthenticatedRoutes.Schemas, "Schema Library")]
+    [TestCase(TestConstants.AuthenticatedRoutes.Schemas, "Data Schemas")]
     [TestCase(TestConstants.AuthenticatedRoutes.Wallets, "Wallets")]
     [TestCase(TestConstants.AuthenticatedRoutes.Registers, "Registers")]
     [TestCase(TestConstants.AuthenticatedRoutes.Admin, "Administration")]

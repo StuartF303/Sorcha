@@ -47,10 +47,6 @@ builder.Services.AddSingleton<Sorcha.Storage.Abstractions.IDocumentStore<Sorcha.
 builder.Services.AddSingleton<Sorcha.Blueprint.Engine.Interfaces.IJsonEEvaluator, Sorcha.Blueprint.Engine.Implementation.JsonEEvaluator>();
 builder.Services.AddSingleton<Sorcha.Blueprint.Service.Templates.IBlueprintTemplateService, Sorcha.Blueprint.Service.Templates.BlueprintTemplateService>();
 
-// Add Template seeding service — seeds built-in templates at startup
-builder.Services.AddSingleton<Sorcha.Blueprint.Service.Templates.TemplateSeedingService>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<Sorcha.Blueprint.Service.Templates.TemplateSeedingService>());
-
 // Add Cryptography services (required for transaction building)
 builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.ICryptoModule, Sorcha.Cryptography.Core.CryptoModule>();
 builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.IHashProvider, Sorcha.Cryptography.Core.HashProvider>();
@@ -486,26 +482,6 @@ templateGroup.MapGet("/{id}/examples/{exampleName}", async (
 .WithName("EvaluateTemplateExample")
 .WithSummary("Evaluate template example")
 .WithDescription("Evaluate a predefined example from the template");
-
-/// <summary>
-/// Manually trigger re-seeding of built-in templates (admin only)
-/// </summary>
-templateGroup.MapPost("/seed", async (
-    Sorcha.Blueprint.Service.Templates.TemplateSeedingService seedingService,
-    CancellationToken ct) =>
-{
-    var result = await seedingService.SeedTemplatesAsync(ct);
-    return Results.Ok(new
-    {
-        seeded = result.Seeded,
-        skipped = result.Skipped,
-        errors = result.Errors
-    });
-})
-.WithName("SeedTemplates")
-.WithSummary("Seed built-in templates")
-.WithDescription("Manually trigger re-seeding of built-in blueprint templates")
-.RequireAuthorization("AdminPolicy");
 
 // ===========================
 // Action API Endpoints (Sprint 4)

@@ -17,12 +17,12 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
-<PageTitle>Blueprint Library - Sorcha Platform</PageTitle>
+<PageTitle>My Blueprints - Sorcha Platform</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" Class="mb-2">
-        <MudIcon Icon="@Icons.Material.Filled.LibraryBooks" Class="mr-2" />
-        Blueprint Library
+        <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" />
+        My Blueprints
     </MudText>
     <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
         Browse and manage your blueprint definitions
@@ -86,7 +86,8 @@
                 @foreach (var blueprint in _blueprints)
                 {
                     <MudItem xs="12" md="6" lg="4">
-                        <MudCard Elevation="2">
+                        <MudCard Elevation="@(blueprint.Id == HighlightBlueprintId ? 4 : 2)"
+                                 Class="@(blueprint.Id == HighlightBlueprintId ? "highlight-card" : "")">
                             <MudCardHeader>
                                 <CardHeaderContent>
                                     <MudText Typo="Typo.h6">@blueprint.Title</MudText>
@@ -119,8 +120,14 @@
                                 <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary"
                                                Size="Size.Small" OnClick="() => ViewBlueprint(blueprint)"
                                                title="View Diagram" />
-                                <MudButton Color="Color.Primary" Variant="Variant.Text"
-                                           Href="@($"designer?id={blueprint.Id}")">Open</MudButton>
+                                <MudButton Color="Color.Primary" Variant="Variant.Text" Size="Size.Small"
+                                           Href="@($"designer?id={blueprint.Id}")"
+                                           StartIcon="@Icons.Material.Filled.Edit"
+                                           title="Open in Visual Designer">Visual</MudButton>
+                                <MudButton Color="Color.Secondary" Variant="Variant.Text" Size="Size.Small"
+                                           Href="@($"designer/chat?id={blueprint.Id}")"
+                                           StartIcon="@Icons.Material.Filled.SmartToy"
+                                           title="Open in AI Chat Designer">AI</MudButton>
                                 @if (blueprint.Status == "draft")
                                 {
                                     <MudButton Color="Color.Success" Variant="Variant.Text"
@@ -152,7 +159,22 @@
     }
 </MudContainer>
 
+<style>
+    .highlight-card {
+        animation: highlight-fade 3s ease-out;
+        border: 2px solid var(--mud-palette-primary);
+    }
+
+    @@keyframes highlight-fade {
+        0% { background-color: rgba(102, 126, 234, 0.2); }
+        100% { background-color: transparent; }
+    }
+</style>
+
 @code {
+    [SupplyParameterFromQuery(Name = "highlight")]
+    public string? HighlightBlueprintId { get; set; }
+
     private IReadOnlyList<BlueprintListItemViewModel> _blueprints = [];
     private string _searchText = "";
     private string _statusFilter = "";

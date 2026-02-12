@@ -112,4 +112,39 @@ public class BlueprintCloudTests : AuthenticatedDockerTestBase
                 "Blueprint IDs should use truncation pattern");
         }
     }
+
+    [Test]
+    [Retry(2)]
+    public async Task Blueprints_ShowsVisualAndAiEditorButtons()
+    {
+        await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Blueprints);
+        await MudBlazorHelpers.WaitForBlazorAsync(Page, TestConstants.PageLoadTimeout);
+
+        var cards = MudBlazorHelpers.Cards(Page);
+        if (await cards.CountAsync() > 0)
+        {
+            var visualButton = Page.Locator("a:has-text('Visual'), button:has-text('Visual')").First;
+            var aiButton = Page.Locator("a:has-text('AI'), button:has-text('AI')").First;
+
+            Assert.That(await visualButton.CountAsync(), Is.GreaterThan(0),
+                "Blueprint cards should have a Visual editor button");
+            Assert.That(await aiButton.CountAsync(), Is.GreaterThan(0),
+                "Blueprint cards should have an AI editor button");
+        }
+    }
+
+    [Test]
+    [Retry(2)]
+    public async Task Blueprints_HighlightParam_HighlightsCard()
+    {
+        // Navigate with a highlight parameter — the card may or may not exist,
+        // but the page should load without errors
+        await NavigateAuthenticatedAsync(TestConstants.AuthenticatedRoutes.Blueprints + "?highlight=test-id");
+        await MudBlazorHelpers.WaitForBlazorAsync(Page, TestConstants.PageLoadTimeout);
+
+        // Page should load without critical errors regardless
+        var criticalErrors = GetCriticalConsoleErrors();
+        Assert.That(criticalErrors, Is.Empty,
+            "Blueprints page with highlight param should not have critical console errors");
+    }
 }

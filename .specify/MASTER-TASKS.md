@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 4.9 - UPDATED
-**Last Updated:** 2026-02-09
-**Status:** Active - Transaction Pipeline Fixed
+**Version:** 5.0 - UPDATED
+**Last Updated:** 2026-02-12
+**Status:** Active - Templates UX Overhaul
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -19,6 +19,19 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ---
 
 ## Recent Updates
+
+**2026-02-12:**
+- ✅ TEMPLATES-UX-OVERHAUL: Blueprint Templates UX Overhaul (7 phases)
+  - Added `Version` property to `TemplateListItemViewModel`
+  - Removed `TemplateSeedingService` and `/api/templates/seed` endpoint — replaced with external `scripts/seed-blueprints.ps1`
+  - Moved template JSON files from `examples/templates/` to `blueprints/` at repo root
+  - Cleaned Dockerfile of template COPY layers
+  - Flattened navigation: removed `Blueprints` NavGroup → flat links (My Blueprints, Visual Designer, AI Chat Designer, Catalogue, Data Schemas)
+  - Redesigned template cards: version label, inline Use button, removed parameters count and MudCardActions
+  - Template wizard view: full-page detail with Participants, Actions table, BlueprintViewerDiagram, "Use This Template" saves as draft blueprint and navigates to My Blueprints with highlight
+  - Blueprints page renamed to "My Blueprints" with Visual/AI editor buttons per card and `?highlight=` query string card animation
+  - 3 new unit tests (TemplateListItemViewModelTests), 5 new E2E tests (wizard, back, save), 2 new E2E tests (editor buttons, highlight param)
+  - Blueprint Service tests: 238 pass (seeding tests removed)
 
 **2026-02-11:**
 - ✅ 031-REGISTER-GOVERNANCE: Genesis Blueprint — Register Governance (80 tasks, 9 phases)

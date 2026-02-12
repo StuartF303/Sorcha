@@ -38,11 +38,11 @@ public class NavigationComponent
     public ILocator MyWorkflowsLink => _page.Locator(".mud-nav-link:has-text('My Workflows')");
     public ILocator MyTransactionsLink => _page.Locator(".mud-nav-link:has-text('My Transactions')");
     public ILocator MyWalletLink => _page.Locator(".mud-nav-link:has-text('My Wallet')");
-    public ILocator AllBlueprintsLink => _page.Locator(".mud-nav-link:has-text('All Blueprints')");
+    public ILocator MyBlueprintsLink => _page.Locator(".mud-nav-link:has-text('My Blueprints')");
     public ILocator VisualDesignerLink => _page.Locator(".mud-nav-link:has-text('Visual Designer')");
     public ILocator AiChatDesignerLink => _page.Locator(".mud-nav-link:has-text('AI Chat Designer')");
-    public ILocator TemplatesLink => _page.Locator(".mud-nav-link:has-text('Templates')");
-    public ILocator SchemaLibraryLink => _page.Locator(".mud-nav-link:has-text('Schema Library')");
+    public ILocator CatalogueLink => _page.Locator(".mud-nav-link:has-text('Catalogue')");
+    public ILocator DataSchemasLink => _page.Locator(".mud-nav-link:has-text('Data Schemas')");
     public ILocator AllWalletsLink => _page.Locator(".mud-nav-link:has-text('All Wallets')");
     public ILocator CreateWalletLink => _page.Locator(".mud-nav-link:has-text('Create Wallet')");
     public ILocator RecoverWalletLink => _page.Locator(".mud-nav-link:has-text('Recover Wallet')");
@@ -53,7 +53,6 @@ public class NavigationComponent
     public ILocator HelpLink => _page.Locator(".mud-nav-link:has-text('Help')");
 
     // Nav groups (expandable)
-    public ILocator BlueprintsGroup => _page.Locator(".mud-nav-group:has-text('Blueprints')");
     public ILocator WalletsGroup => _page.Locator(".mud-nav-group:has-text('Wallets')");
     public ILocator AdministrationGroup => _page.Locator(".mud-nav-group:has-text('Administration')");
 

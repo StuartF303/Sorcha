@@ -12,6 +12,7 @@ public record TemplateListItemViewModel
     public string Name { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public string Category { get; init; } = string.Empty;
+    public int Version { get; init; } = 1;
     public int UsageCount { get; init; }
     public List<TemplateParameter> Parameters { get; init; } = [];
 }

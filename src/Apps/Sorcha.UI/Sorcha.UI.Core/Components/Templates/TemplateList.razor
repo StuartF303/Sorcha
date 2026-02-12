@@ -44,26 +44,22 @@ else
                         </CardHeaderActions>
                     </MudCardHeader>
                     <MudCardContent>
-                        <MudText Typo="Typo.body2" Class="mb-2">@template.Description</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-3">@template.Description</MudText>
                         <MudDivider Class="my-2" />
-                        <MudStack Row="true" Spacing="3">
-                            @if (template.Parameters.Count > 0)
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    <MudIcon Icon="@Icons.Material.Filled.Tune" Size="Size.Small" /> @template.Parameters.Count parameters
-                                </MudText>
-                            }
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                v@(template.Version)
+                            </MudText>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                 <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> @template.UsageCount uses
                             </MudText>
+                            <MudSpacer />
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+                                       OnClick="() => OnSelect.InvokeAsync(template)">
+                                Use
+                            </MudButton>
                         </MudStack>
                     </MudCardContent>
-                    <MudCardActions>
-                        <MudButton Color="Color.Primary" Variant="Variant.Text"
-                                   OnClick="() => OnSelect.InvokeAsync(template)">
-                            Use Template
-                        </MudButton>
-                    </MudCardActions>
                 </MudCard>
             </MudItem>
         }
