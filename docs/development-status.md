@@ -20,6 +20,7 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 - **AUTH-002 complete**: All services now have JWT Bearer authentication with authorization policies
 - **UI Modernization 100% complete**: Comprehensive overhaul — admin panels, workflow management, cloud persistence, dashboard stats, wallet/transaction integration, template library, explorer enhancements, consistent ID truncation
 - **UI Register Management 100% complete**: Wallet selection wizard, search/filter, transaction query
+- **Verifiable Credentials 100% complete**: SD-JWT VC format, credential gating on actions, blueprint-as-issuer, cross-blueprint composability, selective disclosure, revocation (53 engine + 6 crypto + 4 endpoint tests)
 - **CLI Register Commands 100% complete**: Two-phase creation, dockets, queries with System.CommandLine 2.0.2
 - Total actual completion: 98% (production-ready with authentication and database persistence)
 

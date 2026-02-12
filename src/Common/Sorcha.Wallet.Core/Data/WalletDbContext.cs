@@ -34,10 +34,22 @@ public class WalletDbContext : DbContext
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
 
     /// <summary>
+    /// Stored verifiable credentials
+    /// </summary>
+    public DbSet<CredentialEntity> Credentials => Set<CredentialEntity>();
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="WalletDbContext"/> class.
     /// </summary>
     /// <param name="options">The database context options configured with PostgreSQL connection string.</param>
     public WalletDbContext(DbContextOptions<WalletDbContext> options) : base(options)
+    {
+    }
+
+    /// <summary>
+    /// Constructor for derived test contexts (enables InMemory provider subclassing).
+    /// </summary>
+    protected WalletDbContext(DbContextOptions options) : base(options)
     {
     }
 
@@ -57,6 +69,7 @@ public class WalletDbContext : DbContext
         ConfigureWalletAddress(modelBuilder);
         ConfigureWalletAccess(modelBuilder);
         ConfigureWalletTransaction(modelBuilder);
+        ConfigureCredential(modelBuilder);
     }
 
     private static void ConfigureWallet(ModelBuilder modelBuilder)
@@ -354,6 +367,72 @@ public class WalletDbContext : DbContext
             entity.HasIndex(e => new { e.ParentWalletAddress, e.CreatedAt })
                 .HasDatabaseName("IX_WalletTransactions_Parent_CreatedAt")
                 .IsDescending(false, true);
+        });
+    }
+
+    private static void ConfigureCredential(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CredentialEntity>(entity =>
+        {
+            entity.ToTable("Credentials");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasMaxLength(500);
+
+            entity.Property(e => e.Type)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.Property(e => e.IssuerDid)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(e => e.SubjectDid)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(e => e.ClaimsJson)
+                .IsRequired()
+                .HasColumnType("jsonb");
+
+            entity.Property(e => e.RawToken)
+                .IsRequired();
+
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasMaxLength(50)
+                .HasDefaultValue("Active");
+
+            entity.Property(e => e.IssuanceTxId)
+                .HasMaxLength(200);
+
+            entity.Property(e => e.IssuanceBlueprintId)
+                .HasMaxLength(200);
+
+            entity.Property(e => e.WalletAddress)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()");
+
+            // Indexes
+            entity.HasIndex(e => e.WalletAddress)
+                .HasDatabaseName("IX_Credentials_WalletAddress");
+
+            entity.HasIndex(e => e.Type)
+                .HasDatabaseName("IX_Credentials_Type");
+
+            entity.HasIndex(e => new { e.WalletAddress, e.Type })
+                .HasDatabaseName("IX_Credentials_Wallet_Type");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("IX_Credentials_Status");
+
+            entity.HasIndex(e => e.IssuerDid)
+                .HasDatabaseName("IX_Credentials_IssuerDid");
         });
     }
 }

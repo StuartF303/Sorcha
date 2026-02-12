@@ -1,0 +1,106 @@
+{
+  "id": "work-order-001",
+  "title": "Work Order",
+  "description": "A two-action workflow where a contractor submits a work order and a supervisor approves it. The contractor must present a valid LicenseCredential to submit. Demonstrates credential-gated blueprint actions and cross-blueprint credential composability.",
+  "version": 1,
+  "category": "credentials",
+  "tags": ["credentials", "verification", "gate", "work-order", "composability"],
+  "author": "Sorcha Team",
+  "published": true,
+  "template": {
+    "id": "work-order-generated",
+    "title": "Work Order",
+    "description": "Contractor presents their LicenseCredential to submit a work order, supervisor reviews and approves.",
+    "version": 1,
+    "metadata": {
+      "category": "credentials",
+      "author": "Sorcha Team",
+      "hasCycles": "false"
+    },
+    "participants": [
+      {
+        "id": "contractor",
+        "name": "Contractor",
+        "organisation": "Contractor Co.",
+        "description": "Licensed contractor submitting work order"
+      },
+      {
+        "id": "supervisor",
+        "name": "Supervisor",
+        "organisation": "Project Management",
+        "description": "Supervisor who reviews and approves work orders"
+      }
+    ],
+    "actions": [
+      {
+        "id": 0,
+        "title": "Submit Work Order",
+        "sender": "contractor",
+        "isStartingAction": true,
+        "credentialRequirements": [
+          {
+            "type": "LicenseCredential",
+            "description": "A valid license credential issued by a recognized licensing authority",
+            "requiredClaims": [
+              { "claimName": "license_type" }
+            ],
+            "revocationCheckPolicy": "FailClosed"
+          }
+        ],
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "workDescription": { "type": "string", "minLength": 10, "maxLength": 2000 },
+              "location": { "type": "string", "minLength": 1 },
+              "estimatedHours": { "type": "number", "minimum": 0.5 },
+              "materialsCost": { "type": "number", "minimum": 0 }
+            },
+            "required": ["workDescription", "location", "estimatedHours"]
+          }
+        ],
+        "routes": [
+          {
+            "id": "submit-to-review",
+            "nextActionIds": [1],
+            "isDefault": true,
+            "description": "Route to supervisor for approval"
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "title": "Approve Work Order",
+        "sender": "supervisor",
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "approved": { "type": "boolean" },
+              "approvalNotes": { "type": "string", "maxLength": 1000 },
+              "authorizedBudget": { "type": "number", "minimum": 0 }
+            },
+            "required": ["approved"]
+          }
+        ],
+        "routes": [
+          {
+            "id": "approved-end",
+            "nextActionIds": [],
+            "isDefault": true,
+            "description": "Work order processed — workflow complete"
+          }
+        ]
+      }
+    ]
+  },
+  "parameterSchema": null,
+  "defaultParameters": null,
+  "examples": [
+    {
+      "name": "electrical-work",
+      "description": "Submit an electrical work order requiring a Class A license",
+      "parameters": {}
+    }
+  ]
+}

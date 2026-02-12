@@ -4,6 +4,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Sorcha.Blueprint.Models;
+using Sorcha.Blueprint.Models.Credentials;
 using Sorcha.Blueprint.Models.JsonLd;
 
 namespace Sorcha.Blueprint.Fluent;
@@ -18,6 +19,8 @@ public class ActionBuilder
     private readonly List<Disclosure> _disclosures = new();
     private readonly Dictionary<string, JsonNode> _calculations = new();
     private readonly List<Route> _routes = new();
+    private readonly List<CredentialRequirement> _credentialRequirements = new();
+    private CredentialIssuanceConfig? _credentialIssuanceConfig;
 
     internal ActionBuilder(int actionId, Dictionary<string, Participant> participants)
     {
@@ -268,6 +271,28 @@ public class ActionBuilder
     }
 
     /// <summary>
+    /// Adds a credential requirement that must be satisfied to execute this action.
+    /// </summary>
+    public ActionBuilder RequiresCredential(Action<CredentialRequirementBuilder> configure)
+    {
+        var builder = new CredentialRequirementBuilder();
+        configure(builder);
+        _credentialRequirements.Add(builder.Build());
+        return this;
+    }
+
+    /// <summary>
+    /// Configures this action to issue a verifiable credential upon execution.
+    /// </summary>
+    public ActionBuilder IssuesCredential(Action<CredentialIssuanceBuilder> configure)
+    {
+        var builder = new CredentialIssuanceBuilder();
+        configure(builder);
+        _credentialIssuanceConfig = builder.Build();
+        return this;
+    }
+
+    /// <summary>
     /// Specifies which prior actions must be completed before this action can execute
     /// </summary>
     public ActionBuilder RequiresPriorActions(params int[] actionIds)
@@ -294,6 +319,18 @@ public class ActionBuilder
         if (_routes.Count > 0)
         {
             _action.Routes = _routes;
+        }
+
+        // Apply credential requirements
+        if (_credentialRequirements.Count > 0)
+        {
+            _action.CredentialRequirements = _credentialRequirements;
+        }
+
+        // Apply credential issuance configuration
+        if (_credentialIssuanceConfig != null)
+        {
+            _action.CredentialIssuanceConfig = _credentialIssuanceConfig;
         }
 
         return _action;

@@ -129,6 +129,78 @@ public interface IWalletServiceClient
         CancellationToken cancellationToken = default);
 
     // =========================================================================
+    // Credential Operations (Blueprint Service)
+    // =========================================================================
+
+    /// <summary>
+    /// Issues a new SD-JWT VC credential using the wallet's signing key
+    /// </summary>
+    /// <param name="issuerWalletAddress">Wallet address of the issuing authority</param>
+    /// <param name="credentialType">Credential type (e.g., "LicenseCredential")</param>
+    /// <param name="claims">Credential claims to include</param>
+    /// <param name="recipientWallet">Wallet address of the credential recipient</param>
+    /// <param name="expiryDuration">Optional ISO 8601 expiry duration (e.g., "P365D")</param>
+    /// <param name="disclosableClaims">Optional list of claims supporting selective disclosure</param>
+    /// <param name="issuanceBlueprintId">Optional blueprint ID that triggered issuance</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Issued credential information including the signed SD-JWT VC token</returns>
+    Task<CredentialIssuanceResult> IssueCredentialAsync(
+        string issuerWalletAddress,
+        string credentialType,
+        Dictionary<string, object> claims,
+        string recipientWallet,
+        string? expiryDuration = null,
+        List<string>? disclosableClaims = null,
+        string? issuanceBlueprintId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a credential by ID from a wallet
+    /// </summary>
+    Task<CredentialIssuanceResult?> GetCredentialAsync(
+        string walletAddress,
+        string credentialId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the status of a credential in a wallet (e.g., "Active" → "Revoked")
+    /// </summary>
+    Task<bool> UpdateCredentialStatusAsync(
+        string walletAddress,
+        string credentialId,
+        string status,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stores a pre-issued credential in a wallet
+    /// </summary>
+    /// <param name="walletAddress">Wallet address to store the credential in</param>
+    /// <param name="credentialId">Unique credential identifier</param>
+    /// <param name="type">Credential type</param>
+    /// <param name="issuerDid">Issuer DID or wallet address</param>
+    /// <param name="subjectDid">Subject DID or wallet address</param>
+    /// <param name="claimsJson">Claims as JSON string</param>
+    /// <param name="issuedAt">When the credential was issued</param>
+    /// <param name="expiresAt">When the credential expires (null for no expiry)</param>
+    /// <param name="rawToken">The complete SD-JWT VC token</param>
+    /// <param name="issuanceTxId">Optional ledger transaction ID</param>
+    /// <param name="issuanceBlueprintId">Optional blueprint ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task StoreCredentialAsync(
+        string walletAddress,
+        string credentialId,
+        string type,
+        string issuerDid,
+        string subjectDid,
+        string claimsJson,
+        DateTimeOffset issuedAt,
+        DateTimeOffset? expiresAt,
+        string rawToken,
+        string? issuanceTxId = null,
+        string? issuanceBlueprintId = null,
+        CancellationToken cancellationToken = default);
+
+    // =========================================================================
     // Wallet Management (All Services)
     // =========================================================================
 
@@ -183,6 +255,52 @@ public record WalletSignResult
     /// Cryptographic algorithm used (ED25519, NISTP256, RSA4096)
     /// </summary>
     public required string Algorithm { get; init; }
+}
+
+/// <summary>
+/// Result of a credential issuance operation
+/// </summary>
+public class CredentialIssuanceResult
+{
+    /// <summary>
+    /// Unique credential identifier (DID URI)
+    /// </summary>
+    public required string CredentialId { get; init; }
+
+    /// <summary>
+    /// Credential type (e.g., "LicenseCredential")
+    /// </summary>
+    public required string Type { get; init; }
+
+    /// <summary>
+    /// DID URI or wallet address of the issuer
+    /// </summary>
+    public required string IssuerDid { get; init; }
+
+    /// <summary>
+    /// DID URI or wallet address of the recipient
+    /// </summary>
+    public required string SubjectDid { get; init; }
+
+    /// <summary>
+    /// All credential claims
+    /// </summary>
+    public required Dictionary<string, object> Claims { get; init; }
+
+    /// <summary>
+    /// When the credential was issued
+    /// </summary>
+    public required DateTimeOffset IssuedAt { get; init; }
+
+    /// <summary>
+    /// When the credential expires (null for no expiry)
+    /// </summary>
+    public DateTimeOffset? ExpiresAt { get; init; }
+
+    /// <summary>
+    /// The complete SD-JWT VC token
+    /// </summary>
+    public required string RawToken { get; init; }
 }
 
 /// <summary>

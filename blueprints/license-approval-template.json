@@ -1,0 +1,138 @@
+{
+  "id": "license-approval-001",
+  "title": "License Approval",
+  "description": "A three-action workflow where an applicant submits identity proof and skill certification, an authority reviews and approves, and a license credential (SD-JWT VC) is issued to the applicant. Demonstrates credential issuance from blueprint flows.",
+  "version": 1,
+  "category": "credentials",
+  "tags": ["credentials", "issuance", "license", "approval", "sd-jwt-vc"],
+  "author": "Sorcha Team",
+  "published": true,
+  "template": {
+    "id": "license-approval-generated",
+    "title": "License Approval",
+    "description": "Applicant submits supporting documents, authority reviews and approves, issuing a LicenseCredential as an SD-JWT VC.",
+    "version": 1,
+    "metadata": {
+      "category": "credentials",
+      "author": "Sorcha Team",
+      "hasCycles": "false"
+    },
+    "participants": [
+      {
+        "id": "applicant",
+        "name": "Applicant",
+        "organisation": "Public",
+        "description": "Person applying for the license"
+      },
+      {
+        "id": "authority",
+        "name": "Licensing Authority",
+        "organisation": "Government",
+        "description": "Authority that reviews applications and issues licenses"
+      }
+    ],
+    "actions": [
+      {
+        "id": 0,
+        "title": "Submit Application",
+        "sender": "applicant",
+        "isStartingAction": true,
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "applicantName": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "licenseType": { "type": "string", "enum": ["ClassA", "ClassB", "ClassC"] },
+              "qualificationDate": { "type": "string", "format": "date" },
+              "supportingDocumentRef": { "type": "string", "minLength": 1 }
+            },
+            "required": ["applicantName", "licenseType", "qualificationDate", "supportingDocumentRef"]
+          }
+        ],
+        "routes": [
+          {
+            "id": "submit-to-review",
+            "nextActionIds": [1],
+            "isDefault": true,
+            "description": "Route to authority for review"
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "title": "Review Application",
+        "sender": "authority",
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "decision": { "type": "string", "enum": ["approved", "rejected"] },
+              "reviewNotes": { "type": "string", "maxLength": 1000 }
+            },
+            "required": ["decision"]
+          }
+        ],
+        "routes": [
+          {
+            "id": "approved-to-issue",
+            "nextActionIds": [2],
+            "condition": { "==": [{ "var": "decision" }, "approved"] },
+            "description": "Approved — route to credential issuance"
+          },
+          {
+            "id": "rejected-end",
+            "nextActionIds": [],
+            "condition": { "==": [{ "var": "decision" }, "rejected"] },
+            "description": "Rejected — workflow ends"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Issue License Credential",
+        "sender": "authority",
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "licenseNumber": { "type": "string", "minLength": 1 },
+              "validFrom": { "type": "string", "format": "date" }
+            },
+            "required": ["licenseNumber", "validFrom"]
+          }
+        ],
+        "credentialIssuanceConfig": {
+          "credentialType": "LicenseCredential",
+          "claimMappings": [
+            { "claimName": "holder_name", "sourceField": "/applicantName" },
+            { "claimName": "license_type", "sourceField": "/licenseType" },
+            { "claimName": "license_number", "sourceField": "/licenseNumber" },
+            { "claimName": "qualification_date", "sourceField": "/qualificationDate" },
+            { "claimName": "valid_from", "sourceField": "/validFrom" }
+          ],
+          "recipientParticipantId": "applicant",
+          "expiryDuration": "P365D",
+          "registerId": "license-register",
+          "disclosable": ["holder_name", "license_type", "license_number"]
+        },
+        "routes": [
+          {
+            "id": "issue-end",
+            "nextActionIds": [],
+            "isDefault": true,
+            "description": "Credential issued — workflow complete"
+          }
+        ]
+      }
+    ]
+  },
+  "parameterSchema": null,
+  "defaultParameters": null,
+  "examples": [
+    {
+      "name": "class-a-license",
+      "description": "Approve a Class A license application",
+      "parameters": {}
+    }
+  ]
+}

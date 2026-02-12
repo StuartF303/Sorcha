@@ -8,7 +8,9 @@ using Sorcha.ServiceClients.Participant;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Register;
 using Sorcha.ServiceClients.Validator;
+using Sorcha.Blueprint.Engine.Credentials;
 using Sorcha.Blueprint.Engine.Interfaces;
+using Sorcha.Blueprint.Models.Credentials;
 using Sorcha.Blueprint.Service.Models;
 using Sorcha.Blueprint.Service.Models.Requests;
 using Sorcha.Blueprint.Service.Models.Responses;
@@ -35,6 +37,7 @@ public class ActionExecutionService : IActionExecutionService
     private readonly INotificationService _notificationService;
     private readonly IInstanceStore _instanceStore;
     private readonly IExecutionEngine _executionEngine;
+    private readonly ICredentialVerifier? _credentialVerifier;
     private readonly ILogger<ActionExecutionService> _logger;
     private static readonly ActivitySource ActivitySource = new("Sorcha.Blueprint.Service.ActionExecution");
 
@@ -49,7 +52,8 @@ public class ActionExecutionService : IActionExecutionService
         INotificationService notificationService,
         IInstanceStore instanceStore,
         IExecutionEngine executionEngine,
-        ILogger<ActionExecutionService> logger)
+        ILogger<ActionExecutionService> logger,
+        ICredentialVerifier? credentialVerifier = null)
     {
         _actionResolver = actionResolver ?? throw new ArgumentNullException(nameof(actionResolver));
         _stateReconstruction = stateReconstruction ?? throw new ArgumentNullException(nameof(stateReconstruction));
@@ -62,6 +66,7 @@ public class ActionExecutionService : IActionExecutionService
         _instanceStore = instanceStore ?? throw new ArgumentNullException(nameof(instanceStore));
         _executionEngine = executionEngine ?? throw new ArgumentNullException(nameof(executionEngine));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _credentialVerifier = credentialVerifier;
     }
 
     /// <inheritdoc/>
@@ -109,6 +114,28 @@ public class ActionExecutionService : IActionExecutionService
         // 4b. Validate wallet ownership (SEC-006)
         await ValidateWalletOwnershipAsync(request.SenderWallet, caller, cancellationToken);
 
+        // 4c. Verify credential presentations against action requirements
+        if (actionDef.CredentialRequirements?.Any() == true && _credentialVerifier != null)
+        {
+            var presentations = request.CredentialPresentations ?? [];
+            var credentialResult = await _credentialVerifier.VerifyAsync(
+                actionDef.CredentialRequirements,
+                presentations,
+                cancellationToken);
+
+            if (!credentialResult.IsValid)
+            {
+                var credentialErrors = credentialResult.Errors
+                    .Select(e => $"Credential: {e.Message}")
+                    .ToList();
+                throw new ValidationException(credentialErrors);
+            }
+
+            _logger.LogInformation(
+                "Credential verification passed for action {ActionId}: {Count} credential(s) verified",
+                actionId, credentialResult.VerifiedCredentials.Count);
+        }
+
         // 5. Reconstruct accumulated state from prior transactions
         var accumulatedState = await _stateReconstruction.ReconstructAsync(
             blueprint,
@@ -146,6 +173,14 @@ public class ActionExecutionService : IActionExecutionService
         // 9. Apply disclosure rules for recipients
         var disclosedPayloads = ApplyDisclosures(actionDef, request.PayloadData, blueprint, instance.ParticipantWallets);
 
+        // 9b. Issue credential if action has issuance configuration
+        CredentialIssuanceResult? issuedCredential = null;
+        if (actionDef.CredentialIssuanceConfig != null)
+        {
+            issuedCredential = await IssueCredentialFromActionAsync(
+                actionDef, mergedData, request.SenderWallet, instance, cancellationToken);
+        }
+
         // 10. Build transaction
         var transaction = await _transactionBuilder.BuildActionTransactionAsync(
             blueprint,
@@ -155,6 +190,15 @@ public class ActionExecutionService : IActionExecutionService
             disclosedPayloads,
             accumulatedState.PreviousTransactionId,
             cancellationToken);
+
+        // 10b. Add credential issuance metadata to transaction (T061)
+        if (issuedCredential != null)
+        {
+            transaction.Metadata["credentialId"] = issuedCredential.CredentialId;
+            transaction.Metadata["credentialType"] = issuedCredential.Type;
+            transaction.Metadata["credentialIssuer"] = issuedCredential.IssuerDid;
+            transaction.Metadata["credentialRecipient"] = issuedCredential.SubjectDid;
+        }
 
         // 11. Sign transaction (using default signing key, no derivation path)
         var signResult = await _walletClient.SignTransactionAsync(
@@ -221,6 +265,27 @@ public class ActionExecutionService : IActionExecutionService
         // 15. Notify participants via SignalR
         await NotifyParticipantsAsync(instance, actionDef, routingResult, cancellationToken);
 
+        // 15b. Update issued credential with confirmed transaction ID
+        if (issuedCredential != null)
+        {
+            _logger.LogInformation(
+                "Credential {CredentialId} of type {Type} issued from {Issuer} to {Recipient} (tx: {TxId})",
+                issuedCredential.CredentialId, issuedCredential.Type,
+                issuedCredential.IssuerDid, issuedCredential.SubjectDid, confirmedTxId);
+
+            // 15c. Record credential on dedicated register if configured (FR-014c)
+            if (!string.IsNullOrEmpty(actionDef.CredentialIssuanceConfig?.RegisterId))
+            {
+                await RecordCredentialOnRegisterAsync(
+                    issuedCredential,
+                    actionDef.CredentialIssuanceConfig.RegisterId,
+                    request.SenderWallet,
+                    instanceId,
+                    confirmedTxId,
+                    cancellationToken);
+            }
+        }
+
         // 16. Build response
         var response = new ActionSubmissionResponse
         {
@@ -235,7 +300,8 @@ public class ActionExecutionService : IActionExecutionService
             }).ToList(),
             Calculations = calculations,
             IsComplete = routingResult.NextActions.Count == 0,
-            Warnings = validationResult.Warnings
+            Warnings = validationResult.Warnings,
+            IssuedCredentialId = issuedCredential?.CredentialId
         };
 
         _logger.LogInformation(
@@ -599,6 +665,152 @@ public class ActionExecutionService : IActionExecutionService
             await _notificationService.NotifyWorkflowCompletedAsync(
                 instance.Id,
                 cancellationToken);
+        }
+    }
+
+    private async Task<CredentialIssuanceResult?> IssueCredentialFromActionAsync(
+        ActionModel actionDef,
+        Dictionary<string, object> mergedData,
+        string senderWallet,
+        Instance instance,
+        CancellationToken cancellationToken)
+    {
+        var config = actionDef.CredentialIssuanceConfig!;
+
+        // Map claims from action data using ClaimMappings
+        var claims = new Dictionary<string, object>();
+        if (config.ClaimMappings != null)
+        {
+            foreach (var mapping in config.ClaimMappings)
+            {
+                var sourceKey = mapping.SourceField.TrimStart('/');
+                if (mergedData.TryGetValue(sourceKey, out var value))
+                {
+                    claims[mapping.ClaimName] = value;
+                }
+            }
+        }
+
+        // Resolve recipient wallet address from participant ID
+        var recipientWallet = senderWallet; // Default: issuer is also recipient
+        if (!string.IsNullOrEmpty(config.RecipientParticipantId))
+        {
+            if (instance.ParticipantWallets.TryGetValue(config.RecipientParticipantId, out var wallet))
+            {
+                recipientWallet = wallet;
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Recipient participant {ParticipantId} not found in instance wallets — credential will be issued to sender",
+                    config.RecipientParticipantId);
+            }
+        }
+
+        try
+        {
+            var result = await _walletClient.IssueCredentialAsync(
+                issuerWalletAddress: senderWallet,
+                credentialType: config.CredentialType,
+                claims: claims,
+                recipientWallet: recipientWallet,
+                expiryDuration: config.ExpiryDuration,
+                disclosableClaims: config.Disclosable?.ToList(),
+                issuanceBlueprintId: instance.BlueprintId,
+                cancellationToken: cancellationToken);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to issue credential of type {CredentialType} for action {ActionId}",
+                config.CredentialType, actionDef.Id);
+            // Credential issuance failure is non-fatal — the action still succeeds
+            return null;
+        }
+    }
+
+    private async Task RecordCredentialOnRegisterAsync(
+        CredentialIssuanceResult credential,
+        string registerId,
+        string senderWallet,
+        string instanceId,
+        string actionTransactionId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Build a credential-issuance record transaction for the dedicated credential register
+            var credentialRecordPayload = new
+            {
+                type = "credential-issuance",
+                credentialId = credential.CredentialId,
+                credentialType = credential.Type,
+                issuer = credential.IssuerDid,
+                recipient = credential.SubjectDid,
+                issuedAt = credential.IssuedAt,
+                expiresAt = credential.ExpiresAt,
+                actionTransactionId,
+                instanceId,
+                timestamp = DateTimeOffset.UtcNow
+            };
+
+            var transactionData = JsonSerializer.SerializeToUtf8Bytes(credentialRecordPayload);
+            var hashBytes = System.Security.Cryptography.SHA256.HashData(transactionData);
+            var txId = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+            var credTransaction = new BuiltTransaction
+            {
+                TransactionData = transactionData,
+                TxId = txId,
+                TransactionType = "credential-issuance",
+                RegisterId = registerId,
+                Metadata = new Dictionary<string, object>
+                {
+                    ["blueprintId"] = instanceId,
+                    ["actionId"] = 0,
+                    ["instanceId"] = instanceId,
+                    ["previousTxId"] = actionTransactionId,
+                    ["credentialId"] = credential.CredentialId,
+                    ["credentialType"] = credential.Type
+                }
+            };
+
+            // Sign the credential record transaction
+            var signResult = await _walletClient.SignTransactionAsync(
+                senderWallet,
+                transactionData,
+                derivationPath: null,
+                isPreHashed: false,
+                cancellationToken);
+
+            credTransaction.SenderWallet = senderWallet;
+            credTransaction.Signature = signResult.Signature;
+
+            // Submit to the Validator for the credential register
+            var submission = credTransaction.ToActionTransactionSubmission(signResult);
+            var result = await _validatorClient.SubmitTransactionAsync(submission, cancellationToken);
+
+            if (result.Success)
+            {
+                _logger.LogInformation(
+                    "Credential {CredentialId} recorded on register {RegisterId} (tx: {TxId})",
+                    credential.CredentialId, registerId, txId);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Failed to record credential {CredentialId} on register {RegisterId}: {Error}",
+                    credential.CredentialId, registerId, result.ErrorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Credential register recording is non-fatal
+            _logger.LogWarning(ex,
+                "Failed to record credential {CredentialId} on register {RegisterId} — issuance still valid",
+                credential.CredentialId, registerId);
         }
     }
 

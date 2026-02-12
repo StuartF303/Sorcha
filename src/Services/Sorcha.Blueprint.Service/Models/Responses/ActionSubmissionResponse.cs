@@ -51,6 +51,11 @@ public record ActionSubmissionResponse
     public List<string>? Warnings { get; init; }
 
     /// <summary>
+    /// Credential ID if a verifiable credential was issued by this action
+    /// </summary>
+    public string? IssuedCredentialId { get; init; }
+
+    /// <summary>
     /// File transaction hashes (if files were attached)
     /// </summary>
     public List<string>? FileTransactionHashes { get; init; }

@@ -279,6 +279,160 @@ public class WalletServiceClient : IWalletServiceClient
     }
 
     // =========================================================================
+    // Credential Operations
+    // =========================================================================
+
+    public async Task<CredentialIssuanceResult> IssueCredentialAsync(
+        string issuerWalletAddress,
+        string credentialType,
+        Dictionary<string, object> claims,
+        string recipientWallet,
+        string? expiryDuration = null,
+        List<string>? disclosableClaims = null,
+        string? issuanceBlueprintId = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug(
+                "Issuing credential of type {CredentialType} from {IssuerWallet} to {RecipientWallet}",
+                credentialType, issuerWalletAddress, recipientWallet);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var requestBody = new
+            {
+                credentialType,
+                claims,
+                recipientWallet,
+                expiryDuration,
+                disclosableClaims,
+                issuanceBlueprintId
+            };
+
+            var response = await _httpClient.PostAsJsonAsync(
+                $"/api/v1/wallets/{issuerWalletAddress}/credentials/issue",
+                requestBody, JsonOptions, cancellationToken);
+
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<CredentialIssuanceResult>(cancellationToken)
+                ?? throw new InvalidOperationException("Credential issuance response was null");
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            _logger.LogError(ex,
+                "Failed to issue credential of type {CredentialType} from {IssuerWallet}",
+                credentialType, issuerWalletAddress);
+            throw;
+        }
+    }
+
+    public async Task StoreCredentialAsync(
+        string walletAddress,
+        string credentialId,
+        string type,
+        string issuerDid,
+        string subjectDid,
+        string claimsJson,
+        DateTimeOffset issuedAt,
+        DateTimeOffset? expiresAt,
+        string rawToken,
+        string? issuanceTxId = null,
+        string? issuanceBlueprintId = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Storing credential {CredentialId} in wallet {WalletAddress}",
+                credentialId, walletAddress);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var requestBody = new
+            {
+                credentialId,
+                type,
+                issuerDid,
+                subjectDid,
+                claimsJson,
+                issuedAt,
+                expiresAt,
+                rawToken,
+                issuanceTxId,
+                issuanceBlueprintId
+            };
+
+            var response = await _httpClient.PostAsJsonAsync(
+                $"/api/v1/wallets/{walletAddress}/credentials",
+                requestBody, JsonOptions, cancellationToken);
+
+            response.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to store credential {CredentialId} in wallet {WalletAddress}",
+                credentialId, walletAddress);
+            throw;
+        }
+    }
+
+    public async Task<CredentialIssuanceResult?> GetCredentialAsync(
+        string walletAddress,
+        string credentialId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var response = await _httpClient.GetAsync(
+                $"/api/v1/wallets/{walletAddress}/credentials/{credentialId}",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            return await response.Content.ReadFromJsonAsync<CredentialIssuanceResult>(
+                JsonOptions, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get credential {CredentialId} from wallet {WalletAddress}",
+                credentialId, walletAddress);
+            return null;
+        }
+    }
+
+    public async Task<bool> UpdateCredentialStatusAsync(
+        string walletAddress,
+        string credentialId,
+        string status,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Updating credential {CredentialId} status to {Status} in wallet {WalletAddress}",
+                credentialId, status, walletAddress);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var requestBody = new { status };
+            var response = await _httpClient.PatchAsJsonAsync(
+                $"/api/v1/wallets/{walletAddress}/credentials/{credentialId}/status",
+                requestBody, JsonOptions, cancellationToken);
+
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update credential {CredentialId} status in wallet {WalletAddress}",
+                credentialId, walletAddress);
+            return false;
+        }
+    }
+
+    // =========================================================================
     // Wallet Management
     // =========================================================================
 

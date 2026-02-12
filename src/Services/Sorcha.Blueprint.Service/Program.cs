@@ -60,8 +60,13 @@ builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.ISchemaValidator, 
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IJsonLogicEvaluator, Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IDisclosureProcessor, Sorcha.Blueprint.Engine.Implementation.DisclosureProcessor>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IRoutingEngine, Sorcha.Blueprint.Engine.Implementation.RoutingEngine>();
+builder.Services.AddScoped<Sorcha.Blueprint.Engine.Credentials.ICredentialVerifier, Sorcha.Blueprint.Engine.Credentials.CredentialVerifier>();
+builder.Services.AddScoped<Sorcha.Blueprint.Engine.Credentials.ICredentialIssuer, Sorcha.Blueprint.Engine.Credentials.CredentialIssuer>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IActionProcessor, Sorcha.Blueprint.Engine.Implementation.ActionProcessor>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IExecutionEngine, Sorcha.Blueprint.Engine.Implementation.ExecutionEngine>();
+
+// Add SD-JWT service for credential verification
+builder.Services.AddSingleton<Sorcha.Cryptography.SdJwt.ISdJwtService, Sorcha.Cryptography.SdJwt.SdJwtService>();
 
 // Add JsonLogic expression cache (singleton - shared across scoped evaluators)
 builder.Services.AddSingleton<Sorcha.Blueprint.Engine.Caching.JsonLogicCache>();
@@ -354,6 +359,9 @@ blueprintGroup.MapGet("/{id}/versions/{version}", async (string id, int version,
 
 // Map schema store endpoints (GET /api/v1/schemas/system, GET /api/v1/schemas/{identifier}, etc.)
 app.MapSchemaEndpoints();
+
+// Map credential lifecycle endpoints (POST /api/v1/credentials/{credentialId}/revoke)
+app.MapCredentialEndpoints();
 
 // ===========================
 // Template Endpoints
@@ -1850,7 +1858,57 @@ public class PublishService(IBlueprintStore blueprintStore, IPublishedBlueprintS
             }
         }
 
-        // Rule 4: Detect cycles — produce warnings instead of errors
+        // Rule 4: Validate credential requirements on actions (FR-020)
+        foreach (var action in blueprint.Actions)
+        {
+            if (action.CredentialRequirements != null)
+            {
+                var reqIndex = 0;
+                foreach (var req in action.CredentialRequirements)
+                {
+                    if (string.IsNullOrWhiteSpace(req.Type))
+                    {
+                        errors.Add($"Action {action.Id}: Credential requirement [{reqIndex}] has an empty type");
+                    }
+
+                    if (req.RequiredClaims != null)
+                    {
+                        foreach (var claim in req.RequiredClaims)
+                        {
+                            if (string.IsNullOrWhiteSpace(claim.ClaimName))
+                            {
+                                errors.Add($"Action {action.Id}: Credential requirement '{req.Type}' has a claim constraint with empty name");
+                            }
+                        }
+                    }
+
+                    reqIndex++;
+                }
+            }
+
+            if (action.CredentialIssuanceConfig != null)
+            {
+                var config = action.CredentialIssuanceConfig;
+                if (string.IsNullOrWhiteSpace(config.CredentialType))
+                {
+                    errors.Add($"Action {action.Id}: Credential issuance config has an empty credential type");
+                }
+                if (!config.ClaimMappings.Any())
+                {
+                    errors.Add($"Action {action.Id}: Credential issuance config must have at least one claim mapping");
+                }
+                if (string.IsNullOrWhiteSpace(config.RecipientParticipantId))
+                {
+                    errors.Add($"Action {action.Id}: Credential issuance config has an empty recipient participant ID");
+                }
+                else if (!participantIds.Contains(config.RecipientParticipantId))
+                {
+                    warnings.Add($"Action {action.Id}: Credential issuance config references participant '{config.RecipientParticipantId}' which is not defined in this blueprint");
+                }
+            }
+        }
+
+        // Rule 5: Detect cycles — produce warnings instead of errors
         // Cycles are valid workflow patterns (ping-pong, review loops, resubmission flows)
         var cycleDetections = DetectCycles(blueprint);
         foreach (var detection in cycleDetections)

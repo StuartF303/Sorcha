@@ -21,6 +21,19 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-12:**
+- ✅ 031-VERIFIABLE-CREDENTIALS: Verifiable Credentials & eIDAS-Aligned Attestation System (89 tasks, 8 phases)
+  - SD-JWT VC format (eIDAS 2.0 / ARF): create, sign, verify, selective disclosure via SdJwtService
+  - Credential requirements on blueprint actions: `credentialRequirements` property with type, issuer, claim constraints
+  - Credential issuance from blueprint actions: `credentialIssuanceConfig` with claim mappings, expiry, register recording
+  - Cross-blueprint composability: credential from Flow A gates entry to Flow B (license → work-order pattern)
+  - Selective disclosure: holders choose which claims to reveal; verifier only checks disclosed claims
+  - Credential revocation: POST /api/v1/credentials/{id}/revoke endpoint, fail-closed/fail-open policies
+  - IRevocationChecker interface for pluggable revocation status lookup
+  - Wallet credential store: CRUD endpoints, credential matching, status updates via CredentialStore (EF Core)
+  - WalletServiceClient: IssueCredentialAsync, GetCredentialAsync, UpdateCredentialStatusAsync, StoreCredentialAsync
+  - Blueprint templates: license-approval-template.json, work-order-template.json
+  - YARP route: /api/v1/credentials/** → blueprint-cluster
+  - Test count: 53 credential engine tests, 6 SD-JWT selective disclosure tests, 4 revocation endpoint tests
 - ✅ TEMPLATES-UX-OVERHAUL: Blueprint Templates UX Overhaul (7 phases)
   - Added `Version` property to `TemplateListItemViewModel`
   - Removed `TemplateSeedingService` and `/api/templates/seed` endpoint — replaced with external `scripts/seed-blueprints.ps1`

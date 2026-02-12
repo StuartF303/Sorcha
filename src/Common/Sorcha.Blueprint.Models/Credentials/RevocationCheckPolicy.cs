@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Sorcha Contributors
+
+namespace Sorcha.Blueprint.Models.Credentials;
+
+/// <summary>
+/// Defines the policy for handling credential revocation checks when the
+/// revocation registry is unreachable or returns an inconclusive result.
+/// </summary>
+public enum RevocationCheckPolicy
+{
+    /// <summary>
+    /// Block the action until revocation status can be confirmed.
+    /// This is the default and recommended setting for high-security scenarios.
+    /// </summary>
+    FailClosed = 0,
+
+    /// <summary>
+    /// Allow the action to proceed with an audit warning recorded on the ledger.
+    /// The credential is flagged as "revocation status unverified" in the transaction record.
+    /// </summary>
+    FailOpen = 1
+}
