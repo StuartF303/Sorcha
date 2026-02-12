@@ -317,15 +317,9 @@
 
         try
         {
-            var defaultParams = new Dictionary<string, object>();
-            foreach (var param in template.Parameters)
-            {
-                if (param.DefaultValue is not null)
-                    defaultParams[param.Name] = param.DefaultValue;
-            }
-
+            // Send empty params — the backend merges with its own correctly-typed defaults
             _previewBlueprint = await TemplateApi.EvaluateTemplateForPreviewAsync(
-                template.Id, defaultParams);
+                template.Id, new Dictionary<string, object>());
 
             if (_previewBlueprint is null)
                 _previewError = "Preview unavailable — could not evaluate template.";
