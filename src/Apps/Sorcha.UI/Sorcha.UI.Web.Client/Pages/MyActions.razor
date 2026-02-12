@@ -13,6 +13,8 @@
 @using Sorcha.UI.Core.Components.Workflows
 @using Sorcha.UI.Core.Services
 @inject IWorkflowService WorkflowService
+@inject IWalletApiService WalletService
+@inject ActionsHubConnection ActionsHub
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject ILogger<MyActions> Logger
@@ -165,6 +167,38 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadActionsAsync();
+        await ConnectToActionsHubAsync();
+    }
+
+    private async Task ConnectToActionsHubAsync()
+    {
+        _actionsHub = ActionsHub;
+
+        // Subscribe to events
+        _actionsHub.OnConnectionStateChanged += HandleConnectionStateChanged;
+        _actionsHub.OnActionAvailable += HandleActionAvailable;
+        _actionsHub.OnActionConfirmed += HandleActionConfirmed;
+        _actionsHub.OnActionRejected += HandleActionRejected;
+        _actionsHub.OnWorkflowCompleted += HandleWorkflowCompleted;
+
+        // Sync current state
+        _connectionState = _actionsHub.ConnectionState;
+
+        try
+        {
+            await _actionsHub.StartAsync();
+
+            // Subscribe to user's wallet addresses for targeted notifications
+            var wallets = await WalletService.GetWalletsAsync();
+            foreach (var wallet in wallets)
+            {
+                await _actionsHub.SubscribeToWalletAsync(wallet.Address);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to connect to ActionsHub — page will use polling");
+        }
     }
 
     private async Task LoadActionsAsync()
@@ -269,7 +303,7 @@
         _ => Icons.Material.Filled.HelpOutline
     };
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (_actionsHub != null)
         {
@@ -278,7 +312,8 @@
             _actionsHub.OnActionConfirmed -= HandleActionConfirmed;
             _actionsHub.OnActionRejected -= HandleActionRejected;
             _actionsHub.OnWorkflowCompleted -= HandleWorkflowCompleted;
-            await _actionsHub.DisposeAsync();
         }
+
+        return ValueTask.CompletedTask;
     }
 }

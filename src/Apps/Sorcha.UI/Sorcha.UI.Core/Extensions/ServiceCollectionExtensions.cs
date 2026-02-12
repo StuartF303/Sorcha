@@ -188,6 +188,9 @@ public static class ServiceCollectionExtensions
         // Chat Hub Connection (SignalR for AI-assisted blueprint design)
         services.AddChatHubServices(baseAddress);
 
+        // Actions Hub Connection (SignalR for real-time action notifications)
+        services.AddActionsHubServices(baseAddress);
+
         return services;
     }
 
@@ -224,6 +227,32 @@ public static class ServiceCollectionExtensions
             var configService = sp.GetRequiredService<IConfigurationService>();
             var logger = sp.GetRequiredService<ILogger<ChatHubConnection>>();
             return new ChatHubConnection(options, authService, configService, logger);
+        });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the Actions Hub connection for real-time action notifications.
+    /// </summary>
+    public static IServiceCollection AddActionsHubServices(this IServiceCollection services, string baseAddress)
+    {
+        services.AddScoped<ActionsHubConnection>(sp =>
+        {
+            string hubBaseUrl;
+            if (Uri.TryCreate(baseAddress, UriKind.Absolute, out var uri))
+            {
+                hubBaseUrl = $"{uri.Scheme}://{uri.Authority}";
+            }
+            else
+            {
+                hubBaseUrl = "";
+            }
+
+            var authService = sp.GetRequiredService<IAuthenticationService>();
+            var configService = sp.GetRequiredService<IConfigurationService>();
+            var logger = sp.GetRequiredService<ILogger<ActionsHubConnection>>();
+            return new ActionsHubConnection(hubBaseUrl, authService, configService, logger);
         });
 
         return services;

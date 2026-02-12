@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using Sorcha.UI.Core.Models.Actions;
 using Sorcha.UI.Core.Models.Registers;
+using Sorcha.UI.Core.Services.Authentication;
+using Sorcha.UI.Core.Services.Configuration;
 
 namespace Sorcha.UI.Core.Services;
 
@@ -27,6 +29,8 @@ namespace Sorcha.UI.Core.Services;
 public class ActionsHubConnection : IAsyncDisposable
 {
     private readonly ILogger<ActionsHubConnection> _logger;
+    private readonly IAuthenticationService _authService;
+    private readonly IConfigurationService _configurationService;
     private readonly string _hubUrl;
     private HubConnection? _hubConnection;
     private ConnectionState _connectionState = new();
@@ -70,10 +74,18 @@ public class ActionsHubConnection : IAsyncDisposable
     /// Creates a new ActionsHubConnection.
     /// </summary>
     /// <param name="baseUrl">Base URL of the Blueprint Service (e.g., https://localhost:7000)</param>
+    /// <param name="authService">Authentication service for JWT token retrieval</param>
+    /// <param name="configurationService">Configuration service for active profile</param>
     /// <param name="logger">Logger for diagnostics</param>
-    public ActionsHubConnection(string baseUrl, ILogger<ActionsHubConnection> logger)
+    public ActionsHubConnection(
+        string baseUrl,
+        IAuthenticationService authService,
+        IConfigurationService configurationService,
+        ILogger<ActionsHubConnection> logger)
     {
         _hubUrl = $"{baseUrl.TrimEnd('/')}/actionshub";
+        _authService = authService;
+        _configurationService = configurationService;
         _logger = logger;
     }
 
@@ -93,7 +105,17 @@ public class ActionsHubConnection : IAsyncDisposable
         try
         {
             _hubConnection = new HubConnectionBuilder()
-                .WithUrl(_hubUrl)
+                .WithUrl(_hubUrl, options =>
+                {
+                    options.AccessTokenProvider = async () =>
+                    {
+                        var profileName = await _configurationService.GetActiveProfileNameAsync();
+                        var token = await _authService.GetAccessTokenAsync(profileName);
+                        _logger.LogDebug("ActionsHub token provider: profile={Profile}, hasToken={HasToken}",
+                            profileName, !string.IsNullOrEmpty(token));
+                        return token;
+                    };
+                })
                 .WithAutomaticReconnect(new[]
                 {
                     TimeSpan.FromSeconds(0),

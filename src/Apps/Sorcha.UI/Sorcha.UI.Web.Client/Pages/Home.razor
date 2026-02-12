@@ -11,6 +11,7 @@
 @using Sorcha.UI.Core.Services
 @using Sorcha.UI.Web.Client.Components.Layout
 @inject IDashboardService DashboardService
+@inject NavigationManager Navigation
 
 <PageTitle>Dashboard - Sorcha</PageTitle>
 
@@ -180,5 +181,11 @@
     {
         _stats = await DashboardService.GetDashboardStatsAsync();
         _isLoading = false;
+
+        if (_stats.IsLoaded && _stats.TotalWallets == 0)
+        {
+            Navigation.NavigateTo("wallets/create?first-login=true");
+            return;
+        }
     }
 }

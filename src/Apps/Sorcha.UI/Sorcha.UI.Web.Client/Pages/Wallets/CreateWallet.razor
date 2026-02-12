@@ -9,6 +9,15 @@
 <PageTitle>Create Wallet - Sorcha Platform</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    @if (_isFirstLogin)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4" Icon="@Icons.Material.Filled.WavingHand">
+            <MudText Typo="Typo.h6">Welcome to Sorcha!</MudText>
+            <MudText Typo="Typo.body2" Class="mt-1">
+                Let's set up your first wallet to get started. A wallet is required for signing transactions and participating in workflows.
+            </MudText>
+        </MudAlert>
+    }
     <MudText Typo="Typo.h4" Class="mb-2">
         <MudIcon Icon="@Icons.Material.Filled.AddCard" Class="mr-2" />
         Create New Wallet
@@ -60,9 +69,16 @@
                         </MudItem>
 
                         <MudItem xs="12" Class="d-flex justify-space-between">
-                            <MudButton Href="wallets" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack">
-                                Cancel
-                            </MudButton>
+                            @if (!_isFirstLogin)
+                            {
+                                <MudButton Href="wallets" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack">
+                                    Cancel
+                                </MudButton>
+                            }
+                            else
+                            {
+                                <div></div>
+                            }
                             <MudButton ButtonType="ButtonType.Submit" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Disabled="@isCreating">
                                 @if (isCreating)
                                 {
@@ -156,6 +172,11 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery(Name = "first-login")]
+    public string? FirstLogin { get; set; }
+
+    private bool _isFirstLogin;
+
     private enum WizardStep { Form, MnemonicDisplay }
     private WizardStep currentStep = WizardStep.Form;
 
@@ -177,6 +198,11 @@
 
     private bool CanProceed => hasWrittenDown && understandsOneTime &&
         (string.IsNullOrEmpty(request.Passphrase) || understandsPassphrase);
+
+    protected override void OnInitialized()
+    {
+        _isFirstLogin = string.Equals(FirstLogin, "true", StringComparison.OrdinalIgnoreCase);
+    }
 
     private async Task CreateWalletAsync()
     {
@@ -214,17 +240,20 @@
 
     private void NavigateToWallet()
     {
-        if (response?.Wallet != null)
+        // Clear mnemonic from memory before navigating
+        var walletAddress = response?.Wallet?.Address;
+        if (response?.MnemonicWords != null)
         {
-            var walletAddress = response.Wallet.Address;
+            Array.Clear(response.MnemonicWords, 0, response.MnemonicWords.Length);
+        }
+        response = null;
 
-            // Clear mnemonic from memory before navigating
-            if (response.MnemonicWords != null)
-            {
-                Array.Clear(response.MnemonicWords, 0, response.MnemonicWords.Length);
-            }
-            response = null;
-
+        if (_isFirstLogin)
+        {
+            Navigation.NavigateTo("dashboard");
+        }
+        else if (walletAddress != null)
+        {
             Navigation.NavigateTo($"wallets/{walletAddress}");
         }
         else
