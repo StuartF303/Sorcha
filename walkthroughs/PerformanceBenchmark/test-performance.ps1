@@ -57,6 +57,7 @@ $GatewayUrl = ""
 $TenantUrl = ""
 $RegisterUrl = ""
 $WalletUrl = ""
+$ValidatorUrl = ""
 
 switch ($Profile) {
     'gateway' {
@@ -64,18 +65,21 @@ switch ($Profile) {
         $TenantUrl     = "$GatewayUrl/api"
         $RegisterUrl   = "$GatewayUrl/api"
         $WalletUrl     = "$GatewayUrl/api"
+        $ValidatorUrl  = "$GatewayUrl/api/validator"  # Gateway routes /api/validator/* to validator service
     }
     'direct' {
         $GatewayUrl    = "http://localhost"
         $TenantUrl     = "http://localhost:5450/api"
         $RegisterUrl   = "http://localhost:5380/api"
         $WalletUrl     = "$GatewayUrl/api"
+        $ValidatorUrl  = "http://localhost:5800/api/v1"
     }
     'aspire' {
         $GatewayUrl    = "https://localhost:7082"
         $TenantUrl     = "https://localhost:7110/api"
         $RegisterUrl   = "https://localhost:7290/api"
         $WalletUrl     = "$GatewayUrl/api"
+        $ValidatorUrl  = "https://localhost:7800/api/v1"
     }
 }
 
@@ -307,38 +311,42 @@ function New-TestRegister {
     Write-Step "Creating test register..."
 
     # Create wallet first
-    $walletResponse = Invoke-ApiRequest -Method Post `
-        -Url "$WalletUrl/v1/wallets" `
+    $walletBody = @{
+        name = "Performance Test Wallet"
+        algorithm = "ED25519"
+        wordCount = 12
+    } | ConvertTo-Json -Depth 10
+
+    $walletResponse = Invoke-RestMethod -Method Post `
+        -Uri "$WalletUrl/v1/wallets" `
         -Headers @{ Authorization = "Bearer $Token" } `
-        -Body @{
-            name = "Performance Test Wallet"
-            algorithm = "ED25519"
-            wordCount = 12
-        }
+        -Body $walletBody `
+        -ContentType "application/json" `
+        -UseBasicParsing
 
     $walletAddress = $walletResponse.wallet.address
     Write-Info "Created wallet: $walletAddress"
 
     # Initiate register
-    $initiateResponse = Invoke-ApiRequest -Method Post `
-        -Url "$RegisterUrl/registers/initiate" `
-        -Headers @{ Authorization = "Bearer $Token" } `
-        -Body @{
-            name = "Performance Test Register"
-            description = "Register for performance benchmarking"
-            tenantId = "00000000-0000-0000-0000-000000000000"
-            advertise = $false
-            owners = @(
-                @{
-                    userId = "perf-admin"
-                    walletId = $walletAddress
-                }
-            )
-            metadata = @{
-                source = "performance-test"
-                timestamp = (Get-Date).ToString("o")
+    $initiateBody = @{
+        name = "Performance Test Register"
+        description = "Register for performance benchmarking"
+        tenantId = "00000000-0000-0000-0000-000000000000"
+        advertise = $false
+        owners = @(
+            @{
+                userId = "perf-admin"
+                walletId = $walletAddress
             }
-        }
+        )
+    } | ConvertTo-Json -Depth 10
+
+    $initiateResponse = Invoke-RestMethod -Method Post `
+        -Uri "$RegisterUrl/registers/initiate" `
+        -Headers @{ Authorization = "Bearer $Token" } `
+        -Body $initiateBody `
+        -ContentType "application/json" `
+        -UseBasicParsing
 
     $registerId = $initiateResponse.registerId
     $nonce = $initiateResponse.nonce
@@ -357,32 +365,60 @@ function New-TestRegister {
         }
         $dataToSignBase64 = [Convert]::ToBase64String($hashBytes)
 
-        $signResponse = Invoke-ApiRequest -Method Post `
-            -Url "$WalletUrl/v1/wallets/$($att.walletId)/sign" `
+        $signBody = @{
+            transactionData = $dataToSignBase64
+            isPreHashed = $true
+        } | ConvertTo-Json -Depth 10
+
+        $signResponse = Invoke-RestMethod -Method Post `
+            -Uri "$WalletUrl/v1/wallets/$($att.walletId)/sign" `
             -Headers @{ Authorization = "Bearer $Token" } `
-            -Body @{
-                transactionData = $dataToSignBase64
-                isPreHashed = $true
-            }
+            -Body $signBody `
+            -ContentType "application/json" `
+            -UseBasicParsing
 
         $signedAttestations += @{
-            role = $att.role
-            walletId = $att.walletId
+            attestationData = $att.attestationData
+            publicKey = $signResponse.publicKey
             signature = $signResponse.signature
+            algorithm = "ED25519"
         }
     }
 
     # Finalize register
-    $finalizeResponse = Invoke-ApiRequest -Method Post `
-        -Url "$RegisterUrl/registers/finalize" `
-        -Headers @{ Authorization = "Bearer $Token" } `
-        -Body @{
-            registerId = $registerId
-            nonce = $nonce
-            signedAttestations = $signedAttestations
-        }
+    $finalizeBody = @{
+        registerId = $registerId
+        nonce = $nonce
+        signedAttestations = $signedAttestations
+    } | ConvertTo-Json -Depth 10
 
-    Write-Success "Created register: $registerId"
+    Write-Info "Finalizing register: $registerId"
+    Write-Info "Finalize body: $finalizeBody"
+
+    try {
+        $finalizeResponse = Invoke-RestMethod -Method Post `
+            -Uri "$RegisterUrl/registers/finalize" `
+            -Headers @{ Authorization = "Bearer $Token" } `
+            -Body $finalizeBody `
+            -ContentType "application/json" `
+            -UseBasicParsing
+
+        Write-Success "Created register: $registerId"
+    }
+    catch {
+        Write-Error "Register finalization failed"
+        Write-Host "  Status: $($_.Exception.Response.StatusCode.value__)" -ForegroundColor Red
+        Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
+
+        try {
+            $errorStream = $_.Exception.Response.GetResponseStream()
+            $errorReader = New-Object System.IO.StreamReader($errorStream)
+            $errorBody = $errorReader.ReadToEnd()
+            Write-Host "  Response body: $errorBody" -ForegroundColor Red
+        } catch {}
+
+        throw
+    }
 
     return @{
         RegisterId = $registerId
@@ -405,16 +441,126 @@ function New-TestTransaction {
         })
         timestamp = (Get-Date).ToString("o")
         sequence = Get-Random -Minimum 1 -Maximum 1000000
+        payloadSizeBytes = $PayloadBytes
     }
 
+    # CRITICAL: We need to compute hash from the EXACT JSON that will be sent
+    # First serialize to get the JSON string
+    $payloadJson = $payload | ConvertTo-Json -Compress -Depth 10
+
+    # Parse it back to get consistent object (this is what will be sent as JsonElement)
+    $payloadForRequest = $payloadJson | ConvertFrom-Json
+
+    # Re-serialize to get the FINAL JSON (this is what validator will see)
+    $finalPayloadJson = $payloadForRequest | ConvertTo-Json -Compress -Depth 10
+    $jsonBytes = [System.Text.Encoding]::UTF8.GetBytes($finalPayloadJson)
+
+    # Compute payload hash from FINAL JSON
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    $payloadHashBytes = $sha256.ComputeHash($jsonBytes)
+    $payloadHash = [BitConverter]::ToString($payloadHashBytes).Replace('-', '').ToLowerInvariant()
+
+    # Generate transaction ID (SHA-256 of registerId + timestamp + random)
+    $txIdSource = "$RegisterId-$(Get-Date -Format 'o')-$(Get-Random)"
+    $txIdBytes = [System.Text.Encoding]::UTF8.GetBytes($txIdSource)
+    $txIdHashBytes = $sha256.ComputeHash($txIdBytes)
+    $transactionId = [BitConverter]::ToString($txIdHashBytes).Replace('-', '').ToLowerInvariant()
+
+    # Sign transaction ID with wallet
+    $dataToSignBase64 = [Convert]::ToBase64String($txIdHashBytes)
+
+    $signBody = @{
+        transactionData = $dataToSignBase64
+        isPreHashed = $true
+    } | ConvertTo-Json -Depth 10
+
+    try {
+        $signResponse = Invoke-RestMethod -Method Post `
+            -Uri "$WalletUrl/v1/wallets/$WalletAddress/sign" `
+            -Headers @{ Authorization = "Bearer $Token" } `
+            -Body $signBody `
+            -ContentType "application/json" `
+            -UseBasicParsing
+    }
+    catch {
+        Write-Host "  ! Signing failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        return $null
+    }
+
+    # Build validator service request
     $transaction = @{
+        transactionId = $transactionId
         registerId = $RegisterId
-        senderAddress = $WalletAddress
-        actionType = "TEST_TRANSACTION"
-        payload = $payload
+        blueprintId = "performance-test-v1"
+        actionId = "1"
+        payload = $payloadForRequest  # Use the same object we computed hash from
+        payloadHash = $payloadHash
+        signatures = @(
+            @{
+                publicKey = $signResponse.publicKey
+                signatureValue = $signResponse.signature
+                algorithm = if ($signResponse.algorithm) { $signResponse.algorithm } else { "ED25519" }
+            }
+        )
+        createdAt = (Get-Date).ToUniversalTime().ToString("o")
+        expiresAt = (Get-Date).AddMinutes(5).ToUniversalTime().ToString("o")
+        priority = 1  # Normal priority
+        metadata = @{
+            source = "performance-benchmark"
+            payloadSize = "$PayloadBytes"
+        }
     }
 
     return $transaction
+}
+
+function Submit-Transaction {
+    param(
+        [object]$Transaction,
+        [string]$Token
+    )
+
+    $txBody = $Transaction | ConvertTo-Json -Depth 10
+    $result = @{ Success = $false; Duration = 0 }
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    try {
+        $response = Invoke-RestMethod -Method Post `
+            -Uri "$ValidatorUrl/transactions/validate" `
+            -Headers @{ Authorization = "Bearer $Token" } `
+            -Body $txBody `
+            -ContentType "application/json" `
+            -UseBasicParsing
+
+        $stopwatch.Stop()
+        $result = @{
+            Success = ($response.isValid -eq $true -and $response.added -eq $true)
+            Duration = $stopwatch.Elapsed.TotalMilliseconds
+            Response = $response
+        }
+    }
+    catch {
+        $stopwatch.Stop()
+        $errorMsg = $_.Exception.Message
+
+        # Try to get response body for debugging
+        try {
+            $errorStream = $_.Exception.Response.GetResponseStream()
+            $errorReader = New-Object System.IO.StreamReader($errorStream)
+            $errorBody = $errorReader.ReadToEnd()
+            if ($errorBody) {
+                $errorMsg = "$errorMsg | Response: $errorBody"
+            }
+        } catch {}
+
+        $result = @{
+            Success = $false
+            Duration = $stopwatch.Elapsed.TotalMilliseconds
+            Error = $errorMsg
+        }
+    }
+
+    return $result
 }
 
 # ============================================================================
@@ -447,11 +593,13 @@ function Test-PayloadSizes {
 
             $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $sizeBytes -Token $Token
 
-            $result = Invoke-ApiRequest -Method Post `
-                -Url "$RegisterUrl/registers/$RegisterId/transactions" `
-                -Headers @{ Authorization = "Bearer $Token" } `
-                -Body $tx `
-                -ReturnTiming
+            if ($tx -eq $null) {
+                $errors++
+                continue
+            }
+
+            # Submit to Validator Service
+            $result = Submit-Transaction -Transaction $tx -Token $Token
 
             if ($result.Success) {
                 $latencies += $result.Duration
@@ -514,12 +662,12 @@ function Test-Throughput {
     while ($stopwatch.Elapsed.TotalSeconds -lt $duration) {
         $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $payloadSize -Token $Token
 
-        $result = Invoke-ApiRequest -Method Post `
-            -Url "$RegisterUrl/registers/$RegisterId/transactions" `
-            -Headers @{ Authorization = "Bearer $Token" } `
-            -Body $tx `
-            -ReturnTiming
+        if ($tx -eq $null) {
+            $errors++
+            continue
+        }
 
+        $result = Submit-Transaction -Transaction $tx -Token $Token
         $transactions++
 
         if ($result.Success) {
@@ -604,11 +752,12 @@ function Test-Latency {
 
             $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $payloadSize -Token $Token
 
-            $result = Invoke-ApiRequest -Method Post `
-                -Url "$RegisterUrl/registers/$RegisterId/transactions" `
-                -Headers @{ Authorization = "Bearer $Token" } `
-                -Body $tx `
-                -ReturnTiming
+            if ($tx -eq $null) {
+                $errors++
+                continue
+            }
+
+            $result = Submit-Transaction -Transaction $tx -Token $Token
 
             if ($result.Success) {
                 $latencies += $result.Duration
@@ -783,6 +932,8 @@ function Test-DocketBuilding {
         Write-Info "Submitting $docketSize transactions..."
         $txIds = @()
 
+        $submitStart = Get-Date
+
         for ($i = 1; $i -le $docketSize; $i++) {
             Write-Progress -Activity "Docket Test: $docketSize txs" `
                 -Status "Submitting transaction $i" `
@@ -790,38 +941,36 @@ function Test-DocketBuilding {
 
             $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $payloadSize -Token $Token
 
-            $response = Invoke-ApiRequest -Method Post `
-                -Url "$RegisterUrl/registers/$RegisterId/transactions" `
-                -Headers @{ Authorization = "Bearer $Token" } `
-                -Body $tx
+            if ($tx -eq $null) {
+                continue
+            }
 
-            $txIds += $response.txId
+            $result = Submit-Transaction -Transaction $tx -Token $Token
+
+            if ($result.Success) {
+                $txIds += $result.Response.transactionId
+            }
+
             Start-Sleep -Milliseconds 20
         }
 
+        $submitEnd = Get-Date
+        $submitTime = ($submitEnd - $submitStart).TotalMilliseconds
+
         Write-Progress -Activity "Docket Test: $docketSize txs" -Completed
 
-        # Trigger docket build
-        Write-Info "Triggering docket build..."
+        # Note: Dockets are built automatically by Validator Service background service
+        # For now, just measure submission performance
+        Write-Info "Submitted $($txIds.Count) transactions to mempool"
 
-        $docketBuildStart = Get-Date
+        if ($txIds.Count -gt 0) {
+            Write-Success "Transaction submission completed"
+            Write-Metric "Submitted" $txIds.Count "txs"
+            Write-Metric "Submit Time" "$($submitTime.ToString('F2'))" "ms"
+            Write-Metric "Submit TPS" "$(($txIds.Count / ($submitTime / 1000)).ToString('F2'))" "txs/sec"
 
-        try {
-            $docketResponse = Invoke-ApiRequest -Method Post `
-                -Url "$RegisterUrl/registers/$RegisterId/dockets" `
-                -Headers @{ Authorization = "Bearer $Token" } `
-                -Body @{
-                    transactionIds = $txIds
-                }
-
-            $docketBuildEnd = Get-Date
-            $buildTime = ($docketBuildEnd - $docketBuildStart).TotalMilliseconds
-
-            Write-Success "Docket built successfully"
-            Write-Metric "Docket ID" $docketResponse.docketId
-            Write-Metric "Build Time" "$($buildTime.ToString('F2'))" "ms"
-            Write-Metric "Transactions" $docketSize "txs"
-            Write-Metric "TPS" "$(($docketSize / ($buildTime / 1000)).ToString('F2'))" "txs/sec"
+            # Note: Automatic docket building happens in background
+            Write-Info "Docket building occurs automatically via Validator Service"
 
             $Script:Results.Tests.DocketBuilding += @{
                 DocketSize = $docketSize

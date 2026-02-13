@@ -1,0 +1,51 @@
+{
+  "Latency": {
+    "TotalTransactions": 100,
+    "SuccessCount": 100,
+    "P50": 32,
+    "P75": 35,
+    "P90": 40,
+    "P95": 55,
+    "P99": 71,
+    "Min": 24,
+    "Max": 88,
+    "Mean": 34.14,
+    "StdDev": 9.891430634645324
+  },
+  "Throughput": {
+    "DurationSeconds": 30.2006738,
+    "TotalTransactions": 1971,
+    "SuccessCount": 1968,
+    "FailureCount": 3,
+    "TransactionsPerSecond": 65.16410902064045,
+    "LatencyP50": 111,
+    "LatencyP95": 306,
+    "LatencyP99": 834,
+    "LatencyMin": 31,
+    "LatencyMax": 2945,
+    "LatencyMean": 152.41920731707316
+  },
+  "Concurrency": {
+    "Results": [
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+    ]
+  },
+  "PayloadSize": {
+    "Results": [
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+    ]
+  },
+  "Timestamp": "2026-02-13T22:23:20.7096896Z",
+  "TestEnvironment": "T14S"
+}
