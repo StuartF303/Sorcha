@@ -1084,6 +1084,58 @@ docketsGroup.MapPost("/", async (
 .RequireAuthorization("CanWriteDockets");
 
 // ===========================
+// Blueprint Publishing API
+// ===========================
+
+/// <summary>
+/// Publish a blueprint to a register
+/// </summary>
+app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
+    string registerId,
+    PublishBlueprintToRegisterRequest request,
+    IRegisterRepository repository,
+    SystemRegisterService systemRegister,
+    Sorcha.Register.Core.Services.IGovernanceRosterService rosterService) =>
+{
+    // Verify register exists
+    var register = await repository.GetRegisterAsync(registerId);
+    if (register == null)
+    {
+        return Results.NotFound(new { error = $"Register '{registerId}' not found" });
+    }
+
+    // Verify caller has publishing rights via governance roster
+    var roster = await rosterService.GetCurrentRosterAsync(registerId);
+    if (roster != null)
+    {
+        var hasPublishRights = roster.ControlRecord.Attestations.Any(a =>
+            a.Role.ToString() is "Owner" or "Admin" or "Designer");
+        if (!hasPublishRights)
+        {
+            return Results.Forbid();
+        }
+    }
+
+    // Publish to system register
+    var bsonDocument = MongoDB.Bson.BsonDocument.Parse(request.BlueprintJson);
+    var entry = await systemRegister.PublishBlueprintAsync(
+        request.BlueprintId, bsonDocument, request.PublishedBy);
+
+    return Results.Ok(new
+    {
+        blueprintId = request.BlueprintId,
+        registerId,
+        version = entry.Version,
+        publishedAt = entry.PublishedAt
+    });
+})
+.WithTags("Blueprints")
+.WithName("PublishBlueprintToRegister")
+.WithSummary("Publish a blueprint to a register")
+.WithDescription("Publishes a blueprint to a specific register after verifying governance rights.")
+.RequireAuthorization("CanWriteTransactions");
+
+// ===========================
 // Governance API
 // ===========================
 
@@ -1177,6 +1229,11 @@ record UpdateRegisterRequest(
     string? Name = null,
     RegisterStatus? Status = null,
     bool? Advertise = null);
+
+record PublishBlueprintToRegisterRequest(
+    string BlueprintId,
+    string BlueprintJson,
+    string PublishedBy);
 
 record WriteDocketRequest(
     string DocketId,

@@ -17,6 +17,8 @@ public interface IBlueprintApiService
     Task<BlueprintListItemViewModel?> SaveBlueprintAsync(object blueprint, CancellationToken cancellationToken = default);
     Task<bool> DeleteBlueprintAsync(string id, CancellationToken cancellationToken = default);
     Task<PublishReviewViewModel?> PublishBlueprintAsync(string id, CancellationToken cancellationToken = default);
+    Task<BlueprintValidationResponse?> ValidateBlueprintAsync(string id, CancellationToken cancellationToken = default);
+    Task<PublishReviewViewModel?> PublishBlueprintToRegisterAsync(string id, string registerId, CancellationToken cancellationToken = default);
     Task<List<BlueprintVersionViewModel>> GetVersionsAsync(string id, CancellationToken cancellationToken = default);
     Task<BlueprintListItemViewModel?> GetVersionAsync(string id, string version, CancellationToken cancellationToken = default);
 }

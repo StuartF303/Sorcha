@@ -1,0 +1,662 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.Register.Models.Enums
+@using Sorcha.UI.Core.Models.Blueprints
+@using Sorcha.UI.Core.Models.Registers
+@using Sorcha.UI.Core.Services
+
+@inject IBlueprintApiService BlueprintApi
+@inject IRegisterService RegisterService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Publish" Class="mr-2" />
+            Publish Blueprint
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @* Step indicator *@
+        <MudStepper @bind-ActiveIndex="_activeStep"
+                    CurrentStepColor="Color.Primary"
+                    Class="mb-4"
+                    data-testid="publish-wizard-stepper">
+            <MudStep Title="Validate" data-testid="step-validate">
+                <MudText Typo="Typo.body2">Check blueprint is valid</MudText>
+            </MudStep>
+            <MudStep Title="Register" data-testid="step-register">
+                <MudText Typo="Typo.body2">Select target register</MudText>
+            </MudStep>
+            <MudStep Title="Rights" data-testid="step-rights">
+                <MudText Typo="Typo.body2">Verify publishing rights</MudText>
+            </MudStep>
+            <MudStep Title="Publish" data-testid="step-publish">
+                <MudText Typo="Typo.body2">Review and publish</MudText>
+            </MudStep>
+        </MudStepper>
+
+        @* Step content *@
+        <MudPaper Elevation="0" Class="pa-4">
+            @if (_state.IsPublishing)
+            {
+                <MudStack AlignItems="AlignItems.Center" Spacing="4" Class="py-8">
+                    <MudProgressCircular Indeterminate="true" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">
+                        Publishing blueprint to register...
+                    </MudText>
+                </MudStack>
+            }
+            else if (_state.IsPublished)
+            {
+                <MudStack AlignItems="AlignItems.Center" Spacing="4" Class="py-8">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+                    <MudText Typo="Typo.h6" Color="Color.Success">Published Successfully</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Blueprint "@BlueprintTitle" has been published to register "@_state.SelectedRegisterName".
+                    </MudText>
+                </MudStack>
+            }
+            else if (_state.ErrorMessage is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-4" data-testid="error-alert">
+                    <MudStack Spacing="2">
+                        <MudText>@_state.ErrorMessage</MudText>
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Error"
+                                   Size="Size.Small"
+                                   OnClick="ClearError"
+                                   data-testid="retry-button">
+                            Try Again
+                        </MudButton>
+                    </MudStack>
+                </MudAlert>
+            }
+            else
+            {
+                @switch (_activeStep)
+                {
+                    case 0:
+                        @* Step 0: Validate Blueprint *@
+                        <MudStack Spacing="4" data-testid="wizard-step-validate">
+                            <MudText Typo="Typo.body1">
+                                Validating <strong>@BlueprintTitle</strong>
+                            </MudText>
+
+                            @if (_state.IsValidating)
+                            {
+                                <MudStack AlignItems="AlignItems.Center" Spacing="2" Class="py-4">
+                                    <MudProgressCircular Indeterminate="true" Size="Size.Medium" Color="Color.Primary" />
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Running validation checks...</MudText>
+                                </MudStack>
+                            }
+                            else if (_state.IsValid)
+                            {
+                                <MudAlert Severity="Severity.Success" Class="mb-3">
+                                    <MudText Typo="Typo.body2">All validation checks passed. Blueprint is ready to publish.</MudText>
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Error" Class="mb-3">
+                                    <MudText Typo="Typo.body2">Blueprint has validation errors that must be fixed before publishing.</MudText>
+                                </MudAlert>
+                            }
+
+                            @if (_state.ValidationResults.Count > 0)
+                            {
+                                <MudText Typo="Typo.subtitle2" Class="mb-2">Validation Issues</MudText>
+                                <MudList T="string" Dense="true">
+                                    @foreach (var issue in _state.ValidationResults)
+                                    {
+                                        <MudListItem Icon="@GetSeverityIcon(issue.Severity)" IconColor="@GetSeverityColor(issue.Severity)">
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.body2">@issue.Message</MudText>
+                                                @if (!string.IsNullOrEmpty(issue.Location))
+                                                {
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@issue.Location</MudText>
+                                                }
+                                            </MudStack>
+                                        </MudListItem>
+                                    }
+                                </MudList>
+                            }
+
+                            @if (_state.Warnings.Count > 0)
+                            {
+                                <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">Warnings</MudText>
+                                @foreach (var warning in _state.Warnings)
+                                {
+                                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-1">
+                                        <MudText Typo="Typo.body2">@warning</MudText>
+                                    </MudAlert>
+                                }
+                            }
+                        </MudStack>
+                        break;
+
+                    case 1:
+                        @* Step 1: Select Register *@
+                        <MudStack Spacing="4" data-testid="wizard-step-register">
+                            @if (_isLoadingRegisters)
+                            {
+                                <MudStack AlignItems="AlignItems.Center" Spacing="2" Class="py-4">
+                                    <MudProgressCircular Indeterminate="true" Size="Size.Medium" Color="Color.Primary" />
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Loading registers...</MudText>
+                                </MudStack>
+                            }
+                            else if (_registers.Count == 0)
+                            {
+                                <MudAlert Severity="Severity.Warning" data-testid="no-registers-warning">
+                                    <MudText Typo="Typo.body1">No Registers Available</MudText>
+                                    <MudText Typo="Typo.body2" Class="mt-2">
+                                        You need at least one online register to publish a blueprint.
+                                        Navigate to the Registers page to create one.
+                                    </MudText>
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body1" Class="mb-2">Select a register to publish to:</MudText>
+
+                                <MudSelect T="string"
+                                           Value="_state.SelectedRegisterId"
+                                           ValueChanged="OnRegisterSelected"
+                                           Label="Target Register"
+                                           Placeholder="Choose a register"
+                                           Required="true"
+                                           RequiredError="Please select a register"
+                                           Variant="Variant.Outlined"
+                                           FullWidth="true"
+                                           AnchorOrigin="Origin.BottomCenter"
+                                           data-testid="register-select">
+                                    @foreach (var register in _registers)
+                                    {
+                                        <MudSelectItem Value="@register.Id" Disabled="@(!register.IsOnline)" data-testid="register-option">
+                                            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                                <MudIcon Icon="@Icons.Material.Filled.Storage" Size="Size.Small" />
+                                                <MudStack Spacing="0">
+                                                    <MudText Typo="Typo.body2">@register.Name</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="monospace-text">
+                                                        @TruncateId(register.Id)
+                                                    </MudText>
+                                                </MudStack>
+                                                <MudChip T="string" Size="Size.Small"
+                                                         Color="@(register.IsOnline ? Color.Success : Color.Default)">
+                                                    @register.StatusText
+                                                </MudChip>
+                                            </MudStack>
+                                        </MudSelectItem>
+                                    }
+                                </MudSelect>
+
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                    <MudText Typo="Typo.body2">
+                                        The blueprint will be published as an immutable record on the selected register's ledger.
+                                        Only registers with Online status can accept new publications.
+                                    </MudText>
+                                </MudAlert>
+                            }
+                        </MudStack>
+                        break;
+
+                    case 2:
+                        @* Step 2: Rights Check *@
+                        <MudStack Spacing="4" data-testid="wizard-step-rights">
+                            @if (_state.IsCheckingRights)
+                            {
+                                <MudStack AlignItems="AlignItems.Center" Spacing="2" Class="py-4">
+                                    <MudProgressCircular Indeterminate="true" Size="Size.Medium" Color="Color.Primary" />
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Checking governance rights...</MudText>
+                                </MudStack>
+                            }
+                            else if (_state.HasPublishRights)
+                            {
+                                <MudAlert Severity="Severity.Success" Class="mb-3">
+                                    <MudStack Spacing="1">
+                                        <MudText Typo="Typo.body2">You have publishing rights on this register.</MudText>
+                                        <MudText Typo="Typo.caption">Your role: <strong>@_state.UserRole</strong></MudText>
+                                    </MudStack>
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Error" Class="mb-3">
+                                    <MudText Typo="Typo.body2">
+                                        @(_state.RightsError ?? "You do not have publishing rights (Owner, Admin, or Designer) on this register.")
+                                    </MudText>
+                                </MudAlert>
+                            }
+
+                            @if (_state.Roster is not null && _state.Roster.Members.Count > 0)
+                            {
+                                <MudText Typo="Typo.subtitle2" Class="mb-2">
+                                    Register Roster (@_state.Roster.MemberCount member@(_state.Roster.MemberCount != 1 ? "s" : ""))
+                                </MudText>
+                                <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                                    <thead>
+                                        <tr>
+                                            <th>Subject</th>
+                                            <th>Role</th>
+                                            <th>Algorithm</th>
+                                            <th>Granted</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var member in _state.Roster.Members)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <MudText Typo="Typo.body2" Class="monospace-text">
+                                                        @TruncateId(member.Subject)
+                                                    </MudText>
+                                                </td>
+                                                <td>
+                                                    <MudChip T="string" Size="Size.Small"
+                                                             Color="@GetRoleColor(member.Role)">
+                                                        @member.Role
+                                                    </MudChip>
+                                                </td>
+                                                <td>@member.Algorithm</td>
+                                                <td>@member.GrantedAt.ToString("yyyy-MM-dd")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            }
+                        </MudStack>
+                        break;
+
+                    case 3:
+                        @* Step 3: Review & Publish *@
+                        <MudStack Spacing="4" data-testid="wizard-step-publish">
+                            <MudText Typo="Typo.h6">Review Publication</MudText>
+
+                            <MudPaper Elevation="1" Class="pa-4">
+                                <MudStack Spacing="3">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Blueprint</MudText>
+                                        <MudStack Spacing="0" AlignItems="AlignItems.End">
+                                            <MudText Typo="Typo.body1" data-testid="review-title">@BlueprintTitle</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="monospace-text">
+                                                @TruncateId(BlueprintId)
+                                            </MudText>
+                                        </MudStack>
+                                    </MudStack>
+                                    <MudDivider />
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Actions / Participants</MudText>
+                                        <MudText Typo="Typo.body2">@ActionCount action@(ActionCount != 1 ? "s" : ""), @ParticipantCount participant@(ParticipantCount != 1 ? "s" : "")</MudText>
+                                    </MudStack>
+                                    <MudDivider />
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Target Register</MudText>
+                                        <MudStack Spacing="0" AlignItems="AlignItems.End">
+                                            <MudText Typo="Typo.body2" data-testid="review-register">@_state.SelectedRegisterName</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="monospace-text">
+                                                @TruncateId(_state.SelectedRegisterId ?? "")
+                                            </MudText>
+                                        </MudStack>
+                                    </MudStack>
+                                    <MudDivider />
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Your Role</MudText>
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@GetRoleColor(_state.UserRole ?? "")">
+                                            @_state.UserRole
+                                        </MudChip>
+                                    </MudStack>
+                                </MudStack>
+                            </MudPaper>
+
+                            @if (_state.Warnings.Count > 0)
+                            {
+                                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                                    <MudText Typo="Typo.body2">
+                                        This blueprint has @_state.Warnings.Count warning@(_state.Warnings.Count != 1 ? "s" : "") (e.g., cyclic routes).
+                                        It will still be published.
+                                    </MudText>
+                                </MudAlert>
+                            }
+
+                            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                                <MudText Typo="Typo.body2">
+                                    Publishing is permanent. Once published to the register ledger, this blueprint version cannot be modified or deleted.
+                                </MudText>
+                            </MudAlert>
+                        </MudStack>
+                        break;
+                }
+            }
+        </MudPaper>
+    </DialogContent>
+    <DialogActions>
+        @if (_state.IsPublished)
+        {
+            <MudButton OnClick="CloseSuccess"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       data-testid="wizard-done">
+                Done
+            </MudButton>
+        }
+        else
+        {
+            <MudButton OnClick="Cancel"
+                       Disabled="@(_state.IsPublishing)"
+                       data-testid="wizard-cancel">
+                Cancel
+            </MudButton>
+            @if (_activeStep > 0)
+            {
+                <MudButton OnClick="PreviousStep"
+                           Disabled="@(_state.IsPublishing)"
+                           Variant="Variant.Outlined"
+                           data-testid="wizard-back">
+                    Back
+                </MudButton>
+            }
+            @if (_activeStep < 3)
+            {
+                <MudButton OnClick="NextStep"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="@(!_state.CanProceed(_activeStep))"
+                           data-testid="wizard-next">
+                    Next
+                </MudButton>
+            }
+            else
+            {
+                <MudButton OnClick="PublishAsync"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="@(_state.IsPublishing)"
+                           StartIcon="@Icons.Material.Filled.Publish"
+                           data-testid="wizard-publish">
+                    Publish
+                </MudButton>
+            }
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public string BlueprintId { get; set; } = string.Empty;
+
+    [Parameter]
+    public string BlueprintTitle { get; set; } = string.Empty;
+
+    [Parameter]
+    public int ActionCount { get; set; }
+
+    [Parameter]
+    public int ParticipantCount { get; set; }
+
+    [Parameter]
+    public string UserId { get; set; } = "user-001";
+
+    private int _activeStep = 0;
+    private PublishWizardState _state = new();
+    private List<RegisterViewModel> _registers = [];
+    private bool _isLoadingRegisters;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ValidateBlueprintAsync();
+    }
+
+    private async Task ValidateBlueprintAsync()
+    {
+        _state = _state with { IsValidating = true };
+        StateHasChanged();
+
+        try
+        {
+            var result = await BlueprintApi.ValidateBlueprintAsync(BlueprintId);
+            if (result is not null)
+            {
+                _state = _state with
+                {
+                    IsValidating = false,
+                    IsValid = result.IsValid,
+                    ValidationResults = result.ValidationResults,
+                    Warnings = result.Warnings
+                };
+            }
+            else
+            {
+                _state = _state with
+                {
+                    IsValidating = false,
+                    IsValid = false,
+                    ValidationResults = [new ValidationIssue { Severity = "error", Message = "Failed to validate blueprint. The service may be unavailable." }]
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _state = _state with
+            {
+                IsValidating = false,
+                IsValid = false,
+                ValidationResults = [new ValidationIssue { Severity = "error", Message = $"Validation error: {ex.Message}" }]
+            };
+        }
+    }
+
+    private async Task LoadRegistersAsync()
+    {
+        _isLoadingRegisters = true;
+        StateHasChanged();
+
+        try
+        {
+            _registers = (await RegisterService.GetRegistersAsync()).ToList();
+        }
+        catch
+        {
+            _registers = [];
+        }
+        finally
+        {
+            _isLoadingRegisters = false;
+        }
+    }
+
+    private void OnRegisterSelected(string registerId)
+    {
+        var register = _registers.FirstOrDefault(r => r.Id == registerId);
+        _state = _state with
+        {
+            SelectedRegisterId = registerId,
+            SelectedRegisterName = register?.Name ?? "Unknown",
+            // Reset rights check when register changes
+            HasPublishRights = false,
+            UserRole = null,
+            Roster = null,
+            RightsError = null
+        };
+    }
+
+    private async Task CheckRightsAsync()
+    {
+        if (string.IsNullOrEmpty(_state.SelectedRegisterId)) return;
+
+        _state = _state with { IsCheckingRights = true };
+        StateHasChanged();
+
+        try
+        {
+            var roster = await RegisterService.GetGovernanceRosterAsync(_state.SelectedRegisterId);
+            if (roster is null)
+            {
+                // No roster found — could be a new register with no governance yet
+                // Allow publishing by default (server will enforce)
+                _state = _state with
+                {
+                    IsCheckingRights = false,
+                    HasPublishRights = true,
+                    UserRole = "Owner",
+                    Roster = null,
+                    RightsError = null
+                };
+                return;
+            }
+
+            // Check if user has a publishing role (Owner, Admin, Designer)
+            var publishingRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Owner", "Admin", "Designer" };
+            var userMember = roster.Members.FirstOrDefault(m =>
+                m.Subject.Contains(UserId, StringComparison.OrdinalIgnoreCase));
+
+            if (userMember is not null && publishingRoles.Contains(userMember.Role))
+            {
+                _state = _state with
+                {
+                    IsCheckingRights = false,
+                    HasPublishRights = true,
+                    UserRole = userMember.Role,
+                    Roster = roster,
+                    RightsError = null
+                };
+            }
+            else
+            {
+                _state = _state with
+                {
+                    IsCheckingRights = false,
+                    HasPublishRights = false,
+                    UserRole = userMember?.Role,
+                    Roster = roster,
+                    RightsError = userMember is null
+                        ? "Your identity was not found in this register's governance roster."
+                        : $"Your role ({userMember.Role}) does not have publishing rights. Required: Owner, Admin, or Designer."
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _state = _state with
+            {
+                IsCheckingRights = false,
+                HasPublishRights = false,
+                RightsError = $"Failed to check governance rights: {ex.Message}"
+            };
+        }
+    }
+
+    private async Task PublishAsync()
+    {
+        _state = _state with { IsPublishing = true, ErrorMessage = null };
+        StateHasChanged();
+
+        try
+        {
+            var result = await BlueprintApi.PublishBlueprintToRegisterAsync(
+                BlueprintId, _state.SelectedRegisterId!);
+
+            if (result is not null)
+            {
+                _state = _state with { IsPublishing = false, IsPublished = true };
+            }
+            else
+            {
+                _state = _state with
+                {
+                    IsPublishing = false,
+                    ErrorMessage = "Failed to publish blueprint. The service may have rejected the request."
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _state = _state with
+            {
+                IsPublishing = false,
+                ErrorMessage = $"Publishing error: {ex.Message}"
+            };
+        }
+    }
+
+    private async Task NextStep()
+    {
+        if (!_state.CanProceed(_activeStep) || _activeStep >= 3) return;
+
+        _activeStep++;
+
+        // Auto-trigger actions on step entry
+        switch (_activeStep)
+        {
+            case 1:
+                if (_registers.Count == 0)
+                    await LoadRegistersAsync();
+                break;
+            case 2:
+                await CheckRightsAsync();
+                break;
+        }
+    }
+
+    private void PreviousStep()
+    {
+        if (_activeStep > 0)
+        {
+            _activeStep--;
+        }
+    }
+
+    private void ClearError()
+    {
+        _state = _state with { ErrorMessage = null };
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+
+    private void CloseSuccess()
+    {
+        MudDialog?.Close(DialogResult.Ok(true));
+    }
+
+    private static string GetSeverityIcon(string severity) => severity.ToLower() switch
+    {
+        "error" => Icons.Material.Filled.Error,
+        "warning" => Icons.Material.Filled.Warning,
+        _ => Icons.Material.Filled.Info
+    };
+
+    private static Color GetSeverityColor(string severity) => severity.ToLower() switch
+    {
+        "error" => Color.Error,
+        "warning" => Color.Warning,
+        _ => Color.Info
+    };
+
+    private static Color GetRoleColor(string role) => role switch
+    {
+        "Owner" => Color.Primary,
+        "Admin" => Color.Secondary,
+        "Designer" => Color.Tertiary,
+        "Auditor" => Color.Default,
+        _ => Color.Default
+    };
+
+    private static string TruncateId(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return "";
+        return id.Length > 12 ? $"{id[..6]}...{id[^6..]}" : id;
+    }
+}
+
+<style>
+    .monospace-text {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 0.85rem;
+    }
+</style>

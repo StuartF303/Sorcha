@@ -294,11 +294,39 @@ blueprintGroup.MapDelete("/{id}", async (string id, IBlueprintService service, I
 // ===========================
 
 /// <summary>
-/// Publish blueprint
+/// Validate blueprint (no side effects)
 /// </summary>
-blueprintGroup.MapPost("/{id}/publish", async (string id, IPublishService service, IOutputCacheStore cache) =>
+blueprintGroup.MapPost("/{id}/validate", async (string id, IPublishService service) =>
 {
-    var result = await service.PublishAsync(id);
+    var result = await service.ValidateAsync(id);
+    return Results.Ok(result);
+})
+.WithName("ValidateBlueprint")
+.WithSummary("Validate blueprint")
+.WithDescription("Validate a blueprint without publishing. Returns validation errors and warnings.")
+.RequireAuthorization("CanPublishBlueprints");
+
+/// <summary>
+/// Publish blueprint, optionally to a register
+/// </summary>
+blueprintGroup.MapPost("/{id}/publish", async (string id, IPublishService service, IOutputCacheStore cache, HttpRequest request) =>
+{
+    // Read optional registerId from JSON body
+    string? registerId = null;
+    if (request.ContentLength > 0)
+    {
+        try
+        {
+            var body = await request.ReadFromJsonAsync<PublishRequest>();
+            registerId = body?.RegisterId;
+        }
+        catch
+        {
+            // No body or invalid JSON — fall back to legacy behavior
+        }
+    }
+
+    var result = await service.PublishAsync(id, registerId);
 
     if (!result.IsSuccess)
     {
@@ -324,7 +352,7 @@ blueprintGroup.MapPost("/{id}/publish", async (string id, IPublishService servic
 })
 .WithName("PublishBlueprint")
 .WithSummary("Publish blueprint")
-.WithDescription("Validate and publish a blueprint to make it available for use")
+.WithDescription("Validate and publish a blueprint. Optionally publish to a register by providing { registerId } in the request body.")
 .RequireAuthorization("CanPublishBlueprints");
 
 /// <summary>
@@ -1644,8 +1672,21 @@ public interface IBlueprintService
 /// </summary>
 public interface IPublishService
 {
-    Task<PublishResult> PublishAsync(string blueprintId);
+    Task<PublishResult> PublishAsync(string blueprintId, string? registerId = null);
+    Task<BlueprintValidationResult> ValidateAsync(string blueprintId);
 }
+
+/// <summary>
+/// Validation-only result (no publishing side effects)
+/// </summary>
+public record BlueprintValidationResult(
+    string BlueprintId,
+    string Title,
+    bool IsValid,
+    List<ValidationIssueDto> ValidationResults,
+    List<string> Warnings);
+
+public record ValidationIssueDto(string Severity, string Message, string? Location = null);
 
 /// <summary>
 /// In-memory blueprint store
@@ -1784,12 +1825,40 @@ public class BlueprintService(IBlueprintStore store) : IBlueprintService
 /// <summary>
 /// Publish service implementation with validation
 /// </summary>
-public class PublishService(IBlueprintStore blueprintStore, IPublishedBlueprintStore publishedStore) : IPublishService
+public class PublishService(
+    IBlueprintStore blueprintStore,
+    IPublishedBlueprintStore publishedStore,
+    Sorcha.ServiceClients.Register.IRegisterServiceClient? registerClient = null) : IPublishService
 {
     private readonly IBlueprintStore _blueprintStore = blueprintStore;
     private readonly IPublishedBlueprintStore _publishedStore = publishedStore;
+    private readonly Sorcha.ServiceClients.Register.IRegisterServiceClient? _registerClient = registerClient;
 
-    public async Task<PublishResult> PublishAsync(string blueprintId)
+    public async Task<BlueprintValidationResult> ValidateAsync(string blueprintId)
+    {
+        var blueprint = await _blueprintStore.GetAsync(blueprintId);
+        if (blueprint is null)
+        {
+            return new BlueprintValidationResult(
+                blueprintId,
+                string.Empty,
+                false,
+                [new ValidationIssueDto("error", "Blueprint not found")],
+                []);
+        }
+
+        var (errors, warnings) = ValidateBlueprint(blueprint);
+        var issues = errors.Select(e => new ValidationIssueDto("error", e)).ToList();
+
+        return new BlueprintValidationResult(
+            blueprintId,
+            blueprint.Title ?? string.Empty,
+            errors.Count == 0,
+            issues,
+            warnings);
+    }
+
+    public async Task<PublishResult> PublishAsync(string blueprintId, string? registerId = null)
     {
         var blueprint = await _blueprintStore.GetAsync(blueprintId);
         if (blueprint is null)
@@ -1820,6 +1889,14 @@ public class PublishService(IBlueprintStore blueprintStore, IPublishedBlueprintS
         };
 
         await _publishedStore.AddAsync(published);
+
+        // If a register is specified, also publish to the register
+        if (!string.IsNullOrEmpty(registerId) && _registerClient is not null)
+        {
+            var blueprintJson = System.Text.Json.JsonSerializer.Serialize(blueprint);
+            await _registerClient.PublishBlueprintToRegisterAsync(
+                registerId, blueprintId, blueprintJson, "system");
+        }
 
         return PublishResult.Success(published, warnings.ToArray());
     }
@@ -2027,6 +2104,11 @@ public class PublishService(IBlueprintStore blueprintStore, IPublishedBlueprintS
 // ===========================
 // DTOs & Models
 // ===========================
+
+/// <summary>
+/// Request body for publish with optional register target
+/// </summary>
+public record PublishRequest(string? RegisterId = null);
 
 /// <summary>
 /// Blueprint summary for list views

@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Sorcha.Register.Models;
+using Sorcha.UI.Core.Models.Blueprints;
 using Sorcha.UI.Core.Models.Registers;
 
 namespace Sorcha.UI.Core.Services;
@@ -93,6 +94,39 @@ public class RegisterService : IRegisterService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching register {RegisterId}", registerId);
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<GovernanceRosterViewModel?> GetGovernanceRosterAsync(
+        string registerId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync(
+                $"/api/registers/{Uri.EscapeDataString(registerId)}/governance/roster",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return null;
+                }
+
+                _logger.LogWarning("Failed to fetch governance roster for register {RegisterId}: {StatusCode}",
+                    registerId, response.StatusCode);
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<GovernanceRosterViewModel>(
+                JsonOptions, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching governance roster for register {RegisterId}", registerId);
             return null;
         }
     }

@@ -11,7 +11,7 @@ public record BlueprintListItemViewModel
     public string Id { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
-    public string Version { get; init; } = string.Empty;
+    public int Version { get; init; }
     public string Status { get; init; } = "draft";
     public int ActionCount { get; init; }
     public int ParticipantCount { get; init; }
@@ -25,7 +25,7 @@ public record BlueprintListItemViewModel
 /// </summary>
 public record BlueprintVersionViewModel
 {
-    public string Version { get; init; } = string.Empty;
+    public int Version { get; init; }
     public DateTimeOffset PublishedAt { get; init; }
     public int ActionCount { get; init; }
     public string? ChangeDescription { get; init; }

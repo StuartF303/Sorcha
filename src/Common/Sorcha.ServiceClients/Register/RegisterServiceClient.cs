@@ -647,6 +647,112 @@ public class RegisterServiceClient : IRegisterServiceClient
     }
 
     // =========================================================================
+    // Blueprint Publishing
+    // =========================================================================
+
+    public async Task<GovernanceRosterResponse?> GetGovernanceRosterAsync(
+        string registerId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Getting governance roster for register {RegisterId}", registerId);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var response = await _httpClient.GetAsync(
+                $"api/registers/{Uri.EscapeDataString(registerId)}/governance/roster",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    _logger.LogDebug("No governance roster found for register {RegisterId}", registerId);
+                    return null;
+                }
+
+                _logger.LogWarning(
+                    "Failed to get governance roster for register {RegisterId}: {StatusCode}",
+                    registerId, response.StatusCode);
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<GovernanceRosterResponse>(JsonOptions, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error getting governance roster for register {RegisterId}", registerId);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get governance roster for register {RegisterId}", registerId);
+            return null;
+        }
+    }
+
+    public async Task<bool> PublishBlueprintToRegisterAsync(
+        string registerId,
+        string blueprintId,
+        string blueprintJson,
+        string publishedBy,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug(
+                "Publishing blueprint {BlueprintId} to register {RegisterId}",
+                blueprintId, registerId);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var request = new PublishBlueprintRequest
+            {
+                BlueprintId = blueprintId,
+                BlueprintJson = blueprintJson,
+                PublishedBy = publishedBy
+            };
+
+            var response = await _httpClient.PostAsJsonAsync(
+                $"api/registers/{Uri.EscapeDataString(registerId)}/blueprints/publish",
+                request,
+                JsonOptions,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning(
+                    "Failed to publish blueprint {BlueprintId} to register {RegisterId}: {StatusCode} - {Error}",
+                    blueprintId, registerId, response.StatusCode, error);
+                return false;
+            }
+
+            _logger.LogInformation(
+                "Successfully published blueprint {BlueprintId} to register {RegisterId}",
+                blueprintId, registerId);
+            return true;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(
+                ex,
+                "HTTP error publishing blueprint {BlueprintId} to register {RegisterId}",
+                blueprintId, registerId);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to publish blueprint {BlueprintId} to register {RegisterId}",
+                blueprintId, registerId);
+            return false;
+        }
+    }
+
+    // =========================================================================
     // Register Management
     // =========================================================================
 
@@ -765,6 +871,13 @@ public class RegisterServiceClient : IRegisterServiceClient
         public required string TenantId { get; init; }
         public bool Advertise { get; init; } = false;
         public bool IsFullReplica { get; init; } = true;
+    }
+
+    private record PublishBlueprintRequest
+    {
+        public required string BlueprintId { get; init; }
+        public required string BlueprintJson { get; init; }
+        public required string PublishedBy { get; init; }
     }
 
     private record PrevTxIdQueryResponse

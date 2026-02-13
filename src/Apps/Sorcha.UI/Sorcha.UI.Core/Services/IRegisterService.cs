@@ -32,6 +32,16 @@ public interface IRegisterService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the governance roster for a register.
+    /// </summary>
+    /// <param name="registerId">Register identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Governance roster or null if not found.</returns>
+    Task<Sorcha.UI.Core.Models.Blueprints.GovernanceRosterViewModel?> GetGovernanceRosterAsync(
+        string registerId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Initiates register creation (phase 1 of genesis).
     /// </summary>
     /// <param name="request">Register creation request.</param>

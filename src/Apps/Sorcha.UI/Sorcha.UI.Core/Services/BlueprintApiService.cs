@@ -118,6 +118,45 @@ public class BlueprintApiService : IBlueprintApiService
         }
     }
 
+    public async Task<BlueprintValidationResponse?> ValidateBlueprintAsync(string id, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync($"/api/blueprints/{id}/validate", null, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<BlueprintValidationResponse>(cancellationToken: cancellationToken);
+            }
+            _logger.LogWarning("Failed to validate blueprint {Id}: {StatusCode}", id, response.StatusCode);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating blueprint {Id}", id);
+            return null;
+        }
+    }
+
+    public async Task<PublishReviewViewModel?> PublishBlueprintToRegisterAsync(string id, string registerId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var body = new { registerId };
+            var response = await _httpClient.PostAsJsonAsync($"/api/blueprints/{id}/publish", body, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<PublishReviewViewModel>(cancellationToken: cancellationToken);
+            }
+            _logger.LogWarning("Failed to publish blueprint {Id} to register {RegisterId}: {StatusCode}", id, registerId, response.StatusCode);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error publishing blueprint {Id} to register {RegisterId}", id, registerId);
+            return null;
+        }
+    }
+
     public async Task<List<BlueprintVersionViewModel>> GetVersionsAsync(string id, CancellationToken cancellationToken = default)
     {
         try

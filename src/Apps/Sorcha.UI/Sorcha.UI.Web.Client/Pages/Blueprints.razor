@@ -238,37 +238,19 @@
     {
         var parameters = new DialogParameters
         {
-            ["Review"] = new PublishReviewViewModel
-            {
-                BlueprintId = blueprint.Id,
-                Title = blueprint.Title,
-                IsValid = true,
-                ValidationResults = [],
-                Warnings = []
-            }
+            ["BlueprintId"] = blueprint.Id,
+            ["BlueprintTitle"] = blueprint.Title,
+            ["ActionCount"] = blueprint.ActionCount,
+            ["ParticipantCount"] = blueprint.ParticipantCount
         };
-        var dialog = await DialogService.ShowAsync<PublishReview>("Publish Blueprint", parameters);
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PublishBlueprintWizard>("Publish Blueprint", parameters, options);
         var result = await dialog.Result;
 
         if (result is { Canceled: false })
         {
-            try
-            {
-                var publishResult = await BlueprintApi.PublishBlueprintAsync(blueprint.Id);
-                if (publishResult != null)
-                {
-                    Snackbar.Add($"Blueprint '{blueprint.Title}' published successfully", Severity.Success);
-                    await LoadBlueprintsAsync();
-                }
-                else
-                {
-                    Snackbar.Add("Failed to publish blueprint", Severity.Error);
-                }
-            }
-            catch
-            {
-                Snackbar.Add("Error publishing blueprint", Severity.Error);
-            }
+            Snackbar.Add($"Blueprint '{blueprint.Title}' published successfully", Severity.Success);
+            await LoadBlueprintsAsync();
         }
     }
 

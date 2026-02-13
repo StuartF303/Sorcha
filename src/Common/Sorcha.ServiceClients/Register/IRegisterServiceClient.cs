@@ -182,6 +182,36 @@ public interface IRegisterServiceClient
         CancellationToken cancellationToken = default);
 
     // =========================================================================
+    // Blueprint Publishing (Blueprint Service → Register Service)
+    // =========================================================================
+
+    /// <summary>
+    /// Gets the governance roster for a register
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Governance roster response, or null if not found</returns>
+    Task<GovernanceRosterResponse?> GetGovernanceRosterAsync(
+        string registerId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Publishes a blueprint to a register
+    /// </summary>
+    /// <param name="registerId">Target register ID</param>
+    /// <param name="blueprintId">Blueprint ID</param>
+    /// <param name="blueprintJson">Serialized blueprint JSON</param>
+    /// <param name="publishedBy">Publisher identity</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if published successfully</returns>
+    Task<bool> PublishBlueprintToRegisterAsync(
+        string registerId,
+        string blueprintId,
+        string blueprintJson,
+        string publishedBy,
+        CancellationToken cancellationToken = default);
+
+    // =========================================================================
     // Register Management (All Services)
     // =========================================================================
 
@@ -263,4 +293,27 @@ public class DocketModel
     public required List<TransactionModel> Transactions { get; init; }
     public required string ProposerValidatorId { get; init; }
     public required string MerkleRoot { get; init; }
+}
+
+/// <summary>
+/// Response from the governance roster endpoint
+/// </summary>
+public class GovernanceRosterResponse
+{
+    public string RegisterId { get; set; } = string.Empty;
+    public List<RosterMember> Members { get; set; } = [];
+    public int MemberCount { get; set; }
+    public int ControlTransactionCount { get; set; }
+    public string? LastControlTxId { get; set; }
+}
+
+/// <summary>
+/// A member of the governance roster
+/// </summary>
+public class RosterMember
+{
+    public string Subject { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public string Algorithm { get; set; } = string.Empty;
+    public DateTimeOffset GrantedAt { get; set; }
 }
