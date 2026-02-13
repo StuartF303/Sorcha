@@ -1,0 +1,5 @@
+# Results directory for performance benchmarks
+# Generated files:
+# - benchmark-{timestamp}.json - Detailed test results
+# - summary-{timestamp}.md - Human-readable summary
+# - resource-usage.csv - Docker container resource monitoring

@@ -161,6 +161,37 @@ walkthroughs/
 
 **Profiles:** `gateway` (default), `direct`, `aspire`
 
+### [PerformanceBenchmark](./PerformanceBenchmark/)
+**Status:** ✅ Complete
+**Date:** 2026-02-13
+**Purpose:** Comprehensive performance testing of Register Service with payload, throughput, latency, and concurrency benchmarks
+
+**What you'll learn:**
+- Measuring transaction performance across payload sizes (1KB-1MB)
+- Throughput testing (transactions per second)
+- Latency benchmarking under various load conditions
+- Concurrency testing with parallel transaction streams
+- Docket building performance measurement
+- Identifying performance bottlenecks and optimization opportunities
+
+**Key files:**
+- `test-performance.ps1` - Main benchmark suite with 5 test scenarios
+- `monitor-resources.ps1` - Docker container resource monitoring
+- `PERFORMANCE-REPORT.md` - Results template and analysis framework
+- `results/` - Generated benchmark data (JSON/CSV)
+
+**Test Scenarios:**
+- Payload sizes: 1KB, 10KB, 50KB, 100KB, 500KB, 1MB
+- Throughput: Sustained TPS measurement (60s duration)
+- Latency: P50/P95/P99 under normal and stressed conditions
+- Concurrency: 1, 5, 10, 25, 50 parallel workers
+- Docket building: 10, 50, 100, 500 transaction batches
+
+**Expected Metrics:**
+- Throughput: 100+ TPS target
+- Latency P95: <200ms (5KB payloads)
+- Concurrency: 25+ workers without degradation
+
 ---
 
 ## Creating a New Walkthrough
