@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Text.Json.Serialization;
+
 namespace Sorcha.Blueprint.Models.Credentials;
 
 /// <summary>
 /// Defines the policy for handling credential revocation checks when the
 /// revocation registry is unreachable or returns an inconclusive result.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum RevocationCheckPolicy
 {
     /// <summary>

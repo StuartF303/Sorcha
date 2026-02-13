@@ -45,7 +45,7 @@ public class ActionCredentialSerializationTests
         reqs[0].GetProperty("type").GetString().Should().Be("IdentityAttestation");
         reqs[0].GetProperty("acceptedIssuers").GetArrayLength().Should().Be(1);
         reqs[0].GetProperty("requiredClaims")[0].GetProperty("claimName").GetString().Should().Be("nationality");
-        reqs[0].GetProperty("revocationCheckPolicy").GetInt32().Should().Be(0); // FailClosed
+        reqs[0].GetProperty("revocationCheckPolicy").GetString().Should().Be("FailClosed");
     }
 
     [Fact]

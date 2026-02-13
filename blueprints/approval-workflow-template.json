@@ -8,10 +8,7 @@
   "author": "Sorcha Team",
   "published": true,
   "template": {
-    "$eval": "blueprintTemplate",
-    "context": {
-      "blueprintTemplate": {
-        "@type": "Blueprint",
+    "@type": "Blueprint",
         "id": { "$eval": "blueprintId" },
         "title": { "$eval": "blueprintTitle" },
         "description": { "$eval": "blueprintDescription" },
@@ -376,26 +373,6 @@
             }
           ]
         }
-      },
-      "blueprintId": { "$eval": "blueprintId" },
-      "blueprintTitle": { "$eval": "blueprintTitle" },
-      "blueprintDescription": { "$eval": "blueprintDescription" },
-      "organization": { "$eval": "organization" },
-      "managerTitle": { "$eval": "managerTitle" },
-      "directorTitle": { "$eval": "directorTitle" },
-      "executiveTitle": { "$eval": "executiveTitle" },
-      "requestActionTitle": { "$eval": "requestActionTitle" },
-      "requestActionDescription": { "$eval": "requestActionDescription" },
-      "amountFieldLabel": { "$eval": "amountFieldLabel" },
-      "requestTypes": { "$eval": "requestTypes" },
-      "requiresManagerApproval": { "$eval": "requiresManagerApproval" },
-      "requiresDirectorApproval": { "$eval": "requiresDirectorApproval" },
-      "requiresExecutiveApproval": { "$eval": "requiresExecutiveApproval" },
-      "requiresComplianceReview": { "$eval": "requiresComplianceReview" },
-      "directorThreshold": { "$eval": "directorThreshold" },
-      "executiveThreshold": { "$eval": "executiveThreshold" },
-      "complianceReviewTypes": { "$eval": "complianceReviewTypes" }
-    }
   },
   "parameterSchema": {
     "type": "object",

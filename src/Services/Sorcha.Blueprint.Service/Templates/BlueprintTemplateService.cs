@@ -110,7 +110,9 @@ public class BlueprintTemplateService : IBlueprintTemplateService
             var context = MergeParameters(template.DefaultParameters, request.Parameters);
 
             // Validate parameters if schema is defined
-            if (template.ParameterSchema != null)
+            // Note: JSON null deserializes as a JsonDocument wrapping null, not C# null
+            if (template.ParameterSchema != null
+                && template.ParameterSchema.RootElement.ValueKind != System.Text.Json.JsonValueKind.Null)
             {
                 var validationResult = await ValidateParametersAsync(
                     template.Id,
@@ -235,7 +237,8 @@ public class BlueprintTemplateService : IBlueprintTemplateService
             return ValidationResult.Failure($"Template '{templateId}' not found");
         }
 
-        if (template.ParameterSchema == null)
+        if (template.ParameterSchema == null
+            || template.ParameterSchema.RootElement.ValueKind == System.Text.Json.JsonValueKind.Null)
         {
             return ValidationResult.Success();
         }

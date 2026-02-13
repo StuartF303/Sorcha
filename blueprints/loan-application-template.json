@@ -8,192 +8,178 @@
   "author": "Sorcha Team",
   "published": true,
   "template": {
-    "$eval": "blueprintTemplate",
-    "context": {
-      "blueprintTemplate": {
-        "@context": {
-          "@vocab": "https://sorcha.dev/blueprint/v1#",
-          "schema": "https://schema.org/",
-          "did": "https://www.w3.org/ns/did#",
-          "xsd": "http://www.w3.org/2001/XMLSchema#",
-          "id": "@id",
-          "type": "@type",
-          "title": "schema:name",
-          "description": "schema:description",
-          "LoanApplication": "schema:LoanOrCredit",
-          "loanAmount": {
-            "@id": "schema:amount",
-            "@type": "schema:MonetaryAmount"
+    "@context": {
+      "@vocab": "https://sorcha.dev/blueprint/v1#",
+      "schema": "https://schema.org/",
+      "did": "https://www.w3.org/ns/did#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#",
+      "id": "@id",
+      "type": "@type",
+      "title": "schema:name",
+      "description": "schema:description",
+      "LoanApplication": "schema:LoanOrCredit",
+      "loanAmount": {
+        "@id": "schema:amount",
+        "@type": "schema:MonetaryAmount"
+      }
+    },
+    "id": { "$eval": "blueprintId" },
+    "type": "Blueprint",
+    "title": { "$eval": "blueprintTitle" },
+    "description": { "$eval": "blueprintDescription" },
+    "version": 1,
+    "metadata": {
+      "category": "finance",
+      "author": "Sorcha Team"
+    },
+    "participants": [
+      {
+        "id": "applicant",
+        "type": "Participant",
+        "name": "Loan Applicant",
+        "organisation": "Self",
+        "didUri": "did:example:applicant"
+      },
+      {
+        "id": "loan-officer",
+        "type": "Participant",
+        "name": "Loan Officer",
+        "organisation": { "$eval": "bankName" },
+        "didUri": "did:example:loan-officer"
+      },
+      {
+        "$if": "requiresSeniorApproval",
+        "then": {
+          "id": "senior-officer",
+          "type": "Participant",
+          "name": "Senior Loan Officer",
+          "organisation": { "$eval": "bankName" },
+          "didUri": "did:example:senior-officer"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "id": 0,
+        "type": "CreateAction",
+        "title": "Submit Loan Application",
+        "description": "Applicant submits loan application with personal and financial information",
+        "sender": "applicant",
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "firstName": {
+                "type": "string",
+                "title": "First Name",
+                "minLength": 2,
+                "maxLength": 50
+              },
+              "lastName": {
+                "type": "string",
+                "title": "Last Name",
+                "minLength": 2,
+                "maxLength": 50
+              },
+              "email": {
+                "type": "string",
+                "title": "Email Address",
+                "format": "email"
+              },
+              "requestedAmount": {
+                "type": "number",
+                "title": "Requested Loan Amount",
+                "minimum": { "$eval": "minLoanAmount" },
+                "maximum": { "$eval": "maxLoanAmount" }
+              },
+              "purpose": {
+                "type": "string",
+                "title": "Loan Purpose",
+                "minLength": 10,
+                "maxLength": 500
+              },
+              "creditScore": {
+                "type": "integer",
+                "title": "Credit Score",
+                "minimum": 300,
+                "maximum": 850
+              }
+            },
+            "required": ["firstName", "lastName", "email", "requestedAmount", "purpose"]
           }
-        },
-        "id": { "$eval": "blueprintId" },
-        "type": "Blueprint",
-        "title": { "$eval": "blueprintTitle" },
-        "description": { "$eval": "blueprintDescription" },
-        "version": 1,
-        "metadata": {
-          "category": "finance",
-          "author": "Sorcha Team"
-        },
-        "participants": [
+        ],
+        "disclosures": [
           {
-            "id": "applicant",
-            "type": "Participant",
-            "name": "Loan Applicant",
-            "organisation": "Self",
-            "didUri": "did:example:applicant"
-          },
-          {
-            "id": "loan-officer",
-            "type": "Participant",
-            "name": "Loan Officer",
-            "organisation": { "$eval": "bankName" },
-            "didUri": "did:example:loan-officer"
+            "participantAddress": "loan-officer",
+            "dataPointers": ["/*"]
           },
           {
             "$if": "requiresSeniorApproval",
             "then": {
-              "id": "senior-officer",
-              "type": "Participant",
-              "name": "Senior Loan Officer",
-              "organisation": { "$eval": "bankName" },
-              "didUri": "did:example:senior-officer"
+              "participantAddress": "senior-officer",
+              "dataPointers": ["/*"]
             }
           }
         ],
-        "actions": [
-          {
-            "id": 0,
-            "type": "CreateAction",
-            "title": "Submit Loan Application",
-            "description": "Applicant submits loan application with personal and financial information",
-            "sender": "applicant",
-            "dataSchemas": [
-              {
-                "type": "object",
-                "properties": {
-                  "firstName": {
-                    "type": "string",
-                    "title": "First Name",
-                    "minLength": 2,
-                    "maxLength": 50
-                  },
-                  "lastName": {
-                    "type": "string",
-                    "title": "Last Name",
-                    "minLength": 2,
-                    "maxLength": 50
-                  },
-                  "email": {
-                    "type": "string",
-                    "title": "Email Address",
-                    "format": "email"
-                  },
-                  "requestedAmount": {
-                    "type": "number",
-                    "title": "Requested Loan Amount",
-                    "minimum": { "$eval": "minLoanAmount" },
-                    "maximum": { "$eval": "maxLoanAmount" }
-                  },
-                  "purpose": {
-                    "type": "string",
-                    "title": "Loan Purpose",
-                    "minLength": 10,
-                    "maxLength": 500
-                  },
-                  "creditScore": {
-                    "type": "integer",
-                    "title": "Credit Score",
-                    "minimum": 300,
-                    "maximum": 850
-                  }
-                },
-                "required": ["firstName", "lastName", "email", "requestedAmount", "purpose"]
-              }
-            ],
-            "disclosures": [
-              {
-                "participantAddress": "loan-officer",
-                "dataPointers": ["/*"]
-              },
-              {
-                "$if": "requiresSeniorApproval",
-                "then": {
-                  "participantAddress": "senior-officer",
-                  "dataPointers": ["/*"]
-                }
-              }
-            ],
-            "calculations": {
-              "estimatedMonthlyPayment": {
-                "/": [
-                  { "*": [{ "var": "requestedAmount" }, 1.05] },
-                  { "$eval": "loanTermMonths" }
-                ]
-              }
-            },
-            "condition": {
-              "$if": "requiresSeniorApproval",
-              "then": {
-                "if": [
-                  { ">": [{ "var": "requestedAmount" }, { "$eval": "seniorApprovalThreshold" }] },
-                  "senior-officer",
-                  "loan-officer"
-                ]
-              },
-              "else": {
-                "if": [true, "loan-officer"]
-              }
-            }
-          },
-          {
-            "id": 1,
-            "type": "AcceptAction",
-            "title": "Review Application",
-            "description": "Loan officer reviews and makes decision",
-            "sender": "loan-officer",
-            "dataSchemas": [
-              {
-                "type": "object",
-                "properties": {
-                  "decision": {
-                    "type": "string",
-                    "title": "Decision",
-                    "enum": ["approved", "rejected", "needs-info"]
-                  },
-                  "notes": {
-                    "type": "string",
-                    "title": "Review Notes",
-                    "maxLength": 1000
-                  },
-                  "approvedAmount": {
-                    "type": "number",
-                    "title": "Approved Amount",
-                    "minimum": 0
-                  }
-                },
-                "required": ["decision"]
-              }
-            ],
-            "disclosures": [
-              {
-                "participantAddress": "applicant",
-                "dataPointers": ["/decision", "/notes", "/approvedAmount"]
-              }
+        "calculations": {
+          "estimatedMonthlyPayment": {
+            "/": [
+              { "*": [{ "var": "requestedAmount" }, 1.05] },
+              { "$eval": "loanTermMonths" }
             ]
           }
-        ]
+        },
+        "condition": {
+          "$if": "requiresSeniorApproval",
+          "then": {
+            "if": [
+              { ">": [{ "var": "requestedAmount" }, { "$eval": "seniorApprovalThreshold" }] },
+              "senior-officer",
+              "loan-officer"
+            ]
+          },
+          "else": {
+            "if": [true, "loan-officer"]
+          }
+        }
       },
-      "blueprintId": { "$eval": "blueprintId" },
-      "blueprintTitle": { "$eval": "blueprintTitle" },
-      "blueprintDescription": { "$eval": "blueprintDescription" },
-      "bankName": { "$eval": "bankName" },
-      "requiresSeniorApproval": { "$eval": "requiresSeniorApproval" },
-      "minLoanAmount": { "$eval": "minLoanAmount" },
-      "maxLoanAmount": { "$eval": "maxLoanAmount" },
-      "seniorApprovalThreshold": { "$eval": "seniorApprovalThreshold" },
-      "loanTermMonths": { "$eval": "loanTermMonths" }
-    }
+      {
+        "id": 1,
+        "type": "AcceptAction",
+        "title": "Review Application",
+        "description": "Loan officer reviews and makes decision",
+        "sender": "loan-officer",
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "type": "string",
+                "title": "Decision",
+                "enum": ["approved", "rejected", "needs-info"]
+              },
+              "notes": {
+                "type": "string",
+                "title": "Review Notes",
+                "maxLength": 1000
+              },
+              "approvedAmount": {
+                "type": "number",
+                "title": "Approved Amount",
+                "minimum": 0
+              }
+            },
+            "required": ["decision"]
+          }
+        ],
+        "disclosures": [
+          {
+            "participantAddress": "applicant",
+            "dataPointers": ["/decision", "/notes", "/approvedAmount"]
+          }
+        ]
+      }
+    ]
   },
   "parameterSchema": {
     "type": "object",

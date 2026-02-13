@@ -8,10 +8,7 @@
   "author": "Sorcha Team",
   "published": true,
   "template": {
-    "$eval": "blueprintTemplate",
-    "context": {
-      "blueprintTemplate": {
-        "@context": {
+    "@context": {
           "@vocab": "https://sorcha.dev/blueprint/v1#",
           "schema": "https://schema.org/",
           "gs1": "https://gs1.org/voc/",
@@ -374,17 +371,6 @@
             ]
           ]
         }
-      },
-      "blueprintId": { "$eval": "blueprintId" },
-      "blueprintTitle": { "$eval": "blueprintTitle" },
-      "blueprintDescription": { "$eval": "blueprintDescription" },
-      "buyerOrg": { "$eval": "buyerOrg" },
-      "supplierOrg": { "$eval": "supplierOrg" },
-      "logisticsProvider": { "$eval": "logisticsProvider" },
-      "requiresQualityCheck": { "$eval": "requiresQualityCheck" },
-      "requiresFinanceApproval": { "$eval": "requiresFinanceApproval" },
-      "financeThreshold": { "$eval": "financeThreshold" }
-    }
   },
   "parameterSchema": {
     "type": "object",
