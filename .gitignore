@@ -200,3 +200,4 @@ jwt_public.*
 walkthroughs/PerformanceBenchmark/results/*.json
 walkthroughs/PerformanceBenchmark/results/*.md
 walkthroughs/PerformanceBenchmark/results/*.csv
+tests/Sorcha.Performance.Tests/performance-reports/

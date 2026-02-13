@@ -12,7 +12,7 @@
             <MudText Typo="Typo.subtitle1">@Action.ActionName</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">@Action.Description</MudText>
 
-            <Forms.SorchaFormRenderer Action="_blueprintAction"
+            <SorchaFormRenderer Action="_blueprintAction"
                                      ParticipantAddress="@_participantAddress"
                                      SigningWalletAddress="@_signingWallet"
                                      OnSubmit="HandleFormSubmit"

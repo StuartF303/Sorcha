@@ -14,14 +14,14 @@
         @* Previous Data Panel *@
         @if (PreviousData is not null)
         {
-            <Panels.PreviousDataPanel PreviousData="PreviousData" />
+            <PreviousDataPanel PreviousData="PreviousData" />
             <MudDivider />
         }
 
         @* Credential Gate Panel *@
         @if (_credentialRequirements.Any())
         {
-            <Panels.CredentialGatePanel Requirements="_credentialRequirements"
+            <CredentialGatePanel Requirements="_credentialRequirements"
                                         WalletAddress="@SigningWalletAddress" />
             <MudDivider />
         }
@@ -36,7 +36,7 @@
         @if (_hasCalculations)
         {
             <MudDivider />
-            <Panels.CalculatedFieldsPanel Calculations="Action?.Calculations"
+            <CalculatedFieldsPanel Calculations="Action?.Calculations"
                                            FormContext="_formContext" />
         }
 

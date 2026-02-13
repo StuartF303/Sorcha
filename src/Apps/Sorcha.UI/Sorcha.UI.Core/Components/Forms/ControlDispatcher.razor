@@ -13,58 +13,58 @@
             @switch (Control.Layout)
             {
                 case LayoutTypes.VerticalLayout:
-                    <Layouts.VerticalLayoutRenderer Control="Control" Depth="Depth" />
+                    <VerticalLayoutRenderer Control="Control" Depth="Depth" />
                     break;
                 case LayoutTypes.HorizontalLayout:
-                    <Layouts.HorizontalLayoutRenderer Control="Control" Depth="Depth" />
+                    <HorizontalLayoutRenderer Control="Control" Depth="Depth" />
                     break;
                 case LayoutTypes.Group:
-                    <Layouts.GroupRenderer Control="Control" Depth="Depth" />
+                    <GroupRenderer Control="Control" Depth="Depth" />
                     break;
                 case LayoutTypes.Categorization:
-                    <Layouts.CategorizationRenderer Control="Control" Depth="Depth" />
+                    <CategorizationRenderer Control="Control" Depth="Depth" />
                     break;
             }
             break;
 
         case ControlTypes.Label:
-            <Controls.LabelRenderer Control="Control" IsDisabled="_isDisabled" />
+            <LabelRenderer Control="Control" IsDisabled="_isDisabled" />
             break;
 
         case ControlTypes.TextLine:
-            <Controls.TextLineRenderer Control="Control" IsDisabled="_isDisabled" />
+            <TextLineRenderer Control="Control" IsDisabled="_isDisabled" />
             break;
 
         case ControlTypes.TextArea:
-            <Controls.TextAreaRenderer Control="Control" IsDisabled="_isDisabled" />
+            <TextAreaRenderer Control="Control" IsDisabled="_isDisabled" />
             break;
 
         case ControlTypes.Numeric:
-            <Controls.NumericRenderer Control="Control" IsDisabled="_isDisabled" />
+            <NumericRenderer Control="Control" IsDisabled="_isDisabled" />
             break;
 
         case ControlTypes.DateTime:
-            <Controls.DateTimeRenderer Control="Control" IsDisabled="_isDisabled" />
+            <DateTimeRenderer Control="Control" IsDisabled="_isDisabled" />
             break;
 
         case ControlTypes.Checkbox:
-            <Controls.CheckboxRenderer Control="Control" IsDisabled="_isDisabled" />
+            <CheckboxRenderer Control="Control" IsDisabled="_isDisabled" />
             break;
 
         case ControlTypes.Selection:
-            <Controls.SelectionRenderer Control="Control" IsDisabled="_isDisabled" />
+            <SelectionRenderer Control="Control" IsDisabled="_isDisabled" />
             break;
 
         case ControlTypes.Choice:
-            <Controls.ChoiceRenderer Control="Control" IsDisabled="_isDisabled" />
+            <ChoiceRenderer Control="Control" IsDisabled="_isDisabled" />
             break;
 
         case ControlTypes.File:
-            <Controls.FileRenderer Control="Control" IsDisabled="_isDisabled" />
+            <FileRenderer Control="Control" IsDisabled="_isDisabled" />
             break;
 
         default:
-            <Controls.UnsupportedControlRenderer Control="Control" />
+            <UnsupportedControlRenderer Control="Control" />
             break;
     }
 }
