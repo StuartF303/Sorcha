@@ -161,6 +161,14 @@
                 </MudButton>
             </MudStack>
 
+            @* Error State Display *@
+            @if (!_stats.IsLoaded && !_isLoading)
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-4">
+                    Unable to load dashboard statistics. <a href="/app/wallets" class="mud-alert-link">View Wallets</a>
+                </MudAlert>
+            }
+
             @* Recent Activity *@
             <MudText Typo="Typo.h6" Class="mb-2">Recent Activity</MudText>
             <MudPaper Elevation="1" Class="pa-4">
