@@ -230,10 +230,10 @@ public static class CredentialEndpoints
         // 1. Get the issuer wallet
         var wallet = await walletRepository.GetByAddressAsync(walletAddress, cancellationToken: cancellationToken);
         if (wallet == null)
-            return Results.NotFound(new { error = $"Wallet '{walletAddress}' not found" });
+            return Results.NotFound();
 
         if (wallet.Status != Sorcha.Wallet.Core.Domain.WalletStatus.Active)
-            return Results.BadRequest(new { error = $"Wallet is {wallet.Status} and cannot issue credentials" });
+            return Results.BadRequest(new { error = "Wallet is not in a valid state for this operation" });
 
         var logger = loggerFactory.CreateLogger("Sorcha.Wallet.Service.Endpoints.CredentialEndpoints");
 

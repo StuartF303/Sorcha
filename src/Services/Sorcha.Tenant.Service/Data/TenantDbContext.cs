@@ -42,6 +42,9 @@ public class TenantDbContext : DbContext
     public DbSet<LinkedWalletAddress> LinkedWalletAddresses => Set<LinkedWalletAddress>();
     public DbSet<WalletLinkChallenge> WalletLinkChallenges => Set<WalletLinkChallenge>();
 
+    // Public schema entities for platform-level configuration
+    public DbSet<SystemConfiguration> SystemConfigurations => Set<SystemConfiguration>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -86,6 +89,9 @@ public class TenantDbContext : DbContext
 
         // Configure WalletLinkChallenge entity (public schema)
         ConfigureWalletLinkChallenge(modelBuilder);
+
+        // Configure SystemConfiguration entity (public schema)
+        ConfigureSystemConfiguration(modelBuilder);
     }
 
     private void ConfigureOrganization(ModelBuilder modelBuilder)
@@ -543,6 +549,29 @@ public class TenantDbContext : DbContext
             // Index for address + status queries
             entity.HasIndex(e => new { e.WalletAddress, e.Status })
                 .HasDatabaseName("IX_Challenge_Address_Status");
+        });
+    }
+
+    private void ConfigureSystemConfiguration(ModelBuilder modelBuilder)
+    {
+        var isInMemory = Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+        modelBuilder.Entity<SystemConfiguration>(entity =>
+        {
+            if (isInMemory)
+                entity.ToTable("SystemConfigurations");
+            else
+                entity.ToTable("SystemConfigurations", "public");
+
+            entity.HasKey(e => e.Key);
+
+            entity.Property(e => e.Key)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(e => e.Value)
+                .IsRequired()
+                .HasMaxLength(500);
         });
     }
 }

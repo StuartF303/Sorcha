@@ -59,7 +59,7 @@ public static class CredentialEndpoints
         }
 
         if (credential == null)
-            return Results.NotFound(new { error = $"Credential '{credentialId}' not found in wallet '{request.IssuerWallet}'" });
+            return Results.NotFound();
 
         // 2. Verify caller is the original issuer
         if (!string.Equals(credential.IssuerDid, request.IssuerWallet, StringComparison.OrdinalIgnoreCase))

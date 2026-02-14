@@ -189,6 +189,8 @@ public static class JwtAuthenticationExtensions
                     ValidateLifetime = jwtSettings.ValidateLifetime,
                     ClockSkew = TimeSpan.FromMinutes(jwtSettings.ClockSkewMinutes),
 
+                    ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
+
                     NameClaimType = ClaimTypes.Name,
                     RoleClaimType = ClaimTypes.Role
                 };

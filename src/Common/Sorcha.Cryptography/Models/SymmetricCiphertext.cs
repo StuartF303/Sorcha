@@ -6,8 +6,10 @@ namespace Sorcha.Cryptography.Models;
 /// <summary>
 /// Container for symmetrically encrypted data with metadata.
 /// </summary>
-public class SymmetricCiphertext
+public class SymmetricCiphertext : IDisposable
 {
+    private bool _disposed;
+
     /// <summary>
     /// Gets or initializes the encrypted data.
     /// </summary>
@@ -36,4 +38,20 @@ public class SymmetricCiphertext
         Array.Clear(Key, 0, Key.Length);
         Array.Clear(IV, 0, IV.Length);
     }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            Zeroize();
+            _disposed = true;
+        }
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Destructor to ensure key material is zeroized.
+    /// </summary>
+    ~SymmetricCiphertext() => Dispose();
 }

@@ -587,7 +587,7 @@ public static class WalletEndpoints
             return Results.NotFound(new ProblemDetails
             {
                 Title = "Wallet Not Found",
-                Detail = $"Wallet {address} not found",
+                Detail = "The requested resource was not found",
                 Status = StatusCodes.Status404NotFound
             });
         }
@@ -645,7 +645,7 @@ public static class WalletEndpoints
                 return Results.NotFound(new ProblemDetails
                 {
                     Title = "Wallet Not Found",
-                    Detail = $"Wallet {address} not found",
+                    Detail = "The requested resource was not found",
                     Status = StatusCodes.Status404NotFound
                 });
             }
@@ -724,7 +724,7 @@ public static class WalletEndpoints
                 return Results.NotFound(new ProblemDetails
                 {
                     Title = "Wallet Not Found",
-                    Detail = $"Wallet {address} not found",
+                    Detail = "The requested resource was not found",
                     Status = StatusCodes.Status404NotFound
                 });
             }
@@ -735,7 +735,7 @@ public static class WalletEndpoints
                 return Results.NotFound(new ProblemDetails
                 {
                     Title = "Address Not Found",
-                    Detail = $"Address {id} not found for wallet {address}",
+                    Detail = "The requested resource was not found",
                     Status = StatusCodes.Status404NotFound
                 });
             }
@@ -771,7 +771,7 @@ public static class WalletEndpoints
                 return Results.NotFound(new ProblemDetails
                 {
                     Title = "Wallet Not Found",
-                    Detail = $"Wallet {address} not found",
+                    Detail = "The requested resource was not found",
                     Status = StatusCodes.Status404NotFound
                 });
             }
@@ -782,7 +782,7 @@ public static class WalletEndpoints
                 return Results.NotFound(new ProblemDetails
                 {
                     Title = "Address Not Found",
-                    Detail = $"Address {id} not found for wallet {address}",
+                    Detail = "The requested resource was not found",
                     Status = StatusCodes.Status404NotFound
                 });
             }
@@ -834,7 +834,7 @@ public static class WalletEndpoints
                 return Results.NotFound(new ProblemDetails
                 {
                     Title = "Wallet Not Found",
-                    Detail = $"Wallet {address} not found",
+                    Detail = "The requested resource was not found",
                     Status = StatusCodes.Status404NotFound
                 });
             }
@@ -845,7 +845,7 @@ public static class WalletEndpoints
                 return Results.NotFound(new ProblemDetails
                 {
                     Title = "Address Not Found",
-                    Detail = $"Address {id} not found for wallet {address}",
+                    Detail = "The requested resource was not found",
                     Status = StatusCodes.Status404NotFound
                 });
             }
@@ -894,7 +894,7 @@ public static class WalletEndpoints
                 return Results.NotFound(new ProblemDetails
                 {
                     Title = "Wallet Not Found",
-                    Detail = $"Wallet {address} not found",
+                    Detail = "The requested resource was not found",
                     Status = StatusCodes.Status404NotFound
                 });
             }
@@ -950,7 +950,7 @@ public static class WalletEndpoints
                 return Results.NotFound(new ProblemDetails
                 {
                     Title = "Wallet Not Found",
-                    Detail = $"Wallet {address} not found",
+                    Detail = "The requested resource was not found",
                     Status = StatusCodes.Status404NotFound
                 });
             }
@@ -1063,7 +1063,7 @@ public static class WalletEndpoints
             logger.LogError(ex, "Failed to create/retrieve system wallet");
             return Results.Problem(
                 title: "System Wallet Creation Failed",
-                detail: ex.Message,
+                detail: "An error occurred while creating the system wallet",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
     }
@@ -1137,7 +1137,7 @@ public static class WalletEndpoints
             logger.LogError(ex, "Signature verification failed");
             return Results.Problem(
                 title: "Verification Failed",
-                detail: ex.Message,
+                detail: "An error occurred while verifying the signature",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
     }

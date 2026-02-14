@@ -14,6 +14,7 @@ public class InMemoryActionStore : IActionStore
     private readonly ConcurrentDictionary<string, ActionDetailsResponse> _actions = new();
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, FileMetadata>> _fileMetadata = new();
     private readonly ConcurrentDictionary<string, byte[]> _fileContent = new();
+    private readonly ConcurrentDictionary<string, (string TransactionHash, DateTime Expiry)> _idempotencyKeys = new();
 
     public Task<ActionDetailsResponse> StoreActionAsync(ActionDetailsResponse action)
     {
@@ -78,5 +79,27 @@ public class InMemoryActionStore : IActionStore
     {
         _fileContent.TryGetValue(fileId, out var content);
         return Task.FromResult(content);
+    }
+
+    public Task<string?> GetByIdempotencyKeyAsync(string idempotencyKey)
+    {
+        if (_idempotencyKeys.TryGetValue(idempotencyKey, out var entry))
+        {
+            if (entry.Expiry > DateTime.UtcNow)
+            {
+                return Task.FromResult<string?>(entry.TransactionHash);
+            }
+
+            // Expired — remove and return null
+            _idempotencyKeys.TryRemove(idempotencyKey, out _);
+        }
+
+        return Task.FromResult<string?>(null);
+    }
+
+    public Task StoreIdempotencyKeyAsync(string idempotencyKey, string transactionHash, TimeSpan ttl)
+    {
+        _idempotencyKeys[idempotencyKey] = (transactionHash, DateTime.UtcNow.Add(ttl));
+        return Task.CompletedTask;
     }
 }

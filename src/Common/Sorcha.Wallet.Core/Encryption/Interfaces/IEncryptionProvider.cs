@@ -3,7 +3,7 @@ namespace Sorcha.Wallet.Core.Encryption.Interfaces;
 /// <summary>
 /// Provider for encrypting and decrypting private keys at rest
 /// </summary>
-public interface IEncryptionProvider
+public interface IEncryptionProvider : IDisposable
 {
     /// <summary>
     /// Encrypts data using the specified key

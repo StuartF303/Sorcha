@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Sorcha.Cli.Infrastructure;
 
@@ -11,6 +12,7 @@ namespace Sorcha.Cli.Infrastructure;
 public class MacOsKeychainEncryption : IEncryptionProvider
 {
     private const string ServiceName = "sorcha-cli";
+    private static readonly Regex SafeAccountNamePattern = new("^[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
 
     /// <inheritdoc/>
     public bool IsAvailable => OperatingSystem.IsMacOS();
@@ -28,26 +30,37 @@ public class MacOsKeychainEncryption : IEncryptionProvider
             throw new ArgumentException("Plaintext cannot be null or empty.", nameof(plaintext));
         }
 
-        // Generate a unique account name based on timestamp to avoid collisions
+        // Generate a unique account name based on GUID (safe characters only)
         var accountName = $"{ServiceName}-{Guid.NewGuid():N}";
+        ValidateAccountName(accountName);
 
-        // Store the plaintext in Keychain using the `security` command
-        // -s: service name
-        // -a: account name
-        // -w: password (plaintext data)
-        // -U: update if exists
+        // Store the plaintext in Keychain via stdin to avoid shell injection.
+        // The macOS `security` command with `-w -` is not supported,
+        // so we encode the plaintext as hex and pass via argument after validation.
+        var plaintextHex = Convert.ToHexString(Encoding.UTF8.GetBytes(plaintext));
+
         var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = "security",
-                Arguments = $"add-generic-password -s {ServiceName} -a {accountName} -w \"{EscapeForShell(plaintext)}\" -U",
+                UseShellExecute = false,
+                CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
+                RedirectStandardInput = true
             }
         };
+
+        // Build arguments as a list to avoid shell interpretation
+        process.StartInfo.ArgumentList.Add("add-generic-password");
+        process.StartInfo.ArgumentList.Add("-s");
+        process.StartInfo.ArgumentList.Add(ServiceName);
+        process.StartInfo.ArgumentList.Add("-a");
+        process.StartInfo.ArgumentList.Add(accountName);
+        process.StartInfo.ArgumentList.Add("-w");
+        process.StartInfo.ArgumentList.Add(plaintextHex);
+        process.StartInfo.ArgumentList.Add("-U");
 
         process.Start();
         await process.WaitForExitAsync();
@@ -83,24 +96,27 @@ public class MacOsKeychainEncryption : IEncryptionProvider
         }
 
         var accountName = reference.Substring("keychain:".Length);
+        ValidateAccountName(accountName);
 
-        // Retrieve the plaintext from Keychain using the `security` command
-        // find-generic-password: find a generic password item
-        // -s: service name
-        // -a: account name
-        // -w: print password only
+        // Retrieve the plaintext from Keychain using ArgumentList to avoid shell injection
         var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = "security",
-                Arguments = $"find-generic-password -s {ServiceName} -a {accountName} -w",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
             }
         };
+
+        process.StartInfo.ArgumentList.Add("find-generic-password");
+        process.StartInfo.ArgumentList.Add("-s");
+        process.StartInfo.ArgumentList.Add(ServiceName);
+        process.StartInfo.ArgumentList.Add("-a");
+        process.StartInfo.ArgumentList.Add(accountName);
+        process.StartInfo.ArgumentList.Add("-w");
 
         process.Start();
         var output = await process.StandardOutput.ReadToEndAsync();
@@ -112,16 +128,15 @@ public class MacOsKeychainEncryption : IEncryptionProvider
             throw new InvalidOperationException($"Failed to retrieve data from Keychain: {error}");
         }
 
-        // Remove trailing newline
-        return output.TrimEnd('\n', '\r');
+        // Decode the hex-encoded plaintext
+        var hexValue = output.TrimEnd('\n', '\r');
+        var plaintextBytes = Convert.FromHexString(hexValue);
+        return Encoding.UTF8.GetString(plaintextBytes);
     }
 
-    /// <summary>
-    /// Escapes a string for use in a shell command argument.
-    /// </summary>
-    private static string EscapeForShell(string input)
+    private static void ValidateAccountName(string accountName)
     {
-        // Replace backslashes and quotes
-        return input.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        if (!SafeAccountNamePattern.IsMatch(accountName))
+            throw new ArgumentException("Invalid account name format. Only alphanumeric, dash, and underscore are allowed.", nameof(accountName));
     }
 }

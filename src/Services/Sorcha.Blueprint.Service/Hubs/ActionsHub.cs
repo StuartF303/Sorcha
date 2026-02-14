@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Sorcha.ServiceClients.Participant;
 
 namespace Sorcha.Blueprint.Service.Hubs;
 
@@ -29,10 +31,12 @@ namespace Sorcha.Blueprint.Service.Hubs;
 public class ActionsHub : Hub
 {
     private readonly ILogger<ActionsHub> _logger;
+    private readonly IParticipantServiceClient _participantClient;
 
-    public ActionsHub(ILogger<ActionsHub> logger)
+    public ActionsHub(ILogger<ActionsHub> logger, IParticipantServiceClient participantClient)
     {
         _logger = logger;
+        _participantClient = participantClient;
     }
 
     /// <summary>
@@ -80,6 +84,8 @@ public class ActionsHub : Hub
 
     /// <summary>
     /// Subscribe to notifications for a specific wallet address.
+    /// Validates that the requesting user owns the wallet (via linked wallet addresses).
+    /// Service tokens bypass ownership validation.
     /// </summary>
     /// <param name="walletAddress">The wallet address to subscribe to</param>
     public async Task SubscribeToWallet(string walletAddress)
@@ -87,6 +93,15 @@ public class ActionsHub : Hub
         if (string.IsNullOrWhiteSpace(walletAddress))
         {
             throw new HubException("Wallet address cannot be empty");
+        }
+
+        // Service tokens can subscribe to any wallet (for internal notifications)
+        var isServiceToken = Context.User?.Claims
+            .Any(c => c.Type == "token_type" && c.Value == "service") == true;
+
+        if (!isServiceToken)
+        {
+            await ValidateWalletOwnershipAsync(walletAddress);
         }
 
         var groupName = GetWalletGroupName(walletAddress);
@@ -116,6 +131,64 @@ public class ActionsHub : Hub
             "Client unsubscribed from wallet notifications. ConnectionId: {ConnectionId}, Wallet: {Wallet}",
             Context.ConnectionId,
             walletAddress);
+    }
+
+    /// <summary>
+    /// Validates that the connected user owns the specified wallet address
+    /// by checking their linked wallets via the Participant Service.
+    /// Fails closed: if the service is unavailable, subscription is denied.
+    /// </summary>
+    private async Task ValidateWalletOwnershipAsync(string walletAddress)
+    {
+        var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? Context.User?.FindFirst("sub")?.Value;
+        var orgId = Context.User?.FindFirst("org_id")?.Value;
+
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(orgId))
+        {
+            throw new HubException("Unauthorized: missing identity claims");
+        }
+
+        if (!Guid.TryParse(userId, out var userGuid) || !Guid.TryParse(orgId, out var orgGuid))
+        {
+            throw new HubException("Unauthorized: invalid identity claims");
+        }
+
+        try
+        {
+            var participant = await _participantClient.GetByUserAndOrgAsync(userGuid, orgGuid);
+            if (participant == null)
+            {
+                _logger.LogWarning(
+                    "Wallet subscription denied: no participant found. User: {UserId}, Org: {OrgId}, Wallet: {Wallet}",
+                    userId, orgId, walletAddress);
+                throw new HubException("Unauthorized: wallet address not linked to your account");
+            }
+
+            var linkedWallets = await _participantClient.GetLinkedWalletsAsync(participant.Id, activeOnly: true);
+            var ownsWallet = linkedWallets.Any(w =>
+                string.Equals(w.WalletAddress, walletAddress, StringComparison.OrdinalIgnoreCase));
+
+            if (!ownsWallet)
+            {
+                _logger.LogWarning(
+                    "Wallet subscription denied: wallet not linked. User: {UserId}, Wallet: {Wallet}",
+                    userId, walletAddress);
+                throw new HubException("Unauthorized: wallet address not linked to your account");
+            }
+        }
+        catch (HubException)
+        {
+            throw; // Re-throw our own HubExceptions
+        }
+        catch (Exception ex)
+        {
+            // Fail closed: if participant service is unavailable, deny subscription
+            _logger.LogWarning(ex,
+                "Wallet subscription denied: participant service unavailable. User: {UserId}, Wallet: {Wallet}",
+                userId, walletAddress);
+            throw new HubException("Unauthorized: unable to verify wallet ownership");
+        }
     }
 
     /// <summary>

@@ -53,4 +53,19 @@ public interface IActionStore
     /// Get file content
     /// </summary>
     Task<byte[]?> GetFileContentAsync(string fileId);
+
+    /// <summary>
+    /// Checks if an idempotency key already exists (replay protection).
+    /// </summary>
+    /// <param name="idempotencyKey">The idempotency key to check</param>
+    /// <returns>The existing transaction hash if found, null otherwise</returns>
+    Task<string?> GetByIdempotencyKeyAsync(string idempotencyKey);
+
+    /// <summary>
+    /// Stores an idempotency key with its associated transaction hash.
+    /// </summary>
+    /// <param name="idempotencyKey">The idempotency key</param>
+    /// <param name="transactionHash">The associated transaction hash</param>
+    /// <param name="ttl">Time-to-live for the key</param>
+    Task StoreIdempotencyKeyAsync(string idempotencyKey, string transactionHash, TimeSpan ttl);
 }

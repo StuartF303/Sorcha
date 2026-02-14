@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Sorcha.Tenant.Service.Data;
 using Sorcha.Tenant.Service.Models;
 using Sorcha.Tenant.Service.Models.Dtos;
 using Sorcha.Tenant.Service.Services;
@@ -63,8 +65,23 @@ public static class BootstrapEndpoints
         IServiceAuthService serviceAuthService,
         ITokenService tokenService,
         Data.Repositories.IIdentityRepository identityRepository,
+        TenantDbContext dbContext,
         ILogger<Program> logger)
     {
+        // One-shot guard: prevent re-bootstrap
+        var alreadyBootstrapped = await dbContext.SystemConfigurations
+            .AnyAsync(c => c.Key == "BootstrapCompleted");
+        if (alreadyBootstrapped)
+        {
+            logger.LogWarning("Bootstrap attempted but platform has already been bootstrapped");
+            return TypedResults.Conflict(new ProblemDetails
+            {
+                Title = "Already Bootstrapped",
+                Detail = "Platform has already been bootstrapped",
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+
         logger.LogInformation("Bootstrap request received for organization: {OrgName}", request.OrganizationName);
 
         // Validate request
@@ -184,6 +201,15 @@ public static class BootstrapEndpoints
                 ServicePrincipalClientSecret = servicePrincipalSecret,
                 CreatedAt = DateTime.UtcNow
             };
+
+            // Mark bootstrap as completed (one-shot guard)
+            dbContext.SystemConfigurations.Add(new SystemConfiguration
+            {
+                Key = "BootstrapCompleted",
+                Value = DateTimeOffset.UtcNow.ToString("O"),
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            await dbContext.SaveChangesAsync();
 
             logger.LogInformation("Bootstrap completed successfully for organization: {OrgId}", organization.Id);
 

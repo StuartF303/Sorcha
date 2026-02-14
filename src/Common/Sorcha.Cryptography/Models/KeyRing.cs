@@ -6,8 +6,10 @@ namespace Sorcha.Cryptography.Models;
 /// <summary>
 /// Represents a complete key ring with mnemonic recovery phrase.
 /// </summary>
-public class KeyRing
+public class KeyRing : IDisposable
 {
+    private bool _disposed;
+
     /// <summary>
     /// Gets or sets the network type for this key ring.
     /// </summary>
@@ -40,4 +42,20 @@ public class KeyRing
     {
         MasterKeySet.Zeroize();
     }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            Zeroize();
+            _disposed = true;
+        }
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Destructor to ensure key material is zeroized.
+    /// </summary>
+    ~KeyRing() => Dispose();
 }

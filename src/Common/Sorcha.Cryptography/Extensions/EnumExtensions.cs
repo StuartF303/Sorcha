@@ -44,8 +44,10 @@ public static class EnumExtensions
     /// <exception cref="ArgumentException">Thrown when encryption type is unknown.</exception>
     public static int GetSymmetricKeySize(this EncryptionType type) => type switch
     {
+#pragma warning disable CS0618 // Retained for deserialization of existing data
         EncryptionType.AES_128 => 16,
         EncryptionType.AES_256 => 32,
+#pragma warning restore CS0618
         EncryptionType.AES_GCM => 32,
         EncryptionType.CHACHA20_POLY1305 => 32,
         EncryptionType.XCHACHA20_POLY1305 => 32,
@@ -60,8 +62,10 @@ public static class EnumExtensions
     /// <exception cref="ArgumentException">Thrown when encryption type is unknown.</exception>
     public static int GetIVSize(this EncryptionType type) => type switch
     {
+#pragma warning disable CS0618 // Retained for deserialization of existing data
         EncryptionType.AES_128 => 16,
         EncryptionType.AES_256 => 16,
+#pragma warning restore CS0618
         EncryptionType.AES_GCM => 12,
         EncryptionType.CHACHA20_POLY1305 => 8,
         EncryptionType.XCHACHA20_POLY1305 => 24,

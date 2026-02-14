@@ -1,3 +1,5 @@
+using System;
+
 namespace Sorcha.Cryptography.Enums;
 
 /// <summary>
@@ -6,13 +8,15 @@ namespace Sorcha.Cryptography.Enums;
 public enum EncryptionType
 {
     /// <summary>
-    /// AES-128 in CBC mode.
+    /// AES-128 in CBC mode. Deprecated: unauthenticated encryption is vulnerable to padding oracle attacks.
     /// </summary>
+    [Obsolete("AES-CBC is unauthenticated and vulnerable to padding oracle attacks. Use AES_GCM or CHACHA20_POLY1305.")]
     AES_128,
 
     /// <summary>
-    /// AES-256 in CBC mode.
+    /// AES-256 in CBC mode. Deprecated: unauthenticated encryption is vulnerable to padding oracle attacks.
     /// </summary>
+    [Obsolete("AES-CBC is unauthenticated and vulnerable to padding oracle attacks. Use AES_GCM or CHACHA20_POLY1305.")]
     AES_256,
 
     /// <summary>

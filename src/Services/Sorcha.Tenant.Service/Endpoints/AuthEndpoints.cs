@@ -107,11 +107,12 @@ public static class AuthEndpoints
         return app;
     }
 
-    private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem>> Login(
+    private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem, ProblemHttpResult>> Login(
         LoginRequest request,
         IIdentityRepository identityRepository,
         IOrganizationRepository organizationRepository,
         ITokenService tokenService,
+        ITokenRevocationService tokenRevocationService,
         ILogger<Program> logger,
         CancellationToken cancellationToken)
     {
@@ -132,6 +133,14 @@ public static class AuthEndpoints
             });
         }
 
+        // Rate limiting check
+        if (await tokenRevocationService.IsRateLimitedAsync(request.Email, cancellationToken))
+        {
+            logger.LogWarning("Login rate-limited for {Email}", request.Email);
+            return TypedResults.Problem("Too many failed login attempts. Please try again later.",
+                statusCode: StatusCodes.Status429TooManyRequests);
+        }
+
         try
         {
             // Look up user by email
@@ -140,6 +149,7 @@ public static class AuthEndpoints
             if (user == null || user.Status != IdentityStatus.Active)
             {
                 logger.LogWarning("Login failed: User not found or inactive - {Email}", request.Email);
+                await tokenRevocationService.IncrementFailedAuthAttemptsAsync(request.Email, cancellationToken);
                 return TypedResults.Unauthorized();
             }
 
@@ -147,6 +157,7 @@ public static class AuthEndpoints
             if (string.IsNullOrEmpty(user.PasswordHash))
             {
                 logger.LogWarning("Login failed: User has no password (external IDP user?) - {Email}", request.Email);
+                await tokenRevocationService.IncrementFailedAuthAttemptsAsync(request.Email, cancellationToken);
                 return TypedResults.Unauthorized();
             }
 
@@ -156,6 +167,7 @@ public static class AuthEndpoints
             if (!isPasswordValid)
             {
                 logger.LogWarning("Login failed: Invalid password - {Email}", request.Email);
+                await tokenRevocationService.IncrementFailedAuthAttemptsAsync(request.Email, cancellationToken);
                 return TypedResults.Unauthorized();
             }
 
@@ -167,6 +179,9 @@ public static class AuthEndpoints
                 logger.LogError("Login failed: Organization not found - {OrgId}", user.OrganizationId);
                 return TypedResults.Unauthorized();
             }
+
+            // Reset failed attempts on successful login
+            await tokenRevocationService.ResetFailedAuthAttemptsAsync(request.Email, cancellationToken);
 
             // Update last login timestamp
             user.LastLoginAt = DateTimeOffset.UtcNow;

@@ -42,6 +42,30 @@ public class TransactionManager
             throw new InvalidOperationException($"Register {transaction.RegisterId} not found");
         }
 
+        // Validate chain continuity
+        if (!string.IsNullOrEmpty(transaction.PrevTxId) &&
+            !transaction.PrevTxId.Equals("genesis", StringComparison.OrdinalIgnoreCase))
+        {
+            var prevTx = await _repository.GetTransactionAsync(
+                transaction.RegisterId, transaction.PrevTxId, cancellationToken);
+
+            if (prevTx == null)
+            {
+                throw new InvalidOperationException(
+                    $"Previous transaction {transaction.PrevTxId} not found in register {transaction.RegisterId}");
+            }
+
+            // Check for forks: ensure no other tx already references this PrevTxId
+            var existing = await _repository.GetTransactionsByPrevTxIdAsync(
+                transaction.RegisterId, transaction.PrevTxId, cancellationToken);
+
+            if (existing.Any())
+            {
+                throw new InvalidOperationException(
+                    "Chain fork detected: another transaction already references this previous transaction");
+            }
+        }
+
         // Generate DID URI
         if (string.IsNullOrEmpty(transaction.Id))
         {
@@ -216,6 +240,14 @@ public class TransactionManager
         if (!isSystemTransaction && string.IsNullOrWhiteSpace(transaction.Signature))
         {
             throw new ArgumentException("Transaction Signature is required", nameof(transaction));
+        }
+
+        // Validate PrevTxId format when specified
+        if (!string.IsNullOrEmpty(transaction.PrevTxId) &&
+            !transaction.PrevTxId.Equals("genesis", StringComparison.OrdinalIgnoreCase) &&
+            transaction.PrevTxId.Length != 64)
+        {
+            throw new ArgumentException("PrevTxId must be 64 characters when specified", nameof(transaction));
         }
 
         if (transaction.PayloadCount != (ulong)transaction.Payloads.Length)

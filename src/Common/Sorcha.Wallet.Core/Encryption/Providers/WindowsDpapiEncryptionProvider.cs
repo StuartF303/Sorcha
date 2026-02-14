@@ -42,9 +42,11 @@ public sealed class WindowsDpapiEncryptionProvider : IEncryptionProvider
     private readonly string _keyStorePath;
     private readonly DataProtectionScope _scope;
     private readonly string _defaultKeyId;
-    private readonly ConcurrentDictionary<string, byte[]> _keyCache;
+    private readonly ConcurrentDictionary<string, (byte[] key, DateTime loadedAt)> _keyCache;
     private readonly EncryptionAuditLogger _auditLogger;
     private readonly ILogger<WindowsDpapiEncryptionProvider> _logger;
+    private bool _disposed;
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
 
     /// <summary>
     /// Checks if Windows DPAPI is available on current platform
@@ -75,7 +77,7 @@ public sealed class WindowsDpapiEncryptionProvider : IEncryptionProvider
         _defaultKeyId = defaultKeyId ?? throw new ArgumentNullException(nameof(defaultKeyId));
         _scope = scope;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _keyCache = new ConcurrentDictionary<string, byte[]>();
+        _keyCache = new ConcurrentDictionary<string, (byte[] key, DateTime loadedAt)>();
         _auditLogger = new EncryptionAuditLogger(logger, "WindowsDpapi");
 
         // Ensure key storage directory exists
@@ -206,8 +208,8 @@ public sealed class WindowsDpapiEncryptionProvider : IEncryptionProvider
     {
         using var timer = EncryptionOperationTimer.Start();
 
-        // Check in-memory cache first
-        if (_keyCache.ContainsKey(keyId))
+        // Check in-memory cache first (TTL-aware)
+        if (_keyCache.TryGetValue(keyId, out var cached) && DateTime.UtcNow - cached.loadedAt < CacheTtl)
         {
             _auditLogger.LogKeyExists(keyId, exists: true, timer.ElapsedMilliseconds);
             return true;
@@ -244,7 +246,7 @@ public sealed class WindowsDpapiEncryptionProvider : IEncryptionProvider
             await File.WriteAllBytesAsync(keyFilePath, encryptedDek, cancellationToken);
 
             // Cache decrypted DEK in memory for performance
-            _keyCache[keyId] = dek;
+            _keyCache[keyId] = (dek, DateTime.UtcNow);
 
             _auditLogger.LogCreateKeySuccess(keyId, timer.ElapsedMilliseconds);
         }
@@ -260,10 +262,19 @@ public sealed class WindowsDpapiEncryptionProvider : IEncryptionProvider
     /// </summary>
     private async Task<byte[]> GetOrCreateKeyAsync(string keyId, CancellationToken cancellationToken)
     {
-        // Check cache first
-        if (_keyCache.TryGetValue(keyId, out var cachedKey))
+        // Check cache first (with TTL)
+        if (_keyCache.TryGetValue(keyId, out var cached))
         {
-            return cachedKey;
+            if (DateTime.UtcNow - cached.loadedAt < CacheTtl)
+            {
+                return cached.key;
+            }
+
+            // Cache expired — evict and re-fetch from disk
+            if (_keyCache.TryRemove(keyId, out var expired))
+            {
+                Array.Clear(expired.key, 0, expired.key.Length);
+            }
         }
 
         // Check disk
@@ -273,7 +284,7 @@ public sealed class WindowsDpapiEncryptionProvider : IEncryptionProvider
         {
             // Create new key if not exists
             await CreateKeyAsync(keyId, cancellationToken);
-            return _keyCache[keyId];
+            return _keyCache[keyId].key;
         }
 
         // Load and decrypt DEK from disk
@@ -282,7 +293,7 @@ public sealed class WindowsDpapiEncryptionProvider : IEncryptionProvider
         var dek = ProtectedData.Unprotect(encryptedDek, entropy, _scope);
 
         // Cache for future operations
-        _keyCache[keyId] = dek;
+        _keyCache[keyId] = (dek, DateTime.UtcNow);
 
         return dek;
     }
@@ -312,7 +323,7 @@ public sealed class WindowsDpapiEncryptionProvider : IEncryptionProvider
                 var entropy = Encoding.UTF8.GetBytes($"sorcha-wallet-{keyId}");
                 var dek = ProtectedData.Unprotect(encryptedDek, entropy, _scope);
 
-                _keyCache[keyId] = dek;
+                _keyCache[keyId] = (dek, DateTime.UtcNow);
                 loadedCount++;
             }
             catch (Exception ex)
@@ -335,5 +346,20 @@ public sealed class WindowsDpapiEncryptionProvider : IEncryptionProvider
         // Sanitize key ID for file system (remove invalid characters)
         var safeKeyId = string.Join("_", keyId.Split(Path.GetInvalidFileNameChars()));
         return Path.Combine(_keyStorePath, $"{safeKeyId}.key");
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        foreach (var kvp in _keyCache)
+        {
+            Array.Clear(kvp.Value.key, 0, kvp.Value.key.Length);
+        }
+        _keyCache.Clear();
+
+        _logger.LogDebug("WindowsDpapiEncryptionProvider disposed — DEK cache cleared");
     }
 }

@@ -2,6 +2,9 @@
 // Copyright (c) 2026 Sorcha Contributors
 
 using System.Security.Cryptography;
+using System.Text;
+using Org.BouncyCastle.Crypto.Generators;
+using Org.BouncyCastle.Crypto.Parameters;
 using Sorcha.Tenant.Service.Data.Repositories;
 using Sorcha.Tenant.Service.Models;
 using Sorcha.Tenant.Service.Models.Dtos;
@@ -336,26 +339,66 @@ public class ServiceAuthService : IServiceAuthService
     }
 
     /// <summary>
-    /// Encrypts the client secret for storage.
-    /// In production, this would use Azure Key Vault or similar.
-    /// For MVP, we use a simple hash (not encryption) for comparison.
+    /// Hashes the client secret using Argon2id for secure storage.
+    /// Returns salt(16) + hash(32) = 48 bytes.
     /// </summary>
     private static byte[] EncryptClientSecret(string secret)
     {
-        // For MVP: Store a hash of the secret
-        // In production: Use proper encryption with Key Vault
-        using var sha256 = SHA256.Create();
-        return sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(secret));
+        var salt = new byte[16];
+        RandomNumberGenerator.Fill(salt);
+
+        var parameters = new Argon2Parameters.Builder(Argon2Parameters.Argon2id)
+            .WithSalt(salt)
+            .WithMemoryAsKB(65536)  // 64MB
+            .WithIterations(3)
+            .WithParallelism(4)
+            .Build();
+
+        var generator = new Argon2BytesGenerator();
+        generator.Init(parameters);
+
+        var hash = new byte[32];
+        generator.GenerateBytes(Encoding.UTF8.GetBytes(secret), hash);
+
+        // Store as: salt(16) + hash(32) = 48 bytes
+        var result = new byte[48];
+        Buffer.BlockCopy(salt, 0, result, 0, 16);
+        Buffer.BlockCopy(hash, 0, result, 16, 32);
+        return result;
     }
 
     /// <summary>
     /// Verifies a client secret against the stored hash.
+    /// Supports both legacy SHA256 (32 bytes) and Argon2id (48 bytes) formats.
     /// </summary>
     private static bool VerifyClientSecret(string providedSecret, byte[] storedHash)
     {
-        using var sha256 = SHA256.Create();
-        var providedHash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(providedSecret));
-        return CryptographicOperations.FixedTimeEquals(providedHash, storedHash);
+        if (storedHash.Length == 32)
+        {
+            // Legacy SHA256 format — verify old way
+            using var sha256 = SHA256.Create();
+            var providedHash = sha256.ComputeHash(Encoding.UTF8.GetBytes(providedSecret));
+            return CryptographicOperations.FixedTimeEquals(providedHash, storedHash);
+        }
+
+        // Argon2id format: salt(16) + hash(32)
+        var salt = storedHash[..16];
+        var expectedHash = storedHash[16..];
+
+        var parameters = new Argon2Parameters.Builder(Argon2Parameters.Argon2id)
+            .WithSalt(salt)
+            .WithMemoryAsKB(65536)
+            .WithIterations(3)
+            .WithParallelism(4)
+            .Build();
+
+        var generator = new Argon2BytesGenerator();
+        generator.Init(parameters);
+
+        var computedHash = new byte[32];
+        generator.GenerateBytes(Encoding.UTF8.GetBytes(providedSecret), computedHash);
+
+        return CryptographicOperations.FixedTimeEquals(computedHash, expectedHash);
     }
 }
 

@@ -85,6 +85,14 @@ public class Blueprint : IEquatable<Blueprint>
     public List<Models.Action> Actions { get; set; } = [];
 
     /// <summary>
+    /// The organization that owns this blueprint.
+    /// Used for org-scoped access control.
+    /// </summary>
+    [JsonPropertyName("organizationId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? OrganizationId { get; set; }
+
+    /// <summary>
     /// Metadata for the blueprint
     /// </summary>
     [JsonPropertyName("metadata")]

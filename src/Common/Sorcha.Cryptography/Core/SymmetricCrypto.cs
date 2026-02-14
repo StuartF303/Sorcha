@@ -42,8 +42,10 @@ public class SymmetricCrypto : ISymmetricCrypto
 
             return encryptionType switch
             {
-                EncryptionType.AES_128 => await EncryptAesCbcAsync(plaintext, key, 16, cancellationToken),
-                EncryptionType.AES_256 => await EncryptAesCbcAsync(plaintext, key, 16, cancellationToken),
+#pragma warning disable CS0618 // Obsolete members referenced for runtime guard
+                EncryptionType.AES_128 => throw new NotSupportedException("AES-CBC has been deprecated due to lack of authentication. Use AES_GCM or CHACHA20_POLY1305."),
+                EncryptionType.AES_256 => throw new NotSupportedException("AES-CBC has been deprecated due to lack of authentication. Use AES_GCM or CHACHA20_POLY1305."),
+#pragma warning restore CS0618
                 EncryptionType.AES_GCM => await EncryptAesGcmAsync(plaintext, key, cancellationToken),
                 EncryptionType.CHACHA20_POLY1305 => await EncryptChaCha20Poly1305Async(plaintext, key, cancellationToken),
                 EncryptionType.XCHACHA20_POLY1305 => await EncryptXChaCha20Poly1305Async(plaintext, key, cancellationToken),
@@ -82,8 +84,10 @@ public class SymmetricCrypto : ISymmetricCrypto
 
             return ciphertext.Type switch
             {
-                EncryptionType.AES_128 => await DecryptAesCbcAsync(ciphertext, cancellationToken),
-                EncryptionType.AES_256 => await DecryptAesCbcAsync(ciphertext, cancellationToken),
+#pragma warning disable CS0618 // Obsolete members referenced for runtime guard
+                EncryptionType.AES_128 => throw new NotSupportedException("AES-CBC has been deprecated due to lack of authentication. Use AES_GCM or CHACHA20_POLY1305."),
+                EncryptionType.AES_256 => throw new NotSupportedException("AES-CBC has been deprecated due to lack of authentication. Use AES_GCM or CHACHA20_POLY1305."),
+#pragma warning restore CS0618
                 EncryptionType.AES_GCM => await DecryptAesGcmAsync(ciphertext, cancellationToken),
                 EncryptionType.CHACHA20_POLY1305 => await DecryptChaCha20Poly1305Async(ciphertext, cancellationToken),
                 EncryptionType.XCHACHA20_POLY1305 => await DecryptXChaCha20Poly1305Async(ciphertext, cancellationToken),
@@ -117,64 +121,6 @@ public class SymmetricCrypto : ISymmetricCrypto
         int ivSize = encryptionType.GetIVSize();
         return RandomNumberGenerator.GetBytes(ivSize);
     }
-
-    #region AES-CBC Implementation
-
-    private Task<CryptoResult<SymmetricCiphertext>> EncryptAesCbcAsync(
-        byte[] plaintext,
-        byte[] key,
-        int ivSize,
-        CancellationToken cancellationToken)
-    {
-        return Task.Run(() =>
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            using var aes = Aes.Create();
-            aes.Key = key;
-            aes.Mode = CipherMode.CBC;
-            aes.Padding = PaddingMode.PKCS7;
-            aes.GenerateIV();
-
-            using var encryptor = aes.CreateEncryptor();
-            byte[] encrypted = encryptor.TransformFinalBlock(plaintext, 0, plaintext.Length);
-
-            var encryptionType = key.Length == 16 ? EncryptionType.AES_128 : EncryptionType.AES_256;
-
-            var result = new SymmetricCiphertext
-            {
-                Data = encrypted,
-                Key = key,
-                IV = aes.IV,
-                Type = encryptionType
-            };
-
-            return CryptoResult<SymmetricCiphertext>.Success(result);
-        }, cancellationToken);
-    }
-
-    private Task<CryptoResult<byte[]>> DecryptAesCbcAsync(
-        SymmetricCiphertext ciphertext,
-        CancellationToken cancellationToken)
-    {
-        return Task.Run(() =>
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            using var aes = Aes.Create();
-            aes.Key = ciphertext.Key;
-            aes.IV = ciphertext.IV;
-            aes.Mode = CipherMode.CBC;
-            aes.Padding = PaddingMode.PKCS7;
-
-            using var decryptor = aes.CreateDecryptor();
-            byte[] decrypted = decryptor.TransformFinalBlock(ciphertext.Data, 0, ciphertext.Data.Length);
-
-            return CryptoResult<byte[]>.Success(decrypted);
-        }, cancellationToken);
-    }
-
-    #endregion
 
     #region AES-GCM Implementation
 

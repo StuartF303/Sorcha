@@ -15,8 +15,6 @@ public class SymmetricCryptoTests
     }
 
     [Theory]
-    [InlineData(EncryptionType.AES_128)]
-    [InlineData(EncryptionType.AES_256)]
     [InlineData(EncryptionType.AES_GCM)]
     [InlineData(EncryptionType.CHACHA20_POLY1305)]
     [InlineData(EncryptionType.XCHACHA20_POLY1305)]
@@ -46,15 +44,33 @@ public class SymmetricCryptoTests
     {
         // Arrange
         byte[] plaintext = System.Text.Encoding.UTF8.GetBytes("test");
-        byte[] key = _symmetricCrypto.GenerateKey(EncryptionType.AES_256);
+        byte[] key = _symmetricCrypto.GenerateKey(EncryptionType.AES_GCM);
 
         // Act
-        var result = await _symmetricCrypto.EncryptAsync(plaintext, EncryptionType.AES_256, key);
+        var result = await _symmetricCrypto.EncryptAsync(plaintext, EncryptionType.AES_GCM, key);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Key.Should().Equal(key);
     }
+
+#pragma warning disable CS0618 // Testing deprecated member behavior
+    [Theory]
+    [InlineData(EncryptionType.AES_128)]
+    [InlineData(EncryptionType.AES_256)]
+    public async Task Encrypt_DeprecatedAesCbc_ReturnsFailure(EncryptionType encryptionType)
+    {
+        // Arrange
+        byte[] plaintext = System.Text.Encoding.UTF8.GetBytes("test");
+
+        // Act
+        var result = await _symmetricCrypto.EncryptAsync(plaintext, encryptionType);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("AES-CBC has been deprecated");
+    }
+#pragma warning restore CS0618
 
     [Fact]
     public async Task Decrypt_WithWrongKey_ShouldFail()

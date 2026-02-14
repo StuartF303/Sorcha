@@ -9,6 +9,7 @@ using Sorcha.Blueprint.Schemas.DTOs;
 using Sorcha.Blueprint.Schemas.Mappers;
 using Sorcha.Blueprint.Schemas.Models;
 using Sorcha.Blueprint.Schemas.Services;
+using Sorcha.Blueprint.Service.Extensions;
 
 namespace Sorcha.Blueprint.Service.Endpoints;
 
@@ -128,7 +129,7 @@ public static class SchemaEndpoints
         CancellationToken cancellationToken)
     {
         // Extract organization ID from claims if available
-        var organizationId = context.User.FindFirst("organization_id")?.Value;
+        var organizationId = context.GetOrganizationId();
 
         var schema = await schemaStore.GetByIdentifierAsync(identifier, organizationId, cancellationToken);
         if (schema is null)
@@ -179,7 +180,7 @@ public static class SchemaEndpoints
         }
 
         // Extract organization ID from claims
-        var organizationId = context.User.FindFirst("organization_id")?.Value;
+        var organizationId = context.GetOrganizationId();
 
         var (schemas, totalCount, nextCursor) = await schemaStore.ListAsync(
             categoryFilter,
@@ -253,7 +254,7 @@ public static class SchemaEndpoints
         var logger = loggerFactory.CreateLogger("SchemaEndpoints");
 
         // Extract organization ID from claims
-        var organizationId = context.User.FindFirst("organization_id")?.Value;
+        var organizationId = context.GetOrganizationId();
         if (string.IsNullOrEmpty(organizationId))
         {
             return Results.Forbid();
@@ -460,8 +461,7 @@ public static class SchemaEndpoints
         }
 
         // Extract organization ID from claims
-        var organizationId = context.User.FindFirst("organization_id")?.Value
-            ?? context.User.FindFirst("org_id")?.Value;
+        var organizationId = context.GetOrganizationId();
 
         if (string.IsNullOrEmpty(organizationId))
         {
@@ -523,8 +523,7 @@ public static class SchemaEndpoints
         var logger = loggerFactory.CreateLogger("SchemaEndpoints");
 
         // Extract organization ID from claims
-        var organizationId = context.User.FindFirst("organization_id")?.Value
-            ?? context.User.FindFirst("org_id")?.Value;
+        var organizationId = context.GetOrganizationId();
 
         if (string.IsNullOrEmpty(organizationId))
         {
@@ -607,8 +606,7 @@ public static class SchemaEndpoints
         var logger = loggerFactory.CreateLogger("SchemaEndpoints");
 
         // Extract organization ID from claims
-        var organizationId = context.User.FindFirst("organization_id")?.Value
-            ?? context.User.FindFirst("org_id")?.Value;
+        var organizationId = context.GetOrganizationId();
 
         if (string.IsNullOrEmpty(organizationId))
         {
@@ -646,8 +644,7 @@ public static class SchemaEndpoints
         var logger = loggerFactory.CreateLogger("SchemaEndpoints");
 
         // Extract organization ID from claims
-        var organizationId = context.User.FindFirst("organization_id")?.Value
-            ?? context.User.FindFirst("org_id")?.Value;
+        var organizationId = context.GetOrganizationId();
 
         try
         {
@@ -679,8 +676,7 @@ public static class SchemaEndpoints
         var logger = loggerFactory.CreateLogger("SchemaEndpoints");
 
         // Extract organization ID from claims
-        var organizationId = context.User.FindFirst("organization_id")?.Value
-            ?? context.User.FindFirst("org_id")?.Value;
+        var organizationId = context.GetOrganizationId();
 
         try
         {
@@ -708,8 +704,7 @@ public static class SchemaEndpoints
         var logger = loggerFactory.CreateLogger("SchemaEndpoints");
 
         // Extract organization ID from claims
-        var organizationId = context.User.FindFirst("organization_id")?.Value
-            ?? context.User.FindFirst("org_id")?.Value;
+        var organizationId = context.GetOrganizationId();
 
         if (string.IsNullOrEmpty(organizationId))
         {

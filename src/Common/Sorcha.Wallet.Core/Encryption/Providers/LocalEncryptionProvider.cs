@@ -166,4 +166,14 @@ public class LocalEncryptionProvider : IEncryptionProvider
 
         return Task.CompletedTask;
     }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        foreach (var kvp in _keys)
+        {
+            Array.Clear(kvp.Value, 0, kvp.Value.Length);
+        }
+        _keys.Clear();
+    }
 }

@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Sorcha.Wallet.Core.Encryption.Interfaces;
 using Sorcha.Wallet.Core.Encryption.Logging;
@@ -51,12 +52,21 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     private readonly string _defaultKeyId;
     private readonly string? _machineKeyMaterial;
     private readonly bool _secretServiceAvailable;
-    private readonly ConcurrentDictionary<string, byte[]> _keyCache;
+    private readonly ConcurrentDictionary<string, (byte[] key, DateTime loadedAt)> _keyCache;
     private readonly EncryptionAuditLogger _auditLogger;
     private readonly ILogger<LinuxSecretServiceEncryptionProvider> _logger;
+    private bool _disposed;
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
 
     private const string ServiceName = "sorcha-wallet-service";
     private const int Pbkdf2Iterations = 100000;
+    private static readonly Regex SafeKeyIdPattern = new("^[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
+
+    private static void ValidateKeyId(string keyId)
+    {
+        if (!SafeKeyIdPattern.IsMatch(keyId))
+            throw new ArgumentException("Invalid key ID format. Only alphanumeric, dash, and underscore are allowed.", nameof(keyId));
+    }
 
     /// <summary>
     /// Checks if Linux Secret Service provider is available on current platform
@@ -88,7 +98,7 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _machineKeyMaterial = machineKeyMaterial;
         _serviceName = ServiceName;
-        _keyCache = new ConcurrentDictionary<string, byte[]>();
+        _keyCache = new ConcurrentDictionary<string, (byte[] key, DateTime loadedAt)>();
         _auditLogger = new EncryptionAuditLogger(logger, "LinuxSecretService");
 
         // Check Secret Service availability
@@ -297,8 +307,8 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     {
         using var timer = EncryptionOperationTimer.Start();
 
-        // Check in-memory cache first
-        if (_keyCache.ContainsKey(keyId))
+        // Check in-memory cache first (TTL-aware)
+        if (_keyCache.TryGetValue(keyId, out var cached) && DateTime.UtcNow - cached.loadedAt < CacheTtl)
         {
             _auditLogger.LogKeyExists(keyId, exists: true, timer.ElapsedMilliseconds);
             return true;
@@ -348,7 +358,7 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
             }
 
             // Cache for performance
-            _keyCache[keyId] = dek;
+            _keyCache[keyId] = (dek, DateTime.UtcNow);
 
             _auditLogger.LogCreateKeySuccess(keyId, timer.ElapsedMilliseconds);
         }
@@ -366,10 +376,19 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     /// </summary>
     private async Task<byte[]> GetOrCreateKeyAsync(string keyId, CancellationToken cancellationToken)
     {
-        // Check cache first
-        if (_keyCache.TryGetValue(keyId, out var cachedKey))
+        // Check cache first (with TTL)
+        if (_keyCache.TryGetValue(keyId, out var cached))
         {
-            return cachedKey;
+            if (DateTime.UtcNow - cached.loadedAt < CacheTtl)
+            {
+                return cached.key;
+            }
+
+            // Cache expired — evict and re-fetch from storage
+            if (_keyCache.TryRemove(keyId, out var expired))
+            {
+                Array.Clear(expired.key, 0, expired.key.Length);
+            }
         }
 
         // Try to retrieve from storage
@@ -419,11 +438,11 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
         if (dek == null)
         {
             await CreateKeyAsync(keyId, cancellationToken);
-            return _keyCache[keyId];
+            return _keyCache[keyId].key;
         }
 
         // Cache and return
-        _keyCache[keyId] = dek;
+        _keyCache[keyId] = (dek, DateTime.UtcNow);
         return dek;
     }
 
@@ -458,6 +477,7 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     /// </summary>
     private async Task<bool> CheckSecretServiceKeyExists(string keyId, CancellationToken cancellationToken)
     {
+        ValidateKeyId(keyId);
         try
         {
             var process = new Process
@@ -489,6 +509,7 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     /// </summary>
     private async Task StoreDekInSecretService(string keyId, byte[] dek, CancellationToken cancellationToken)
     {
+        ValidateKeyId(keyId);
         var dekBase64 = Convert.ToBase64String(dek);
 
         var process = new Process
@@ -524,6 +545,7 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     /// </summary>
     private async Task<byte[]?> RetrieveDekFromSecretService(string keyId, CancellationToken cancellationToken)
     {
+        ValidateKeyId(keyId);
         try
         {
             var process = new Process
@@ -631,7 +653,7 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
                 var keyId = Path.GetFileNameWithoutExtension(keyFile);
                 var dek = RetrieveDekFromFallbackStorage(keyId, CancellationToken.None).GetAwaiter().GetResult();
 
-                _keyCache[keyId] = dek;
+                _keyCache[keyId] = (dek, DateTime.UtcNow);
                 loadedCount++;
             }
             catch (AuthenticationTagMismatchException)
@@ -722,5 +744,20 @@ public sealed class LinuxSecretServiceEncryptionProvider : IEncryptionProvider
     {
         var safeKeyId = string.Join("_", keyId.Split(Path.GetInvalidFileNameChars()));
         return Path.Combine(_fallbackKeyPath, $"{safeKeyId}.key");
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        foreach (var kvp in _keyCache)
+        {
+            Array.Clear(kvp.Value.key, 0, kvp.Value.key.Length);
+        }
+        _keyCache.Clear();
+
+        _logger.LogDebug("LinuxSecretServiceEncryptionProvider disposed — DEK cache cleared");
     }
 }

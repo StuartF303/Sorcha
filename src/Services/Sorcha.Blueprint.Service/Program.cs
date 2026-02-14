@@ -204,7 +204,9 @@ blueprintGroup.MapGet("/", async (
     string? search = null,
     string? status = null) =>
 {
-    var blueprints = await service.GetAllAsync(page, pageSize, search, status);
+    // Service tokens see all blueprints; user tokens are org-scoped
+    var orgId = context.IsServiceToken() ? null : context.GetOrganizationId();
+    var blueprints = await service.GetAllAsync(page, pageSize, search, status, orgId);
     return Results.Ok(blueprints);
 })
 .WithName("GetBlueprints")
@@ -218,7 +220,8 @@ blueprintGroup.MapGet("/", async (
 /// </summary>
 blueprintGroup.MapGet("/{id}", async (HttpContext context, string id, IBlueprintService service) =>
 {
-    var blueprint = await service.GetByIdAsync(id);
+    var orgId = context.IsServiceToken() ? null : context.GetOrganizationId();
+    var blueprint = await service.GetByIdAsync(id, orgId);
     if (blueprint is null) return Results.NotFound();
 
     // Add JSON-LD context if requested
@@ -244,7 +247,8 @@ blueprintGroup.MapPost("/", async (
     IBlueprintService service,
     IOutputCacheStore cache) =>
 {
-    var created = await service.CreateAsync(blueprint);
+    var orgId = context.IsServiceToken() ? null : context.GetOrganizationId();
+    var created = await service.CreateAsync(blueprint, orgId);
     await cache.EvictByTagAsync("blueprints", default);
 
     // Add JSON-LD context if requested
@@ -262,9 +266,10 @@ blueprintGroup.MapPost("/", async (
 /// <summary>
 /// Update existing blueprint
 /// </summary>
-blueprintGroup.MapPut("/{id}", async (string id, BlueprintModel blueprint, IBlueprintService service, IOutputCacheStore cache) =>
+blueprintGroup.MapPut("/{id}", async (HttpContext context, string id, BlueprintModel blueprint, IBlueprintService service, IOutputCacheStore cache) =>
 {
-    var updated = await service.UpdateAsync(id, blueprint);
+    var orgId = context.IsServiceToken() ? null : context.GetOrganizationId();
+    var updated = await service.UpdateAsync(id, blueprint, orgId);
     if (updated is null) return Results.NotFound();
 
     await cache.EvictByTagAsync("blueprints", default);
@@ -277,9 +282,10 @@ blueprintGroup.MapPut("/{id}", async (string id, BlueprintModel blueprint, IBlue
 /// <summary>
 /// Delete blueprint (soft delete)
 /// </summary>
-blueprintGroup.MapDelete("/{id}", async (string id, IBlueprintService service, IOutputCacheStore cache) =>
+blueprintGroup.MapDelete("/{id}", async (HttpContext context, string id, IBlueprintService service, IOutputCacheStore cache) =>
 {
-    var deleted = await service.DeleteAsync(id);
+    var orgId = context.IsServiceToken() ? null : context.GetOrganizationId();
+    var deleted = await service.DeleteAsync(id, orgId);
     if (!deleted) return Results.NotFound();
 
     await cache.EvictByTagAsync("blueprints", default);
@@ -666,6 +672,7 @@ actionsGroup.MapGet("/{wallet}/{register}/{tx}", async (
 /// </summary>
 actionsGroup.MapPost("/", async (
     Sorcha.Blueprint.Service.Models.Requests.ActionSubmissionRequest request,
+    HttpContext context,
     Sorcha.Blueprint.Service.Services.Interfaces.IActionResolverService actionResolver,
     Sorcha.Blueprint.Service.Services.Interfaces.IPayloadResolverService payloadResolver,
     Sorcha.Blueprint.Service.Services.Interfaces.ITransactionBuilderService txBuilder,
@@ -677,6 +684,23 @@ actionsGroup.MapPost("/", async (
 {
     try
     {
+        // 0. Replay protection — check idempotency key
+        var idempotencyKey = context.Request.Headers["Idempotency-Key"].FirstOrDefault();
+        if (string.IsNullOrEmpty(idempotencyKey))
+        {
+            // Auto-generate from request content to prevent duplicate submissions
+            var keySource = $"{request.BlueprintId}:{request.ActionId}:{request.InstanceId}:{request.SenderWallet}:{request.RegisterAddress}";
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            var keyHash = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(keySource));
+            idempotencyKey = BitConverter.ToString(keyHash).Replace("-", "").ToLowerInvariant();
+        }
+
+        var existingTxHash = await actionStore.GetByIdempotencyKeyAsync(idempotencyKey);
+        if (existingTxHash != null)
+        {
+            return Results.Conflict(new { error = "Duplicate submission", transactionHash = existingTxHash });
+        }
+
         // 1. Get blueprint
         var blueprint = await actionResolver.GetBlueprintAsync(request.BlueprintId);
         if (blueprint == null)
@@ -750,6 +774,25 @@ actionsGroup.MapPost("/", async (
             request.SenderWallet,
             transactionBytes,
             derivationPath: null); // Use wallet's default signing key
+
+        // 7b. Verify the signature we just created
+        var walletInfo = await walletClient.GetWalletAsync(request.SenderWallet);
+        if (walletInfo == null)
+        {
+            return Results.Problem("Sender wallet not found", statusCode: 400);
+        }
+
+        var isSignatureValid = await walletClient.VerifySignatureAsync(
+            walletInfo.PublicKey,
+            Convert.ToBase64String(transactionBytes),
+            Convert.ToBase64String(signResult.Signature),
+            walletInfo.Algorithm);
+
+        if (!isSignatureValid)
+        {
+            logger.LogError("Signature verification failed for wallet {Wallet}", request.SenderWallet);
+            return Results.Problem("Transaction signature verification failed", statusCode: 400);
+        }
 
         // 8. Convert to Register TransactionModel and submit to Register Service
         var registerTransaction = new Sorcha.Register.Models.TransactionModel
@@ -837,6 +880,9 @@ actionsGroup.MapPost("/", async (
         };
 
         await actionStore.StoreActionAsync(actionDetails);
+
+        // Store idempotency key (24-hour TTL)
+        await actionStore.StoreIdempotencyKeyAsync(idempotencyKey, txHashHex, TimeSpan.FromHours(24));
 
         // 12. Return response
         var response = new Sorcha.Blueprint.Service.Models.Responses.ActionSubmissionResponse
@@ -1640,6 +1686,7 @@ public interface IBlueprintStore
 {
     Task<BlueprintModel?> GetAsync(string id);
     Task<IEnumerable<BlueprintModel>> GetAllAsync();
+    Task<IEnumerable<BlueprintModel>> GetAllByOrgAsync(string organizationId);
     Task<BlueprintModel> AddAsync(BlueprintModel blueprint);
     Task<BlueprintModel?> UpdateAsync(string id, BlueprintModel blueprint);
     Task<bool> DeleteAsync(string id);
@@ -1660,11 +1707,11 @@ public interface IPublishedBlueprintStore
 /// </summary>
 public interface IBlueprintService
 {
-    Task<PagedResult<BlueprintSummary>> GetAllAsync(int page, int pageSize, string? search, string? status);
-    Task<BlueprintModel?> GetByIdAsync(string id);
-    Task<BlueprintModel> CreateAsync(BlueprintModel blueprint);
-    Task<BlueprintModel?> UpdateAsync(string id, BlueprintModel blueprint);
-    Task<bool> DeleteAsync(string id);
+    Task<PagedResult<BlueprintSummary>> GetAllAsync(int page, int pageSize, string? search, string? status, string? organizationId = null);
+    Task<BlueprintModel?> GetByIdAsync(string id, string? organizationId = null);
+    Task<BlueprintModel> CreateAsync(BlueprintModel blueprint, string? organizationId = null);
+    Task<BlueprintModel?> UpdateAsync(string id, BlueprintModel blueprint, string? organizationId = null);
+    Task<bool> DeleteAsync(string id, string? organizationId = null);
 }
 
 /// <summary>
@@ -1704,6 +1751,13 @@ public class InMemoryBlueprintStore : IBlueprintStore
     public Task<IEnumerable<BlueprintModel>> GetAllAsync()
     {
         return Task.FromResult(_blueprints.Values.AsEnumerable());
+    }
+
+    public Task<IEnumerable<BlueprintModel>> GetAllByOrgAsync(string organizationId)
+    {
+        return Task.FromResult(_blueprints.Values
+            .Where(b => b.OrganizationId == organizationId)
+            .AsEnumerable());
     }
 
     public Task<BlueprintModel> AddAsync(BlueprintModel blueprint)
@@ -1773,9 +1827,11 @@ public class BlueprintService(IBlueprintStore store) : IBlueprintService
 {
     private readonly IBlueprintStore _store = store;
 
-    public async Task<PagedResult<BlueprintSummary>> GetAllAsync(int page, int pageSize, string? search, string? status)
+    public async Task<PagedResult<BlueprintSummary>> GetAllAsync(int page, int pageSize, string? search, string? status, string? organizationId = null)
     {
-        var allBlueprints = await _store.GetAllAsync();
+        var allBlueprints = !string.IsNullOrEmpty(organizationId)
+            ? await _store.GetAllByOrgAsync(organizationId)
+            : await _store.GetAllAsync();
 
         // Apply filtering
         var filtered = allBlueprints.AsEnumerable();
@@ -1813,13 +1869,49 @@ public class BlueprintService(IBlueprintStore store) : IBlueprintService
         };
     }
 
-    public Task<BlueprintModel?> GetByIdAsync(string id) => _store.GetAsync(id);
+    public async Task<BlueprintModel?> GetByIdAsync(string id, string? organizationId = null)
+    {
+        var blueprint = await _store.GetAsync(id);
+        if (blueprint == null) return null;
 
-    public Task<BlueprintModel> CreateAsync(BlueprintModel blueprint) => _store.AddAsync(blueprint);
+        // Enforce org ownership if organizationId is provided
+        if (!string.IsNullOrEmpty(organizationId) && blueprint.OrganizationId != organizationId)
+            return null;
 
-    public Task<BlueprintModel?> UpdateAsync(string id, BlueprintModel blueprint) => _store.UpdateAsync(id, blueprint);
+        return blueprint;
+    }
 
-    public Task<bool> DeleteAsync(string id) => _store.DeleteAsync(id);
+    public Task<BlueprintModel> CreateAsync(BlueprintModel blueprint, string? organizationId = null)
+    {
+        if (!string.IsNullOrEmpty(organizationId))
+            blueprint.OrganizationId = organizationId;
+
+        return _store.AddAsync(blueprint);
+    }
+
+    public async Task<BlueprintModel?> UpdateAsync(string id, BlueprintModel blueprint, string? organizationId = null)
+    {
+        if (!string.IsNullOrEmpty(organizationId))
+        {
+            var existing = await _store.GetAsync(id);
+            if (existing == null || existing.OrganizationId != organizationId)
+                return null;
+        }
+
+        return await _store.UpdateAsync(id, blueprint);
+    }
+
+    public async Task<bool> DeleteAsync(string id, string? organizationId = null)
+    {
+        if (!string.IsNullOrEmpty(organizationId))
+        {
+            var existing = await _store.GetAsync(id);
+            if (existing == null || existing.OrganizationId != organizationId)
+                return false;
+        }
+
+        return await _store.DeleteAsync(id);
+    }
 }
 
 /// <summary>
