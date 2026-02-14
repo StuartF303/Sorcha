@@ -3,9 +3,9 @@
 
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Sorcha.Register.Core.Storage;
 using Sorcha.Register.Models;
 using Sorcha.Register.Models.Enums;
-using Sorcha.ServiceClients.Register;
 
 namespace Sorcha.Register.Core.Services;
 
@@ -14,14 +14,14 @@ namespace Sorcha.Register.Core.Services;
 /// </summary>
 public class GovernanceRosterService : IGovernanceRosterService
 {
-    private readonly IRegisterServiceClient _registerClient;
+    private readonly IRegisterRepository _repository;
     private readonly ILogger<GovernanceRosterService> _logger;
 
     public GovernanceRosterService(
-        IRegisterServiceClient registerClient,
+        IRegisterRepository repository,
         ILogger<GovernanceRosterService> logger)
     {
-        _registerClient = registerClient ?? throw new ArgumentNullException(nameof(registerClient));
+        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -316,32 +316,15 @@ public class GovernanceRosterService : IGovernanceRosterService
     private async Task<List<TransactionModel>> GetControlTransactionsAsync(
         string registerId, CancellationToken cancellationToken)
     {
-        var allTransactions = new List<TransactionModel>();
-        var page = 1;
-        const int pageSize = 100;
+        // Query repository directly instead of HTTP calls
+        var allTransactions = await _repository.GetTransactionsAsync(registerId, cancellationToken);
 
-        // Paginate through all transactions and filter for Control type
-        while (true)
-        {
-            var transactionPage = await _registerClient.GetTransactionsAsync(
-                registerId, page, pageSize, cancellationToken);
+        var controlTxs = allTransactions
+            .Where(t => t.MetaData != null && t.MetaData.TransactionType == TransactionType.Control)
+            .OrderBy(t => t.DocketNumber ?? 0)  // Order by docket for correct roster reconstruction
+            .ToList();
 
-            if (transactionPage.Transactions.Count == 0)
-                break;
-
-            var controlTxs = transactionPage.Transactions
-                .Where(t => t.MetaData?.TransactionType == TransactionType.Control)
-                .ToList();
-
-            allTransactions.AddRange(controlTxs);
-
-            if (page >= transactionPage.TotalPages)
-                break;
-
-            page++;
-        }
-
-        return allTransactions;
+        return controlTxs;
     }
 
     private ControlTransactionPayload? DeserializeControlPayload(TransactionModel transaction)

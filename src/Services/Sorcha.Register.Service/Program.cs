@@ -1133,7 +1133,7 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
 .WithName("PublishBlueprintToRegister")
 .WithSummary("Publish a blueprint to a register")
 .WithDescription("Publishes a blueprint to a specific register after verifying governance rights.")
-.RequireAuthorization("CanWriteTransactions");
+.RequireAuthorization("CanSubmitTransactions");
 
 // ===========================
 // Governance API

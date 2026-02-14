@@ -6,29 +6,29 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Sorcha.Register.Core.Services;
+using Sorcha.Register.Core.Storage;
 using Sorcha.Register.Models;
 using Sorcha.Register.Models.Enums;
-using Sorcha.ServiceClients.Register;
 using Xunit;
 
 namespace Sorcha.Register.Core.Tests.Services;
 
 public class GovernanceRosterServiceTests
 {
-    private readonly Mock<IRegisterServiceClient> _registerClientMock;
+    private readonly Mock<IRegisterRepository> _repositoryMock;
     private readonly GovernanceRosterService _service;
     private const string TestRegisterId = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4";
 
     public GovernanceRosterServiceTests()
     {
-        _registerClientMock = new Mock<IRegisterServiceClient>();
+        _repositoryMock = new Mock<IRegisterRepository>();
         var logger = new Mock<ILogger<GovernanceRosterService>>();
-        _service = new GovernanceRosterService(_registerClientMock.Object, logger.Object);
+        _service = new GovernanceRosterService(_repositoryMock.Object, logger.Object);
 
         // Default: return empty transactions
-        _registerClientMock
-            .Setup(c => c.GetTransactionsAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TransactionPage { Transactions = [], Page = 1, PageSize = 100, Total = 0 });
+        _repositoryMock
+            .Setup(r => r.GetTransactionsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<TransactionModel>().AsQueryable());
     }
 
     // --- GetCurrentRosterAsync ---
@@ -93,15 +93,9 @@ public class GovernanceRosterServiceTests
             Payloads = []
         };
 
-        _registerClientMock
-            .Setup(c => c.GetTransactionsAsync(TestRegisterId, 1, 100, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TransactionPage
-            {
-                Transactions = [controlTx, actionTx],
-                Page = 1,
-                PageSize = 100,
-                Total = 2
-            });
+        _repositoryMock
+            .Setup(r => r.GetTransactionsAsync(TestRegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { controlTx, actionTx }.AsQueryable());
 
         var result = await _service.GetCurrentRosterAsync(TestRegisterId);
 
@@ -309,14 +303,8 @@ public class GovernanceRosterServiceTests
 
     private void SetupControlTransactions(params TransactionModel[] transactions)
     {
-        _registerClientMock
-            .Setup(c => c.GetTransactionsAsync(TestRegisterId, 1, 100, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TransactionPage
-            {
-                Transactions = transactions.ToList(),
-                Page = 1,
-                PageSize = 100,
-                Total = transactions.Length
-            });
+        _repositoryMock
+            .Setup(r => r.GetTransactionsAsync(TestRegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transactions.AsQueryable());
     }
 }

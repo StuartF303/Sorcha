@@ -5,9 +5,9 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Sorcha.Register.Core.Services;
+using Sorcha.Register.Core.Storage;
 using Sorcha.Register.Models;
 using Sorcha.Register.Models.Enums;
-using Sorcha.ServiceClients.Register;
 using Xunit;
 
 namespace Sorcha.Register.Core.Tests.Integration;
@@ -17,7 +17,7 @@ namespace Sorcha.Register.Core.Tests.Integration;
 /// </summary>
 public class GovernanceIntegrationTests
 {
-    private readonly Mock<IRegisterServiceClient> _registerClientMock;
+    private readonly Mock<IRegisterRepository> _repositoryMock;
     private readonly GovernanceRosterService _service;
 
     private const string RegisterId = "test-register";
@@ -28,9 +28,9 @@ public class GovernanceIntegrationTests
 
     public GovernanceIntegrationTests()
     {
-        _registerClientMock = new Mock<IRegisterServiceClient>();
+        _repositoryMock = new Mock<IRegisterRepository>();
         var logger = new Mock<ILogger<GovernanceRosterService>>();
-        _service = new GovernanceRosterService(_registerClientMock.Object, logger.Object);
+        _service = new GovernanceRosterService(_repositoryMock.Object, logger.Object);
     }
 
     private static RegisterAttestation MakeAttestation(string did, RegisterRole role)
@@ -87,15 +87,9 @@ public class GovernanceIntegrationTests
             };
         }).ToList();
 
-        _registerClientMock
-            .Setup(c => c.GetTransactionsAsync(RegisterId, 1, 100, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TransactionPage
-            {
-                Transactions = transactions,
-                Page = 1,
-                PageSize = 100,
-                Total = transactions.Count
-            });
+        _repositoryMock
+            .Setup(r => r.GetTransactionsAsync(RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transactions.AsQueryable());
     }
 
     [Fact]

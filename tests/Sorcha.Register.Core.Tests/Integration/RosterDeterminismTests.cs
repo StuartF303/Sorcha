@@ -5,9 +5,9 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Sorcha.Register.Core.Services;
+using Sorcha.Register.Core.Storage;
 using Sorcha.Register.Models;
 using Sorcha.Register.Models.Enums;
-using Sorcha.ServiceClients.Register;
 using Xunit;
 
 namespace Sorcha.Register.Core.Tests.Integration;
@@ -42,7 +42,7 @@ public class RosterDeterminismTests
 
     private static GovernanceRosterService CreateService(List<RegisterControlRecord> rosterChain)
     {
-        var mockClient = new Mock<IRegisterServiceClient>();
+        var mockRepository = new Mock<IRegisterRepository>();
         var transactions = rosterChain.Select((roster, i) =>
         {
             var payload = new ControlTransactionPayload
@@ -69,18 +69,12 @@ public class RosterDeterminismTests
             };
         }).ToList();
 
-        mockClient
-            .Setup(c => c.GetTransactionsAsync(RegisterId, 1, 100, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TransactionPage
-            {
-                Transactions = transactions,
-                Page = 1,
-                PageSize = 100,
-                Total = transactions.Count
-            });
+        mockRepository
+            .Setup(r => r.GetTransactionsAsync(RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transactions.AsQueryable());
 
         var logger = new Mock<ILogger<GovernanceRosterService>>();
-        return new GovernanceRosterService(mockClient.Object, logger.Object);
+        return new GovernanceRosterService(mockRepository.Object, logger.Object);
     }
 
     [Fact]
@@ -146,19 +140,13 @@ public class RosterDeterminismTests
     [Fact]
     public async Task ReplayControlChain_EmptyChain_ReturnsNull()
     {
-        var mockClient = new Mock<IRegisterServiceClient>();
-        mockClient
-            .Setup(c => c.GetTransactionsAsync(RegisterId, 1, 100, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TransactionPage
-            {
-                Transactions = new List<TransactionModel>(),
-                Page = 1,
-                PageSize = 100,
-                Total = 0
-            });
+        var mockRepository = new Mock<IRegisterRepository>();
+        mockRepository
+            .Setup(r => r.GetTransactionsAsync(RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<TransactionModel>().AsQueryable());
 
         var logger = new Mock<ILogger<GovernanceRosterService>>();
-        var service = new GovernanceRosterService(mockClient.Object, logger.Object);
+        var service = new GovernanceRosterService(mockRepository.Object, logger.Object);
 
         var roster = await service.GetCurrentRosterAsync(RegisterId);
         roster.Should().BeNull();
@@ -213,8 +201,8 @@ public class RosterDeterminismTests
     public void ApplyOperationChain_Deterministic_SameInputSameOutput()
     {
         var logger = new Mock<ILogger<GovernanceRosterService>>();
-        var mockClient = new Mock<IRegisterServiceClient>();
-        var service = new GovernanceRosterService(mockClient.Object, logger.Object);
+        var mockRepository = new Mock<IRegisterRepository>();
+        var service = new GovernanceRosterService(mockRepository.Object, logger.Object);
 
         var genesis = MakeRoster(("did:sorcha:w:owner1", RegisterRole.Owner));
 

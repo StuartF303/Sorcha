@@ -5,23 +5,23 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Sorcha.Register.Core.Services;
+using Sorcha.Register.Core.Storage;
 using Sorcha.Register.Models;
 using Sorcha.Register.Models.Enums;
-using Sorcha.ServiceClients.Register;
 using Xunit;
 
 namespace Sorcha.Register.Core.Tests.Services;
 
 public class QuorumCollectionTests
 {
-    private readonly Mock<IRegisterServiceClient> _registerClientMock;
+    private readonly Mock<IRegisterRepository> _repositoryMock;
     private readonly GovernanceRosterService _service;
 
     public QuorumCollectionTests()
     {
-        _registerClientMock = new Mock<IRegisterServiceClient>();
+        _repositoryMock = new Mock<IRegisterRepository>();
         var logger = new Mock<ILogger<GovernanceRosterService>>();
-        _service = new GovernanceRosterService(_registerClientMock.Object, logger.Object);
+        _service = new GovernanceRosterService(_repositoryMock.Object, logger.Object);
     }
 
     private static AdminRoster CreateRoster(params (string did, RegisterRole role)[] members)
