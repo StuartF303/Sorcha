@@ -14,11 +14,11 @@ namespace Sorcha.Register.Core.Services;
 /// </summary>
 public class GovernanceRosterService : IGovernanceRosterService
 {
-    private readonly IRegisterRepository _repository;
+    private readonly IReadOnlyRegisterRepository _repository;
     private readonly ILogger<GovernanceRosterService> _logger;
 
     public GovernanceRosterService(
-        IRegisterRepository repository,
+        IReadOnlyRegisterRepository repository,
         ILogger<GovernanceRosterService> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));

@@ -55,9 +55,10 @@ builder.Services.AddSingleton<ICryptoModule, CryptoModule>(); // T013: Register 
 builder.Services.AddScoped<MerkleTree>();
 builder.Services.AddScoped<DocketHasher>();
 
-// Register repository (read-only) for GovernanceRosterService (used by RightsEnforcementService).
+// Register read-only repository for GovernanceRosterService (used by RightsEnforcementService).
 // Register Service owns read-write access; Validator reads the same MongoDB for governance roster reconstruction.
-builder.Services.AddMongoRegisterStorage(builder.Configuration);
+// Only IReadOnlyRegisterRepository is registered — IRegisterRepository is NOT resolvable here.
+builder.Services.AddReadOnlyMongoRegisterStorage(builder.Configuration);
 
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();

@@ -52,6 +52,28 @@ public static class MongoRegisterStorageServiceExtensions
     }
 
     /// <summary>
+    /// Adds read-only MongoDB Register storage. Registers IReadOnlyRegisterRepository only —
+    /// write operations are not available. Use this for services that need to read register
+    /// data but do not own the register database (e.g., Validator Service).
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The configuration section for MongoDB settings.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddReadOnlyMongoRegisterStorage(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        services.Configure<MongoRegisterStorageConfiguration>(
+            configuration.GetSection("RegisterStorage:MongoDB"));
+
+        services.TryAddSingleton<IReadOnlyRegisterRepository, MongoRegisterRepository>();
+
+        return services;
+    }
+
+    /// <summary>
     /// Adds MongoDB Register storage with connection string.
     /// </summary>
     /// <param name="services">The service collection.</param>

@@ -21,6 +21,14 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-14:**
+- ✅ ENFORCE-READONLY-REGISTER: Enforce read-only register access in Validator Service
+  - Created `IReadOnlyRegisterRepository` interface (read-only subset of `IRegisterRepository`)
+  - `IRegisterRepository` now extends `IReadOnlyRegisterRepository` (no breaking changes for Register Service)
+  - `GovernanceRosterService` constructor changed to accept `IReadOnlyRegisterRepository` (compile-time safety)
+  - Added `AddReadOnlyMongoRegisterStorage()` extension method — registers only `IReadOnlyRegisterRepository`
+  - Validator Service DI switched from `AddMongoRegisterStorage` to `AddReadOnlyMongoRegisterStorage` — `IRegisterRepository` is NOT resolvable
+  - Deleted dead code: `DocketManager.cs` (write violations, never in DI), `ChainValidator.cs` (depends on DocketManager, never in DI)
+  - Test results: Register Core 148 pass, Validator Core 200 pass, Validator Service 562 pass (33 pre-existing Protobuf failures), Register Storage 68 pass
 - ✅ SECURITY-HARDENING: Comprehensive security hardening (QW7-10, T1-T5, T8, T10, T11, T13) — 13 items across auth, crypto, data flow, and infrastructure
   - **QW7**: AES-CBC deprecated with `[Obsolete]` attribute + runtime `NotSupportedException`; CBC encrypt/decrypt methods removed from SymmetricCrypto
   - **QW8**: Generic error messages — replaced wallet/credential ID leaks in Blueprint CredentialEndpoints, Wallet CredentialEndpoints, WalletEndpoints; fixed `ex.Message` leaks in SystemWallet and VerifySignature
