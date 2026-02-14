@@ -333,10 +333,22 @@ services:
       ServiceClients__TenantService__Address: http://tenant-service:8080
       ServiceClients__RegisterService__Address: http://sorcha-register-service:8080
       ServiceClients__PeerService__Address: http://peer-service:5000
+      # Read-only access to Register Service's MongoDB (for governance roster reconstruction)
+      RegisterStorage__Type: MongoDB
+      RegisterStorage__MongoDB__ConnectionString: mongodb://sorcha:sorcha_dev_password@mongodb:27017
+      RegisterStorage__MongoDB__DatabaseName: sorcha_register_registry
+      RegisterStorage__MongoDB__DatabaseNamePrefix: sorcha_register_
+      RegisterStorage__MongoDB__UseDatabasePerRegister: "true"
+      RegisterStorage__MongoDB__RegisterCollectionName: registers
+      RegisterStorage__MongoDB__TransactionCollectionName: transactions
+      RegisterStorage__MongoDB__DocketCollectionName: dockets
+      RegisterStorage__MongoDB__CreateIndexesOnStartup: "false"
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
       redis:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
       aspire-dashboard:
         condition: service_started

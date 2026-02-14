@@ -11,7 +11,7 @@
     <ProjectReference Include="..\..\Common\Sorcha.Validator.Core\Sorcha.Validator.Core.csproj" />
     <ProjectReference Include="..\..\Common\Sorcha.Register.Models\Sorcha.Register.Models.csproj" />
     <ProjectReference Include="..\..\Core\Sorcha.Register.Core\Sorcha.Register.Core.csproj" />
-    <ProjectReference Include="..\..\Core\Sorcha.Register.Storage.InMemory\Sorcha.Register.Storage.InMemory.csproj" />
+    <ProjectReference Include="..\..\Core\Sorcha.Register.Storage.MongoDB\Sorcha.Register.Storage.MongoDB.csproj" />
     <ProjectReference Include="..\..\Common\Sorcha.Blueprint.Models\Sorcha.Blueprint.Models.csproj" />
     <ProjectReference Include="..\..\Common\Sorcha.ServiceClients\Sorcha.ServiceClients.csproj" />
     <ProjectReference Include="..\..\Common\Sorcha.Cryptography\Sorcha.Cryptography.csproj" />

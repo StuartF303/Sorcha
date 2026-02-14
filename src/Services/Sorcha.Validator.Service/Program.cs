@@ -12,6 +12,7 @@ using Sorcha.Cryptography.Interfaces;
 using Sorcha.Cryptography.Core;
 using Sorcha.Cryptography.Utilities;
 using Sorcha.ServiceClients.Extensions;
+using Sorcha.Register.Storage.MongoDB;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,9 +55,9 @@ builder.Services.AddSingleton<ICryptoModule, CryptoModule>(); // T013: Register 
 builder.Services.AddScoped<MerkleTree>();
 builder.Services.AddScoped<DocketHasher>();
 
-// Register repository for GovernanceRosterService (used by RightsEnforcementService)
-builder.Services.AddSingleton<Sorcha.Register.Core.Storage.IRegisterRepository,
-    Sorcha.Register.Storage.InMemory.InMemoryRegisterRepository>();
+// Register repository (read-only) for GovernanceRosterService (used by RightsEnforcementService).
+// Register Service owns read-write access; Validator reads the same MongoDB for governance roster reconstruction.
+builder.Services.AddMongoRegisterStorage(builder.Configuration);
 
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
