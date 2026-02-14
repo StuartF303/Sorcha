@@ -2,7 +2,6 @@
 // Copyright (c) 2026 Sorcha Contributors
 
 using Microsoft.AspNetCore.OData;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.OData.ModelBuilder;
 using MongoDB.Driver;
 using Scalar.AspNetCore;
@@ -19,6 +18,7 @@ using Sorcha.Register.Service.Services;
 using Microsoft.Extensions.Options;
 using Sorcha.Register.Storage.InMemory;
 using Sorcha.Register.Storage.MongoDB;
+using Sorcha.Register.Storage.Redis;
 using Sorcha.ServiceClients.Extensions;
 using Sorcha.ServiceClients.Peer;
 
@@ -353,7 +353,8 @@ else
     Console.WriteLine("✅ Register Service using InMemory storage (development mode)");
 }
 
-builder.Services.AddSingleton<IEventPublisher, InMemoryEventPublisher>();
+// Event infrastructure: Redis Streams for durable event publishing/subscribing
+builder.Services.AddRedisEventStreams(builder.Configuration);
 
 // Register managers
 builder.Services.AddScoped<RegisterManager>();
@@ -402,6 +403,9 @@ builder.Services.AddSingleton<SystemRegisterService>();
 
 // Register advertisement resync background service (FR-003, FR-004)
 builder.Services.AddHostedService<AdvertisementResyncService>();
+
+// Register event bridge: subscribes to domain events and broadcasts via SignalR
+builder.Services.AddHostedService<RegisterEventBridgeService>();
 
 // Add JWT authentication and authorization (AUTH-002)
 // JWT authentication is now configured via shared ServiceDefaults with auto-key generation
@@ -547,19 +551,13 @@ registersGroup.MapPut("/{id}", async (
 /// </summary>
 registersGroup.MapDelete("/{id}", async (
     RegisterManager manager,
-    IHubContext<RegisterHub, IRegisterHubClient> hubContext,
     string id,
     string tenantId) =>
 {
     try
     {
         await manager.DeleteRegisterAsync(id, tenantId);
-
-        // Notify via SignalR
-        await hubContext.Clients
-            .Group($"tenant:{tenantId}")
-            .RegisterDeleted(id);
-
+        // SignalR notification handled by RegisterEventBridgeService via RegisterDeletedEvent
         return Results.NoContent();
     }
     catch (UnauthorizedAccessException)
@@ -742,7 +740,7 @@ var transactionsGroup = app.MapGroup("/api/registers/{registerId}/transactions")
 /// </summary>
 transactionsGroup.MapPost("/", async (
     TransactionManager manager,
-    IHubContext<RegisterHub, IRegisterHubClient> hubContext,
+    IEventPublisher eventPublisher,
     string registerId,
     TransactionModel transaction) =>
 {
@@ -751,10 +749,18 @@ transactionsGroup.MapPost("/", async (
         transaction.RegisterId = registerId;
         var stored = await manager.StoreTransactionAsync(transaction);
 
-        // Notify via SignalR
-        await hubContext.Clients
-            .Group($"register:{registerId}")
-            .TransactionConfirmed(registerId, stored.TxId);
+        // Publish event — SignalR notification handled by RegisterEventBridgeService
+        await eventPublisher.PublishAsync(
+            "transaction:confirmed",
+            new TransactionConfirmedEvent
+            {
+                TransactionId = stored.TxId,
+                RegisterId = registerId,
+                SenderWallet = stored.SenderWallet,
+                PreviousTransactionId = stored.PrevTxId,
+                MetaData = stored.MetaData,
+                ConfirmedAt = DateTime.UtcNow
+            });
 
         return Results.Created($"/api/registers/{registerId}/transactions/{stored.TxId}", stored);
     }

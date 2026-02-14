@@ -6,14 +6,22 @@ using Sorcha.Register.Core.Events;
 namespace Sorcha.Register.Storage.InMemory;
 
 /// <summary>
-/// In-memory implementation of IEventPublisher for testing
-/// Events are logged but not actually published
+/// In-memory implementation of IEventPublisher for testing.
+/// When an InMemoryEventSubscriber is provided, published events are dispatched to subscribers.
 /// </summary>
 public class InMemoryEventPublisher : IEventPublisher
 {
     private readonly List<PublishedEvent> _publishedEvents = new();
+    private readonly InMemoryEventSubscriber? _subscriber;
 
-    public Task PublishAsync<TEvent>(string topic, TEvent eventData, CancellationToken cancellationToken = default)
+    public InMemoryEventPublisher() { }
+
+    public InMemoryEventPublisher(InMemoryEventSubscriber subscriber)
+    {
+        _subscriber = subscriber;
+    }
+
+    public async Task PublishAsync<TEvent>(string topic, TEvent eventData, CancellationToken cancellationToken = default)
         where TEvent : class
     {
         var publishedEvent = new PublishedEvent
@@ -26,9 +34,11 @@ public class InMemoryEventPublisher : IEventPublisher
 
         _publishedEvents.Add(publishedEvent);
 
-        // In a real implementation, this would publish to a message bus
-        // For testing, we just store it in memory
-        return Task.CompletedTask;
+        // Dispatch to subscriber if wired up
+        if (_subscriber is not null)
+        {
+            await _subscriber.DispatchAsync(topic, eventData);
+        }
     }
 
     /// <summary>

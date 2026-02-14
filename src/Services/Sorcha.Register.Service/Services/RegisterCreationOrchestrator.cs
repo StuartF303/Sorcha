@@ -11,8 +11,6 @@ using Sorcha.Register.Models.Enums;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Peer;
 using Sorcha.ServiceClients.Validator;
-using Microsoft.AspNetCore.SignalR;
-using Sorcha.Register.Service.Hubs;
 
 namespace Sorcha.Register.Service.Services;
 
@@ -30,7 +28,6 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     private readonly IValidatorServiceClient _validatorClient;
     private readonly IPendingRegistrationStore _pendingStore;
     private readonly IPeerServiceClient _peerClient;
-    private readonly IHubContext<RegisterHub, IRegisterHubClient> _hubContext;
 
     private readonly TimeSpan _pendingExpirationTime = TimeSpan.FromMinutes(5);
     private readonly JsonSerializerOptions _canonicalJsonOptions;
@@ -44,8 +41,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         ICryptoModule cryptoModule,
         IValidatorServiceClient validatorClient,
         IPendingRegistrationStore pendingStore,
-        IPeerServiceClient peerClient,
-        IHubContext<RegisterHub, IRegisterHubClient> hubContext)
+        IPeerServiceClient peerClient)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _registerManager = registerManager ?? throw new ArgumentNullException(nameof(registerManager));
@@ -56,7 +52,6 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         _validatorClient = validatorClient ?? throw new ArgumentNullException(nameof(validatorClient));
         _pendingStore = pendingStore ?? throw new ArgumentNullException(nameof(pendingStore));
         _peerClient = peerClient ?? throw new ArgumentNullException(nameof(peerClient));
-        _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
 
         // Configure JSON serialization for canonical form (RFC 8785)
         _canonicalJsonOptions = new JsonSerializerOptions
@@ -348,21 +343,11 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         _logger.LogInformation("Created register {RegisterId} in database after genesis success", register.Id);
 
         // Set register Online after successful creation
+        // SignalR notifications (RegisterStatusChanged, RegisterCreated) handled by RegisterEventBridgeService
+        // via events published by RegisterManager.CreateRegisterAsync and UpdateRegisterStatusAsync
         register = await _registerManager.UpdateRegisterStatusAsync(register.Id, RegisterStatus.Online, cancellationToken);
 
         _logger.LogInformation("Register {RegisterId} set to Online", register.Id);
-
-        // Emit SignalR events to tenant group
-        try
-        {
-            var tenantGroup = _hubContext.Clients.Group($"tenant:{controlRecord.TenantId}");
-            await tenantGroup.RegisterStatusChanged(register.Id, RegisterStatus.Online.ToString());
-            await tenantGroup.RegisterCreated(register.Id, register.Name);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to emit SignalR events for register {RegisterId}", register.Id);
-        }
 
         // Notify Peer Service to advertise register if requested (fire-and-forget)
         if (pending.Advertise)

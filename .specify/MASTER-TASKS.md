@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 5.1 - UPDATED
+**Version:** 5.2 - UPDATED
 **Last Updated:** 2026-02-14
-**Status:** Active - Security Hardening
+**Status:** Active - Event Infrastructure
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -11,8 +11,8 @@
 
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
-**Total Tasks:** 270 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 148 (55%)
+**Total Tasks:** 271 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
+**Completed:** 149 (55%)
 **In Progress:** 0 (0%)
 **Not Started:** 122 (45%)
 
@@ -21,6 +21,18 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-14:**
+- ✅ REDIS-EVENT-STREAMS: Redis Streams Event Infrastructure for Register domain
+  - New project `Sorcha.Register.Storage.Redis` with publisher, subscriber, hosted service, DI extensions
+  - `RedisStreamEventPublisher`: implements `IEventPublisher` using `XADD` with `MAXLEN ~` trimming, Polly circuit breaker
+  - `RedisStreamEventSubscriber`: implements `IEventSubscriber` using `XREADGROUP` consumer groups, `XACK`, pending reclaim
+  - `EventSubscriptionHostedService`: BackgroundService driving the subscriber processing loop
+  - `InMemoryEventSubscriber`: test-friendly subscriber paired with updated `InMemoryEventPublisher` for dispatch
+  - `RegisterEventBridgeService`: BackgroundService bridging 6 domain event topics to SignalR hub notifications
+  - Added `RegisterStatusChangedEvent` to Register.Core; `RegisterManager.UpdateRegisterStatusAsync` publishes it
+  - Decoupled SignalR: removed direct `IHubContext` calls from endpoints and `RegisterCreationOrchestrator`
+  - Validator Service wired with `ConsumerGroup = "validator-service"` for future cross-service event consumption
+  - Files changed: 14 new (9 source + 5 test), 10 modified
+  - Test results: 25 new Redis storage tests pass, 5 bridge tests pass, Register.Core 234 pass, Validator 619 pass
 - ✅ ENFORCE-READONLY-REGISTER: Enforce read-only register access in Validator Service
   - Created `IReadOnlyRegisterRepository` interface (read-only subset of `IRegisterRepository`)
   - `IRegisterRepository` now extends `IReadOnlyRegisterRepository` (no breaking changes for Register Service)

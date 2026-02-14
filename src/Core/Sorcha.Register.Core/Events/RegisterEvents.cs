@@ -53,6 +53,18 @@ public class DocketConfirmedEvent
 }
 
 /// <summary>
+/// Event raised when a register's status changes
+/// </summary>
+public class RegisterStatusChangedEvent
+{
+    public required string RegisterId { get; set; }
+    public required string TenantId { get; set; }
+    public required string OldStatus { get; set; }
+    public required string NewStatus { get; set; }
+    public DateTime ChangedAt { get; set; }
+}
+
+/// <summary>
 /// Event raised when a register's height is updated
 /// </summary>
 public class RegisterHeightUpdatedEvent

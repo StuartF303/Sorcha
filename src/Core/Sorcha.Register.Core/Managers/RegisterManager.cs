@@ -148,10 +148,26 @@ public class RegisterManager
             throw new InvalidOperationException($"Register {registerId} not found");
         }
 
+        var oldStatus = register.Status;
         register.Status = newStatus;
         register.UpdatedAt = DateTime.UtcNow;
 
-        return await _repository.UpdateRegisterAsync(register, cancellationToken);
+        var updated = await _repository.UpdateRegisterAsync(register, cancellationToken);
+
+        // Publish status changed event
+        await _eventPublisher.PublishAsync(
+            "register:status-changed",
+            new RegisterStatusChangedEvent
+            {
+                RegisterId = registerId,
+                TenantId = register.TenantId,
+                OldStatus = oldStatus.ToString(),
+                NewStatus = newStatus.ToString(),
+                ChangedAt = updated.UpdatedAt
+            },
+            cancellationToken);
+
+        return updated;
     }
 
     /// <summary>

@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sorcha Contributors
+
+using Microsoft.AspNetCore.SignalR;
+using Sorcha.Register.Core.Events;
+using Sorcha.Register.Service.Hubs;
+
+namespace Sorcha.Register.Service.Services;
+
+/// <summary>
+/// Background service that bridges register domain events to SignalR notifications.
+/// Subscribes to all register event topics and broadcasts to appropriate SignalR groups.
+/// </summary>
+public class RegisterEventBridgeService : BackgroundService
+{
+    private readonly IEventSubscriber _subscriber;
+    private readonly IHubContext<RegisterHub, IRegisterHubClient> _hubContext;
+    private readonly ILogger<RegisterEventBridgeService> _logger;
+
+    public RegisterEventBridgeService(
+        IEventSubscriber subscriber,
+        IHubContext<RegisterHub, IRegisterHubClient> hubContext,
+        ILogger<RegisterEventBridgeService> logger)
+    {
+        _subscriber = subscriber ?? throw new ArgumentNullException(nameof(subscriber));
+        _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation("RegisterEventBridgeService registering event subscriptions");
+
+        await _subscriber.SubscribeAsync<RegisterCreatedEvent>(
+            "register:created",
+            async e =>
+            {
+                _logger.LogDebug("Bridging RegisterCreated for {RegisterId} to tenant:{TenantId}", e.RegisterId, e.TenantId);
+                await _hubContext.Clients
+                    .Group($"tenant:{e.TenantId}")
+                    .RegisterCreated(e.RegisterId, e.Name);
+            },
+            stoppingToken);
+
+        await _subscriber.SubscribeAsync<RegisterDeletedEvent>(
+            "register:deleted",
+            async e =>
+            {
+                _logger.LogDebug("Bridging RegisterDeleted for {RegisterId} to tenant:{TenantId}", e.RegisterId, e.TenantId);
+                await _hubContext.Clients
+                    .Group($"tenant:{e.TenantId}")
+                    .RegisterDeleted(e.RegisterId);
+            },
+            stoppingToken);
+
+        await _subscriber.SubscribeAsync<RegisterStatusChangedEvent>(
+            "register:status-changed",
+            async e =>
+            {
+                _logger.LogDebug("Bridging RegisterStatusChanged for {RegisterId} to tenant:{TenantId}", e.RegisterId, e.TenantId);
+                await _hubContext.Clients
+                    .Group($"tenant:{e.TenantId}")
+                    .RegisterStatusChanged(e.RegisterId, e.NewStatus);
+            },
+            stoppingToken);
+
+        await _subscriber.SubscribeAsync<TransactionConfirmedEvent>(
+            "transaction:confirmed",
+            async e =>
+            {
+                _logger.LogDebug("Bridging TransactionConfirmed for {RegisterId} to register:{RegisterId}", e.RegisterId, e.RegisterId);
+                await _hubContext.Clients
+                    .Group($"register:{e.RegisterId}")
+                    .TransactionConfirmed(e.RegisterId, e.TransactionId);
+            },
+            stoppingToken);
+
+        await _subscriber.SubscribeAsync<DocketConfirmedEvent>(
+            "docket:confirmed",
+            async e =>
+            {
+                _logger.LogDebug("Bridging DocketSealed for {RegisterId} to register:{RegisterId}", e.RegisterId, e.RegisterId);
+                await _hubContext.Clients
+                    .Group($"register:{e.RegisterId}")
+                    .DocketSealed(e.RegisterId, e.DocketId, e.Hash);
+            },
+            stoppingToken);
+
+        await _subscriber.SubscribeAsync<RegisterHeightUpdatedEvent>(
+            "register:height-updated",
+            async e =>
+            {
+                _logger.LogDebug("Bridging RegisterHeightUpdated for {RegisterId} to register:{RegisterId}", e.RegisterId, e.RegisterId);
+                await _hubContext.Clients
+                    .Group($"register:{e.RegisterId}")
+                    .RegisterHeightUpdated(e.RegisterId, e.NewHeight);
+            },
+            stoppingToken);
+
+        _logger.LogInformation("RegisterEventBridgeService subscriptions registered");
+    }
+}

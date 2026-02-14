@@ -13,6 +13,7 @@ using Sorcha.Cryptography.Core;
 using Sorcha.Cryptography.Utilities;
 using Sorcha.ServiceClients.Extensions;
 using Sorcha.Register.Storage.MongoDB;
+using Sorcha.Register.Storage.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -59,6 +60,12 @@ builder.Services.AddScoped<DocketHasher>();
 // Register Service owns read-write access; Validator reads the same MongoDB for governance roster reconstruction.
 // Only IReadOnlyRegisterRepository is registered — IRegisterRepository is NOT resolvable here.
 builder.Services.AddReadOnlyMongoRegisterStorage(builder.Configuration);
+
+// Event infrastructure: Redis Streams for cross-service event consumption
+builder.Services.AddRedisEventStreams(config =>
+{
+    config.ConsumerGroup = "validator-service";
+});
 
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();

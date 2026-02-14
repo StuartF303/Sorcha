@@ -11,8 +11,6 @@ using Sorcha.Cryptography.Interfaces;
 using Sorcha.Register.Core.Managers;
 using Sorcha.Register.Models;
 using Sorcha.Register.Service.Services;
-using Microsoft.AspNetCore.SignalR;
-using Sorcha.Register.Service.Hubs;
 using Sorcha.ServiceClients.Peer;
 using Sorcha.ServiceClients.Validator;
 using Sorcha.ServiceClients.Wallet;
@@ -34,7 +32,6 @@ public class RegisterCreationOrchestratorTests
     private readonly Mock<IValidatorServiceClient> _mockValidatorClient;
     private readonly Mock<IPendingRegistrationStore> _mockPendingStore;
     private readonly Mock<IPeerServiceClient> _mockPeerClient;
-    private readonly Mock<IHubContext<RegisterHub, IRegisterHubClient>> _mockHubContext;
     private readonly RegisterCreationOrchestrator _orchestrator;
 
     public RegisterCreationOrchestratorTests()
@@ -52,13 +49,6 @@ public class RegisterCreationOrchestratorTests
         _mockValidatorClient = new Mock<IValidatorServiceClient>();
         _mockPendingStore = new Mock<IPendingRegistrationStore>();
         _mockPeerClient = new Mock<IPeerServiceClient>();
-        _mockHubContext = new Mock<IHubContext<RegisterHub, IRegisterHubClient>>();
-
-        // Default hub context: return a mock client that accepts all calls
-        var mockHubClients = new Mock<IHubClients<IRegisterHubClient>>();
-        var mockHubClient = new Mock<IRegisterHubClient>();
-        mockHubClients.Setup(c => c.Group(It.IsAny<string>())).Returns(mockHubClient.Object);
-        _mockHubContext.Setup(h => h.Clients).Returns(mockHubClients.Object);
 
         // Default: UpdateRegisterStatusAsync returns the register with new status
         _mockRegisterManager
@@ -97,8 +87,7 @@ public class RegisterCreationOrchestratorTests
             _mockCryptoModule.Object,
             _mockValidatorClient.Object,
             _mockPendingStore.Object,
-            _mockPeerClient.Object,
-            _mockHubContext.Object);
+            _mockPeerClient.Object);
     }
 
     #region InitiateAsync Tests
