@@ -6,6 +6,7 @@ using System.Diagnostics;
 using Sorcha.ServiceClients.Register;
 using Sorcha.ServiceClients.Peer;
 using Sorcha.Validator.Service.Models;
+using Sorcha.Validator.Service.Services.Interfaces;
 
 namespace Sorcha.Validator.Service.Services;
 
@@ -14,7 +15,7 @@ namespace Sorcha.Validator.Service.Services;
 /// </summary>
 public class ValidatorOrchestrator : IValidatorOrchestrator
 {
-    private readonly IMemPoolManager _memPoolManager;
+    private readonly IVerifiedTransactionQueue _verifiedQueue;
     private readonly IDocketBuilder _docketBuilder;
     private readonly IConsensusEngine _consensusEngine;
     private readonly IRegisterServiceClient _registerClient;
@@ -25,14 +26,14 @@ public class ValidatorOrchestrator : IValidatorOrchestrator
     private readonly ConcurrentDictionary<string, ValidatorState> _activeValidators = new();
 
     public ValidatorOrchestrator(
-        IMemPoolManager memPoolManager,
+        IVerifiedTransactionQueue verifiedQueue,
         IDocketBuilder docketBuilder,
         IConsensusEngine consensusEngine,
         IRegisterServiceClient registerClient,
         IPeerServiceClient peerClient,
         ILogger<ValidatorOrchestrator> logger)
     {
-        _memPoolManager = memPoolManager ?? throw new ArgumentNullException(nameof(memPoolManager));
+        _verifiedQueue = verifiedQueue ?? throw new ArgumentNullException(nameof(verifiedQueue));
         _docketBuilder = docketBuilder ?? throw new ArgumentNullException(nameof(docketBuilder));
         _consensusEngine = consensusEngine ?? throw new ArgumentNullException(nameof(consensusEngine));
         _registerClient = registerClient ?? throw new ArgumentNullException(nameof(registerClient));
@@ -97,7 +98,7 @@ public class ValidatorOrchestrator : IValidatorOrchestrator
             {
                 // MemPoolManager is already Redis-backed, so transactions persist across restarts.
                 // Log the current pool state for operational awareness.
-                var poolCount = await _memPoolManager.GetTransactionCountAsync(registerId);
+                var poolCount = _verifiedQueue.GetCount(registerId);
                 _logger.LogInformation("Memory pool for register {RegisterId} has {Count} transactions (Redis-persisted)",
                     registerId, poolCount);
             }
@@ -120,7 +121,7 @@ public class ValidatorOrchestrator : IValidatorOrchestrator
             return null;
         }
 
-        var transactionCount = await _memPoolManager.GetTransactionCountAsync(registerId, CancellationToken.None);
+        var transactionCount = _verifiedQueue.GetCount(registerId);
 
         return new ValidatorStatus
         {
@@ -332,28 +333,29 @@ public class ValidatorOrchestrator : IValidatorOrchestrator
     }
 
     /// <summary>
-    /// Removes confirmed transactions from memory pool
+    /// Removes confirmed transactions from verified queue
     /// </summary>
-    private async Task RemoveTransactionsFromMemPoolAsync(Docket docket, CancellationToken cancellationToken)
+    private Task RemoveTransactionsFromMemPoolAsync(Docket docket, CancellationToken cancellationToken)
     {
         try
         {
             foreach (var transaction in docket.Transactions)
             {
-                await _memPoolManager.RemoveTransactionAsync(
+                _verifiedQueue.Remove(
                     docket.RegisterId,
-                    transaction.TransactionId,
-                    cancellationToken);
+                    transaction.TransactionId);
             }
 
             _logger.LogDebug(
-                "Removed {Count} transactions from memory pool for docket {DocketNumber}",
+                "Removed {Count} transactions from verified queue for docket {DocketNumber}",
                 docket.Transactions.Count, docket.DocketNumber);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error removing transactions from memory pool");
+            _logger.LogError(ex, "Error removing transactions from verified queue");
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>

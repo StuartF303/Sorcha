@@ -11,7 +11,9 @@ using Sorcha.Validator.Core.Validators;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Models;
 using Sorcha.Validator.Service.Services;
+using Sorcha.Validator.Service.Services.Interfaces;
 using RegisterModels = Sorcha.Register.Models;
+using ValidatorInfo = Sorcha.ServiceClients.Peer.ValidatorInfo;
 
 namespace Sorcha.Validator.Service.Tests.Services;
 
@@ -25,6 +27,7 @@ public class ConsensusEngineTests
     private readonly Mock<IWalletServiceClient> _mockWalletClient;
     private readonly Mock<IRegisterServiceClient> _mockRegisterClient;
     private readonly Mock<ITransactionValidator> _mockTransactionValidator;
+    private readonly Mock<IValidationEngine> _mockValidationEngine;
     private readonly Mock<ILogger<ConsensusEngine>> _mockLogger;
     private readonly ConsensusConfiguration _consensusConfig;
     private readonly ValidatorConfiguration _validatorConfig;
@@ -36,6 +39,7 @@ public class ConsensusEngineTests
         _mockWalletClient = new Mock<IWalletServiceClient>();
         _mockRegisterClient = new Mock<IRegisterServiceClient>();
         _mockTransactionValidator = new Mock<ITransactionValidator>();
+        _mockValidationEngine = new Mock<IValidationEngine>();
         _mockLogger = new Mock<ILogger<ConsensusEngine>>();
 
         _consensusConfig = new ConsensusConfiguration
@@ -56,6 +60,7 @@ public class ConsensusEngineTests
             _mockWalletClient.Object,
             _mockRegisterClient.Object,
             _mockTransactionValidator.Object,
+            _mockValidationEngine.Object,
             Options.Create(_consensusConfig),
             Options.Create(_validatorConfig),
             _mockLogger.Object);
@@ -72,6 +77,7 @@ public class ConsensusEngineTests
             _mockWalletClient.Object,
             _mockRegisterClient.Object,
             _mockTransactionValidator.Object,
+            _mockValidationEngine.Object,
             Options.Create(_consensusConfig),
             Options.Create(_validatorConfig),
             _mockLogger.Object));
@@ -88,6 +94,7 @@ public class ConsensusEngineTests
             null!,
             _mockRegisterClient.Object,
             _mockTransactionValidator.Object,
+            _mockValidationEngine.Object,
             Options.Create(_consensusConfig),
             Options.Create(_validatorConfig),
             _mockLogger.Object));
@@ -239,6 +246,7 @@ public class ConsensusEngineTests
             _mockWalletClient.Object,
             _mockRegisterClient.Object,
             _mockTransactionValidator.Object,
+            _mockValidationEngine.Object,
             Options.Create(config),
             Options.Create(_validatorConfig),
             _mockLogger.Object);
@@ -568,29 +576,20 @@ public class ConsensusEngineTests
             .Setup(r => r.ReadDocketAsync(docket.RegisterId, docket.DocketNumber - 1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(previousDocket);
 
-        // Invalid transaction structure
-        _mockTransactionValidator
-            .Setup(v => v.ValidateTransactionStructure(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<JsonElement>(),
-                It.IsAny<string>(),
-                It.IsAny<List<Sorcha.Validator.Core.Validators.TransactionSignature>>(),
-                It.IsAny<DateTimeOffset>()))
-            .Returns(new Sorcha.Validator.Core.Models.ValidationResult
-            {
-                IsValid = false,
-                Errors = new List<Sorcha.Validator.Core.Models.ValidationError>
-                {
-                    new Sorcha.Validator.Core.Models.ValidationError
+        // Full validation engine fails
+        _mockValidationEngine
+            .Setup(v => v.ValidateTransactionAsync(It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Transaction tx, CancellationToken _) =>
+                ValidationEngineResult.Failure(
+                    tx.TransactionId,
+                    tx.RegisterId,
+                    TimeSpan.Zero,
+                    new ValidationEngineError
                     {
-                        Code = "TX_001",
-                        Message = "Transaction structure invalid",
-                        Field = "transactionId"
-                    }
-                }
-            });
+                        Code = "VAL_BP_001",
+                        Message = "Transaction validation failed",
+                        Category = ValidationErrorCategory.Blueprint
+                    }));
 
         // Act
         var vote = await _engine.ValidateAndVoteAsync(docket);
@@ -771,16 +770,10 @@ public class ConsensusEngineTests
                 .ReturnsAsync(correctedPreviousDocket);
         }
 
-        _mockTransactionValidator
-            .Setup(v => v.ValidateTransactionStructure(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<JsonElement>(),
-                It.IsAny<string>(),
-                It.IsAny<List<Sorcha.Validator.Core.Validators.TransactionSignature>>(),
-                It.IsAny<DateTimeOffset>()))
-            .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
+        _mockValidationEngine
+            .Setup(v => v.ValidateTransactionAsync(It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Transaction tx, CancellationToken _) =>
+                ValidationEngineResult.Success(tx.TransactionId, tx.RegisterId, TimeSpan.Zero));
     }
 
     #endregion

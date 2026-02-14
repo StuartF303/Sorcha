@@ -13,7 +13,7 @@ namespace Sorcha.Validator.Service.Services;
 public class UnverifiedPoolCleanupService : BackgroundService
 {
     private readonly ITransactionPoolPoller _poller;
-    private readonly TransactionPoolPollerService _pollerService;
+    private readonly IRegisterMonitoringRegistry _monitoringRegistry;
     private readonly TransactionPoolPollerConfiguration _config;
     private readonly ILogger<UnverifiedPoolCleanupService> _logger;
 
@@ -24,12 +24,12 @@ public class UnverifiedPoolCleanupService : BackgroundService
 
     public UnverifiedPoolCleanupService(
         ITransactionPoolPoller poller,
-        TransactionPoolPollerService pollerService,
+        IRegisterMonitoringRegistry monitoringRegistry,
         IOptions<TransactionPoolPollerConfiguration> config,
         ILogger<UnverifiedPoolCleanupService> logger)
     {
         _poller = poller ?? throw new ArgumentNullException(nameof(poller));
-        _pollerService = pollerService ?? throw new ArgumentNullException(nameof(pollerService));
+        _monitoringRegistry = monitoringRegistry ?? throw new ArgumentNullException(nameof(monitoringRegistry));
         _config = config?.Value ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -72,7 +72,7 @@ public class UnverifiedPoolCleanupService : BackgroundService
 
     private async Task CleanupAllRegistersAsync(CancellationToken ct)
     {
-        var registers = _pollerService.GetActiveRegisters();
+        var registers = _monitoringRegistry.GetAll().ToList();
 
         if (registers.Count == 0)
             return;

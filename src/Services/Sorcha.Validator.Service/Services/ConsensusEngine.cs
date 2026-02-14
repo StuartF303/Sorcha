@@ -10,6 +10,7 @@ using Sorcha.ServiceClients.Register;
 using Sorcha.ServiceClients.Peer;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Models;
+using Sorcha.Validator.Service.Services.Interfaces;
 using System.Diagnostics;
 
 namespace Sorcha.Validator.Service.Services;
@@ -23,6 +24,7 @@ public class ConsensusEngine : IConsensusEngine
     private readonly IWalletServiceClient _walletClient;
     private readonly IRegisterServiceClient _registerClient;
     private readonly Sorcha.Validator.Core.Validators.ITransactionValidator _transactionValidator;
+    private readonly IValidationEngine _validationEngine;
     private readonly ConsensusConfiguration _consensusConfig;
     private readonly ValidatorConfiguration _validatorConfig;
     private readonly ILogger<ConsensusEngine> _logger;
@@ -32,6 +34,7 @@ public class ConsensusEngine : IConsensusEngine
         IWalletServiceClient walletClient,
         IRegisterServiceClient registerClient,
         Sorcha.Validator.Core.Validators.ITransactionValidator transactionValidator,
+        IValidationEngine validationEngine,
         IOptions<ConsensusConfiguration> consensusConfig,
         IOptions<ValidatorConfiguration> validatorConfig,
         ILogger<ConsensusEngine> logger)
@@ -40,6 +43,7 @@ public class ConsensusEngine : IConsensusEngine
         _walletClient = walletClient ?? throw new ArgumentNullException(nameof(walletClient));
         _registerClient = registerClient ?? throw new ArgumentNullException(nameof(registerClient));
         _transactionValidator = transactionValidator ?? throw new ArgumentNullException(nameof(transactionValidator));
+        _validationEngine = validationEngine ?? throw new ArgumentNullException(nameof(validationEngine));
         _consensusConfig = consensusConfig?.Value ?? throw new ArgumentNullException(nameof(consensusConfig));
         _validatorConfig = validatorConfig?.Value ?? throw new ArgumentNullException(nameof(validatorConfig));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -260,30 +264,50 @@ public class ConsensusEngine : IConsensusEngine
                 }
             }
 
-            // Validate all transactions
+            // Validate all transactions using full validation engine
             foreach (var transaction in docket.Transactions)
             {
-                var signatures = transaction.Signatures.Select(s =>
-                    new Sorcha.Validator.Core.Validators.TransactionSignature(
-                        Convert.ToBase64String(s.PublicKey),
-                        Convert.ToBase64String(s.SignatureValue),
-                        s.Algorithm)).ToList();
-
-                var validationResult = _transactionValidator.ValidateTransactionStructure(
-                    transaction.TransactionId,
-                    transaction.RegisterId,
-                    transaction.BlueprintId,
-                    transaction.Payload,
-                    transaction.PayloadHash,
-                    signatures,
-                    transaction.CreatedAt);
-
-                if (!validationResult.IsValid)
+                try
                 {
-                    var errors = string.Join(", ", validationResult.Errors.Select(e => e.Message));
-                    return await CreateRejectionVoteAsync(
-                        voteId, docket, $"Transaction {transaction.TransactionId} validation failed: {errors}",
-                        votedAt, cancellationToken);
+                    var validationResult = await _validationEngine.ValidateTransactionAsync(transaction, cancellationToken);
+
+                    if (!validationResult.IsValid)
+                    {
+                        var errors = string.Join(", ", validationResult.Errors.Select(e => e.Message));
+                        return await CreateRejectionVoteAsync(
+                            voteId, docket, $"Transaction {transaction.TransactionId} validation failed: {errors}",
+                            votedAt, cancellationToken);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Fall back to structural validation if full validation engine is unavailable
+                    _logger.LogWarning(ex,
+                        "Full validation engine failed for transaction {TransactionId}, falling back to structural validation",
+                        transaction.TransactionId);
+
+                    var signatures = transaction.Signatures.Select(s =>
+                        new Sorcha.Validator.Core.Validators.TransactionSignature(
+                            Convert.ToBase64String(s.PublicKey),
+                            Convert.ToBase64String(s.SignatureValue),
+                            s.Algorithm)).ToList();
+
+                    var structuralResult = _transactionValidator.ValidateTransactionStructure(
+                        transaction.TransactionId,
+                        transaction.RegisterId,
+                        transaction.BlueprintId,
+                        transaction.Payload,
+                        transaction.PayloadHash,
+                        signatures,
+                        transaction.CreatedAt);
+
+                    if (!structuralResult.IsValid)
+                    {
+                        var errors = string.Join(", ", structuralResult.Errors.Select(e => e.Message));
+                        return await CreateRejectionVoteAsync(
+                            voteId, docket, $"Transaction {transaction.TransactionId} validation failed: {errors}",
+                            votedAt, cancellationToken);
+                    }
                 }
             }
 
@@ -303,7 +327,7 @@ public class ConsensusEngine : IConsensusEngine
     /// Collects a vote from a single validator
     /// </summary>
     private async Task<Models.ConsensusVote?> CollectVoteFromValidatorAsync(
-        ValidatorInfo validator,
+        Sorcha.ServiceClients.Peer.ValidatorInfo validator,
         Docket docket,
         CancellationToken cancellationToken)
     {

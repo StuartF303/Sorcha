@@ -4,6 +4,7 @@
 using Microsoft.Extensions.Options;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Models;
+using Sorcha.Validator.Service.Services.Interfaces;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Register;
 using Sorcha.Cryptography.Utilities;
@@ -15,7 +16,7 @@ namespace Sorcha.Validator.Service.Services;
 /// </summary>
 public class DocketBuilder : IDocketBuilder
 {
-    private readonly IMemPoolManager _memPoolManager;
+    private readonly IVerifiedTransactionQueue _verifiedQueue;
     private readonly IRegisterServiceClient _registerClient;
     private readonly IWalletServiceClient _walletClient;
     private readonly IGenesisManager _genesisManager;
@@ -26,7 +27,7 @@ public class DocketBuilder : IDocketBuilder
     private readonly ILogger<DocketBuilder> _logger;
 
     public DocketBuilder(
-        IMemPoolManager memPoolManager,
+        IVerifiedTransactionQueue verifiedQueue,
         IRegisterServiceClient registerClient,
         IWalletServiceClient walletClient,
         IGenesisManager genesisManager,
@@ -36,7 +37,7 @@ public class DocketBuilder : IDocketBuilder
         IOptions<DocketBuildConfiguration> buildConfig,
         ILogger<DocketBuilder> logger)
     {
-        _memPoolManager = memPoolManager ?? throw new ArgumentNullException(nameof(memPoolManager));
+        _verifiedQueue = verifiedQueue ?? throw new ArgumentNullException(nameof(verifiedQueue));
         _registerClient = registerClient ?? throw new ArgumentNullException(nameof(registerClient));
         _walletClient = walletClient ?? throw new ArgumentNullException(nameof(walletClient));
         _genesisManager = genesisManager ?? throw new ArgumentNullException(nameof(genesisManager));
@@ -58,26 +59,24 @@ public class DocketBuilder : IDocketBuilder
         _logger.LogInformation("Building docket for register {RegisterId} (forced: {ForceBuild})",
             registerId, forceBuild);
 
+        IReadOnlyList<VerifiedTransaction> verifiedEntries = [];
+
         try
         {
+            // Dequeue verified transactions
+            verifiedEntries = _verifiedQueue.Dequeue(registerId, _buildConfig.MaxTransactionsPerDocket);
+
             // Check if register needs genesis docket
             var needsGenesis = await _genesisManager.NeedsGenesisDocketAsync(registerId, cancellationToken);
             if (needsGenesis)
             {
                 _logger.LogInformation("Register {RegisterId} needs genesis docket", registerId);
-                var transactions = await _memPoolManager.GetPendingTransactionsAsync(
-                    registerId,
-                    _buildConfig.MaxTransactionsPerDocket,
-                    cancellationToken);
-
+                var transactions = verifiedEntries.Select(v => v.Transaction).ToList();
                 return await _genesisManager.CreateGenesisDocketAsync(registerId, transactions, cancellationToken);
             }
 
-            // Get pending transactions from memory pool
-            var pendingTransactions = await _memPoolManager.GetPendingTransactionsAsync(
-                registerId,
-                _buildConfig.MaxTransactionsPerDocket,
-                cancellationToken);
+            // Unwrap verified transactions
+            var pendingTransactions = verifiedEntries.Select(v => v.Transaction).ToList();
 
             // Check if we have transactions to build
             if (pendingTransactions.Count == 0)
@@ -178,6 +177,15 @@ public class DocketBuilder : IDocketBuilder
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to build docket for register {RegisterId}", registerId);
+
+            // Return dequeued transactions to the verified queue so they aren't lost
+            if (verifiedEntries is { Count: > 0 })
+            {
+                _verifiedQueue.ReturnToQueue(registerId, verifiedEntries);
+                _logger.LogInformation("Returned {Count} transactions to verified queue after build failure for register {RegisterId}",
+                    verifiedEntries.Count, registerId);
+            }
+
             return null;
         }
     }
@@ -202,7 +210,7 @@ public class DocketBuilder : IDocketBuilder
             }
 
             // Check size threshold (hybrid trigger 2)
-            var transactionCount = await _memPoolManager.GetTransactionCountAsync(registerId, cancellationToken);
+            var transactionCount = _verifiedQueue.GetCount(registerId);
             if (transactionCount >= _buildConfig.SizeThreshold)
             {
                 _logger.LogDebug("Size threshold met for register {RegisterId} ({TransactionCount} >= {SizeThreshold})",

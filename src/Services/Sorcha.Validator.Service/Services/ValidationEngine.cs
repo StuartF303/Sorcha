@@ -9,11 +9,13 @@ using Json.Schema;
 using Microsoft.Extensions.Options;
 using Sorcha.Cryptography.Enums;
 using Sorcha.Cryptography.Interfaces;
+using Sorcha.Register.Models.Constants;
 using Sorcha.ServiceClients.Register;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Models;
 using Sorcha.Validator.Service.Services.Interfaces;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
+using ActionModel = Sorcha.Blueprint.Models.Action;
 
 namespace Sorcha.Validator.Service.Services;
 
@@ -27,6 +29,7 @@ public class ValidationEngine : IValidationEngine
     private readonly IBlueprintCache _blueprintCache;
     private readonly IHashProvider _hashProvider;
     private readonly ICryptoModule _cryptoModule;
+    private readonly IWalletUtilities _walletUtilities;
     private readonly IRegisterServiceClient _registerClient;
     private readonly IRightsEnforcementService _rightsEnforcementService;
     private readonly ILogger<ValidationEngine> _logger;
@@ -45,6 +48,7 @@ public class ValidationEngine : IValidationEngine
         IBlueprintCache blueprintCache,
         IHashProvider hashProvider,
         ICryptoModule cryptoModule,
+        IWalletUtilities walletUtilities,
         IRegisterServiceClient registerClient,
         IRightsEnforcementService rightsEnforcementService,
         ILogger<ValidationEngine> logger)
@@ -53,6 +57,7 @@ public class ValidationEngine : IValidationEngine
         _blueprintCache = blueprintCache ?? throw new ArgumentNullException(nameof(blueprintCache));
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
+        _walletUtilities = walletUtilities ?? throw new ArgumentNullException(nameof(walletUtilities));
         _registerClient = registerClient ?? throw new ArgumentNullException(nameof(registerClient));
         _rightsEnforcementService = rightsEnforcementService ?? throw new ArgumentNullException(nameof(rightsEnforcementService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -109,7 +114,17 @@ public class ValidationEngine : IValidationEngine
                 }
             }
 
-            // 4b. Validate governance rights for Control transactions (if enabled)
+            // 4b. Validate blueprint conformance (if enabled)
+            if (_config.EnableBlueprintConformance)
+            {
+                var bpResult = await ValidateBlueprintConformanceAsync(transaction, ct);
+                if (!bpResult.IsValid)
+                {
+                    errors.AddRange(bpResult.Errors);
+                }
+            }
+
+            // 4c. Validate governance rights for Control transactions (if enabled)
             if (_config.EnableGovernanceValidation)
             {
                 var govResult = await _rightsEnforcementService.ValidateGovernanceRightsAsync(transaction, ct);
@@ -314,6 +329,17 @@ public class ValidationEngine : IValidationEngine
 
         try
         {
+            // Skip schema validation for genesis/control transactions
+            if (IsGenesisOrControlTransaction(transaction))
+            {
+                _logger.LogDebug("Skipping schema validation for genesis/control transaction {TransactionId}",
+                    transaction.TransactionId);
+                return ValidationEngineResult.Success(
+                    transaction.TransactionId,
+                    transaction.RegisterId,
+                    sw.Elapsed);
+            }
+
             // Get the blueprint
             var blueprint = await _blueprintCache.GetBlueprintAsync(transaction.BlueprintId, ct);
             if (blueprint == null)
@@ -659,7 +685,182 @@ public class ValidationEngine : IValidationEngine
         };
     }
 
+    /// <inheritdoc/>
+    public async Task<ValidationEngineResult> ValidateBlueprintConformanceAsync(
+        Transaction transaction,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(transaction);
+
+        var sw = Stopwatch.StartNew();
+        var errors = new List<ValidationEngineError>();
+
+        // Skip for genesis/control transactions
+        if (IsGenesisOrControlTransaction(transaction))
+        {
+            return ValidationEngineResult.Success(
+                transaction.TransactionId,
+                transaction.RegisterId,
+                sw.Elapsed);
+        }
+
+        try
+        {
+            // Blueprint + action lookup (reuse logic from ValidateSchemaAsync)
+            var blueprint = await _blueprintCache.GetBlueprintAsync(transaction.BlueprintId, ct);
+            if (blueprint == null)
+            {
+                errors.Add(CreateError("VAL_SCHEMA_001",
+                    $"Blueprint '{transaction.BlueprintId}' not found",
+                    ValidationErrorCategory.Blueprint, "BlueprintId", true));
+                return CreateFailureResult(transaction, sw.Elapsed, errors);
+            }
+
+            if (!int.TryParse(transaction.ActionId, out var actionIdInt))
+            {
+                errors.Add(CreateError("VAL_SCHEMA_002",
+                    $"Invalid action ID format: '{transaction.ActionId}'",
+                    ValidationErrorCategory.Blueprint, "ActionId", true));
+                return CreateFailureResult(transaction, sw.Elapsed, errors);
+            }
+
+            var action = blueprint.Actions.FirstOrDefault(a => a.Id == actionIdInt);
+            if (action == null)
+            {
+                errors.Add(CreateError("VAL_SCHEMA_003",
+                    $"Action {transaction.ActionId} not found in blueprint '{transaction.BlueprintId}'",
+                    ValidationErrorCategory.Blueprint, "ActionId", true));
+                return CreateFailureResult(transaction, sw.Elapsed, errors);
+            }
+
+            // 1. Starting action validation
+            if (string.IsNullOrWhiteSpace(transaction.PreviousTransactionId))
+            {
+                if (!action.IsStartingAction)
+                {
+                    errors.Add(CreateError("VAL_BP_001",
+                        $"Action {actionIdInt} is not a starting action but has no previous transaction",
+                        ValidationErrorCategory.Blueprint, "ActionId"));
+                }
+            }
+
+            // 2. Sender authorization — derive wallet from signature and compare to participant
+            if (transaction.Signatures.Count > 0)
+            {
+                var firstSig = transaction.Signatures[0];
+                var network = ParseAlgorithmToNetwork(firstSig.Algorithm);
+
+                if (network != null)
+                {
+                    var derivedWallet = _walletUtilities.PublicKeyToWallet(firstSig.PublicKey, (byte)network.Value);
+                    var participant = blueprint.Participants.FirstOrDefault(p =>
+                        string.Equals(p.Id, action.Sender, StringComparison.OrdinalIgnoreCase));
+
+                    if (participant != null && !string.IsNullOrWhiteSpace(participant.WalletAddress))
+                    {
+                        if (!string.Equals(derivedWallet, participant.WalletAddress, StringComparison.OrdinalIgnoreCase))
+                        {
+                            errors.Add(CreateError("VAL_BP_002",
+                                $"Signer wallet {derivedWallet} does not match authorized sender {participant.WalletAddress} for action {actionIdInt}",
+                                ValidationErrorCategory.Permission, "Signatures"));
+                        }
+                    }
+                    else if (participant != null && string.IsNullOrWhiteSpace(participant.WalletAddress))
+                    {
+                        _logger.LogDebug(
+                            "Participant {ParticipantId} has no wallet address set, skipping sender authorization for action {ActionId}",
+                            action.Sender, actionIdInt);
+                    }
+                }
+            }
+
+            // 3. Action sequencing — if PreviousTransactionId is set, validate route reachability
+            if (!string.IsNullOrWhiteSpace(transaction.PreviousTransactionId))
+            {
+                var previousTx = await _registerClient.GetTransactionAsync(
+                    transaction.RegisterId, transaction.PreviousTransactionId, ct);
+
+                if (previousTx?.MetaData?.ActionId != null)
+                {
+                    var previousActionId = (int)previousTx.MetaData.ActionId.Value;
+                    var previousAction = blueprint.Actions.FirstOrDefault(a => a.Id == previousActionId);
+
+                    if (previousAction != null)
+                    {
+                        var routes = previousAction.Routes?.ToList();
+                        if (routes != null && routes.Count > 0)
+                        {
+                            var reachableActionIds = routes
+                                .SelectMany(r => r.NextActionIds)
+                                .ToHashSet();
+
+                            // Also check rejection routing
+                            if (previousAction.RejectionConfig != null)
+                            {
+                                reachableActionIds.Add(previousAction.RejectionConfig.TargetActionId);
+                            }
+
+                            if (!reachableActionIds.Contains(actionIdInt))
+                            {
+                                errors.Add(CreateError("VAL_BP_003",
+                                    $"Action {actionIdInt} is not reachable from action {previousActionId} via blueprint routes",
+                                    ValidationErrorCategory.Blueprint, "ActionId"));
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogDebug(
+                                "Previous action {PreviousActionId} has no routes defined, skipping sequence check for action {ActionId}",
+                                previousActionId, actionIdInt);
+                        }
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug(
+                        "Previous transaction {PrevTxId} missing ActionId in metadata, skipping sequence check",
+                        transaction.PreviousTransactionId);
+                }
+            }
+
+            _logger.LogDebug(
+                "Blueprint conformance validation for transaction {TransactionId}: {ErrorCount} errors",
+                transaction.TransactionId, errors.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating blueprint conformance for transaction {TransactionId}",
+                transaction.TransactionId);
+            errors.Add(CreateError("VAL_BP_ERR",
+                $"Blueprint conformance validation error: {ex.Message}",
+                ValidationErrorCategory.Blueprint, isFatal: false));
+        }
+
+        if (errors.Count > 0)
+        {
+            return CreateFailureResult(transaction, sw.Elapsed, errors);
+        }
+
+        return ValidationEngineResult.Success(
+            transaction.TransactionId,
+            transaction.RegisterId,
+            sw.Elapsed);
+    }
+
     #region Private Methods
+
+    private static bool IsGenesisOrControlTransaction(Transaction transaction)
+    {
+        if (string.Equals(transaction.BlueprintId, GenesisConstants.BlueprintId, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (transaction.Metadata.TryGetValue("Type", out var typeStr) &&
+            (string.Equals(typeStr, "Genesis", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(typeStr, "Control", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        return false;
+    }
 
     private ValidationEngineResult ValidatePayloadHash(Transaction transaction)
     {

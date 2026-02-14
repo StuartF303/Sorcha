@@ -32,6 +32,7 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
     private readonly WebApplicationFactory<Program> _factory;
     private readonly Mock<ITransactionValidator> _mockTransactionValidator;
     private readonly Mock<IMemPoolManager> _mockMemPoolManager;
+    private readonly Mock<ITransactionPoolPoller> _mockPoolPoller;
     private readonly Mock<IRegisterMonitoringRegistry> _mockMonitoringRegistry;
     private readonly Mock<IHashProvider> _mockHashProvider;
 
@@ -39,6 +40,7 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
     {
         _mockTransactionValidator = new Mock<ITransactionValidator>();
         _mockMemPoolManager = new Mock<IMemPoolManager>();
+        _mockPoolPoller = new Mock<ITransactionPoolPoller>();
         _mockMonitoringRegistry = new Mock<IRegisterMonitoringRegistry>();
         _mockHashProvider = new Mock<IHashProvider>();
 
@@ -91,7 +93,7 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
                 RemoveService<IValidationEngine>(services);
                 RemoveService<IVerifiedTransactionQueue>(services);
                 services.AddSingleton<IBlueprintCache>(_ => new Mock<IBlueprintCache>().Object);
-                services.AddSingleton<ITransactionPoolPoller>(_ => new Mock<ITransactionPoolPoller>().Object);
+                services.AddSingleton<ITransactionPoolPoller>(_ => _mockPoolPoller.Object);
                 services.AddScoped<IValidationEngine>(_ => new Mock<IValidationEngine>().Object);
                 services.AddSingleton<IVerifiedTransactionQueue>(_ => new Mock<IVerifiedTransactionQueue>().Object);
             });
@@ -134,8 +136,8 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
             .Setup(v => v.ValidateSignatures(It.IsAny<List<TransactionSignature>>(), It.IsAny<string>()))
             .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
 
-        _mockMemPoolManager
-            .Setup(m => m.AddTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+        _mockPoolPoller
+            .Setup(p => p.SubmitTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // Act
@@ -319,8 +321,8 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
             .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
 
         // Memory pool is full
-        _mockMemPoolManager
-            .Setup(m => m.AddTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+        _mockPoolPoller
+            .Setup(p => p.SubmitTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         // Act
@@ -332,7 +334,7 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
         result.GetProperty("isValid").GetBoolean().Should().BeTrue();
         result.GetProperty("added").GetBoolean().Should().BeFalse();
-        result.GetProperty("message").GetString().Should().Contain("memory pool");
+        result.GetProperty("message").GetString().Should().Contain("unverified pool");
     }
 
     [Fact]
@@ -384,8 +386,8 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
             .Setup(v => v.ValidateSignatures(It.IsAny<List<TransactionSignature>>(), It.IsAny<string>()))
             .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
 
-        _mockMemPoolManager
-            .Setup(m => m.AddTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+        _mockPoolPoller
+            .Setup(p => p.SubmitTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // Act
@@ -421,8 +423,8 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
             .Setup(v => v.ValidateSignatures(It.IsAny<List<TransactionSignature>>(), It.IsAny<string>()))
             .Returns(new Sorcha.Validator.Core.Models.ValidationResult { IsValid = true });
 
-        _mockMemPoolManager
-            .Setup(m => m.AddTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+        _mockPoolPoller
+            .Setup(p => p.SubmitTransactionAsync(It.IsAny<string>(), It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         // Act

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using Sorcha.Cryptography.Interfaces;
+using Sorcha.Cryptography.Utilities;
 using Sorcha.Register.Core.Services;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Services;
@@ -26,6 +28,9 @@ public static class ValidationEngineExtensions
         // Register configuration
         services.Configure<ValidationEngineConfiguration>(
             configuration.GetSection(ValidationEngineConfiguration.SectionName));
+
+        // Register wallet utilities for blueprint conformance validation
+        services.AddSingleton<IWalletUtilities, WalletUtilities>();
 
         // Register governance services (scoped to match IRegisterServiceClient lifetime)
         services.AddScoped<IGovernanceRosterService, GovernanceRosterService>();

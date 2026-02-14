@@ -40,16 +40,20 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
         // Remove all hosted services to prevent background service startup
         services.RemoveAll<Microsoft.Extensions.Hosting.IHostedService>();
 
-        // Remove singleton TransactionPoolPollerService (registered separately from IHostedService)
-        RemoveService<Sorcha.Validator.Service.Services.TransactionPoolPollerService>(services);
-
         // Remove and mock validation engine dependencies
         RemoveService<IBlueprintCache>(services);
         RemoveService<ITransactionPoolPoller>(services);
         RemoveService<IValidationEngine>(services);
         RemoveService<IVerifiedTransactionQueue>(services);
         services.AddSingleton<IBlueprintCache>(_ => new Mock<IBlueprintCache>().Object);
-        services.AddSingleton<ITransactionPoolPoller>(_ => new Mock<ITransactionPoolPoller>().Object);
+        var defaultPoolPoller = new Mock<ITransactionPoolPoller>();
+        defaultPoolPoller
+            .Setup(m => m.SubmitTransactionAsync(
+                It.IsAny<string>(),
+                It.IsAny<Models.Transaction>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        services.AddSingleton<ITransactionPoolPoller>(_ => defaultPoolPoller.Object);
         services.AddScoped<IValidationEngine>(_ => new Mock<IValidationEngine>().Object);
         services.AddSingleton<IVerifiedTransactionQueue>(_ => new Mock<IVerifiedTransactionQueue>().Object);
 
@@ -95,9 +99,9 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
     public async Task SubmitGenesisTransaction_WithValidRequest_ShouldReturn200Ok()
     {
         // Arrange
-        var mockMemPoolManager = new Mock<IMemPoolManager>();
-        mockMemPoolManager
-            .Setup(m => m.AddTransactionAsync(
+        var mockPoolPoller = new Mock<ITransactionPoolPoller>();
+        mockPoolPoller
+            .Setup(m => m.SubmitTransactionAsync(
                 It.IsAny<string>(),
                 It.IsAny<Models.Transaction>(),
                 It.IsAny<CancellationToken>()))
@@ -107,14 +111,9 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
         {
             builder.ConfigureServices(services =>
             {
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IMemPoolManager));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-                services.AddSingleton(_ => mockMemPoolManager.Object);
                 RegisterAllMocks(services);
+                RemoveService<ITransactionPoolPoller>(services);
+                services.AddSingleton(_ => mockPoolPoller.Object);
             });
         }).CreateClient();
 
@@ -165,8 +164,8 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
         result.GetProperty("registerId").GetString().Should().Be("testreg001");
         result.GetProperty("message").GetString().Should().Contain("accepted");
 
-        mockMemPoolManager.Verify(
-            m => m.AddTransactionAsync(
+        mockPoolPoller.Verify(
+            m => m.SubmitTransactionAsync(
                 "testreg001",
                 It.Is<Models.Transaction>(t =>
                     t.TransactionId == "genesis-test-register-001" &&
@@ -182,9 +181,9 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
     {
         // Arrange
         Models.Transaction? capturedTransaction = null;
-        var mockMemPoolManager = new Mock<IMemPoolManager>();
-        mockMemPoolManager
-            .Setup(m => m.AddTransactionAsync(
+        var mockPoolPoller = new Mock<ITransactionPoolPoller>();
+        mockPoolPoller
+            .Setup(m => m.SubmitTransactionAsync(
                 It.IsAny<string>(),
                 It.IsAny<Models.Transaction>(),
                 It.IsAny<CancellationToken>()))
@@ -196,14 +195,9 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
         {
             builder.ConfigureServices(services =>
             {
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IMemPoolManager));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-                services.AddSingleton(_ => mockMemPoolManager.Object);
                 RegisterAllMocks(services);
+                RemoveService<ITransactionPoolPoller>(services);
+                services.AddSingleton(_ => mockPoolPoller.Object);
             });
         }).CreateClient();
 
@@ -249,9 +243,9 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
     {
         // Arrange
         Models.Transaction? capturedTransaction = null;
-        var mockMemPoolManager = new Mock<IMemPoolManager>();
-        mockMemPoolManager
-            .Setup(m => m.AddTransactionAsync(
+        var mockPoolPoller = new Mock<ITransactionPoolPoller>();
+        mockPoolPoller
+            .Setup(m => m.SubmitTransactionAsync(
                 It.IsAny<string>(),
                 It.IsAny<Models.Transaction>(),
                 It.IsAny<CancellationToken>()))
@@ -263,14 +257,9 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
         {
             builder.ConfigureServices(services =>
             {
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IMemPoolManager));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-                services.AddSingleton(_ => mockMemPoolManager.Object);
                 RegisterAllMocks(services);
+                RemoveService<ITransactionPoolPoller>(services);
+                services.AddSingleton(_ => mockPoolPoller.Object);
             });
         }).CreateClient();
 
@@ -315,29 +304,24 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
     }
 
     [Fact]
-    public async Task SubmitGenesisTransaction_WhenMemPoolFull_ShouldReturn409Conflict()
+    public async Task SubmitGenesisTransaction_WhenPoolFull_ShouldReturn409Conflict()
     {
         // Arrange
-        var mockMemPoolManager = new Mock<IMemPoolManager>();
-        mockMemPoolManager
-            .Setup(m => m.AddTransactionAsync(
+        var mockPoolPoller = new Mock<ITransactionPoolPoller>();
+        mockPoolPoller
+            .Setup(m => m.SubmitTransactionAsync(
                 It.IsAny<string>(),
                 It.IsAny<Models.Transaction>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false); // Memory pool full
+            .ReturnsAsync(false); // Unverified pool full
 
         var client = _factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IMemPoolManager));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-                services.AddSingleton(_ => mockMemPoolManager.Object);
                 RegisterAllMocks(services);
+                RemoveService<ITransactionPoolPoller>(services);
+                services.AddSingleton(_ => mockPoolPoller.Object);
             });
         }).CreateClient();
 
@@ -407,9 +391,9 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
     {
         // Arrange
         Models.Transaction? capturedTransaction = null;
-        var mockMemPoolManager = new Mock<IMemPoolManager>();
-        mockMemPoolManager
-            .Setup(m => m.AddTransactionAsync(
+        var mockPoolPoller = new Mock<ITransactionPoolPoller>();
+        mockPoolPoller
+            .Setup(m => m.SubmitTransactionAsync(
                 It.IsAny<string>(),
                 It.IsAny<Models.Transaction>(),
                 It.IsAny<CancellationToken>()))
@@ -421,14 +405,9 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
         {
             builder.ConfigureServices(services =>
             {
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IMemPoolManager));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-                services.AddSingleton(_ => mockMemPoolManager.Object);
                 RegisterAllMocks(services);
+                RemoveService<ITransactionPoolPoller>(services);
+                services.AddSingleton(_ => mockPoolPoller.Object);
             });
         }).CreateClient();
 
@@ -478,9 +457,9 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
     {
         // Arrange
         Models.Transaction? capturedTransaction = null;
-        var mockMemPoolManager = new Mock<IMemPoolManager>();
-        mockMemPoolManager
-            .Setup(m => m.AddTransactionAsync(
+        var mockPoolPoller = new Mock<ITransactionPoolPoller>();
+        mockPoolPoller
+            .Setup(m => m.SubmitTransactionAsync(
                 It.IsAny<string>(),
                 It.IsAny<Models.Transaction>(),
                 It.IsAny<CancellationToken>()))
@@ -492,14 +471,9 @@ public class GenesisTransactionEndpointTests : IClassFixture<WebApplicationFacto
         {
             builder.ConfigureServices(services =>
             {
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IMemPoolManager));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-                services.AddSingleton(_ => mockMemPoolManager.Object);
                 RegisterAllMocks(services);
+                RemoveService<ITransactionPoolPoller>(services);
+                services.AddSingleton(_ => mockPoolPoller.Object);
             });
         }).CreateClient();
 

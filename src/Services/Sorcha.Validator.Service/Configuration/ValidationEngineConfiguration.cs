@@ -84,4 +84,10 @@ public class ValidationEngineConfiguration
     /// admin roster to ensure the submitter has the required role.
     /// </summary>
     public bool EnableGovernanceValidation { get; set; } = true;
+
+    /// <summary>
+    /// Enable blueprint conformance validation (sender authorization,
+    /// starting action validation, action sequencing via routes).
+    /// </summary>
+    public bool EnableBlueprintConformance { get; set; } = true;
 }

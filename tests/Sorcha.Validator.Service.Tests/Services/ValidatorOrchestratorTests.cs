@@ -7,6 +7,7 @@ using Sorcha.ServiceClients.Peer;
 using Sorcha.ServiceClients.Register;
 using Sorcha.Validator.Service.Models;
 using Sorcha.Validator.Service.Services;
+using Sorcha.Validator.Service.Services.Interfaces;
 
 namespace Sorcha.Validator.Service.Tests.Services;
 
@@ -16,7 +17,7 @@ namespace Sorcha.Validator.Service.Tests.Services;
 /// </summary>
 public class ValidatorOrchestratorTests
 {
-    private readonly Mock<IMemPoolManager> _mockMemPoolManager;
+    private readonly Mock<IVerifiedTransactionQueue> _mockVerifiedQueue;
     private readonly Mock<IDocketBuilder> _mockDocketBuilder;
     private readonly Mock<IConsensusEngine> _mockConsensusEngine;
     private readonly Mock<IRegisterServiceClient> _mockRegisterClient;
@@ -26,7 +27,7 @@ public class ValidatorOrchestratorTests
 
     public ValidatorOrchestratorTests()
     {
-        _mockMemPoolManager = new Mock<IMemPoolManager>();
+        _mockVerifiedQueue = new Mock<IVerifiedTransactionQueue>();
         _mockDocketBuilder = new Mock<IDocketBuilder>();
         _mockConsensusEngine = new Mock<IConsensusEngine>();
         _mockRegisterClient = new Mock<IRegisterServiceClient>();
@@ -34,7 +35,7 @@ public class ValidatorOrchestratorTests
         _mockLogger = new Mock<ILogger<ValidatorOrchestrator>>();
 
         _orchestrator = new ValidatorOrchestrator(
-            _mockMemPoolManager.Object,
+            _mockVerifiedQueue.Object,
             _mockDocketBuilder.Object,
             _mockConsensusEngine.Object,
             _mockRegisterClient.Object,
@@ -45,7 +46,7 @@ public class ValidatorOrchestratorTests
     #region Constructor Tests
 
     [Fact]
-    public void Constructor_WithNullMemPoolManager_ThrowsArgumentNullException()
+    public void Constructor_WithNullVerifiedQueue_ThrowsArgumentNullException()
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new ValidatorOrchestrator(
@@ -56,7 +57,7 @@ public class ValidatorOrchestratorTests
             _mockPeerClient.Object,
             _mockLogger.Object));
 
-        exception.ParamName.Should().Be("memPoolManager");
+        exception.ParamName.Should().Be("verifiedQueue");
     }
 
     [Fact]
@@ -64,7 +65,7 @@ public class ValidatorOrchestratorTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new ValidatorOrchestrator(
-            _mockMemPoolManager.Object,
+            _mockVerifiedQueue.Object,
             null!,
             _mockConsensusEngine.Object,
             _mockRegisterClient.Object,
@@ -79,7 +80,7 @@ public class ValidatorOrchestratorTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new ValidatorOrchestrator(
-            _mockMemPoolManager.Object,
+            _mockVerifiedQueue.Object,
             _mockDocketBuilder.Object,
             null!,
             _mockRegisterClient.Object,
@@ -214,9 +215,9 @@ public class ValidatorOrchestratorTests
         var registerId = "register-1";
         await _orchestrator.StartValidatorAsync(registerId);
 
-        _mockMemPoolManager
-            .Setup(m => m.GetTransactionCountAsync(registerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(25);
+        _mockVerifiedQueue
+            .Setup(q => q.GetCount(registerId))
+            .Returns(25);
 
         // Act
         var status = await _orchestrator.GetValidatorStatusAsync(registerId);
@@ -268,9 +269,9 @@ public class ValidatorOrchestratorTests
         // Process one successful docket
         await _orchestrator.ProcessValidationPipelineAsync(registerId);
 
-        _mockMemPoolManager
-            .Setup(m => m.GetTransactionCountAsync(registerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(10);
+        _mockVerifiedQueue
+            .Setup(q => q.GetCount(registerId))
+            .Returns(10);
 
         // Act
         var status = await _orchestrator.GetValidatorStatusAsync(registerId);
@@ -396,8 +397,8 @@ public class ValidatorOrchestratorTests
         docket.Votes.Should().HaveCount(2);
 
         // Verify transactions were removed from mem pool
-        _mockMemPoolManager.Verify(
-            m => m.RemoveTransactionAsync(registerId, It.IsAny<string>(), It.IsAny<CancellationToken>()),
+        _mockVerifiedQueue.Verify(
+            q => q.Remove(registerId, It.IsAny<string>()),
             Times.Exactly(docket.Transactions.Count));
 
         // Verify docket was broadcast to peers
@@ -452,8 +453,8 @@ public class ValidatorOrchestratorTests
         result.ErrorMessage.Should().Contain("Insufficient validator approvals");
 
         // Verify transactions were NOT removed from mem pool (consensus failed)
-        _mockMemPoolManager.Verify(
-            m => m.RemoveTransactionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+        _mockVerifiedQueue.Verify(
+            q => q.Remove(It.IsAny<string>(), It.IsAny<string>()),
             Times.Never);
 
         // Verify docket was NOT broadcast (consensus failed)
@@ -530,9 +531,9 @@ public class ValidatorOrchestratorTests
 
         await _orchestrator.ProcessValidationPipelineAsync(registerId);
 
-        _mockMemPoolManager
-            .Setup(m => m.GetTransactionCountAsync(registerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(5);
+        _mockVerifiedQueue
+            .Setup(q => q.GetCount(registerId))
+            .Returns(5);
 
         // Act
         var status = await _orchestrator.GetValidatorStatusAsync(registerId);
@@ -568,8 +569,8 @@ public class ValidatorOrchestratorTests
         await _orchestrator.ProcessValidationPipelineAsync(registerId);
 
         // Assert
-        _mockMemPoolManager.Verify(
-            m => m.RemoveTransactionAsync(registerId, It.IsAny<string>(), It.IsAny<CancellationToken>()),
+        _mockVerifiedQueue.Verify(
+            q => q.Remove(registerId, It.IsAny<string>()),
             Times.Exactly(5));
     }
 
@@ -707,9 +708,9 @@ public class ValidatorOrchestratorTests
             .Setup(r => r.WriteDocketAsync(It.IsAny<Sorcha.ServiceClients.Register.DocketModel>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        _mockMemPoolManager
-            .Setup(m => m.RemoveTransactionAsync(registerId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _mockVerifiedQueue
+            .Setup(q => q.Remove(registerId, It.IsAny<string>()))
+            .Returns(true);
 
         _mockPeerClient
             .Setup(p => p.BroadcastConfirmedDocketAsync(registerId, It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))

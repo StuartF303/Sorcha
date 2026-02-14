@@ -9,6 +9,7 @@ using Sorcha.Validator.Core.Validators;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.Register.Models.Constants;
+using Sorcha.Validator.Service.Services.Interfaces;
 
 namespace Sorcha.Validator.Service.Endpoints;
 
@@ -48,7 +49,7 @@ public static class ValidationEndpoints
     private static async Task<IResult> ValidateTransaction(
         [FromBody] ValidateTransactionRequest request,
         [FromServices] ITransactionValidator validator,
-        [FromServices] IMemPoolManager memPoolManager,
+        [FromServices] ITransactionPoolPoller poolPoller,
         [FromServices] IRegisterMonitoringRegistry monitoringRegistry,
         [FromServices] IHashProvider hashProvider,
         [FromServices] ILogger<Program> logger,
@@ -128,21 +129,21 @@ public static class ValidationEndpoints
                 });
             }
 
-            // Add to memory pool
-            var added = await memPoolManager.AddTransactionAsync(request.RegisterId, transaction, cancellationToken);
+            // Submit to unverified pool (ValidationEngineService will validate and promote to verified queue)
+            var added = await poolPoller.SubmitTransactionAsync(request.RegisterId, transaction, cancellationToken);
 
             if (!added)
             {
-                logger.LogWarning("Failed to add transaction {TransactionId} to memory pool", request.TransactionId);
+                logger.LogWarning("Failed to submit transaction {TransactionId} to unverified pool", request.TransactionId);
                 return Results.Conflict(new
                 {
                     IsValid = true,
                     Added = false,
-                    Message = "Failed to add transaction to memory pool (pool full or duplicate)"
+                    Message = "Failed to submit transaction to unverified pool (pool full or duplicate)"
                 });
             }
 
-            logger.LogInformation("Transaction {TransactionId} validated and added to memory pool", request.TransactionId);
+            logger.LogInformation("Transaction {TransactionId} validated and submitted to unverified pool", request.TransactionId);
 
             // Register for docket building so DocketBuildTriggerService polls this register
             monitoringRegistry.RegisterForMonitoring(request.RegisterId);
@@ -171,7 +172,7 @@ public static class ValidationEndpoints
     /// </summary>
     private static async Task<IResult> SubmitGenesisTransaction(
         [FromBody] GenesisTransactionRequest request,
-        [FromServices] IMemPoolManager memPoolManager,
+        [FromServices] ITransactionPoolPoller poolPoller,
         [FromServices] IRegisterMonitoringRegistry monitoringRegistry,
         [FromServices] ISystemWalletProvider systemWalletProvider,
         [FromServices] Microsoft.Extensions.Options.IOptions<Sorcha.Validator.Service.Configuration.ValidatorConfiguration> validatorConfig,
@@ -336,20 +337,20 @@ public static class ValidationEndpoints
                 }
             };
 
-            // Add to memory pool
-            var added = await memPoolManager.AddTransactionAsync(request.RegisterId, transaction, cancellationToken);
+            // Submit to unverified pool (ValidationEngineService will validate and promote to verified queue)
+            var added = await poolPoller.SubmitTransactionAsync(request.RegisterId, transaction, cancellationToken);
 
             if (!added)
             {
-                logger.LogWarning("Failed to add genesis transaction for register {RegisterId} to memory pool", request.RegisterId);
+                logger.LogWarning("Failed to submit genesis transaction for register {RegisterId} to unverified pool", request.RegisterId);
                 return Results.Conflict(new
                 {
                     Success = false,
-                    Message = "Failed to add genesis transaction to memory pool (pool full or duplicate)"
+                    Message = "Failed to submit genesis transaction to unverified pool (pool full or duplicate)"
                 });
             }
 
-            logger.LogInformation("Genesis transaction for register {RegisterId} added to memory pool successfully", request.RegisterId);
+            logger.LogInformation("Genesis transaction for register {RegisterId} submitted to unverified pool successfully", request.RegisterId);
 
             // Register for docket building monitoring
             monitoringRegistry.RegisterForMonitoring(request.RegisterId);

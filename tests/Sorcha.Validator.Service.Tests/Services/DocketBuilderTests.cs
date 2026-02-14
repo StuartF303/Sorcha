@@ -12,6 +12,7 @@ using Sorcha.ServiceClients.Wallet;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Models;
 using Sorcha.Validator.Service.Services;
+using Sorcha.Validator.Service.Services.Interfaces;
 using RegisterModels = Sorcha.Register.Models;
 
 namespace Sorcha.Validator.Service.Tests.Services;
@@ -22,7 +23,7 @@ namespace Sorcha.Validator.Service.Tests.Services;
 /// </summary>
 public class DocketBuilderTests
 {
-    private readonly Mock<IMemPoolManager> _mockMemPoolManager;
+    private readonly Mock<IVerifiedTransactionQueue> _mockVerifiedQueue;
     private readonly Mock<IRegisterServiceClient> _mockRegisterClient;
     private readonly Mock<IWalletServiceClient> _mockWalletClient;
     private readonly Mock<IGenesisManager> _mockGenesisManager;
@@ -36,7 +37,7 @@ public class DocketBuilderTests
 
     public DocketBuilderTests()
     {
-        _mockMemPoolManager = new Mock<IMemPoolManager>();
+        _mockVerifiedQueue = new Mock<IVerifiedTransactionQueue>();
         _mockRegisterClient = new Mock<IRegisterServiceClient>();
         _mockWalletClient = new Mock<IWalletServiceClient>();
         _mockGenesisManager = new Mock<IGenesisManager>();
@@ -71,7 +72,7 @@ public class DocketBuilderTests
             });
 
         _builder = new DocketBuilder(
-            _mockMemPoolManager.Object,
+            _mockVerifiedQueue.Object,
             _mockRegisterClient.Object,
             _mockWalletClient.Object,
             _mockGenesisManager.Object,
@@ -85,7 +86,7 @@ public class DocketBuilderTests
     #region Constructor Tests
 
     [Fact]
-    public void Constructor_WithNullMemPoolManager_ThrowsArgumentNullException()
+    public void Constructor_WithNullVerifiedQueue_ThrowsArgumentNullException()
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new DocketBuilder(
@@ -99,7 +100,7 @@ public class DocketBuilderTests
             Options.Create(_buildConfig),
             _mockLogger.Object));
 
-        exception.ParamName.Should().Be("memPoolManager");
+        exception.ParamName.Should().Be("verifiedQueue");
     }
 
     [Fact]
@@ -107,7 +108,7 @@ public class DocketBuilderTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new DocketBuilder(
-            _mockMemPoolManager.Object,
+            _mockVerifiedQueue.Object,
             null!,
             _mockWalletClient.Object,
             _mockGenesisManager.Object,
@@ -125,7 +126,7 @@ public class DocketBuilderTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new DocketBuilder(
-            _mockMemPoolManager.Object,
+            _mockVerifiedQueue.Object,
             _mockRegisterClient.Object,
             null!,
             _mockGenesisManager.Object,
@@ -154,9 +155,9 @@ public class DocketBuilderTests
             .Setup(g => g.NeedsGenesisDocketAsync(registerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        _mockMemPoolManager
-            .Setup(m => m.GetPendingTransactionsAsync(registerId, _buildConfig.MaxTransactionsPerDocket, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(transactions);
+        _mockVerifiedQueue
+            .Setup(q => q.Dequeue(registerId, _buildConfig.MaxTransactionsPerDocket))
+            .Returns(WrapAsVerified(transactions));
 
         _mockGenesisManager
             .Setup(g => g.CreateGenesisDocketAsync(registerId, transactions, It.IsAny<CancellationToken>()))
@@ -186,9 +187,9 @@ public class DocketBuilderTests
             .Setup(g => g.NeedsGenesisDocketAsync(registerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        _mockMemPoolManager
-            .Setup(m => m.GetPendingTransactionsAsync(registerId, _buildConfig.MaxTransactionsPerDocket, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Transaction>());
+        _mockVerifiedQueue
+            .Setup(q => q.Dequeue(registerId, _buildConfig.MaxTransactionsPerDocket))
+            .Returns(WrapAsVerified(new List<Transaction>()));
 
         _mockGenesisManager
             .Setup(g => g.CreateGenesisDocketAsync(registerId, It.IsAny<List<Transaction>>(), It.IsAny<CancellationToken>()))
@@ -251,9 +252,9 @@ public class DocketBuilderTests
             .Setup(g => g.NeedsGenesisDocketAsync(registerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        _mockMemPoolManager
-            .Setup(m => m.GetPendingTransactionsAsync(registerId, _buildConfig.MaxTransactionsPerDocket, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Transaction>());
+        _mockVerifiedQueue
+            .Setup(q => q.Dequeue(registerId, _buildConfig.MaxTransactionsPerDocket))
+            .Returns(WrapAsVerified(new List<Transaction>()));
 
         // Act
         var result = await _builder.BuildDocketAsync(registerId);
@@ -397,9 +398,9 @@ public class DocketBuilderTests
             .Setup(g => g.NeedsGenesisDocketAsync(registerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        _mockMemPoolManager
-            .Setup(m => m.GetPendingTransactionsAsync(registerId, _buildConfig.MaxTransactionsPerDocket, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(transactions);
+        _mockVerifiedQueue
+            .Setup(q => q.Dequeue(registerId, _buildConfig.MaxTransactionsPerDocket))
+            .Returns(WrapAsVerified(transactions));
 
         _mockRegisterClient
             .Setup(r => r.ReadLatestDocketAsync(registerId, It.IsAny<CancellationToken>()))
@@ -458,9 +459,9 @@ public class DocketBuilderTests
         var registerId = "register-1";
         var lastBuildTime = DateTimeOffset.UtcNow.AddSeconds(-5); // 5 seconds ago (under 10 second threshold)
 
-        _mockMemPoolManager
-            .Setup(m => m.GetTransactionCountAsync(registerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(60); // Over 50 threshold
+        _mockVerifiedQueue
+            .Setup(q => q.GetCount(registerId))
+            .Returns(60); // Over 50 threshold
 
         // Act
         var result = await _builder.ShouldBuildDocketAsync(registerId, lastBuildTime);
@@ -468,8 +469,8 @@ public class DocketBuilderTests
         // Assert
         result.Should().BeTrue();
 
-        _mockMemPoolManager.Verify(
-            m => m.GetTransactionCountAsync(registerId, It.IsAny<CancellationToken>()),
+        _mockVerifiedQueue.Verify(
+            q => q.GetCount(registerId),
             Times.Once);
     }
 
@@ -480,9 +481,9 @@ public class DocketBuilderTests
         var registerId = "register-1";
         var lastBuildTime = DateTimeOffset.UtcNow.AddSeconds(-5); // Time threshold not met
 
-        _mockMemPoolManager
-            .Setup(m => m.GetTransactionCountAsync(registerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(50); // Exactly at threshold
+        _mockVerifiedQueue
+            .Setup(q => q.GetCount(registerId))
+            .Returns(50); // Exactly at threshold
 
         // Act
         var result = await _builder.ShouldBuildDocketAsync(registerId, lastBuildTime);
@@ -498,9 +499,9 @@ public class DocketBuilderTests
         var registerId = "register-1";
         var lastBuildTime = DateTimeOffset.UtcNow.AddSeconds(-5); // Under time threshold
 
-        _mockMemPoolManager
-            .Setup(m => m.GetTransactionCountAsync(registerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(30); // Under size threshold
+        _mockVerifiedQueue
+            .Setup(q => q.GetCount(registerId))
+            .Returns(30); // Under size threshold
 
         // Act
         var result = await _builder.ShouldBuildDocketAsync(registerId, lastBuildTime);
@@ -516,9 +517,9 @@ public class DocketBuilderTests
         var registerId = "register-1";
         var lastBuildTime = DateTimeOffset.UtcNow.AddSeconds(-5);
 
-        _mockMemPoolManager
-            .Setup(m => m.GetTransactionCountAsync(registerId, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Test error"));
+        _mockVerifiedQueue
+            .Setup(q => q.GetCount(registerId))
+            .Throws(new InvalidOperationException("Test error"));
 
         // Act
         var result = await _builder.ShouldBuildDocketAsync(registerId, lastBuildTime);
@@ -540,9 +541,9 @@ public class DocketBuilderTests
         var registerId = "register-1";
         var lastBuildTime = DateTimeOffset.UtcNow.AddSeconds(-secondsSinceLastBuild);
 
-        _mockMemPoolManager
-            .Setup(m => m.GetTransactionCountAsync(registerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(transactionCount);
+        _mockVerifiedQueue
+            .Setup(q => q.GetCount(registerId))
+            .Returns(transactionCount);
 
         // Act
         var result = await _builder.ShouldBuildDocketAsync(registerId, lastBuildTime);
@@ -644,9 +645,9 @@ public class DocketBuilderTests
             .Setup(g => g.NeedsGenesisDocketAsync(registerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        _mockMemPoolManager
-            .Setup(m => m.GetPendingTransactionsAsync(registerId, _buildConfig.MaxTransactionsPerDocket, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(transactions);
+        _mockVerifiedQueue
+            .Setup(q => q.Dequeue(registerId, _buildConfig.MaxTransactionsPerDocket))
+            .Returns(WrapAsVerified(transactions));
 
         // Convert internal Docket to DocketModel for RegisterServiceClient mock
         DocketModel? docketModel = previousDocket == null ? null : CreateTestDocketModel(previousDocket.DocketNumber, previousDocket.PreviousHash);
@@ -674,6 +675,20 @@ public class DocketBuilderTests
                 SignedBy = string.IsNullOrEmpty(walletAddress) ? "test-wallet-address" : walletAddress,
                 Algorithm = "ED25519"
             });
+    }
+
+    /// <summary>
+    /// Wraps transactions into VerifiedTransaction records for mock setups
+    /// </summary>
+    private static IReadOnlyList<VerifiedTransaction> WrapAsVerified(List<Transaction> transactions)
+    {
+        return transactions.Select(t => new VerifiedTransaction
+        {
+            Transaction = t,
+            EnqueuedAt = DateTimeOffset.UtcNow,
+            Priority = 0,
+            ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
+        }).ToList();
     }
 
     #endregion

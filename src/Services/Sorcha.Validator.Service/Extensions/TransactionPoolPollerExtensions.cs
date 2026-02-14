@@ -26,12 +26,11 @@ public static class TransactionPoolPollerExtensions
         services.Configure<TransactionPoolPollerConfiguration>(
             configuration.GetSection(TransactionPoolPollerConfiguration.SectionName));
 
-        // Register the poller
+        // Register the poller (unverified pool ingestion)
         services.AddSingleton<ITransactionPoolPoller, TransactionPoolPoller>();
 
-        // Register the background services
-        services.AddSingleton<TransactionPoolPollerService>();
-        services.AddHostedService(sp => sp.GetRequiredService<TransactionPoolPollerService>());
+        // TransactionPoolPollerService removed — ValidationEngineService polls unverified pool
+        // and promotes validated transactions to the verified queue.
 
         services.AddHostedService<UnverifiedPoolCleanupService>();
 

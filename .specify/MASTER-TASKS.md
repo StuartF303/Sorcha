@@ -21,6 +21,19 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ## Recent Updates
 
 **2026-02-14:**
+- ✅ VALIDATOR-PIPELINE-FIX: Validator Pipeline Rewire + Blueprint Conformance Enforcement
+  - Rewired disconnected validation pipeline: single path Ingestion → Unverified Pool → ValidationEngine → Verified Queue → DocketBuilder
+  - Removed bypass `TransactionPoolPollerService` that fed unvalidated transactions to mempool
+  - `ValidationEndpoints` + genesis endpoint now submit to `ITransactionPoolPoller` (unverified pool) instead of `IMemPoolManager`
+  - `DocketBuilder` + `ValidatorOrchestrator` now read from `IVerifiedTransactionQueue` instead of `IMemPoolManager`
+  - `DocketBuildTriggerService` uses verified queue counts + unverified pool cleanup
+  - New `ValidateBlueprintConformanceAsync` in `ValidationEngine`: starting action validation (VAL_BP_001), sender authorization via wallet derivation (VAL_BP_002), action sequencing via routes (VAL_BP_003)
+  - Genesis/control transactions bypass schema and blueprint conformance checks
+  - `EnableBlueprintConformance` config toggle (default: true)
+  - Consensus voter hardening: `ValidateAndVoteAsync` uses full `IValidationEngine` with fallback to structural validation
+  - `UnverifiedPoolCleanupService` updated: `TransactionPoolPollerService` → `IRegisterMonitoringRegistry` for active register discovery
+  - Files changed: 14 modified, 1 deleted (`TransactionPoolPollerService.cs`), 6 test files updated
+  - Test results: Validator Service 634 pass / 3 skipped / 1 pre-existing failure, Validator Core 200 pass
 - ✅ REDIS-EVENT-STREAMS: Redis Streams Event Infrastructure for Register domain
   - New project `Sorcha.Register.Storage.Redis` with publisher, subscriber, hosted service, DI extensions
   - `RedisStreamEventPublisher`: implements `IEventPublisher` using `XADD` with `MAXLEN ~` trimming, Polly circuit breaker

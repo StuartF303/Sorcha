@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Options;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Models;
+using Sorcha.Validator.Service.Services.Interfaces;
 using Sorcha.ServiceClients.Register;
 using Sorcha.Register.Models;
 
@@ -95,14 +96,14 @@ public class DocketBuildTriggerService : BackgroundService
         var lastBuildTime = _lastBuildTimes.GetOrAdd(registerId, DateTimeOffset.UnixEpoch);
 
         // Skip if genesis was already written — subsequent dockets only needed when
-        // there are pending transactions, which the normal ShouldBuild check handles
+        // there are verified transactions, which the normal ShouldBuild check handles
         if (_genesisWritten.ContainsKey(registerId))
         {
-            var memPool = scope.ServiceProvider.GetRequiredService<IMemPoolManager>();
-            var txCount = await memPool.GetTransactionCountAsync(registerId, cancellationToken);
+            var verifiedQueue = scope.ServiceProvider.GetRequiredService<IVerifiedTransactionQueue>();
+            var txCount = verifiedQueue.GetCount(registerId);
             if (txCount == 0)
             {
-                _logger.LogTrace("Register {RegisterId} has genesis docket and no pending transactions", registerId);
+                _logger.LogTrace("Register {RegisterId} has genesis docket and no verified transactions", registerId);
                 return;
             }
         }
@@ -240,7 +241,7 @@ public class DocketBuildTriggerService : BackgroundService
         CancellationToken cancellationToken)
     {
         var registerClient = scope.ServiceProvider.GetRequiredService<IRegisterServiceClient>();
-        var memPoolManager = scope.ServiceProvider.GetRequiredService<IMemPoolManager>();
+        var poolPoller = scope.ServiceProvider.GetRequiredService<ITransactionPoolPoller>();
 
         try
         {
@@ -318,14 +319,14 @@ public class DocketBuildTriggerService : BackgroundService
             _logger.LogInformation("Wrote docket {DocketNumber} to Register Service for register {RegisterId}",
                 docket.DocketNumber, docket.RegisterId);
 
-            // Remove transactions from memory pool (they're now persisted in Register Service via docket)
+            // Clean up from unverified pool (in case ValidationEngineService hasn't consumed them yet)
             foreach (var tx in docket.Transactions)
             {
-                await memPoolManager.RemoveTransactionAsync(docket.RegisterId, tx.TransactionId, cancellationToken);
-                _logger.LogDebug("Removed transaction {TransactionId} from memory pool", tx.TransactionId);
+                await poolPoller.RemoveTransactionAsync(docket.RegisterId, tx.TransactionId, cancellationToken);
+                _logger.LogDebug("Removed transaction {TransactionId} from unverified pool", tx.TransactionId);
             }
 
-            _logger.LogInformation("Moved {Count} transactions from memory pool to register {RegisterId} docket {DocketNumber}",
+            _logger.LogInformation("Wrote {Count} transactions to register {RegisterId} docket {DocketNumber}",
                 docket.Transactions.Count, docket.RegisterId, docket.DocketNumber);
         }
         catch (Exception ex)

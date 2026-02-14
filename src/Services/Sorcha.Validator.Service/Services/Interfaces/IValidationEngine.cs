@@ -69,6 +69,16 @@ public interface IValidationEngine
         CancellationToken ct = default);
 
     /// <summary>
+    /// Validate a transaction's blueprint conformance (sender authorization, action sequencing, starting action)
+    /// </summary>
+    /// <param name="transaction">Transaction to validate</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Validation result</returns>
+    Task<ValidationEngineResult> ValidateBlueprintConformanceAsync(
+        Transaction transaction,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Get validation engine statistics
     /// </summary>
     /// <returns>Validation statistics</returns>

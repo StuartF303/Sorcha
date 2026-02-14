@@ -26,6 +26,7 @@ public class ValidationEngineTests
     private readonly Mock<ICryptoModule> _cryptoModuleMock;
     private readonly Mock<IRegisterServiceClient> _registerClientMock;
     private readonly Mock<IRightsEnforcementService> _rightsEnforcementMock;
+    private readonly Mock<IWalletUtilities> _walletUtilitiesMock;
     private readonly Mock<ILogger<ValidationEngine>> _loggerMock;
     private readonly ValidationEngineConfiguration _config;
     private readonly ValidationEngine _engine;
@@ -37,6 +38,7 @@ public class ValidationEngineTests
         _cryptoModuleMock = new Mock<ICryptoModule>();
         _registerClientMock = new Mock<IRegisterServiceClient>();
         _rightsEnforcementMock = new Mock<IRightsEnforcementService>();
+        _walletUtilitiesMock = new Mock<IWalletUtilities>();
         _loggerMock = new Mock<ILogger<ValidationEngine>>();
 
         // Default: no existing successors (no fork)
@@ -55,6 +57,7 @@ public class ValidationEngineTests
             EnableSchemaValidation = true,
             EnableSignatureVerification = true,
             EnableChainValidation = true,
+            EnableBlueprintConformance = false,
             EnableParallelValidation = false,
             MaxClockSkew = TimeSpan.FromMinutes(5),
             MaxTransactionAge = TimeSpan.FromHours(1)
@@ -65,6 +68,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
             _registerClientMock.Object,
             _rightsEnforcementMock.Object,
             _loggerMock.Object);
@@ -78,6 +82,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
             _registerClientMock.Object,
             _rightsEnforcementMock.Object,
             _loggerMock.Object);
@@ -93,6 +98,7 @@ public class ValidationEngineTests
             null!,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
             _registerClientMock.Object,
             _rightsEnforcementMock.Object,
             _loggerMock.Object);
@@ -108,6 +114,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             null!,
             _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
             _registerClientMock.Object,
             _rightsEnforcementMock.Object,
             _loggerMock.Object);
@@ -123,11 +130,28 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             null!,
+            _walletUtilitiesMock.Object,
             _registerClientMock.Object,
             _rightsEnforcementMock.Object,
             _loggerMock.Object);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("cryptoModule");
+    }
+
+    [Fact]
+    public void Constructor_WithNullWalletUtilities_ThrowsArgumentNullException()
+    {
+        var act = () => new ValidationEngine(
+            Options.Create(_config),
+            _blueprintCacheMock.Object,
+            _hashProviderMock.Object,
+            _cryptoModuleMock.Object,
+            null!,
+            _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
+            _loggerMock.Object);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("walletUtilities");
     }
 
     [Fact]
@@ -138,6 +162,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
             null!,
             _rightsEnforcementMock.Object,
             _loggerMock.Object);
@@ -153,6 +178,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
             _registerClientMock.Object,
             null!,
             _loggerMock.Object);
@@ -168,6 +194,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
             _registerClientMock.Object,
             _rightsEnforcementMock.Object,
             null!);
@@ -826,6 +853,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
             _registerClientMock.Object,
             _rightsEnforcementMock.Object,
             _loggerMock.Object);
@@ -1073,6 +1101,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
             _registerClientMock.Object,
             _rightsEnforcementMock.Object,
             _loggerMock.Object);
@@ -1320,6 +1349,7 @@ public class ValidationEngineTests
             _blueprintCacheMock.Object,
             _hashProviderMock.Object,
             _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
             _registerClientMock.Object,
             _rightsEnforcementMock.Object,
             _loggerMock.Object);
@@ -1355,6 +1385,333 @@ public class ValidationEngineTests
         // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.Code == "VAL_CHAIN_TRANSIENT" && !e.IsFatal);
+    }
+
+    #endregion
+
+    #region Blueprint Conformance Tests
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_GenesisTransaction_ReturnsSuccess()
+    {
+        // Arrange
+        var tx = CreateValidTransaction(blueprintId: "genesis");
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_ControlTransaction_ReturnsSuccess()
+    {
+        // Arrange
+        var tx = CreateValidTransaction();
+        tx.Metadata["Type"] = "Control";
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_StartingAction_NoPreTxId_ReturnsSuccess()
+    {
+        // Arrange
+        var tx = CreateValidTransaction(previousTransactionId: null);
+        var blueprint = CreateTestBlueprintWithConformance(tx.BlueprintId, isStartingAction: true);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_NonStartingAction_NoPreTxId_ReturnsBP001Error()
+    {
+        // Arrange
+        var tx = CreateValidTransaction(previousTransactionId: null);
+        var blueprint = CreateTestBlueprintWithConformance(tx.BlueprintId, isStartingAction: false);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_BP_001");
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_ValidSender_ReturnsSuccess()
+    {
+        // Arrange
+        var tx = CreateValidTransaction(previousTransactionId: null);
+        var blueprint = CreateTestBlueprintWithConformance(tx.BlueprintId, isStartingAction: true, walletAddress: "wallet-abc");
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+        _walletUtilitiesMock.Setup(w => w.PublicKeyToWallet(It.IsAny<byte[]>(), It.IsAny<byte>()))
+            .Returns("wallet-abc");
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_WrongSender_ReturnsBP002Error()
+    {
+        // Arrange
+        var tx = CreateValidTransaction(previousTransactionId: null);
+        var blueprint = CreateTestBlueprintWithConformance(tx.BlueprintId, isStartingAction: true, walletAddress: "expected-wallet");
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+        _walletUtilitiesMock.Setup(w => w.PublicKeyToWallet(It.IsAny<byte[]>(), It.IsAny<byte>()))
+            .Returns("wrong-wallet");
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_BP_002");
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_ParticipantNoWallet_SkipsCheck()
+    {
+        // Arrange
+        var tx = CreateValidTransaction(previousTransactionId: null);
+        var blueprint = CreateTestBlueprintWithConformance(tx.BlueprintId, isStartingAction: true, walletAddress: null);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+        _walletUtilitiesMock.Setup(w => w.PublicKeyToWallet(It.IsAny<byte[]>(), It.IsAny<byte>()))
+            .Returns("any-wallet");
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_ValidRouteSequence_ReturnsSuccess()
+    {
+        // Arrange — action 1 routes to action 2
+        var tx = CreateValidTransaction(actionId: "2", previousTransactionId: "prev-tx-1");
+        var blueprint = CreateTestBlueprintWithRoutes(tx.BlueprintId, fromActionId: 1, toActionIds: [2, 3]);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, "prev-tx-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel
+            {
+                TxId = "prev-tx-1",
+                RegisterId = tx.RegisterId,
+                MetaData = new Sorcha.Register.Models.TransactionMetaData { ActionId = 1 }
+            });
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_InvalidRouteSequence_ReturnsBP003Error()
+    {
+        // Arrange — action 1 only routes to action 3, but current is action 2
+        var tx = CreateValidTransaction(actionId: "2", previousTransactionId: "prev-tx-1");
+        var blueprint = CreateTestBlueprintWithRoutes(tx.BlueprintId, fromActionId: 1, toActionIds: [3]);
+        // Add action 2 to the blueprint so the action lookup succeeds (the test is about route validation, not missing actions)
+        blueprint.Actions = blueprint.Actions.Append(new ActionModel { Id = 2, Title = "Action 2", Sender = "participant-1" }).ToList();
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, "prev-tx-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel
+            {
+                TxId = "prev-tx-1",
+                RegisterId = tx.RegisterId,
+                MetaData = new Sorcha.Register.Models.TransactionMetaData { ActionId = 1 }
+            });
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_BP_003");
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_RejectionRoute_ReturnsSuccess()
+    {
+        // Arrange — action 1 routes to action 3 (normal), rejection targets action 2
+        var tx = CreateValidTransaction(actionId: "2", previousTransactionId: "prev-tx-1");
+        var blueprint = CreateTestBlueprintWithRoutes(tx.BlueprintId, fromActionId: 1, toActionIds: [3], rejectionTargetActionId: 2);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, "prev-tx-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel
+            {
+                TxId = "prev-tx-1",
+                RegisterId = tx.RegisterId,
+                MetaData = new Sorcha.Register.Models.TransactionMetaData { ActionId = 1 }
+            });
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_NoRoutesOnPreviousAction_SkipsSequenceCheck()
+    {
+        // Arrange — previous action has no routes defined
+        var tx = CreateValidTransaction(actionId: "2", previousTransactionId: "prev-tx-1");
+        var blueprint = CreateTestBlueprintWithConformance(tx.BlueprintId, isStartingAction: false);
+        // Add action 2 to blueprint
+        blueprint.Actions = blueprint.Actions.Append(new ActionModel { Id = 2, Title = "Action 2", Sender = "participant-1" }).ToList();
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, "prev-tx-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel
+            {
+                TxId = "prev-tx-1",
+                RegisterId = tx.RegisterId,
+                MetaData = new Sorcha.Register.Models.TransactionMetaData { ActionId = 1 }
+            });
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert — no route check, should pass
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_PreviousTxMissingActionId_SkipsSequenceCheck()
+    {
+        // Arrange — previous transaction has no ActionId in metadata
+        var tx = CreateValidTransaction(actionId: "2", previousTransactionId: "prev-tx-1");
+        var blueprint = CreateTestBlueprintWithConformance(tx.BlueprintId, isStartingAction: false);
+        blueprint.Actions = blueprint.Actions.Append(new ActionModel { Id = 2, Title = "Action 2", Sender = "participant-1" }).ToList();
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, "prev-tx-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel
+            {
+                TxId = "prev-tx-1",
+                RegisterId = tx.RegisterId,
+                MetaData = new Sorcha.Register.Models.TransactionMetaData { ActionId = null }
+            });
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_DisabledByConfig_ReturnsSuccess()
+    {
+        // Arrange — disable blueprint conformance
+        var config = new ValidationEngineConfiguration
+        {
+            EnableSchemaValidation = true,
+            EnableSignatureVerification = true,
+            EnableChainValidation = true,
+            EnableParallelValidation = false,
+            EnableBlueprintConformance = false,
+            MaxClockSkew = TimeSpan.FromMinutes(5),
+            MaxTransactionAge = TimeSpan.FromHours(1)
+        };
+        var engine = new ValidationEngine(
+            Options.Create(config),
+            _blueprintCacheMock.Object,
+            _hashProviderMock.Object,
+            _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
+            _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
+            _loggerMock.Object);
+
+        var tx = CreateValidTransaction(previousTransactionId: null);
+        SetupSuccessfulValidation(tx);
+
+        // Act — run full pipeline, conformance should be skipped
+        var result = await engine.ValidateTransactionAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        // WalletUtilities should never be called
+        _walletUtilitiesMock.Verify(
+            w => w.PublicKeyToWallet(It.IsAny<byte[]>(), It.IsAny<byte>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ValidateTransactionAsync_FullPipeline_IncludesBlueprintConformance()
+    {
+        // Arrange — non-starting action without PrevTxId should produce BP_001 error in full pipeline
+        // Use a dedicated engine with EnableBlueprintConformance = true
+        var conformanceConfig = new ValidationEngineConfiguration
+        {
+            EnableSchemaValidation = true,
+            EnableSignatureVerification = true,
+            EnableChainValidation = true,
+            EnableBlueprintConformance = true,
+            EnableParallelValidation = false,
+            MaxClockSkew = TimeSpan.FromMinutes(5),
+            MaxTransactionAge = TimeSpan.FromHours(1)
+        };
+        var conformanceEngine = new ValidationEngine(
+            Options.Create(conformanceConfig),
+            _blueprintCacheMock.Object,
+            _hashProviderMock.Object,
+            _cryptoModuleMock.Object,
+            _walletUtilitiesMock.Object,
+            _registerClientMock.Object,
+            _rightsEnforcementMock.Object,
+            _loggerMock.Object);
+
+        var tx = CreateValidTransaction(previousTransactionId: null);
+        var blueprint = CreateTestBlueprintWithConformance(tx.BlueprintId, isStartingAction: false);
+        _blueprintCacheMock.Setup(c => c.GetBlueprintAsync(tx.BlueprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(blueprint);
+
+        // Setup other validations to pass
+        var hashBytes = Convert.FromHexString(tx.PayloadHash);
+        _hashProviderMock.Setup(h => h.ComputeHash(It.IsAny<byte[]>(), HashType.SHA256))
+            .Returns(hashBytes);
+        _cryptoModuleMock.Setup(c => c.VerifyAsync(
+                It.IsAny<byte[]>(), It.IsAny<byte[]>(), It.IsAny<byte>(),
+                It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CryptoStatus.Success);
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        // Act
+        var result = await conformanceEngine.ValidateTransactionAsync(tx);
+
+        // Assert — should fail with BP_001
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_BP_001");
     }
 
     #endregion
@@ -1449,6 +1806,80 @@ public class ValidationEngineTests
                     Sender = "participant-1"
                 }
             ]
+        };
+    }
+
+    private static BlueprintModel CreateTestBlueprintWithConformance(
+        string blueprintId,
+        bool isStartingAction = true,
+        string? walletAddress = null)
+    {
+        return new BlueprintModel
+        {
+            Id = blueprintId,
+            Title = "Test Blueprint (Conformance)",
+            Participants =
+            [
+                new Sorcha.Blueprint.Models.Participant
+                {
+                    Id = "participant-1",
+                    Name = "Test Participant",
+                    WalletAddress = walletAddress
+                }
+            ],
+            Actions =
+            [
+                new ActionModel
+                {
+                    Id = 1,
+                    Title = "Test Action",
+                    Sender = "participant-1",
+                    IsStartingAction = isStartingAction
+                }
+            ]
+        };
+    }
+
+    private static BlueprintModel CreateTestBlueprintWithRoutes(
+        string blueprintId,
+        int fromActionId,
+        int[] toActionIds,
+        int? rejectionTargetActionId = null)
+    {
+        var fromAction = new ActionModel
+        {
+            Id = fromActionId,
+            Title = $"Action {fromActionId}",
+            Sender = "participant-1",
+            IsStartingAction = true,
+            Routes = [new Sorcha.Blueprint.Models.Route { Id = "route-1", NextActionIds = toActionIds }],
+            RejectionConfig = rejectionTargetActionId.HasValue
+                ? new Sorcha.Blueprint.Models.RejectionConfig { TargetActionId = rejectionTargetActionId.Value }
+                : null
+        };
+
+        var targetActions = toActionIds
+            .Concat(rejectionTargetActionId.HasValue ? [rejectionTargetActionId.Value] : [])
+            .Distinct()
+            .Select(id => new ActionModel { Id = id, Title = $"Action {id}", Sender = "participant-1" })
+            .ToList();
+
+        var allActions = new List<ActionModel> { fromAction };
+        allActions.AddRange(targetActions);
+
+        return new BlueprintModel
+        {
+            Id = blueprintId,
+            Title = "Test Blueprint (Routes)",
+            Participants =
+            [
+                new Sorcha.Blueprint.Models.Participant
+                {
+                    Id = "participant-1",
+                    Name = "Test Participant"
+                }
+            ],
+            Actions = allActions
         };
     }
 
