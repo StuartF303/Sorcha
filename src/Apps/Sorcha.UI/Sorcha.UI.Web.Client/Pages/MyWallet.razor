@@ -131,6 +131,6 @@
 
     private void NavigateToWallet(WalletDto wallet)
     {
-        Navigation.NavigateTo($"/wallets/{wallet.Address}");
+        Navigation.NavigateTo($"wallets/{wallet.Address}");  // Relative path respects base href /app/
     }
 }
