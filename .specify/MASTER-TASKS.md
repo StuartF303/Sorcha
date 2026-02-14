@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 5.0 - UPDATED
-**Last Updated:** 2026-02-12
-**Status:** Active - Templates UX Overhaul
+**Version:** 5.1 - UPDATED
+**Last Updated:** 2026-02-14
+**Status:** Active - Security Hardening
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -19,6 +19,25 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ---
 
 ## Recent Updates
+
+**2026-02-14:**
+- ✅ SECURITY-HARDENING: Comprehensive security hardening (QW7-10, T1-T5, T8, T10, T11, T13) — 13 items across auth, crypto, data flow, and infrastructure
+  - **QW7**: AES-CBC deprecated with `[Obsolete]` attribute + runtime `NotSupportedException`; CBC encrypt/decrypt methods removed from SymmetricCrypto
+  - **QW8**: Generic error messages — replaced wallet/credential ID leaks in Blueprint CredentialEndpoints, Wallet CredentialEndpoints, WalletEndpoints; fixed `ex.Message` leaks in SystemWallet and VerifySignature
+  - **QW9**: JWT `ValidAlgorithms` restricted to HS256 in JwtAuthenticationExtensions
+  - **QW10**: Bootstrap one-shot — `SystemConfiguration` entity + EF migration; BootstrapEndpoints returns 409 Conflict on re-bootstrap
+  - **T1**: Org-scoped blueprint authorization — `OrganizationId` on Blueprint model, `ClaimExtensions` helper, org filtering in IBlueprintStore/BlueprintService, all CRUD endpoints extract `org_id` from claims
+  - **T2**: SignalR wallet ownership validation — `IParticipantServiceClient` injected into ActionsHub, `ValidateWalletOwnershipAsync` checks linked wallets, fail-closed on service errors, service tokens bypass
+  - **T3**: Post-sign transaction signature verification — `GetWalletAsync` + `VerifySignatureAsync` after signing, before Register submission
+  - **T4**: Client secrets hashed with Argon2id via BouncyCastle — backward-compatible (32-byte = legacy SHA256, 48-byte = Argon2id salt+hash)
+  - **T5**: Per-user login rate limiting — `ITokenRevocationService` wired into Login endpoint, 429 on brute force, reset on success
+  - **T8**: Replay attack protection — idempotency key methods on `IActionStore`, auto-generated from request content, 24-hour TTL, 409 Conflict on duplicate
+  - **T10**: Register chain validation — PrevTxId format validation (64 chars), chain continuity check, fork detection in `TransactionManager`
+  - **T11**: Shell injection eliminated — `ArgumentList` instead of string interpolation in `MacOsKeychainEncryption`, regex-validated keyId in `LinuxSecretServiceEncryptionProvider`
+  - **T13**: `IDisposable` on `KeyRing`, `SymmetricCiphertext`, `IEncryptionProvider`; DEK cache 30-min TTL with `Array.Clear` on eviction; `Dispose()` on all encryption providers
+  - Updated 3 crypto tests (AES-CBC roundtrip → deprecation assertion tests)
+  - Files changed: 31 (27 modified, 4 new); 1375 insertions, 179 deletions
+  - Test results: Cryptography 97/97 pass, Blueprint Service Integration 43/43 pass, Register Storage 1/1 pass
 
 **2026-02-12:**
 - ✅ 031-VERIFIABLE-CREDENTIALS: Verifiable Credentials & eIDAS-Aligned Attestation System (89 tasks, 8 phases)
@@ -395,7 +414,7 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 | **Phase 2: Wallet Service** | 34 | 34 | 0 | 0 | **100%** ✅ | [View Tasks](tasks/phase2-wallet-service.md) |
 | **Phase 3: Register Service** | 15 | 14 | 0 | 1 | **93%** ✅ | [View Tasks](tasks/phase3-register-service.md) |
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% | [View Tasks](tasks/phase4-enhancements.md) |
-| **Production Readiness** | 10 | 6 | 0 | 4 | **60%** | [View Tasks](tasks/production-readiness.md) |
+| **Production Readiness** | 10 | 7 | 0 | 3 | **70%** | [View Tasks](tasks/production-readiness.md) |
 | **CLI Admin Tool** | 60 | 0 | 0 | 60 | 0% | [View Tasks](tasks/cli-admin-tool.md) |
 | **Deferred** | 24 | 0 | 0 | 24 | 0% | [View Tasks](tasks/deferred-tasks.md) |
 | **TOTAL** | **284** | **122** | **0** | **162** | **43%** | |
@@ -522,6 +541,6 @@ PEER-024 (Peer Network Management & Observability) ✅ COMPLETE
 
 ---
 
-**Last Updated:** 2026-02-08
+**Last Updated:** 2026-02-14
 **Next Review:** Weekly
 **Document Owner:** Sorcha Architecture Team
