@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Text.Json.Serialization;
+
 namespace Sorcha.Tenant.Service.Models;
 
 /// <summary>
@@ -67,6 +69,7 @@ public class UserIdentity
 /// <summary>
 /// User roles within an organization.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum UserRole
 {
     /// <summary>
@@ -113,6 +116,7 @@ public enum UserRole
 /// <summary>
 /// User account status.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum IdentityStatus
 {
     /// <summary>

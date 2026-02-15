@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Text.Json.Serialization;
+
 namespace Sorcha.Tenant.Service.Models;
 
 /// <summary>
@@ -55,6 +57,7 @@ public class Organization
 /// <summary>
 /// Organization lifecycle status.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum OrganizationStatus
 {
     /// <summary>

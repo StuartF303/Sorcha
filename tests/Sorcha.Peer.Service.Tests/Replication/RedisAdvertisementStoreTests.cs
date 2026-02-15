@@ -68,9 +68,8 @@ public class RedisAdvertisementStoreTests
         _mockDb.Verify(db => db.StringSetAsync(
             (RedisKey)"peer:advert:local:reg-1",
             It.Is<RedisValue>(v => v.ToString().Contains("reg-1")),
-            TimeSpan.FromMinutes(5),
-            It.IsAny<bool>(),
-            It.IsAny<When>(),
+            It.IsAny<Expiration>(),
+            It.IsAny<ValueCondition>(),
             It.IsAny<CommandFlags>()), Times.Once);
     }
 
@@ -100,8 +99,8 @@ public class RedisAdvertisementStoreTests
     public async Task SetLocalAsync_RedisUnavailable_LogsWarningAndDoesNotThrow()
     {
         _mockDb.Setup(db => db.StringSetAsync(
-                It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan?>(),
-                It.IsAny<bool>(), It.IsAny<When>(), It.IsAny<CommandFlags>()))
+                It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<Expiration>(),
+                It.IsAny<ValueCondition>(), It.IsAny<CommandFlags>()))
             .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Redis down"));
 
         var ad = new LocalRegisterAdvertisement
@@ -146,9 +145,8 @@ public class RedisAdvertisementStoreTests
         _mockDb.Verify(db => db.StringSetAsync(
             (RedisKey)"peer:advert:remote:peer-42:reg-1",
             It.IsAny<RedisValue>(),
-            TimeSpan.FromMinutes(5),
-            It.IsAny<bool>(),
-            It.IsAny<When>(),
+            It.IsAny<Expiration>(),
+            It.IsAny<ValueCondition>(),
             It.IsAny<CommandFlags>()), Times.Once);
     }
 

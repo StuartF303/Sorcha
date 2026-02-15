@@ -11,10 +11,13 @@ namespace Sorcha.UI.Core.Services;
 
 /// <summary>
 /// Service for serializing and deserializing blueprints to/from JSON and YAML formats.
+/// Uses JSON as an intermediary for YAML to correctly handle System.Text.Json types
+/// (JsonNode, JsonDocument) that YamlDotNet cannot natively round-trip.
 /// </summary>
 public class BlueprintSerializationService
 {
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly JsonSerializerOptions _yamlImportJsonOptions;
     private readonly ISerializer _yamlSerializer;
     private readonly IDeserializer _yamlDeserializer;
 
@@ -26,6 +29,22 @@ public class BlueprintSerializationService
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+        };
+
+        // Lenient options for YAML-to-JSON import path: YamlDotNet's JsonCompatible()
+        // serializer emits all scalars as JSON strings (e.g. "1" instead of 1),
+        // so we must allow reading numbers and booleans from strings.
+        _yamlImportJsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            NumberHandling = JsonNumberHandling.AllowReadingFromString,
+            Converters =
+            {
+                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
+                new LenientBooleanConverter()
+            }
         };
 
         _yamlSerializer = new SerializerBuilder()
@@ -55,16 +74,22 @@ public class BlueprintSerializationService
 
     /// <summary>
     /// Serializes a blueprint to YAML format.
+    /// Uses JSON as an intermediary to correctly handle System.Text.Json types
+    /// (JsonNode, JsonDocument, etc.) that YamlDotNet cannot natively serialize.
     /// </summary>
     public string ToYaml(Blueprint.Models.Blueprint blueprint)
     {
-        var exportModel = new BlueprintExportModel
-        {
-            Blueprint = blueprint,
-            ExportedAt = DateTimeOffset.UtcNow
-        };
+        // Serialize to JSON first (handles JsonNode, JsonDocument, etc. correctly)
+        var json = ToJson(blueprint);
 
-        return _yamlSerializer.Serialize(exportModel);
+        // Deserialize JSON into a generic object graph that YamlDotNet can handle
+        var jsonDeserializer = new DeserializerBuilder()
+            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .Build();
+        var objectGraph = jsonDeserializer.Deserialize<object>(json);
+
+        // Serialize the generic object graph to YAML
+        return _yamlSerializer.Serialize(objectGraph!);
     }
 
     /// <summary>
@@ -78,16 +103,47 @@ public class BlueprintSerializationService
 
         try
         {
-            BlueprintExportModel? exportModel;
+            string jsonContent;
 
             if (isYaml)
             {
-                exportModel = _yamlDeserializer.Deserialize<BlueprintExportModel>(content);
+                // Convert YAML to JSON first, then deserialize via System.Text.Json
+                // so that JsonNode/JsonDocument properties are correctly reconstituted.
+                var yamlObject = _yamlDeserializer.Deserialize<object>(content);
+                if (yamlObject is null)
+                {
+                    return ImportValidationResult.Failure(new ImportValidationError(
+                        "/",
+                        "File does not contain valid YAML content",
+                        ImportErrorType.InvalidFormat));
+                }
+
+                var jsonSerializer = new SerializerBuilder()
+                    .JsonCompatible()
+                    .Build();
+                jsonContent = jsonSerializer.Serialize(yamlObject);
             }
             else
             {
-                exportModel = JsonSerializer.Deserialize<BlueprintExportModel>(content, _jsonOptions);
+                jsonContent = content;
             }
+
+            // Check raw JSON for missing blueprint.id before deserialization
+            // (Blueprint.Id has a default Guid value, so it's never empty after deserialization)
+            bool idMissingFromSource = false;
+            using (var doc = JsonDocument.Parse(jsonContent))
+            {
+                if (doc.RootElement.TryGetProperty("blueprint", out var blueprintElement))
+                {
+                    idMissingFromSource = !blueprintElement.TryGetProperty("id", out var idElement)
+                                          || idElement.ValueKind == JsonValueKind.Null
+                                          || (idElement.ValueKind == JsonValueKind.String
+                                              && string.IsNullOrWhiteSpace(idElement.GetString()));
+                }
+            }
+
+            var deserializeOptions = isYaml ? _yamlImportJsonOptions : _jsonOptions;
+            var exportModel = JsonSerializer.Deserialize<BlueprintExportModel>(jsonContent, deserializeOptions);
 
             if (exportModel?.Blueprint is null)
             {
@@ -109,10 +165,13 @@ public class BlueprintSerializationService
                     ImportErrorType.MissingRequiredField));
             }
 
-            if (string.IsNullOrWhiteSpace(exportModel.Blueprint.Id))
+            if (idMissingFromSource)
             {
-                // Auto-generate ID if missing
-                exportModel.Blueprint.Id = Guid.NewGuid().ToString();
+                // Ensure an ID is present (the default value from the model is fine)
+                if (string.IsNullOrWhiteSpace(exportModel.Blueprint.Id))
+                {
+                    exportModel.Blueprint.Id = Guid.NewGuid().ToString();
+                }
                 warnings.Add(new ImportValidationWarning(
                     "/blueprint/id",
                     "Blueprint ID was missing and has been auto-generated"));
@@ -219,4 +278,28 @@ public enum ExportFormat
 {
     Json,
     Yaml
+}
+
+/// <summary>
+/// JSON converter that accepts boolean values encoded as strings (e.g. "true"/"false"),
+/// which occurs when YAML scalars are serialized to JSON via YamlDotNet's JsonCompatible() mode.
+/// </summary>
+internal sealed class LenientBooleanConverter : JsonConverter<bool>
+{
+    public override bool Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.True) return true;
+        if (reader.TokenType == JsonTokenType.False) return false;
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var str = reader.GetString();
+            if (bool.TryParse(str, out var result)) return result;
+        }
+        throw new JsonException($"Cannot convert {reader.TokenType} to Boolean.");
+    }
+
+    public override void Write(Utf8JsonWriter writer, bool value, JsonSerializerOptions options)
+    {
+        writer.WriteBooleanValue(value);
+    }
 }

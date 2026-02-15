@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Text.Json.Serialization;
+
 namespace Sorcha.Tenant.Service.Models;
 
 /// <summary>
@@ -53,6 +55,7 @@ public class ServicePrincipal
 /// <summary>
 /// Service principal status.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ServicePrincipalStatus
 {
     /// <summary>

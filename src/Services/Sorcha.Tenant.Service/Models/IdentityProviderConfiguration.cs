@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Text.Json.Serialization;
+
 namespace Sorcha.Tenant.Service.Models;
 
 /// <summary>
@@ -81,6 +83,7 @@ public class IdentityProviderConfiguration
 /// <summary>
 /// Supported external identity provider types.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum IdentityProviderType
 {
     /// <summary>

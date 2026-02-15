@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Text.Json.Serialization;
+
 namespace Sorcha.Tenant.Models;
 
 /// <summary>
 /// Status of a wallet link verification challenge.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ChallengeStatus
 {
     /// <summary>

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Text.Json.Serialization;
+
 namespace Sorcha.Tenant.Service.Models;
 
 /// <summary>
@@ -63,6 +65,7 @@ public class AuditLogEntry
 /// <summary>
 /// Types of auditable events in the Tenant Service.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum AuditEventType
 {
     /// <summary>
