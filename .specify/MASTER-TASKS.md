@@ -20,6 +20,17 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 ## Recent Updates
 
+**2026-02-15:**
+- ✅ TEST-SUITE-AUDIT: Full solution test audit with quick-win fixes
+  - Clean Docker rebuild + reseed, full test run across 33 projects (~4,900 tests)
+  - Fixed: Peer Redis mock overload for StackExchange.Redis 2.10.x (18/18 pass)
+  - Fixed: JsonStringEnumConverter on 9 Tenant enums (11 unit tests fixed, 214/230 pass)
+  - Fixed: BlueprintSerializationService YAML round-trip via JSON intermediary (499/499 pass)
+  - E2E tests: 251/298 pass (47 fail — Polly timeout in test fixture setup + stale selectors)
+  - Remaining pre-existing failures categorized: Blueprint.Engine (17), Blueprint.Service (19),
+    CLI (36), Tenant integration (16), Validator integration (58), Gateway integration (11),
+    cross-service integration (6), Wallet API (2), Validator unit (1)
+
 **2026-02-14:**
 - ✅ VALIDATOR-PIPELINE-FIX: Validator Pipeline Rewire + Blueprint Conformance Enforcement
   - Rewired disconnected validation pipeline: single path Ingestion → Unverified Pool → ValidationEngine → Verified Queue → DocketBuilder
