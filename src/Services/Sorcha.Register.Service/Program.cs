@@ -344,12 +344,21 @@ if (storageType.Equals("MongoDB", StringComparison.OrdinalIgnoreCase))
         return new MongoRegisterRepository(options, logger);
     });
 
+    // Register the same instance as IReadOnlyRegisterRepository
+    builder.Services.AddSingleton<IReadOnlyRegisterRepository>(sp =>
+        sp.GetRequiredService<IRegisterRepository>());
+
     Console.WriteLine($"✅ Register Service using MongoDB storage: {builder.Configuration["RegisterStorage:MongoDB:ConnectionString"]}");
 }
 else
 {
     // Use in-memory storage (default)
     builder.Services.AddSingleton<IRegisterRepository, InMemoryRegisterRepository>();
+
+    // Register the same instance as IReadOnlyRegisterRepository
+    builder.Services.AddSingleton<IReadOnlyRegisterRepository>(sp =>
+        sp.GetRequiredService<IRegisterRepository>());
+
     Console.WriteLine("✅ Register Service using InMemory storage (development mode)");
 }
 
