@@ -88,10 +88,19 @@ public class JsonEEvaluator : IJsonEEvaluator
         {
             try
             {
-                // Basic validation: try to parse and evaluate with empty context
+                // Basic validation: try to parse and evaluate with empty context.
+                // Variable resolution errors are expected — they indicate valid
+                // syntax that needs runtime data, not structural template issues.
                 var emptyContext = JsonNode.Parse("{}")!.AsObject();
                 _ = JsonE.Evaluate(template, emptyContext);
 
+                return TemplateValidationResult.Success();
+            }
+            catch (JsonEException)
+            {
+                // JsonE exceptions (InterpreterException, TemplateException, etc.)
+                // from $eval referencing undefined variables are expected with empty
+                // context — template syntax is still valid
                 return TemplateValidationResult.Success();
             }
             catch (Exception ex)

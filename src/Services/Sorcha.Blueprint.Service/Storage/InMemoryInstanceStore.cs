@@ -45,12 +45,19 @@ public class InMemoryInstanceStore : IInstanceStore
             throw new ArgumentException("Instance ID is required", nameof(instance));
         }
 
-        instance.UpdatedAt = DateTimeOffset.UtcNow;
-
-        if (!_instances.TryGetValue(instance.Id, out _))
+        if (!_instances.TryGetValue(instance.Id, out var existing))
         {
             throw new InvalidOperationException($"Instance {instance.Id} not found");
         }
+
+        // Optimistic concurrency: version must match
+        if (existing.Version != instance.Version)
+        {
+            throw new ConcurrencyException(instance.Id, instance.Version, existing.Version);
+        }
+
+        instance.Version++;
+        instance.UpdatedAt = DateTimeOffset.UtcNow;
 
         _instances[instance.Id] = instance;
         return Task.FromResult(instance);

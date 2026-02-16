@@ -87,7 +87,7 @@ public class IntegrationTests
         // Routing determined (should route to underwriter because credit score >= 700)
         result.Routing.Should().NotBeNull();
         result.Routing.NextParticipantId.Should().Be("underwriter");
-        result.Routing.NextActionId.Should().Be("review-application");
+        result.Routing.NextActionId.Should().Be("2");
         result.Routing.IsWorkflowComplete.Should().BeFalse();
 
         // Disclosures created
@@ -139,7 +139,7 @@ public class IntegrationTests
         // Assert: Should route to manual review, not underwriter
         result.Success.Should().BeTrue();
         result.Routing.NextParticipantId.Should().Be("manual-reviewer");
-        result.Routing.NextActionId.Should().Be("manual-review");
+        result.Routing.NextActionId.Should().Be("3");
     }
 
     [Fact]
@@ -264,7 +264,7 @@ public class IntegrationTests
         total.Should().Be(20000.0, "200 * 100 = 20000");
 
         result.Routing.NextParticipantId.Should().Be("approver");
-        result.Routing.NextActionId.Should().Be("approve-order");
+        result.Routing.NextActionId.Should().Be("2");
     }
 
     [Fact]
@@ -301,7 +301,7 @@ public class IntegrationTests
         total.Should().Be(500.0, "10 * 50 = 500");
 
         result.Routing.NextParticipantId.Should().Be("vendor");
-        result.Routing.NextActionId.Should().Be("fulfill-order");
+        result.Routing.NextActionId.Should().Be("3");
     }
 
     #endregion
@@ -338,7 +338,7 @@ public class IntegrationTests
         // Assert: Step 1 completed successfully
         step1Result.Success.Should().BeTrue();
         step1Result.Routing.NextParticipantId.Should().Be("respondent");
-        step1Result.Routing.NextActionId.Should().Be("preferences");
+        step1Result.Routing.NextActionId.Should().Be("2");
 
         // Step 2: Use data from step 1 and add new data
         var step2Action = blueprint.Actions.First(a => a.Id == 2);
@@ -431,17 +431,34 @@ public class IntegrationTests
                                 // Note: creditScore is excluded (sensitive)
                             }
                         }
+                    },
+                    Routes = new List<BpModels.Route>
+                    {
+                        new()
+                        {
+                            Id = "high-credit",
+                            NextActionIds = [2],
+                            Condition = JsonNode.Parse("""{">=": [{"var": "creditScore"}, 700]}""")
+                        },
+                        new()
+                        {
+                            Id = "low-credit",
+                            NextActionIds = [3],
+                            IsDefault = true
+                        }
                     }
                 },
                 new()
                 {
                     Id = 2,
-                    Title = "Review Application"
+                    Title = "Review Application",
+                    Sender = "underwriter"
                 },
                 new()
                 {
                     Id = 3,
-                    Title = "Manual Credit Review"
+                    Title = "Manual Credit Review",
+                    Sender = "manual-reviewer"
                 }
             },
             Participants = new List<BpModels.Participant>
@@ -525,17 +542,34 @@ public class IntegrationTests
                             ]
                         }
                         """)!
+                    },
+                    Routes = new List<BpModels.Route>
+                    {
+                        new()
+                        {
+                            Id = "high-value",
+                            NextActionIds = [2],
+                            Condition = JsonNode.Parse("""{">": [{"var": "total"}, 10000]}""")
+                        },
+                        new()
+                        {
+                            Id = "low-value",
+                            NextActionIds = [3],
+                            IsDefault = true
+                        }
                     }
                 },
                 new()
                 {
                     Id = 2,
-                    Title = "Approve Order"
+                    Title = "Approve Order",
+                    Sender = "approver"
                 },
                 new()
                 {
                     Id = 3,
-                    Title = "Fulfill Order"
+                    Title = "Fulfill Order",
+                    Sender = "vendor"
                 }
             },
             Participants = new List<BpModels.Participant>
@@ -590,12 +624,22 @@ public class IntegrationTests
                             "required": ["age", "country", "occupation"]
                         }
                         """)
+                    },
+                    Routes = new List<BpModels.Route>
+                    {
+                        new()
+                        {
+                            Id = "next-step",
+                            NextActionIds = [2],
+                            IsDefault = true
+                        }
                     }
                 },
                 new()
                 {
                     Id = 2,
                     Title = "Preferences Survey",
+                    Sender = "respondent",
                     Form = new BpModels.Control
                     {
                         Schema = JsonNode.Parse("""

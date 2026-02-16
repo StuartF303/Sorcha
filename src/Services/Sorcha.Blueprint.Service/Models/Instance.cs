@@ -81,6 +81,12 @@ public class Instance
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>
+    /// Optimistic concurrency version. Incremented on every update.
+    /// Used to detect concurrent modification (compare-and-swap).
+    /// </summary>
+    public int Version { get; set; }
+
+    /// <summary>
     /// Timestamp when the instance was completed (if completed)
     /// </summary>
     public DateTimeOffset? CompletedAt { get; set; }

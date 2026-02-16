@@ -123,16 +123,15 @@ public class JsonEEvaluatorTests
     [Fact]
     public async Task EvaluateAsync_NestedContext_EvaluatesCorrectly()
     {
-        // Arrange
+        // Arrange — use $let to define nested variables, then reference them with $eval
         var template = JsonNode.Parse(@"{
-            ""$eval"": ""template"",
-            ""context"": {
-                ""template"": {
-                    ""id"": { ""$eval"": ""blueprintId"" },
-                    ""title"": { ""$eval"": ""blueprintTitle"" }
-                },
+            ""$let"": {
                 ""blueprintId"": ""test-001"",
                 ""blueprintTitle"": ""Test Blueprint""
+            },
+            ""in"": {
+                ""id"": { ""$eval"": ""blueprintId"" },
+                ""title"": { ""$eval"": ""blueprintTitle"" }
             }
         }")!;
 

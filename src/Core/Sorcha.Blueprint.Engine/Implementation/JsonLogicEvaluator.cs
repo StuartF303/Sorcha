@@ -218,10 +218,27 @@ public class JsonLogicEvaluator : IJsonLogicEvaluator
             return longValue;
         if (value.TryGetValue(out double doubleValue))
             return doubleValue;
+        if (value.TryGetValue(out decimal decimalValue))
+            return (double)decimalValue;
         if (value.TryGetValue(out string? stringValue) && stringValue != null)
             return stringValue;
 
-        // Fallback to string representation
+        // Fallback: try to extract from JsonElement (wrapped numeric values)
+        if (value.TryGetValue(out JsonElement element))
+        {
+            return element.ValueKind switch
+            {
+                JsonValueKind.Number when element.TryGetInt32(out var i) => i,
+                JsonValueKind.Number when element.TryGetInt64(out var l) => l,
+                JsonValueKind.Number when element.TryGetDouble(out var d) => d,
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.String => element.GetString() ?? "",
+                _ => element.ToString()
+            };
+        }
+
+        // Final fallback to string representation
         return value.ToString();
     }
 

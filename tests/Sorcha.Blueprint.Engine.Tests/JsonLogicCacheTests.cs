@@ -272,10 +272,8 @@ public class JsonLogicCacheTests
 
         await Task.WhenAll(tasks);
 
-        // Assert
-        // Note: Due to race conditions, this might be called more than once
-        // but should be significantly less than 10 times
-        factoryCallCount.Should().BeLessThan(10);
+        // Assert - with per-key locking, factory should be called exactly once
+        factoryCallCount.Should().Be(1);
     }
 
     [Fact]

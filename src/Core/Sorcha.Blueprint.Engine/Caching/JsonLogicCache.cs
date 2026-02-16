@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -13,13 +14,15 @@ namespace Sorcha.Blueprint.Engine.Caching;
 /// Cache for compiled/parsed JSON Logic expressions
 /// </summary>
 /// <remarks>
-/// Caches expressions by their hash to avoid re-parsing the same expression multiple times.
-/// Significant performance improvement for frequently-used expressions.
+/// Caches expressions by their hash and type to avoid re-parsing the same expression multiple times.
+/// Thread-safe for concurrent async access via per-key locking.
 /// </remarks>
 public class JsonLogicCache
 {
     private readonly IMemoryCache _cache;
     private readonly MemoryCacheEntryOptions _defaultOptions;
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
+    private readonly ConcurrentDictionary<string, ConcurrentBag<string>> _keysByHash = new();
 
     public JsonLogicCache(IMemoryCache cache)
     {
@@ -48,7 +51,10 @@ public class JsonLogicCache
     /// <returns>The cached or newly created value</returns>
     public T GetOrAdd<T>(JsonNode expression, Func<JsonNode, T> factory)
     {
-        var key = ComputeHash(expression);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        var key = ComputeTypedKey<T>(expression);
+        TrackKey(expression, key);
 
         return _cache.GetOrCreate(key, entry =>
         {
@@ -58,22 +64,40 @@ public class JsonLogicCache
     }
 
     /// <summary>
-    /// Get or add an expression to the cache asynchronously
+    /// Get or add an expression to the cache asynchronously.
+    /// Uses per-key locking to ensure the factory is called at most once per key.
     /// </summary>
     public async Task<T> GetOrAddAsync<T>(JsonNode expression, Func<JsonNode, Task<T>> factory)
     {
-        var key = ComputeHash(expression);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        var key = ComputeTypedKey<T>(expression);
 
         if (_cache.TryGetValue(key, out T? cached))
         {
             return cached!;
         }
 
-        var value = await factory(expression);
+        // Per-key lock ensures only one factory invocation per expression+type
+        var keyLock = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+        await keyLock.WaitAsync();
+        try
+        {
+            // Double-check after acquiring lock
+            if (_cache.TryGetValue(key, out cached))
+            {
+                return cached!;
+            }
 
-        _cache.Set(key, value, _defaultOptions);
-
-        return value;
+            var value = await factory(expression);
+            _cache.Set(key, value, _defaultOptions);
+            TrackKey(expression, key);
+            return value;
+        }
+        finally
+        {
+            keyLock.Release();
+        }
     }
 
     /// <summary>
@@ -81,7 +105,7 @@ public class JsonLogicCache
     /// </summary>
     public bool TryGet<T>(JsonNode expression, out T? value)
     {
-        var key = ComputeHash(expression);
+        var key = ComputeTypedKey<T>(expression);
         return _cache.TryGetValue(key, out value);
     }
 
@@ -94,21 +118,56 @@ public class JsonLogicCache
         {
             mc.Compact(1.0); // Remove all entries
         }
+
+        _locks.Clear();
+        _keysByHash.Clear();
     }
 
     /// <summary>
-    /// Remove a specific expression from the cache
+    /// Remove a specific expression from the cache for all types
     /// </summary>
     public void Remove(JsonNode expression)
     {
-        var key = ComputeHash(expression);
-        _cache.Remove(key);
+        var hash = ComputeHash(expression);
+        if (_keysByHash.TryRemove(hash, out var keys))
+        {
+            foreach (var key in keys)
+            {
+                _cache.Remove(key);
+                _locks.TryRemove(key, out _);
+            }
+        }
     }
 
     /// <summary>
-    /// Compute a hash for the expression to use as cache key
+    /// Remove a specific expression+type from the cache
     /// </summary>
-    private string ComputeHash(JsonNode expression)
+    public void Remove<T>(JsonNode expression)
+    {
+        var key = ComputeTypedKey<T>(expression);
+        _cache.Remove(key);
+        _locks.TryRemove(key, out _);
+    }
+
+    private void TrackKey(JsonNode expression, string typedKey)
+    {
+        var hash = ComputeHash(expression);
+        var bag = _keysByHash.GetOrAdd(hash, _ => []);
+        bag.Add(typedKey);
+    }
+
+    /// <summary>
+    /// Compute a type-aware cache key: hash + type name
+    /// </summary>
+    private string ComputeTypedKey<T>(JsonNode expression)
+    {
+        return $"{ComputeHash(expression)}:{typeof(T).FullName}";
+    }
+
+    /// <summary>
+    /// Compute a hash for the expression
+    /// </summary>
+    private static string ComputeHash(JsonNode expression)
     {
         var json = expression.ToJsonString();
         var bytes = Encoding.UTF8.GetBytes(json);

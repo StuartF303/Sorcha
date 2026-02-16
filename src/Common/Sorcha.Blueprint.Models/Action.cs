@@ -98,9 +98,10 @@ public class Action
     public IEnumerable<string> AdditionalRecipients { get; set; } = [];
 
     /// <summary>
-    /// List of disclosures defining data visibility rules (optional)
+    /// List of disclosures defining data visibility rules.
+    /// At least one disclosure is required per action.
     /// </summary>
-    [DataAnnotations.MinLength(0)]
+    [DataAnnotations.MinLength(1)]
     [JsonPropertyName("disclosures")]
     public IEnumerable<Disclosure> Disclosures { get; set; } = [];
 

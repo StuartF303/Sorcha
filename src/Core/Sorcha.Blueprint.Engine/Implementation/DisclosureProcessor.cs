@@ -125,13 +125,16 @@ public class DisclosureProcessor : IDisclosureProcessor
         // Split pointer into segments
         var segments = pointer.Split('/');
 
-        // Navigate through the data structure
-        var value = NavigateToValue(data, segments);
+        // Decode escape sequences in segments for navigation and result keys
+        var decodedSegments = segments.Select(DecodePointerSegment).ToArray();
+
+        // Navigate through the data structure using decoded segments
+        var value = NavigateToValue(data, decodedSegments);
 
         if (value != null)
         {
-            // Use the first segment as the key in the result
-            result[segments[0]] = value;
+            // Use the decoded first segment as the key in the result
+            result[decodedSegments[0]] = value;
         }
 
         return result;
@@ -147,13 +150,10 @@ public class DisclosureProcessor : IDisclosureProcessor
             if (current == null)
                 return null;
 
-            // Decode JSON Pointer escapes
-            var decodedSegment = DecodePointerSegment(segment);
-
             // Handle dictionary/object
             if (current is Dictionary<string, object> dict)
             {
-                if (!dict.TryGetValue(decodedSegment, out var value))
+                if (!dict.TryGetValue(segment, out var value))
                     return null;
 
                 current = value;
@@ -163,7 +163,7 @@ public class DisclosureProcessor : IDisclosureProcessor
             // Handle list/array
             if (current is System.Collections.IList list)
             {
-                if (int.TryParse(decodedSegment, out var index))
+                if (int.TryParse(segment, out var index))
                 {
                     if (index < 0 || index >= list.Count)
                         return null;
@@ -177,7 +177,7 @@ public class DisclosureProcessor : IDisclosureProcessor
             // Try to handle as JSON element
             if (current is JsonElement element)
             {
-                current = NavigateJsonElement(element, decodedSegment);
+                current = NavigateJsonElement(element, segment);
                 if (current == null)
                     return null;
                 continue;
@@ -248,8 +248,10 @@ public class DisclosureProcessor : IDisclosureProcessor
     /// </remarks>
     private static string DecodePointerSegment(string segment)
     {
+        // RFC 6901: ~0 MUST be decoded first, then ~1
+        // Otherwise "~01" (literal "~1") decodes incorrectly
         return segment
-            .Replace("~1", "/")
-            .Replace("~0", "~");
+            .Replace("~0", "~")
+            .Replace("~1", "/");
     }
 }

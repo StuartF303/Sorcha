@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
+using Sorcha.Blueprint.Engine;
 using Sorcha.Blueprint.Service.Services.Interfaces;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
 using ActionModel = Sorcha.Blueprint.Models.Action;
@@ -10,7 +12,8 @@ using ActionModel = Sorcha.Blueprint.Models.Action;
 namespace Sorcha.Blueprint.Service.Services.Implementation;
 
 /// <summary>
-/// Service for resolving blueprints and actions
+/// Service for resolving blueprints and actions.
+/// Caches both blueprints and their action indexes for O(1) lookups.
 /// </summary>
 public class ActionResolverService : IActionResolverService
 {
@@ -18,6 +21,12 @@ public class ActionResolverService : IActionResolverService
     private readonly IDistributedCache _cache;
     private readonly ILogger<ActionResolverService> _logger;
     private const int CacheTtlMinutes = 10;
+
+    /// <summary>
+    /// Per-blueprint action index cache. Evicted when blueprint is re-fetched.
+    /// Static so it survives scoped DI lifetimes.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, Dictionary<int, ActionModel>> _actionIndexCache = new();
 
     public ActionResolverService(
         IBlueprintStore blueprintStore,
@@ -44,7 +53,13 @@ public class ActionResolverService : IActionResolverService
         if (!string.IsNullOrEmpty(cachedBlueprint))
         {
             _logger.LogDebug("Blueprint {BlueprintId} retrieved from cache", blueprintId);
-            return JsonSerializer.Deserialize<BlueprintModel>(cachedBlueprint);
+            var cached = JsonSerializer.Deserialize<BlueprintModel>(cachedBlueprint);
+            if (cached != null)
+            {
+                // Ensure action index is also cached
+                _actionIndexCache.GetOrAdd(blueprintId, _ => cached.BuildActionIndex());
+            }
+            return cached;
         }
 
         // Get from store
@@ -65,6 +80,9 @@ public class ActionResolverService : IActionResolverService
             JsonSerializer.Serialize(blueprint),
             cacheOptions,
             cancellationToken);
+
+        // Pre-compute action index alongside blueprint cache
+        _actionIndexCache[blueprintId] = blueprint.BuildActionIndex();
 
         _logger.LogDebug("Blueprint {BlueprintId} cached for {Minutes} minutes", blueprintId, CacheTtlMinutes);
 
@@ -91,10 +109,15 @@ public class ActionResolverService : IActionResolverService
             return null;
         }
 
-        var action = blueprint.Actions?.FirstOrDefault(a => a.Id == actionIdInt);
-        if (action == null)
+        // Use cached action index (O(1) lookup) — falls back to building on demand
+        var actionIndex = _actionIndexCache.GetOrAdd(
+            blueprint.Id ?? "",
+            _ => blueprint.BuildActionIndex());
+
+        if (!actionIndex.TryGetValue(actionIdInt, out var action))
         {
             _logger.LogWarning("Action {ActionId} not found in blueprint {BlueprintId}", actionId, blueprint.Id);
+            return null;
         }
 
         return action;

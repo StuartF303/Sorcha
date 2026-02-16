@@ -83,39 +83,23 @@ public class JsonLogicValidatorTests
     [Fact]
     public void Validate_ExceedsMaxDepth_ReturnsError()
     {
-        // Arrange - create deeply nested expression
-        var expression = JsonNode.Parse(@"{
-            ""and"": [
-                {""and"": [
-                    {""and"": [
-                        {""and"": [
-                            {""and"": [
-                                {""and"": [
-                                    {""and"": [
-                                        {""and"": [
-                                            {""and"": [
-                                                {""and"": [
-                                                    {""and"": [{"">"": [{""var"": ""a""}, 1]}, true]},
-                                                    true
-                                                ]},
-                                                true
-                                            ]},
-                                            true
-                                        ]},
-                                        true
-                                    ]},
-                                    true
-                                ]},
-                                true
-                            ]},
-                            true
-                        ]},
-                        true
-                    ]},
-                    true
-                ]}
-            ]}
-        }")!;
+        // Arrange - create deeply nested expression (11 levels deep, exceeds MaxDepth=10)
+        // Build programmatically to avoid JSON syntax errors
+        var inner = new System.Text.Json.Nodes.JsonObject
+        {
+            [">"] = new System.Text.Json.Nodes.JsonArray(
+                new System.Text.Json.Nodes.JsonObject { ["var"] = "a" },
+                (System.Text.Json.Nodes.JsonNode)1)
+        };
+        JsonNode current = inner;
+        for (var depth = 0; depth < 11; depth++)
+        {
+            current = new System.Text.Json.Nodes.JsonObject
+            {
+                ["and"] = new System.Text.Json.Nodes.JsonArray(current, (System.Text.Json.Nodes.JsonNode)true)
+            };
+        }
+        var expression = current;
 
         // Act
         var result = _validator.Validate(expression);

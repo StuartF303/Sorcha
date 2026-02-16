@@ -55,7 +55,12 @@ builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.ICryptoModule, Sorcha.
 builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.IHashProvider, Sorcha.Cryptography.Core.HashProvider>();
 builder.Services.AddScoped<Sorcha.Cryptography.Interfaces.ISymmetricCrypto, Sorcha.Cryptography.Core.SymmetricCrypto>();
 
+// Add transaction confirmation options
+builder.Services.Configure<Sorcha.Blueprint.Service.Models.TransactionConfirmationOptions>(
+    builder.Configuration.GetSection(Sorcha.Blueprint.Service.Models.TransactionConfirmationOptions.SectionName));
+
 // Add Execution Engine services (Sprint 5)
+builder.Services.AddSingleton<Sorcha.Blueprint.Engine.Caching.JsonSchemaCache>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.ISchemaValidator, Sorcha.Blueprint.Engine.Implementation.SchemaValidator>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IJsonLogicEvaluator, Sorcha.Blueprint.Engine.Implementation.JsonLogicEvaluator>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IDisclosureProcessor, Sorcha.Blueprint.Engine.Implementation.DisclosureProcessor>();
@@ -2010,20 +2015,46 @@ public class PublishService(
             errors.Add("Blueprint must have at least 1 action");
         }
 
-        // Rule 3: All participant references in actions must exist
+        // Rule 3: Validate participant references across the blueprint
         var participantIds = blueprint.Participants.Select(p => p.Id).ToHashSet();
+        var actionIds = blueprint.Actions.Select(a => a.Id).ToHashSet();
+
         foreach (var action in blueprint.Actions)
         {
+            // 3a: Action.Sender must reference a valid participant
+            if (!string.IsNullOrWhiteSpace(action.Sender) && !participantIds.Contains(action.Sender))
+            {
+                errors.Add($"Action {action.Id} ('{action.Title}'): Sender '{action.Sender}' is not a defined participant");
+            }
+
+            // 3b: Legacy participant condition principals must reference valid participants
             if (action.Participants != null)
             {
                 foreach (var participant in action.Participants)
                 {
-                    // Validate participant principal references
-                    if (!string.IsNullOrWhiteSpace(participant.Principal))
+                    if (!string.IsNullOrWhiteSpace(participant.Principal) && !participantIds.Contains(participant.Principal))
                     {
-                        // TODO: More sophisticated validation of participant references
+                        errors.Add($"Action {action.Id} ('{action.Title}'): Participant principal '{participant.Principal}' is not defined");
                     }
                 }
+            }
+
+            // 3c: Disclosure participant addresses must reference valid participants
+            if (action.Disclosures != null)
+            {
+                foreach (var disclosure in action.Disclosures)
+                {
+                    if (!string.IsNullOrWhiteSpace(disclosure.ParticipantAddress) && !participantIds.Contains(disclosure.ParticipantAddress))
+                    {
+                        warnings.Add($"Action {action.Id} ('{action.Title}'): Disclosure references participant '{disclosure.ParticipantAddress}' which is not defined");
+                    }
+                }
+            }
+
+            // 3d: RejectionConfig.TargetParticipantId must reference valid participant
+            if (action.RejectionConfig?.TargetParticipantId != null && !participantIds.Contains(action.RejectionConfig.TargetParticipantId))
+            {
+                warnings.Add($"Action {action.Id} ('{action.Title}'): Rejection target participant '{action.RejectionConfig.TargetParticipantId}' is not defined");
             }
         }
 
@@ -2089,6 +2120,178 @@ public class PublishService(
                 warning += ". This blueprint will loop indefinitely unless routing conditions provide a termination path.";
             }
             warnings.Add(warning);
+        }
+
+        // Rule 6: Starting action validation
+        var startingActions = blueprint.Actions.Where(a => a.IsStartingAction).ToList();
+        if (startingActions.Count == 0)
+        {
+            warnings.Add("No action has IsStartingAction=true. The first action will be used as the implicit starting action.");
+        }
+
+        // Rule 7: Route targets and rejection targets must reference valid actions
+        foreach (var action in blueprint.Actions)
+        {
+            if (action.Routes != null)
+            {
+                foreach (var route in action.Routes)
+                {
+                    if (route.NextActionIds != null)
+                    {
+                        foreach (var targetId in route.NextActionIds)
+                        {
+                            if (!actionIds.Contains(targetId))
+                            {
+                                errors.Add($"Action {action.Id} ('{action.Title}'): Route '{route.Id}' references non-existent action {targetId}");
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (action.RejectionConfig != null && !action.RejectionConfig.IsTerminal)
+            {
+                if (!actionIds.Contains(action.RejectionConfig.TargetActionId))
+                {
+                    errors.Add($"Action {action.Id} ('{action.Title}'): Rejection target action {action.RejectionConfig.TargetActionId} does not exist");
+                }
+            }
+        }
+
+        // Rule 7b: Detect orphan actions (unreachable, not starting)
+        var reachableActionIds = new HashSet<int>();
+        foreach (var action in blueprint.Actions)
+        {
+            if (action.IsStartingAction || (startingActions.Count == 0 && action.Id == blueprint.Actions.Min(a => a.Id)))
+            {
+                reachableActionIds.Add(action.Id);
+            }
+
+            if (action.Routes != null)
+            {
+                foreach (var route in action.Routes)
+                {
+                    if (route.NextActionIds != null)
+                    {
+                        foreach (var targetId in route.NextActionIds)
+                            reachableActionIds.Add(targetId);
+                    }
+                }
+            }
+
+            if (action.RejectionConfig != null)
+                reachableActionIds.Add(action.RejectionConfig.TargetActionId);
+        }
+
+        foreach (var action in blueprint.Actions)
+        {
+            if (!reachableActionIds.Contains(action.Id))
+            {
+                warnings.Add($"Action {action.Id} ('{action.Title}') is unreachable — no route or rejection targets it and it is not a starting action");
+            }
+        }
+
+        // Rule 8: JSON Pointer syntax validation in disclosures
+        foreach (var action in blueprint.Actions)
+        {
+            if (action.Disclosures == null) continue;
+
+            foreach (var disclosure in action.Disclosures)
+            {
+                if (disclosure.DataPointers == null || disclosure.DataPointers.Count == 0)
+                {
+                    errors.Add($"Action {action.Id} ('{action.Title}'): Disclosure for '{disclosure.ParticipantAddress}' has no data pointers");
+                    continue;
+                }
+
+                foreach (var pointer in disclosure.DataPointers)
+                {
+                    if (string.IsNullOrWhiteSpace(pointer))
+                    {
+                        errors.Add($"Action {action.Id} ('{action.Title}'): Disclosure has an empty JSON Pointer");
+                    }
+                    else if (pointer != "/*" && !pointer.StartsWith("/") && !pointer.StartsWith("#/"))
+                    {
+                        errors.Add($"Action {action.Id} ('{action.Title}'): JSON Pointer '{pointer}' must start with '/' (RFC 6901)");
+                    }
+                    else if (pointer.Contains("~") && !System.Text.RegularExpressions.Regex.IsMatch(pointer, @"~[01]|$"))
+                    {
+                        // Check for invalid escape sequences: ~ must be followed by 0 or 1
+                        var segments = pointer.Split('/');
+                        foreach (var segment in segments)
+                        {
+                            for (var ci = 0; ci < segment.Length; ci++)
+                            {
+                                if (segment[ci] == '~' && (ci + 1 >= segment.Length || (segment[ci + 1] != '0' && segment[ci + 1] != '1')))
+                                {
+                                    errors.Add($"Action {action.Id} ('{action.Title}'): JSON Pointer '{pointer}' has invalid escape '~' not followed by '0' or '1' (RFC 6901)");
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Rule 9: JSON Logic syntax validation in routes and calculations
+        foreach (var action in blueprint.Actions)
+        {
+            if (action.Routes != null)
+            {
+                foreach (var route in action.Routes)
+                {
+                    if (route.Condition != null)
+                    {
+                        try
+                        {
+                            var ruleJson = route.Condition.ToJsonString();
+                            var rule = System.Text.Json.JsonSerializer.Deserialize<Json.Logic.Rule>(ruleJson);
+                            if (rule == null)
+                            {
+                                errors.Add($"Action {action.Id} ('{action.Title}'): Route '{route.Id}' condition is not valid JSON Logic");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            errors.Add($"Action {action.Id} ('{action.Title}'): Route '{route.Id}' condition failed to parse as JSON Logic: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            if (action.Calculations != null)
+            {
+                foreach (var (fieldName, expression) in action.Calculations)
+                {
+                    try
+                    {
+                        var ruleJson = expression.ToJsonString();
+                        var rule = System.Text.Json.JsonSerializer.Deserialize<Json.Logic.Rule>(ruleJson);
+                        if (rule == null)
+                        {
+                            errors.Add($"Action {action.Id} ('{action.Title}'): Calculation '{fieldName}' is not valid JSON Logic");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"Action {action.Id} ('{action.Title}'): Calculation '{fieldName}' failed to parse as JSON Logic: {ex.Message}");
+                    }
+                }
+            }
+
+            // Rule 9b: Validate Form.Schema is valid JSON Schema (if present)
+            if (action.Form?.Schema != null)
+            {
+                try
+                {
+                    Json.Schema.JsonSchema.FromText(action.Form.Schema.ToJsonString());
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"Action {action.Id} ('{action.Title}'): Form schema is not valid JSON Schema: {ex.Message}");
+                }
+            }
         }
 
         return (errors, warnings);

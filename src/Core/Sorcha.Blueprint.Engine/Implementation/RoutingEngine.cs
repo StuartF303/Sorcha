@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using Sorcha.Blueprint.Engine;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Engine.Models;
 using Sorcha.Blueprint.Models;
@@ -39,15 +40,18 @@ public class RoutingEngine : IRoutingEngine
         ArgumentNullException.ThrowIfNull(currentAction);
         ArgumentNullException.ThrowIfNull(data);
 
+        // Build action index once for O(1) lookups during routing
+        var actionIndex = blueprint.BuildActionIndex();
+
         // Route-based routing takes precedence
         var routes = currentAction.Routes?.ToList();
         if (routes != null && routes.Count > 0)
         {
-            return EvaluateRoutes(blueprint, routes, data);
+            return EvaluateRoutes(actionIndex, routes, data);
         }
 
         // Legacy: Condition-based routing via Participants
-        return await EvaluateLegacyConditionsAsync(blueprint, currentAction, data, ct);
+        return await EvaluateLegacyConditionsAsync(blueprint, actionIndex, currentAction, data, ct);
     }
 
     /// <summary>
@@ -55,7 +59,7 @@ public class RoutingEngine : IRoutingEngine
     /// first matching condition wins, default route used as fallback.
     /// </summary>
     private RoutingResult EvaluateRoutes(
-        Sorcha.Blueprint.Models.Blueprint blueprint,
+        Dictionary<int, Sorcha.Blueprint.Models.Action> actionIndex,
         List<Route> routes,
         Dictionary<string, object> data)
     {
@@ -80,14 +84,14 @@ public class RoutingEngine : IRoutingEngine
             var result = _evaluator.Evaluate(route.Condition, data);
             if (IsTruthy(result))
             {
-                return BuildRoutingResult(blueprint, route, data);
+                return BuildRoutingResult(actionIndex, route, data);
             }
         }
 
         // Use default route if no conditions matched
         if (defaultRoute != null)
         {
-            return BuildRoutingResult(blueprint, defaultRoute, data);
+            return BuildRoutingResult(actionIndex, defaultRoute, data);
         }
 
         // No routes matched
@@ -99,7 +103,7 @@ public class RoutingEngine : IRoutingEngine
     /// Single NextActionId → Next(), multiple → Parallel().
     /// </summary>
     private static RoutingResult BuildRoutingResult(
-        Sorcha.Blueprint.Models.Blueprint blueprint,
+        Dictionary<int, Sorcha.Blueprint.Models.Action> actionIndex,
         Route route,
         Dictionary<string, object> data)
     {
@@ -113,7 +117,7 @@ public class RoutingEngine : IRoutingEngine
 
         var routedActions = nextActionIds.Select((actionId, index) =>
         {
-            var targetAction = blueprint.Actions?.FirstOrDefault(a => a.Id == actionId);
+            actionIndex.TryGetValue(actionId, out var targetAction);
             return new RoutedAction
             {
                 ActionId = actionId.ToString(),
@@ -142,6 +146,7 @@ public class RoutingEngine : IRoutingEngine
     /// </summary>
     private async Task<RoutingResult> EvaluateLegacyConditionsAsync(
         Sorcha.Blueprint.Models.Blueprint blueprint,
+        Dictionary<int, Sorcha.Blueprint.Models.Action> actionIndex,
         Sorcha.Blueprint.Models.Action currentAction,
         Dictionary<string, object> data,
         CancellationToken ct)

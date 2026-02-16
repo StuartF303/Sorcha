@@ -3,6 +3,8 @@
 
 using System.Diagnostics;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Sorcha.ServiceClients.Participant;
 using Sorcha.ServiceClients.Wallet;
@@ -16,6 +18,7 @@ using Sorcha.Blueprint.Service.Models.Requests;
 using Sorcha.Blueprint.Service.Models.Responses;
 using Sorcha.Blueprint.Service.Services.Interfaces;
 using Sorcha.Blueprint.Service.Storage;
+using Microsoft.Extensions.Options;
 using ActionModel = Sorcha.Blueprint.Models.Action;
 using BlueprintModel = Sorcha.Blueprint.Models.Blueprint;
 
@@ -38,6 +41,8 @@ public class ActionExecutionService : IActionExecutionService
     private readonly IInstanceStore _instanceStore;
     private readonly IExecutionEngine _executionEngine;
     private readonly ICredentialVerifier? _credentialVerifier;
+    private readonly IActionStore _actionStore;
+    private readonly TransactionConfirmationOptions _confirmationOptions;
     private readonly ILogger<ActionExecutionService> _logger;
     private static readonly ActivitySource ActivitySource = new("Sorcha.Blueprint.Service.ActionExecution");
 
@@ -51,9 +56,11 @@ public class ActionExecutionService : IActionExecutionService
         IParticipantServiceClient participantClient,
         INotificationService notificationService,
         IInstanceStore instanceStore,
+        IActionStore actionStore,
         IExecutionEngine executionEngine,
         ILogger<ActionExecutionService> logger,
-        ICredentialVerifier? credentialVerifier = null)
+        ICredentialVerifier? credentialVerifier = null,
+        IOptions<TransactionConfirmationOptions>? confirmationOptions = null)
     {
         _actionResolver = actionResolver ?? throw new ArgumentNullException(nameof(actionResolver));
         _stateReconstruction = stateReconstruction ?? throw new ArgumentNullException(nameof(stateReconstruction));
@@ -64,9 +71,11 @@ public class ActionExecutionService : IActionExecutionService
         _participantClient = participantClient ?? throw new ArgumentNullException(nameof(participantClient));
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
         _instanceStore = instanceStore ?? throw new ArgumentNullException(nameof(instanceStore));
+        _actionStore = actionStore ?? throw new ArgumentNullException(nameof(actionStore));
         _executionEngine = executionEngine ?? throw new ArgumentNullException(nameof(executionEngine));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _credentialVerifier = credentialVerifier;
+        _confirmationOptions = confirmationOptions?.Value ?? new TransactionConfirmationOptions();
     }
 
     /// <inheritdoc/>
@@ -83,6 +92,18 @@ public class ActionExecutionService : IActionExecutionService
         activity?.SetTag("action.id", actionId);
 
         _logger.LogInformation("Executing action {ActionId} for instance {InstanceId}", actionId, instanceId);
+
+        // 0. Replay protection — idempotency check
+        var idempotencyKey = GenerateIdempotencyKey(instanceId, actionId, request.SenderWallet);
+        var existingTxHash = await _actionStore.GetByIdempotencyKeyAsync(idempotencyKey);
+        if (existingTxHash != null)
+        {
+            _logger.LogWarning(
+                "Duplicate submission detected for instance {InstanceId} action {ActionId}. Existing tx: {TxHash}",
+                instanceId, actionId, existingTxHash);
+            throw new InvalidOperationException(
+                $"Duplicate submission. This action was already executed (transaction: {existingTxHash}).");
+        }
 
         // 1. Get the instance
         var instance = await _instanceStore.GetAsync(instanceId, cancellationToken);
@@ -228,31 +249,10 @@ public class ActionExecutionService : IActionExecutionService
 
         // 13. Poll Register Service until transaction appears with a DocketNumber (confirmation)
         var confirmedTxId = transaction.TxId;
-        var pollTimeout = TimeSpan.FromSeconds(30);
-        var pollInterval = TimeSpan.FromSeconds(1);
-        var deadline = DateTimeOffset.UtcNow + pollTimeout;
+        await WaitForTransactionConfirmationAsync(instance.RegisterId, confirmedTxId, cancellationToken);
 
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            var confirmedTx = await _registerClient.GetTransactionAsync(
-                instance.RegisterId, confirmedTxId, cancellationToken);
-
-            if (confirmedTx != null)
-            {
-                _logger.LogInformation(
-                    "Transaction {TxId} confirmed in docket {DocketNumber} for register {RegisterId}",
-                    confirmedTxId, confirmedTx.DocketNumber, instance.RegisterId);
-                break;
-            }
-
-            await Task.Delay(pollInterval, cancellationToken);
-        }
-
-        if (DateTimeOffset.UtcNow >= deadline)
-        {
-            throw new TimeoutException(
-                $"Transaction {confirmedTxId} was not confirmed within {pollTimeout.TotalSeconds}s for register {instance.RegisterId}");
-        }
+        // 13b. Store idempotency key (24-hour TTL)
+        await _actionStore.StoreIdempotencyKeyAsync(idempotencyKey, confirmedTxId, TimeSpan.FromHours(24));
 
         // 14. Update instance state
         instance = await UpdateInstanceAfterExecutionAsync(
@@ -264,6 +264,20 @@ public class ActionExecutionService : IActionExecutionService
 
         // 15. Notify participants via SignalR
         await NotifyParticipantsAsync(instance, actionDef, routingResult, cancellationToken);
+
+        // 15a. Notify that action was confirmed (transaction landed on ledger)
+        await _notificationService.NotifyActionConfirmedAsync(
+            new Hubs.ActionNotification
+            {
+                TransactionHash = confirmedTxId,
+                WalletAddress = request.SenderWallet,
+                RegisterAddress = instance.RegisterId,
+                BlueprintId = instance.BlueprintId,
+                ActionId = actionId.ToString(),
+                InstanceId = instanceId,
+                Message = $"Action '{actionDef.Title}' confirmed"
+            },
+            cancellationToken);
 
         // 15b. Update issued credential with confirmed transaction ID
         if (issuedCredential != null)
@@ -407,17 +421,7 @@ public class ActionExecutionService : IActionExecutionService
         }
 
         // Poll for confirmation
-        var rejectDeadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(30);
-        while (DateTimeOffset.UtcNow < rejectDeadline)
-        {
-            var confirmedTx = await _registerClient.GetTransactionAsync(
-                instance.RegisterId, transaction.TxId, cancellationToken);
-
-            if (confirmedTx != null)
-                break;
-
-            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-        }
+        await WaitForTransactionConfirmationAsync(instance.RegisterId, transaction.TxId, cancellationToken);
 
         // 9. Update instance state
         if (actionDef.RejectionConfig.IsTerminal)
@@ -504,14 +508,18 @@ public class ActionExecutionService : IActionExecutionService
         var engineResult = await _executionEngine.DetermineRoutingAsync(
             blueprint, action, mergedData, cancellationToken);
 
+        // Build action index once for O(1) lookups during mapping
+        var actionIndex = Sorcha.Blueprint.Engine.BlueprintExtensions.BuildActionIndex(blueprint);
+
         // Map engine RoutedActions to service NextActions
         var nextActions = new List<NextAction>();
 
         foreach (var routedAction in engineResult.NextActions)
         {
-            // Resolve action title from blueprint
-            var targetActionDef = blueprint.Actions?.FirstOrDefault(
-                a => a.Id.ToString() == routedAction.ActionId);
+            // Resolve action title from blueprint via O(1) index lookup
+            ActionModel? targetActionDef = null;
+            if (int.TryParse(routedAction.ActionId, out var targetId))
+                actionIndex.TryGetValue(targetId, out targetActionDef);
 
             nextActions.Add(new NextAction
             {
@@ -595,12 +603,49 @@ public class ActionExecutionService : IActionExecutionService
         return disclosedPayloads;
     }
 
+    private const int MaxConcurrencyRetries = 3;
+
     private async Task<Instance> UpdateInstanceAfterExecutionAsync(
         Instance instance,
         int completedActionId,
         string transactionId,
         RoutingResult routingResult,
         CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt <= MaxConcurrencyRetries; attempt++)
+        {
+            if (attempt > 0)
+            {
+                // Re-read the instance on retry to get latest version
+                _logger.LogWarning(
+                    "Concurrency conflict on instance {InstanceId}, retry {Attempt}/{Max}",
+                    instance.Id, attempt, MaxConcurrencyRetries);
+
+                instance = (await _instanceStore.GetAsync(instance.Id, cancellationToken))!;
+            }
+
+            ApplyInstanceStateChanges(instance, completedActionId, transactionId, routingResult);
+
+            try
+            {
+                return await _instanceStore.UpdateAsync(instance, cancellationToken);
+            }
+            catch (ConcurrencyException) when (attempt < MaxConcurrencyRetries)
+            {
+                // Retry with fresh state
+            }
+        }
+
+        // Should not reach here, but satisfy compiler
+        throw new InvalidOperationException(
+            $"Failed to update instance {instance.Id} after {MaxConcurrencyRetries} retries due to concurrent modifications");
+    }
+
+    private static void ApplyInstanceStateChanges(
+        Instance instance,
+        int completedActionId,
+        string transactionId,
+        RoutingResult routingResult)
     {
         // Remove completed action from current actions
         instance.CurrentActionIds.Remove(completedActionId);
@@ -616,12 +661,15 @@ public class ActionExecutionService : IActionExecutionService
             // Track parallel branches
             if (!string.IsNullOrEmpty(nextAction.BranchId))
             {
-                instance.ActiveBranches.Add(new Branch
+                if (!instance.ActiveBranches.Any(b => b.Id == nextAction.BranchId))
                 {
-                    Id = nextAction.BranchId,
-                    CurrentActionId = nextAction.ActionId,
-                    State = BranchState.Active
-                });
+                    instance.ActiveBranches.Add(new Branch
+                    {
+                        Id = nextAction.BranchId,
+                        CurrentActionId = nextAction.ActionId,
+                        State = BranchState.Active
+                    });
+                }
             }
         }
 
@@ -640,8 +688,6 @@ public class ActionExecutionService : IActionExecutionService
             instance.State = InstanceState.Completed;
             instance.CompletedAt = DateTimeOffset.UtcNow;
         }
-
-        return await _instanceStore.UpdateAsync(instance, cancellationToken);
     }
 
     private async Task NotifyParticipantsAsync(
@@ -666,6 +712,33 @@ public class ActionExecutionService : IActionExecutionService
                 instance.Id,
                 cancellationToken);
         }
+    }
+
+    private async Task WaitForTransactionConfirmationAsync(
+        string registerId,
+        string txId,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTimeOffset.UtcNow + _confirmationOptions.Timeout;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var confirmedTx = await _registerClient.GetTransactionAsync(
+                registerId, txId, cancellationToken);
+
+            if (confirmedTx != null)
+            {
+                _logger.LogInformation(
+                    "Transaction {TxId} confirmed in docket {DocketNumber} for register {RegisterId}",
+                    txId, confirmedTx.DocketNumber, registerId);
+                return;
+            }
+
+            await Task.Delay(_confirmationOptions.PollInterval, cancellationToken);
+        }
+
+        throw new TimeoutException(
+            $"Transaction {txId} was not confirmed within {_confirmationOptions.Timeout.TotalSeconds}s for register {registerId}");
     }
 
     private async Task<CredentialIssuanceResult?> IssueCredentialFromActionAsync(
@@ -869,6 +942,13 @@ public class ActionExecutionService : IActionExecutionService
 
         _logger.LogDebug("Wallet ownership validated: {Wallet} belongs to participant {ParticipantId}",
             senderWallet, participant.Id);
+    }
+
+    private static string GenerateIdempotencyKey(string instanceId, int actionId, string senderWallet)
+    {
+        var keySource = $"instance:{instanceId}:action:{actionId}:wallet:{senderWallet}";
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(keySource));
+        return Convert.ToHexStringLower(hash);
     }
 }
 

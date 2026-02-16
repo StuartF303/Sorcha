@@ -4,6 +4,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Json.Schema;
+using Sorcha.Blueprint.Engine.Caching;
 using Sorcha.Blueprint.Engine.Interfaces;
 using Sorcha.Blueprint.Engine.Models;
 
@@ -15,11 +16,23 @@ namespace Sorcha.Blueprint.Engine.Implementation;
 /// <remarks>
 /// This implementation uses JsonSchema.Net to provide comprehensive
 /// validation against JSON Schema specifications.
-/// 
+/// Parsed schemas are cached to avoid re-parsing on repeated validations.
+///
 /// Thread-safe and can be used concurrently.
 /// </remarks>
 public class SchemaValidator : ISchemaValidator
 {
+    private readonly JsonSchemaCache _schemaCache;
+
+    public SchemaValidator(JsonSchemaCache schemaCache)
+    {
+        _schemaCache = schemaCache ?? throw new ArgumentNullException(nameof(schemaCache));
+    }
+
+    public SchemaValidator() : this(new JsonSchemaCache())
+    {
+    }
+
     /// <summary>
     /// Validate data against a JSON Schema.
     /// </summary>
@@ -36,8 +49,8 @@ public class SchemaValidator : ISchemaValidator
             // Convert data dictionary to JsonNode
             var dataJson = ConvertToJsonNode(data);
 
-            // Parse the JSON Schema
-            var jsonSchema = JsonSchema.FromText(schema.ToJsonString());
+            // Parse the JSON Schema (cached — avoids re-parsing same schema)
+            var jsonSchema = _schemaCache.GetOrAdd(schema, text => JsonSchema.FromText(text));
 
             // Convert JsonNode to JsonElement for evaluation
             var jsonString = dataJson.ToJsonString();

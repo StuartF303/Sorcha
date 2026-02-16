@@ -35,6 +35,7 @@ public class ActionExecutionServiceTests
     private readonly Mock<IParticipantServiceClient> _mockParticipantClient;
     private readonly Mock<INotificationService> _mockNotificationService;
     private readonly Mock<IInstanceStore> _mockInstanceStore;
+    private readonly Mock<IActionStore> _mockActionStore;
     private readonly Mock<IExecutionEngine> _mockExecutionEngine;
     private readonly Mock<ILogger<ActionExecutionService>> _mockLogger;
     private readonly ActionExecutionService _service;
@@ -50,8 +51,13 @@ public class ActionExecutionServiceTests
         _mockParticipantClient = new Mock<IParticipantServiceClient>();
         _mockNotificationService = new Mock<INotificationService>();
         _mockInstanceStore = new Mock<IInstanceStore>();
+        _mockActionStore = new Mock<IActionStore>();
         _mockExecutionEngine = new Mock<IExecutionEngine>();
         _mockLogger = new Mock<ILogger<ActionExecutionService>>();
+
+        // Default: no idempotency collision
+        _mockActionStore.Setup(s => s.GetByIdempotencyKeyAsync(It.IsAny<string>()))
+            .ReturnsAsync((string?)null);
 
         _service = new ActionExecutionService(
             _mockActionResolver.Object,
@@ -63,6 +69,7 @@ public class ActionExecutionServiceTests
             _mockParticipantClient.Object,
             _mockNotificationService.Object,
             _mockInstanceStore.Object,
+            _mockActionStore.Object,
             _mockExecutionEngine.Object,
             _mockLogger.Object);
     }
@@ -83,6 +90,7 @@ public class ActionExecutionServiceTests
                 _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
+                _mockActionStore.Object,
                 _mockExecutionEngine.Object,
                 _mockLogger.Object));
     }
@@ -101,6 +109,7 @@ public class ActionExecutionServiceTests
                 _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
+                _mockActionStore.Object,
                 _mockExecutionEngine.Object,
                 _mockLogger.Object));
     }
@@ -119,6 +128,7 @@ public class ActionExecutionServiceTests
                 _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
+                _mockActionStore.Object,
                 _mockExecutionEngine.Object,
                 _mockLogger.Object));
     }
@@ -137,6 +147,7 @@ public class ActionExecutionServiceTests
                 _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
+                _mockActionStore.Object,
                 _mockExecutionEngine.Object,
                 _mockLogger.Object));
     }
@@ -155,6 +166,7 @@ public class ActionExecutionServiceTests
                 _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
+                _mockActionStore.Object,
                 _mockExecutionEngine.Object,
                 _mockLogger.Object));
     }
@@ -173,6 +185,7 @@ public class ActionExecutionServiceTests
                 _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
+                _mockActionStore.Object,
                 _mockExecutionEngine.Object,
                 _mockLogger.Object));
     }
@@ -191,6 +204,7 @@ public class ActionExecutionServiceTests
                 null!,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
+                _mockActionStore.Object,
                 _mockExecutionEngine.Object,
                 _mockLogger.Object));
     }
@@ -209,6 +223,7 @@ public class ActionExecutionServiceTests
                 _mockParticipantClient.Object,
                 null!,
                 _mockInstanceStore.Object,
+                _mockActionStore.Object,
                 _mockExecutionEngine.Object,
                 _mockLogger.Object));
     }
@@ -226,6 +241,26 @@ public class ActionExecutionServiceTests
                 _mockWalletClient.Object,
                 _mockParticipantClient.Object,
                 _mockNotificationService.Object,
+                null!,
+                _mockActionStore.Object,
+                _mockExecutionEngine.Object,
+                _mockLogger.Object));
+    }
+
+    [Fact]
+    public void Constructor_WithNullActionStore_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new ActionExecutionService(
+                _mockActionResolver.Object,
+                _mockStateReconstruction.Object,
+                _mockTransactionBuilder.Object,
+                _mockRegisterClient.Object,
+                _mockValidatorClient.Object,
+                _mockWalletClient.Object,
+                _mockParticipantClient.Object,
+                _mockNotificationService.Object,
+                _mockInstanceStore.Object,
                 null!,
                 _mockExecutionEngine.Object,
                 _mockLogger.Object));
@@ -245,6 +280,7 @@ public class ActionExecutionServiceTests
                 _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
+                _mockActionStore.Object,
                 null!,
                 _mockLogger.Object));
     }
@@ -263,6 +299,7 @@ public class ActionExecutionServiceTests
                 _mockParticipantClient.Object,
                 _mockNotificationService.Object,
                 _mockInstanceStore.Object,
+                _mockActionStore.Object,
                 _mockExecutionEngine.Object,
                 null!));
     }
@@ -400,6 +437,7 @@ public class ActionExecutionServiceTests
             _mockParticipantClient.Object,
             _mockNotificationService.Object,
             _mockInstanceStore.Object,
+            _mockActionStore.Object,
             _mockExecutionEngine.Object,
             _mockLogger.Object);
 
