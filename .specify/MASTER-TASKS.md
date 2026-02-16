@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 5.2 - UPDATED
-**Last Updated:** 2026-02-14
-**Status:** Active - Event Infrastructure
+**Version:** 5.3 - UPDATED
+**Last Updated:** 2026-02-16
+**Status:** Active - Engine/Service Hardening
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -19,6 +19,15 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ---
 
 ## Recent Updates
+
+**2026-02-16:**
+- ✅ BLUEPRINT-ENGINE-SERVICE-REVIEW: Comprehensive Blueprint Engine & Service review (4 phases, 17 tasks)
+  - **Phase 1 (Reliability):** Fixed JSON Pointer escaping in DisclosureProcessor for `~` and `/` keys; fixed JsonLogicCache race condition with per-key SemaphoreSlim locking; added Instance.Version + ConcurrencyException for optimistic concurrency; added idempotency to ActionExecutionService via idempotency key tracking
+  - **Phase 2 (Performance):** Added JsonSchemaCache (SHA256-keyed MemoryCache for parsed schemas); BlueprintExtensions.BuildActionIndex() for O(1) action lookups replacing O(n) scans; TransactionConfirmationOptions for configurable polling timeouts; ConcurrentDictionary action index cache in ActionResolverService; transaction confirmation SignalR notification
+  - **Phase 3 (Validation):** Added 9 publish-time validation rules: starting actions, route targets, orphan detection, JSON Pointer syntax (RFC 6901), JSON Logic syntax, participant sender references, rejection targets, form schema validity; 10 new PublishService tests
+  - **Phase 4 (Tests):** Fixed all 12 pre-existing engine failures — Action.Disclosures MinLength(0→1), malformed JSON depth test, JsonE ValidateTemplate catch (InterpreterException via base JsonEException, not TemplateException), JsonE nested context $let/in syntax, JsonLogic calculation decimal/JsonElement coercion, integration blueprints missing Routes; added 38 new service tests (DelegationTokenMiddleware, InMemoryInstanceStore, InMemoryActionStore)
+  - Engine: 396 pass / 0 fail / 1 skipped (was 384/12). Service: 279 pass (was 241), 19 pre-existing SignalR.
+  - Files changed: 26 (19 modified, 7 new); 1,747 insertions, 167 deletions
 
 **2026-02-15:**
 - ✅ TEST-SUITE-AUDIT: Full solution test audit with quick-win fixes
@@ -585,6 +594,6 @@ PEER-024 (Peer Network Management & Observability) ✅ COMPLETE
 
 ---
 
-**Last Updated:** 2026-02-14
+**Last Updated:** 2026-02-16
 **Next Review:** Weekly
 **Document Owner:** Sorcha Architecture Team
