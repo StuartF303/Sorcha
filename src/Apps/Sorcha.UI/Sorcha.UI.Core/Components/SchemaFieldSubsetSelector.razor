@@ -1,0 +1,123 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.Blueprint.Schemas
+
+<MudStack Spacing="2">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+        <MudText Typo="Typo.subtitle1">Select Fields</MudText>
+        <MudButton Size="Size.Small" Variant="Variant.Text"
+                   OnClick="ToggleAll">
+            @(_allSelected ? "Deselect Optional" : "Select All")
+        </MudButton>
+    </MudStack>
+
+    <MudText Typo="Typo.caption" Color="Color.Secondary">
+        Required fields are always included. Deselect optional fields to create a subset schema.
+    </MudText>
+
+    @if (_fields.Count > 0)
+    {
+        <MudStack Spacing="0" Style="max-height: 400px; overflow-y: auto;">
+            @foreach (var field in _fields)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="py-1"
+                           Style="@($"padding-left: {field.Info.Depth * 16}px")">
+                    <MudCheckBox T="bool" Value="@field.IsSelected"
+                                 ValueChanged="@(v => OnFieldToggled(field, v))"
+                                 Disabled="@field.Info.IsRequired"
+                                 Color="Color.Primary"
+                                 Dense="true" />
+                    <code style="font-size: 13px;">@field.Info.Name</code>
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default">
+                        @field.Info.Type
+                    </MudChip>
+                    @if (field.Info.IsRequired)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
+                    }
+                </MudStack>
+            }
+        </MudStack>
+
+        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+            @_fields.Count(f => f.IsSelected) of @_fields.Count fields selected
+        </MudText>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info" Dense="true">
+            No fields to display.
+        </MudAlert>
+    }
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired]
+    public System.Text.Json.JsonDocument Schema { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<string[]> OnSelectionChanged { get; set; }
+
+    private List<SelectableField> _fields = [];
+    private bool _allSelected = true;
+
+    protected override void OnParametersSet()
+    {
+        if (Schema is null) return;
+
+        var extracted = SchemaFieldExtractor.ExtractFields(Schema);
+        _fields = extracted.Select(f => new SelectableField
+        {
+            Info = f,
+            IsSelected = true // All selected by default
+        }).ToList();
+
+        _allSelected = true;
+    }
+
+    private async Task OnFieldToggled(SelectableField field, bool selected)
+    {
+        if (field.Info.IsRequired) return; // Required fields can't be deselected
+
+        field.IsSelected = selected;
+        _allSelected = _fields.All(f => f.IsSelected);
+
+        await NotifySelection();
+    }
+
+    private async Task ToggleAll()
+    {
+        _allSelected = !_allSelected;
+        foreach (var field in _fields)
+        {
+            if (!field.Info.IsRequired)
+            {
+                field.IsSelected = _allSelected;
+            }
+        }
+
+        await NotifySelection();
+    }
+
+    private async Task NotifySelection()
+    {
+        var selected = _fields.Where(f => f.IsSelected).Select(f => f.Info.Path).ToArray();
+        await OnSelectionChanged.InvokeAsync(selected);
+    }
+
+    /// <summary>
+    /// Gets the currently selected field paths.
+    /// </summary>
+    public string[] GetSelectedFields()
+    {
+        return _fields.Where(f => f.IsSelected).Select(f => f.Info.Path).ToArray();
+    }
+
+    private sealed class SelectableField
+    {
+        public required SchemaFieldInfo Info { get; init; }
+        public bool IsSelected { get; set; }
+    }
+}

@@ -1,0 +1,71 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="width: 100%;">
+    <MudTextField T="string"
+                  @bind-Value="_searchText"
+                  Label="Search schemas..."
+                  Variant="Variant.Outlined"
+                  Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search"
+                  DebounceInterval="300"
+                  OnDebounceIntervalElapsed="HandleSearchDebounced"
+                  Immediate="true"
+                  Clearable="true"
+                  OnClearButtonClick="HandleClear"
+                  Style="flex: 1;" />
+    @if (Providers is { Count: > 0 })
+    {
+        <MudSelect T="string"
+                   Label="Source"
+                   Variant="Variant.Outlined"
+                   Value="_selectedProvider"
+                   ValueChanged="HandleProviderChanged"
+                   Clearable="true"
+                   Style="min-width: 160px;">
+            @foreach (var provider in Providers)
+            {
+                <MudSelectItem T="string" Value="@provider">@provider</MudSelectItem>
+            }
+        </MudSelect>
+    }
+</MudStack>
+
+@code {
+    private string _searchText = string.Empty;
+    private string? _selectedProvider;
+
+    [Parameter] public string? SearchText { get; set; }
+    [Parameter] public EventCallback<string?> SearchTextChanged { get; set; }
+    [Parameter] public EventCallback<string?> OnSearch { get; set; }
+    [Parameter] public EventCallback<string?> OnProviderChanged { get; set; }
+    [Parameter] public IReadOnlyList<string>? Providers { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (SearchText != null && SearchText != _searchText)
+        {
+            _searchText = SearchText;
+        }
+    }
+
+    private async Task HandleSearchDebounced(string value)
+    {
+        _searchText = value;
+        await SearchTextChanged.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
+        await OnSearch.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
+    }
+
+    private async Task HandleClear()
+    {
+        _searchText = string.Empty;
+        await SearchTextChanged.InvokeAsync(null);
+        await OnSearch.InvokeAsync(null);
+    }
+
+    private async Task HandleProviderChanged(string? provider)
+    {
+        _selectedProvider = provider;
+        await OnProviderChanged.InvokeAsync(provider);
+    }
+}

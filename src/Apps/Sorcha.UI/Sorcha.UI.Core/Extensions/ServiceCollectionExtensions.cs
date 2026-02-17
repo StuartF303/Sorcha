@@ -181,6 +181,21 @@ public static class ServiceCollectionExtensions
             return new ODataQueryService(httpClient, logger);
         });
 
+        // Schema Library API Service
+        services.AddScoped<ISchemaLibraryApiService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            var logger = sp.GetRequiredService<ILogger<SchemaLibraryApiService>>();
+            return new SchemaLibraryApiService(httpClient, logger);
+        });
+
         // Admin Services
         services.AddAdminServices(baseAddress);
 
