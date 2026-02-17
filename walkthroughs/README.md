@@ -161,6 +161,32 @@ walkthroughs/
 
 **Profiles:** `gateway` (default), `direct`, `aspire`
 
+### [ConstructionPermit](./ConstructionPermit/)
+**Status:** 🚧 In Progress
+**Date:** 2026-02-17
+**Purpose:** Multi-org, multi-user construction permit approval with conditional routing, calculations, and verifiable credential issuance
+
+**What you'll learn:**
+- Multi-organization workflows (4 orgs, 5 participants)
+- Two participants from the same organization (Council: Planning Officer + Building Control)
+- Conditional routing based on calculated risk score
+- JSON Logic calculations (risk score from building parameters, permit fee from project value)
+- Rejection paths routing back to the originator
+- Verifiable credential issuance (Building Permit VC) on approval
+- Blueprint templates with parameterised participant wallets
+- Selective disclosure (each participant sees only relevant data)
+
+**Key files:**
+- `README.md` - Full scenario specification with action details
+- `construction-permit-template.json` - Blueprint template (TODO)
+- `test-construction-permit.ps1` - Main walkthrough script (TODO)
+- `data/` - Input data for 3 test scenarios (TODO)
+
+**Test Scenarios:**
+- **Scenario A:** Low-risk residential (3 storeys, riskScore 6.1) — skips environmental, 5 actions to permit
+- **Scenario B:** High-risk commercial (8 storeys, riskScore 22.8) — full 6-action path with environmental review
+- **Scenario C:** Rejection — planning officer rejects for zoning non-compliance
+
 ### [PerformanceBenchmark](./PerformanceBenchmark/)
 **Status:** ✅ Complete
 **Date:** 2026-02-13
