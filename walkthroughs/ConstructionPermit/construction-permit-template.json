@@ -1,0 +1,839 @@
+{
+  "id": "construction-permit-v1",
+  "title": "Construction Permit Approval",
+  "description": "Multi-org, multi-user construction permit approval workflow with conditional routing based on risk score, calculations for permit fees, rejection paths, and verifiable credential issuance. Involves four organisations and five participants across six actions.",
+  "version": 1,
+  "category": "government",
+  "tags": ["permit", "construction", "multi-org", "conditional-routing", "calculations", "verifiable-credential", "rejection"],
+  "author": "Sorcha Team",
+  "published": true,
+  "template": {
+    "id": "construction-permit-generated",
+    "title": "Construction Permit Approval",
+    "description": "A realistic construction permit approval process involving four organisations and five participants. Features conditional routing based on risk score, JSON Logic calculations, rejection paths, and Building Permit Verifiable Credential issuance.",
+    "version": 1,
+    "metadata": {
+      "category": "Government & Planning",
+      "complexity": "Complex",
+      "actions": "6",
+      "features": "Multi-Org, Conditional Routing, Calculations, Rejection, Verifiable Credential",
+      "sector": "Construction & Planning"
+    },
+    "participants": [
+      {
+        "id": "contractor",
+        "name": "Site Manager",
+        "organisation": "Meridian Construction",
+        "description": "Submits building application with plans and site data"
+      },
+      {
+        "id": "structural-engineer",
+        "name": "Lead Engineer",
+        "organisation": "Apex Structural Engineers",
+        "description": "Independent review of structural integrity, calculates risk score"
+      },
+      {
+        "id": "planning-officer",
+        "name": "Planning Officer",
+        "organisation": "Riverside Borough Council",
+        "description": "Zoning review, conditional routing, and final approval with permit issuance"
+      },
+      {
+        "id": "environmental-assessor",
+        "name": "Environmental Consultant",
+        "organisation": "Green Valley Environmental",
+        "description": "Environmental impact assessment for high-risk projects (conditional)"
+      },
+      {
+        "id": "building-control",
+        "name": "Building Control Inspector",
+        "organisation": "Riverside Borough Council",
+        "description": "Technical inspection, compliance check, and permit fee calculation"
+      }
+    ],
+    "actions": [
+      {
+        "id": 1,
+        "title": "Submit Application",
+        "description": "Contractor submits building plans and project details for assessment",
+        "sender": "contractor",
+        "isStartingAction": true,
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "projectName": {
+                "type": "string",
+                "title": "Project Name",
+                "minLength": 3,
+                "maxLength": 200
+              },
+              "siteAddress": {
+                "type": "string",
+                "title": "Site Address",
+                "minLength": 5,
+                "maxLength": 500
+              },
+              "buildingType": {
+                "type": "string",
+                "title": "Building Type",
+                "enum": ["residential", "commercial", "industrial"]
+              },
+              "estimatedValue": {
+                "type": "number",
+                "title": "Estimated Project Value (GBP)",
+                "minimum": 10000
+              },
+              "grossFloorArea": {
+                "type": "number",
+                "title": "Gross Floor Area (m\u00b2)",
+                "minimum": 10
+              },
+              "storeys": {
+                "type": "integer",
+                "title": "Number of Storeys",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "existingStructure": {
+                "type": "boolean",
+                "title": "Existing Structure on Site"
+              }
+            },
+            "required": [
+              "projectName",
+              "siteAddress",
+              "buildingType",
+              "estimatedValue",
+              "grossFloorArea",
+              "storeys",
+              "existingStructure"
+            ]
+          }
+        ],
+        "disclosures": [
+          {
+            "participantAddress": "contractor",
+            "dataPointers": ["/*"]
+          },
+          {
+            "participantAddress": "structural-engineer",
+            "dataPointers": ["/*"]
+          }
+        ],
+        "routes": [
+          {
+            "id": "to-structural",
+            "nextActionIds": [2],
+            "isDefault": true,
+            "description": "Route to structural assessment"
+          }
+        ],
+        "form": {
+          "type": "Layout",
+          "layout": "VerticalLayout",
+          "title": "Building Application",
+          "elements": [
+            {
+              "type": "Layout",
+              "layout": "Group",
+              "title": "Project Details",
+              "elements": [
+                {
+                  "type": "TextLine",
+                  "scope": "/projectName",
+                  "title": "Project Name"
+                },
+                {
+                  "type": "TextArea",
+                  "scope": "/siteAddress",
+                  "title": "Site Address"
+                },
+                {
+                  "type": "Selection",
+                  "scope": "/buildingType",
+                  "title": "Building Type"
+                }
+              ]
+            },
+            {
+              "type": "Layout",
+              "layout": "Group",
+              "title": "Building Specifications",
+              "elements": [
+                {
+                  "type": "Layout",
+                  "layout": "HorizontalLayout",
+                  "elements": [
+                    {
+                      "type": "Numeric",
+                      "scope": "/estimatedValue",
+                      "title": "Estimated Value (GBP)"
+                    },
+                    {
+                      "type": "Numeric",
+                      "scope": "/grossFloorArea",
+                      "title": "Gross Floor Area (m\u00b2)"
+                    }
+                  ]
+                },
+                {
+                  "type": "Layout",
+                  "layout": "HorizontalLayout",
+                  "elements": [
+                    {
+                      "type": "Numeric",
+                      "scope": "/storeys",
+                      "title": "Number of Storeys"
+                    },
+                    {
+                      "type": "Checkbox",
+                      "scope": "/existingStructure",
+                      "title": "There is an existing structure on site"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 2,
+        "title": "Structural Assessment",
+        "description": "Structural engineer reviews building plans, assesses structural integrity, and calculates the risk score that drives conditional routing",
+        "sender": "structural-engineer",
+        "requiredPriorActions": [1],
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "loadRating": {
+                "type": "number",
+                "title": "Structural Load Rating (kN/m\u00b2)",
+                "minimum": 0
+              },
+              "foundationType": {
+                "type": "string",
+                "title": "Recommended Foundation Type",
+                "enum": ["piled", "raft", "strip", "pad"]
+              },
+              "structuralGrade": {
+                "type": "string",
+                "title": "Structural Grade",
+                "enum": ["A", "B", "C", "D"]
+              },
+              "structuralNotes": {
+                "type": "string",
+                "title": "Assessment Notes",
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "loadRating",
+              "foundationType",
+              "structuralGrade",
+              "structuralNotes"
+            ]
+          }
+        ],
+        "calculations": {
+          "riskScore": {
+            "*": [
+              {
+                "+": [
+                  { "*": [{ "var": "storeys" }, 1.5] },
+                  { "/": [{ "var": "grossFloorArea" }, 500] }
+                ]
+              },
+              {
+                "if": [
+                  { "==": [{ "var": "buildingType" }, "industrial"] }, 1.5,
+                  { "==": [{ "var": "buildingType" }, "commercial"] }, 1.2,
+                  1.0
+                ]
+              }
+            ]
+          }
+        },
+        "disclosures": [
+          {
+            "participantAddress": "structural-engineer",
+            "dataPointers": ["/*"]
+          },
+          {
+            "participantAddress": "planning-officer",
+            "dataPointers": [
+              "/projectName",
+              "/siteAddress",
+              "/buildingType",
+              "/estimatedValue",
+              "/riskScore",
+              "/structuralGrade",
+              "/structuralNotes"
+            ]
+          }
+        ],
+        "routes": [
+          {
+            "id": "to-planning",
+            "nextActionIds": [3],
+            "isDefault": true,
+            "description": "Route to planning review"
+          }
+        ],
+        "form": {
+          "type": "Layout",
+          "layout": "VerticalLayout",
+          "title": "Structural Assessment",
+          "elements": [
+            {
+              "type": "Layout",
+              "layout": "Group",
+              "title": "Structural Analysis",
+              "elements": [
+                {
+                  "type": "Layout",
+                  "layout": "HorizontalLayout",
+                  "elements": [
+                    {
+                      "type": "Numeric",
+                      "scope": "/loadRating",
+                      "title": "Load Rating (kN/m\u00b2)"
+                    },
+                    {
+                      "type": "Selection",
+                      "scope": "/foundationType",
+                      "title": "Recommended Foundation"
+                    }
+                  ]
+                },
+                {
+                  "type": "Selection",
+                  "scope": "/structuralGrade",
+                  "title": "Structural Grade (A=Excellent, D=Poor)"
+                }
+              ]
+            },
+            {
+              "type": "TextArea",
+              "scope": "/structuralNotes",
+              "title": "Assessment Notes"
+            }
+          ]
+        }
+      },
+      {
+        "id": 3,
+        "title": "Planning Review",
+        "description": "Planning officer evaluates zoning compliance and routes based on calculated risk score. High-risk projects (riskScore >= 7) go to environmental assessment; low-risk skip to building control.",
+        "sender": "planning-officer",
+        "requiredPriorActions": [1, 2],
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "zoningCompliant": {
+                "type": "boolean",
+                "title": "Zoning Compliant"
+              },
+              "planningNotes": {
+                "type": "string",
+                "title": "Planning Officer Notes",
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "zoningCompliant",
+              "planningNotes"
+            ]
+          }
+        ],
+        "routes": [
+          {
+            "id": "high-risk",
+            "nextActionIds": [4],
+            "condition": { ">=": [{ "var": "riskScore" }, 7] },
+            "description": "High-risk project: route to environmental assessment"
+          },
+          {
+            "id": "low-risk",
+            "nextActionIds": [5],
+            "isDefault": true,
+            "description": "Low-risk project: skip environmental, go to building control"
+          }
+        ],
+        "rejectionConfig": {
+          "targetActionId": 1,
+          "requireReason": true,
+          "isTerminal": false
+        },
+        "disclosures": [
+          {
+            "participantAddress": "planning-officer",
+            "dataPointers": ["/*"]
+          },
+          {
+            "participantAddress": "environmental-assessor",
+            "dataPointers": [
+              "/projectName",
+              "/siteAddress",
+              "/buildingType",
+              "/grossFloorArea",
+              "/riskScore",
+              "/structuralGrade"
+            ]
+          },
+          {
+            "participantAddress": "building-control",
+            "dataPointers": [
+              "/projectName",
+              "/siteAddress",
+              "/buildingType",
+              "/estimatedValue",
+              "/grossFloorArea",
+              "/storeys",
+              "/structuralGrade",
+              "/loadRating"
+            ]
+          }
+        ],
+        "form": {
+          "type": "Layout",
+          "layout": "VerticalLayout",
+          "title": "Planning Review",
+          "elements": [
+            {
+              "type": "Checkbox",
+              "scope": "/zoningCompliant",
+              "title": "Project complies with local zoning regulations"
+            },
+            {
+              "type": "TextArea",
+              "scope": "/planningNotes",
+              "title": "Planning Officer Notes"
+            }
+          ]
+        }
+      },
+      {
+        "id": 4,
+        "title": "Environmental Impact Assessment",
+        "description": "Environmental consultant assesses environmental impact for high-risk projects (riskScore >= 7). This action is only reached via conditional routing from Planning Review.",
+        "sender": "environmental-assessor",
+        "requiredPriorActions": [1, 2, 3],
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "environmentalImpact": {
+                "type": "string",
+                "title": "Environmental Impact Level",
+                "enum": ["low", "medium", "high"]
+              },
+              "mitigationRequired": {
+                "type": "boolean",
+                "title": "Mitigation Measures Required"
+              },
+              "environmentalConditions": {
+                "type": "string",
+                "title": "Environmental Conditions",
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "environmentalImpact",
+              "mitigationRequired",
+              "environmentalConditions"
+            ]
+          }
+        ],
+        "routes": [
+          {
+            "id": "to-building-control",
+            "nextActionIds": [5],
+            "isDefault": true,
+            "description": "Route to building control inspection"
+          }
+        ],
+        "rejectionConfig": {
+          "targetActionId": 1,
+          "requireReason": true,
+          "isTerminal": false
+        },
+        "disclosures": [
+          {
+            "participantAddress": "environmental-assessor",
+            "dataPointers": [
+              "/projectName",
+              "/siteAddress",
+              "/buildingType",
+              "/grossFloorArea",
+              "/riskScore",
+              "/structuralGrade"
+            ]
+          },
+          {
+            "participantAddress": "building-control",
+            "dataPointers": [
+              "/projectName",
+              "/siteAddress",
+              "/buildingType",
+              "/estimatedValue",
+              "/grossFloorArea",
+              "/storeys",
+              "/structuralGrade",
+              "/loadRating",
+              "/environmentalImpact",
+              "/mitigationRequired"
+            ]
+          }
+        ],
+        "form": {
+          "type": "Layout",
+          "layout": "VerticalLayout",
+          "title": "Environmental Impact Assessment",
+          "elements": [
+            {
+              "type": "Selection",
+              "scope": "/environmentalImpact",
+              "title": "Environmental Impact Level"
+            },
+            {
+              "type": "Checkbox",
+              "scope": "/mitigationRequired",
+              "title": "Mitigation measures are required"
+            },
+            {
+              "type": "TextArea",
+              "scope": "/environmentalConditions",
+              "title": "Environmental Conditions (noise limits, drainage, etc.)"
+            }
+          ]
+        }
+      },
+      {
+        "id": 5,
+        "title": "Building Control Inspection",
+        "description": "Building control inspector reviews technical compliance with building regulations and calculates the permit fee based on project value and floor area",
+        "sender": "building-control",
+        "requiredPriorActions": [1, 2, 3],
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "structuralApproved": {
+                "type": "boolean",
+                "title": "Structural Plans Approved"
+              },
+              "fireCompliant": {
+                "type": "boolean",
+                "title": "Fire Safety Compliant"
+              },
+              "accessCompliant": {
+                "type": "boolean",
+                "title": "Accessibility Compliant"
+              },
+              "inspectionNotes": {
+                "type": "string",
+                "title": "Inspection Notes",
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "structuralApproved",
+              "fireCompliant",
+              "accessCompliant",
+              "inspectionNotes"
+            ]
+          }
+        ],
+        "calculations": {
+          "permitFee": {
+            "max": [
+              250,
+              {
+                "+": [
+                  { "*": [{ "var": "estimatedValue" }, 0.002] },
+                  { "*": [{ "var": "grossFloorArea" }, 1.50] }
+                ]
+              }
+            ]
+          }
+        },
+        "routes": [
+          {
+            "id": "to-final-approval",
+            "nextActionIds": [6],
+            "isDefault": true,
+            "description": "Route to final approval"
+          }
+        ],
+        "disclosures": [
+          {
+            "participantAddress": "building-control",
+            "dataPointers": ["/*"]
+          },
+          {
+            "participantAddress": "planning-officer",
+            "dataPointers": ["/*"]
+          }
+        ],
+        "form": {
+          "type": "Layout",
+          "layout": "VerticalLayout",
+          "title": "Building Control Inspection",
+          "elements": [
+            {
+              "type": "Layout",
+              "layout": "Group",
+              "title": "Compliance Checks",
+              "elements": [
+                {
+                  "type": "Checkbox",
+                  "scope": "/structuralApproved",
+                  "title": "Structural plans meet building regulations"
+                },
+                {
+                  "type": "Checkbox",
+                  "scope": "/fireCompliant",
+                  "title": "Fire safety requirements satisfied"
+                },
+                {
+                  "type": "Checkbox",
+                  "scope": "/accessCompliant",
+                  "title": "Accessibility requirements satisfied"
+                }
+              ]
+            },
+            {
+              "type": "TextArea",
+              "scope": "/inspectionNotes",
+              "title": "Inspector's Technical Notes"
+            }
+          ]
+        }
+      },
+      {
+        "id": 6,
+        "title": "Final Approval",
+        "description": "Planning officer issues or rejects the building permit. On approval, a Building Permit Verifiable Credential is minted and issued to the contractor.",
+        "sender": "planning-officer",
+        "requiredPriorActions": [1, 2, 3, 5],
+        "dataSchemas": [
+          {
+            "type": "object",
+            "properties": {
+              "approved": {
+                "type": "boolean",
+                "title": "Permit Approved"
+              },
+              "permitNumber": {
+                "type": "string",
+                "title": "Permit Number",
+                "pattern": "^[A-Z]{2,5}-\\d{4}-\\d{5}$",
+                "maxLength": 20
+              },
+              "validUntil": {
+                "type": "string",
+                "format": "date",
+                "title": "Permit Valid Until"
+              },
+              "conditions": {
+                "type": "string",
+                "title": "Permit Conditions",
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "approved",
+              "permitNumber",
+              "validUntil",
+              "conditions"
+            ]
+          }
+        ],
+        "rejectionConfig": {
+          "targetActionId": 1,
+          "requireReason": true,
+          "isTerminal": false
+        },
+        "credentialIssuanceConfig": {
+          "credentialType": "BuildingPermitCredential",
+          "recipientParticipantId": "contractor",
+          "expiryDuration": "P1095D",
+          "claimMappings": [
+            { "claimName": "permitNumber", "sourceField": "/permitNumber" },
+            { "claimName": "projectName", "sourceField": "/projectName" },
+            { "claimName": "siteAddress", "sourceField": "/siteAddress" },
+            { "claimName": "buildingType", "sourceField": "/buildingType" },
+            { "claimName": "storeys", "sourceField": "/storeys" },
+            { "claimName": "riskScore", "sourceField": "/riskScore" },
+            { "claimName": "structuralGrade", "sourceField": "/structuralGrade" },
+            { "claimName": "permitFee", "sourceField": "/permitFee" },
+            { "claimName": "conditions", "sourceField": "/conditions" },
+            { "claimName": "validUntil", "sourceField": "/validUntil" }
+          ],
+          "disclosable": [
+            "permitNumber",
+            "projectName",
+            "siteAddress",
+            "buildingType",
+            "validUntil"
+          ]
+        },
+        "disclosures": [
+          {
+            "participantAddress": "planning-officer",
+            "dataPointers": ["/*"]
+          },
+          {
+            "participantAddress": "contractor",
+            "dataPointers": [
+              "/permitNumber",
+              "/approved",
+              "/validUntil",
+              "/conditions",
+              "/permitFee"
+            ]
+          }
+        ],
+        "form": {
+          "type": "Layout",
+          "layout": "VerticalLayout",
+          "title": "Final Approval",
+          "elements": [
+            {
+              "type": "Checkbox",
+              "scope": "/approved",
+              "title": "Building permit is approved"
+            },
+            {
+              "type": "Layout",
+              "layout": "Group",
+              "title": "Permit Details",
+              "elements": [
+                {
+                  "type": "Layout",
+                  "layout": "HorizontalLayout",
+                  "elements": [
+                    {
+                      "type": "TextLine",
+                      "scope": "/permitNumber",
+                      "title": "Permit Number (e.g. RBC-2026-00142)"
+                    },
+                    {
+                      "type": "DateTime",
+                      "scope": "/validUntil",
+                      "title": "Valid Until"
+                    }
+                  ]
+                },
+                {
+                  "type": "TextArea",
+                  "scope": "/conditions",
+                  "title": "Conditions Attached to Permit"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "parameterSchema": {
+    "type": "object",
+    "properties": {
+      "contractorWallet": {
+        "type": "string",
+        "description": "Wallet address for the contractor (Meridian Construction)"
+      },
+      "structuralEngineerWallet": {
+        "type": "string",
+        "description": "Wallet address for the structural engineer (Apex Structural Engineers)"
+      },
+      "planningOfficerWallet": {
+        "type": "string",
+        "description": "Wallet address for the planning officer (Riverside Borough Council)"
+      },
+      "environmentalAssessorWallet": {
+        "type": "string",
+        "description": "Wallet address for the environmental assessor (Green Valley Environmental)"
+      },
+      "buildingControlWallet": {
+        "type": "string",
+        "description": "Wallet address for the building control inspector (Riverside Borough Council)"
+      }
+    },
+    "required": [
+      "contractorWallet",
+      "structuralEngineerWallet",
+      "planningOfficerWallet",
+      "environmentalAssessorWallet",
+      "buildingControlWallet"
+    ]
+  },
+  "defaultParameters": null,
+  "examples": [
+    {
+      "name": "Scenario A: Low-Risk Residential",
+      "description": "3-storey residential development (riskScore 6.1) — skips environmental review, 5 actions to permit",
+      "parameters": {
+        "contractorWallet": "0xCONTRACTOR_WALLET_ADDRESS",
+        "structuralEngineerWallet": "0xSTRUCTURAL_ENGINEER_WALLET",
+        "planningOfficerWallet": "0xPLANNING_OFFICER_WALLET",
+        "environmentalAssessorWallet": "0xENVIRONMENTAL_ASSESSOR_WALLET",
+        "buildingControlWallet": "0xBUILDING_CONTROL_WALLET",
+        "scenario": {
+          "projectName": "Riverside Heights",
+          "siteAddress": "14 Waterfront Lane, Riverside, RS1 4AB",
+          "buildingType": "residential",
+          "estimatedValue": 500000,
+          "grossFloorArea": 800,
+          "storeys": 3,
+          "existingStructure": false
+        }
+      }
+    },
+    {
+      "name": "Scenario B: High-Risk Commercial",
+      "description": "8-storey commercial building (riskScore 22.8) — triggers environmental review, full 6-action path",
+      "parameters": {
+        "contractorWallet": "0xCONTRACTOR_WALLET_ADDRESS",
+        "structuralEngineerWallet": "0xSTRUCTURAL_ENGINEER_WALLET",
+        "planningOfficerWallet": "0xPLANNING_OFFICER_WALLET",
+        "environmentalAssessorWallet": "0xENVIRONMENTAL_ASSESSOR_WALLET",
+        "buildingControlWallet": "0xBUILDING_CONTROL_WALLET",
+        "scenario": {
+          "projectName": "Central Business Tower",
+          "siteAddress": "42 Commerce Street, Riverside, RS2 7GH",
+          "buildingType": "commercial",
+          "estimatedValue": 5000000,
+          "grossFloorArea": 3500,
+          "storeys": 8,
+          "existingStructure": true
+        }
+      }
+    },
+    {
+      "name": "Scenario C: Rejection",
+      "description": "4-storey commercial project rejected at planning review for zoning non-compliance",
+      "parameters": {
+        "contractorWallet": "0xCONTRACTOR_WALLET_ADDRESS",
+        "structuralEngineerWallet": "0xSTRUCTURAL_ENGINEER_WALLET",
+        "planningOfficerWallet": "0xPLANNING_OFFICER_WALLET",
+        "environmentalAssessorWallet": "0xENVIRONMENTAL_ASSESSOR_WALLET",
+        "buildingControlWallet": "0xBUILDING_CONTROL_WALLET",
+        "scenario": {
+          "projectName": "Eastside Commercial Centre",
+          "siteAddress": "8 Industrial Way, Riverside, RS3 1KL",
+          "buildingType": "commercial",
+          "estimatedValue": 2000000,
+          "grossFloorArea": 1200,
+          "storeys": 4,
+          "existingStructure": false
+        }
+      }
+    }
+  ]
+}
