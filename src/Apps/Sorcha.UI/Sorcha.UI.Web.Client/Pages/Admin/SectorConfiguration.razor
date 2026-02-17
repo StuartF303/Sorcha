@@ -1,0 +1,174 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@page "/admin/sectors"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@attribute [Authorize(Roles = "Administrator")]
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@using Sorcha.UI.Core.Services
+@inject ISchemaLibraryApiService SchemaLibraryApi
+@inject ISnackbar Snackbar
+
+<PageTitle>Schema Sectors - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudBreadcrumbs Items="_breadcrumbs" Class="mb-2 px-0" />
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.FilterList" Class="mr-2" />
+        Schema Sector Configuration
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+        Control which schema sectors are visible to designers in your organisation
+    </MudText>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
+    }
+    else
+    {
+        <MudPaper Class="pa-4 mb-4">
+            <MudStack Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                    <MudText Typo="Typo.h6">Sector Visibility</MudText>
+                    <MudSwitch T="bool" Value="_allEnabled" ValueChanged="OnAllEnabledChanged"
+                               Label="Enable All" Color="Color.Primary" />
+                </MudStack>
+                <MudDivider Class="my-2" />
+
+                @foreach (var sector in _sectors)
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="py-1">
+                        <MudSwitch T="bool" Value="@(IsSectorEnabled(sector.Id))"
+                                   ValueChanged="@(v => OnSectorToggled(sector.Id, v))"
+                                   Disabled="_allEnabled"
+                                   Color="Color.Primary" />
+                        <MudIcon Icon="@GetSectorIcon(sector.Icon)" Class="mr-2" Color="Color.Primary" />
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.body1">@sector.DisplayName</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@sector.Description</MudText>
+                        </MudStack>
+                    </MudStack>
+                }
+            </MudStack>
+        </MudPaper>
+
+        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="ResetToDefault">
+                Reset to Default
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SavePreferences"
+                       Disabled="_saving">
+                @if (_saving)
+                {
+                    <MudProgressCircular Size="MudBlazor.Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Save Changes
+            </MudButton>
+        </MudStack>
+    }
+</MudContainer>
+
+@code {
+    private bool _loading = true;
+    private bool _saving;
+    private bool _allEnabled = true;
+    private List<SectorItem> _sectors = new();
+    private HashSet<string> _enabledSectors = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly List<BreadcrumbItem> _breadcrumbs =
+    [
+        new("Admin", href: "/admin/health"),
+        new("Schema Sectors", href: null, disabled: true)
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var sectors = await SchemaLibraryApi.GetSectorsAsync();
+            _sectors = sectors.Select(s => new SectorItem(s.Id, s.DisplayName, s.Description, s.Icon)).ToList();
+
+            var prefs = await SchemaLibraryApi.GetSectorPreferencesAsync();
+            _allEnabled = prefs?.AllSectorsEnabled ?? true;
+
+            if (!_allEnabled && prefs?.EnabledSectors is { Length: > 0 } enabled)
+            {
+                _enabledSectors = new HashSet<string>(enabled, StringComparer.OrdinalIgnoreCase);
+            }
+            else
+            {
+                _enabledSectors = new HashSet<string>(_sectors.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to load sector configuration", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private bool IsSectorEnabled(string sectorId)
+        => _allEnabled || _enabledSectors.Contains(sectorId);
+
+    private void OnAllEnabledChanged(bool value)
+    {
+        _allEnabled = value;
+        if (value)
+        {
+            _enabledSectors = new HashSet<string>(_sectors.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private void OnSectorToggled(string sectorId, bool enabled)
+    {
+        if (enabled)
+            _enabledSectors.Add(sectorId);
+        else
+            _enabledSectors.Remove(sectorId);
+    }
+
+    private void ResetToDefault()
+    {
+        _allEnabled = true;
+        _enabledSectors = new HashSet<string>(_sectors.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task SavePreferences()
+    {
+        _saving = true;
+        try
+        {
+            string[]? sectors = _allEnabled ? null : _enabledSectors.ToArray();
+            await SchemaLibraryApi.UpdateSectorPreferencesAsync(sectors);
+            Snackbar.Add("Sector preferences saved successfully", Severity.Success);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to save sector preferences", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static string GetSectorIcon(string iconName) => iconName switch
+    {
+        "Icons.Material.Filled.AccountBalance" => Icons.Material.Filled.AccountBalance,
+        "Icons.Material.Filled.LocalHospital" => Icons.Material.Filled.LocalHospital,
+        "Icons.Material.Filled.Construction" => Icons.Material.Filled.Construction,
+        "Icons.Material.Filled.AccountBalanceWallet" => Icons.Material.Filled.AccountBalanceWallet,
+        "Icons.Material.Filled.Badge" => Icons.Material.Filled.Badge,
+        "Icons.Material.Filled.ShoppingCart" => Icons.Material.Filled.ShoppingCart,
+        "Icons.Material.Filled.Code" => Icons.Material.Filled.Code,
+        "Icons.Material.Filled.Category" => Icons.Material.Filled.Category,
+        _ => Icons.Material.Filled.Label
+    };
+
+    private sealed record SectorItem(string Id, string DisplayName, string Description, string Icon);
+}

@@ -1,0 +1,56 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using System.Text.Json
+@using Sorcha.Blueprint.Models
+@using Sorcha.UI.Core.Models.Forms
+@using Sorcha.UI.Core.Services.Forms
+@using Sorcha.UI.Core.Components.Forms
+
+@inject IFormSchemaService SchemaService
+
+@if (_formControl is not null)
+{
+    <MudPaper Class="pa-4" Elevation="0" Style="background: var(--mud-palette-background-grey);">
+        <MudText Typo="Typo.subtitle2" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Preview" Size="Size.Small" Class="mr-1" />
+            Form Preview
+        </MudText>
+        <CascadingValue Value="_formContext">
+            <ControlDispatcher Control="_formControl" Depth="0" />
+        </CascadingValue>
+    </MudPaper>
+}
+else if (_hasSchema)
+{
+    <MudAlert Severity="Severity.Info" Dense="true">
+        Unable to generate form preview from this schema.
+    </MudAlert>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public JsonDocument? Schema { get; set; }
+
+    private Control? _formControl;
+    private FormContext _formContext = new();
+    private bool _hasSchema;
+
+    protected override void OnParametersSet()
+    {
+        _hasSchema = Schema is not null;
+        _formControl = null;
+
+        if (Schema is null) return;
+
+        try
+        {
+            _formControl = SchemaService.AutoGenerateForm(new[] { Schema });
+            _formContext = new FormContext();
+        }
+        catch
+        {
+            _formControl = null;
+        }
+    }
+}

@@ -1,0 +1,433 @@
+openapi: 3.1.0
+info:
+  title: Schema Library API
+  description: |
+    Extensions to the Blueprint Service Schema API for the Schema Library feature.
+    All endpoints are under /api/v1/schemas/ and require JWT authentication.
+  version: 1.0.0
+
+paths:
+  /api/v1/schemas/index:
+    get:
+      operationId: SearchSchemaIndex
+      summary: Search the schema index
+      description: |
+        Full-text search across all indexed schemas. Results are filtered by the
+        requesting user's organisation sector preferences. Returns lightweight
+        metadata (no full schema content).
+      tags: [Schema Index]
+      parameters:
+        - name: search
+          in: query
+          description: Full-text search query
+          schema:
+            type: string
+        - name: sectors
+          in: query
+          description: Comma-separated sector IDs to filter by (overrides org default)
+          schema:
+            type: string
+        - name: provider
+          in: query
+          description: Filter by source provider name
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter by index status
+          schema:
+            type: string
+            enum: [Active, Deprecated, Unavailable]
+            default: Active
+        - name: limit
+          in: query
+          description: Maximum results per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: cursor
+          in: query
+          description: Cursor for pagination (from previous response)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemaIndexSearchResponse"
+        "401":
+          description: Unauthorized
+
+  /api/v1/schemas/index/{sourceProvider}/{sourceUri}:
+    get:
+      operationId: GetSchemaIndexEntry
+      summary: Get a specific schema index entry with full content
+      description: |
+        Returns full schema index entry metadata plus the JSON Schema content.
+        Content is fetched from the index cache or from the provider if not cached.
+      tags: [Schema Index]
+      parameters:
+        - name: sourceProvider
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sourceUri
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Schema index entry with content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemaIndexEntryDetail"
+        "404":
+          description: Schema not found in index
+
+  /api/v1/schemas/sectors:
+    get:
+      operationId: ListSectors
+      summary: List all available schema sectors
+      description: Returns the platform-curated list of schema sectors.
+      tags: [Sectors]
+      responses:
+        "200":
+          description: List of sectors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SchemaSectorDto"
+
+  /api/v1/schemas/sectors/preferences:
+    get:
+      operationId: GetSectorPreferences
+      summary: Get organisation's sector visibility preferences
+      description: |
+        Returns which sectors are enabled for the requesting user's organisation.
+        Returns all sectors if no preferences are configured.
+      tags: [Sectors]
+      responses:
+        "200":
+          description: Organisation sector preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationSectorPreferencesDto"
+    put:
+      operationId: UpdateSectorPreferences
+      summary: Update organisation's sector visibility preferences
+      description: |
+        Sets which sectors are visible to designers in the requesting user's
+        organisation. Requires Administrator role.
+      tags: [Sectors]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSectorPreferencesRequest"
+      responses:
+        "200":
+          description: Updated preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationSectorPreferencesDto"
+        "400":
+          description: Invalid sector IDs
+        "403":
+          description: Requires Administrator role
+
+  /api/v1/schemas/providers:
+    get:
+      operationId: ListProviders
+      summary: List all schema providers with health status
+      description: |
+        Returns the status of all configured schema providers including health,
+        last fetch time, schema count, and error details. Requires Administrator role.
+      tags: [Provider Health]
+      responses:
+        "200":
+          description: Provider status list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SchemaProviderStatusDto"
+        "403":
+          description: Requires Administrator role
+
+  /api/v1/schemas/providers/{providerName}/refresh:
+    post:
+      operationId: RefreshProvider
+      summary: Trigger manual refresh for a specific provider
+      description: |
+        Triggers an immediate index refresh for the specified provider.
+        Requires Administrator role. Returns immediately — refresh runs in background.
+      tags: [Provider Health]
+      parameters:
+        - name: providerName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "202":
+          description: Refresh triggered
+        "404":
+          description: Provider not found
+        "403":
+          description: Requires Administrator role
+        "429":
+          description: Provider is in backoff period
+
+  /api/v1/schemas/index/{sourceProvider}/{sourceUri}/content:
+    get:
+      operationId: GetSchemaContent
+      summary: Get the full JSON Schema content for an indexed schema
+      description: |
+        Returns the normalised JSON Schema draft-2020-12 content for a schema.
+        Used when inserting a schema into a blueprint action's dataSchemas.
+      tags: [Schema Index]
+      parameters:
+        - name: sourceProvider
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sourceUri
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: JSON Schema content
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Full JSON Schema document (draft 2020-12)
+        "404":
+          description: Schema not found
+
+  /api/v1/schemas/derived:
+    post:
+      operationId: CreateDerivedSchema
+      summary: Create a derived schema (field subset) from a formal schema
+      description: |
+        Creates a new schema that includes only selected fields from a parent
+        formal schema. The derived schema is stored in the organisation's library.
+      tags: [Derived Schemas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDerivedSchemaRequest"
+      responses:
+        "201":
+          description: Derived schema created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DerivedSchemaDto"
+        "400":
+          description: Invalid fields or parent schema not found
+
+components:
+  schemas:
+    SchemaIndexSearchResponse:
+      type: object
+      required: [results, totalCount]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SchemaIndexEntryDto"
+        totalCount:
+          type: integer
+        nextCursor:
+          type: string
+          nullable: true
+        loadingProviders:
+          type: array
+          items:
+            type: string
+          description: Providers still loading during cold start
+
+    SchemaIndexEntryDto:
+      type: object
+      required: [sourceProvider, sourceUri, title, sectorTags, fieldCount, status]
+      properties:
+        sourceProvider:
+          type: string
+        sourceUri:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        sectorTags:
+          type: array
+          items:
+            type: string
+        fieldCount:
+          type: integer
+        requiredFieldCount:
+          type: integer
+        schemaVersion:
+          type: string
+        status:
+          type: string
+          enum: [Active, Deprecated, Unavailable]
+        lastFetchedAt:
+          type: string
+          format: date-time
+
+    SchemaIndexEntryDetail:
+      allOf:
+        - $ref: "#/components/schemas/SchemaIndexEntryDto"
+        - type: object
+          properties:
+            fieldNames:
+              type: array
+              items:
+                type: string
+            requiredFields:
+              type: array
+              items:
+                type: string
+            keywords:
+              type: array
+              items:
+                type: string
+            content:
+              type: object
+              description: Full JSON Schema document (draft 2020-12)
+
+    SchemaSectorDto:
+      type: object
+      required: [id, displayName]
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+
+    OrganisationSectorPreferencesDto:
+      type: object
+      properties:
+        organizationId:
+          type: string
+        enabledSectors:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: "null means all sectors enabled"
+        allSectorsEnabled:
+          type: boolean
+          description: Convenience flag — true when enabledSectors is null
+        lastModifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    UpdateSectorPreferencesRequest:
+      type: object
+      required: [enabledSectors]
+      properties:
+        enabledSectors:
+          type: array
+          items:
+            type: string
+          description: Sector IDs to enable. Pass null to enable all sectors.
+          nullable: true
+
+    SchemaProviderStatusDto:
+      type: object
+      required: [providerName, isEnabled, healthStatus]
+      properties:
+        providerName:
+          type: string
+        isEnabled:
+          type: boolean
+        providerType:
+          type: string
+          enum: [LiveApi, ZipBundle, StaticFile]
+        rateLimitPerSecond:
+          type: number
+        refreshIntervalHours:
+          type: integer
+        lastSuccessfulFetch:
+          type: string
+          format: date-time
+          nullable: true
+        lastError:
+          type: string
+          nullable: true
+        lastErrorAt:
+          type: string
+          format: date-time
+          nullable: true
+        schemaCount:
+          type: integer
+        healthStatus:
+          type: string
+          enum: [Healthy, Degraded, Unavailable, Unknown]
+        backoffUntil:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateDerivedSchemaRequest:
+      type: object
+      required: [parentSourceProvider, parentSourceUri, includedFields]
+      properties:
+        parentSourceProvider:
+          type: string
+        parentSourceUri:
+          type: string
+        includedFields:
+          type: array
+          items:
+            type: string
+          minItems: 1
+
+    DerivedSchemaDto:
+      type: object
+      properties:
+        id:
+          type: string
+        parentSourceProvider:
+          type: string
+        parentSourceUri:
+          type: string
+        parentTitle:
+          type: string
+        includedFields:
+          type: array
+          items:
+            type: string
+        content:
+          type: object
+          description: Derived JSON Schema
+        createdAt:
+          type: string
+          format: date-time

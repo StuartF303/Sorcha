@@ -111,12 +111,57 @@ builder.Services.AddChatServices(builder.Configuration);
 builder.Services.AddSingleton<SystemSchemaLoader>();
 builder.Services.AddScoped<ISchemaStore, SchemaStore>();
 
-// Add External Schema Provider (SchemaStore.org integration)
-builder.Services.AddHttpClient<IExternalSchemaProvider, SchemaStoreOrgProvider>(client =>
+// Add External Schema Providers (multiple sources for schema index)
+builder.Services.AddHttpClient<SchemaStoreOrgProvider>(client =>
 {
     client.BaseAddress = new Uri("https://www.schemastore.org/");
     client.DefaultRequestHeaders.Add("User-Agent", "Sorcha-Blueprint-Service/1.0");
 });
+builder.Services.AddSingleton<IExternalSchemaProvider>(sp => sp.GetRequiredService<SchemaStoreOrgProvider>());
+
+builder.Services.AddHttpClient<SchemaOrgProvider>(client =>
+{
+    client.BaseAddress = new Uri("https://schema.org/");
+    client.DefaultRequestHeaders.Add("User-Agent", "Sorcha-Blueprint-Service/1.0");
+});
+builder.Services.AddSingleton<IExternalSchemaProvider>(sp => sp.GetRequiredService<SchemaOrgProvider>());
+
+builder.Services.AddHttpClient<FhirSchemaProvider>(client =>
+{
+    client.BaseAddress = new Uri("https://hl7.org/");
+    client.DefaultRequestHeaders.Add("User-Agent", "Sorcha-Blueprint-Service/1.0");
+});
+builder.Services.AddSingleton<IExternalSchemaProvider>(sp => sp.GetRequiredService<FhirSchemaProvider>());
+
+// Static providers (no HTTP client needed)
+builder.Services.AddSingleton<IExternalSchemaProvider>(sp =>
+    new W3cVcProvider(sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<W3cVcProvider>>()));
+builder.Services.AddSingleton<IExternalSchemaProvider>(sp =>
+    new UblSchemaProvider(sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UblSchemaProvider>>()));
+builder.Services.AddSingleton<IExternalSchemaProvider>(sp =>
+    new Iso20022Provider(sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Iso20022Provider>>()));
+builder.Services.AddSingleton<IExternalSchemaProvider>(sp =>
+    StaticFileSchemaProvider.CreateNiemProvider(
+        sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<StaticFileSchemaProvider>>()));
+builder.Services.AddSingleton<IExternalSchemaProvider>(sp =>
+    StaticFileSchemaProvider.CreateIfcProvider(
+        sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<StaticFileSchemaProvider>>()));
+
+// Add Schema Library services (034-schema-library)
+builder.Services.AddSingleton<Sorcha.Blueprint.Schemas.Repositories.ISchemaIndexRepository>(sp =>
+{
+    var mongoClient = new MongoDB.Driver.MongoClient(
+        builder.Configuration.GetConnectionString("mongodb") ?? "mongodb://localhost:27017");
+    var database = mongoClient.GetDatabase("sorcha-blueprints");
+    var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Sorcha.Blueprint.Schemas.Repositories.MongoSchemaIndexRepository>>();
+    return new Sorcha.Blueprint.Schemas.Repositories.MongoSchemaIndexRepository(database, logger);
+});
+builder.Services.AddSingleton<Sorcha.Blueprint.Service.Services.Interfaces.ISchemaIndexService,
+    Sorcha.Blueprint.Service.Services.SchemaIndexService>();
+builder.Services.AddSingleton<Sorcha.Blueprint.Service.Services.SchemaIndexRefreshService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Sorcha.Blueprint.Service.Services.SchemaIndexRefreshService>());
+builder.Services.AddSingleton<Sorcha.Blueprint.Service.Services.Interfaces.ISectorFilterService,
+    Sorcha.Blueprint.Service.Services.SectorFilterService>();
 
 // Add JWT authentication and authorization (AUTH-002)
 // JWT authentication is now configured via shared ServiceDefaults with auto-key generation
@@ -398,6 +443,9 @@ blueprintGroup.MapGet("/{id}/versions/{version}", async (string id, int version,
 
 // Map schema store endpoints (GET /api/v1/schemas/system, GET /api/v1/schemas/{identifier}, etc.)
 app.MapSchemaEndpoints();
+
+// Map schema library endpoints (034-schema-library)
+app.MapSchemaLibraryEndpoints();
 
 // Map credential lifecycle endpoints (POST /api/v1/credentials/{credentialId}/revoke)
 app.MapCredentialEndpoints();

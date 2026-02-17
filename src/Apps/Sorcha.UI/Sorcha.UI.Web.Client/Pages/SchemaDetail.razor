@@ -1,0 +1,316 @@
+@page "/schemas/{SourceProvider}/{SourceUri}"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@attribute [Authorize]
+@using Sorcha.UI.Core.Models.SchemaLibrary
+@using Sorcha.UI.Core.Services
+@using Sorcha.Blueprint.Schemas
+@inject ISchemaLibraryApiService SchemaApiService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_detail?.Title ?? "Schema Detail") - Sorcha Platform</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
+    @if (_isLoading)
+    {
+        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" Class="mb-4" />
+        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="200px" Class="mb-4" />
+        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="400px" />
+    }
+    else if (_detail is null)
+    {
+        <MudAlert Severity="Severity.Warning">
+            Schema not found. It may have been removed from the index.
+        </MudAlert>
+        <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("schemas"))" Class="mt-3">
+            Back to Schema Library
+        </MudButton>
+    }
+    else
+    {
+        <MudStack Spacing="3">
+            <!-- Breadcrumb -->
+            <MudBreadcrumbs Items="_breadcrumbs" />
+
+            <!-- Header -->
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
+                        <MudText Typo="Typo.h5">@_detail.Title</MudText>
+                        <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined">
+                            @_detail.SourceProvider
+                        </MudChip>
+                    </MudStack>
+
+                    @if (!string.IsNullOrWhiteSpace(_detail.Description))
+                    {
+                        <MudText Typo="Typo.body1">@_detail.Description</MudText>
+                    }
+
+                    <MudStack Row="true" Spacing="1" Class="flex-wrap">
+                        @foreach (var sector in _detail.SectorTags)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
+                                @sector
+                            </MudChip>
+                        }
+                    </MudStack>
+
+                    <MudGrid>
+                        <MudItem xs="6" sm="3">
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Fields</MudText>
+                            <MudText Typo="Typo.body1">@_detail.FieldCount</MudText>
+                        </MudItem>
+                        <MudItem xs="6" sm="3">
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Required</MudText>
+                            <MudText Typo="Typo.body1">@_detail.RequiredFieldCount</MudText>
+                        </MudItem>
+                        <MudItem xs="6" sm="3">
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Version</MudText>
+                            <MudText Typo="Typo.body1">@(_detail.SchemaVersion ?? "—")</MudText>
+                        </MudItem>
+                        <MudItem xs="6" sm="3">
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Status</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(_detail.Status)">
+                                @_detail.Status
+                            </MudChip>
+                        </MudItem>
+                    </MudGrid>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Field Hierarchy -->
+            @if (_extractedFields.Count > 0)
+            {
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Class="mr-1" />
+                        Field Hierarchy (@_extractedFields.Count fields)
+                    </MudText>
+                    <MudSimpleTable Dense="true" Hover="true" Bordered="true">
+                        <thead>
+                            <tr>
+                                <th>Field Path</th>
+                                <th>Type</th>
+                                <th>Constraints</th>
+                                <th Style="width: 80px;">Required</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var field in _extractedFields)
+                            {
+                                <tr>
+                                    <td style="@($"padding-left: {16 + field.Depth * 20}px")">
+                                        <code>@field.Name</code>
+                                        @if (!string.IsNullOrWhiteSpace(field.Description))
+                                        {
+                                            <MudTooltip Text="@field.Description">
+                                                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Default" Class="ml-1" Style="vertical-align: middle;" />
+                                            </MudTooltip>
+                                        }
+                                    </td>
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetTypeColor(field.Type)">
+                                            @field.Type@(field.Format is not null ? $" ({field.Format})" : "")
+                                        </MudChip>
+                                    </td>
+                                    <td>
+                                        @if (field.EnumValues is { Length: > 0 })
+                                        {
+                                            <MudText Typo="Typo.caption">enum: @string.Join(", ", field.EnumValues.Take(4))@(field.EnumValues.Length > 4 ? "..." : "")</MudText>
+                                        }
+                                        @if (field.Minimum.HasValue || field.Maximum.HasValue)
+                                        {
+                                            <MudText Typo="Typo.caption">@(field.Minimum.HasValue ? $"min:{field.Minimum}" : "") @(field.Maximum.HasValue ? $"max:{field.Maximum}" : "")</MudText>
+                                        }
+                                        @if (field.MinLength.HasValue || field.MaxLength.HasValue)
+                                        {
+                                            <MudText Typo="Typo.caption">len: @(field.MinLength ?? 0)-@(field.MaxLength?.ToString() ?? "∞")</MudText>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(field.Example))
+                                        {
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">e.g. @field.Example</MudText>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (field.IsRequired)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
+            else if (_detail.FieldNames is { Length: > 0 })
+            {
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.ListAlt" Size="Size.Small" Class="mr-1" />
+                        Fields
+                    </MudText>
+                    <MudSimpleTable Dense="true" Hover="true" Bordered="true">
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th Style="width: 80px;">Required</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var field in _detail.FieldNames)
+                            {
+                                var isRequired = _detail.RequiredFields?.Contains(field) == true;
+                                <tr>
+                                    <td><code>@field</code></td>
+                                    <td>
+                                        @if (isRequired)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
+
+            <!-- Keywords -->
+            @if (_detail.Keywords is { Length: > 0 })
+            {
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.h6" Class="mb-2">Keywords</MudText>
+                    <MudStack Row="true" Spacing="1" Class="flex-wrap">
+                        @foreach (var keyword in _detail.Keywords)
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@keyword</MudChip>
+                        }
+                    </MudStack>
+                </MudPaper>
+            }
+
+            <!-- Form Preview & Raw JSON Schema -->
+            <MudExpansionPanels>
+                @if (_detail.Content is not null)
+                {
+                    <MudExpansionPanel Text="Form Preview" Icon="@Icons.Material.Filled.Preview">
+                        <Sorcha.UI.Core.Components.SchemaFormPreview Schema="_detail.Content" />
+                    </MudExpansionPanel>
+                }
+                <MudExpansionPanel Text="Raw JSON Schema" Icon="@Icons.Material.Filled.Code">
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mb-2">
+                        <MudButton Size="Size.Small"
+                                   Variant="Variant.Text"
+                                   StartIcon="@Icons.Material.Filled.ContentCopy"
+                                   OnClick="CopySchemaToClipboard">
+                            Copy
+                        </MudButton>
+                    </MudStack>
+                    <MudPaper Class="pa-3"
+                              Elevation="0"
+                              Style="background: var(--mud-palette-background-grey); max-height: 500px; overflow-y: auto; font-family: 'Consolas', 'Monaco', monospace; font-size: 12px;">
+                        <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">@_contentJson</pre>
+                    </MudPaper>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+
+            <!-- Source Attribution -->
+            <MudPaper Class="pa-3" Elevation="0">
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Default" />
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        Source: @_detail.SourceProvider | URI: @_detail.SourceUri | Last fetched: @_detail.LastFetchedAt.ToString("g")
+                    </MudText>
+                </MudStack>
+            </MudPaper>
+        </MudStack>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public string SourceProvider { get; set; } = string.Empty;
+    [Parameter] public string SourceUri { get; set; } = string.Empty;
+
+    private bool _isLoading = true;
+    private SchemaIndexEntryDetailViewModel? _detail;
+    private string _contentJson = string.Empty;
+    private List<BreadcrumbItem> _breadcrumbs = [];
+    private IReadOnlyList<SchemaFieldInfo> _extractedFields = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _breadcrumbs =
+        [
+            new("Schema Library", href: "schemas", icon: Icons.Material.Filled.Schema),
+            new("Detail", href: null, disabled: true)
+        ];
+
+        try
+        {
+            var decodedProvider = Uri.UnescapeDataString(SourceProvider);
+            var decodedUri = Uri.UnescapeDataString(SourceUri);
+
+            _detail = await SchemaApiService.GetDetailAsync(decodedProvider, decodedUri);
+
+            if (_detail is not null)
+            {
+                _breadcrumbs[1] = new(_detail.Title, href: null, disabled: true);
+
+                if (_detail.Content is not null)
+                {
+                    _contentJson = System.Text.Json.JsonSerializer.Serialize(
+                        _detail.Content.RootElement,
+                        new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+                    try
+                    {
+                        _extractedFields = SchemaFieldExtractor.ExtractFields(_detail.Content);
+                    }
+                    catch
+                    {
+                        _extractedFields = [];
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading schema: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void CopySchemaToClipboard()
+    {
+        Snackbar.Add("Schema JSON copied to clipboard", Severity.Success);
+    }
+
+    private static Color GetStatusColor(string status)
+    {
+        return status.ToLowerInvariant() switch
+        {
+            "active" => Color.Success,
+            "deprecated" => Color.Warning,
+            "unavailable" => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private static Color GetTypeColor(string type)
+    {
+        return type.ToLowerInvariant() switch
+        {
+            "string" => Color.Info,
+            "integer" or "number" => Color.Warning,
+            "boolean" => Color.Success,
+            "object" => Color.Secondary,
+            "array" => Color.Tertiary,
+            _ => Color.Default
+        };
+    }
+}

@@ -1,0 +1,92 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.SchemaLibrary
+
+@if (Sectors is { Count: > 0 })
+{
+    <MudStack Row="true" Spacing="1" Class="flex-wrap" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.body2" Class="mr-1 mud-text-secondary">Sectors:</MudText>
+        @foreach (var sector in Sectors)
+        {
+            var isActive = ActiveSectors is null || ActiveSectors.Contains(sector.Id);
+            <MudChip T="string"
+                     Icon="@GetSectorIcon(sector.Icon)"
+                     Color="@(isActive ? Color.Primary : Color.Default)"
+                     Variant="@(isActive ? Variant.Filled : Variant.Outlined)"
+                     Size="MudBlazor.Size.Small"
+                     OnClick="@(() => ToggleSector(sector.Id))">
+                @sector.DisplayName
+            </MudChip>
+        }
+        @if (ActiveSectors is { Count: > 0 } && ActiveSectors.Count < Sectors.Count)
+        {
+            <MudButton Size="MudBlazor.Size.Small"
+                       Variant="Variant.Text"
+                       OnClick="ClearFilters"
+                       Class="ml-1">
+                Clear
+            </MudButton>
+        }
+    </MudStack>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<SchemaSectorViewModel>? Sectors { get; set; }
+    [Parameter] public IReadOnlyList<string>? ActiveSectors { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<string>?> ActiveSectorsChanged { get; set; }
+
+    private async Task ToggleSector(string sectorId)
+    {
+        var current = ActiveSectors?.ToList() ?? Sectors?.Select(s => s.Id).ToList() ?? [];
+
+        if (ActiveSectors is null)
+        {
+            // All selected → deselect all except this one
+            current = [sectorId];
+        }
+        else if (current.Contains(sectorId))
+        {
+            current.Remove(sectorId);
+            if (current.Count == 0)
+            {
+                // None selected → show all
+                await ActiveSectorsChanged.InvokeAsync(null);
+                return;
+            }
+        }
+        else
+        {
+            current.Add(sectorId);
+            if (Sectors is not null && current.Count == Sectors.Count)
+            {
+                // All selected → null means all
+                await ActiveSectorsChanged.InvokeAsync(null);
+                return;
+            }
+        }
+
+        await ActiveSectorsChanged.InvokeAsync(current);
+    }
+
+    private async Task ClearFilters()
+    {
+        await ActiveSectorsChanged.InvokeAsync(null);
+    }
+
+    private static string GetSectorIcon(string icon)
+    {
+        return icon switch
+        {
+            "finance" => Icons.Material.Filled.AccountBalance,
+            "healthcare" => Icons.Material.Filled.LocalHospital,
+            "construction" => Icons.Material.Filled.Construction,
+            "government" => Icons.Material.Filled.AccountBalance,
+            "identity" => Icons.Material.Filled.Badge,
+            "commerce" => Icons.Material.Filled.ShoppingCart,
+            "technology" => Icons.Material.Filled.Computer,
+            "general" => Icons.Material.Filled.Category,
+            _ => Icons.Material.Filled.Label
+        };
+    }
+}

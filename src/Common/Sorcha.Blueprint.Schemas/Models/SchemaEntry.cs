@@ -77,6 +77,27 @@ public sealed class SchemaEntry
     public DateTimeOffset? DateDeprecated { get; set; }
 
     /// <summary>
+    /// Gets or sets sector labels for filtering.
+    /// Null for System schemas that don't have sector tags.
+    /// </summary>
+    public string[]? SectorTags { get; set; }
+
+    /// <summary>
+    /// Gets or sets search keywords.
+    /// </summary>
+    public string[]? Keywords { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of top-level properties.
+    /// </summary>
+    public int? FieldCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the names of top-level properties.
+    /// </summary>
+    public string[]? FieldNames { get; set; }
+
+    /// <summary>
     /// Marks the schema as deprecated.
     /// </summary>
     public void Deprecate()

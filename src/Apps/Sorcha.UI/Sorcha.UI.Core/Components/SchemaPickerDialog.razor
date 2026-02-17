@@ -1,0 +1,165 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using MudBlazor
+@using Sorcha.UI.Core.Models.SchemaLibrary
+@using Sorcha.UI.Core.Services
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Schema" Class="mr-2" />
+            Select Data Schema
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Style="min-width: 500px; max-height: 70vh;">
+            <!-- Search -->
+            <MudTextField T="string" @bind-Value="_searchText" Label="Search schemas..."
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          DebounceInterval="300" OnDebounceIntervalElapsed="OnSearch"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+
+            @if (_isLoading)
+            {
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+            }
+
+            <!-- Results -->
+            @if (_results.Count > 0)
+            {
+                <MudStack Spacing="1" Style="max-height: 400px; overflow-y: auto;">
+                    @foreach (var entry in _results)
+                    {
+                        var isSelected = _selectedEntry?.SourceUri == entry.SourceUri
+                            && _selectedEntry?.SourceProvider == entry.SourceProvider;
+                        <MudPaper Class="pa-3" Outlined="true" Elevation="@(isSelected ? 2 : 0)"
+                                  Style="cursor: pointer;" @onclick="@(() => SelectSchema(entry))">
+                            <MudStack Spacing="1">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        @if (isSelected)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Primary" Size="Size.Small" />
+                                        }
+                                        <MudText Typo="Typo.subtitle2">@entry.Title</MudText>
+                                    </MudStack>
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">
+                                        @entry.SourceProvider
+                                    </MudChip>
+                                </MudStack>
+                                @if (!string.IsNullOrWhiteSpace(entry.Description))
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary"
+                                             Style="overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                                        @entry.Description
+                                    </MudText>
+                                }
+                                <MudStack Row="true" Spacing="2">
+                                    <MudText Typo="Typo.caption">@entry.FieldCount fields</MudText>
+                                    @if (entry.RequiredFieldCount > 0)
+                                    {
+                                        <MudText Typo="Typo.caption">@entry.RequiredFieldCount required</MudText>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                        </MudPaper>
+                    }
+                </MudStack>
+            }
+            else if (!_isLoading && _hasSearched)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    No schemas found. Try a different search term.
+                </MudAlert>
+            }
+
+            @if (!_hasSearched)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    Search for a schema by name or keyword (e.g., "invoice", "patient", "credential").
+                </MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Color="Color.Default">Cancel</MudButton>
+        <MudButton OnClick="CreateCustom" Color="Color.Secondary" Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.Add">
+            Create Custom
+        </MudButton>
+        <MudButton OnClick="ConfirmSelection" Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@(_selectedEntry is null)">
+            Select Schema
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public ISchemaLibraryApiService? SchemaApi { get; set; }
+
+    private string _searchText = string.Empty;
+    private bool _isLoading;
+    private bool _hasSearched;
+    private List<SchemaIndexEntryViewModel> _results = [];
+    private SchemaIndexEntryViewModel? _selectedEntry;
+
+    private async Task OnSearch()
+    {
+        if (string.IsNullOrWhiteSpace(_searchText) || SchemaApi is null)
+            return;
+
+        _isLoading = true;
+        _hasSearched = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SchemaApi.SearchAsync(_searchText, limit: 20);
+            _results = response?.Results?.ToList() ?? [];
+        }
+        catch
+        {
+            _results = [];
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SelectSchema(SchemaIndexEntryViewModel entry)
+    {
+        _selectedEntry = entry;
+    }
+
+    private async Task ConfirmSelection()
+    {
+        if (_selectedEntry is null || SchemaApi is null) return;
+
+        // Fetch the full content
+        var detail = await SchemaApi.GetDetailAsync(
+            _selectedEntry.SourceProvider,
+            _selectedEntry.SourceUri);
+
+        if (detail is not null)
+        {
+            MudDialog.Close(DialogResult.Ok(detail));
+        }
+    }
+
+    private void CreateCustom()
+    {
+        MudDialog.Close(DialogResult.Ok<SchemaIndexEntryDetailViewModel?>(null));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

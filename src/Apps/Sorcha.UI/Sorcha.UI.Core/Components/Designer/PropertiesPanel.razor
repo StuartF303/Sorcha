@@ -1,6 +1,9 @@
 @using MudBlazor
 @using Sorcha.UI.Core.Models.Designer
+@using Sorcha.UI.Core.Services
+@using Sorcha.UI.Core.Models.SchemaLibrary
 @using Sorcha.Blueprint.Models
+@using System.Text.Json
 @using System.Text.Json.Nodes
 @using BlueprintAction = Sorcha.Blueprint.Models.Action
 
@@ -258,38 +261,39 @@
                     </TitleContent>
                     <ChildContent>
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
-                            Reference data schemas from the blueprint's global schema list
+                            Add formal data schemas from the schema library or create custom schemas
                         </MudText>
 
-                        @if (Blueprint != null && Blueprint.DataSchemas != null && Blueprint.DataSchemas.Any())
+                        @if (editedAction.DataSchemas != null && editedAction.DataSchemas.Any())
                         {
-                            <MudText Typo="Typo.subtitle2" Class="mb-2">Available Schemas (@Blueprint.DataSchemas.Count)</MudText>
-                            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-                                @Blueprint.DataSchemas.Count schema(s) defined in blueprint. Configure in Blueprint Properties -> Data Schemas tab.
-                            </MudAlert>
-
-                            <MudDivider Class="my-3" />
-
-                            <MudText Typo="Typo.subtitle2" Class="mb-2">Action Data Schemas</MudText>
-                            @if (editedAction.DataSchemas != null && editedAction.DataSchemas.Any())
-                            {
-                                <MudAlert Severity="Severity.Success" Dense="true">
-                                    This action uses @editedAction.DataSchemas.Count() schema(s)
-                                </MudAlert>
-                            }
-                            else
-                            {
-                                <MudAlert Severity="Severity.Info" Dense="true">
-                                    No data schemas assigned to this action
-                                </MudAlert>
-                            }
+                            <MudStack Spacing="1" Class="mb-3">
+                                @foreach (var schema in editedAction.DataSchemas)
+                                {
+                                    <MudPaper Class="pa-2" Outlined="true">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <MudIcon Icon="@Icons.Material.Filled.Schema" Size="Size.Small" Color="Color.Primary" />
+                                                <MudText Typo="Typo.body2">@GetSchemaTitle(schema)</MudText>
+                                            </MudStack>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                           OnClick="@(() => RemoveSchemaFromAction(schema))" />
+                                        </MudStack>
+                                    </MudPaper>
+                                }
+                            </MudStack>
                         }
                         else
                         {
-                            <MudAlert Severity="Severity.Warning" Dense="true">
-                                No data schemas defined in blueprint. Go to Blueprint Properties -> Data Schemas tab to add schemas.
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                                No data schemas assigned to this action
                             </MudAlert>
                         }
+
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="OpenSchemaPickerDialog">
+                            Select Data Schema
+                        </MudButton>
                     </ChildContent>
                 </MudExpansionPanel>
 
@@ -435,6 +439,9 @@
 
     [Inject]
     private ISnackbar Snackbar { get; set; } = null!;
+
+    [Inject]
+    private ISchemaLibraryApiService SchemaLibraryApi { get; set; } = null!;
 
     [Parameter]
     public Blueprint Blueprint { get; set; } = new();
@@ -817,6 +824,55 @@
         }
 
         return fields;
+    }
+
+    #endregion
+
+    #region Schema Picker
+
+    private async Task OpenSchemaPickerDialog()
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(SchemaPickerDialog.SchemaApi), SchemaLibraryApi }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<SchemaPickerDialog>("Select Data Schema", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: SchemaIndexEntryDetailViewModel detail })
+        {
+            if (detail.Content is not null)
+            {
+                // Snapshot the schema content into the action's dataSchemas
+                var schemas = editedAction.DataSchemas?.ToList() ?? [];
+                schemas.Add(detail.Content);
+                editedAction.DataSchemas = schemas;
+                Snackbar.Add($"Schema '{detail.Title}' added to action", Severity.Success);
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void RemoveSchemaFromAction(JsonDocument schema)
+    {
+        if (editedAction.DataSchemas is null) return;
+
+        var schemas = editedAction.DataSchemas.ToList();
+        schemas.Remove(schema);
+        editedAction.DataSchemas = schemas;
+        Snackbar.Add("Schema removed from action", Severity.Warning);
+        StateHasChanged();
+    }
+
+    private static string GetSchemaTitle(JsonDocument schema)
+    {
+        var root = schema.RootElement;
+        if (root.TryGetProperty("title", out var title) && title.ValueKind == JsonValueKind.String)
+            return title.GetString() ?? "Untitled";
+        if (root.TryGetProperty("$id", out var id) && id.ValueKind == JsonValueKind.String)
+            return id.GetString() ?? "Untitled";
+        return "Untitled Schema";
     }
 
     #endregion

@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
 **Version:** 5.3 - UPDATED
-**Last Updated:** 2026-02-16
-**Status:** Active - Engine/Service Hardening
+**Last Updated:** 2026-02-17
+**Status:** Active - Schema Library Complete
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -19,6 +19,22 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 ---
 
 ## Recent Updates
+
+**2026-02-17:**
+- ✅ SCHEMA-LIBRARY (034): Centralised schema registry with server-side cache and index of formal data standards
+  - **Phase 1-2 (Setup/Foundational):** SchemaFieldInfo model, SchemaFieldExtractor (recursive JSON Schema traversal with $ref, nested objects, arrays), SchemaIndexEntry/SchemaIndexEntryDetail DTOs, ISchemaLibraryApiService interface
+  - **Phase 3 (US3 - Index & Cache):** InMemorySchemaIndex with ConcurrentDictionary, SchemaIndexRefreshService (IHostedService with configurable interval), JsonSchemaNormaliser for metadata extraction, search endpoint with text/sector filtering
+  - **Phase 4 (US5 - Multiple Sources):** ISchemaSourceProvider abstraction, JsonSchemaStoreProvider (fetches from JSON Schema Store catalog), pluggable provider registration via DI
+  - **Phase 5 (US1 - Browse & Search UI):** SchemaLibrary.razor page with MudTable, search/sector/status filters, SchemaCard.razor grid view, SchemaDetail.razor with full metadata + raw JSON
+  - **Phase 6 (US2 - Admin Sector Config):** ISectorFilterService with in-memory org preferences, SectorConfiguration.razor admin page, 8 built-in sectors (Financial, Healthcare, Construction, Legal, Identity, Government, Supply Chain, General)
+  - **Phase 7 (US6 - Metadata Enrichment):** SchemaFieldExtractor with hierarchical field tree (depth-based indentation, type coloring, constraints, enums), enhanced SchemaDetail.razor
+  - **Phase 8 (US4 - Schema Picker):** SchemaPickerDialog.razor (MudDialog with search), SchemaFieldSubsetSelector.razor (checkbox list with required fields), PropertiesPanel integration for blueprint action data schemas
+  - **Phase 9 (US7 - Form Preview):** SchemaFormPreview.razor using FormSchemaService.AutoGenerateForm() + ControlDispatcher, integrated into SchemaDetail.razor
+  - **Phase 10 (Admin Health):** SchemaProviderHealth.razor admin page with provider cards, health status, refresh trigger
+  - **Phase 11 (Polish):** YARP routes confirmed, structured logging confirmed, regression tests pass
+  - 84 tasks across 11 phases, all complete
+  - Test results: Blueprint Service 300 pass (29 pre-existing SignalR), Schemas 144 pass, UI Core 517 pass
+  - Files changed: ~40 (new + modified); 14 SectorFilterService tests, 15 SchemaFieldExtractor tests, 5 SchemaFieldSubsetSelector tests
 
 **2026-02-16:**
 - ✅ BLUEPRINT-ENGINE-SERVICE-REVIEW: Comprehensive Blueprint Engine & Service review (4 phases, 17 tasks)
