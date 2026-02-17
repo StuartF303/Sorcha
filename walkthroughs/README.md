@@ -162,7 +162,7 @@ walkthroughs/
 **Profiles:** `gateway` (default), `direct`, `aspire`
 
 ### [ConstructionPermit](./ConstructionPermit/)
-**Status:** 🚧 In Progress
+**Status:** ✅ Complete
 **Date:** 2026-02-17
 **Purpose:** Multi-org, multi-user construction permit approval with conditional routing, calculations, and verifiable credential issuance
 
@@ -178,9 +178,12 @@ walkthroughs/
 
 **Key files:**
 - `README.md` - Full scenario specification with action details
-- `construction-permit-template.json` - Blueprint template (TODO)
-- `test-construction-permit.ps1` - Main walkthrough script (TODO)
-- `data/` - Input data for 3 test scenarios (TODO)
+- `construction-permit-template.json` - Blueprint template (6 actions, 5 participants)
+- `test-construction-permit.ps1` - Main walkthrough script (all 3 scenarios)
+- `data/scenario-a-low-risk.json` - Low-risk residential input data
+- `data/scenario-b-high-risk.json` - High-risk commercial input data
+- `data/scenario-c-rejection.json` - Rejection scenario input data
+- `RESULTS.md` - Test results template
 
 **Test Scenarios:**
 - **Scenario A:** Low-risk residential (3 storeys, riskScore 6.1) — skips environmental, 5 actions to permit

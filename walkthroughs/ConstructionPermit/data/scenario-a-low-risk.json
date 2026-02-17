@@ -1,0 +1,42 @@
+{
+  "name": "Scenario A: Low-Risk Residential",
+  "description": "3-storey residential development (riskScore 6.1) — skips environmental review, 5 actions to permit",
+  "expectedRiskScore": 6.1,
+  "expectedPermitFee": 2200,
+  "expectedPath": [1, 2, 3, 5, 6],
+  "skipsEnvironmental": true,
+  "expectedRejection": false,
+  "actions": {
+    "1": {
+      "projectName": "Riverside Heights",
+      "siteAddress": "14 Waterfront Lane, Riverside, RS1 4AB",
+      "buildingType": "residential",
+      "estimatedValue": 500000,
+      "grossFloorArea": 800,
+      "storeys": 3,
+      "existingStructure": false
+    },
+    "2": {
+      "loadRating": 4.5,
+      "foundationType": "strip",
+      "structuralGrade": "B",
+      "structuralNotes": "Standard residential construction. Strip foundations adequate for 3-storey loading. No concerns with ground conditions."
+    },
+    "3": {
+      "zoningCompliant": true,
+      "planningNotes": "Site is within residential development zone RDZ-14. Proposed 3-storey height is within the 12m limit. No heritage concerns. Approved for building control assessment."
+    },
+    "5": {
+      "structuralApproved": true,
+      "fireCompliant": true,
+      "accessCompliant": true,
+      "inspectionNotes": "All building regulations met. Fire exits adequate for 3-storey residential. Part M accessibility requirements satisfied. Standard drainage conditions apply."
+    },
+    "6": {
+      "approved": true,
+      "permitNumber": "RBC-2026-00142",
+      "validUntil": "2029-02-17",
+      "conditions": "Standard drainage conditions apply. Construction hours limited to 07:00-19:00 weekdays, 08:00-13:00 Saturdays. No work on Sundays or bank holidays."
+    }
+  }
+}

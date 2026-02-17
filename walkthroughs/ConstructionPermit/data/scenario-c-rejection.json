@@ -1,0 +1,31 @@
+{
+  "name": "Scenario C: Rejection",
+  "description": "4-storey commercial project rejected at planning review for zoning non-compliance",
+  "expectedRiskScore": 10.08,
+  "expectedPath": [1, 2, 3],
+  "skipsEnvironmental": null,
+  "expectedRejection": true,
+  "rejectionAction": 3,
+  "rejectionReason": "Site falls within designated Green Belt zone GB-12. Commercial development of this scale is not permitted under current planning policy. The proposed 4-storey height exceeds the 2-storey limit for Green Belt exceptions. Applicant advised to consult with planning department before resubmission.",
+  "actions": {
+    "1": {
+      "projectName": "Eastside Commercial Centre",
+      "siteAddress": "8 Industrial Way, Riverside, RS3 1KL",
+      "buildingType": "commercial",
+      "estimatedValue": 2000000,
+      "grossFloorArea": 1200,
+      "storeys": 4,
+      "existingStructure": false
+    },
+    "2": {
+      "loadRating": 5.0,
+      "foundationType": "raft",
+      "structuralGrade": "B",
+      "structuralNotes": "Raft foundation suitable for 4-storey commercial loading on clay subsoil. Ground investigation reveals stable bearing capacity. No issues with structural integrity."
+    },
+    "3": {
+      "zoningCompliant": false,
+      "planningNotes": "REJECTED: Site is within Green Belt zone GB-12. Commercial development not permitted at this scale. 4-storey height exceeds 2-storey Green Belt exception limit. Applicant should consult planning department before resubmission."
+    }
+  }
+}
