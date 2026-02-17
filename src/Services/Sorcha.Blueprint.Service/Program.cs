@@ -2059,8 +2059,8 @@ public class PublishService(
                 {
                     PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
                 });
-                await db.StringSetAsync(cacheKey, blueprintJson, TimeSpan.FromHours(24));
-                _logger?.LogInformation("Blueprint {BlueprintId} cached in Redis for Validator (key: {CacheKey})", blueprintId, cacheKey);
+                await db.StringSetAsync(cacheKey, blueprintJson);
+                _logger?.LogInformation("Blueprint {BlueprintId} cached in Redis for Validator (key: {CacheKey}, no expiry — immutable)", blueprintId, cacheKey);
             }
             catch (Exception ex)
             {

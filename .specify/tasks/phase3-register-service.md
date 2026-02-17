@@ -91,4 +91,12 @@ MongoDB persistence implemented with **per-register database architecture**:
 
 ---
 
+## Backlog
+
+| ID | Task | Priority | Effort | Status | Notes |
+|----|------|----------|--------|--------|-------|
+| REG-QUERY-01 | Add `GET /api/query/instance/{instanceId}/transactions/{registerId}` endpoint | P2 | 4h | 📋 Not Started | State reconstruction currently falls back to `Instance.LastTransactionId`. This endpoint would enable multi-participant state merging by querying all transactions for a given blueprint instance on a register. Discovered during architecture validation (2026-02-17). |
+
+---
+
 **Back to:** [MASTER-TASKS.md](../MASTER-TASKS.md)

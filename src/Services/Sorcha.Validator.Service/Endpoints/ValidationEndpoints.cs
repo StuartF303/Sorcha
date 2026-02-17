@@ -207,7 +207,15 @@ public static class ValidationEndpoints
                 request.RegisterId,
                 controlRecordHashHex);
 
-            // Sign control record hash with system wallet using the register-control derivation path
+            // Build the signing data using the same "{TxId}:{PayloadHash}" contract as action transactions.
+            // This ensures the Validator's VerifySignaturesAsync can verify genesis signatures
+            // using the standard verification path.
+            var signingData = $"{request.TransactionId}:{controlRecordHashHex}";
+            var signingHash = hashProvider.ComputeHash(
+                System.Text.Encoding.UTF8.GetBytes(signingData),
+                Sorcha.Cryptography.Enums.HashType.SHA256);
+
+            // Sign with system wallet using the register-control derivation path
             // If system wallet doesn't exist, auto-create it (lazy initialization)
             var systemWalletAddress = systemWalletProvider.GetSystemWalletId();
 
@@ -235,7 +243,7 @@ public static class ValidationEndpoints
             {
                 systemSignResult = await walletClient.SignTransactionAsync(
                     systemWalletAddress,
-                    controlRecordHash,
+                    signingHash,
                     "sorcha:register-control",
                     isPreHashed: true,
                     cancellationToken);
@@ -269,7 +277,7 @@ public static class ValidationEndpoints
                     // Retry signing with newly created wallet
                     systemSignResult = await walletClient.SignTransactionAsync(
                         systemWalletAddress,
-                        controlRecordHash,
+                        signingHash,
                         "sorcha:register-control",
                         isPreHashed: true,
                         cancellationToken);

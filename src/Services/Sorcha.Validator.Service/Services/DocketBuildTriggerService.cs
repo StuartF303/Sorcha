@@ -206,7 +206,7 @@ public class DocketBuildTriggerService : BackgroundService
         }
         else
         {
-            _logger.LogWarning("Failed to build docket for register {RegisterId}", registerId);
+            _logger.LogDebug("No docket built for register {RegisterId} (verified queue empty or not ready)", registerId);
         }
     }
 

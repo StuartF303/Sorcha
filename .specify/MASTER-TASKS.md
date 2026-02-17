@@ -22,6 +22,7 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 | Date | Summary |
 |------|---------|
+| 2026-02-17 | Architecture Validation improvements: genesis TX signature skip (attestation sigs use different contract), docket build log noise fix (WARNING→DEBUG for empty queue), blueprint cache TTL removal (immutable after publish). Added Register instance query endpoint to Phase 3 backlog. |
 | 2026-02-17 | Architecture Validation: 8 pipeline fixes (signature contract, blueprint cache, schema extraction, default disclosure, wallet link idempotency, LastTransactionId fallback, PreviousTransactionId field, cyclic idempotency). 3-round ping-pong walkthrough PASS. |
 
 **2026-02-17:**

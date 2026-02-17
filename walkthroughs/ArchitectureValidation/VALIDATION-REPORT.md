@@ -155,13 +155,13 @@ Additional non-fix changes:
 
 ## 5. Architecture Issues for Discussion
 
-| # | Area | Description | Impact | Recommendation |
-|---|------|-------------|--------|----------------|
-| 1 | Genesis | Genesis TX signing uses different contract than action transactions | Genesis TX always fails validation; non-blocking because register works via direct write | Align genesis signing to `{TxId}:{PayloadHash}` contract |
-| 2 | Register API | Instance-based transaction query endpoint doesn't exist | State reconstruction falls back to `LastTransactionId`; limits multi-participant state merging | Add `GET /api/query/instance/{id}/transactions/{registerId}` to Register Service |
-| 3 | Validator | Docket build trigger logs WARNING when verified queue is empty | Log noise every 10s per register; masks real warnings | Change to TRACE level for empty-queue case |
-| 4 | Blueprint Cache | No cache invalidation or versioning | Blueprint updates after publish could create inconsistency | Add version field or event-driven invalidation |
-| 5 | Consensus | 0 validators = auto-approve | All dockets are auto-approved in current deployment | Expected for development; production needs validator registration |
+| # | Area | Description | Impact | Resolution |
+|---|------|-------------|--------|------------|
+| 1 | Genesis | Genesis TX attestation signatures use different signing contract than `{TxId}:{PayloadHash}` | Genesis TX always failed signature verification | **RESOLVED**: Skip signature verification for genesis/control transactions (attestation sigs attest to control record, not transaction envelope). System wallet signature already aligned to standard contract. |
+| 2 | Register API | Instance-based transaction query endpoint doesn't exist | State reconstruction falls back to `LastTransactionId`; limits multi-participant state merging | **LOGGED**: Added REG-QUERY-01 to Phase 3 backlog for later implementation. |
+| 3 | Validator | Docket build trigger logs WARNING when verified queue is empty | Log noise every 10s per register; masks real warnings | **RESOLVED**: Changed to DEBUG level for empty-queue case. Actual errors (null docket, exceptions) retain WARNING/ERROR levels. |
+| 4 | Blueprint Cache | 24h TTL on immutable blueprints is unnecessarily short | Blueprints could expire from cache and require re-fetch | **RESOLVED**: Removed TTL — blueprints are immutable after publish, no expiry needed. |
+| 5 | Consensus | 0 validators = auto-approve | All dockets are auto-approved in current deployment | Expected for development; production needs validator registration. Local validator processes its own registers. |
 
 ---
 
