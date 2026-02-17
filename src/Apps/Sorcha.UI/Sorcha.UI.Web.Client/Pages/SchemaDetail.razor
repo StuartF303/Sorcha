@@ -7,6 +7,7 @@
 @inject ISchemaLibraryApiService SchemaApiService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
 
 <PageTitle>@(_detail?.Title ?? "Schema Detail") - Sorcha Platform</PageTitle>
 
@@ -285,9 +286,17 @@
         }
     }
 
-    private void CopySchemaToClipboard()
+    private async Task CopySchemaToClipboard()
     {
-        Snackbar.Add("Schema JSON copied to clipboard", Severity.Success);
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _contentJson);
+            Snackbar.Add("Schema JSON copied to clipboard", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy to clipboard", Severity.Warning);
+        }
     }
 
     private static Color GetStatusColor(string status)

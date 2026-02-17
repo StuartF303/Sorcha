@@ -20,6 +20,8 @@ public class MongoSchemaIndexRepository : ISchemaIndexRepository
     /// <summary>
     /// Initializes with an IMongoDatabase instance.
     /// </summary>
+    private bool _indexesCreated;
+
     public MongoSchemaIndexRepository(
         IMongoDatabase database,
         ILogger<MongoSchemaIndexRepository> logger)
@@ -27,8 +29,16 @@ public class MongoSchemaIndexRepository : ISchemaIndexRepository
         ArgumentNullException.ThrowIfNull(database);
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _collection = database.GetCollection<SchemaIndexEntryDocument>("schemaIndex");
+    }
 
-        CreateIndexesAsync().GetAwaiter().GetResult();
+    /// <summary>
+    /// Ensures indexes are created. Called lazily on first query.
+    /// </summary>
+    public async Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
+    {
+        if (_indexesCreated) return;
+        await CreateIndexesAsync();
+        _indexesCreated = true;
     }
 
     private async Task CreateIndexesAsync()
@@ -81,6 +91,7 @@ public class MongoSchemaIndexRepository : ISchemaIndexRepository
         string? cursor = null,
         CancellationToken cancellationToken = default)
     {
+        await EnsureIndexesAsync(cancellationToken);
         var filterBuilder = Builders<SchemaIndexEntryDocument>.Filter;
         var filters = new List<FilterDefinition<SchemaIndexEntryDocument>>();
 

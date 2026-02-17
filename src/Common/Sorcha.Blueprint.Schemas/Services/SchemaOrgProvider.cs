@@ -62,6 +62,7 @@ public class SchemaOrgProvider : IExternalSchemaProvider
     }
 
     public string ProviderName => ProviderDisplayName;
+    public string[] DefaultSectorTags => ["general", "commerce"];
 
     public async Task<ExternalSchemaSearchResponse> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
@@ -96,7 +97,11 @@ public class SchemaOrgProvider : IExternalSchemaProvider
             var response = await _httpClient.SendAsync(request, cancellationToken);
             return response.IsSuccessStatusCode;
         }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Schema.org provider availability check failed");
+            return false;
+        }
     }
 
     private async Task<List<ExternalSchemaResult>> GetOrBuildCatalogAsync(CancellationToken cancellationToken)

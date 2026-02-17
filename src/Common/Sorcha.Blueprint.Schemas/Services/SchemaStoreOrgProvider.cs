@@ -43,6 +43,7 @@ public class SchemaStoreOrgProvider : IExternalSchemaProvider
 
     /// <inheritdoc />
     public string ProviderName => ProviderDisplayName;
+    public string[] DefaultSectorTags => ["technology", "general"];
 
     /// <inheritdoc />
     public async Task<ExternalSchemaSearchResponse> SearchAsync(string query, CancellationToken cancellationToken = default)

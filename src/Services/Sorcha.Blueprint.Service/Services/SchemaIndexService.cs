@@ -24,6 +24,7 @@ public class SchemaIndexService : ISchemaIndexService
 
     private readonly ConcurrentDictionary<string, SchemaProviderStatus> _providerStatuses = new();
     private readonly ConcurrentDictionary<string, bool> _loadingProviders = new();
+    private readonly object _statusLock = new();
 
     public SchemaIndexService(
         ISchemaIndexRepository indexRepository,
@@ -136,16 +137,20 @@ public class SchemaIndexService : ISchemaIndexService
 
         var count = await _indexRepository.BatchUpsertAsync(documents, cancellationToken);
 
-        // Update provider status
+        // Update provider status (thread-safe — multiple providers refresh concurrently)
         if (_providerStatuses.TryGetValue(providerName, out var status))
         {
-            status.SchemaCount = await _indexRepository.GetCountByProviderAsync(providerName, cancellationToken);
-            status.LastSuccessfulFetch = DateTimeOffset.UtcNow;
-            status.HealthStatus = ProviderHealth.Healthy;
-            status.LastError = null;
-            status.LastErrorAt = null;
-            status.ConsecutiveFailures = 0;
-            status.BackoffUntil = null;
+            var schemaCount = await _indexRepository.GetCountByProviderAsync(providerName, cancellationToken);
+            lock (_statusLock)
+            {
+                status.SchemaCount = schemaCount;
+                status.LastSuccessfulFetch = DateTimeOffset.UtcNow;
+                status.HealthStatus = ProviderHealth.Healthy;
+                status.LastError = null;
+                status.LastErrorAt = null;
+                status.ConsecutiveFailures = 0;
+                status.BackoffUntil = null;
+            }
         }
 
         _logger.LogInformation("Upserted {Count} schemas from {Provider} ({Total} total for provider)",
@@ -157,18 +162,21 @@ public class SchemaIndexService : ISchemaIndexService
     /// <inheritdoc />
     public IReadOnlyList<SchemaProviderStatusDto> GetProviderStatuses()
     {
-        return _providerStatuses.Values.Select(s => new SchemaProviderStatusDto(
-            s.ProviderName,
-            s.IsEnabled,
-            s.ProviderType.ToString(),
-            s.RateLimitPerSecond,
-            s.RefreshIntervalHours,
-            s.LastSuccessfulFetch,
-            s.LastError,
-            s.LastErrorAt,
-            s.SchemaCount,
-            s.HealthStatus.ToString(),
-            s.BackoffUntil)).ToList();
+        lock (_statusLock)
+        {
+            return _providerStatuses.Values.Select(s => new SchemaProviderStatusDto(
+                s.ProviderName,
+                s.IsEnabled,
+                s.ProviderType.ToString(),
+                s.RateLimitPerSecond,
+                s.RefreshIntervalHours,
+                s.LastSuccessfulFetch,
+                s.LastError,
+                s.LastErrorAt,
+                s.SchemaCount,
+                s.HealthStatus.ToString(),
+                s.BackoffUntil)).ToList();
+        }
     }
 
     /// <inheritdoc />
@@ -192,16 +200,19 @@ public class SchemaIndexService : ISchemaIndexService
     {
         if (_providerStatuses.TryGetValue(providerName, out var status))
         {
-            status.ConsecutiveFailures++;
-            status.LastError = error;
-            status.LastErrorAt = DateTimeOffset.UtcNow;
-            status.HealthStatus = status.ConsecutiveFailures >= 3
-                ? ProviderHealth.Unavailable
-                : ProviderHealth.Degraded;
+            lock (_statusLock)
+            {
+                status.ConsecutiveFailures++;
+                status.LastError = error;
+                status.LastErrorAt = DateTimeOffset.UtcNow;
+                status.HealthStatus = status.ConsecutiveFailures >= 3
+                    ? ProviderHealth.Unavailable
+                    : ProviderHealth.Degraded;
 
-            // Exponential backoff: 2^n seconds, max 1 hour
-            var backoffSeconds = Math.Min(Math.Pow(2, status.ConsecutiveFailures), 3600);
-            status.BackoffUntil = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
+                // Exponential backoff: 2^n seconds, max 1 hour
+                var backoffSeconds = Math.Min(Math.Pow(2, status.ConsecutiveFailures), 3600);
+                status.BackoffUntil = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
+            }
         }
     }
 
@@ -212,7 +223,10 @@ public class SchemaIndexService : ISchemaIndexService
     {
         if (_providerStatuses.TryGetValue(providerName, out var status))
         {
-            return status.BackoffUntil.HasValue && status.BackoffUntil > DateTimeOffset.UtcNow;
+            lock (_statusLock)
+            {
+                return status.BackoffUntil.HasValue && status.BackoffUntil > DateTimeOffset.UtcNow;
+            }
         }
         return false;
     }

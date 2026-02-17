@@ -103,7 +103,7 @@ public class SchemaIndexRefreshService : BackgroundService
                 SourceUri: entry.Url,
                 Title: entry.Name,
                 Description: entry.Description,
-                SectorTags: InferSectorTags(providerName),
+                SectorTags: provider.DefaultSectorTags,
                 SchemaVersion: "1.0.0",
                 Content: entry.Content ?? CreateMinimalSchema(entry.Name, entry.Description)
             )).ToList();
@@ -147,32 +147,16 @@ public class SchemaIndexRefreshService : BackgroundService
         await RefreshProviderAsync(provider, indexService, cancellationToken);
     }
 
-    private static string[] InferSectorTags(string providerName)
-    {
-        return providerName.ToLowerInvariant() switch
-        {
-            "schemastore.org" => ["technology", "general"],
-            "schema.org" => ["general", "commerce"],
-            "hl7 fhir" => ["healthcare"],
-            "iso 20022" => ["finance"],
-            "w3c vc" => ["identity", "government"],
-            "oasis ubl" => ["finance", "commerce"],
-            "niem" => ["government"],
-            "ifc" => ["construction"],
-            _ => ["general"]
-        };
-    }
-
     private static JsonDocument CreateMinimalSchema(string name, string description)
     {
-        var json = $$"""
-            {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "title": "{{name.Replace("\"", "\\\"")}}",
-                "description": "{{(description ?? "").Replace("\"", "\\\"")}}",
-                "type": "object"
-            }
-            """;
+        var obj = new Dictionary<string, object?>
+        {
+            ["$schema"] = "https://json-schema.org/draft/2020-12/schema",
+            ["title"] = name,
+            ["description"] = description ?? "",
+            ["type"] = "object"
+        };
+        var json = JsonSerializer.Serialize(obj);
         return JsonDocument.Parse(json);
     }
 }

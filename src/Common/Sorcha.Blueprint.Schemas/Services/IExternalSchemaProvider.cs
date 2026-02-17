@@ -44,4 +44,10 @@ public interface IExternalSchemaProvider
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the provider is available, false otherwise.</returns>
     Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Default sector tags for schemas from this provider.
+    /// Used when individual schemas don't specify their own sectors.
+    /// </summary>
+    string[] DefaultSectorTags => ["general"];
 }

@@ -2,6 +2,9 @@
 // Copyright (c) 2026 Sorcha Contributors
 
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.Extensions.Http;
+using Polly;
+using Polly.Extensions.Http;
 using Scalar.AspNetCore;
 using System.Collections.Concurrent;
 using Sorcha.Blueprint.Service.Endpoints;
@@ -116,21 +119,24 @@ builder.Services.AddHttpClient<SchemaStoreOrgProvider>(client =>
 {
     client.BaseAddress = new Uri("https://www.schemastore.org/");
     client.DefaultRequestHeaders.Add("User-Agent", "Sorcha-Blueprint-Service/1.0");
-});
+    client.Timeout = TimeSpan.FromSeconds(30);
+}).AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(2, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt))));
 builder.Services.AddSingleton<IExternalSchemaProvider>(sp => sp.GetRequiredService<SchemaStoreOrgProvider>());
 
 builder.Services.AddHttpClient<SchemaOrgProvider>(client =>
 {
     client.BaseAddress = new Uri("https://schema.org/");
     client.DefaultRequestHeaders.Add("User-Agent", "Sorcha-Blueprint-Service/1.0");
-});
+    client.Timeout = TimeSpan.FromSeconds(30);
+}).AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(2, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt))));
 builder.Services.AddSingleton<IExternalSchemaProvider>(sp => sp.GetRequiredService<SchemaOrgProvider>());
 
 builder.Services.AddHttpClient<FhirSchemaProvider>(client =>
 {
     client.BaseAddress = new Uri("https://hl7.org/");
     client.DefaultRequestHeaders.Add("User-Agent", "Sorcha-Blueprint-Service/1.0");
-});
+    client.Timeout = TimeSpan.FromSeconds(30);
+}).AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(2, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt))));
 builder.Services.AddSingleton<IExternalSchemaProvider>(sp => sp.GetRequiredService<FhirSchemaProvider>());
 
 // Static providers (no HTTP client needed)

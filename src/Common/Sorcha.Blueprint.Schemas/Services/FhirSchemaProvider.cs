@@ -42,6 +42,7 @@ public class FhirSchemaProvider : IExternalSchemaProvider
     }
 
     public string ProviderName => ProviderDisplayName;
+    public string[] DefaultSectorTags => ["healthcare"];
 
     public async Task<ExternalSchemaSearchResponse> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
@@ -76,7 +77,11 @@ public class FhirSchemaProvider : IExternalSchemaProvider
             var response = await _httpClient.SendAsync(request, cancellationToken);
             return response.IsSuccessStatusCode;
         }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "FHIR schema provider availability check failed");
+            return false;
+        }
     }
 
     private async Task<List<ExternalSchemaResult>> GetOrBuildCatalogAsync(CancellationToken cancellationToken)

@@ -3,9 +3,9 @@
 
 using System.Text.Json;
 using FluentAssertions;
-using Sorcha.Blueprint.Schemas.Services;
+using Sorcha.Blueprint.Schemas;
 
-namespace Sorcha.Blueprint.Schemas.Tests;
+namespace Sorcha.Blueprint.Schemas.Core.Tests;
 
 public class SchemaFieldExtractorTests
 {

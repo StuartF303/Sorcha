@@ -107,11 +107,17 @@
     private bool _hasSearched;
     private List<SchemaIndexEntryViewModel> _results = [];
     private SchemaIndexEntryViewModel? _selectedEntry;
+    private CancellationTokenSource? _searchCts;
 
     private async Task OnSearch()
     {
         if (string.IsNullOrWhiteSpace(_searchText) || SchemaApi is null)
             return;
+
+        // Cancel any in-flight search to prevent stale results overwriting newer ones
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
 
         _isLoading = true;
         _hasSearched = true;
@@ -119,8 +125,13 @@
 
         try
         {
-            var response = await SchemaApi.SearchAsync(_searchText, limit: 20);
+            var response = await SchemaApi.SearchAsync(_searchText, limit: 20, cancellationToken: token);
+            token.ThrowIfCancellationRequested();
             _results = response?.Results?.ToList() ?? [];
+        }
+        catch (OperationCanceledException)
+        {
+            return;
         }
         catch
         {
@@ -128,8 +139,11 @@
         }
         finally
         {
-            _isLoading = false;
-            StateHasChanged();
+            if (!token.IsCancellationRequested)
+            {
+                _isLoading = false;
+                StateHasChanged();
+            }
         }
     }
 

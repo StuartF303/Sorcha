@@ -166,16 +166,22 @@ public static class SchemaLibraryEndpoints
         return TypedResults.Ok<IReadOnlyList<SchemaSectorDto>>(sectors);
     }
 
-    private static async Task<Ok<OrganisationSectorPreferencesDto>> GetSectorPreferences(
+    private static async Task<IResult> GetSectorPreferences(
         HttpContext context,
         ISectorFilterService sectorFilterService,
         CancellationToken cancellationToken)
     {
-        var organizationId = context.GetOrganizationId() ?? "default";
+        var organizationId = context.GetOrganizationId();
+        if (string.IsNullOrEmpty(organizationId))
+        {
+            // No org claim — return all-sectors-enabled default without persisting state
+            return Results.Ok(new OrganisationSectorPreferencesDto(
+                "unknown", null, AllSectorsEnabled: true, LastModifiedAt: null));
+        }
 
         var prefs = await sectorFilterService.GetPreferencesAsync(organizationId, cancellationToken);
 
-        return TypedResults.Ok(prefs);
+        return Results.Ok(prefs);
     }
 
     private static async Task<IResult> UpdateSectorPreferences(
@@ -223,18 +229,18 @@ public static class SchemaLibraryEndpoints
 
         try
         {
-            // Fire and forget — run in background
+            // Fire and forget — run in background with independent cancellation
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await refreshService.RefreshProviderManuallyAsync(providerName, cancellationToken);
+                    await refreshService.RefreshProviderManuallyAsync(providerName, CancellationToken.None);
                 }
                 catch (Exception)
                 {
                     // Logged inside refresh service
                 }
-            }, cancellationToken);
+            }, CancellationToken.None);
 
             return Results.Accepted();
         }

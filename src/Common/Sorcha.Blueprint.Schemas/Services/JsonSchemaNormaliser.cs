@@ -15,6 +15,7 @@ namespace Sorcha.Blueprint.Schemas.Services;
 public static class JsonSchemaNormaliser
 {
     private const string Draft202012Uri = "https://json-schema.org/draft/2020-12/schema";
+    private const int MaxNormalisationDepth = 64;
 
     /// <summary>
     /// Normalises a JSON Schema to draft-2020-12.
@@ -127,18 +128,20 @@ public static class JsonSchemaNormaliser
         return "unknown";
     }
 
-    private static void NormaliseNode(JsonObject node, string draft)
+    private static void NormaliseNode(JsonObject node, string draft, int depth = 0)
     {
+        if (depth > MaxNormalisationDepth) return;
+
         switch (draft)
         {
             case "draft-04":
-                NormaliseDraft04(node);
+                NormaliseDraft04(node, depth);
                 break;
             case "draft-06":
-                NormaliseDraft06(node);
+                NormaliseDraft06(node, depth);
                 break;
             case "draft-07":
-                NormaliseDraft07(node);
+                NormaliseDraft07(node, depth);
                 break;
         }
     }
@@ -146,7 +149,7 @@ public static class JsonSchemaNormaliser
     /// <summary>
     /// draft-04 → 2020-12: id → $id, definitions → $defs, exclusiveMinimum/Maximum boolean → number
     /// </summary>
-    private static void NormaliseDraft04(JsonObject node)
+    private static void NormaliseDraft04(JsonObject node, int depth)
     {
         // id → $id
         if (node.ContainsKey("id") && !node.ContainsKey("$id"))
@@ -163,26 +166,26 @@ public static class JsonSchemaNormaliser
         NormaliseExclusiveMinMax(node);
 
         // Recursively process nested schemas
-        NormaliseChildren(node, "draft-04");
+        NormaliseChildren(node, "draft-04", depth);
     }
 
     /// <summary>
     /// draft-06 → 2020-12: exclusiveMinimum/Maximum boolean→number, definitions → $defs
     /// </summary>
-    private static void NormaliseDraft06(JsonObject node)
+    private static void NormaliseDraft06(JsonObject node, int depth)
     {
         RenameDefinitions(node);
         NormaliseExclusiveMinMax(node);
-        NormaliseChildren(node, "draft-06");
+        NormaliseChildren(node, "draft-06", depth);
     }
 
     /// <summary>
     /// draft-07 → 2020-12: definitions → $defs
     /// </summary>
-    private static void NormaliseDraft07(JsonObject node)
+    private static void NormaliseDraft07(JsonObject node, int depth)
     {
         RenameDefinitions(node);
-        NormaliseChildren(node, "draft-07");
+        NormaliseChildren(node, "draft-07", depth);
     }
 
     private static void RenameDefinitions(JsonObject node)
@@ -251,7 +254,7 @@ public static class JsonSchemaNormaliser
         }
     }
 
-    private static void NormaliseChildren(JsonObject node, string draft)
+    private static void NormaliseChildren(JsonObject node, string draft, int depth)
     {
         var childKeys = new[] { "properties", "$defs", "definitions", "patternProperties" };
         foreach (var key in childKeys)
@@ -262,7 +265,7 @@ public static class JsonSchemaNormaliser
                 {
                     if (value is JsonObject propSchema)
                     {
-                        NormaliseNode(propSchema, draft);
+                        NormaliseNode(propSchema, draft, depth + 1);
                     }
                 }
             }
@@ -273,7 +276,7 @@ public static class JsonSchemaNormaliser
         {
             if (items is JsonObject itemsObj)
             {
-                NormaliseNode(itemsObj, draft);
+                NormaliseNode(itemsObj, draft, depth + 1);
             }
         }
 
@@ -287,7 +290,7 @@ public static class JsonSchemaNormaliser
                 {
                     if (item is JsonObject itemObj)
                     {
-                        NormaliseNode(itemObj, draft);
+                        NormaliseNode(itemObj, draft, depth + 1);
                     }
                 }
             }

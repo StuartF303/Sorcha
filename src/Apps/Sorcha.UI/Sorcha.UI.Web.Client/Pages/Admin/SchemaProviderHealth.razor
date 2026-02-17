@@ -145,13 +145,18 @@
     private async Task RefreshProvider(string providerName)
     {
         _refreshingProvider = providerName;
+        StateHasChanged();
         try
         {
-            await SchemaLibraryApi.RefreshProviderAsync(providerName);
-            Snackbar.Add($"Refresh triggered for {providerName}", Severity.Success);
-            // Reload after a brief delay to get updated status
-            await Task.Delay(2000);
-            await LoadProviders();
+            var triggered = await SchemaLibraryApi.RefreshProviderAsync(providerName);
+            if (triggered)
+            {
+                Snackbar.Add($"Refresh triggered for {providerName}. Status will update on next page load.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Refresh for {providerName} was rejected (may be in backoff)", Severity.Warning);
+            }
         }
         catch (Exception)
         {
@@ -160,6 +165,7 @@
         finally
         {
             _refreshingProvider = null;
+            await LoadProviders();
         }
     }
 
