@@ -532,7 +532,28 @@ try {
         }
     }
 
-    Write-Info "Admin participant has both wallets linked for action execution"
+    # After linking attempts, retrieve ACTUAL linked wallets to handle idempotent re-runs.
+    # On re-runs, wallet creation produces new addresses but old wallets remain linked.
+    # We must use the actually-linked wallet addresses for action execution.
+    $linkedWallets = Invoke-Api -Method GET `
+        -Uri "$TenantUrl/participants/$participantId/wallet-links" `
+        -Headers $headers
+
+    if ($linkedWallets -and $linkedWallets.Count -ge 2) {
+        $alphaWalletAddress = $linkedWallets[0].walletAddress
+        $betaWalletAddress  = $linkedWallets[1].walletAddress
+        Write-Info "Using linked wallets for execution:"
+        Write-Host "    Alpha: $alphaWalletAddress" -ForegroundColor White
+        Write-Host "    Beta:  $betaWalletAddress" -ForegroundColor White
+    } elseif ($linkedWallets -and $linkedWallets.Count -eq 1) {
+        $alphaWalletAddress = $linkedWallets[0].walletAddress
+        $betaWalletAddress  = $linkedWallets[0].walletAddress
+        Write-Warning "Only 1 wallet linked — using same wallet for both Alpha and Beta"
+    } else {
+        Write-Warning "No linked wallets found — action execution will likely fail with 403"
+    }
+
+    Write-Info "Admin participant has wallets linked for action execution"
     $stepsPassed++
 } catch {
     Write-Fail "Participant registration or wallet linking failed"
@@ -679,7 +700,8 @@ $blueprintId = ""
 try {
     # Load ping-pong template
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $templatePath = Join-Path (Split-Path -Parent (Split-Path -Parent $scriptDir)) "examples/templates/ping-pong-template.json"
+    $repoRoot = Split-Path -Parent (Split-Path -Parent $scriptDir)
+    $templatePath = Join-Path $repoRoot "blueprints/ping-pong-template.json"
     Write-Info "Loading template from: $templatePath"
 
     $templateJson = Get-Content -Path $templatePath -Raw | ConvertFrom-Json

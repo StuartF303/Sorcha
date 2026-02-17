@@ -78,6 +78,7 @@ public static class ValidationEndpoints
                     SignedAt = request.CreatedAt
                 }).ToList(),
                 PayloadHash = request.PayloadHash,
+                PreviousTransactionId = request.PreviousTransactionId,
                 Priority = request.Priority,
                 Metadata = request.Metadata ?? new Dictionary<string, string>()
             };
@@ -401,6 +402,7 @@ public record ValidateTransactionRequest
     public required List<SignatureRequest> Signatures { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset? ExpiresAt { get; init; }
+    public string? PreviousTransactionId { get; init; }
     public TransactionPriority Priority { get; init; } = TransactionPriority.Normal;
     public Dictionary<string, string>? Metadata { get; init; }
 }

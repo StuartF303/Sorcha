@@ -380,6 +380,24 @@ public class ValidationEngine : IValidationEngine
                     sw.Elapsed);
             }
 
+            // Extract user payload data from transaction envelope.
+            // Transaction payload structure: { type, blueprintId, actionId, ..., payloads: { walletAddr: { userData } } }
+            // Schema validation applies to the user data, not the full envelope.
+            var payloadToValidate = transaction.Payload;
+            if (transaction.Payload.ValueKind == JsonValueKind.Object &&
+                transaction.Payload.TryGetProperty("payloads", out var payloadsElement) &&
+                payloadsElement.ValueKind == JsonValueKind.Object)
+            {
+                // Use the first disclosed payload (all should conform to the schema)
+                using var enumerator = payloadsElement.EnumerateObject();
+                if (enumerator.MoveNext())
+                {
+                    payloadToValidate = enumerator.Current.Value;
+                    _logger.LogDebug(
+                        "Extracted user payload from envelope for schema validation");
+                }
+            }
+
             // Evaluate payload against all schemas (payload must pass ALL schemas)
             var evalOptions = new EvaluationOptions
             {
@@ -403,7 +421,7 @@ public class ValidationEngine : IValidationEngine
                     continue;
                 }
 
-                var result = jsonSchema.Evaluate(transaction.Payload, evalOptions);
+                var result = jsonSchema.Evaluate(payloadToValidate, evalOptions);
 
                 if (!result.IsValid)
                 {

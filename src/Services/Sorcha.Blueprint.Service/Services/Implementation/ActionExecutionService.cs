@@ -93,8 +93,17 @@ public class ActionExecutionService : IActionExecutionService
 
         _logger.LogInformation("Executing action {ActionId} for instance {InstanceId}", actionId, instanceId);
 
-        // 0. Replay protection — idempotency check
-        var idempotencyKey = GenerateIdempotencyKey(instanceId, actionId, request.SenderWallet);
+        // 1. Get the instance (before idempotency check, so we can include cycle context)
+        var instance = await _instanceStore.GetAsync(instanceId, cancellationToken);
+        if (instance == null)
+        {
+            throw new InvalidOperationException($"Instance {instanceId} not found");
+        }
+
+        // 1b. Replay protection — idempotency check
+        // Include LastTransactionId in the key so cyclic workflows (where the same action
+        // is executed multiple times) generate unique keys per cycle.
+        var idempotencyKey = GenerateIdempotencyKey(instanceId, actionId, request.SenderWallet, instance.LastTransactionId);
         var existingTxHash = await _actionStore.GetByIdempotencyKeyAsync(idempotencyKey);
         if (existingTxHash != null)
         {
@@ -103,13 +112,6 @@ public class ActionExecutionService : IActionExecutionService
                 instanceId, actionId, existingTxHash);
             throw new InvalidOperationException(
                 $"Duplicate submission. This action was already executed (transaction: {existingTxHash}).");
-        }
-
-        // 1. Get the instance
-        var instance = await _instanceStore.GetAsync(instanceId, cancellationToken);
-        if (instance == null)
-        {
-            throw new InvalidOperationException($"Instance {instanceId} not found");
         }
 
         // 2. Get the blueprint
@@ -169,6 +171,17 @@ public class ActionExecutionService : IActionExecutionService
 
         activity?.SetTag("state.action_count", accumulatedState.ActionCount);
 
+        // 5b. Fall back to instance-tracked LastTransactionId when register query fails.
+        // The Register Service may not support instance-based transaction queries yet,
+        // but the instance tracks the last confirmed transaction from prior executions.
+        if (string.IsNullOrEmpty(accumulatedState.PreviousTransactionId) && !string.IsNullOrEmpty(instance.LastTransactionId))
+        {
+            _logger.LogInformation(
+                "Using instance-tracked LastTransactionId {TxId} as previous transaction for action {ActionId}",
+                instance.LastTransactionId, actionId);
+            accumulatedState = accumulatedState with { PreviousTransactionId = instance.LastTransactionId };
+        }
+
         // 6. Validate input data against schema
         var validationResult = await ValidateActionDataAsync(actionDef, request.PayloadData, cancellationToken);
         if (!validationResult.IsValid)
@@ -193,6 +206,13 @@ public class ActionExecutionService : IActionExecutionService
 
         // 9. Apply disclosure rules for recipients
         var disclosedPayloads = ApplyDisclosures(actionDef, request.PayloadData, blueprint, instance.ParticipantWallets);
+
+        // If no disclosure rules defined, default to full disclosure under sender's wallet.
+        // This ensures the payload data is always present in the transaction for schema validation.
+        if (disclosedPayloads.Count == 0 && request.PayloadData.Count > 0)
+        {
+            disclosedPayloads[request.SenderWallet] = request.PayloadData;
+        }
 
         // 9b. Issue credential if action has issuance configuration
         CredentialIssuanceResult? issuedCredential = null;
@@ -221,10 +241,10 @@ public class ActionExecutionService : IActionExecutionService
             transaction.Metadata["credentialRecipient"] = issuedCredential.SubjectDid;
         }
 
-        // 11. Sign transaction (using default signing key, no derivation path)
+        // 11. Sign transaction using "{TxId}:{PayloadHash}" contract (matches Validator verification)
         var signResult = await _walletClient.SignTransactionAsync(
             request.SenderWallet,
-            transaction.TransactionData,
+            transaction.SigningData,
             derivationPath: null, // Use wallet's default signing key
             isPreHashed: false,
             cancellationToken);
@@ -400,10 +420,10 @@ public class ActionExecutionService : IActionExecutionService
             instance.LastTransactionId,
             cancellationToken);
 
-        // 8. Sign and submit to Validator Service
+        // 8. Sign and submit to Validator Service (using "{TxId}:{PayloadHash}" contract)
         var rejectSignResult = await _walletClient.SignTransactionAsync(
             request.SenderWallet ?? instance.ParticipantWallets.Values.FirstOrDefault() ?? "",
-            transaction.TransactionData,
+            transaction.SigningData,
             derivationPath: null,
             isPreHashed: false,
             cancellationToken);
@@ -833,10 +853,18 @@ public class ActionExecutionService : IActionExecutionService
             var hashBytes = System.Security.Cryptography.SHA256.HashData(transactionData);
             var txId = Convert.ToHexString(hashBytes).ToLowerInvariant();
 
+            // Compute PayloadHash for signing contract
+            var payloadElement = JsonSerializer.Deserialize<JsonElement>(transactionData);
+            var payloadJson = JsonSerializer.Serialize(payloadElement, new JsonSerializerOptions { WriteIndented = false });
+            var payloadHashBytes = System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(payloadJson));
+            var payloadHash = Convert.ToHexString(payloadHashBytes).ToLowerInvariant();
+
             var credTransaction = new BuiltTransaction
             {
                 TransactionData = transactionData,
                 TxId = txId,
+                PayloadHash = payloadHash,
                 TransactionType = "credential-issuance",
                 RegisterId = registerId,
                 Metadata = new Dictionary<string, object>
@@ -850,10 +878,10 @@ public class ActionExecutionService : IActionExecutionService
                 }
             };
 
-            // Sign the credential record transaction
+            // Sign using "{TxId}:{PayloadHash}" contract (matches Validator verification)
             var signResult = await _walletClient.SignTransactionAsync(
                 senderWallet,
-                transactionData,
+                credTransaction.SigningData,
                 derivationPath: null,
                 isPreHashed: false,
                 cancellationToken);
@@ -944,9 +972,9 @@ public class ActionExecutionService : IActionExecutionService
             senderWallet, participant.Id);
     }
 
-    private static string GenerateIdempotencyKey(string instanceId, int actionId, string senderWallet)
+    private static string GenerateIdempotencyKey(string instanceId, int actionId, string senderWallet, string? lastTransactionId = null)
     {
-        var keySource = $"instance:{instanceId}:action:{actionId}:wallet:{senderWallet}";
+        var keySource = $"instance:{instanceId}:action:{actionId}:wallet:{senderWallet}:prevTx:{lastTransactionId ?? "none"}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(keySource));
         return Convert.ToHexStringLower(hash);
     }

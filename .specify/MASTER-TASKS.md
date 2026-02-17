@@ -20,6 +20,10 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 ## Recent Updates
 
+| Date | Summary |
+|------|---------|
+| 2026-02-17 | Architecture Validation: 8 pipeline fixes (signature contract, blueprint cache, schema extraction, default disclosure, wallet link idempotency, LastTransactionId fallback, PreviousTransactionId field, cyclic idempotency). 3-round ping-pong walkthrough PASS. |
+
 **2026-02-17:**
 - ✅ SCHEMA-LIBRARY (034): Centralised schema registry with server-side cache and index of formal data standards
   - **Phase 1-2 (Setup/Foundational):** SchemaFieldInfo model, SchemaFieldExtractor (recursive JSON Schema traversal with $ref, nested objects, arrays), SchemaIndexEntry/SchemaIndexEntryDetail DTOs, ISchemaLibraryApiService interface

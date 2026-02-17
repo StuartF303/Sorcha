@@ -125,10 +125,19 @@ public static class TransactionBuilderServiceExtensions
         var hashBytes = System.Security.Cryptography.SHA256.HashData(transactionData);
         var txId = Convert.ToHexString(hashBytes).ToLowerInvariant();
 
+        // Compute PayloadHash eagerly — used for signing contract with Validator
+        // Serialize via JsonElement round-trip for canonical compact form
+        var payloadElement = JsonSerializer.Deserialize<JsonElement>(transactionData);
+        var payloadJson = JsonSerializer.Serialize(payloadElement, new JsonSerializerOptions { WriteIndented = false });
+        var payloadHashBytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(payloadJson));
+        var payloadHash = Convert.ToHexString(payloadHashBytes).ToLowerInvariant();
+
         return Task.FromResult(new BuiltTransaction
         {
             TransactionData = transactionData,
             TxId = txId,
+            PayloadHash = payloadHash,
             RegisterId = instance.RegisterId,
             Metadata = metadata
         });
@@ -174,10 +183,18 @@ public static class TransactionBuilderServiceExtensions
         var hashBytes = System.Security.Cryptography.SHA256.HashData(transactionData);
         var txId = Convert.ToHexString(hashBytes).ToLowerInvariant();
 
+        // Compute PayloadHash eagerly — used for signing contract with Validator
+        var payloadElement = JsonSerializer.Deserialize<JsonElement>(transactionData);
+        var payloadJson = JsonSerializer.Serialize(payloadElement, new JsonSerializerOptions { WriteIndented = false });
+        var payloadHashBytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(payloadJson));
+        var payloadHash = Convert.ToHexString(payloadHashBytes).ToLowerInvariant();
+
         return Task.FromResult(new BuiltTransaction
         {
             TransactionData = transactionData,
             TxId = txId,
+            PayloadHash = payloadHash,
             TransactionType = "rejection",
             RegisterId = instance.RegisterId,
             Metadata = metadata
@@ -199,6 +216,16 @@ public class BuiltTransaction
     /// The transaction ID (64-char SHA-256 hex hash)
     /// </summary>
     public required string TxId { get; init; }
+
+    /// <summary>
+    /// The payload hash (64-char SHA-256 hex hash of compact JSON)
+    /// </summary>
+    public required string PayloadHash { get; init; }
+
+    /// <summary>
+    /// The signing data: "{TxId}:{PayloadHash}" — matches Validator verification contract
+    /// </summary>
+    public byte[] SigningData => System.Text.Encoding.UTF8.GetBytes($"{TxId}:{PayloadHash}");
 
     /// <summary>
     /// Transaction type (action, rejection, file)
@@ -235,12 +262,6 @@ public class BuiltTransaction
     {
         var payloadElement = JsonSerializer.Deserialize<JsonElement>(TransactionData);
 
-        // Compute PayloadHash the same way the Validator does:
-        // Serialize the JsonElement with WriteIndented=false, then SHA-256 the UTF-8 bytes
-        var payloadJson = JsonSerializer.Serialize(payloadElement, new JsonSerializerOptions { WriteIndented = false });
-        var payloadHashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(payloadJson));
-        var payloadHash = Convert.ToHexString(payloadHashBytes).ToLowerInvariant();
-
         return new ActionTransactionSubmission
         {
             TransactionId = TxId,
@@ -248,7 +269,7 @@ public class BuiltTransaction
             BlueprintId = Metadata.GetValueOrDefault("blueprintId")?.ToString() ?? string.Empty,
             ActionId = Metadata.GetValueOrDefault("actionId")?.ToString() ?? string.Empty,
             Payload = payloadElement,
-            PayloadHash = payloadHash,
+            PayloadHash = PayloadHash,
             Signatures =
             [
                 new SignatureInfo
@@ -259,6 +280,7 @@ public class BuiltTransaction
                 }
             ],
             CreatedAt = DateTimeOffset.UtcNow,
+            PreviousTransactionId = Metadata.GetValueOrDefault("previousTxId")?.ToString(),
             Metadata = new Dictionary<string, string>
             {
                 ["instanceId"] = Metadata.GetValueOrDefault("instanceId")?.ToString() ?? string.Empty,

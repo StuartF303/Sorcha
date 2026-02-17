@@ -33,6 +33,9 @@ builder.AddInputValidation();
 // Add Redis output caching
 builder.AddRedisOutputCache("redis");
 
+// Add Redis client for direct access (blueprint cache population for Validator)
+builder.AddRedisClient("redis");
+
 // Add Redis distributed cache for IDistributedCache dependency
 builder.AddRedisDistributedCache("redis");
 
@@ -1979,11 +1982,15 @@ public class BlueprintService(IBlueprintStore store) : IBlueprintService
 public class PublishService(
     IBlueprintStore blueprintStore,
     IPublishedBlueprintStore publishedStore,
-    Sorcha.ServiceClients.Register.IRegisterServiceClient? registerClient = null) : IPublishService
+    Sorcha.ServiceClients.Register.IRegisterServiceClient? registerClient = null,
+    StackExchange.Redis.IConnectionMultiplexer? redis = null,
+    ILogger<PublishService>? logger = null) : IPublishService
 {
     private readonly IBlueprintStore _blueprintStore = blueprintStore;
     private readonly IPublishedBlueprintStore _publishedStore = publishedStore;
     private readonly Sorcha.ServiceClients.Register.IRegisterServiceClient? _registerClient = registerClient;
+    private readonly StackExchange.Redis.IConnectionMultiplexer? _redis = redis;
+    private readonly ILogger<PublishService>? _logger = logger;
 
     public async Task<BlueprintValidationResult> ValidateAsync(string blueprintId)
     {
@@ -2040,6 +2047,27 @@ public class PublishService(
         };
 
         await _publishedStore.AddAsync(published);
+
+        // Populate Validator's blueprint cache in Redis so transactions referencing this blueprint pass validation
+        if (_redis is not null)
+        {
+            try
+            {
+                var db = _redis.GetDatabase();
+                var cacheKey = $"sorcha:validator:blueprint:{blueprintId}";
+                var blueprintJson = System.Text.Json.JsonSerializer.Serialize(blueprint, new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                });
+                await db.StringSetAsync(cacheKey, blueprintJson, TimeSpan.FromHours(24));
+                _logger?.LogInformation("Blueprint {BlueprintId} cached in Redis for Validator (key: {CacheKey})", blueprintId, cacheKey);
+            }
+            catch (Exception ex)
+            {
+                // Non-fatal: Validator will fail with VAL_SCHEMA_001 but publishing itself succeeded
+                _logger?.LogWarning(ex, "Failed to cache blueprint {BlueprintId} in Redis for Validator", blueprintId);
+            }
+        }
 
         // If a register is specified, also publish to the register
         if (!string.IsNullOrEmpty(registerId) && _registerClient is not null)

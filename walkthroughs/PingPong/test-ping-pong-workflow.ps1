@@ -288,7 +288,8 @@ $totalSteps++
 try {
     # Read the ping-pong template JSON
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $templatePath = Join-Path (Split-Path -Parent (Split-Path -Parent $scriptDir)) "examples/templates/ping-pong-template.json"
+    $repoRoot = Split-Path -Parent (Split-Path -Parent $scriptDir)
+    $templatePath = Join-Path $repoRoot "blueprints/ping-pong-template.json"
     Write-Info "Loading template from: $templatePath"
     $templateJson = Get-Content -Path $templatePath -Raw | ConvertFrom-Json
 

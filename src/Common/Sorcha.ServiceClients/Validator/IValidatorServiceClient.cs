@@ -69,6 +69,7 @@ public record ActionTransactionSubmission
     public required string PayloadHash { get; init; }
     public required List<SignatureInfo> Signatures { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
+    public string? PreviousTransactionId { get; init; }
     public Dictionary<string, string>? Metadata { get; init; }
 }
 

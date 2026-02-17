@@ -480,7 +480,8 @@ $blueprintId = $null
 
 try {
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $templatePath = Join-Path (Split-Path -Parent (Split-Path -Parent $scriptDir)) "examples/templates/ping-pong-template.json"
+    $repoRoot = Split-Path -Parent (Split-Path -Parent $scriptDir)
+    $templatePath = Join-Path $repoRoot "blueprints/ping-pong-template.json"
 
     if (-not (Test-Path $templatePath)) {
         Write-Warn "Ping-pong template not found at $templatePath"

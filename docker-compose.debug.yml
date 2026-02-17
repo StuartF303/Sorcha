@@ -1,13 +1,39 @@
-# Docker Compose override for JWT debugging
-# Usage: docker-compose -f docker-compose.yml -f docker-compose.debug.yml up -d tenant-service
+# Docker Compose override for architecture validation debugging
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.debug.yml up -d
+# Or selectively: docker-compose -f docker-compose.yml -f docker-compose.debug.yml up -d tenant-service register-service
 
 services:
   tenant-service:
     environment:
-      # Enable debug logging for authentication/authorization
       Logging__LogLevel__Microsoft.AspNetCore.Authentication: Debug
       Logging__LogLevel__Microsoft.AspNetCore.Authorization: Debug
       Logging__LogLevel__JwtAuthentication: Debug
-
-      # Also log all claims
       Logging__LogLevel__Sorcha.Tenant.Service: Debug
+
+  register-service:
+    environment:
+      Logging__LogLevel__Sorcha.Register: Debug
+      Logging__LogLevel__Sorcha.Register.Service: Debug
+      Logging__LogLevel__Sorcha.Register.Core: Debug
+
+  validator-service:
+    environment:
+      Logging__LogLevel__Sorcha.Validator: Debug
+      Logging__LogLevel__Sorcha.Validator.Service: Debug
+      Logging__LogLevel__Sorcha.Validator.Core: Debug
+
+  blueprint-service:
+    environment:
+      Logging__LogLevel__Sorcha.Blueprint: Debug
+      Logging__LogLevel__Sorcha.Blueprint.Service: Debug
+      Logging__LogLevel__Sorcha.Blueprint.Engine: Debug
+
+  wallet-service:
+    environment:
+      Logging__LogLevel__Sorcha.Wallet: Debug
+      Logging__LogLevel__Sorcha.Wallet.Service: Debug
+
+  api-gateway:
+    environment:
+      Logging__LogLevel__Yarp: Debug
+      Logging__LogLevel__Sorcha.ApiGateway: Debug
