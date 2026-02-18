@@ -57,26 +57,26 @@ Extended `docker-compose.debug.yml` to cover all services:
 1. `POST /api/registers/initiate` → get attestations to sign
 2. Sign attestation hashes with wallet
 3. `POST /api/registers/finalize` → genesis transaction created
-4. Genesis TX → Validator unverified pool (Redis)
-5. ValidationEngine validates structure + signatures
-6. Promoted to verified queue
-7. DocketBuilder creates genesis docket (docket #0)
-8. ConsensusEngine achieves quorum
-9. Docket written to Register Service (MongoDB)
-10. Register status: "created"
+4. `ISystemWalletSigningService.SignAsync()` signs with system wallet using `{TxId}:{PayloadHash}` format
+5. Genesis TX → `POST /api/v1/transactions/validate` (generic endpoint)
+6. ValidationEngine validates structure + signatures (all types verified uniformly)
+7. Promoted to verified queue
+8. DocketBuilder creates genesis docket (docket #0)
+9. ConsensusEngine achieves quorum
+10. Docket written to Register Service (MongoDB)
+11. Register status: "created"
 
-### 2.2 Observed Behavior
+### 2.2 Observed Behavior (Pre-036)
 - **Steps 1-3**: Register creation orchestrator works correctly. Control record written to MongoDB.
 - **Step 4**: Genesis TX submitted to Validator unverified pool via Redis.
-- **Step 5**: Genesis TX **fails** validation with VAL_SIG_002 (signature mismatch — see Fix 1). Genesis uses `BlueprintId = "genesis"` and `IsGenesisOrControlTransaction()` skips schema validation, but signature verification still runs against the wrong signing contract.
-- **Steps 6-7**: DocketBuilder detects `height=0` and creates **empty** genesis docket (0 transactions) before ValidationEngine processes the genesis TX.
-- **Steps 8-9**: 0 active validators → auto-approved. Empty docket #0 written to Register Service.
-- **Step 10**: Register status set to "created" via direct write path in `RegisterCreationOrchestrator`.
+- **Step 5**: Genesis TX **failed** validation with VAL_SIG_002 (signature mismatch). Genesis used `BlueprintId = "genesis"` and `IsGenesisOrControlTransaction()` skipped schema validation, but signature verification ran against the wrong signing contract.
+- **Steps 6-7**: DocketBuilder detected `height=0` and created **empty** genesis docket (0 transactions) before ValidationEngine processed the genesis TX.
 
-### 2.3 Issues Found
-- **Genesis TX VAL_SIG_002** (known, non-blocking): Genesis signing path signs `SHA256(controlRecordJson)` with `isPreHashed: true`, but Validator verifies `SHA256("{TxId}:{PayloadHash}")`. The register creation still works because the orchestrator writes the control record directly.
-- **Empty genesis docket**: Docket #0 always contains 0 transactions. The genesis TX never makes it to the verified queue due to signature failure.
-- **Impact**: None for current flow. Register creation is functional. Future work should align genesis signing with the standard contract.
+### 2.3 Resolution (036-unified-transaction-submission)
+- **VAL_SIG_002 FIXED**: `ISystemWalletSigningService` now signs with `SHA256("{TxId}:{PayloadHash}")` format, matching what `VerifySignaturesAsync` expects. Genesis transactions now pass signature verification.
+- **Signature skip REMOVED**: `IsGenesisOrControlTransaction()` no longer bypasses signature verification. All transaction types are verified uniformly.
+- **Legacy genesis endpoint REMOVED**: `POST /api/validator/genesis` no longer exists. All types submit via `POST /api/v1/transactions/validate`.
+- **Empty genesis docket**: May still occur if DocketBuilder runs before genesis TX is validated. This is a timing issue, not a signing issue.
 
 ---
 

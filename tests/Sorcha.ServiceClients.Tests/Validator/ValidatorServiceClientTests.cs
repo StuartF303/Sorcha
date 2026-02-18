@@ -33,9 +33,9 @@ public class ValidatorServiceClientTests
         return new ValidatorServiceClient(_configuration, _mockLogger.Object, httpClient);
     }
 
-    private static ActionTransactionSubmission CreateTestRequest()
+    private static TransactionSubmission CreateTestRequest()
     {
-        return new ActionTransactionSubmission
+        return new TransactionSubmission
         {
             TransactionId = "abc123def456abc123def456abc123def456abc123def456abc123def456abc12345",
             RegisterId = "register-1",

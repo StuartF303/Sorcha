@@ -293,7 +293,8 @@ This service is the keys to the kingdom — any component that can resolve it ca
 | Component | File | Purpose |
 |-----------|------|---------|
 | Generic endpoint | `src/Services/Sorcha.Validator.Service/Endpoints/ValidationEndpoints.cs` | `ValidateTransaction` — accepts all transaction types |
-| Genesis endpoint (LEGACY) | Same file | `SubmitGenesisTransaction` — to be deprecated |
+| ~~Genesis endpoint~~ | ~~Same file~~ | ~~Removed in 036~~ — all types now use generic endpoint |
+| System wallet signing | `src/Common/Sorcha.ServiceClients/SystemWallet/SystemWalletSigningService.cs` | Centralized system wallet signing with whitelist, rate limiting, audit logging |
 | Validation engine | `src/Services/Sorcha.Validator.Service/Services/ValidationEngine.cs` | 6-stage validation pipeline |
 | Validation poller | `src/Services/Sorcha.Validator.Service/Services/ValidationEngineService.cs` | Background polling of unverified pool |
 | Docket builder | `src/Services/Sorcha.Validator.Service/Services/DocketBuilder.cs` | Builds dockets from verified transactions |
@@ -314,34 +315,42 @@ This service is the keys to the kingdom — any component that can resolve it ca
 
 ## Action Items
 
-### Immediate (P0)
+### Completed (036-unified-transaction-submission)
 
-1. **Refactor blueprint publish** to use `SubmitTransactionAsync()` (generic endpoint) instead of `SubmitGenesisTransactionAsync()` (genesis endpoint). Register Service publish endpoint needs to sign with system wallet before submission.
+1. ~~**Refactor blueprint publish**~~ ✅ Now uses `ISystemWalletSigningService.SignAsync()` + `SubmitTransactionAsync()` (generic endpoint).
 
-2. **Refactor RegisterCreationOrchestrator** to use `SubmitTransactionAsync()` instead of `SubmitGenesisTransactionAsync()`. It already has `IWalletServiceClient` — just needs to sign the genesis transaction before submission.
+2. ~~**Refactor RegisterCreationOrchestrator**~~ ✅ Now uses `ISystemWalletSigningService.SignAsync()` + `SubmitTransactionAsync()`.
 
-3. **Create ISystemWalletSigningService** to encapsulate system wallet acquisition, signing, and retry logic. Used by both the orchestrator and publish endpoint.
+3. ~~**Create ISystemWalletSigningService**~~ ✅ Created at `src/Common/Sorcha.ServiceClients/SystemWallet/` with whitelist, rate limiting, audit logging, and wallet caching.
 
-4. **Investigate validator initialization loop** — Determine why validator only logs initialization messages and never processes transactions.
+4. **Investigate validator initialization loop** — 📋 Not yet resolved. Still needs investigation.
 
-5. **Clean up orphan transaction** — Remove the directly-stored transaction from MongoDB.
+5. **Clean up orphan transaction** — 📋 Not yet resolved. Requires MongoDB admin access.
 
-### Short-term (P1)
+6. ~~**Deprecate genesis endpoint**~~ ✅ Removed entirely — `POST /api/validator/genesis` no longer exists.
 
-6. **Deprecate genesis endpoint** — Once all callers use the generic endpoint, mark the genesis endpoint as deprecated.
+7. ~~**Audit ValidationEngine for type-specific logic**~~ ✅ Removed signature verification skip for genesis/control. Schema/blueprint conformance skips remain correct.
 
-7. **Audit ValidationEngine for type-specific logic** — Ensure the pipeline doesn't have hard-coded BlueprintId checks that would reject genesis/control transactions submitted via the generic endpoint.
+8. **Wire governance endpoints** through the generic submission path — 📋 Not yet done.
 
-8. **Wire governance endpoints** through the generic submission path.
+9. ~~**Audit all transaction write paths**~~ ✅ Full audit in research R3. See tech debt below.
 
-9. **Audit all transaction write paths** — Ensure NO path writes to the register without going through the validator. Known paths to check:
-   - ~~Blueprint publish endpoint~~ (FIXED — uses validator, but still via genesis endpoint)
-   - Governance endpoints
-   - Any diagnostic/admin endpoints
-   - The WriteDocket endpoint's transaction insertion (OK — validator calls it)
+10. ~~**Remove genesis endpoint**~~ ✅ Removed endpoint, models (`GenesisTransactionSubmission`, `GenesisTransactionRequest`, `GenesisSignature`), and client method (`SubmitGenesisTransactionAsync`).
 
-### Long-term (P2)
+11. ~~**Unify service client**~~ ✅ Single `SubmitTransactionAsync()` on `IValidatorServiceClient` using `TransactionSubmission` (renamed from `ActionTransactionSubmission`).
 
-10. **Remove genesis endpoint** and all associated models (`GenesisTransactionSubmission`, `GenesisTransactionRequest`, `SubmitGenesisTransactionAsync`).
+### Known Tech Debt: Direct-Write Paths That Bypass Validator
 
-11. **Unify service client** — Only `SubmitTransactionAsync()` on `IValidatorServiceClient`, using `ActionTransactionSubmission` (rename to `TransactionSubmission`).
+The following paths write transactions directly to the Register Service, bypassing the validator pipeline. These were identified during the 036 audit (research R3) and are documented here for future remediation.
+
+| # | Path | Source File | Current Target | Risk |
+|---|------|-------------|---------------|------|
+| 6 | Action execution endpoint | `src/Services/Sorcha.Blueprint.Service/Program.cs` (~line 880) | `POST /api/registers/{id}/transactions` (DIRECT) | **HIGH**: Creates unsigned/unvalidated action transactions |
+| 7 | Action rejection endpoint | `src/Services/Sorcha.Blueprint.Service/Program.cs` (~line 1031) | `POST /api/registers/{id}/transactions` (DIRECT) | **HIGH**: Creates unsigned/unvalidated rejection transactions |
+| 8 | Validator registration | `ValidatorRegistry.cs` (~line 305) | `POST /api/registers/{id}/transactions` (DIRECT) | **MEDIUM**: Chicken-and-egg — validator registers itself |
+| 9 | Validator approval | `ValidatorRegistry.cs` (~line 483) | `POST /api/registers/{id}/transactions` (DIRECT) | **MEDIUM**: Validator approves other validators |
+| 10 | Diagnostic endpoint | `src/Services/Sorcha.Register.Service/Program.cs` (~line 750) | Direct `TransactionManager.StoreTransactionAsync` | **LOW**: Marked internal/diagnostic only |
+
+**Paths 6-7** are the highest priority — these are legacy Blueprint Service endpoints that duplicate the ActionExecutionService logic but skip the validator entirely. They should be redirected to use `IValidatorServiceClient.SubmitTransactionAsync()` or removed if the ActionExecutionService endpoints are the canonical path.
+
+**Paths 8-9** are special cases for validator self-registration. Consider using `ISystemWalletSigningService` + generic endpoint, or document as acceptable exceptions.

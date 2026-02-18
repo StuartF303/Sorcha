@@ -254,7 +254,7 @@ public class ActionExecutionService : IActionExecutionService
         transaction.Signature = signResult.Signature;
 
         // 12. Submit to Validator Service (mempool → docket → Register)
-        var submission = transaction.ToActionTransactionSubmission(signResult);
+        var submission = transaction.ToTransactionSubmission(signResult);
         var validatorResult = await _validatorClient.SubmitTransactionAsync(submission, cancellationToken);
 
         if (!validatorResult.Success)
@@ -431,7 +431,7 @@ public class ActionExecutionService : IActionExecutionService
         transaction.SenderWallet = request.SenderWallet ?? instance.ParticipantWallets.Values.FirstOrDefault() ?? "";
         transaction.Signature = rejectSignResult.Signature;
 
-        var rejectSubmission = transaction.ToActionTransactionSubmission(rejectSignResult);
+        var rejectSubmission = transaction.ToTransactionSubmission(rejectSignResult);
         var rejectResult = await _validatorClient.SubmitTransactionAsync(rejectSubmission, cancellationToken);
 
         if (!rejectResult.Success)
@@ -890,7 +890,7 @@ public class ActionExecutionService : IActionExecutionService
             credTransaction.Signature = signResult.Signature;
 
             // Submit to the Validator for the credential register
-            var submission = credTransaction.ToActionTransactionSubmission(signResult);
+            var submission = credTransaction.ToTransactionSubmission(signResult);
             var result = await _validatorClient.SubmitTransactionAsync(submission, cancellationToken);
 
             if (result.Success)

@@ -253,16 +253,16 @@ public class BuiltTransaction
     public Dictionary<string, object> Metadata { get; init; } = new();
 
     /// <summary>
-    /// Converts to an ActionTransactionSubmission for submission to the Validator Service.
+    /// Converts to an TransactionSubmission for submission to the Validator Service.
     /// Maps BuiltTransaction fields to the Validator's expected format per data-model.md.
     /// </summary>
     /// <param name="signResult">The wallet sign result containing signature and public key bytes</param>
-    /// <returns>An ActionTransactionSubmission ready for Validator Service submission</returns>
-    public ActionTransactionSubmission ToActionTransactionSubmission(Sorcha.ServiceClients.Wallet.WalletSignResult signResult)
+    /// <returns>An TransactionSubmission ready for Validator Service submission</returns>
+    public TransactionSubmission ToTransactionSubmission(Sorcha.ServiceClients.Wallet.WalletSignResult signResult)
     {
         var payloadElement = JsonSerializer.Deserialize<JsonElement>(TransactionData);
 
-        return new ActionTransactionSubmission
+        return new TransactionSubmission
         {
             TransactionId = TxId,
             RegisterId = RegisterId,

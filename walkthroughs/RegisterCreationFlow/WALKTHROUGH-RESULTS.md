@@ -149,12 +149,12 @@ Register Service (RegisterCreationOrchestrator)
   - Lookup stored hash bytes by "{role}:{subject}"
   - Verify each signature against stored hash (no re-serialization)
   - Build genesis transaction with real PayloadHash
+  - Sign with ISystemWalletSigningService (SHA256("{TxId}:{PayloadHash}"))
   |
-  | 5. POST /api/validator/genesis (via API Gateway)
+  | 5. POST /api/v1/transactions/validate (generic endpoint)
   v
 Validator Service
-  - Sign control record with system wallet (isPreHashed=true)
-  - Use real public key from wallet (not placeholder)
+  - Validate structure + verify system wallet signature
   - Store genesis transaction in mempool (HIGH priority)
   |
   | 6. Only if genesis succeeds:

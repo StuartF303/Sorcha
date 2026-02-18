@@ -230,10 +230,16 @@ public class RegisterCreationApiTests : IClassFixture<WebApplicationFactory<Prog
         // Arrange - Mock the Validator client to avoid real HTTP calls
         var mockValidatorClient = new Mock<IValidatorServiceClient>();
         mockValidatorClient
-            .Setup(v => v.SubmitGenesisTransactionAsync(
-                It.IsAny<GenesisTransactionSubmission>(),
+            .Setup(v => v.SubmitTransactionAsync(
+                It.IsAny<TransactionSubmission>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(new TransactionSubmissionResult
+            {
+                Success = true,
+                TransactionId = "tx-placeholder",
+                RegisterId = "reg-placeholder",
+                AddedAt = DateTimeOffset.UtcNow
+            });
 
         var client = _factory.WithWebHostBuilder(builder =>
         {

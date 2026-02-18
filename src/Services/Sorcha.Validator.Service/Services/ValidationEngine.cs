@@ -483,20 +483,6 @@ public class ValidationEngine : IValidationEngine
         var sw = Stopwatch.StartNew();
         var errors = new List<ValidationEngineError>();
 
-        // Genesis/control transactions include attestation signatures signed against
-        // control record hashes during the Initiate phase — a different signing contract
-        // than the standard "{TxId}:{PayloadHash}". Skip verification here; genesis
-        // integrity is guaranteed by the RegisterCreationOrchestrator's direct write path.
-        if (IsGenesisOrControlTransaction(transaction))
-        {
-            _logger.LogDebug("Skipping signature verification for genesis/control transaction {TransactionId}",
-                transaction.TransactionId);
-            return ValidationEngineResult.Success(
-                transaction.TransactionId,
-                transaction.RegisterId,
-                sw.Elapsed);
-        }
-
         try
         {
             // The data that was signed is the transaction ID + payload hash

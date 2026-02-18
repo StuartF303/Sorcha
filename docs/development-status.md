@@ -89,6 +89,19 @@ For detailed implementation status, see the individual section files:
 
 ## Recent Completions
 
+### 2026-02-18
+- **036-Unified-Transaction-Submission** (26 tasks, 7 phases — single transaction submission path)
+  - Created ISystemWalletSigningService: singleton with wallet caching, derivation path whitelist, sliding-window rate limiting, structured audit logging
+  - Unified all transaction types (genesis, control, action) through `POST /api/v1/transactions/validate`
+  - Removed signature verification skip for genesis/control transactions — all types now require valid signatures
+  - Migrated register creation (RegisterCreationOrchestrator) from legacy genesis endpoint to signing service + generic endpoint
+  - Migrated blueprint publish (Register Service Program.cs) from legacy genesis endpoint to signing service + generic endpoint
+  - Removed legacy genesis endpoint (`POST /api/validator/genesis`), GenesisTransactionSubmission, GenesisSignature, SubmitGenesisTransactionAsync
+  - Renamed ActionTransactionSubmission → TransactionSubmission (single unified model)
+  - Documented direct-write tech debt: Blueprint Service paths 6-7, Validator self-registration paths 8-9
+  - 15 new signing service tests, 4 new blueprint publish tests, 28 TransactionBuilder tests updated
+  - Test results: ServiceClients 24 pass, Validator 627 pass (1 pre-existing), Blueprint Service 28 pass
+
 ### 2026-02-11
 - **031-Register-Governance** (80 tasks, 9 phases — decentralized register governance)
   - TransactionType.Genesis renamed to Control (value 0 preserved), System=3 removed

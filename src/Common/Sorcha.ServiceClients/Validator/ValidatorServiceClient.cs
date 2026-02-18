@@ -46,7 +46,7 @@ public class ValidatorServiceClient : IValidatorServiceClient
     /// Submits an action transaction to the Validator Service for validation and mempool inclusion
     /// </summary>
     public async Task<TransactionSubmissionResult> SubmitTransactionAsync(
-        ActionTransactionSubmission request,
+        TransactionSubmission request,
         CancellationToken cancellationToken = default)
     {
         try
@@ -146,47 +146,4 @@ public class ValidatorServiceClient : IValidatorServiceClient
         }
     }
 
-    /// <summary>
-    /// Submits a genesis transaction to the Validator Service mempool
-    /// </summary>
-    public async Task<bool> SubmitGenesisTransactionAsync(
-        GenesisTransactionSubmission request,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            _logger.LogInformation(
-                "Submitting genesis transaction for register {RegisterId} to Validator Service",
-                request.RegisterId);
-
-            var response = await _httpClient.PostAsJsonAsync(
-                "/api/validator/genesis",
-                request,
-                cancellationToken);
-
-            if (response.IsSuccessStatusCode)
-            {
-                _logger.LogInformation(
-                    "Genesis transaction for register {RegisterId} submitted successfully",
-                    request.RegisterId);
-                return true;
-            }
-
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogWarning(
-                "Failed to submit genesis transaction for register {RegisterId}: {StatusCode} - {Content}",
-                request.RegisterId,
-                response.StatusCode,
-                content);
-
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "Error submitting genesis transaction for register {RegisterId}",
-                request.RegisterId);
-            return false;
-        }
-    }
 }
