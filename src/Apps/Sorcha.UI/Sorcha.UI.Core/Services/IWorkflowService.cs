@@ -27,7 +27,17 @@ public interface IWorkflowService
     Task<List<PendingActionViewModel>> GetPendingActionsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Submits action data for a workflow step.
+    /// Creates a new workflow instance for a blueprint in a register.
+    /// </summary>
+    Task<WorkflowInstanceViewModel?> CreateInstanceAsync(string blueprintId, string registerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Submits action data for a workflow step with full request context.
+    /// </summary>
+    Task<ActionSubmissionResultViewModel?> SubmitActionExecuteAsync(ActionExecuteRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Submits action data for a workflow step (legacy).
     /// </summary>
     Task<bool> SubmitActionAsync(ActionSubmissionViewModel submission, CancellationToken cancellationToken = default);
 

@@ -29,6 +29,9 @@
     [Parameter]
     public PendingActionViewModel Action { get; set; } = new();
 
+    [Parameter]
+    public string WalletAddress { get; set; } = string.Empty;
+
     private Sorcha.Blueprint.Models.Action _blueprintAction = new();
     private string _participantAddress = string.Empty;
     private string _signingWallet = string.Empty;
@@ -48,6 +51,13 @@
         {
             var schemaJson = Action.DataSchema.Value.GetRawText();
             _blueprintAction.DataSchemas = [JsonDocument.Parse(schemaJson)];
+        }
+
+        // Wire wallet address for signing
+        if (!string.IsNullOrEmpty(WalletAddress))
+        {
+            _signingWallet = WalletAddress;
+            _participantAddress = WalletAddress;
         }
     }
 

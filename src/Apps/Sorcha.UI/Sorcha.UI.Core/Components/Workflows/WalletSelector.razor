@@ -1,0 +1,82 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Wallet
+
+@if (Wallets is { Count: 0 } or null)
+{
+    <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+        No wallets available.
+        <MudLink Href="my-wallet" Typo="Typo.body2" Color="Color.Inherit" Underline="Underline.Always">
+            Create a wallet
+        </MudLink>
+    </MudAlert>
+}
+else if (Wallets.Count == 1)
+{
+    @* Single wallet: auto-selected, just show info *@
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Size="Size.Small" Color="Color.Primary" />
+        <MudText Typo="Typo.body2">
+            <strong>@Wallets[0].Name</strong> (@Wallets[0].Address[..Math.Min(8, Wallets[0].Address.Length)]...)
+        </MudText>
+        <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@Wallets[0].Algorithm</MudChip>
+    </MudStack>
+}
+else
+{
+    @* Multiple wallets: show dropdown selector *@
+    <MudSelect T="string" Label="Signing Wallet" Value="@SelectedAddress"
+               ValueChanged="HandleSelectionChanged" Variant="Variant.Outlined"
+               Dense="true" Class="mb-2" AnchorOrigin="Origin.BottomCenter">
+        @foreach (var wallet in Wallets)
+        {
+            <MudSelectItem T="string" Value="@wallet.Address">
+                @wallet.Name (@wallet.Address[..Math.Min(8, wallet.Address.Length)]...) — @wallet.Algorithm
+            </MudSelectItem>
+        }
+    </MudSelect>
+
+    @if (ShowSetDefault)
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudCheckBox T="bool" Value="@_isDefault" ValueChanged="HandleDefaultToggle"
+                         Label="Set as default wallet" Size="Size.Small" Dense="true" />
+        </MudStack>
+    }
+}
+
+@code {
+    [Parameter]
+    public List<WalletDto>? Wallets { get; set; }
+
+    [Parameter]
+    public string SelectedAddress { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> SelectedAddressChanged { get; set; }
+
+    [Parameter]
+    public bool ShowSetDefault { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnSetDefault { get; set; }
+
+    private bool _isDefault;
+
+    private async Task HandleSelectionChanged(string value)
+    {
+        SelectedAddress = value;
+        await SelectedAddressChanged.InvokeAsync(value);
+        _isDefault = false;
+    }
+
+    private async Task HandleDefaultToggle(bool isChecked)
+    {
+        _isDefault = isChecked;
+        if (isChecked && !string.IsNullOrEmpty(SelectedAddress))
+        {
+            await OnSetDefault.InvokeAsync(SelectedAddress);
+        }
+    }
+}

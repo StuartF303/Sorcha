@@ -3,6 +3,7 @@
 
 using Sorcha.UI.Core.Models.Blueprints;
 using Sorcha.UI.Core.Models.Common;
+using Sorcha.UI.Core.Models.Workflows;
 
 namespace Sorcha.UI.Core.Services;
 
@@ -21,4 +22,5 @@ public interface IBlueprintApiService
     Task<PublishReviewViewModel?> PublishBlueprintToRegisterAsync(string id, string registerId, CancellationToken cancellationToken = default);
     Task<List<BlueprintVersionViewModel>> GetVersionsAsync(string id, CancellationToken cancellationToken = default);
     Task<BlueprintListItemViewModel?> GetVersionAsync(string id, string version, CancellationToken cancellationToken = default);
+    Task<AvailableBlueprintsViewModel?> GetAvailableBlueprintsAsync(string walletAddress, string registerId, CancellationToken cancellationToken = default);
 }

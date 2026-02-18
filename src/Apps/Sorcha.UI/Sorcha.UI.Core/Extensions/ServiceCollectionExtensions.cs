@@ -60,6 +60,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFormSchemaService, FormSchemaService>();
         services.AddScoped<IFormSigningService, FormSigningService>();
 
+        // Wallet preference service (localStorage-backed)
+        services.AddScoped<IWalletPreferenceService, WalletPreferenceService>();
+
         // HTTP message handler for authenticated API calls (registered but not used by AuthenticationService)
         services.AddTransient<AuthenticatedHttpMessageHandler>();
 

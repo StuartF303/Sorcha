@@ -99,6 +99,66 @@ public class WorkflowService : IWorkflowService
         }
     }
 
+    public async Task<WorkflowInstanceViewModel?> CreateInstanceAsync(string blueprintId, string registerId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(
+                "/api/instances",
+                new { blueprintId, registerId },
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to create instance for blueprint {BlueprintId}: {StatusCode}", blueprintId, response.StatusCode);
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<WorkflowInstanceViewModel>(cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating instance for blueprint {BlueprintId}", blueprintId);
+            return null;
+        }
+    }
+
+    public async Task<ActionSubmissionResultViewModel?> SubmitActionExecuteAsync(ActionExecuteRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var body = new
+            {
+                blueprintId = request.BlueprintId,
+                actionId = request.ActionId,
+                instanceId = request.InstanceId,
+                senderWallet = request.SenderWallet,
+                registerAddress = request.RegisterAddress,
+                payloadData = request.PayloadData
+            };
+
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post,
+                $"/api/instances/{request.InstanceId}/actions/{request.ActionId}/execute");
+            httpRequest.Content = JsonContent.Create(body);
+            httpRequest.Headers.Add("X-Delegation-Token", "delegate");
+
+            var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to execute action {ActionId} on instance {InstanceId}: {StatusCode}",
+                    request.ActionId, request.InstanceId, response.StatusCode);
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<ActionSubmissionResultViewModel>(cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error executing action {ActionId} on instance {InstanceId}", request.ActionId, request.InstanceId);
+            return null;
+        }
+    }
+
     public async Task<bool> SubmitActionAsync(ActionSubmissionViewModel submission, CancellationToken cancellationToken = default)
     {
         try

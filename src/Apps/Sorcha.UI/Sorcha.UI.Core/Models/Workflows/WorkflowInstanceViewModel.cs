@@ -45,3 +45,16 @@ public record ActionSubmissionViewModel
     public string InstanceId { get; init; } = string.Empty;
     public Dictionary<string, object> Data { get; init; } = new();
 }
+
+/// <summary>
+/// Full request model for executing an action with all required context.
+/// </summary>
+public record ActionExecuteRequest
+{
+    public string BlueprintId { get; init; } = string.Empty;
+    public string ActionId { get; init; } = string.Empty;
+    public string InstanceId { get; init; } = string.Empty;
+    public string SenderWallet { get; init; } = string.Empty;
+    public string RegisterAddress { get; init; } = string.Empty;
+    public Dictionary<string, object> PayloadData { get; init; } = new();
+}
