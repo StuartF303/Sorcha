@@ -1110,9 +1110,9 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
     PublishBlueprintToRegisterRequest request,
     IRegisterRepository repository,
     SystemRegisterService systemRegister,
-    TransactionManager transactionManager,
     IHashProvider hashProvider,
-    Sorcha.Register.Core.Services.IGovernanceRosterService rosterService) =>
+    Sorcha.Register.Core.Services.IGovernanceRosterService rosterService,
+    Sorcha.ServiceClients.Validator.IValidatorServiceClient validatorClient) =>
 {
     // Verify register exists
     var register = await repository.GetRegisterAsync(registerId);
@@ -1148,67 +1148,48 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
         systemVersion = existingEntry.Version;
     }
 
-    // Write a Control transaction to the target register's ledger so users can
-    // discover which blueprints (workflows) are available on this register.
+    // Submit a Control transaction to the validator for validation and docket creation.
+    // All transactions must go through the validator — never write directly to the register.
     var blueprintBytes = System.Text.Encoding.UTF8.GetBytes(request.BlueprintJson);
     var payloadHash = hashProvider.ComputeHash(blueprintBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
     var payloadHashHex = Convert.ToHexString(payloadHash).ToLowerInvariant();
 
+    // Deterministic TxId so re-publishing the same blueprint is idempotent
     var txIdSource = System.Text.Encoding.UTF8.GetBytes($"blueprint-publish-{registerId}-{request.BlueprintId}");
     var txIdHash = hashProvider.ComputeHash(txIdSource, Sorcha.Cryptography.Enums.HashType.SHA256);
     var txId = Convert.ToHexString(txIdHash).ToLowerInvariant();
 
-    // Check if this blueprint was already published to this register (idempotent)
-    var existingTx = await transactionManager.GetTransactionAsync(registerId, txId);
-    if (existingTx is not null)
-    {
-        return Results.Ok(new
-        {
-            blueprintId = request.BlueprintId,
-            registerId,
-            txId,
-            version = systemVersion,
-            publishedAt = existingTx.TimeStamp,
-            alreadyPublished = true
-        });
-    }
+    // Submit to the validator's genesis endpoint — it handles system wallet signing,
+    // mempool submission, and docket creation
+    var controlRecordElement = System.Text.Json.JsonDocument.Parse(request.BlueprintJson).RootElement;
 
-    // Find chain head: latest transaction on this register to chain from
-    var allTxs = await repository.GetTransactionsAsync(registerId);
-    var chainHead = allTxs.OrderByDescending(t => t.TimeStamp).FirstOrDefault();
-
-    var blueprintTx = new TransactionModel
+    var submission = new Sorcha.ServiceClients.Validator.GenesisTransactionSubmission
     {
-        TxId = txId,
+        TransactionId = txId,
         RegisterId = registerId,
-        SenderWallet = "system",
-        TimeStamp = DateTime.UtcNow,
-        PrevTxId = chainHead?.TxId ?? string.Empty,
-        PayloadCount = 1,
-        Payloads =
-        [
-            new PayloadModel
-            {
-                Data = Convert.ToBase64String(blueprintBytes),
-                WalletAccess = Array.Empty<string>(),
-                Hash = payloadHashHex
-            }
-        ],
-        MetaData = new TransactionMetaData
+        ControlRecordPayload = controlRecordElement,
+        PayloadHash = payloadHashHex,
+        Signatures = new List<Sorcha.ServiceClients.Validator.GenesisSignature>(),
+        CreatedAt = DateTimeOffset.UtcNow,
+        RegisterName = register.Name,
+        TenantId = register.TenantId,
+        BlueprintId = request.BlueprintId,
+        ActionId = "blueprint-publish",
+        Metadata = new Dictionary<string, string>
         {
-            RegisterId = registerId,
-            TransactionType = TransactionType.Control,
-            BlueprintId = request.BlueprintId,
-            TrackingData = new Dictionary<string, string>
-            {
-                ["transactionType"] = "BlueprintPublish",
-                ["publishedBy"] = request.PublishedBy
-            }
-        },
-        Signature = string.Empty
+            ["transactionType"] = "BlueprintPublish",
+            ["publishedBy"] = request.PublishedBy
+        }
     };
 
-    await transactionManager.StoreTransactionAsync(blueprintTx);
+    var submitted = await validatorClient.SubmitGenesisTransactionAsync(submission);
+    if (!submitted)
+    {
+        return Results.Problem(
+            title: "Validator submission failed",
+            detail: "The validator service rejected the blueprint publish transaction. Check validator logs.",
+            statusCode: 502);
+    }
 
     return Results.Ok(new
     {
@@ -1216,7 +1197,7 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
         registerId,
         txId,
         version = systemVersion,
-        publishedAt = blueprintTx.TimeStamp
+        submitted = true
     });
 })
 .WithTags("Blueprints")

@@ -44,6 +44,21 @@ public record GenesisTransactionSubmission
     public required DateTimeOffset CreatedAt { get; init; }
     public string? RegisterName { get; init; }
     public string? TenantId { get; init; }
+
+    /// <summary>
+    /// Override the default genesis BlueprintId (e.g. for blueprint-publish Control transactions)
+    /// </summary>
+    public string? BlueprintId { get; init; }
+
+    /// <summary>
+    /// Override the default genesis ActionId
+    /// </summary>
+    public string? ActionId { get; init; }
+
+    /// <summary>
+    /// Additional metadata for the Control transaction
+    /// </summary>
+    public Dictionary<string, string>? Metadata { get; init; }
 }
 
 /// <summary>

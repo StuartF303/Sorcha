@@ -18,10 +18,32 @@ This document consolidates all tasks across the Sorcha platform into a single, p
 
 ---
 
+## P0 — Transaction Pipeline Audit
+
+> **Priority:** P0 (MVD Blocker)
+> **Status:** 🚧 In Progress
+> **Research Doc:** [docs/transaction-submission-flow.md](../docs/transaction-submission-flow.md)
+
+All transactions MUST go through the Validator Service mempool before being sealed into dockets. Direct writes to the register ledger are NOT permitted. This task audits the entire transaction submission pipeline to ensure correctness.
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Document current transaction submission flows (genesis, action, control, governance) | ✅ |
+| 2 | Ensure blueprint publish submits through validator, not directly to register | ✅ |
+| 3 | Investigate validator initialization loop (no transaction processing observed) | 📋 |
+| 4 | Test end-to-end: publish blueprint → validator mempool → validation → docket → register | 📋 |
+| 5 | Audit all register write paths for direct-store bypasses | 📋 |
+| 6 | Wire governance operations through validator pipeline | 📋 |
+| 7 | Clean up orphan transaction from prior direct-write (MongoDB) | 📋 |
+| 8 | Consider dedicated `/api/validator/control` endpoint vs reusing genesis | 📋 |
+
+---
+
 ## Recent Updates
 
 | Date | Summary |
 |------|---------|
+| 2026-02-18 | P0 Transaction Pipeline Audit: documented full transaction lifecycle, fixed blueprint publish to submit through validator mempool (not direct store), extended genesis endpoint for Control transaction overrides. Changed TrackingData from SortedList to Dictionary for Blazor WASM compatibility. |
 | 2026-02-17 | Architecture Validation improvements: genesis TX signature skip (attestation sigs use different contract), docket build log noise fix (WARNING→DEBUG for empty queue), blueprint cache TTL removal (immutable after publish). Added Register instance query endpoint to Phase 3 backlog. |
 | 2026-02-17 | Architecture Validation: 8 pipeline fixes (signature contract, blueprint cache, schema extraction, default disclosure, wallet link idempotency, LastTransactionId fallback, PreviousTransactionId field, cyclic idempotency). 3-round ping-pong walkthrough PASS. |
 

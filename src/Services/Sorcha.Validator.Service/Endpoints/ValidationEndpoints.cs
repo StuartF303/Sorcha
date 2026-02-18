@@ -324,26 +324,38 @@ public static class ValidationEndpoints
                 request.RegisterId,
                 signatures.Count);
 
-            // Create genesis transaction for memory pool
+            // Create Control transaction for memory pool
+            // Use overrides from request if provided, otherwise fall back to genesis constants
+            var metadata = new Dictionary<string, string>
+            {
+                { "Type", request.BlueprintId is not null ? "Control" : "Genesis" },
+                { "RegisterName", request.RegisterName ?? string.Empty },
+                { "TenantId", request.TenantId ?? string.Empty },
+                { "SystemWalletAddress", systemWalletAddress }
+            };
+
+            // Merge any additional metadata from the request
+            if (request.Metadata is not null)
+            {
+                foreach (var kvp in request.Metadata)
+                {
+                    metadata[kvp.Key] = kvp.Value;
+                }
+            }
+
             var transaction = new Transaction
             {
                 TransactionId = request.TransactionId,
                 RegisterId = request.RegisterId,
-                BlueprintId = GenesisConstants.BlueprintId,
-                ActionId = GenesisConstants.ActionId,
+                BlueprintId = request.BlueprintId ?? GenesisConstants.BlueprintId,
+                ActionId = request.ActionId ?? GenesisConstants.ActionId,
                 Payload = request.ControlRecordPayload,
                 CreatedAt = request.CreatedAt,
-                ExpiresAt = null, // Genesis transactions don't expire
+                ExpiresAt = null, // Control transactions don't expire
                 Signatures = signatures,
                 PayloadHash = controlRecordHashHex,
-                Priority = TransactionPriority.High, // Genesis has highest priority
-                Metadata = new Dictionary<string, string>
-                {
-                    { "Type", "Genesis" },
-                    { "RegisterName", request.RegisterName ?? string.Empty },
-                    { "TenantId", request.TenantId ?? string.Empty },
-                    { "SystemWalletAddress", systemWalletAddress }
-                }
+                Priority = TransactionPriority.High,
+                Metadata = metadata
             };
 
             // Submit to unverified pool (ValidationEngineService will validate and promote to verified queue)
@@ -438,4 +450,19 @@ public record GenesisTransactionRequest
     public required DateTimeOffset CreatedAt { get; init; }
     public string? RegisterName { get; init; }
     public string? TenantId { get; init; }
+
+    /// <summary>
+    /// Override the default genesis BlueprintId (e.g. for blueprint-publish Control transactions)
+    /// </summary>
+    public string? BlueprintId { get; init; }
+
+    /// <summary>
+    /// Override the default genesis ActionId
+    /// </summary>
+    public string? ActionId { get; init; }
+
+    /// <summary>
+    /// Additional metadata for the Control transaction
+    /// </summary>
+    public Dictionary<string, string>? Metadata { get; init; }
 }
