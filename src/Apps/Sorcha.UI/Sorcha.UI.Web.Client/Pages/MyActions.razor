@@ -12,8 +12,10 @@
 @using Sorcha.UI.Core.Components.Shared
 @using Sorcha.UI.Core.Components.Workflows
 @using Sorcha.UI.Core.Services
+@using Sorcha.UI.Core.Services.Wallet
 @inject IWorkflowService WorkflowService
 @inject IWalletApiService WalletService
+@inject IWalletPreferenceService WalletPreferenceService
 @inject ActionsHubConnection ActionsHub
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -223,18 +225,50 @@
 
     private async Task TakeAction(PendingActionViewModel action)
     {
+        // Resolve wallet for signing
+        var wallets = await WalletService.GetWalletsAsync();
+        var walletAddress = await WalletPreferenceService.GetSmartDefaultAsync(wallets) ?? string.Empty;
+
         var parameters = new DialogParameters
         {
-            ["Action"] = action
+            ["Action"] = action,
+            ["WalletAddress"] = walletAddress
         };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dialog = await DialogService.ShowAsync<ActionForm>("Execute Action", parameters, options);
         var result = await dialog.Result;
 
-        if (result is { Canceled: false })
+        if (result is { Canceled: false, Data: ActionSubmissionViewModel submission })
         {
-            Snackbar.Add("Action submitted successfully", Severity.Success);
-            await LoadActionsAsync();
+            try
+            {
+                var executeRequest = new ActionExecuteRequest
+                {
+                    BlueprintId = action.BlueprintName,
+                    ActionId = submission.ActionId,
+                    InstanceId = submission.InstanceId,
+                    SenderWallet = walletAddress,
+                    RegisterAddress = string.Empty,
+                    PayloadData = submission.Data
+                };
+
+                var submitResult = await WorkflowService.SubmitActionExecuteAsync(executeRequest);
+                if (submitResult != null)
+                {
+                    Snackbar.Add("Action submitted successfully", Severity.Success);
+                    _actions.Remove(action);
+                    StateHasChanged();
+                }
+                else
+                {
+                    Snackbar.Add("Failed to submit action. Please try again.", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error submitting action {ActionId}", action.ActionId);
+                Snackbar.Add("An error occurred while submitting the action.", Severity.Error);
+            }
         }
     }
 

@@ -1,0 +1,191 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using System.Text.Json
+@using Sorcha.Blueprint.Models
+@using Sorcha.UI.Core.Models.Forms
+@using Sorcha.UI.Core.Models.Wallet
+@using Sorcha.UI.Core.Models.Workflows
+@using Sorcha.UI.Core.Services
+@using Sorcha.UI.Core.Services.Wallet
+@using Microsoft.Extensions.Logging
+@inject IBlueprintApiService BlueprintApiService
+@inject IWorkflowService WorkflowService
+@inject IWalletPreferenceService WalletPreferenceService
+@inject ILogger<NewSubmissionDialog> Logger
+
+<MudDialog>
+    <DialogContent>
+        @if (_loadingBlueprint)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
+            <MudText Typo="Typo.body2">Loading form...</MudText>
+        }
+        else if (_loadError != null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-2">@_loadError</MudAlert>
+        }
+        else if (_blueprint != null && _startingAction != null)
+        {
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.subtitle1">@_blueprint.Title</MudText>
+                @if (!string.IsNullOrEmpty(_blueprint.Description))
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@_blueprint.Description</MudText>
+                }
+
+                <MudDivider />
+
+                @* Wallet selector *@
+                <WalletSelector Wallets="Wallets"
+                                SelectedAddress="@_selectedWallet"
+                                SelectedAddressChanged="HandleWalletChanged"
+                                ShowSetDefault="@(Wallets is { Count: > 1 })"
+                                OnSetDefault="HandleSetDefault" />
+
+                @* Form renderer for Action 0 *@
+                <SorchaFormRenderer Action="_startingAction"
+                                   ParticipantAddress="@_selectedWallet"
+                                   SigningWalletAddress="@_selectedWallet"
+                                   OnSubmit="HandleFormSubmit"
+                                   OnCancel="HandleCancel" />
+            </MudStack>
+
+            @if (_submitting)
+            {
+                <MudOverlay Visible="true" DarkBackground="true" ZIndex="9999">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                    <MudText Typo="Typo.body1" Class="mt-2" Color="Color.Surface">Submitting...</MudText>
+                </MudOverlay>
+            }
+        }
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public string BlueprintId { get; set; } = string.Empty;
+
+    [Parameter]
+    public string RegisterId { get; set; } = string.Empty;
+
+    [Parameter]
+    public List<WalletDto> Wallets { get; set; } = [];
+
+    private Sorcha.Blueprint.Models.Blueprint? _blueprint;
+    private Sorcha.Blueprint.Models.Action? _startingAction;
+    private string _selectedWallet = string.Empty;
+    private bool _loadingBlueprint = true;
+    private bool _submitting;
+    private string? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Resolve smart default wallet
+        _selectedWallet = await WalletPreferenceService.GetSmartDefaultAsync(Wallets) ?? string.Empty;
+
+        // Fetch the full blueprint to get Action 0 with schemas
+        try
+        {
+            _blueprint = await BlueprintApiService.GetBlueprintDetailAsync(BlueprintId);
+            if (_blueprint == null)
+            {
+                _loadError = "Blueprint is no longer available. It may have been unpublished.";
+                return;
+            }
+
+            // Find the starting action (IsStartingAction flag or first action)
+            _startingAction = _blueprint.Actions?
+                .OrderBy(a => a.Id)
+                .FirstOrDefault();
+
+            if (_startingAction == null)
+            {
+                _loadError = "This blueprint has no actions to start.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading blueprint {BlueprintId}", BlueprintId);
+            _loadError = "Failed to load the blueprint. Please try again.";
+        }
+        finally
+        {
+            _loadingBlueprint = false;
+        }
+    }
+
+    private void HandleWalletChanged(string walletAddress)
+    {
+        _selectedWallet = walletAddress;
+    }
+
+    private async Task HandleSetDefault(string walletAddress)
+    {
+        await WalletPreferenceService.SetDefaultWalletAsync(walletAddress);
+    }
+
+    private async Task HandleFormSubmit(FormSubmission submission)
+    {
+        if (_blueprint == null || _startingAction == null) return;
+
+        _submitting = true;
+        StateHasChanged();
+
+        try
+        {
+            // Step 1: Create instance
+            var instance = await WorkflowService.CreateInstanceAsync(BlueprintId, RegisterId);
+            if (instance == null)
+            {
+                _submitting = false;
+                _loadError = "Failed to create workflow instance. Please try again.";
+                StateHasChanged();
+                return;
+            }
+
+            // Step 2: Execute Action 0
+            var payloadData = submission.Data.ToDictionary(
+                kvp => kvp.Key.TrimStart('/'),
+                kvp => kvp.Value ?? (object)string.Empty);
+
+            var request = new ActionExecuteRequest
+            {
+                BlueprintId = BlueprintId,
+                ActionId = _startingAction.Id.ToString(),
+                InstanceId = instance.InstanceId,
+                SenderWallet = _selectedWallet,
+                RegisterAddress = RegisterId,
+                PayloadData = payloadData
+            };
+
+            var result = await WorkflowService.SubmitActionExecuteAsync(request);
+            if (result == null)
+            {
+                // Partial success: instance created but action failed
+                _submitting = false;
+                _loadError = $"Instance created ({instance.InstanceId[..Math.Min(8, instance.InstanceId.Length)]}...) but action execution failed. The action will appear in your Pending Actions.";
+                StateHasChanged();
+                return;
+            }
+
+            MudDialog?.Close(DialogResult.Ok(result));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error submitting new workflow");
+            _submitting = false;
+            _loadError = "An error occurred during submission. Please try again.";
+            StateHasChanged();
+        }
+    }
+
+    private Task HandleCancel()
+    {
+        MudDialog?.Cancel();
+        return Task.CompletedTask;
+    }
+}

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Sorcha.Blueprint.Models;
 using Sorcha.UI.Core.Models.Blueprints;
 using Sorcha.UI.Core.Models.Common;
+using Sorcha.UI.Core.Models.Workflows;
 
 namespace Sorcha.UI.Core.Services;
 
@@ -180,6 +181,21 @@ public class BlueprintApiService : IBlueprintApiService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching blueprint {Id} version {Version}", id, version);
+            return null;
+        }
+    }
+
+    public async Task<AvailableBlueprintsViewModel?> GetAvailableBlueprintsAsync(string walletAddress, string registerId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<AvailableBlueprintsViewModel>(
+                $"/api/actions/{Uri.EscapeDataString(walletAddress)}/{Uri.EscapeDataString(registerId)}/blueprints",
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching available blueprints for wallet {Wallet} on register {Register}", walletAddress, registerId);
             return null;
         }
     }

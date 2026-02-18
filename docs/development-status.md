@@ -90,6 +90,15 @@ For detailed implementation status, see the individual section files:
 ## Recent Completions
 
 ### 2026-02-18
+- **037-New-Submission-Page** (31 tasks, 8 phases — user activity: new submission service directory)
+  - Redesigned MyWorkflows.razor from workflow instance list into service directory grouped by register
+  - Created WalletPreferenceService: localStorage-backed smart default wallet selection
+  - New components: WalletSelector.razor (inline, auto-hides for single wallet), NewSubmissionDialog.razor (create instance + execute Action 0)
+  - Added GetAvailableBlueprintsAsync (IBlueprintApiService), CreateInstanceAsync + SubmitActionExecuteAsync (IWorkflowService) with X-Delegation-Token
+  - Fixed Pending Actions page: wired wallet into ActionForm, actual backend submission after dialog
+  - Swapped nav order: New Submission before Pending Actions
+  - 10 new WalletPreferenceService tests, all UI projects build 0w/0e
+
 - **036-Unified-Transaction-Submission** (26 tasks, 7 phases — single transaction submission path)
   - Created ISystemWalletSigningService: singleton with wallet caching, derivation path whitelist, sliding-window rate limiting, structured audit logging
   - Unified all transaction types (genesis, control, action) through `POST /api/v1/transactions/validate`
