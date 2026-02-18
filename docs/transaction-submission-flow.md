@@ -269,6 +269,23 @@ The ValidationEngine should handle all transaction types uniformly:
 2. Signing data with the system wallet
 3. Retry/recreate on wallet unavailability
 
+**Security Requirements for ISystemWalletSigningService:**
+
+This service is the keys to the kingdom — any component that can resolve it can create system-signed transactions (genesis, control, blueprint publish). It must be designed with least-privilege from the start.
+
+1. **DI registration scope** — Only register in services that genuinely need system-level signing (Register Service, Validator Service). Never register in Blueprint Service, UI, Tenant Service, or anything externally-facing. Enforce this via explicit opt-in registration (`AddSystemWalletSigning()`) rather than automatic inclusion in `AddServiceClients()`.
+
+2. **Audit logging** — Every system wallet sign call MUST log: caller service identity, register ID, transaction type (from metadata), resulting TxId, derivation path used, and timestamp. This is non-negotiable for forensics and incident investigation.
+
+3. **Operation whitelist** — The service MUST enforce an allowed set of derivation paths / signing purposes. Only permit known operations:
+   - `sorcha:register-control` — genesis and control transactions
+   - `sorcha:docket-signing` — docket creation (validator only)
+   - Reject any unrecognised derivation path with a clear error
+
+4. **Rate limiting** — Enforce a configurable cap on system signs per register per time window (e.g. max 10 signs per register per minute). This catches runaway callers, infinite loops, and potential abuse early. Rate limit state can be in-memory (per-process) since system signing is always service-to-service.
+
+5. **Caller identity validation** — The service should validate that the calling context has appropriate service-level claims (e.g. `CanSignSystem` claim in the service JWT). This prevents accidental injection into services that shouldn't have signing capability.
+
 ---
 
 ## Key Files
