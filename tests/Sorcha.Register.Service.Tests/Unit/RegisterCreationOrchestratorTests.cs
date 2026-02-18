@@ -12,6 +12,7 @@ using Sorcha.Register.Core.Managers;
 using Sorcha.Register.Models;
 using Sorcha.Register.Service.Services;
 using Sorcha.ServiceClients.Peer;
+using Sorcha.ServiceClients.SystemWallet;
 using Sorcha.ServiceClients.Validator;
 using Sorcha.ServiceClients.Wallet;
 using Xunit;
@@ -30,6 +31,7 @@ public class RegisterCreationOrchestratorTests
     private readonly Mock<IHashProvider> _mockHashProvider;
     private readonly Mock<ICryptoModule> _mockCryptoModule;
     private readonly Mock<IValidatorServiceClient> _mockValidatorClient;
+    private readonly Mock<ISystemWalletSigningService> _mockSigningService;
     private readonly Mock<IPendingRegistrationStore> _mockPendingStore;
     private readonly Mock<IPeerServiceClient> _mockPeerClient;
     private readonly RegisterCreationOrchestrator _orchestrator;
@@ -47,6 +49,34 @@ public class RegisterCreationOrchestratorTests
         _mockHashProvider = new Mock<IHashProvider>();
         _mockCryptoModule = new Mock<ICryptoModule>();
         _mockValidatorClient = new Mock<IValidatorServiceClient>();
+        _mockSigningService = new Mock<ISystemWalletSigningService>();
+
+        // Default signing service setup
+        _mockSigningService
+            .Setup(s => s.SignAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SystemSignResult
+            {
+                Signature = new byte[] { 1, 2, 3, 4 },
+                PublicKey = new byte[] { 5, 6, 7, 8 },
+                Algorithm = "ED25519",
+                WalletAddress = "system-wallet-001"
+            });
+
+        // Default generic submission setup
+        _mockValidatorClient
+            .Setup(v => v.SubmitTransactionAsync(
+                It.IsAny<TransactionSubmission>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TransactionSubmissionResult
+            {
+                Success = true,
+                TransactionId = "tx-placeholder",
+                RegisterId = "reg-placeholder",
+                AddedAt = DateTimeOffset.UtcNow
+            });
+
         _mockPendingStore = new Mock<IPendingRegistrationStore>();
         _mockPeerClient = new Mock<IPeerServiceClient>();
 
@@ -86,6 +116,7 @@ public class RegisterCreationOrchestratorTests
             _mockHashProvider.Object,
             _mockCryptoModule.Object,
             _mockValidatorClient.Object,
+            _mockSigningService.Object,
             _mockPendingStore.Object,
             _mockPeerClient.Object);
     }
@@ -301,12 +332,6 @@ public class RegisterCreationOrchestratorTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(createdRegister);
 
-        _mockValidatorClient
-            .Setup(v => v.SubmitGenesisTransactionAsync(
-                It.IsAny<GenesisTransactionSubmission>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
         // Act
         var response = await _orchestrator.FinalizeAsync(finalizeRequest);
 
@@ -317,14 +342,28 @@ public class RegisterCreationOrchestratorTests
         response.GenesisTransactionId.Should().NotBeNullOrEmpty();
         response.GenesisDocketId.Should().Be("0");
 
-        _mockValidatorClient.Verify(
-            v => v.SubmitGenesisTransactionAsync(
-                It.Is<GenesisTransactionSubmission>(s =>
-                    s.RegisterId == initiateResponse.RegisterId &&
-                    s.RegisterName == "Test Register" &&
-                    s.TenantId == "tenant-123"),
+        // Verify signing service was called
+        _mockSigningService.Verify(
+            s => s.SignAsync(
+                initiateResponse.RegisterId,
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                "sorcha:register-control",
+                "Genesis",
                 It.IsAny<CancellationToken>()),
             Times.Once);
+
+        // Verify generic submission endpoint was used (not genesis)
+        _mockValidatorClient.Verify(
+            v => v.SubmitTransactionAsync(
+                It.Is<TransactionSubmission>(s =>
+                    s.RegisterId == initiateResponse.RegisterId &&
+                    s.Metadata != null &&
+                    s.Metadata["Type"] == "Genesis" &&
+                    s.Metadata["RegisterName"] == "Test Register"),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
     }
 
     [Fact]
@@ -499,12 +538,6 @@ public class RegisterCreationOrchestratorTests
                 TenantId = "tenant-123",
                 CreatedAt = DateTime.UtcNow
             });
-
-        _mockValidatorClient
-            .Setup(v => v.SubmitGenesisTransactionAsync(
-                It.IsAny<GenesisTransactionSubmission>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
 
         // Act
         await _orchestrator.FinalizeAsync(finalizeRequest);

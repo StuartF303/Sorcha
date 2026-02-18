@@ -32,10 +32,10 @@ All transactions MUST go through the Validator Service mempool before being seal
 | 2 | Ensure blueprint publish submits through validator, not directly to register | ✅ |
 | 3 | Investigate validator initialization loop (no transaction processing observed) | 📋 |
 | 4 | Test end-to-end: publish blueprint → validator mempool → validation → docket → register | 📋 |
-| 5 | Audit all register write paths for direct-store bypasses | 📋 |
+| 5 | Audit all register write paths for direct-store bypasses | ✅ (see 036 research R3) |
 | 6 | Wire governance operations through validator pipeline | 📋 |
 | 7 | Clean up orphan transaction from prior direct-write (MongoDB) | 📋 |
-| 8 | Consider dedicated `/api/validator/control` endpoint vs reusing genesis | 📋 |
+| 8 | ~~Consider dedicated `/api/validator/control` endpoint vs reusing genesis~~ | ✅ Resolved: legacy genesis endpoint removed, all types use generic `POST /api/v1/transactions/validate` |
 
 ---
 
@@ -43,6 +43,7 @@ All transactions MUST go through the Validator Service mempool before being seal
 
 | Date | Summary |
 |------|---------|
+| 2026-02-18 | **036-Unified-Transaction-Submission** (26 tasks, 7 phases): Created ISystemWalletSigningService (singleton, whitelist, rate limit, audit logging), unified all transaction types through `POST /api/v1/transactions/validate`, migrated register creation + blueprint publish from legacy genesis endpoint, removed legacy genesis endpoint + models + client methods, renamed ActionTransactionSubmission → TransactionSubmission. Tests: ServiceClients 24 pass, Validator 627 pass (1 pre-existing fail), Register Service 9 pass (2 pre-existing), Blueprint Service 28 pass. |
 | 2026-02-18 | P0 Transaction Pipeline Audit: documented full transaction lifecycle, fixed blueprint publish to submit through validator mempool (not direct store), extended genesis endpoint for Control transaction overrides. Changed TrackingData from SortedList to Dictionary for Blazor WASM compatibility. |
 | 2026-02-17 | Architecture Validation improvements: genesis TX signature skip (attestation sigs use different contract), docket build log noise fix (WARNING→DEBUG for empty queue), blueprint cache TTL removal (immutable after publish). Added Register instance query endpoint to Phase 3 backlog. |
 | 2026-02-17 | Architecture Validation: 8 pipeline fixes (signature contract, blueprint cache, schema extraction, default disclosure, wallet link idempotency, LastTransactionId fallback, PreviousTransactionId field, cyclic idempotency). 3-round ping-pong walkthrough PASS. |

@@ -10,6 +10,7 @@ using Sorcha.Register.Models;
 using Sorcha.Register.Models.Enums;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Peer;
+using Sorcha.ServiceClients.SystemWallet;
 using Sorcha.ServiceClients.Validator;
 
 namespace Sorcha.Register.Service.Services;
@@ -26,6 +27,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     private readonly IHashProvider _hashProvider;
     private readonly ICryptoModule _cryptoModule;
     private readonly IValidatorServiceClient _validatorClient;
+    private readonly ISystemWalletSigningService _signingService;
     private readonly IPendingRegistrationStore _pendingStore;
     private readonly IPeerServiceClient _peerClient;
 
@@ -40,6 +42,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         IHashProvider hashProvider,
         ICryptoModule cryptoModule,
         IValidatorServiceClient validatorClient,
+        ISystemWalletSigningService signingService,
         IPendingRegistrationStore pendingStore,
         IPeerServiceClient peerClient)
     {
@@ -50,6 +53,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
         _cryptoModule = cryptoModule ?? throw new ArgumentNullException(nameof(cryptoModule));
         _validatorClient = validatorClient ?? throw new ArgumentNullException(nameof(validatorClient));
+        _signingService = signingService ?? throw new ArgumentNullException(nameof(signingService));
         _pendingStore = pendingStore ?? throw new ArgumentNullException(nameof(pendingStore));
         _peerClient = peerClient ?? throw new ArgumentNullException(nameof(peerClient));
 
@@ -294,39 +298,69 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             genesisTransaction.TxId,
             pending.RegisterId);
 
-        // Submit genesis transaction to Validator Service BEFORE persisting register (atomic guarantee)
+        // Sign genesis transaction with system wallet and submit through generic endpoint
         var controlRecordJson = JsonSerializer.Serialize(controlRecord, _canonicalJsonOptions);
-        var submissionRequest = new GenesisTransactionSubmission
+        var payloadHash = genesisTransaction.Payloads[0].Hash;
+
+        // Sign with system wallet
+        var signResult = await _signingService.SignAsync(
+            registerId: pending.RegisterId,
+            txId: genesisTransaction.TxId,
+            payloadHash: payloadHash,
+            derivationPath: "sorcha:register-control",
+            transactionType: "Genesis",
+            cancellationToken);
+
+        // Combine system wallet signature with attestation signatures
+        var systemSignature = new SignatureInfo
+        {
+            PublicKey = Convert.ToBase64String(signResult.PublicKey),
+            SignatureValue = Convert.ToBase64String(signResult.Signature),
+            Algorithm = signResult.Algorithm
+        };
+
+        var allSignatures = new List<SignatureInfo> { systemSignature };
+        allSignatures.AddRange(controlRecord.Attestations.Select(a => new SignatureInfo
+        {
+            PublicKey = a.PublicKey,
+            SignatureValue = a.Signature,
+            Algorithm = a.Algorithm.ToString()
+        }));
+
+        // Submit through unified generic endpoint
+        var submissionRequest = new TransactionSubmission
         {
             TransactionId = genesisTransaction.TxId,
             RegisterId = pending.RegisterId,
-            ControlRecordPayload = JsonDocument.Parse(controlRecordJson).RootElement,
-            PayloadHash = genesisTransaction.Payloads[0].Hash,
-            Signatures = controlRecord.Attestations.Select(a => new GenesisSignature
-            {
-                PublicKey = a.PublicKey,
-                SignatureValue = a.Signature,
-                Algorithm = a.Algorithm.ToString()
-            }).ToList(),
+            BlueprintId = "genesis",
+            ActionId = "register-creation",
+            Payload = JsonDocument.Parse(controlRecordJson).RootElement,
+            PayloadHash = payloadHash,
+            Signatures = allSignatures,
             CreatedAt = controlRecord.CreatedAt,
-            RegisterName = controlRecord.Name,
-            TenantId = controlRecord.TenantId
+            Metadata = new Dictionary<string, string>
+            {
+                ["Type"] = "Genesis",
+                ["RegisterName"] = controlRecord.Name,
+                ["TenantId"] = controlRecord.TenantId,
+                ["SystemWalletAddress"] = signResult.WalletAddress
+            }
         };
 
-        var submitted = await _validatorClient.SubmitGenesisTransactionAsync(submissionRequest, cancellationToken);
+        var submissionResult = await _validatorClient.SubmitTransactionAsync(submissionRequest, cancellationToken);
 
-        if (!submitted)
+        if (!submissionResult.Success)
         {
             _logger.LogError(
-                "Failed to submit genesis transaction {TransactionId} to Validator Service for register {RegisterId}",
-                genesisTransaction.TxId, pending.RegisterId);
+                "Failed to submit genesis transaction {TransactionId} to Validator Service for register {RegisterId}: {Error}",
+                genesisTransaction.TxId, pending.RegisterId, submissionResult.ErrorMessage);
             throw new InvalidOperationException(
-                $"Genesis transaction submission failed for register {pending.RegisterId}. " +
+                $"Genesis transaction submission failed for register {pending.RegisterId}: {submissionResult.ErrorMessage}. " +
                 "The register was NOT created. Retry the full initiate/finalize flow.");
         }
 
         _logger.LogInformation(
-            "Genesis transaction {TransactionId} submitted to Validator Service successfully",
+            "Genesis transaction {TransactionId} submitted to Validator Service successfully via generic endpoint",
             genesisTransaction.TxId);
 
         // Only persist register AFTER genesis succeeds (atomic guarantee)

@@ -21,6 +21,7 @@ using Sorcha.Register.Storage.MongoDB;
 using Sorcha.Register.Storage.Redis;
 using Sorcha.ServiceClients.Extensions;
 using Sorcha.ServiceClients.Peer;
+using Sorcha.ServiceClients.SystemWallet;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -385,6 +386,9 @@ builder.Services.AddScoped<ICryptoModule, Sorcha.Cryptography.Core.CryptoModule>
 
 // Register wallet service client
 builder.Services.AddServiceClients(builder.Configuration);
+
+// Register system wallet signing service (opt-in — used for genesis + blueprint publish)
+builder.Services.AddSystemWalletSigning(builder.Configuration);
 
 // Register governance roster service
 builder.Services.AddScoped<Sorcha.Register.Core.Services.IGovernanceRosterService,
@@ -1112,7 +1116,8 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
     SystemRegisterService systemRegister,
     IHashProvider hashProvider,
     Sorcha.Register.Core.Services.IGovernanceRosterService rosterService,
-    Sorcha.ServiceClients.Validator.IValidatorServiceClient validatorClient) =>
+    Sorcha.ServiceClients.Validator.IValidatorServiceClient validatorClient,
+    ISystemWalletSigningService signingService) =>
 {
     // Verify register exists
     var register = await repository.GetRegisterAsync(registerId);
@@ -1159,35 +1164,48 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
     var txIdHash = hashProvider.ComputeHash(txIdSource, Sorcha.Cryptography.Enums.HashType.SHA256);
     var txId = Convert.ToHexString(txIdHash).ToLowerInvariant();
 
-    // Submit to the validator's genesis endpoint — it handles system wallet signing,
-    // mempool submission, and docket creation
+    // Sign with system wallet and submit through generic validation endpoint
     var controlRecordElement = System.Text.Json.JsonDocument.Parse(request.BlueprintJson).RootElement;
 
-    var submission = new Sorcha.ServiceClients.Validator.GenesisTransactionSubmission
+    var signResult = await signingService.SignAsync(
+        registerId: registerId,
+        txId: txId,
+        payloadHash: payloadHashHex,
+        derivationPath: "sorcha:register-control",
+        transactionType: "Control");
+
+    var systemSignature = new Sorcha.ServiceClients.Validator.SignatureInfo
+    {
+        PublicKey = Convert.ToBase64String(signResult.PublicKey),
+        SignatureValue = Convert.ToBase64String(signResult.Signature),
+        Algorithm = signResult.Algorithm
+    };
+
+    var submission = new Sorcha.ServiceClients.Validator.TransactionSubmission
     {
         TransactionId = txId,
         RegisterId = registerId,
-        ControlRecordPayload = controlRecordElement,
-        PayloadHash = payloadHashHex,
-        Signatures = new List<Sorcha.ServiceClients.Validator.GenesisSignature>(),
-        CreatedAt = DateTimeOffset.UtcNow,
-        RegisterName = register.Name,
-        TenantId = register.TenantId,
         BlueprintId = request.BlueprintId,
         ActionId = "blueprint-publish",
+        Payload = controlRecordElement,
+        PayloadHash = payloadHashHex,
+        Signatures = new List<Sorcha.ServiceClients.Validator.SignatureInfo> { systemSignature },
+        CreatedAt = DateTimeOffset.UtcNow,
         Metadata = new Dictionary<string, string>
         {
+            ["Type"] = "Control",
             ["transactionType"] = "BlueprintPublish",
-            ["publishedBy"] = request.PublishedBy
+            ["publishedBy"] = request.PublishedBy,
+            ["SystemWalletAddress"] = signResult.WalletAddress
         }
     };
 
-    var submitted = await validatorClient.SubmitGenesisTransactionAsync(submission);
-    if (!submitted)
+    var submissionResult = await validatorClient.SubmitTransactionAsync(submission);
+    if (!submissionResult.Success)
     {
         return Results.Problem(
             title: "Validator submission failed",
-            detail: "The validator service rejected the blueprint publish transaction. Check validator logs.",
+            detail: submissionResult.ErrorMessage ?? "The validator service rejected the blueprint publish transaction. Check validator logs.",
             statusCode: 502);
     }
 

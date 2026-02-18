@@ -340,15 +340,16 @@ What was tested:
 │     Register Service                    │
 │  - Verify signature with public key     │
 │  - Create register in database          │
+│  - Sign with system wallet              │
 │  - Submit genesis transaction           │
 └────────┬────────────────────────────────┘
          │
-         │ 6. POST /api/validator/genesis
+         │ 6. POST /api/v1/transactions/validate
          ▼
 ┌─────────────────────────────────────────┐
 │     Validator Service                   │
+│  - Validate structure + signatures      │
 │  - Store transaction in mempool         │
-│  - Mark as HIGH priority (genesis)      │
 └─────────────────────────────────────────┘
 ```
 

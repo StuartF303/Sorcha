@@ -148,19 +148,20 @@ POST /api/registers/finalize
 │  │ RegisterCreationOrchestrator   │    │
 │  │  - Verify nonce                │    │
 │  │  - Verify sigs (stored hashes) │    │
+│  │  - Sign with system wallet     │    │
 │  │  - Submit genesis (atomic)     │    │
 │  │  - Create register in DB       │    │
 │  └────────┬───────────────────────┘    │
 └───────────┼────────────────────────────┘
             │
-            │ POST /api/validator/genesis
+            │ POST /api/v1/transactions/validate
             ▼
 ┌─────────────────────────────────────────┐
 │    Validator Service                    │
 │  ┌────────────────────────────────┐    │
-│  │ Genesis Endpoint               │    │
-│  │  - Set HIGH priority           │    │
-│  │  - Add metadata (Type=Genesis) │    │
+│  │ Generic Validation Endpoint    │    │
+│  │  - Validate structure          │    │
+│  │  - Verify signatures           │    │
 │  │  - Store in mempool            │    │
 │  └────────────────────────────────┘    │
 └─────────────────────────────────────────┘
@@ -290,6 +291,7 @@ pwsh test-register-creation-rest.ps1 -Profile direct
 4. **Hash-based Signing**: SHA-256 hash stored at initiate, eliminates re-serialization issues
 5. **Pre-hashed Signing**: `isPreHashed=true` prevents double-hashing
 6. **Atomic Creation**: Genesis transaction submitted before register persist
+7. **System Wallet Signing**: Genesis transactions signed by `ISystemWalletSigningService` with whitelist and rate limiting
 
 ## Troubleshooting
 

@@ -68,23 +68,25 @@ if ($LASTEXITCODE -eq 0 -and $response) {
     exit 1
 }
 
-# Test 3: Test Validator Service
+# Test 3: Test Validator Service (generic transaction endpoint)
 Write-Host ""
 Write-Host "────────────────────────────────────────────────────────────────" -ForegroundColor Gray
-Write-Host "  Step 3: Test Validator Service (Genesis)" -ForegroundColor White
+Write-Host "  Step 3: Test Validator Service (Transaction Validation)" -ForegroundColor White
 Write-Host "────────────────────────────────────────────────────────────────" -ForegroundColor Gray
 
-$genesisRequest = @{
+$payloadJson = '{"registerId":"dockertest001","name":"Test","tenantId":"tenant-001"}'
+$payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payloadJson)
+$payloadHash = [System.BitConverter]::ToString(
+    [System.Security.Cryptography.SHA256]::Create().ComputeHash($payloadBytes)
+).Replace("-", "").ToLower()
+
+$validateRequest = @{
     transactionId = "docker-test-genesis-001"
     registerId = "dockertest001"
-    controlRecordPayload = @{
-        registerId = "dockertest001"
-        name = "Test"
-        tenantId = "tenant-001"
-        createdAt = "2025-01-04T00:00:00Z"
-        attestations = @()
-    }
-    payloadHash = "abcd1234"
+    blueprintId = "genesis"
+    actionId = "register-creation"
+    payload = ($payloadJson | ConvertFrom-Json)
+    payloadHash = $payloadHash
     signatures = @(
         @{
             publicKey = [Convert]::ToBase64String((New-Object byte[] 32))
@@ -93,13 +95,16 @@ $genesisRequest = @{
         }
     )
     createdAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    metadata = @{
+        Type = "Genesis"
+    }
 } | ConvertTo-Json -Depth 10 -Compress
 
 $validatorResponse = docker run --rm --network $network alpine/curl:latest `
     -s -X POST `
     -H "Content-Type: application/json" `
-    -d $genesisRequest `
-    http://sorcha-validator-service:8080/api/validator/genesis
+    -d $validateRequest `
+    http://sorcha-validator-service:8080/api/v1/transactions/validate
 
 if ($LASTEXITCODE -eq 0 -and $validatorResponse) {
     Write-Host "✓ Validator Service responded" -ForegroundColor Green
@@ -107,7 +112,7 @@ if ($LASTEXITCODE -eq 0 -and $validatorResponse) {
     Write-Host "Response:" -ForegroundColor Gray
     Write-Host $validatorResponse -ForegroundColor DarkGray
 } else {
-    Write-Host "✗ Failed to submit genesis transaction" -ForegroundColor Red
+    Write-Host "✗ Failed to submit transaction to validator" -ForegroundColor Red
     Write-Host "Response: $validatorResponse" -ForegroundColor Red
 }
 

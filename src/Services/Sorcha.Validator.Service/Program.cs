@@ -204,11 +204,6 @@ app.MapGroup("/api/v1/transactions")
     .WithTags("Validation")
     .MapValidationEndpoints();
 
-// Map validator-specific endpoints (genesis)
-app.MapGroup("/api/validator")
-    .WithTags("Validator")
-    .MapGenesisEndpoint();
-
 // Map admin endpoints
 app.MapAdminEndpoints();
 

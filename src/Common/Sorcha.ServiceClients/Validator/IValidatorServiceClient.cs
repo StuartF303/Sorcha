@@ -11,70 +11,20 @@ namespace Sorcha.ServiceClients.Validator;
 public interface IValidatorServiceClient
 {
     /// <summary>
-    /// Submits a genesis transaction to the Validator Service mempool
-    /// </summary>
-    /// <param name="request">Genesis transaction details</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>True if submitted successfully</returns>
-    Task<bool> SubmitGenesisTransactionAsync(
-        GenesisTransactionSubmission request,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Submits an action transaction to the Validator Service for validation and mempool inclusion
     /// </summary>
     /// <param name="request">Action transaction submission details</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result indicating success or failure with details</returns>
     Task<TransactionSubmissionResult> SubmitTransactionAsync(
-        ActionTransactionSubmission request,
+        TransactionSubmission request,
         CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// Request model for submitting genesis transactions
-/// </summary>
-public record GenesisTransactionSubmission
-{
-    public required string TransactionId { get; init; }
-    public required string RegisterId { get; init; }
-    public required JsonElement ControlRecordPayload { get; init; }
-    public required string PayloadHash { get; init; }
-    public required List<GenesisSignature> Signatures { get; init; }
-    public required DateTimeOffset CreatedAt { get; init; }
-    public string? RegisterName { get; init; }
-    public string? TenantId { get; init; }
-
-    /// <summary>
-    /// Override the default genesis BlueprintId (e.g. for blueprint-publish Control transactions)
-    /// </summary>
-    public string? BlueprintId { get; init; }
-
-    /// <summary>
-    /// Override the default genesis ActionId
-    /// </summary>
-    public string? ActionId { get; init; }
-
-    /// <summary>
-    /// Additional metadata for the Control transaction
-    /// </summary>
-    public Dictionary<string, string>? Metadata { get; init; }
-}
-
-/// <summary>
-/// Signature for genesis transaction
-/// </summary>
-public record GenesisSignature
-{
-    public required string PublicKey { get; init; }
-    public required string SignatureValue { get; init; }
-    public required string Algorithm { get; init; }
 }
 
 /// <summary>
 /// Request model for submitting action transactions to the Validator Service
 /// </summary>
-public record ActionTransactionSubmission
+public record TransactionSubmission
 {
     public required string TransactionId { get; init; }
     public required string RegisterId { get; init; }

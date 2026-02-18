@@ -4,9 +4,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Moq;
-using Sorcha.ServiceClients.Wallet;
-
 namespace Sorcha.Validator.Service.IntegrationTests;
 
 /// <summary>
@@ -89,69 +86,6 @@ public class ValidationEndpointTests
     }
 
     [Fact]
-    public async Task SubmitGenesisTransaction_WithValidRequest_ReturnsOkOrError()
-    {
-        // Arrange
-        using var client = _factory.CreateClient();
-
-        // Setup mock for wallet signing
-        _factory.WalletClientMock
-            .Setup(w => w.SignTransactionAsync(
-                It.IsAny<string>(),
-                It.IsAny<byte[]>(),
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new WalletSignResult
-            {
-                Signature = new byte[64],
-                PublicKey = new byte[32],
-                SignedBy = "test-system-wallet",
-                Algorithm = "ED25519"
-            });
-
-        var controlRecord = new
-        {
-            consensus = new
-            {
-                algorithm = "simple-majority",
-                threshold = "PT30S"
-            },
-            validators = new
-            {
-                min = 1,
-                max = 10,
-                registrationMode = "public"
-            }
-        };
-
-        var request = new
-        {
-            TransactionId = Guid.NewGuid().ToString("N"),
-            RegisterId = Guid.NewGuid().ToString("N"),
-            ControlRecordPayload = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(controlRecord)),
-            PayloadHash = "abc123",
-            Signatures = new[]
-            {
-                new { PublicKey = Convert.ToBase64String("test-key"u8.ToArray()), SignatureValue = Convert.ToBase64String("test-sig"u8.ToArray()), Algorithm = "ED25519" }
-            },
-            CreatedAt = DateTimeOffset.UtcNow,
-            RegisterName = "Test Genesis Register",
-            TenantId = "test-tenant"
-        };
-
-        // Act
-        var response = await client.PostAsJsonAsync("/api/validator/genesis", request);
-
-        // Assert - Either OK (200), Conflict (409) if mempool issue, or ServiceUnavailable (503) if wallet not ready
-        response.StatusCode.Should().BeOneOf(
-            HttpStatusCode.OK,
-            HttpStatusCode.Conflict,
-            HttpStatusCode.ServiceUnavailable,
-            HttpStatusCode.InternalServerError);
-    }
-
-    [Fact]
     public async Task ValidateTransaction_PostEndpoint_Exists()
     {
         // Arrange - Just verify the endpoint exists and accepts POST
@@ -175,20 +109,6 @@ public class ValidationEndpointTests
         var response = await client.GetAsync("/api/v1/transactions/mempool/test-register");
 
         // Assert - Should not be 404 (endpoint exists)
-        response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task SubmitGenesisTransaction_PostEndpoint_Exists()
-    {
-        // Arrange - Just verify the endpoint exists
-        using var client = _factory.CreateClient();
-        var emptyRequest = new { };
-
-        // Act
-        var response = await client.PostAsJsonAsync("/api/validator/genesis", emptyRequest);
-
-        // Assert - Should not be 404 (endpoint exists), might be BadRequest for invalid data
         response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
     }
 
