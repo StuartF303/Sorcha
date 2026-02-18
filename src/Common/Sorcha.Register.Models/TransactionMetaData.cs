@@ -43,5 +43,5 @@ public class TransactionMetaData
     /// <summary>
     /// Custom tracking data (JSON serialized)
     /// </summary>
-    public SortedList<string, string>? TrackingData { get; set; }
+    public Dictionary<string, string>? TrackingData { get; set; }
 }

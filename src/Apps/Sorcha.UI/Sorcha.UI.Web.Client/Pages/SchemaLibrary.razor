@@ -205,9 +205,7 @@
 
     private void HandleViewDetail(SchemaIndexEntryViewModel entry)
     {
-        var encodedProvider = Uri.EscapeDataString(entry.SourceProvider);
-        var encodedUri = Uri.EscapeDataString(entry.SourceUri);
-        Navigation.NavigateTo($"schemas/{encodedProvider}/{encodedUri}");
+        Navigation.NavigateTo($"schemas/{entry.ShortCode}");
     }
 
     private async Task GoToNextPage()

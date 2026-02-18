@@ -1,4 +1,4 @@
-@page "/schemas/{SourceProvider}/{SourceUri}"
+@page "/schemas/{ShortCode}"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @attribute [Authorize]
 @using Sorcha.UI.Core.Models.SchemaLibrary
@@ -231,8 +231,7 @@
 </MudContainer>
 
 @code {
-    [Parameter] public string SourceProvider { get; set; } = string.Empty;
-    [Parameter] public string SourceUri { get; set; } = string.Empty;
+    [Parameter] public string ShortCode { get; set; } = string.Empty;
 
     private bool _isLoading = true;
     private SchemaIndexEntryDetailViewModel? _detail;
@@ -250,10 +249,7 @@
 
         try
         {
-            var decodedProvider = Uri.UnescapeDataString(SourceProvider);
-            var decodedUri = Uri.UnescapeDataString(SourceUri);
-
-            _detail = await SchemaApiService.GetDetailAsync(decodedProvider, decodedUri);
+            _detail = await SchemaApiService.GetDetailAsync(ShortCode);
 
             if (_detail is not null)
             {

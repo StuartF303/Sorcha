@@ -45,17 +45,17 @@ public static class SchemaLibraryEndpoints
             .WithSummary("Search the schema index")
             .WithDescription("Full-text search across all indexed schemas. Results are filtered by the requesting user's organisation sector preferences.");
 
-        // GET /api/v1/schemas/index/{sourceProvider}/{sourceUri} - Get entry with full content
-        indexGroup.MapGet("/{sourceProvider}/{sourceUri}", GetSchemaIndexEntry)
+        // GET /api/v1/schemas/index/{shortCode} - Get entry with full content
+        indexGroup.MapGet("/{shortCode}", GetSchemaIndexEntry)
             .WithName("GetSchemaIndexEntry")
             .WithSummary("Get a specific schema index entry with full content")
-            .WithDescription("Returns full schema index entry metadata plus the JSON Schema content. Source URI should be URL-encoded.");
+            .WithDescription("Returns full schema index entry metadata plus the JSON Schema content by short code.");
 
-        // GET /api/v1/schemas/index/content/{sourceProvider}/{sourceUri} - Get raw JSON Schema
-        indexGroup.MapGet("/content/{sourceProvider}/{sourceUri}", GetSchemaContent)
+        // GET /api/v1/schemas/index/content/{shortCode} - Get raw JSON Schema
+        indexGroup.MapGet("/content/{shortCode}", GetSchemaContent)
             .WithName("GetSchemaContent")
             .WithSummary("Get the full JSON Schema content for an indexed schema")
-            .WithDescription("Returns the normalised JSON Schema draft-2020-12 content for a schema. Source URI should be URL-encoded.");
+            .WithDescription("Returns the normalised JSON Schema draft-2020-12 content for a schema by short code.");
 
         // === Sector endpoints ===
 
@@ -132,12 +132,11 @@ public static class SchemaLibraryEndpoints
     }
 
     private static async Task<IResult> GetSchemaIndexEntry(
-        string sourceProvider,
-        string sourceUri,
+        string shortCode,
         ISchemaIndexService indexService,
         CancellationToken cancellationToken)
     {
-        var entry = await indexService.GetByProviderAndUriAsync(sourceProvider, sourceUri, cancellationToken);
+        var entry = await indexService.GetByShortCodeAsync(shortCode, cancellationToken);
         if (entry is null)
         {
             return Results.NotFound();
@@ -146,12 +145,11 @@ public static class SchemaLibraryEndpoints
     }
 
     private static async Task<IResult> GetSchemaContent(
-        string sourceProvider,
-        string sourceUri,
+        string shortCode,
         ISchemaIndexService indexService,
         CancellationToken cancellationToken)
     {
-        var content = await indexService.GetContentAsync(sourceProvider, sourceUri, cancellationToken);
+        var content = await indexService.GetContentByShortCodeAsync(shortCode, cancellationToken);
         if (content is null)
         {
             return Results.NotFound();

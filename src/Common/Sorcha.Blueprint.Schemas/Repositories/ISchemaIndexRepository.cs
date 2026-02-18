@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 using Sorcha.Blueprint.Schemas.Models;
 
 namespace Sorcha.Blueprint.Schemas.Repositories;
@@ -29,6 +31,13 @@ public interface ISchemaIndexRepository
     Task<SchemaIndexEntryDocument?> GetByProviderAndUriAsync(
         string sourceProvider,
         string sourceUri,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a single entry by its short code.
+    /// </summary>
+    Task<SchemaIndexEntryDocument?> GetByShortCodeAsync(
+        string shortCode,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -81,7 +90,10 @@ public sealed record SchemaIndexSearchResult(
 /// </summary>
 public sealed class SchemaIndexEntryDocument
 {
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
     public string? Id { get; set; }
+    public string ShortCode { get; set; } = string.Empty;
     public required string SourceProvider { get; set; }
     public required string SourceUri { get; set; }
     public required string Title { get; set; }

@@ -146,7 +146,7 @@ public class SectorFilterServiceTests
         await _service.UpdatePreferencesAsync("org-1", new[] { "commerce" });
 
         var entry = new SchemaIndexEntryDto(
-            "test", "urn:test:1", "Multi", null,
+            "sc001", "TestProvider", "urn:test:1", "Multi", null,
             new[] { "finance", "commerce" }, 5, 2, "2020-12", "Active", DateTimeOffset.UtcNow);
 
         var response = new SchemaIndexSearchResponse(new[] { entry }, 1, null, null);
@@ -162,7 +162,7 @@ public class SectorFilterServiceTests
         await _service.UpdatePreferencesAsync("org-1", new[] { "Finance" });
 
         var entry = new SchemaIndexEntryDto(
-            "test", "urn:test:1", "Test", null,
+            "sc002", "TestProvider", "urn:test:1", "Test", null,
             new[] { "finance" }, 5, 2, "2020-12", "Active", DateTimeOffset.UtcNow);
 
         var response = new SchemaIndexSearchResponse(new[] { entry }, 1, null, null);
@@ -188,7 +188,7 @@ public class SectorFilterServiceTests
     private static SchemaIndexSearchResponse CreateSearchResponse(params string[] sectors)
     {
         var results = sectors.Select((s, i) => new SchemaIndexEntryDto(
-            "test", $"urn:test:{i}", $"Test {s}", null,
+            $"sc{i:D3}", "TestProvider", $"urn:test:{i}", $"Test {s}", null,
             new[] { s }, 5, 2, "2020-12", "Active", DateTimeOffset.UtcNow))
             .ToList();
 

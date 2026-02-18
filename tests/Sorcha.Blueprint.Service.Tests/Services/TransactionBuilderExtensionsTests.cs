@@ -31,10 +31,16 @@ public class TransactionBuilderExtensionsTests
         var hashBytes = System.Security.Cryptography.SHA256.HashData(transactionData);
         var txId = Convert.ToHexString(hashBytes).ToLowerInvariant();
 
+        var payloadHash = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(
+                    JsonSerializer.Serialize(JsonSerializer.Deserialize<JsonElement>(transactionData))))).ToLowerInvariant();
+
         return new BuiltTransaction
         {
             TransactionData = transactionData,
             TxId = txId,
+            PayloadHash = payloadHash,
             RegisterId = "register-42",
             SenderWallet = "wallet-sender-addr",
             Signature = TestSignature,
@@ -177,10 +183,12 @@ public class TransactionBuilderExtensionsTests
     [Fact]
     public void ToActionTransactionSubmission_WithMissingMetadataKeys_UsesEmptyString()
     {
+        var emptyData = JsonSerializer.SerializeToUtf8Bytes(new { });
         var tx = new BuiltTransaction
         {
-            TransactionData = JsonSerializer.SerializeToUtf8Bytes(new { }),
+            TransactionData = emptyData,
             TxId = "0000000000000000000000000000000000000000000000000000000000000000",
+            PayloadHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(emptyData)).ToLowerInvariant(),
             RegisterId = "register-1",
             Metadata = new Dictionary<string, object>() // Empty metadata
         };

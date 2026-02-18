@@ -157,9 +157,7 @@
         if (_selectedEntry is null || SchemaApi is null) return;
 
         // Fetch the full content
-        var detail = await SchemaApi.GetDetailAsync(
-            _selectedEntry.SourceProvider,
-            _selectedEntry.SourceUri);
+        var detail = await SchemaApi.GetDetailAsync(_selectedEntry.ShortCode);
 
         if (detail is not null)
         {

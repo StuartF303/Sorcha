@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Sorcha Contributors
 
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Sorcha.Register.Service.Repositories;
 
@@ -92,11 +93,13 @@ public class SystemRegisterEntry
     /// <summary>
     /// Unique blueprint identifier (MongoDB _id field)
     /// </summary>
+    [BsonId]
     public string BlueprintId { get; set; } = string.Empty;
 
     /// <summary>
     /// System register identifier (well-known constant: 00000000-0000-0000-0000-000000000000)
     /// </summary>
+    [BsonGuidRepresentation(GuidRepresentation.Standard)]
     public Guid RegisterId { get; set; } = Guid.Empty;
 
     /// <summary>

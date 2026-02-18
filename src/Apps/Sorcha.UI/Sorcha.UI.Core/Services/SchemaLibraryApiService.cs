@@ -59,15 +59,13 @@ public class SchemaLibraryApiService : ISchemaLibraryApiService
     }
 
     public async Task<SchemaIndexEntryDetailViewModel?> GetDetailAsync(
-        string sourceProvider,
-        string sourceUri,
+        string shortCode,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var encodedUri = Uri.EscapeDataString(sourceUri);
             return await _httpClient.GetFromJsonAsync<SchemaIndexEntryDetailViewModel>(
-                $"/api/v1/schemas/index/{Uri.EscapeDataString(sourceProvider)}/{encodedUri}",
+                $"/api/v1/schemas/index/{Uri.EscapeDataString(shortCode)}",
                 cancellationToken);
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -76,21 +74,19 @@ public class SchemaLibraryApiService : ISchemaLibraryApiService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching schema detail for {Provider}/{Uri}", sourceProvider, sourceUri);
+            _logger.LogError(ex, "Error fetching schema detail for {ShortCode}", shortCode);
             return null;
         }
     }
 
     public async Task<JsonDocument?> GetContentAsync(
-        string sourceProvider,
-        string sourceUri,
+        string shortCode,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var encodedUri = Uri.EscapeDataString(sourceUri);
             return await _httpClient.GetFromJsonAsync<JsonDocument>(
-                $"/api/v1/schemas/index/content/{Uri.EscapeDataString(sourceProvider)}/{encodedUri}",
+                $"/api/v1/schemas/index/content/{Uri.EscapeDataString(shortCode)}",
                 cancellationToken);
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -99,7 +95,7 @@ public class SchemaLibraryApiService : ISchemaLibraryApiService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching schema content for {Provider}/{Uri}", sourceProvider, sourceUri);
+            _logger.LogError(ex, "Error fetching schema content for {ShortCode}", shortCode);
             return null;
         }
     }

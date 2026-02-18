@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -74,7 +75,12 @@ public class MongoSchemaIndexRepository : ISchemaIndexRepository
             // 5. Single: lastFetchedAt
             new(Builders<SchemaIndexEntryDocument>.IndexKeys
                 .Ascending(d => d.LastFetchedAt),
-                new CreateIndexOptions { Name = "idx_last_fetched" })
+                new CreateIndexOptions { Name = "idx_last_fetched" }),
+
+            // 6. Unique: shortCode for URL-safe lookups
+            new(Builders<SchemaIndexEntryDocument>.IndexKeys
+                .Ascending(d => d.ShortCode),
+                new CreateIndexOptions { Unique = true, Name = "idx_shortcode_unique" })
         };
 
         await _collection.Indexes.CreateManyAsync(indexes);
@@ -156,6 +162,15 @@ public class MongoSchemaIndexRepository : ISchemaIndexRepository
     }
 
     /// <inheritdoc />
+    public async Task<SchemaIndexEntryDocument?> GetByShortCodeAsync(
+        string shortCode,
+        CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<SchemaIndexEntryDocument>.Filter.Eq(d => d.ShortCode, shortCode);
+        return await _collection.Find(filter).FirstOrDefaultAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<bool> UpsertAsync(
         SchemaIndexEntryDocument entry,
         CancellationToken cancellationToken = default)
@@ -175,7 +190,13 @@ public class MongoSchemaIndexRepository : ISchemaIndexRepository
         if (existing is not null)
         {
             entry.Id = existing.Id;
+            entry.ShortCode = existing.ShortCode;
             entry.DateAdded = existing.DateAdded;
+        }
+        else
+        {
+            entry.Id = ObjectId.GenerateNewId().ToString();
+            entry.ShortCode = GenerateShortCode();
         }
 
         entry.DateModified = DateTimeOffset.UtcNow;
@@ -231,5 +252,20 @@ public class MongoSchemaIndexRepository : ISchemaIndexRepository
         return (int)await _collection.CountDocumentsAsync(
             Builders<SchemaIndexEntryDocument>.Filter.Empty,
             cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Generates a 6-character alphanumeric short code for URL-safe lookups.
+    /// </summary>
+    private static string GenerateShortCode()
+    {
+        const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+        Span<byte> bytes = stackalloc byte[6];
+        RandomNumberGenerator.Fill(bytes);
+        return string.Create(6, bytes.ToArray(), (span, b) =>
+        {
+            for (int i = 0; i < span.Length; i++)
+                span[i] = chars[b[i] % chars.Length];
+        });
     }
 }

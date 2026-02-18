@@ -9,6 +9,7 @@ namespace Sorcha.Blueprint.Service.Models;
 /// Lightweight index entry for search results.
 /// </summary>
 public sealed record SchemaIndexEntryDto(
+    string ShortCode,
     string SourceProvider,
     string SourceUri,
     string Title,
@@ -24,6 +25,7 @@ public sealed record SchemaIndexEntryDto(
 /// Full detail of a schema index entry including content.
 /// </summary>
 public sealed record SchemaIndexEntryDetail(
+    string ShortCode,
     string SourceProvider,
     string SourceUri,
     string Title,

@@ -74,12 +74,45 @@ public class SchemaIndexService : ISchemaIndexService
         CancellationToken cancellationToken = default)
     {
         var doc = await _indexRepository.GetByProviderAndUriAsync(sourceProvider, sourceUri, cancellationToken);
-        if (doc is null) return null;
+        return doc is null ? null : await BuildDetailAsync(doc, cancellationToken);
+    }
 
-        // Fetch content from provider
-        var content = await FetchContentFromProvider(sourceProvider, sourceUri, cancellationToken);
+    /// <inheritdoc />
+    public async Task<SchemaIndexEntryDetail?> GetByShortCodeAsync(
+        string shortCode,
+        CancellationToken cancellationToken = default)
+    {
+        var doc = await _indexRepository.GetByShortCodeAsync(shortCode, cancellationToken);
+        return doc is null ? null : await BuildDetailAsync(doc, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<JsonDocument?> GetContentByShortCodeAsync(
+        string shortCode,
+        CancellationToken cancellationToken = default)
+    {
+        var doc = await _indexRepository.GetByShortCodeAsync(shortCode, cancellationToken);
+        if (doc is null) return null;
+        return await FetchContentFromProvider(doc.SourceProvider, doc.SourceUri, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<JsonDocument?> GetContentAsync(
+        string sourceProvider,
+        string sourceUri,
+        CancellationToken cancellationToken = default)
+    {
+        return await FetchContentFromProvider(sourceProvider, sourceUri, cancellationToken);
+    }
+
+    private async Task<SchemaIndexEntryDetail> BuildDetailAsync(
+        SchemaIndexEntryDocument doc,
+        CancellationToken cancellationToken)
+    {
+        var content = await FetchContentFromProvider(doc.SourceProvider, doc.SourceUri, cancellationToken);
 
         return new SchemaIndexEntryDetail(
+            doc.ShortCode,
             doc.SourceProvider,
             doc.SourceUri,
             doc.Title,
@@ -94,15 +127,6 @@ public class SchemaIndexService : ISchemaIndexService
             doc.RequiredFields,
             doc.Keywords,
             content);
-    }
-
-    /// <inheritdoc />
-    public async Task<JsonDocument?> GetContentAsync(
-        string sourceProvider,
-        string sourceUri,
-        CancellationToken cancellationToken = default)
-    {
-        return await FetchContentFromProvider(sourceProvider, sourceUri, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -285,6 +309,7 @@ public class SchemaIndexService : ISchemaIndexService
     private static SchemaIndexEntryDto MapToDto(SchemaIndexEntryDocument doc)
     {
         return new SchemaIndexEntryDto(
+            doc.ShortCode,
             doc.SourceProvider,
             doc.SourceUri,
             doc.Title,

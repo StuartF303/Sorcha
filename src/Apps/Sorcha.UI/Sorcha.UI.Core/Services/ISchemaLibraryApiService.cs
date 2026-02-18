@@ -23,19 +23,17 @@ public interface ISchemaLibraryApiService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets a single schema index entry with full content.
+    /// Gets a single schema index entry with full content by short code.
     /// </summary>
     Task<SchemaIndexEntryDetailViewModel?> GetDetailAsync(
-        string sourceProvider,
-        string sourceUri,
+        string shortCode,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the raw JSON Schema content.
+    /// Gets the raw JSON Schema content by short code.
     /// </summary>
     Task<JsonDocument?> GetContentAsync(
-        string sourceProvider,
-        string sourceUri,
+        string shortCode,
         CancellationToken cancellationToken = default);
 
     /// <summary>

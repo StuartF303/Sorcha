@@ -9,6 +9,7 @@ namespace Sorcha.UI.Core.Models.SchemaLibrary;
 /// Lightweight schema index entry for search results.
 /// </summary>
 public sealed record SchemaIndexEntryViewModel(
+    string ShortCode,
     string SourceProvider,
     string SourceUri,
     string Title,
@@ -24,6 +25,7 @@ public sealed record SchemaIndexEntryViewModel(
 /// Full detail of a schema index entry including content.
 /// </summary>
 public sealed record SchemaIndexEntryDetailViewModel(
+    string ShortCode,
     string SourceProvider,
     string SourceUri,
     string Title,

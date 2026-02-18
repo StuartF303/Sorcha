@@ -34,6 +34,20 @@ public interface ISchemaIndexService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a single index entry by short code with full content.
+    /// </summary>
+    Task<SchemaIndexEntryDetail?> GetByShortCodeAsync(
+        string shortCode,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the raw JSON Schema content by short code.
+    /// </summary>
+    Task<JsonDocument?> GetContentByShortCodeAsync(
+        string shortCode,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets the raw JSON Schema content for a schema.
     /// </summary>
     Task<JsonDocument?> GetContentAsync(

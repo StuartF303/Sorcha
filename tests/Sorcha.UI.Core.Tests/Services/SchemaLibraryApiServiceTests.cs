@@ -34,7 +34,7 @@ public class SchemaLibraryApiServiceTests
     {
         var expected = new SchemaIndexSearchResponse(
             [new SchemaIndexEntryViewModel(
-                "SchemaStore", "http://example.com/schema.json",
+                "sc001", "SchemaStore", "http://example.com/schema.json",
                 "Test Schema", "A test schema", ["general"],
                 5, 2, "1.0.0", "Active", DateTimeOffset.UtcNow)],
             1, null, null);
@@ -92,7 +92,7 @@ public class SchemaLibraryApiServiceTests
     public async Task GetDetailAsync_ReturnsDetail()
     {
         var expected = new SchemaIndexEntryDetailViewModel(
-            "SchemaStore", "http://example.com/schema.json",
+            "sc001", "SchemaStore", "http://example.com/schema.json",
             "Test Schema", "A test schema", ["general"],
             5, 2, "1.0.0", "Active", DateTimeOffset.UtcNow,
             ["name", "age"], ["name"], ["test"], null);
@@ -100,7 +100,7 @@ public class SchemaLibraryApiServiceTests
         var handler = CreateMockHandler(HttpStatusCode.OK, expected);
         var service = CreateService(handler);
 
-        var result = await service.GetDetailAsync("SchemaStore", "http://example.com/schema.json");
+        var result = await service.GetDetailAsync("sc001");
 
         result.Should().NotBeNull();
         result!.Title.Should().Be("Test Schema");
@@ -113,7 +113,7 @@ public class SchemaLibraryApiServiceTests
         var handler = CreateMockHandler(HttpStatusCode.NotFound);
         var service = CreateService(handler);
 
-        var result = await service.GetDetailAsync("Unknown", "missing");
+        var result = await service.GetDetailAsync("unknown-sc");
 
         result.Should().BeNull();
     }
@@ -125,7 +125,7 @@ public class SchemaLibraryApiServiceTests
         var handler = CreateMockHandler(HttpStatusCode.OK, schema.RootElement);
         var service = CreateService(handler);
 
-        var result = await service.GetContentAsync("SchemaStore", "http://example.com/schema.json");
+        var result = await service.GetContentAsync("sc001");
 
         result.Should().NotBeNull();
         result!.RootElement.GetProperty("type").GetString().Should().Be("object");

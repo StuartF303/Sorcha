@@ -118,6 +118,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis:6379
+      ConnectionStrings__mongodb: mongodb://sorcha:sorcha_dev_password@mongodb:27017
       # AI Provider configuration (Anthropic Claude API)
       AIProvider__ApiKey: ${ANTHROPIC_API_KEY:-}
       AIProvider__Model: claude-3-5-sonnet-20241022
@@ -133,6 +134,8 @@ services:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
       redis:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
       aspire-dashboard:
         condition: service_started

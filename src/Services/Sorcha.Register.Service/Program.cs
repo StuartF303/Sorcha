@@ -1110,6 +1110,8 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
     PublishBlueprintToRegisterRequest request,
     IRegisterRepository repository,
     SystemRegisterService systemRegister,
+    TransactionManager transactionManager,
+    IHashProvider hashProvider,
     Sorcha.Register.Core.Services.IGovernanceRosterService rosterService) =>
 {
     // Verify register exists
@@ -1131,17 +1133,90 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
         }
     }
 
-    // Publish to system register
+    // Publish to system register (global catalog) — idempotent: skip if already exists
     var bsonDocument = MongoDB.Bson.BsonDocument.Parse(request.BlueprintJson);
-    var entry = await systemRegister.PublishBlueprintAsync(
-        request.BlueprintId, bsonDocument, request.PublishedBy);
+    long systemVersion = 0;
+    var existingEntry = await systemRegister.GetBlueprintAsync(request.BlueprintId);
+    if (existingEntry is null)
+    {
+        var entry = await systemRegister.PublishBlueprintAsync(
+            request.BlueprintId, bsonDocument, request.PublishedBy);
+        systemVersion = entry.Version;
+    }
+    else
+    {
+        systemVersion = existingEntry.Version;
+    }
+
+    // Write a Control transaction to the target register's ledger so users can
+    // discover which blueprints (workflows) are available on this register.
+    var blueprintBytes = System.Text.Encoding.UTF8.GetBytes(request.BlueprintJson);
+    var payloadHash = hashProvider.ComputeHash(blueprintBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
+    var payloadHashHex = Convert.ToHexString(payloadHash).ToLowerInvariant();
+
+    var txIdSource = System.Text.Encoding.UTF8.GetBytes($"blueprint-publish-{registerId}-{request.BlueprintId}");
+    var txIdHash = hashProvider.ComputeHash(txIdSource, Sorcha.Cryptography.Enums.HashType.SHA256);
+    var txId = Convert.ToHexString(txIdHash).ToLowerInvariant();
+
+    // Check if this blueprint was already published to this register (idempotent)
+    var existingTx = await transactionManager.GetTransactionAsync(registerId, txId);
+    if (existingTx is not null)
+    {
+        return Results.Ok(new
+        {
+            blueprintId = request.BlueprintId,
+            registerId,
+            txId,
+            version = systemVersion,
+            publishedAt = existingTx.TimeStamp,
+            alreadyPublished = true
+        });
+    }
+
+    // Find chain head: latest transaction on this register to chain from
+    var allTxs = await repository.GetTransactionsAsync(registerId);
+    var chainHead = allTxs.OrderByDescending(t => t.TimeStamp).FirstOrDefault();
+
+    var blueprintTx = new TransactionModel
+    {
+        TxId = txId,
+        RegisterId = registerId,
+        SenderWallet = "system",
+        TimeStamp = DateTime.UtcNow,
+        PrevTxId = chainHead?.TxId ?? string.Empty,
+        PayloadCount = 1,
+        Payloads =
+        [
+            new PayloadModel
+            {
+                Data = Convert.ToBase64String(blueprintBytes),
+                WalletAccess = Array.Empty<string>(),
+                Hash = payloadHashHex
+            }
+        ],
+        MetaData = new TransactionMetaData
+        {
+            RegisterId = registerId,
+            TransactionType = TransactionType.Control,
+            BlueprintId = request.BlueprintId,
+            TrackingData = new Dictionary<string, string>
+            {
+                ["transactionType"] = "BlueprintPublish",
+                ["publishedBy"] = request.PublishedBy
+            }
+        },
+        Signature = string.Empty
+    };
+
+    await transactionManager.StoreTransactionAsync(blueprintTx);
 
     return Results.Ok(new
     {
         blueprintId = request.BlueprintId,
         registerId,
-        version = entry.Version,
-        publishedAt = entry.PublishedAt
+        txId,
+        version = systemVersion,
+        publishedAt = blueprintTx.TimeStamp
     });
 })
 .WithTags("Blueprints")
