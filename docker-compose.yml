@@ -215,6 +215,8 @@ services:
       ServiceClients__ValidatorService__UseGrpc: "false"
       ServiceClients__PeerService__Address: http://sorcha-peer-service:5000
       ServiceClients__PeerService__HttpAddress: http://sorcha-peer-service:8080
+      # System wallet signing (for blueprint publish, governance Control TXs)
+      SystemWalletSigning__ValidatorId: docker-register-1
       # Service-to-service auth for Wallet Service calls
       ServiceAuth__ClientId: register-service
       ServiceAuth__ClientSecret: register-service-secret
