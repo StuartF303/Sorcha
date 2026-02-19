@@ -7,6 +7,7 @@ using System.Text.Json;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.Register.Core.Managers;
 using Sorcha.Register.Models;
+using Sorcha.Register.Models.Constants;
 using Sorcha.Register.Models.Enums;
 using Sorcha.ServiceClients.Wallet;
 using Sorcha.ServiceClients.Peer;
@@ -317,7 +318,11 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             transactionType: "Genesis",
             cancellationToken);
 
-        // Combine system wallet signature with attestation signatures
+        // Only the system wallet signature goes at the transaction level.
+        // Attestation signatures are embedded in the control record payload
+        // and were already verified during FinalizeAsync. The Validator verifies
+        // all transaction-level signatures against SHA256("{TxId}:{PayloadHash}"),
+        // which attestation signatures were NOT signed against.
         var systemSignature = new SignatureInfo
         {
             PublicKey = Convert.ToBase64String(signResult.PublicKey),
@@ -325,24 +330,16 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             Algorithm = signResult.Algorithm
         };
 
-        var allSignatures = new List<SignatureInfo> { systemSignature };
-        allSignatures.AddRange(controlRecord.Attestations.Select(a => new SignatureInfo
-        {
-            PublicKey = a.PublicKey,
-            SignatureValue = a.Signature,
-            Algorithm = a.Algorithm.ToString()
-        }));
-
         // Submit through unified generic endpoint
         var submissionRequest = new TransactionSubmission
         {
             TransactionId = genesisTransaction.TxId,
             RegisterId = pending.RegisterId,
-            BlueprintId = "genesis",
+            BlueprintId = GenesisConstants.BlueprintId,
             ActionId = "register-creation",
             Payload = JsonDocument.Parse(canonicalPayloadJson).RootElement,
             PayloadHash = payloadHash,
-            Signatures = allSignatures,
+            Signatures = new List<SignatureInfo> { systemSignature },
             CreatedAt = controlRecord.CreatedAt,
             Metadata = new Dictionary<string, string>
             {

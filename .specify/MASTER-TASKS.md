@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 5.5 - UPDATED
+**Version:** 5.6 - UPDATED
 **Last Updated:** 2026-02-19
-**Status:** Active - Construction Permit Walkthrough Complete
+**Status:** Active - Genesis TX Signature Fix
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -43,6 +43,7 @@ All transactions MUST go through the Validator Service mempool before being seal
 
 | Date | Summary |
 |------|---------|
+| 2026-02-19 | **Genesis TX Signature Fix** — Genesis docket now contains 1 transaction (was 0). Root cause: `RegisterCreationOrchestrator` included attestation signatures in `TransactionSubmission.Signatures`, but the Validator verifies all transaction-level signatures against `SHA256("{TxId}:{PayloadHash}")` — attestation sigs were signed against different data (SHA256 of canonical attestation JSON). Fix: only include system wallet signature at transaction level; attestation sigs remain embedded in the control record payload where they were already verified during `FinalizeAsync`. Also replaced hardcoded `"genesis"` with `GenesisConstants.BlueprintId`. Full register creation walkthrough passes: auth → wallet → initiate → sign attestations → finalize → genesis TX → validator accepts → docket with 1 TX → register height 1. |
 | 2026-02-19 | **Construction Permit Walkthrough — ALL 3 SCENARIOS PASS** (11/11 steps, 14/14 actions). Four fixes: (1) PS1 `$actionSenderMap` Int64/Int32 type mismatch — `ConvertFrom-Json` returns Int64 for JSON integers but hashtable keys are Int32; fixed with `[int]` cast. (2) Calculation-before-routing reorder — calculations (e.g. `riskScore`) must be applied BEFORE route condition evaluation so JSON Logic conditions can reference them. (3) `Instance.AccumulatedData` fallback — Register Service doesn't support instance-based transaction queries (always 404), so accumulated payload+calculations are now persisted on the Instance object for cross-action state reconstruction. (4) Blueprint template disclosure fix — Action 4 environmental-assessor needed `/*` disclosure so sender's own submitted data is included in transaction (otherwise Validator rejects with VAL_SCHEMA_004). Scenario A: 5/5 low-risk residential (skips env review). Scenario B: 6/6 high-risk commercial (conditional routing to env review). Scenario C: 3/3 rejection at planning review. |
 | 2026-02-19 | **Deterministic Canonical JSON Hashing** — Fixed payload hash verification (TX_012, VAL_HASH_001) across HTTP and Redis boundaries. Root cause: `System.Text.Json` default encoder escapes `+` to `\u002B` in DateTimeOffset/base64, and `GetRawText()` preserves transport encoding not canonical form. Fix: added `CanonicalJsonOptions` (compact, `UnsafeRelaxedJsonEscaping`) to Blueprint Service transaction builder, Validator Core `TransactionValidator`, and `ValidationEngine`. Both producer and verifier now re-canonicalize via `Serialize(payload, CanonicalJsonOptions)` before hashing. Ping-pong walkthrough: 20/20 rounds, 40/40 actions PASS. |
 | 2026-02-18 | **037-New-Submission-Page** (31 tasks, 8 phases): Redesigned MyWorkflows.razor from workflow instance list to service directory grouped by register. Created WalletPreferenceService (localStorage-backed smart default), WalletSelector.razor, NewSubmissionDialog.razor (create instance + execute Action 0). Added GetAvailableBlueprintsAsync, CreateInstanceAsync, SubmitActionExecuteAsync (with X-Delegation-Token). Fixed Pending Actions: wired wallet into ActionForm, actual SubmitActionAsync call after dialog. Swapped nav order. Tests: 10 WalletPreferenceService tests pass, UI Core 0w/0e, Web Client 0w/0e. |
