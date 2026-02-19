@@ -835,7 +835,7 @@ foreach ($scenarioId in $scenariosToRun) {
 
         foreach ($actionId in $expectedPath) {
             $actionIdStr = "$actionId"
-            $sender = $actionSenderMap[$actionId]
+            $sender = $actionSenderMap[[int]$actionId]
             $senderWallet = $participantWalletMap[$sender]
             $actionData = $scenarioData.actions."$actionId"
 

@@ -464,14 +464,7 @@
         "disclosures": [
           {
             "participantAddress": "environmental-assessor",
-            "dataPointers": [
-              "/projectName",
-              "/siteAddress",
-              "/buildingType",
-              "/grossFloorArea",
-              "/riskScore",
-              "/structuralGrade"
-            ]
+            "dataPointers": ["/*"]
           },
           {
             "participantAddress": "building-control",

@@ -189,29 +189,52 @@ public class ActionExecutionService : IActionExecutionService
             throw new ValidationException(validationResult.Errors);
         }
 
-        // 7. Merge accumulated state with current data for routing and calculations
-        var mergedData = accumulatedState.GetFlattenedData()
-            .Where(kvp => kvp.Value != null)
-            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value!);
+        // 7. Merge accumulated state with current data for routing and calculations.
+        //    Prefer register-reconstructed state; fall back to instance-stored accumulated data
+        //    when the Register Service doesn't support instance-based transaction queries.
+        var flattenedState = accumulatedState.GetFlattenedData();
+        var mergedData = flattenedState.Count > 0
+            ? flattenedState.Where(kvp => kvp.Value != null).ToDictionary(kvp => kvp.Key, kvp => kvp.Value!)
+            : new Dictionary<string, object>(instance.AccumulatedData);
+
         foreach (var kvp in request.PayloadData)
         {
             mergedData[kvp.Key] = kvp.Value;
         }
 
-        // 8. Evaluate routing conditions to determine next action(s)
+        // 8. Apply calculations BEFORE routing so calculated values (e.g. riskScore)
+        //    are available for route condition evaluation in this and subsequent actions
+        var calculations = await EvaluateCalculationsAsync(actionDef, mergedData, cancellationToken);
+        if (calculations != null)
+        {
+            foreach (var kvp in calculations)
+            {
+                mergedData[kvp.Key] = kvp.Value;
+            }
+        }
+
+        // 9. Evaluate routing conditions to determine next action(s)
         var routingResult = await EvaluateRoutingAsync(blueprint, actionDef, mergedData, cancellationToken);
 
-        // 9. Apply calculations
-        var calculations = await EvaluateCalculationsAsync(actionDef, mergedData, cancellationToken);
+        // 9a. Build payload that includes calculated values so they persist in the transaction
+        //     and are available during state reconstruction for subsequent actions' routing
+        var payloadWithCalculations = new Dictionary<string, object>(request.PayloadData);
+        if (calculations != null)
+        {
+            foreach (var kvp in calculations)
+            {
+                payloadWithCalculations[kvp.Key] = kvp.Value;
+            }
+        }
 
-        // 9. Apply disclosure rules for recipients
-        var disclosedPayloads = ApplyDisclosures(actionDef, request.PayloadData, blueprint, instance.ParticipantWallets);
+        // 9b. Apply disclosure rules for recipients
+        var disclosedPayloads = ApplyDisclosures(actionDef, payloadWithCalculations, blueprint, instance.ParticipantWallets);
 
         // If no disclosure rules defined, default to full disclosure under sender's wallet.
         // This ensures the payload data is always present in the transaction for schema validation.
-        if (disclosedPayloads.Count == 0 && request.PayloadData.Count > 0)
+        if (disclosedPayloads.Count == 0 && payloadWithCalculations.Count > 0)
         {
-            disclosedPayloads[request.SenderWallet] = request.PayloadData;
+            disclosedPayloads[request.SenderWallet] = payloadWithCalculations;
         }
 
         // 9b. Issue credential if action has issuance configuration
@@ -222,12 +245,12 @@ public class ActionExecutionService : IActionExecutionService
                 actionDef, mergedData, request.SenderWallet, instance, cancellationToken);
         }
 
-        // 10. Build transaction
+        // 10. Build transaction (include calculated values in payload for state reconstruction)
         var transaction = await _transactionBuilder.BuildActionTransactionAsync(
             blueprint,
             instance,
             actionDef,
-            request.PayloadData,
+            payloadWithCalculations,
             disclosedPayloads,
             accumulatedState.PreviousTransactionId,
             cancellationToken);
@@ -274,7 +297,14 @@ public class ActionExecutionService : IActionExecutionService
         // 13b. Store idempotency key (24-hour TTL)
         await _actionStore.StoreIdempotencyKeyAsync(idempotencyKey, confirmedTxId, TimeSpan.FromHours(24));
 
-        // 14. Update instance state
+        // 14. Persist accumulated data on instance for subsequent actions' routing/calculations
+        //     (fallback when Register-based state reconstruction is unavailable)
+        foreach (var kvp in mergedData)
+        {
+            instance.AccumulatedData[kvp.Key] = kvp.Value;
+        }
+
+        // 14b. Update instance state
         instance = await UpdateInstanceAfterExecutionAsync(
             instance,
             actionId,

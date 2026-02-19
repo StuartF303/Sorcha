@@ -100,6 +100,13 @@ public class Instance
     /// Optional metadata for the instance
     /// </summary>
     public Dictionary<string, string> Metadata { get; init; } = new();
+
+    /// <summary>
+    /// Accumulated data from all completed actions (payload + calculated values).
+    /// Used as fallback when Register-based state reconstruction is unavailable.
+    /// Keys are flattened field names; later actions override earlier ones.
+    /// </summary>
+    public Dictionary<string, object> AccumulatedData { get; set; } = new();
 }
 
 /// <summary>
