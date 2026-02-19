@@ -166,11 +166,10 @@ public class TransactionValidator : ITransactionValidator
 
         try
         {
-            // Serialize payload to bytes
-            var payloadJson = JsonSerializer.Serialize(payload, new JsonSerializerOptions
-            {
-                WriteIndented = false
-            });
+            // Use GetRawText() to get the exact JSON text from the parsed document
+            // This avoids any re-serialization differences (encoder, escaping) that could
+            // cause hash mismatches when the payload has been through an HTTP round-trip
+            var payloadJson = payload.GetRawText();
             var payloadBytes = Encoding.UTF8.GetBytes(payloadJson);
 
             // Compute hash

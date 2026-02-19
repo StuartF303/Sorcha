@@ -544,7 +544,12 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     private TransactionModel CreateGenesisTransaction(string registerId, RegisterControlRecord controlRecord)
     {
         var controlRecordJson = JsonSerializer.Serialize(controlRecord, _canonicalJsonOptions);
-        var controlRecordBytes = Encoding.UTF8.GetBytes(controlRecordJson);
+
+        // Parse into JsonElement and use GetRawText() for hash computation
+        // This ensures the hash matches what the validator computes (also using GetRawText())
+        using var doc = JsonDocument.Parse(controlRecordJson);
+        var rawText = doc.RootElement.GetRawText();
+        var controlRecordBytes = Encoding.UTF8.GetBytes(rawText);
 
         // Compute actual SHA-256 hash of the serialized control record payload
         var payloadHash = _hashProvider.ComputeHash(controlRecordBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
