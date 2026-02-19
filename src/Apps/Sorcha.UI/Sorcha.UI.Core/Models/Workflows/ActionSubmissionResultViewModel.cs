@@ -18,10 +18,12 @@ public record ActionSubmissionResultViewModel
 
 /// <summary>
 /// Information about the next action in the workflow after a submission.
+/// Maps to NextActionResponse from the Blueprint Service.
 /// </summary>
 public record NextActionInfo
 {
-    public string ActionId { get; init; } = string.Empty;
-    public string Title { get; init; } = string.Empty;
-    public string? AssignedParticipant { get; init; }
+    public int ActionId { get; init; }
+    public string ActionTitle { get; init; } = string.Empty;
+    public string ParticipantId { get; init; } = string.Empty;
+    public string? BranchId { get; init; }
 }

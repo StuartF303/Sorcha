@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Text.Json.Serialization;
+
 namespace Sorcha.UI.Core.Models.Workflows;
 
 /// <summary>
@@ -8,6 +10,7 @@ namespace Sorcha.UI.Core.Models.Workflows;
 /// </summary>
 public record WorkflowInstanceViewModel
 {
+    [JsonPropertyName("id")]
     public string InstanceId { get; init; } = string.Empty;
     public string BlueprintId { get; init; } = string.Empty;
     public string BlueprintName { get; init; } = string.Empty;

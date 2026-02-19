@@ -84,6 +84,7 @@
     [Parameter] public EventCallback<string> OnReject { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
     [Parameter] public bool IsReadOnly { get; set; }
+    [Parameter] public bool IsSenderAction { get; set; }
 
     private FormContext _formContext = new();
     private Control? _formControl;
@@ -113,23 +114,36 @@
             ParsePreviousData();
         }
 
-        // Determine form control — use Action.Form or auto-generate
-        _formControl = Action.Form ?? SchemaService.AutoGenerateForm(Action.DataSchemas);
+        // Determine form control — use Action.Form if it has elements, otherwise auto-generate
+        // Note: Action.Form defaults to an empty Layout (non-null) even when JSON has no "form" key,
+        // so we must check for elements rather than null.
+        var explicitForm = Action.Form;
+        var hasExplicitFormElements = explicitForm?.Elements is { Count: > 0 };
+        _formControl = hasExplicitFormElements ? explicitForm! : SchemaService.AutoGenerateForm(Action.DataSchemas);
 
         // Credential requirements
         _credentialRequirements = Action.CredentialRequirements?.ToList() ?? [];
 
         // Calculations
         _hasCalculations = Action.Calculations?.Count > 0;
+
     }
 
     private void BuildDisclosureFilter()
     {
         if (Action is null) return;
 
+        // If this is the sender's own action (e.g., new submission or assigned pending action),
+        // disclose all fields — the sender always sees their own form
+        if (IsSenderAction)
+        {
+            _formContext.AllFieldsDisclosed = true;
+            return;
+        }
+
         var disclosures = Action.Disclosures?.ToList() ?? [];
 
-        // If the current participant is the sender, they see all fields
+        // If the current participant is the sender (matched by participant ID), they see all fields
         if (Action.Sender == ParticipantAddress)
         {
             _formContext.AllFieldsDisclosed = true;
