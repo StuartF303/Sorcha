@@ -880,13 +880,28 @@ public class ValidationEngine : IValidationEngine
         return false;
     }
 
+    /// <summary>
+    /// Canonical JSON serializer options for deterministic payload hashing.
+    /// MUST match the options used by Blueprint Service (TransactionBuilderServiceExtensions)
+    /// and Validator Core (TransactionValidator).
+    /// Contract: compact, no property renaming, UnsafeRelaxedJsonEscaping (no \u002B for +).
+    /// </summary>
+    private static readonly JsonSerializerOptions CanonicalJsonOptions = new()
+    {
+        WriteIndented = false,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
     private ValidationEngineResult ValidatePayloadHash(Transaction transaction)
     {
         var sw = Stopwatch.StartNew();
 
         try
         {
-            var payloadJson = transaction.Payload.GetRawText();
+            // Re-canonicalize the payload through deterministic serializer options.
+            // This ensures hash verification is independent of how the JSON arrived
+            // (HTTP encoding, Redis round-trip, etc.) — only the logical data matters.
+            var payloadJson = JsonSerializer.Serialize(transaction.Payload, CanonicalJsonOptions);
             var payloadBytes = Encoding.UTF8.GetBytes(payloadJson);
             var computedHash = _hashProvider.ComputeHash(payloadBytes, HashType.SHA256);
             var computedHashHex = Convert.ToHexString(computedHash).ToLowerInvariant();

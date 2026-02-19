@@ -38,8 +38,11 @@ public class Transaction
     public required JsonElement Payload { get; init; }
 
     /// <summary>
-    /// JSON-serialized payload (for gRPC transmission)
+    /// JSON-serialized payload (for gRPC transmission).
+    /// Excluded from JSON serialization to prevent interference with Payload during
+    /// Redis round-trips (PayloadJson as a string would produce different hash than Payload as JsonElement).
     /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public string? PayloadJson => Payload.ValueKind != JsonValueKind.Undefined
         ? Payload.GetRawText()
         : null;

@@ -86,6 +86,18 @@ public record FileAttachment(
 public static class TransactionBuilderServiceExtensions
 {
     /// <summary>
+    /// Canonical JSON serializer options for deterministic payload hashing.
+    /// MUST match the options used by Validator (TransactionValidator, ValidationEngine)
+    /// and all serialization boundaries (ValidatorServiceClient, TransactionPoolPoller).
+    /// Contract: compact, no property renaming, UnsafeRelaxedJsonEscaping (no \u002B for +).
+    /// </summary>
+    internal static readonly JsonSerializerOptions CanonicalJsonOptions = new()
+    {
+        WriteIndented = false,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
+    /// <summary>
     /// Builds an action transaction using orchestration context.
     /// Serializes disclosed payloads into transaction data for signing and submission.
     /// </summary>
@@ -119,19 +131,18 @@ public static class TransactionBuilderServiceExtensions
             payloads = disclosedPayloads
         };
 
-        var transactionData = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(transactionPayload);
+        // Serialize with canonical options for deterministic hashing.
+        // UnsafeRelaxedJsonEscaping ensures '+' in timestamps/base64 is not escaped to \u002B,
+        // which would cause hash mismatches after HTTP/Redis round-trips.
+        var transactionData = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(transactionPayload, CanonicalJsonOptions);
 
-        // Generate TxId as SHA-256 hash of transaction data (64 hex chars)
+        // Generate TxId as SHA-256 hash of canonical transaction data (64 hex chars)
         var hashBytes = System.Security.Cryptography.SHA256.HashData(transactionData);
         var txId = Convert.ToHexString(hashBytes).ToLowerInvariant();
 
-        // Compute PayloadHash eagerly — used for signing contract with Validator
-        // Serialize via JsonElement round-trip for canonical compact form
-        var payloadElement = JsonSerializer.Deserialize<JsonElement>(transactionData);
-        var payloadJson = JsonSerializer.Serialize(payloadElement, new JsonSerializerOptions { WriteIndented = false });
-        var payloadHashBytes = System.Security.Cryptography.SHA256.HashData(
-            System.Text.Encoding.UTF8.GetBytes(payloadJson));
-        var payloadHash = Convert.ToHexString(payloadHashBytes).ToLowerInvariant();
+        // PayloadHash = SHA-256 of canonical JSON — same bytes as TxId since we serialize once
+        // with deterministic options. The Validator re-canonicalizes with the same options to verify.
+        var payloadHash = txId;
 
         return Task.FromResult(new BuiltTransaction
         {
@@ -177,18 +188,15 @@ public static class TransactionBuilderServiceExtensions
             rejectionData
         };
 
-        var transactionData = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(transactionPayload);
+        // Serialize with canonical options for deterministic hashing
+        var transactionData = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(transactionPayload, CanonicalJsonOptions);
 
-        // Generate TxId as SHA-256 hash of transaction data (64 hex chars)
+        // Generate TxId as SHA-256 hash of canonical transaction data (64 hex chars)
         var hashBytes = System.Security.Cryptography.SHA256.HashData(transactionData);
         var txId = Convert.ToHexString(hashBytes).ToLowerInvariant();
 
-        // Compute PayloadHash eagerly — used for signing contract with Validator
-        var payloadElement = JsonSerializer.Deserialize<JsonElement>(transactionData);
-        var payloadJson = JsonSerializer.Serialize(payloadElement, new JsonSerializerOptions { WriteIndented = false });
-        var payloadHashBytes = System.Security.Cryptography.SHA256.HashData(
-            System.Text.Encoding.UTF8.GetBytes(payloadJson));
-        var payloadHash = Convert.ToHexString(payloadHashBytes).ToLowerInvariant();
+        // PayloadHash = TxId — same canonical bytes, same hash
+        var payloadHash = txId;
 
         return Task.FromResult(new BuiltTransaction
         {

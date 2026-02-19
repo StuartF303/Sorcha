@@ -39,7 +39,11 @@ public class ValidatorServiceClient : IValidatorServiceClient
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        // CRITICAL: Use relaxed encoding so characters like '+' in base64 and DateTimeOffset
+        // are not escaped to \u002B during serialization. The Validator computes payload hashes
+        // from GetRawText() — any escaping changes the bytes and breaks hash verification.
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     /// <summary>

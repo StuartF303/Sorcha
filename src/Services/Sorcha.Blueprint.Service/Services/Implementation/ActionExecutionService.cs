@@ -849,16 +849,14 @@ public class ActionExecutionService : IActionExecutionService
                 timestamp = DateTimeOffset.UtcNow
             };
 
-            var transactionData = JsonSerializer.SerializeToUtf8Bytes(credentialRecordPayload);
+            // Serialize with canonical options for deterministic hashing
+            var transactionData = JsonSerializer.SerializeToUtf8Bytes(
+                credentialRecordPayload, TransactionBuilderServiceExtensions.CanonicalJsonOptions);
             var hashBytes = System.Security.Cryptography.SHA256.HashData(transactionData);
             var txId = Convert.ToHexString(hashBytes).ToLowerInvariant();
 
-            // Compute PayloadHash for signing contract
-            var payloadElement = JsonSerializer.Deserialize<JsonElement>(transactionData);
-            var payloadJson = JsonSerializer.Serialize(payloadElement, new JsonSerializerOptions { WriteIndented = false });
-            var payloadHashBytes = System.Security.Cryptography.SHA256.HashData(
-                System.Text.Encoding.UTF8.GetBytes(payloadJson));
-            var payloadHash = Convert.ToHexString(payloadHashBytes).ToLowerInvariant();
+            // PayloadHash = TxId — same canonical bytes, same hash
+            var payloadHash = txId;
 
             var credTransaction = new BuiltTransaction
             {

@@ -50,7 +50,11 @@ public class TransactionPoolPoller : ITransactionPoolPoller
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            // CRITICAL: Use relaxed encoding so characters like '+' in DateTimeOffset and base64
+            // are stored literally, not as \u002B. ValidationEngine hashes GetRawText() — escaping
+            // differences between serialization boundaries would break payload hash verification.
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
 
         _pipeline = BuildResiliencePipeline();

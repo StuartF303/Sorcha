@@ -155,6 +155,18 @@ public class TransactionValidator : ITransactionValidator
     }
 
     /// <summary>
+    /// Canonical JSON serializer options for deterministic payload hashing.
+    /// MUST match the options used by Blueprint Service (TransactionBuilderServiceExtensions)
+    /// and all serialization boundaries (ValidatorServiceClient, TransactionPoolPoller).
+    /// Contract: compact, no property renaming, UnsafeRelaxedJsonEscaping (no \u002B for +).
+    /// </summary>
+    private static readonly JsonSerializerOptions CanonicalJsonOptions = new()
+    {
+        WriteIndented = false,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
+    /// <summary>
     /// Validates that the payload hash matches the actual payload
     /// </summary>
     public ValidationResult ValidatePayloadHash(JsonElement payload, string expectedHash)
@@ -166,10 +178,10 @@ public class TransactionValidator : ITransactionValidator
 
         try
         {
-            // Use GetRawText() to get the exact JSON text from the parsed document
-            // This avoids any re-serialization differences (encoder, escaping) that could
-            // cause hash mismatches when the payload has been through an HTTP round-trip
-            var payloadJson = payload.GetRawText();
+            // Re-canonicalize the payload through deterministic serializer options.
+            // This ensures hash verification is independent of how the JSON arrived
+            // (HTTP encoding, Redis round-trip, etc.) — only the logical data matters.
+            var payloadJson = JsonSerializer.Serialize(payload, CanonicalJsonOptions);
             var payloadBytes = Encoding.UTF8.GetBytes(payloadJson);
 
             // Compute hash

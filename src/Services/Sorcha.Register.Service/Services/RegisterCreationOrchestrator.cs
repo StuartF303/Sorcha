@@ -57,12 +57,15 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         _pendingStore = pendingStore ?? throw new ArgumentNullException(nameof(pendingStore));
         _peerClient = peerClient ?? throw new ArgumentNullException(nameof(peerClient));
 
-        // Configure JSON serialization for canonical form (RFC 8785)
+        // Configure JSON serialization for canonical form
+        // UnsafeRelaxedJsonEscaping ensures characters like '+' in DateTimeOffset and base64
+        // are NOT escaped to \u002B — critical for deterministic hash computation.
         _canonicalJsonOptions = new JsonSerializerOptions
         {
             WriteIndented = false,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
     }
 
@@ -298,8 +301,11 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             genesisTransaction.TxId,
             pending.RegisterId);
 
-        // Sign genesis transaction with system wallet and submit through generic endpoint
-        var controlRecordJson = JsonSerializer.Serialize(controlRecord, _canonicalJsonOptions);
+        // Use the same canonical JSON that was hashed in CreateGenesisTransaction
+        // to ensure deterministic hash verification at the Validator.
+        // Decode from base64 (stored in Payloads[0].Data) to get the exact bytes that were hashed.
+        var canonicalPayloadBytes = Convert.FromBase64String(genesisTransaction.Payloads[0].Data);
+        var canonicalPayloadJson = Encoding.UTF8.GetString(canonicalPayloadBytes);
         var payloadHash = genesisTransaction.Payloads[0].Hash;
 
         // Sign with system wallet
@@ -334,7 +340,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             RegisterId = pending.RegisterId,
             BlueprintId = "genesis",
             ActionId = "register-creation",
-            Payload = JsonDocument.Parse(controlRecordJson).RootElement,
+            Payload = JsonDocument.Parse(canonicalPayloadJson).RootElement,
             PayloadHash = payloadHash,
             Signatures = allSignatures,
             CreatedAt = controlRecord.CreatedAt,
@@ -543,13 +549,13 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     /// </summary>
     private TransactionModel CreateGenesisTransaction(string registerId, RegisterControlRecord controlRecord)
     {
+        // Serialize to canonical form, then re-canonicalize through JsonElement round-trip.
+        // This ensures the hash matches what the Validator computes when it receives the payload
+        // and re-canonicalizes with the same options (compact, UnsafeRelaxedJsonEscaping).
         var controlRecordJson = JsonSerializer.Serialize(controlRecord, _canonicalJsonOptions);
-
-        // Parse into JsonElement and use GetRawText() for hash computation
-        // This ensures the hash matches what the validator computes (also using GetRawText())
         using var doc = JsonDocument.Parse(controlRecordJson);
-        var rawText = doc.RootElement.GetRawText();
-        var controlRecordBytes = Encoding.UTF8.GetBytes(rawText);
+        var canonicalJson = JsonSerializer.Serialize(doc.RootElement, _canonicalJsonOptions);
+        var controlRecordBytes = Encoding.UTF8.GetBytes(canonicalJson);
 
         // Compute actual SHA-256 hash of the serialized control record payload
         var payloadHash = _hashProvider.ComputeHash(controlRecordBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
