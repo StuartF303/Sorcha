@@ -643,7 +643,9 @@ actionsGroup.MapGet("/{wallet}/{register}/blueprints", async (
                     Title = a.Title,
                     Description = a.Description,
                     IsAvailable = true, // TODO: Apply routing rules
-                    DataSchema = a.DataSchemas?.FirstOrDefault()?.RootElement.GetProperty("$id").GetString()
+                    DataSchema = a.DataSchemas?.FirstOrDefault() is { } schema
+                        && schema.RootElement.TryGetProperty("$id", out var schemaId)
+                        ? schemaId.GetString() : null
                 })
                 .ToList();
 
