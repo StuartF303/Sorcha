@@ -209,9 +209,9 @@ public class AIProviderOptions
     public string ApiKey { get; set; } = string.Empty;
 
     /// <summary>
-    /// Model to use (e.g., "claude-3-5-sonnet-20241022").
+    /// Model to use (e.g., "claude-sonnet-4-5-20250929").
     /// </summary>
-    public string Model { get; set; } = "claude-3-5-sonnet-20241022";
+    public string Model { get; set; } = "claude-sonnet-4-5-20250929";
 
     /// <summary>
     /// Maximum tokens for response.

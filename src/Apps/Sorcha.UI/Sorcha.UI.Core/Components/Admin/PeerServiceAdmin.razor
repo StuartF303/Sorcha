@@ -253,26 +253,42 @@
                     <MudTabPanel Text="Available Registers" Icon="@Icons.Material.Filled.CloudQueue">
                         @if (availableRegisters?.Any() == true)
                         {
-                            <MudTable Items="@availableRegisters" Dense="true" Hover="true" Striped="true">
+                            <MudTable Items="@availableRegisters" Hover="true" Breakpoint="Breakpoint.Sm" Class="available-registers-table">
                                 <HeaderContent>
-                                    <MudTh>Register ID</MudTh>
-                                    <MudTh>Peers</MudTh>
-                                    <MudTh>Latest Version</MudTh>
-                                    <MudTh>Latest Docket</MudTh>
-                                    <MudTh>Full Replicas</MudTh>
-                                    <MudTh>Actions</MudTh>
+                                    <MudTh>Register</MudTh>
+                                    <MudTh Style="width: 200px;">Network</MudTh>
+                                    <MudTh Style="width: 120px; text-align: right;">Actions</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
-                                    <MudTd DataLabel="Register ID">
-                                        <MudText Typo="Typo.body2" Style="font-family: monospace; font-size: 0.85em;">
-                                            @TruncateId(context.RegisterId)
-                                        </MudText>
+                                    <MudTd DataLabel="Register">
+                                        <div>
+                                            <MudText Typo="Typo.subtitle1" Class="mb-0">
+                                                @(string.IsNullOrEmpty(context.Name) ? "Unnamed Register" : context.Name)
+                                            </MudText>
+                                            @if (!string.IsNullOrEmpty(context.Description))
+                                            {
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-0">
+                                                    @context.Description
+                                                </MudText>
+                                            }
+                                            <MudText Typo="Typo.caption" Color="Color.Tertiary" Style="font-family: monospace;">
+                                                @TruncateId(context.RegisterId)
+                                            </MudText>
+                                        </div>
                                     </MudTd>
-                                    <MudTd DataLabel="Peers">@context.PeerCount</MudTd>
-                                    <MudTd DataLabel="Latest Version">@context.LatestVersion</MudTd>
-                                    <MudTd DataLabel="Latest Docket">@context.LatestDocketVersion</MudTd>
-                                    <MudTd DataLabel="Full Replicas">@context.FullReplicaPeerCount</MudTd>
-                                    <MudTd DataLabel="Actions">
+                                    <MudTd DataLabel="Network">
+                                        <div class="d-flex flex-column gap-1">
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+                                                @context.PeerCount peers · @context.FullReplicaPeerCount replicas
+                                            </MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                <MudIcon Icon="@Icons.Material.Filled.Storage" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+                                                v@(context.LatestVersion) · docket @context.LatestDocketVersion
+                                            </MudText>
+                                        </div>
+                                    </MudTd>
+                                    <MudTd DataLabel="Actions" Style="text-align: right;">
                                         @if (IsAlreadySubscribed(context.RegisterId))
                                         {
                                             <MudChip T="string" Size="Size.Small" Color="Color.Success">Subscribed</MudChip>

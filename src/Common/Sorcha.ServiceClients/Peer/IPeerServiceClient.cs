@@ -121,6 +121,8 @@ public class BulkAdvertiseRequest
 public class AdvertisementItem
 {
     public string RegisterId { get; set; } = string.Empty;
+    public string? Name { get; set; }
+    public string? Description { get; set; }
     public bool IsPublic { get; set; }
     public long LatestVersion { get; set; }
     public long LatestDocketVersion { get; set; }

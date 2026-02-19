@@ -15,11 +15,13 @@ namespace Sorcha.UI.Core.Services;
 /// </summary>
 public class ChatHubConnection : IChatHubConnection
 {
-    private readonly HubConnection _connection;
+    private HubConnection _connection;
+    private readonly string _hubUrl;
     private readonly IAuthenticationService _authService;
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<ChatHubConnection> _logger;
     private ChatConnectionState _state = ChatConnectionState.Disconnected;
+    private bool _disposed;
 
     // Reconnection delays: 0s, 2s, 5s, 10s, 30s (per chat-hub.md)
     private static readonly TimeSpan[] ReconnectDelays =
@@ -63,10 +65,14 @@ public class ChatHubConnection : IChatHubConnection
         _configurationService = configurationService;
         _logger = logger;
 
-        var hubUrl = $"{hubOptions.BlueprintServiceUrl.TrimEnd('/')}/hubs/chat";
+        _hubUrl = $"{hubOptions.BlueprintServiceUrl.TrimEnd('/')}/hubs/chat";
+        _connection = BuildConnection();
+    }
 
-        _connection = new HubConnectionBuilder()
-            .WithUrl(hubUrl, options =>
+    private HubConnection BuildConnection()
+    {
+        var connection = new HubConnectionBuilder()
+            .WithUrl(_hubUrl, options =>
             {
                 options.AccessTokenProvider = async () =>
                 {
@@ -81,62 +87,62 @@ public class ChatHubConnection : IChatHubConnection
             .WithAutomaticReconnect(new CustomRetryPolicy(ReconnectDelays))
             .Build();
 
-        // Register event handlers
-        RegisterEventHandlers();
+        RegisterEventHandlers(connection);
+        return connection;
     }
 
-    private void RegisterEventHandlers()
+    private void RegisterEventHandlers(HubConnection connection)
     {
-        _connection.On<string>("ReceiveChunk", chunk =>
+        connection.On<string>("ReceiveChunk", chunk =>
         {
             OnChunkReceived?.Invoke(chunk);
         });
 
-        _connection.On<string, bool, string?>("ToolExecuted", (toolName, success, error) =>
+        connection.On<string, bool, string?>("ToolExecuted", (toolName, success, error) =>
         {
             OnToolExecuted?.Invoke(toolName, success, error);
         });
 
-        _connection.On<BlueprintModel, ValidationResult>("BlueprintUpdated", (blueprint, validation) =>
+        connection.On<BlueprintModel, ValidationResult>("BlueprintUpdated", (blueprint, validation) =>
         {
             OnBlueprintUpdated?.Invoke(blueprint, validation);
         });
 
-        _connection.On<string>("MessageComplete", messageId =>
+        connection.On<string>("MessageComplete", messageId =>
         {
             OnMessageComplete?.Invoke(messageId);
         });
 
-        _connection.On<string, string>("SessionError", (code, message) =>
+        connection.On<string, string>("SessionError", (code, message) =>
         {
             OnSessionError?.Invoke(code, message);
         });
 
-        _connection.On<int>("MessageLimitWarning", remaining =>
+        connection.On<int>("MessageLimitWarning", remaining =>
         {
             OnMessageLimitWarning?.Invoke(remaining);
         });
 
-        _connection.On<string, BlueprintModel?, int>("SessionStarted", (sessionId, blueprint, messageCount) =>
+        connection.On<string, BlueprintModel?, int>("SessionStarted", (sessionId, blueprint, messageCount) =>
         {
             OnSessionStarted?.Invoke(sessionId, blueprint, messageCount);
         });
 
-        _connection.Reconnecting += error =>
+        connection.Reconnecting += error =>
         {
             _logger.LogWarning(error, "ChatHub connection lost, reconnecting...");
             State = ChatConnectionState.Reconnecting;
             return Task.CompletedTask;
         };
 
-        _connection.Reconnected += connectionId =>
+        connection.Reconnected += connectionId =>
         {
             _logger.LogInformation("ChatHub reconnected with connection ID: {ConnectionId}", connectionId);
             State = ChatConnectionState.Connected;
             return Task.CompletedTask;
         };
 
-        _connection.Closed += error =>
+        connection.Closed += error =>
         {
             if (error != null)
             {
@@ -154,6 +160,14 @@ public class ChatHubConnection : IChatHubConnection
     /// <inheritdoc />
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
+        // Rebuild connection if it was previously disposed (e.g. page navigated away and back)
+        if (_disposed)
+        {
+            _logger.LogInformation("Rebuilding disposed ChatHub connection");
+            _connection = BuildConnection();
+            _disposed = false;
+        }
+
         if (_connection.State == HubConnectionState.Connected)
         {
             return;
@@ -233,6 +247,7 @@ public class ChatHubConnection : IChatHubConnection
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         await _connection.DisposeAsync();
         GC.SuppressFinalize(this);
     }

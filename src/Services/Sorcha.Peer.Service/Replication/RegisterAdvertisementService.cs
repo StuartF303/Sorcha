@@ -77,14 +77,18 @@ public class RegisterAdvertisementService
         RegisterSyncState syncState,
         long latestVersion = 0,
         long latestDocketVersion = 0,
-        bool isPublic = false)
+        bool isPublic = false,
+        string? name = null,
+        string? description = null)
     {
         // Idempotency check: skip if unchanged (FR-009)
         if (_localAdvertisements.TryGetValue(registerId, out var existing) &&
             existing.SyncState == syncState &&
             existing.LatestVersion == latestVersion &&
             existing.LatestDocketVersion == latestDocketVersion &&
-            existing.IsPublic == isPublic)
+            existing.IsPublic == isPublic &&
+            existing.Name == name &&
+            existing.Description == description)
         {
             _logger.LogDebug(
                 "Skipping unchanged advertisement for register {RegisterId}",
@@ -95,6 +99,8 @@ public class RegisterAdvertisementService
         var ad = new LocalRegisterAdvertisement
         {
             RegisterId = registerId,
+            Name = name,
+            Description = description,
             SyncState = syncState,
             LatestVersion = latestVersion,
             LatestDocketVersion = latestDocketVersion,
@@ -259,6 +265,8 @@ public class RegisterAdvertisementService
             registerMap[localAd.RegisterId] = new AvailableRegisterInfo
             {
                 RegisterId = localAd.RegisterId,
+                Name = localAd.Name,
+                Description = localAd.Description,
                 IsPublic = true,
                 LatestVersion = localAd.LatestVersion,
                 LatestDocketVersion = localAd.LatestDocketVersion,
@@ -281,6 +289,8 @@ public class RegisterAdvertisementService
                     info = new AvailableRegisterInfo
                     {
                         RegisterId = reg.RegisterId,
+                        Name = reg.Name,
+                        Description = reg.Description,
                         IsPublic = true
                     };
                     registerMap[reg.RegisterId] = info;
@@ -291,6 +301,11 @@ public class RegisterAdvertisementService
                     info.LatestVersion = reg.LatestVersion;
                 if (reg.CanServeFullReplica)
                     info.FullReplicaPeerCount++;
+                // Use name/description from whichever peer provides it first
+                if (string.IsNullOrEmpty(info.Name) && !string.IsNullOrEmpty(reg.Name))
+                    info.Name = reg.Name;
+                if (string.IsNullOrEmpty(info.Description) && !string.IsNullOrEmpty(reg.Description))
+                    info.Description = reg.Description;
             }
         }
 
@@ -347,6 +362,8 @@ public class RegisterAdvertisementService
 public class LocalRegisterAdvertisement
 {
     public required string RegisterId { get; init; }
+    public string? Name { get; set; }
+    public string? Description { get; set; }
     public RegisterSyncState SyncState { get; set; }
     public long LatestVersion { get; set; }
     public long LatestDocketVersion { get; set; }

@@ -121,7 +121,7 @@ services:
       ConnectionStrings__mongodb: mongodb://sorcha:sorcha_dev_password@mongodb:27017
       # AI Provider configuration (Anthropic Claude API)
       AIProvider__ApiKey: ${ANTHROPIC_API_KEY:-}
-      AIProvider__Model: claude-3-5-sonnet-20241022
+      AIProvider__Model: claude-sonnet-4-5-20250929
       # Service client configuration for inter-service communication
       ServiceClients__RegisterService__Address: http://register-service:8080
       ServiceClients__WalletService__Address: http://wallet-service:8080

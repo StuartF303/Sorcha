@@ -115,6 +115,8 @@ public class AdvertisementResyncService : BackgroundService
         var advertisements = registers.Select(r => new AdvertisementItem
         {
             RegisterId = r.Id,
+            Name = r.Name,
+            Description = r.Description,
             IsPublic = true,
             LatestVersion = 0, // Register model doesn't track version directly
             LatestDocketVersion = 0

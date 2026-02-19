@@ -19,6 +19,16 @@ public class PeerRegisterInfo
     public string RegisterId { get; set; } = string.Empty;
 
     /// <summary>
+    /// Human-readable name of the register (if advertised by the peer)
+    /// </summary>
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Description of the register (if advertised by the peer)
+    /// </summary>
+    public string? Description { get; set; }
+
+    /// <summary>
     /// Sync state of this register on the remote peer
     /// </summary>
     [Required]

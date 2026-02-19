@@ -482,7 +482,9 @@ app.MapPost("/api/registers/bulk-advertise", async (
                 RegisterSyncState.Active,
                 latestVersion: item.LatestVersion,
                 latestDocketVersion: item.LatestDocketVersion,
-                isPublic: item.IsPublic);
+                isPublic: item.IsPublic,
+                name: item.Name,
+                description: item.Description);
             added++;
         }
     }

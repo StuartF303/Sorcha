@@ -139,6 +139,8 @@ public class RegisterSubscriptionInfo
 public class AvailableRegisterInfo
 {
     public string RegisterId { get; set; } = string.Empty;
+    public string? Name { get; set; }
+    public string? Description { get; set; }
     public int PeerCount { get; set; }
     public long LatestVersion { get; set; }
     public long LatestDocketVersion { get; set; }
