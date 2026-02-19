@@ -1155,7 +1155,18 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
 
     // Submit a Control transaction to the validator for validation and docket creation.
     // All transactions must go through the validator — never write directly to the register.
-    var blueprintBytes = System.Text.Encoding.UTF8.GetBytes(request.BlueprintJson);
+    //
+    // CRITICAL: Compute payload hash using the same canonical serialization the Validator uses.
+    // The Validator re-serializes transaction.Payload with CanonicalJsonOptions before hashing,
+    // so we must hash the same canonical form — NOT the raw request JSON string.
+    var controlRecordElement = System.Text.Json.JsonDocument.Parse(request.BlueprintJson).RootElement;
+    var canonicalJsonOptions = new System.Text.Json.JsonSerializerOptions
+    {
+        WriteIndented = false,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+    var canonicalJson = System.Text.Json.JsonSerializer.Serialize(controlRecordElement, canonicalJsonOptions);
+    var blueprintBytes = System.Text.Encoding.UTF8.GetBytes(canonicalJson);
     var payloadHash = hashProvider.ComputeHash(blueprintBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
     var payloadHashHex = Convert.ToHexString(payloadHash).ToLowerInvariant();
 
@@ -1163,9 +1174,6 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
     var txIdSource = System.Text.Encoding.UTF8.GetBytes($"blueprint-publish-{registerId}-{request.BlueprintId}");
     var txIdHash = hashProvider.ComputeHash(txIdSource, Sorcha.Cryptography.Enums.HashType.SHA256);
     var txId = Convert.ToHexString(txIdHash).ToLowerInvariant();
-
-    // Sign with system wallet and submit through generic validation endpoint
-    var controlRecordElement = System.Text.Json.JsonDocument.Parse(request.BlueprintJson).RootElement;
 
     var signResult = await signingService.SignAsync(
         registerId: registerId,
