@@ -884,10 +884,10 @@ foreach ($scenarioId in $scenariosToRun) {
                 $actionsExecuted++
 
                 if ($isRejectionAction) {
-                    Write-Success "Action $actionId: REJECTED (routed back to Action $($scenarioData.rejectionAction))"
+                    Write-Success "Action ${actionId}: REJECTED (routed back to Action $($scenarioData.rejectionAction))"
                 } else {
                     $nextAction = if ($actionResponse.nextAction) { $actionResponse.nextAction } else { "workflow complete" }
-                    Write-Success "Action $actionId: OK (next: $nextAction)"
+                    Write-Success "Action ${actionId}: OK (next: $nextAction)"
                 }
 
                 # Show calculated values if present

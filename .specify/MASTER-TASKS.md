@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 5.3 - UPDATED
-**Last Updated:** 2026-02-17
-**Status:** Active - Schema Library Complete
+**Version:** 5.4 - UPDATED
+**Last Updated:** 2026-02-19
+**Status:** Active - Canonical JSON Hashing Fix
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -31,7 +31,7 @@ All transactions MUST go through the Validator Service mempool before being seal
 | 1 | Document current transaction submission flows (genesis, action, control, governance) | ✅ |
 | 2 | Ensure blueprint publish submits through validator, not directly to register | ✅ |
 | 3 | Investigate validator initialization loop (no transaction processing observed) | 📋 |
-| 4 | Test end-to-end: publish blueprint → validator mempool → validation → docket → register | 📋 |
+| 4 | Test end-to-end: publish blueprint → validator mempool → validation → docket → register | ✅ (ping-pong 40/40 actions, canonical JSON hashing fix) |
 | 5 | Audit all register write paths for direct-store bypasses | ✅ (see 036 research R3) |
 | 6 | Wire governance operations through validator pipeline | 📋 |
 | 7 | Clean up orphan transaction from prior direct-write (MongoDB) | 📋 |
@@ -43,6 +43,7 @@ All transactions MUST go through the Validator Service mempool before being seal
 
 | Date | Summary |
 |------|---------|
+| 2026-02-19 | **Deterministic Canonical JSON Hashing** — Fixed payload hash verification (TX_012, VAL_HASH_001) across HTTP and Redis boundaries. Root cause: `System.Text.Json` default encoder escapes `+` to `\u002B` in DateTimeOffset/base64, and `GetRawText()` preserves transport encoding not canonical form. Fix: added `CanonicalJsonOptions` (compact, `UnsafeRelaxedJsonEscaping`) to Blueprint Service transaction builder, Validator Core `TransactionValidator`, and `ValidationEngine`. Both producer and verifier now re-canonicalize via `Serialize(payload, CanonicalJsonOptions)` before hashing. Also: `[JsonIgnore]` on `Transaction.PayloadJson`, relaxed encoding on `ValidatorServiceClient` and `TransactionPoolPoller`, removed DIAG logging. Ping-pong walkthrough: 20/20 rounds, 40/40 actions PASS. Construction permit walkthrough: infrastructure phases pass (org, wallets, register, blueprint), scenario execution blocked by pre-existing PS1 script bug (array index null). |
 | 2026-02-18 | **037-New-Submission-Page** (31 tasks, 8 phases): Redesigned MyWorkflows.razor from workflow instance list to service directory grouped by register. Created WalletPreferenceService (localStorage-backed smart default), WalletSelector.razor, NewSubmissionDialog.razor (create instance + execute Action 0). Added GetAvailableBlueprintsAsync, CreateInstanceAsync, SubmitActionExecuteAsync (with X-Delegation-Token). Fixed Pending Actions: wired wallet into ActionForm, actual SubmitActionAsync call after dialog. Swapped nav order. Tests: 10 WalletPreferenceService tests pass, UI Core 0w/0e, Web Client 0w/0e. |
 | 2026-02-18 | **036-Unified-Transaction-Submission** (26 tasks, 7 phases): Created ISystemWalletSigningService (singleton, whitelist, rate limit, audit logging), unified all transaction types through `POST /api/v1/transactions/validate`, migrated register creation + blueprint publish from legacy genesis endpoint, removed legacy genesis endpoint + models + client methods, renamed ActionTransactionSubmission → TransactionSubmission. Tests: ServiceClients 24 pass, Validator 627 pass (1 pre-existing fail), Register Service 9 pass (2 pre-existing), Blueprint Service 28 pass. |
 | 2026-02-18 | P0 Transaction Pipeline Audit: documented full transaction lifecycle, fixed blueprint publish to submit through validator mempool (not direct store), extended genesis endpoint for Control transaction overrides. Changed TrackingData from SortedList to Dictionary for Blazor WASM compatibility. |
