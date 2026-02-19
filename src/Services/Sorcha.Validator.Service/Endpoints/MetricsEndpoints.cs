@@ -68,25 +68,30 @@ public static class MetricsEndpoints
     }
 
     /// <summary>
-    /// Get aggregated metrics from all subsystems
+    /// Get aggregated metrics from all subsystems.
+    /// Services not registered in the DI container (e.g. consensus services in MVD)
+    /// are resolved optionally and return default/empty stats.
     /// </summary>
     private static async Task<IResult> GetAggregatedMetrics(
         [FromServices] IValidationEngine validationEngine,
         [FromServices] IVerifiedTransactionQueue verifiedQueue,
         [FromServices] IBlueprintCache blueprintCache,
-        [FromServices] IDocketDistributor docketDistributor,
-        [FromServices] IConsensusFailureHandler failureHandler,
         [FromServices] IPendingDocketStore pendingDocketStore,
         [FromServices] IExceptionResponseHandler exceptionHandler,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var validationStats = validationEngine.GetStats();
         var queueStats = verifiedQueue.GetStats();
         var cacheStats = await blueprintCache.GetStatsAsync(cancellationToken);
-        var distributorStats = docketDistributor.GetStats();
-        var failureStats = failureHandler.GetStats();
         var pendingStats = pendingDocketStore.GetStats();
         var exceptionStats = exceptionHandler.GetStats();
+
+        // Optional: consensus services are not wired in single-validator MVD
+        var docketDistributor = httpContext.RequestServices.GetService<IDocketDistributor>();
+        var failureHandler = httpContext.RequestServices.GetService<IConsensusFailureHandler>();
+        var distributorStats = docketDistributor?.GetStats();
+        var failureStats = failureHandler?.GetStats();
 
         var metrics = new AggregatedMetrics
         {
@@ -106,13 +111,13 @@ public static class MetricsEndpoints
             },
             Consensus = new ConsensusSummary
             {
-                DocketsDistributed = distributorStats.TotalConfirmedBroadcasts,
-                DocketsProposed = distributorStats.TotalProposedBroadcasts,
-                RegisterSubmissions = distributorStats.TotalRegisterSubmissions,
-                FailedSubmissions = distributorStats.FailedRegisterSubmissions,
-                ConsensusFailures = failureStats.TotalFailures,
-                SuccessfulRecoveries = failureStats.SuccessfulRecoveries,
-                DocketsAbandoned = failureStats.DocketsAbandoned,
+                DocketsDistributed = distributorStats?.TotalConfirmedBroadcasts ?? 0,
+                DocketsProposed = distributorStats?.TotalProposedBroadcasts ?? 0,
+                RegisterSubmissions = distributorStats?.TotalRegisterSubmissions ?? 0,
+                FailedSubmissions = distributorStats?.FailedRegisterSubmissions ?? 0,
+                ConsensusFailures = failureStats?.TotalFailures ?? 0,
+                SuccessfulRecoveries = failureStats?.SuccessfulRecoveries ?? 0,
+                DocketsAbandoned = failureStats?.DocketsAbandoned ?? 0,
                 PendingDockets = pendingStats.TotalPending
             },
             Pools = new PoolSummary
@@ -174,12 +179,13 @@ public static class MetricsEndpoints
     /// Get consensus-related metrics
     /// </summary>
     private static IResult GetConsensusMetrics(
-        [FromServices] IDocketDistributor docketDistributor,
-        [FromServices] IConsensusFailureHandler failureHandler,
-        [FromServices] IPendingDocketStore pendingDocketStore)
+        [FromServices] IPendingDocketStore pendingDocketStore,
+        HttpContext httpContext)
     {
-        var distributorStats = docketDistributor.GetStats();
-        var failureStats = failureHandler.GetStats();
+        var docketDistributor = httpContext.RequestServices.GetService<IDocketDistributor>();
+        var failureHandler = httpContext.RequestServices.GetService<IConsensusFailureHandler>();
+        var distributorStats = docketDistributor?.GetStats();
+        var failureStats = failureHandler?.GetStats();
         var pendingStats = pendingDocketStore.GetStats();
 
         var response = new ConsensusMetricsResponse
@@ -187,21 +193,21 @@ public static class MetricsEndpoints
             Timestamp = DateTimeOffset.UtcNow,
             Distribution = new DistributionMetrics
             {
-                TotalProposedBroadcasts = distributorStats.TotalProposedBroadcasts,
-                TotalConfirmedBroadcasts = distributorStats.TotalConfirmedBroadcasts,
-                TotalRegisterSubmissions = distributorStats.TotalRegisterSubmissions,
-                FailedRegisterSubmissions = distributorStats.FailedRegisterSubmissions,
-                AverageBroadcastTimeMs = distributorStats.AverageBroadcastTimeMs,
-                LastBroadcastAt = distributorStats.LastBroadcastAt
+                TotalProposedBroadcasts = distributorStats?.TotalProposedBroadcasts ?? 0,
+                TotalConfirmedBroadcasts = distributorStats?.TotalConfirmedBroadcasts ?? 0,
+                TotalRegisterSubmissions = distributorStats?.TotalRegisterSubmissions ?? 0,
+                FailedRegisterSubmissions = distributorStats?.FailedRegisterSubmissions ?? 0,
+                AverageBroadcastTimeMs = distributorStats?.AverageBroadcastTimeMs ?? 0,
+                LastBroadcastAt = distributorStats?.LastBroadcastAt
             },
             Failures = new FailureMetrics
             {
-                TotalFailures = failureStats.TotalFailures,
-                SuccessfulRecoveries = failureStats.SuccessfulRecoveries,
-                DocketsAbandoned = failureStats.DocketsAbandoned,
-                TotalRetryAttempts = failureStats.TotalRetryAttempts,
-                TransactionsReturnedToPool = failureStats.TransactionsReturnedToPool,
-                RecoveryRate = failureStats.RecoveryRate
+                TotalFailures = failureStats?.TotalFailures ?? 0,
+                SuccessfulRecoveries = failureStats?.SuccessfulRecoveries ?? 0,
+                DocketsAbandoned = failureStats?.DocketsAbandoned ?? 0,
+                TotalRetryAttempts = failureStats?.TotalRetryAttempts ?? 0,
+                TransactionsReturnedToPool = failureStats?.TransactionsReturnedToPool ?? 0,
+                RecoveryRate = failureStats?.RecoveryRate ?? 0
             },
             Pending = new PendingMetrics
             {

@@ -148,6 +148,14 @@ builder.Services.AddHostedService<Sorcha.Validator.Service.Services.SystemWallet
 builder.Services.AddHostedService<Sorcha.Validator.Service.Services.MemPoolCleanupService>();
 builder.Services.AddHostedService<Sorcha.Validator.Service.Services.DocketBuildTriggerService>();
 
+// Add metrics support services (VAL-9.45)
+// PendingDocketStore and ExceptionResponseHandler have no deep dependencies.
+// ConsensusFailureHandler and DocketDistributor require the full consensus chain
+// (SignatureCollector → LeaderElection → Peer gRPC) which is not wired in MVD.
+// The metrics endpoint handles missing services gracefully with defaults.
+builder.Services.AddPendingDocketStore();
+builder.Services.AddExceptionResponseHandler();
+
 // Add genesis configuration service (Sprint 9F)
 builder.Services.AddGenesisConfigService(builder.Configuration);
 
@@ -212,8 +220,7 @@ app.MapGroup("/api/validators")
     .WithTags("Validators")
     .MapValidatorRegistrationEndpoints();
 
-// Map metrics endpoints (VAL-9.45) - disabled pending full service registration
-// TODO: Enable once all metrics services are properly registered
-// app.MapMetricsEndpoints();
+// Map metrics endpoints (VAL-9.45)
+app.MapMetricsEndpoints();
 
 app.Run();
