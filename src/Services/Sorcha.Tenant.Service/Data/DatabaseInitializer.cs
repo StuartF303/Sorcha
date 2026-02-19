@@ -222,7 +222,7 @@ public class DatabaseInitializer
                 "Register Service",
                 "register-service",
                 "register-service-secret",
-                new[] { "registers:read", "registers:write", "registers:query", "validator:write" }
+                new[] { "registers:read", "registers:write", "registers:query", "validator:write", "wallets:sign" }
             ),
             (
                 PeerServicePrincipalId,
@@ -299,7 +299,21 @@ public class DatabaseInitializer
             }
             else
             {
-                _logger.LogInformation("Service principal already exists: {ServiceName}", existing.ServiceName);
+                // Update scopes if they've changed (e.g., new scopes added in code)
+                var existingScopes = new HashSet<string>(existing.Scopes);
+                var expectedScopes = new HashSet<string>(sp.Scopes);
+                if (!existingScopes.SetEquals(expectedScopes))
+                {
+                    existing.Scopes = sp.Scopes;
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    _logger.LogInformation(
+                        "Updated scopes for service principal {ServiceName}: {Scopes}",
+                        existing.ServiceName, string.Join(", ", sp.Scopes));
+                }
+                else
+                {
+                    _logger.LogInformation("Service principal already exists: {ServiceName}", existing.ServiceName);
+                }
             }
         }
     }
