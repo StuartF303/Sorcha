@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schema.sorcha.io/participant-record/v1",
+  "type": "object",
+  "required": ["participantId", "organizationName", "participantName", "status", "version", "addresses"],
+  "properties": {
+    "participantId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Immutable identity anchor (UUID)"
+    },
+    "organizationName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Publishing organization name"
+    },
+    "participantName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Published display name"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "deprecated", "revoked"],
+      "description": "Lifecycle status"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Version number (incremented on each update)"
+    },
+    "addresses": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": ["walletAddress", "publicKey", "algorithm"],
+        "properties": {
+          "walletAddress": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Wallet address (unique per register)"
+          },
+          "publicKey": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Base64-encoded public key"
+          },
+          "algorithm": {
+            "type": "string",
+            "enum": ["ED25519", "P-256", "RSA-4096"],
+            "description": "Cryptographic algorithm"
+          },
+          "primary": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether this is the primary address"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Cryptographic addresses (1-10 entries)"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional extensible metadata"
+    }
+  },
+  "additionalProperties": false
+}

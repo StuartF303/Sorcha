@@ -28,8 +28,8 @@ public record TransactionSubmission
 {
     public required string TransactionId { get; init; }
     public required string RegisterId { get; init; }
-    public required string BlueprintId { get; init; }
-    public required string ActionId { get; init; }
+    public string? BlueprintId { get; init; }
+    public string? ActionId { get; init; }
     public required JsonElement Payload { get; init; }
     public required string PayloadHash { get; init; }
     public required List<SignatureInfo> Signatures { get; init; }

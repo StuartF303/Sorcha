@@ -65,10 +65,26 @@
 
 ---
 
+## Published Participant Records — Phase 2+ (Out of Scope from 001-participant-records)
+
+| ID | Task | Priority | Effort | Status | Notes |
+|----|------|----------|--------|--------|-------|
+| PART-1 | External identity provider (OIDC) integration for participant authentication | P3 | 24h | 📋 Deferred | Enable orgs to link participants to Microsoft, Google, GitHub, Apple IdPs |
+| PART-2 | API key management for machine participants | P3 | 16h | 📋 Deferred | Service clients and AI agents authenticating via API keys |
+| PART-3 | Blueprint participant resolution by address | P2 | 20h | 📋 Deferred | Phase 2 integration — blueprint participants resolve to wallet addresses instead of text names |
+| PART-4 | Field-level encryption using published public keys | P2 | 24h | 📋 Deferred | Phase 2 — encrypt action payload fields for specific participant addresses |
+| PART-5 | DID document generation and resolution endpoints | P3 | 16h | 📋 Deferred | Generate W3C DID documents from published participant records |
+| PART-6 | Peer-to-peer participant record replication and synchronization | P3 | 20h | 📋 Deferred | Replicate participant indexes across peer nodes |
+| PART-7 | UI components for participant management | P2 | 16h | 📋 Deferred | Blazor WASM pages for publishing, updating, revoking, and browsing participants |
+| PART-8 | Organization-level wallet signing for participant publication | P2 | 12h | 📋 Deferred | Currently uses individual user wallet; upgrade to org-level signing wallet |
+| PART-9 | Migrate participant authorization to register governance/control system | P3 | 16h | 📋 Deferred | Move from Tenant Service enforcement to register Control TX governance roster |
+
+---
+
 ## Summary
 
-**Total Deferred Tasks:** 24
-**Total Deferred Effort:** 374 hours (~10 weeks)
+**Total Deferred Tasks:** 33
+**Total Deferred Effort:** 538 hours (~14 weeks)
 
 These tasks represent features that enhance the platform but are not critical for the Minimum Viable Deliverable (MVD). They can be prioritized for post-MVD development based on user feedback and business requirements.
 

@@ -76,6 +76,19 @@ These blueprints demonstrate intermediate complexity with multi-level approvals 
     - RFC (Residual Functional Capacity) evaluation
     - Approval/denial with appeal rights
 
+#### Healthcare
+- **`medical-equipment-refurb.json`** - Five-step medical equipment refurbishment across three organisations
+  - **Participants:** Biomedical Engineer, Department Head, Lead Technician, Compliance Officer
+  - **Use Case:** Hospital submits defective device, department approves budget, refurb company quotes and repairs, health authority reviews safety-critical devices, certificate issued
+  - **Features:**
+    - Conditional routing based on device risk category (safety-critical vs routine)
+    - JSON Logic calculations (risk category from device class + failure type, estimated cost)
+    - Rejection paths (budget denial, beyond economical repair, regulatory non-compliance)
+    - Refurbishment Certificate Verifiable Credential issuance
+    - Selective disclosure (compliance officer sees no cost data; department head sees summary only)
+    - Participant publishing to register (exercises spec 001)
+  - **See:** [`healthcare/README-medical-equipment-refurb.md`](healthcare/README-medical-equipment-refurb.md) for full process description
+
 ---
 
 ### Complex Blueprints (6+ Actions)
@@ -96,6 +109,20 @@ These blueprints demonstrate advanced workflows with multiple organizations, dyn
     - Regulatory reporting (MiFID II, Dodd-Frank, EMIR)
     - Risk assessment and margin requirements
     - SWIFT message integration
+
+- **`invoice-finance/complex-sme-invoice-finance.json`** - Twelve-step SME invoice finance for procurement
+  - **Participants:** Buyer (Anchor), SME Supplier, Financier, Platform Operator, Auditor
+  - **Use Case:** PO issuance, delivery confirmation, invoice submission with three-way matching, buyer approval, early payment financing, maturity settlement, dispute handling
+  - **Features:**
+    - Invoice finance / reverse factoring for SME working capital
+    - Automated three-way match (PO vs delivery vs invoice)
+    - Optional early payment with advance rate and discount fee
+    - Credit limit management and facility utilisation tracking
+    - Dispute resolution with typed classifications
+    - Late payment tracking with interest
+    - Selective disclosure scoped per participant role
+    - Auditor read-only oversight
+  - **See:** [`invoice-finance/README.md`](finance/invoice-finance/README.md) for full process description
 
 ---
 
@@ -224,6 +251,7 @@ Each blueprint contains:
 ### Finance
 - Invoice approval
 - Purchase order procurement
+- SME invoice finance / reverse factoring
 - Securities trading and settlement
 - Cross-border transactions
 - Multi-bank coordination

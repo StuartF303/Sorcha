@@ -414,6 +414,9 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 builder.Services.AddSingleton<ISystemRegisterRepository, MongoSystemRegisterRepository>();
 builder.Services.AddSingleton<SystemRegisterService>();
 
+// Participant index service (in-memory address → participant mapping)
+builder.Services.AddSingleton<ParticipantIndexService>();
+
 // Register advertisement resync background service (FR-003, FR-004)
 builder.Services.AddHostedService<AdvertisementResyncService>();
 
@@ -1076,6 +1079,8 @@ docketsGroup.MapPost("/", async (
     // Insert transaction documents if provided
     if (request.Transactions is not null && request.Transactions.Any())
     {
+        var participantIndex = app.Services.GetRequiredService<ParticipantIndexService>();
+
         foreach (var tx in request.Transactions)
         {
             // Set docket number for each transaction
@@ -1088,6 +1093,23 @@ docketsGroup.MapPost("/", async (
             {
                 // Transaction already exists (e.g., genesis transactions stored during register creation).
                 // This is expected for docket write-back of transactions that were pre-persisted.
+            }
+
+            // Index participant transactions for fast address/ID lookups
+            if (tx.MetaData?.TransactionType == TransactionType.Participant &&
+                tx.Payloads.Length > 0 && !string.IsNullOrEmpty(tx.Payloads[0].Data))
+            {
+                try
+                {
+                    var payloadJson = System.Text.Encoding.UTF8.GetString(
+                        Convert.FromBase64String(tx.Payloads[0].Data));
+                    var payloadElement = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(payloadJson);
+                    participantIndex.IndexParticipant(registerId, tx.TxId, payloadElement, tx.TimeStamp);
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogWarning(ex, "Failed to index participant TX {TxId}", tx.TxId);
+                }
             }
         }
     }
@@ -1332,6 +1354,105 @@ governanceGroup.MapGet("/history", async (
 .WithName("GetGovernanceHistory")
 .WithSummary("Get governance history")
 .WithDescription("Retrieves paginated Control transactions that make up the governance history for a register.");
+
+// ===========================
+// Participant Query API
+// ===========================
+
+var participantsGroup = app.MapGroup("/api/registers/{registerId}/participants")
+    .WithTags("Participants")
+    .RequireAuthorization("CanReadTransactions");
+
+/// <summary>
+/// List published participants on a register
+/// </summary>
+participantsGroup.MapGet("/", (
+    ParticipantIndexService index,
+    string registerId,
+    int skip = 0,
+    int top = 20,
+    string? status = "active") =>
+{
+    var page = index.List(registerId, skip, top, status);
+    return Results.Ok(page);
+})
+.WithName("ListParticipants")
+.WithSummary("List published participants")
+.WithDescription("Returns a paginated list of published participant records on this register. Defaults to active participants only. Use status=all to include deprecated/revoked.");
+
+/// <summary>
+/// Look up a participant by wallet address
+/// </summary>
+participantsGroup.MapGet("/by-address/{walletAddress}", (
+    ParticipantIndexService index,
+    string registerId,
+    string walletAddress) =>
+{
+    var record = index.GetByAddress(registerId, walletAddress);
+    return record is not null ? Results.Ok(record) : Results.NotFound(new { error = "No participant found for this wallet address" });
+})
+.WithName("GetParticipantByAddress")
+.WithSummary("Look up participant by wallet address")
+.WithDescription("Returns the published participant record that owns the specified wallet address on this register.");
+
+/// <summary>
+/// Get a participant by ID
+/// </summary>
+participantsGroup.MapGet("/{participantId}", (
+    ParticipantIndexService index,
+    string registerId,
+    string participantId) =>
+{
+    var record = index.GetById(registerId, participantId);
+    return record is not null ? Results.Ok(record) : Results.NotFound(new { error = "Participant not found" });
+})
+.WithName("GetParticipantById")
+.WithSummary("Get participant by ID")
+.WithDescription("Returns the latest published version of a participant record by participant ID.");
+
+/// <summary>
+/// Resolve a participant's public key by wallet address
+/// </summary>
+participantsGroup.MapGet("/by-address/{walletAddress}/public-key", (
+    ParticipantIndexService index,
+    string registerId,
+    string walletAddress,
+    string? algorithm = null) =>
+{
+    var record = index.GetByAddress(registerId, walletAddress);
+    if (record == null)
+        return Results.NotFound(new { error = "No participant found for this wallet address" });
+
+    // Revoked participants return 410 Gone
+    if (string.Equals(record.Status, "Revoked", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Problem(
+            statusCode: StatusCodes.Status410Gone,
+            title: "Participant Revoked",
+            detail: $"Participant '{record.ParticipantId}' has been revoked");
+    }
+
+    // Find the matching address entry
+    var addressInfo = !string.IsNullOrEmpty(algorithm)
+        ? record.Addresses.FirstOrDefault(a => string.Equals(a.Algorithm, algorithm, StringComparison.OrdinalIgnoreCase))
+        : record.Addresses.FirstOrDefault(a => a.Primary) ?? record.Addresses.FirstOrDefault();
+
+    if (addressInfo == null)
+        return Results.NotFound(new { error = $"No address found with algorithm '{algorithm}'" });
+
+    return Results.Ok(new Sorcha.ServiceClients.Register.Models.PublicKeyResolution
+    {
+        ParticipantId = record.ParticipantId,
+        ParticipantName = record.ParticipantName,
+        WalletAddress = addressInfo.WalletAddress,
+        PublicKey = addressInfo.PublicKey,
+        Algorithm = addressInfo.Algorithm,
+        Status = record.Status
+    });
+})
+.WithName("ResolvePublicKey")
+.WithSummary("Resolve public key by wallet address")
+.WithDescription("Returns the public key for field-level encryption. Returns 410 Gone if participant is revoked.");
 
 app.Run();
 

@@ -257,8 +257,8 @@ public class GovernanceModelsTests
     }
 
     [Fact]
-    public void TransactionType_HasOnly3Values()
+    public void TransactionType_HasExpectedValues()
     {
-        Enum.GetValues<Sorcha.Register.Models.Enums.TransactionType>().Should().HaveCount(3);
+        Enum.GetValues<Sorcha.Register.Models.Enums.TransactionType>().Should().HaveCount(4);
     }
 }

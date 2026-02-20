@@ -845,6 +845,155 @@ public class RegisterServiceClient : IRegisterServiceClient
     }
 
     // =========================================================================
+    // Participant Query Operations
+    // =========================================================================
+
+    public async Task<Sorcha.ServiceClients.Register.Models.ParticipantPage> GetPublishedParticipantsAsync(
+        string registerId,
+        int skip = 0,
+        int top = 20,
+        string? statusFilter = "active",
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Getting participants from register {RegisterId} (skip={Skip}, top={Top}, status={Status})",
+                registerId, skip, top, statusFilter);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var url = $"api/registers/{Uri.EscapeDataString(registerId)}/participants?skip={skip}&top={top}";
+            if (!string.IsNullOrEmpty(statusFilter))
+                url += $"&status={Uri.EscapeDataString(statusFilter)}";
+
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to get participants from register {RegisterId}: {StatusCode}",
+                    registerId, response.StatusCode);
+                return new Sorcha.ServiceClients.Register.Models.ParticipantPage { PageSize = top };
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<Sorcha.ServiceClients.Register.Models.ParticipantPage>(
+                JsonOptions, cancellationToken);
+            return result ?? new Sorcha.ServiceClients.Register.Models.ParticipantPage { PageSize = top };
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error getting participants from register {RegisterId}", registerId);
+            return new Sorcha.ServiceClients.Register.Models.ParticipantPage { PageSize = top };
+        }
+    }
+
+    public async Task<Sorcha.ServiceClients.Register.Models.PublishedParticipantRecord?> GetPublishedParticipantByAddressAsync(
+        string registerId,
+        string walletAddress,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Looking up participant by address {WalletAddress} on register {RegisterId}",
+                walletAddress, registerId);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var response = await _httpClient.GetAsync(
+                $"api/registers/{Uri.EscapeDataString(registerId)}/participants/by-address/{Uri.EscapeDataString(walletAddress)}",
+                cancellationToken);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                return null;
+
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<Sorcha.ServiceClients.Register.Models.PublishedParticipantRecord>(
+                JsonOptions, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error looking up participant by address on register {RegisterId}", registerId);
+            return null;
+        }
+    }
+
+    public async Task<Sorcha.ServiceClients.Register.Models.PublishedParticipantRecord?> GetPublishedParticipantByIdAsync(
+        string registerId,
+        string participantId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Getting participant {ParticipantId} from register {RegisterId}",
+                participantId, registerId);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var response = await _httpClient.GetAsync(
+                $"api/registers/{Uri.EscapeDataString(registerId)}/participants/{Uri.EscapeDataString(participantId)}",
+                cancellationToken);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                return null;
+
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<Sorcha.ServiceClients.Register.Models.PublishedParticipantRecord>(
+                JsonOptions, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error getting participant {ParticipantId} from register {RegisterId}",
+                participantId, registerId);
+            return null;
+        }
+    }
+
+    // =========================================================================
+    // Public Key Resolution
+    // =========================================================================
+
+    public async Task<Sorcha.ServiceClients.Register.Models.PublicKeyResolution?> ResolvePublicKeyAsync(
+        string registerId,
+        string walletAddress,
+        string? algorithm = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Resolving public key for address {WalletAddress} on register {RegisterId}",
+                walletAddress, registerId);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var url = $"api/registers/{Uri.EscapeDataString(registerId)}/participants/by-address/{Uri.EscapeDataString(walletAddress)}/public-key";
+            if (!string.IsNullOrEmpty(algorithm))
+                url += $"?algorithm={Uri.EscapeDataString(algorithm)}";
+
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                return null;
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Gone)
+            {
+                throw new InvalidOperationException(
+                    $"Participant for wallet address '{walletAddress}' has been revoked");
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<Sorcha.ServiceClients.Register.Models.PublicKeyResolution>(
+                JsonOptions, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error resolving public key for address {WalletAddress}", walletAddress);
+            return null;
+        }
+    }
+
+    // =========================================================================
     // Internal DTOs
     // =========================================================================
 

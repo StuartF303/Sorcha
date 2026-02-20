@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Sorcha.Tenant.Service.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="nul" />
   </ItemGroup>
 

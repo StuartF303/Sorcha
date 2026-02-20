@@ -190,6 +190,35 @@ walkthroughs/
 - **Scenario B:** High-risk commercial (8 storeys, riskScore 22.8) — full 6-action path with environmental review
 - **Scenario C:** Rejection — planning officer rejects for zoning non-compliance
 
+### [MedicalEquipmentRefurb](./MedicalEquipmentRefurb/)
+**Status:** ✅ Complete
+**Date:** 2026-02-20
+**Purpose:** Multi-org medical equipment refurbishment with conditional routing, calculations, participant publishing, and verifiable credential issuance
+
+**What you'll learn:**
+- Participant publishing to register (NEW — spec 001)
+- Multi-organization workflows (3 orgs, 4 participants)
+- Two participants from the same organization (Hospital: Biomedical Engineer + Department Head)
+- Conditional routing based on calculated risk category
+- JSON Logic calculations (risk category from device class, estimated cost from complexity)
+- Rejection paths routing back to the originator
+- Verifiable credential issuance (Refurbishment Certificate VC) on completion
+- Blueprint templates with parameterised participant wallets
+- Selective disclosure (each participant sees only relevant data)
+
+**Key files:**
+- `README.md` - Full scenario specification with action details
+- `medical-equipment-refurb-template.json` - Blueprint template (5 actions, 4 participants)
+- `test-medical-equipment-refurb.ps1` - Main walkthrough script (all 3 scenarios)
+- `data/scenario-a-routine.json` - Routine refurbishment input data
+- `data/scenario-b-safety-critical.json` - Safety-critical refurbishment input data
+- `data/scenario-c-rejection.json` - Rejection scenario input data
+
+**Test Scenarios:**
+- **Scenario A:** Routine refurbishment (Class IIa, electrical fault) — skips regulatory review, 4 actions to certificate
+- **Scenario B:** Safety-critical refurbishment (Class III, safety failure) — full 5-action path with regulatory hold
+- **Scenario C:** Rejection — lead technician rejects at quote stage (beyond economical repair)
+
 ### [PerformanceBenchmark](./PerformanceBenchmark/)
 **Status:** ✅ Complete
 **Date:** 2026-02-13

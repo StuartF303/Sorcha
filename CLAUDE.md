@@ -100,11 +100,30 @@ The Participant Identity Registry bridges Tenant Service users with Blueprint wo
 | POST | `/me/register-participant` | Self-register as participant |
 | GET | `/me/participant-profiles` | Get all user's participant profiles |
 
+### On-Register Participant Publishing (Tenant Service)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/organizations/{orgId}/participants/publish` | Publish participant record to register |
+| PUT | `/organizations/{orgId}/participants/publish/{participantId}` | Update published participant record |
+| DELETE | `/organizations/{orgId}/participants/publish/{participantId}` | Revoke published participant record |
+
+### Published Participant Queries (Register Service)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/registers/{registerId}/participants` | List published participants (status filter, pagination) |
+| GET | `/registers/{registerId}/participants/by-address/{walletAddress}` | Get participant by wallet address |
+| GET | `/registers/{registerId}/participants/{participantId}` | Get participant by ID |
+| GET | `/registers/{registerId}/participants/by-address/{walletAddress}/public-key` | Resolve public key for encryption |
+
 ### Key Models
 
 - **ParticipantIdentity**: User + Organization + Status + DisplayName
 - **LinkedWalletAddress**: WalletAddress + VerifiedAt + Status (max 10 per participant)
 - **WalletLinkChallenge**: Nonce + Expiration (5 min) for signature verification
+- **PublishedParticipantRecord**: On-register identity with addresses, version, status
+- **PublicKeyResolution**: Resolved public key for field-level encryption (410 Gone if revoked)
 
 ### Service Client
 
