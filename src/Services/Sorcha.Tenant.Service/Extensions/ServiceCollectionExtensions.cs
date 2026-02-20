@@ -104,6 +104,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IParticipantService, ParticipantService>();
         services.AddScoped<IWalletVerificationService, WalletVerificationService>();
+        services.AddScoped<IParticipantPublishingService, ParticipantPublishingService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IServiceAuthService, ServiceAuthService>();
 

@@ -238,16 +238,21 @@ public class ValidationEngine : IValidationEngine
                 ValidationErrorCategory.Structure, "RegisterId", true));
         }
 
-        if (string.IsNullOrWhiteSpace(transaction.BlueprintId))
+        // BlueprintId and ActionId are required for blueprint-based transactions
+        // but not for Participant transactions (which have no blueprint context)
+        if (!IsParticipantTransaction(transaction))
         {
-            errors.Add(CreateError("VAL_STRUCT_003", "Blueprint ID is required",
-                ValidationErrorCategory.Structure, "BlueprintId", true));
-        }
+            if (string.IsNullOrWhiteSpace(transaction.BlueprintId))
+            {
+                errors.Add(CreateError("VAL_STRUCT_003", "Blueprint ID is required",
+                    ValidationErrorCategory.Structure, "BlueprintId", true));
+            }
 
-        if (string.IsNullOrWhiteSpace(transaction.ActionId))
-        {
-            errors.Add(CreateError("VAL_STRUCT_004", "Action ID is required",
-                ValidationErrorCategory.Structure, "ActionId", true));
+            if (string.IsNullOrWhiteSpace(transaction.ActionId))
+            {
+                errors.Add(CreateError("VAL_STRUCT_004", "Action ID is required",
+                    ValidationErrorCategory.Structure, "ActionId", true));
+            }
         }
 
         if (transaction.Payload.ValueKind == JsonValueKind.Undefined ||
@@ -340,8 +345,26 @@ public class ValidationEngine : IValidationEngine
                     sw.Elapsed);
             }
 
+            // Participant transactions use a built-in schema instead of blueprint schemas
+            if (IsParticipantTransaction(transaction))
+            {
+                return ValidateParticipantSchema(transaction, sw);
+            }
+
+            // Skip schema validation for rejection transactions (payload contains rejection
+            // metadata, not the action's data schema)
+            if (IsRejectionTransaction(transaction))
+            {
+                _logger.LogDebug("Skipping schema validation for rejection transaction {TransactionId}",
+                    transaction.TransactionId);
+                return ValidationEngineResult.Success(
+                    transaction.TransactionId,
+                    transaction.RegisterId,
+                    sw.Elapsed);
+            }
+
             // Get the blueprint
-            var blueprint = await _blueprintCache.GetBlueprintAsync(transaction.BlueprintId, ct);
+            var blueprint = await _blueprintCache.GetBlueprintAsync(transaction.BlueprintId!, ct);
             if (blueprint == null)
             {
                 errors.Add(CreateError("VAL_SCHEMA_001",
@@ -731,10 +754,32 @@ public class ValidationEngine : IValidationEngine
                 sw.Elapsed);
         }
 
+        // Skip for participant transactions (no blueprint context)
+        if (IsParticipantTransaction(transaction))
+        {
+            _logger.LogDebug("Skipping blueprint conformance for participant transaction {TransactionId}",
+                transaction.TransactionId);
+            return ValidationEngineResult.Success(
+                transaction.TransactionId,
+                transaction.RegisterId,
+                sw.Elapsed);
+        }
+
+        // Skip for rejection transactions (payload contains rejection metadata, not action data)
+        if (IsRejectionTransaction(transaction))
+        {
+            _logger.LogDebug("Skipping blueprint conformance for rejection transaction {TransactionId}",
+                transaction.TransactionId);
+            return ValidationEngineResult.Success(
+                transaction.TransactionId,
+                transaction.RegisterId,
+                sw.Elapsed);
+        }
+
         try
         {
             // Blueprint + action lookup (reuse logic from ValidateSchemaAsync)
-            var blueprint = await _blueprintCache.GetBlueprintAsync(transaction.BlueprintId, ct);
+            var blueprint = await _blueprintCache.GetBlueprintAsync(transaction.BlueprintId!, ct);
             if (blueprint == null)
             {
                 errors.Add(CreateError("VAL_SCHEMA_001",
@@ -874,6 +919,57 @@ public class ValidationEngine : IValidationEngine
             sw.Elapsed);
     }
 
+    private ValidationEngineResult ValidateParticipantSchema(
+        Transaction transaction,
+        Stopwatch sw)
+    {
+        var errors = new List<ValidationEngineError>();
+
+        try
+        {
+            var schema = GetParticipantSchema();
+            var result = schema.Evaluate(transaction.Payload, new Json.Schema.EvaluationOptions
+            {
+                OutputFormat = Json.Schema.OutputFormat.List
+            });
+
+            if (!result.IsValid)
+            {
+                var details = result.Details?
+                    .Where(d => !d.IsValid && d.Errors != null)
+                    .SelectMany(d => d.Errors!)
+                    .Select(e => $"{e.Key}: {e.Value}")
+                    .ToList() ?? [];
+
+                var message = details.Count > 0
+                    ? $"Participant record schema validation failed: {string.Join("; ", details.Take(5))}"
+                    : "Participant record schema validation failed";
+
+                errors.Add(CreateError("VAL_PARTICIPANT_001", message,
+                    ValidationErrorCategory.Schema, "Payload", true));
+
+                return CreateFailureResult(transaction, sw.Elapsed, errors);
+            }
+
+            _logger.LogDebug("Participant record schema validation passed for {TransactionId}",
+                transaction.TransactionId);
+
+            return ValidationEngineResult.Success(
+                transaction.TransactionId,
+                transaction.RegisterId,
+                sw.Elapsed);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating participant record schema for {TransactionId}",
+                transaction.TransactionId);
+            errors.Add(CreateError("VAL_PARTICIPANT_ERR",
+                $"Participant record schema validation error: {ex.Message}",
+                ValidationErrorCategory.Schema, "Payload", true));
+            return CreateFailureResult(transaction, sw.Elapsed, errors);
+        }
+    }
+
     #region Private Methods
 
     private static bool IsGenesisOrControlTransaction(Transaction transaction)
@@ -887,6 +983,51 @@ public class ValidationEngine : IValidationEngine
             return true;
 
         return false;
+    }
+
+    private static bool IsParticipantTransaction(Transaction transaction)
+    {
+        return transaction.Metadata.TryGetValue("Type", out var typeStr) &&
+               string.Equals(typeStr, "Participant", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRejectionTransaction(Transaction transaction)
+    {
+        // Check metadata "Type" key (primary — set by ToTransactionSubmission)
+        if (transaction.Metadata.TryGetValue("Type", out var typeStr) &&
+            string.Equals(typeStr, "Rejection", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Check payload for "type":"rejection" field (fallback — set by BuildRejectionTransactionAsync)
+        if (transaction.Payload.ValueKind == System.Text.Json.JsonValueKind.Object &&
+            transaction.Payload.TryGetProperty("type", out var payloadType) &&
+            string.Equals(payloadType.GetString(), "rejection", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    private static Json.Schema.JsonSchema? _participantSchema;
+    private static readonly object _schemaLock = new();
+
+    private static Json.Schema.JsonSchema GetParticipantSchema()
+    {
+        if (_participantSchema != null) return _participantSchema;
+
+        lock (_schemaLock)
+        {
+            if (_participantSchema != null) return _participantSchema;
+
+            var assembly = typeof(ValidationEngine).Assembly;
+            using var stream = assembly.GetManifestResourceStream(
+                "Sorcha.Validator.Service.Schemas.participant-record-v1.json")
+                ?? throw new InvalidOperationException("Participant record schema not found as embedded resource");
+
+            using var reader = new StreamReader(stream);
+            var schemaJson = reader.ReadToEnd();
+            _participantSchema = Json.Schema.JsonSchema.FromText(schemaJson);
+            return _participantSchema;
+        }
     }
 
     /// <summary>

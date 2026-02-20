@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 5.6 - UPDATED
-**Last Updated:** 2026-02-19
-**Status:** Active - New Submission Flow Bugfixes
+**Version:** 5.7 - UPDATED
+**Last Updated:** 2026-02-20
+**Status:** Active - Published Participant Records on Register
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -43,6 +43,7 @@ All transactions MUST go through the Validator Service mempool before being seal
 
 | Date | Summary |
 |------|---------|
+| 2026-02-20 | **001-Participant-Records** (50 tasks, 8 phases): Added `TransactionType.Participant = 3` for publishing participant identity records as transactions on a register. Phase 1: Shared models (ParticipantRecord, ParticipantRecordStatus, participant-record-v1.json schema). Phase 2: Validator accepts Participant TXs with lighter rules (schema validation, no governance check, no blueprint conformance). Phase 3: Tenant Service publishes participant records (deterministic TxId, canonical JSON, wallet signing, validator pipeline). Phase 4: Register Service indexes addresses in-memory (ConcurrentDictionary), query endpoints (list, by-address, by-id), service client methods. Phase 5-6: Update and revoke via new version publishing with PrevTxId chaining. Phase 7: Public key resolution with 410 Gone for revoked. Phase 8: MongoDB index on TransactionType, optional Redis cache write-through, wallet address uniqueness check (409 Conflict), documentation. Tests: 64 new tests (20 index, 12 service client, 32 publishing). |
 | 2026-02-19 | **New Submission Flow Bugfixes** — Five bugs fixed in the end-to-end New Submission workflow: (1) **Form not rendering** — `Action.Form` defaults to non-null empty Layout in `Action.cs`; `Action.Form ?? AutoGenerateForm()` always took left side. Fix: check `Elements is { Count: > 0 }` before using explicit form. (2) **Empty instance ID** — API returns `"id"` but `WorkflowInstanceViewModel.InstanceId` had no `[JsonPropertyName]`. Fix: added `[JsonPropertyName("id")]`. (3) **State deserialization crash** — `state` field is numeric enum (0=Active), mapped to string `Status` via `[JsonPropertyName("state")]` caused `JsonException`. Fix: removed mapping, let `Status` default to `"active"`. (4) **403 Forbidden on execute** — `ValidateWalletOwnershipAsync` hard-failed when Participant Service returned 404 (no profile). Fix: graceful degradation — log warning and allow through when participant system is unavailable/unconfigured. (5) **Response deserialization crash** — `NextActionInfo.ActionId` was `string` but server returns `int`; property names mismatched. Fix: aligned `NextActionInfo` to match `NextActionResponse` (int ActionId, ActionTitle, ParticipantId). E2E test added: `NewSubmissionFormTests.cs` (4 Playwright tests). |
 | 2026-02-19 | **Genesis TX Signature Fix** — Genesis docket now contains 1 transaction (was 0). Root cause: `RegisterCreationOrchestrator` included attestation signatures in `TransactionSubmission.Signatures`, but the Validator verifies all transaction-level signatures against `SHA256("{TxId}:{PayloadHash}")` — attestation sigs were signed against different data (SHA256 of canonical attestation JSON). Fix: only include system wallet signature at transaction level; attestation sigs remain embedded in the control record payload where they were already verified during `FinalizeAsync`. Also replaced hardcoded `"genesis"` with `GenesisConstants.BlueprintId`. Full register creation walkthrough passes: auth → wallet → initiate → sign attestations → finalize → genesis TX → validator accepts → docket with 1 TX → register height 1. |
 | 2026-02-19 | **Construction Permit Walkthrough — ALL 3 SCENARIOS PASS** (11/11 steps, 14/14 actions). Four fixes: (1) PS1 `$actionSenderMap` Int64/Int32 type mismatch — `ConvertFrom-Json` returns Int64 for JSON integers but hashtable keys are Int32; fixed with `[int]` cast. (2) Calculation-before-routing reorder — calculations (e.g. `riskScore`) must be applied BEFORE route condition evaluation so JSON Logic conditions can reference them. (3) `Instance.AccumulatedData` fallback — Register Service doesn't support instance-based transaction queries (always 404), so accumulated payload+calculations are now persisted on the Instance object for cross-action state reconstruction. (4) Blueprint template disclosure fix — Action 4 environmental-assessor needed `/*` disclosure so sender's own submitted data is included in transaction (otherwise Validator rejects with VAL_SCHEMA_004). Scenario A: 5/5 low-risk residential (skips env review). Scenario B: 6/6 high-risk commercial (conditional routing to env review). Scenario C: 3/3 rejection at planning review. |
@@ -518,7 +519,7 @@ All transactions MUST go through the Validator Service mempool before being seal
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% | [View Tasks](tasks/phase4-enhancements.md) |
 | **Production Readiness** | 10 | 7 | 0 | 3 | **70%** | [View Tasks](tasks/production-readiness.md) |
 | **CLI Admin Tool** | 60 | 0 | 0 | 60 | 0% | [View Tasks](tasks/cli-admin-tool.md) |
-| **Deferred** | 24 | 0 | 0 | 24 | 0% | [View Tasks](tasks/deferred-tasks.md) |
+| **Deferred** | 33 | 0 | 0 | 33 | 0% | [View Tasks](tasks/deferred-tasks.md) |
 | **TOTAL** | **284** | **122** | **0** | **162** | **43%** | |
 
 ### By Priority

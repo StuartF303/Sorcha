@@ -205,7 +205,10 @@ public class MongoRegisterRepository : IRegisterRepository
                 .Ascending("MetaData.InstanceId")),
 
             // Index for previous transaction ID queries (fork detection)
-            new(Builders<TransactionModel>.IndexKeys.Ascending(t => t.PrevTxId))
+            new(Builders<TransactionModel>.IndexKeys.Ascending(t => t.PrevTxId)),
+
+            // Index for transaction type queries (participant record lookups)
+            new(Builders<TransactionModel>.IndexKeys.Ascending("MetaData.TransactionType"))
         };
         await collection.Indexes.CreateManyAsync(transactionIndexes);
     }

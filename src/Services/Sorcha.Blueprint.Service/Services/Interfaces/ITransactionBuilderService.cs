@@ -292,7 +292,9 @@ public class BuiltTransaction
             Metadata = new Dictionary<string, string>
             {
                 ["instanceId"] = Metadata.GetValueOrDefault("instanceId")?.ToString() ?? string.Empty,
-                ["Type"] = "Action"
+                ["Type"] = string.Equals(TransactionType, "rejection", StringComparison.OrdinalIgnoreCase)
+                    ? "Rejection"
+                    : "Action"
             }
         };
     }

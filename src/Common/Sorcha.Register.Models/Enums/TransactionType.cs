@@ -21,5 +21,10 @@ public enum TransactionType
     /// <summary>
     /// Docket transaction (block sealing)
     /// </summary>
-    Docket = 2
+    Docket = 2,
+
+    /// <summary>
+    /// Participant transaction (published participant identity record)
+    /// </summary>
+    Participant = 3
 }

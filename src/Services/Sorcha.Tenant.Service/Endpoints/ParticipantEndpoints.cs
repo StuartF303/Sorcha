@@ -95,6 +95,40 @@ public static class ParticipantEndpoints
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
+        // Participant publishing (on-register identity records)
+        orgGroup.MapPost("/publish", PublishParticipantRecord)
+            .WithName("PublishParticipantRecord")
+            .WithSummary("Publish a participant record to a register")
+            .WithDescription("Builds a Participant transaction, signs with the specified wallet, and submits via the validator pipeline.")
+            .RequireAuthorization("RequireAdministrator")
+            .Produces<ParticipantPublishResult>(StatusCodes.Status202Accepted)
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status409Conflict);
+
+        orgGroup.MapPut("/publish/{participantId}", UpdateParticipantRecord)
+            .WithName("UpdateParticipantRecord")
+            .WithSummary("Update a published participant record")
+            .WithDescription("Publishes a new version of the participant record with updated fields. Version is auto-incremented.")
+            .RequireAuthorization("RequireAdministrator")
+            .Produces<ParticipantPublishResult>(StatusCodes.Status202Accepted)
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        orgGroup.MapDelete("/publish/{participantId}", RevokeParticipantRecord)
+            .WithName("RevokeParticipantRecord")
+            .WithSummary("Revoke a published participant record")
+            .WithDescription("Publishes a new version with status 'Revoked'. The participant is excluded from default queries.")
+            .RequireAuthorization("RequireAdministrator")
+            .Produces<ParticipantPublishResult>(StatusCodes.Status202Accepted)
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
         // Wallet link endpoints
         orgGroup.MapPost("/{id:guid}/wallet-links", InitiateWalletLink)
             .WithName("InitiateWalletLink")
@@ -336,6 +370,146 @@ public static class ParticipantEndpoints
 
         var success = await participantService.ReactivateAsync(id, actorId, ipAddress);
         return success ? TypedResults.NoContent() : TypedResults.NotFound();
+    }
+
+    #endregion
+
+    #region Participant Publishing Handlers
+
+    private static async Task<Results<Accepted<ParticipantPublishResult>, ValidationProblem, Conflict<string>>> PublishParticipantRecord(
+        Guid organizationId,
+        PublishParticipantRequest request,
+        IParticipantPublishingService publishingService)
+    {
+        // Validate request
+        var errors = new Dictionary<string, string[]>();
+
+        if (string.IsNullOrWhiteSpace(request.RegisterId))
+            errors["registerId"] = ["Register ID is required"];
+
+        if (string.IsNullOrWhiteSpace(request.ParticipantName))
+            errors["participantName"] = ["Participant name is required"];
+        else if (request.ParticipantName.Length > 200)
+            errors["participantName"] = ["Participant name must be 200 characters or fewer"];
+
+        if (string.IsNullOrWhiteSpace(request.OrganizationName))
+            errors["organizationName"] = ["Organization name is required"];
+        else if (request.OrganizationName.Length > 200)
+            errors["organizationName"] = ["Organization name must be 200 characters or fewer"];
+
+        if (request.Addresses == null || request.Addresses.Count == 0)
+            errors["addresses"] = ["At least one address is required"];
+        else if (request.Addresses.Count > 10)
+            errors["addresses"] = ["Maximum 10 addresses allowed"];
+        else
+        {
+            for (int i = 0; i < request.Addresses.Count; i++)
+            {
+                var addr = request.Addresses[i];
+                if (string.IsNullOrWhiteSpace(addr.WalletAddress))
+                    errors[$"addresses[{i}].walletAddress"] = ["Wallet address is required"];
+                if (string.IsNullOrWhiteSpace(addr.PublicKey))
+                    errors[$"addresses[{i}].publicKey"] = ["Public key is required"];
+                if (string.IsNullOrWhiteSpace(addr.Algorithm))
+                    errors[$"addresses[{i}].algorithm"] = ["Algorithm is required"];
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(request.SignerWalletAddress))
+            errors["signerWalletAddress"] = ["Signer wallet address is required"];
+
+        if (errors.Count > 0)
+            return TypedResults.ValidationProblem(errors);
+
+        try
+        {
+            var result = await publishingService.PublishParticipantAsync(request);
+            return TypedResults.Accepted($"/api/organizations/{organizationId}/participants/publish", result);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already claimed"))
+        {
+            return TypedResults.Conflict(ex.Message);
+        }
+    }
+
+    private static async Task<Results<Accepted<ParticipantPublishResult>, ValidationProblem, NotFound<string>>> UpdateParticipantRecord(
+        Guid organizationId,
+        string participantId,
+        UpdatePublishedParticipantRequest request,
+        IParticipantPublishingService publishingService)
+    {
+        // Validate request
+        var errors = new Dictionary<string, string[]>();
+
+        if (string.IsNullOrWhiteSpace(request.RegisterId))
+            errors["registerId"] = ["Register ID is required"];
+
+        if (string.IsNullOrWhiteSpace(request.ParticipantName))
+            errors["participantName"] = ["Participant name is required"];
+        else if (request.ParticipantName.Length > 200)
+            errors["participantName"] = ["Participant name must be 200 characters or fewer"];
+
+        if (string.IsNullOrWhiteSpace(request.OrganizationName))
+            errors["organizationName"] = ["Organization name is required"];
+        else if (request.OrganizationName.Length > 200)
+            errors["organizationName"] = ["Organization name must be 200 characters or fewer"];
+
+        if (request.Addresses == null || request.Addresses.Count == 0)
+            errors["addresses"] = ["At least one address is required"];
+        else if (request.Addresses.Count > 10)
+            errors["addresses"] = ["Maximum 10 addresses allowed"];
+
+        if (string.IsNullOrWhiteSpace(request.SignerWalletAddress))
+            errors["signerWalletAddress"] = ["Signer wallet address is required"];
+
+        if (errors.Count > 0)
+            return TypedResults.ValidationProblem(errors);
+
+        try
+        {
+            var result = await publishingService.UpdateParticipantAsync(request);
+            return TypedResults.Accepted(
+                $"/api/organizations/{organizationId}/participants/publish/{participantId}", result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
+    }
+
+    private static async Task<Results<Accepted<ParticipantPublishResult>, ValidationProblem, NotFound<string>>> RevokeParticipantRecord(
+        Guid organizationId,
+        string participantId,
+        IParticipantPublishingService publishingService,
+        string registerId,
+        string signerWalletAddress)
+    {
+        // Validate required query params
+        var errors = new Dictionary<string, string[]>();
+
+        if (string.IsNullOrWhiteSpace(registerId))
+            errors["registerId"] = ["Register ID is required"];
+        if (string.IsNullOrWhiteSpace(signerWalletAddress))
+            errors["signerWalletAddress"] = ["Signer wallet address is required"];
+
+        if (errors.Count > 0)
+            return TypedResults.ValidationProblem(errors);
+
+        try
+        {
+            var result = await publishingService.RevokeParticipantAsync(new RevokeParticipantRequest
+            {
+                RegisterId = registerId,
+                ParticipantId = participantId,
+                SignerWalletAddress = signerWalletAddress
+            });
+            return TypedResults.Accepted(
+                $"/api/organizations/{organizationId}/participants/publish/{participantId}", result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
     }
 
     #endregion

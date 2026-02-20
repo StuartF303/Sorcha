@@ -25,7 +25,7 @@ public interface ITransactionValidator
     ValidationResult ValidateTransactionStructure(
         string transactionId,
         string registerId,
-        string blueprintId,
+        string? blueprintId,
         JsonElement payload,
         string payloadHash,
         List<TransactionSignature> signatures,

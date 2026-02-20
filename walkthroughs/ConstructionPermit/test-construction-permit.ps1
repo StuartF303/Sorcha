@@ -284,7 +284,8 @@ try {
         if ($statusCode -eq 409) {
             Write-Warn "Organization already exists (409 Conflict) -- falling back to login"
 
-            $loginBody = "grant_type=password" + "&username=$AdminEmail" + "&password=$AdminPassword" + "&client_id=sorcha-cli"
+            $encodedPassword = [Uri]::EscapeDataString($AdminPassword)
+            $loginBody = "grant_type=password" + "&username=$AdminEmail" + "&password=$encodedPassword" + "&client_id=sorcha-cli"
             $loginResponse = Invoke-RestMethod `
                 -Uri "$TenantUrl/service-auth/token" `
                 -Method POST `
@@ -851,18 +852,29 @@ foreach ($scenarioId in $scenariosToRun) {
             $isRejectionAction = $isRejection -and $isLastAction
 
             if ($isRejectionAction) {
-                Write-Info "Action $actionId ($sender): Submitting with REJECTION..."
+                # Rejections use a separate /reject endpoint (not /execute)
+                Write-Info "Action $actionId ($sender): Submitting REJECTION..."
 
-                # For rejection, we still submit the action data but also reject
-                $actionBody = @{
-                    blueprintId = $blueprintId
-                    actionId = $actionIdStr
-                    instanceId = $instanceId
+                $rejectBody = @{
+                    reason = $scenarioData.rejectionReason
                     senderWallet = $senderWallet
                     registerAddress = $registerId
-                    payloadData = $payloadData
-                    reject = $true
-                    rejectionReason = $scenarioData.rejectionReason
+                }
+
+                try {
+                    $actionResponse = Invoke-Api -Method POST `
+                        -Uri "$BlueprintUrl/instances/$instanceId/actions/$actionIdStr/reject" `
+                        -Body $rejectBody `
+                        -Headers $executeHeaders
+
+                    $actionsExecuted++
+                    Write-Success "Action ${actionId}: REJECTED (routed back to Action $($scenarioData.rejectionAction))"
+                } catch {
+                    Write-Fail "Action $actionId rejection failed: $($_.Exception.Message)"
+                    $errorBody = Get-ErrorBody -Exception $_.Exception
+                    if ($errorBody) { Write-Host "  Response: $errorBody" -ForegroundColor Red }
+                    $scenarioPassed = $false
+                    break
                 }
             } else {
                 Write-Info "Action $actionId ($sender): Submitting..."
@@ -875,35 +887,31 @@ foreach ($scenarioId in $scenariosToRun) {
                     registerAddress = $registerId
                     payloadData = $payloadData
                 }
-            }
 
-            try {
-                $actionResponse = Invoke-Api -Method POST `
-                    -Uri "$BlueprintUrl/instances/$instanceId/actions/$actionIdStr/execute" `
-                    -Body $actionBody `
-                    -Headers $executeHeaders
+                try {
+                    $actionResponse = Invoke-Api -Method POST `
+                        -Uri "$BlueprintUrl/instances/$instanceId/actions/$actionIdStr/execute" `
+                        -Body $actionBody `
+                        -Headers $executeHeaders
 
-                $actionsExecuted++
+                    $actionsExecuted++
 
-                if ($isRejectionAction) {
-                    Write-Success "Action ${actionId}: REJECTED (routed back to Action $($scenarioData.rejectionAction))"
-                } else {
                     $nextAction = if ($actionResponse.nextAction) { $actionResponse.nextAction } else { "workflow complete" }
                     Write-Success "Action ${actionId}: OK (next: $nextAction)"
-                }
 
-                # Show calculated values if present
-                if ($actionResponse.calculatedValues) {
-                    foreach ($calc in $actionResponse.calculatedValues.PSObject.Properties) {
-                        Write-Info "  Calculated: $($calc.Name) = $($calc.Value)"
+                    # Show calculated values if present
+                    if ($actionResponse.calculatedValues) {
+                        foreach ($calc in $actionResponse.calculatedValues.PSObject.Properties) {
+                            Write-Info "  Calculated: $($calc.Name) = $($calc.Value)"
+                        }
                     }
+                } catch {
+                    Write-Fail "Action $actionId failed: $($_.Exception.Message)"
+                    $errorBody = Get-ErrorBody -Exception $_.Exception
+                    if ($errorBody) { Write-Host "  Response: $errorBody" -ForegroundColor Red }
+                    $scenarioPassed = $false
+                    break
                 }
-            } catch {
-                Write-Fail "Action $actionId failed: $($_.Exception.Message)"
-                $errorBody = Get-ErrorBody -Exception $_.Exception
-                if ($errorBody) { Write-Host "  Response: $errorBody" -ForegroundColor Red }
-                $scenarioPassed = $false
-                break
             }
         }
 

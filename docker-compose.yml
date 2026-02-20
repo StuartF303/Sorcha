@@ -256,6 +256,8 @@ services:
       ServiceAuth__ClientSecret: tenant-service-secret
       ServiceClients__WalletService__Address: http://wallet-service:8080
       ServiceClients__TenantService__Address: http://tenant-service:8080
+      ServiceClients__RegisterService__Address: http://register-service:8080
+      ServiceClients__ValidatorService__Address: http://validator-service:8080
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
@@ -263,6 +265,10 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      register-service:
+        condition: service_started
+      validator-service:
+        condition: service_started
       aspire-dashboard:
         condition: service_started
     networks:

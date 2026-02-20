@@ -59,6 +59,7 @@ public class ControlDocketProcessor : IControlDocketProcessor
 
         foreach (var tx in docket.Transactions)
         {
+            if (tx.ActionId is null) continue;
             var actionType = GetControlActionType(tx.ActionId);
 
             if (actionType != ControlActionType.Unknown)
@@ -95,7 +96,7 @@ public class ControlDocketProcessor : IControlDocketProcessor
     {
         ArgumentNullException.ThrowIfNull(docket);
 
-        return docket.Transactions.Any(tx => IsControlAction(tx.ActionId));
+        return docket.Transactions.Any(tx => tx.ActionId is not null && IsControlAction(tx.ActionId));
     }
 
     /// <inheritdoc/>

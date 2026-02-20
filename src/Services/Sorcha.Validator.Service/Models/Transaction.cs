@@ -23,14 +23,14 @@ public class Transaction
 
     // Blueprint Context
     /// <summary>
-    /// Blueprint definition ID
+    /// Blueprint definition ID (null for non-blueprint transactions such as Participant)
     /// </summary>
-    public required string BlueprintId { get; init; }
+    public string? BlueprintId { get; init; }
 
     /// <summary>
-    /// Specific action within the blueprint
+    /// Specific action within the blueprint (null for non-blueprint transactions)
     /// </summary>
-    public required string ActionId { get; init; }
+    public string? ActionId { get; init; }
 
     /// <summary>
     /// Action-specific data payload

@@ -1,0 +1,1638 @@
+{
+  "id": "complex-sme-invoice-finance-v1",
+  "title": "SME Invoice Finance for Procurement",
+  "description": "A comprehensive invoice finance (supply chain finance / reverse factoring) workflow for managing procurement of goods and services from SMEs. An anchor buyer procures from SMEs who submit invoices against approved purchase orders. A financier provides early payment to SMEs at a discount, collecting the full amount from the buyer at maturity. Includes three-way matching, dispute handling, and credit limit management.",
+  "version": 1,
+  "metadata": {
+    "sector": "Finance",
+    "complexity": "Complex",
+    "actions": "12",
+    "category": "Supply Chain Finance",
+    "features": "Invoice Financing, Three-Way Match, Dispute Resolution, Credit Limit Management, Early Payment, Conditional Routing",
+    "compliance": "AML/KYC, Late Payment Directive"
+  },
+  "participants": [
+    {
+      "id": "buyer",
+      "name": "Procurement Manager",
+      "organisation": "Anchor Enterprises Ltd",
+      "walletAddress": "0xB0Y1234567890ABCDEF1234567890ABCDEF12345",
+      "didUri": "did:example:anchor-procurement"
+    },
+    {
+      "id": "supplier",
+      "name": "SME Supplier",
+      "organisation": "Precision Parts Ltd",
+      "walletAddress": "0xS0P2345678901BCDEF2345678901BCDEF234567",
+      "didUri": "did:example:sme-supplier"
+    },
+    {
+      "id": "financier",
+      "name": "Trade Finance Division",
+      "organisation": "Commercial Finance Bank plc",
+      "walletAddress": "0xF0N3456789012CDEF3456789012CDEF345678",
+      "didUri": "did:example:trade-finance-bank"
+    },
+    {
+      "id": "platform",
+      "name": "Platform Operator",
+      "organisation": "Sorcha Finance Platform",
+      "walletAddress": "0xP0L4567890123DEF4567890123DEF456789",
+      "didUri": "did:example:platform-operator"
+    },
+    {
+      "id": "auditor",
+      "name": "Compliance & Audit",
+      "organisation": "Financial Conduct Authority",
+      "walletAddress": "0xA0D5678901234EF5678901234EF5678901",
+      "didUri": "did:example:fca-audit"
+    }
+  ],
+  "actions": [
+    {
+      "id": 0,
+      "title": "Issue Purchase Order",
+      "description": "Buyer issues a purchase order to the SME supplier with line items, delivery terms, and agreed pricing. This establishes the contractual basis for subsequent invoicing.",
+      "sender": "buyer",
+      "target": "supplier",
+      "additionalRecipients": ["platform"],
+      "isStartingAction": true,
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "poNumber": {
+              "type": "string",
+              "title": "Purchase Order Number",
+              "minLength": 5,
+              "maxLength": 30
+            },
+            "issueDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Issue Date"
+            },
+            "deliveryDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Required Delivery Date"
+            },
+            "paymentTerms": {
+              "type": "string",
+              "title": "Payment Terms",
+              "enum": ["Net 30", "Net 45", "Net 60", "Net 90"],
+              "default": "Net 60"
+            },
+            "currency": {
+              "type": "string",
+              "title": "Currency",
+              "enum": ["GBP", "EUR", "USD"],
+              "default": "GBP"
+            },
+            "lineItems": {
+              "type": "array",
+              "title": "Line Items",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "title": "Description",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "title": "Quantity",
+                    "minimum": 0.01
+                  },
+                  "unit": {
+                    "type": "string",
+                    "title": "Unit",
+                    "enum": ["Each", "Hours", "Days", "Kg", "Metres", "Litres", "Box", "Pallet"]
+                  },
+                  "unitPrice": {
+                    "type": "number",
+                    "title": "Unit Price (excl. VAT)",
+                    "minimum": 0.01
+                  },
+                  "vatRate": {
+                    "type": "number",
+                    "title": "VAT Rate (%)",
+                    "enum": [0, 5, 12.5, 20],
+                    "default": 20
+                  }
+                },
+                "required": ["description", "quantity", "unit", "unitPrice", "vatRate"]
+              }
+            },
+            "deliveryAddress": {
+              "type": "string",
+              "title": "Delivery Address",
+              "maxLength": 500
+            },
+            "spendCategory": {
+              "type": "string",
+              "title": "Spend Category",
+              "enum": ["Raw Materials", "Components", "Professional Services", "IT Services", "Maintenance", "Logistics", "Other"]
+            }
+          },
+          "required": ["poNumber", "issueDate", "deliveryDate", "paymentTerms", "currency", "lineItems", "deliveryAddress", "spendCategory"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "supplier",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/poNumber", "/issueDate", "/paymentTerms", "/currency", "/spendCategory"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/poNumber", "/issueDate", "/paymentTerms", "/currency"]
+        }
+      ],
+      "calculations": {
+        "netTotal": {
+          "reduce": [
+            { "var": "lineItems" },
+            { "+": [{ "var": "accumulator" }, { "*": [{ "var": "current.quantity" }, { "var": "current.unitPrice" }] }] },
+            0
+          ]
+        },
+        "vatTotal": {
+          "reduce": [
+            { "var": "lineItems" },
+            { "+": [{ "var": "accumulator" }, { "*": [{ "*": [{ "var": "current.quantity" }, { "var": "current.unitPrice" }] }, { "/": [{ "var": "current.vatRate" }, 100] }] }] },
+            0
+          ]
+        },
+        "grossTotal": {
+          "+": [{ "var": "netTotal" }, { "var": "vatTotal" }]
+        }
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Purchase Order",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Order Details",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "TextLine", "scope": "/poNumber", "title": "PO Number" },
+                  { "type": "DateTime", "scope": "/issueDate", "title": "Issue Date" }
+                ]
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "Selection", "scope": "/paymentTerms", "title": "Payment Terms" },
+                  { "type": "Selection", "scope": "/currency", "title": "Currency" },
+                  { "type": "Selection", "scope": "/spendCategory", "title": "Spend Category" }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Label",
+            "title": "Line Items"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Delivery",
+            "elements": [
+              { "type": "TextArea", "scope": "/deliveryAddress", "title": "Delivery Address" },
+              { "type": "DateTime", "scope": "/deliveryDate", "title": "Required Delivery Date" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "title": "Confirm Delivery",
+      "description": "Supplier delivers goods or completes services and submits proof of delivery (delivery note, service completion certificate, or timesheet). Buyer confirms receipt.",
+      "sender": "supplier",
+      "target": "buyer",
+      "additionalRecipients": ["platform"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "poReference": {
+              "type": "string",
+              "title": "PO Reference",
+              "minLength": 5,
+              "maxLength": 30
+            },
+            "deliveryDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Actual Delivery Date"
+            },
+            "deliveryType": {
+              "type": "string",
+              "title": "Delivery Type",
+              "enum": ["Full Delivery", "Partial Delivery", "Service Completion", "Milestone Delivery"]
+            },
+            "deliveryNoteNumber": {
+              "type": "string",
+              "title": "Delivery Note / Completion Cert Number",
+              "maxLength": 50
+            },
+            "itemsDelivered": {
+              "type": "array",
+              "title": "Items Delivered",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "poLineDescription": {
+                    "type": "string",
+                    "title": "PO Line Description",
+                    "maxLength": 300
+                  },
+                  "quantityDelivered": {
+                    "type": "number",
+                    "title": "Quantity Delivered",
+                    "minimum": 0.01
+                  },
+                  "quantityOrdered": {
+                    "type": "number",
+                    "title": "Quantity Ordered",
+                    "minimum": 0.01
+                  }
+                },
+                "required": ["poLineDescription", "quantityDelivered", "quantityOrdered"]
+              }
+            },
+            "supplierNotes": {
+              "type": "string",
+              "title": "Supplier Notes",
+              "maxLength": 1000
+            }
+          },
+          "required": ["poReference", "deliveryDate", "deliveryType", "deliveryNoteNumber", "itemsDelivered"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "buyer",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/poReference", "/deliveryDate", "/deliveryType"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/poReference", "/deliveryDate", "/deliveryType"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Delivery Confirmation",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "TextLine", "scope": "/poReference", "title": "PO Reference" },
+              { "type": "DateTime", "scope": "/deliveryDate", "title": "Delivery Date" }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "Selection", "scope": "/deliveryType", "title": "Delivery Type" },
+              { "type": "TextLine", "scope": "/deliveryNoteNumber", "title": "Delivery Note Number" }
+            ]
+          },
+          {
+            "type": "Label",
+            "title": "Items Delivered"
+          },
+          {
+            "type": "TextArea",
+            "scope": "/supplierNotes",
+            "title": "Supplier Notes"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Submit Invoice",
+      "description": "Supplier submits invoice referencing the purchase order and delivery. The system performs a three-way match: PO terms vs delivery proof vs invoice amounts. If the match passes, the invoice proceeds to buyer approval. If it fails, the invoice is returned to the supplier for correction.",
+      "sender": "supplier",
+      "target": "buyer",
+      "additionalRecipients": ["platform", "financier"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "invoiceNumber": {
+              "type": "string",
+              "title": "Invoice Number",
+              "minLength": 3,
+              "maxLength": 30
+            },
+            "invoiceDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Invoice Date"
+            },
+            "dueDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Payment Due Date"
+            },
+            "poReference": {
+              "type": "string",
+              "title": "PO Reference",
+              "minLength": 5,
+              "maxLength": 30
+            },
+            "deliveryNoteReference": {
+              "type": "string",
+              "title": "Delivery Note Reference",
+              "maxLength": 50
+            },
+            "lineItems": {
+              "type": "array",
+              "title": "Invoice Line Items",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "title": "Description",
+                    "maxLength": 300
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "title": "Quantity",
+                    "minimum": 0.01
+                  },
+                  "unitPrice": {
+                    "type": "number",
+                    "title": "Unit Price (excl. VAT)",
+                    "minimum": 0.01
+                  },
+                  "vatRate": {
+                    "type": "number",
+                    "title": "VAT Rate (%)",
+                    "enum": [0, 5, 12.5, 20],
+                    "default": 20
+                  }
+                },
+                "required": ["description", "quantity", "unitPrice", "vatRate"]
+              }
+            },
+            "netAmount": {
+              "type": "number",
+              "title": "Net Amount (excl. VAT)",
+              "minimum": 0.01
+            },
+            "vatAmount": {
+              "type": "number",
+              "title": "VAT Amount",
+              "minimum": 0
+            },
+            "grossAmount": {
+              "type": "number",
+              "title": "Gross Amount (incl. VAT)",
+              "minimum": 0.01
+            },
+            "supplierBankSortCode": {
+              "type": "string",
+              "title": "Bank Sort Code",
+              "pattern": "^[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+            },
+            "supplierBankAccount": {
+              "type": "string",
+              "title": "Bank Account Number",
+              "pattern": "^[0-9]{8}$"
+            },
+            "supplierVatNumber": {
+              "type": "string",
+              "title": "VAT Registration Number",
+              "maxLength": 20
+            }
+          },
+          "required": ["invoiceNumber", "invoiceDate", "dueDate", "poReference", "deliveryNoteReference", "lineItems", "netAmount", "vatAmount", "grossAmount", "supplierBankSortCode", "supplierBankAccount"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "buyer",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "financier",
+          "dataPointers": ["/invoiceNumber", "/invoiceDate", "/dueDate", "/poReference", "/netAmount", "/grossAmount"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/invoiceNumber", "/invoiceDate", "/dueDate", "/poReference", "/netAmount", "/grossAmount"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/invoiceNumber", "/invoiceDate", "/poReference", "/netAmount", "/grossAmount", "/supplierVatNumber"]
+        }
+      ],
+      "calculations": {
+        "calculatedNet": {
+          "reduce": [
+            { "var": "lineItems" },
+            { "+": [{ "var": "accumulator" }, { "*": [{ "var": "current.quantity" }, { "var": "current.unitPrice" }] }] },
+            0
+          ]
+        },
+        "calculatedVat": {
+          "reduce": [
+            { "var": "lineItems" },
+            { "+": [{ "var": "accumulator" }, { "*": [{ "*": [{ "var": "current.quantity" }, { "var": "current.unitPrice" }] }, { "/": [{ "var": "current.vatRate" }, 100] }] }] },
+            0
+          ]
+        },
+        "calculatedGross": {
+          "+": [{ "var": "calculatedNet" }, { "var": "calculatedVat" }]
+        },
+        "threeWayMatchPassed": {
+          "==": [{ "var": "calculatedGross" }, { "var": "grossAmount" }]
+        }
+      },
+      "condition": {
+        "if": [
+          { "var": "threeWayMatchPassed" },
+          "buyer",
+          "supplier"
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Invoice Submission",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Invoice Details",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "TextLine", "scope": "/invoiceNumber", "title": "Invoice Number" },
+                  { "type": "DateTime", "scope": "/invoiceDate", "title": "Invoice Date" },
+                  { "type": "DateTime", "scope": "/dueDate", "title": "Due Date" }
+                ]
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "TextLine", "scope": "/poReference", "title": "PO Reference" },
+                  { "type": "TextLine", "scope": "/deliveryNoteReference", "title": "Delivery Note Reference" }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Label",
+            "title": "Invoice Line Items"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Totals",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "Numeric", "scope": "/netAmount", "title": "Net Amount" },
+                  { "type": "Numeric", "scope": "/vatAmount", "title": "VAT Amount" },
+                  { "type": "Numeric", "scope": "/grossAmount", "title": "Gross Amount" }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Supplier Bank Details",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "TextLine", "scope": "/supplierBankSortCode", "title": "Sort Code" },
+                  { "type": "TextLine", "scope": "/supplierBankAccount", "title": "Account Number" }
+                ]
+              },
+              { "type": "TextLine", "scope": "/supplierVatNumber", "title": "VAT Registration Number" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "Approve Invoice",
+      "description": "Buyer reviews the invoice against the PO and delivery confirmation. Approves for payment or raises a dispute. Approved invoices become eligible for early financing by the supplier.",
+      "sender": "buyer",
+      "additionalRecipients": ["supplier", "financier", "platform"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "invoiceReference": {
+              "type": "string",
+              "title": "Invoice Reference",
+              "maxLength": 30
+            },
+            "approved": {
+              "type": "boolean",
+              "title": "Invoice Approved"
+            },
+            "approvedAmount": {
+              "type": "number",
+              "title": "Approved Amount (gross)",
+              "minimum": 0
+            },
+            "approverName": {
+              "type": "string",
+              "title": "Approver Name",
+              "maxLength": 100
+            },
+            "approvalDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Approval Date"
+            },
+            "approverComments": {
+              "type": "string",
+              "title": "Comments",
+              "maxLength": 1000
+            },
+            "disputeReason": {
+              "type": "string",
+              "title": "Dispute Reason (if rejected)",
+              "enum": ["Price Mismatch", "Quantity Mismatch", "Quality Issue", "Damaged Goods", "Short Delivery", "Incorrect PO Reference", "Other"],
+              "maxLength": 500
+            },
+            "disputeDescription": {
+              "type": "string",
+              "title": "Dispute Description",
+              "maxLength": 2000
+            }
+          },
+          "required": ["invoiceReference", "approved", "approvedAmount", "approverName", "approvalDate"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "supplier",
+          "dataPointers": ["/invoiceReference", "/approved", "/approvedAmount", "/approverComments", "/disputeReason", "/disputeDescription"]
+        },
+        {
+          "participantAddress": "financier",
+          "dataPointers": ["/invoiceReference", "/approved", "/approvedAmount", "/approvalDate"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/invoiceReference", "/approved", "/approvedAmount", "/approvalDate"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "condition": {
+        "if": [
+          { "var": "approved" },
+          "supplier",
+          "supplier"
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Invoice Approval",
+        "elements": [
+          {
+            "type": "TextLine",
+            "scope": "/invoiceReference",
+            "title": "Invoice Reference"
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "Checkbox", "scope": "/approved", "title": "I approve this invoice for payment" },
+              { "type": "Numeric", "scope": "/approvedAmount", "title": "Approved Amount" }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "TextLine", "scope": "/approverName", "title": "Approver Name" },
+              { "type": "DateTime", "scope": "/approvalDate", "title": "Approval Date" }
+            ]
+          },
+          {
+            "type": "TextArea",
+            "scope": "/approverComments",
+            "title": "Comments"
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Dispute Details (if rejecting)",
+            "elements": [
+              { "type": "Selection", "scope": "/disputeReason", "title": "Dispute Reason" },
+              { "type": "TextArea", "scope": "/disputeDescription", "title": "Dispute Description" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "title": "Request Early Payment",
+      "description": "Supplier opts to request early payment on an approved invoice. The system checks eligibility: invoice must be approved, within the financier's credit limit for this supplier, not already financed, and not disputed. If eligible, the request is forwarded to the financier.",
+      "sender": "supplier",
+      "target": "financier",
+      "additionalRecipients": ["platform"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "invoiceReference": {
+              "type": "string",
+              "title": "Invoice Reference",
+              "maxLength": 30
+            },
+            "invoiceGrossAmount": {
+              "type": "number",
+              "title": "Invoice Gross Amount",
+              "minimum": 0.01
+            },
+            "originalDueDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Original Due Date"
+            },
+            "requestedPaymentDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Requested Payment Date"
+            },
+            "supplierCompanyName": {
+              "type": "string",
+              "title": "Company Name",
+              "maxLength": 200
+            },
+            "supplierCompanyNumber": {
+              "type": "string",
+              "title": "Company Registration Number",
+              "maxLength": 20
+            },
+            "currentFacilityUtilisation": {
+              "type": "number",
+              "title": "Current Facility Utilisation (%)",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "earlyPaymentReason": {
+              "type": "string",
+              "title": "Reason for Early Payment",
+              "enum": ["Cash Flow Management", "Supplier Discount", "Seasonal Demand", "Growth Investment", "Payroll Obligations", "Other"],
+              "default": "Cash Flow Management"
+            }
+          },
+          "required": ["invoiceReference", "invoiceGrossAmount", "originalDueDate", "requestedPaymentDate", "supplierCompanyName"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "financier",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/invoiceReference", "/invoiceGrossAmount", "/originalDueDate", "/requestedPaymentDate"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/invoiceReference", "/invoiceGrossAmount", "/originalDueDate", "/requestedPaymentDate", "/supplierCompanyNumber"]
+        }
+      ],
+      "calculations": {
+        "daysEarly": {
+          "-": [{ "var": "originalDueDate" }, { "var": "requestedPaymentDate" }]
+        }
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Early Payment Request",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Invoice Details",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "TextLine", "scope": "/invoiceReference", "title": "Invoice Reference" },
+                  { "type": "Numeric", "scope": "/invoiceGrossAmount", "title": "Gross Amount" }
+                ]
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "DateTime", "scope": "/originalDueDate", "title": "Original Due Date" },
+                  { "type": "DateTime", "scope": "/requestedPaymentDate", "title": "Requested Payment Date" }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Supplier Information",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "TextLine", "scope": "/supplierCompanyName", "title": "Company Name" },
+                  { "type": "TextLine", "scope": "/supplierCompanyNumber", "title": "Company Number" }
+                ]
+              },
+              { "type": "Numeric", "scope": "/currentFacilityUtilisation", "title": "Current Facility Utilisation (%)" },
+              { "type": "Selection", "scope": "/earlyPaymentReason", "title": "Reason for Early Payment" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "title": "Issue Funding Offer",
+      "description": "Financier reviews the early payment request, assesses risk, and presents a funding offer to the supplier. The offer specifies the advance rate, discount fee, and net disbursement amount.",
+      "sender": "financier",
+      "target": "supplier",
+      "additionalRecipients": ["platform"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "fundingOfferReference": {
+              "type": "string",
+              "title": "Funding Offer Reference",
+              "minLength": 5,
+              "maxLength": 30
+            },
+            "invoiceReference": {
+              "type": "string",
+              "title": "Invoice Reference",
+              "maxLength": 30
+            },
+            "invoiceGrossAmount": {
+              "type": "number",
+              "title": "Invoice Gross Amount",
+              "minimum": 0.01
+            },
+            "advanceRate": {
+              "type": "number",
+              "title": "Advance Rate (%)",
+              "minimum": 70,
+              "maximum": 100,
+              "default": 95
+            },
+            "discountFeeRate": {
+              "type": "number",
+              "title": "Discount Fee Rate (% p.a.)",
+              "minimum": 0.1,
+              "maximum": 15
+            },
+            "discountFeeAmount": {
+              "type": "number",
+              "title": "Discount Fee Amount",
+              "minimum": 0
+            },
+            "netDisbursement": {
+              "type": "number",
+              "title": "Net Disbursement to Supplier",
+              "minimum": 0.01
+            },
+            "fundingDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Proposed Funding Date"
+            },
+            "maturityDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Maturity Date (buyer pays financier)"
+            },
+            "facilityLimitRemaining": {
+              "type": "number",
+              "title": "Remaining Facility Limit After This Invoice",
+              "minimum": 0
+            },
+            "offerExpiryDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Offer Expiry Date"
+            },
+            "termsAndConditions": {
+              "type": "string",
+              "title": "Terms & Conditions Summary",
+              "maxLength": 2000
+            }
+          },
+          "required": ["fundingOfferReference", "invoiceReference", "invoiceGrossAmount", "advanceRate", "discountFeeRate", "discountFeeAmount", "netDisbursement", "fundingDate", "maturityDate", "offerExpiryDate"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "supplier",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/fundingOfferReference", "/invoiceReference", "/advanceRate", "/netDisbursement", "/fundingDate", "/maturityDate"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/fundingOfferReference", "/invoiceReference", "/invoiceGrossAmount", "/advanceRate", "/discountFeeRate", "/discountFeeAmount", "/netDisbursement", "/maturityDate"]
+        }
+      ],
+      "calculations": {
+        "calculatedAdvance": {
+          "*": [{ "var": "invoiceGrossAmount" }, { "/": [{ "var": "advanceRate" }, 100] }]
+        },
+        "calculatedNetDisbursement": {
+          "-": [{ "var": "calculatedAdvance" }, { "var": "discountFeeAmount" }]
+        }
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Funding Offer",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "TextLine", "scope": "/fundingOfferReference", "title": "Offer Reference" },
+              { "type": "TextLine", "scope": "/invoiceReference", "title": "Invoice Reference" }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Funding Terms",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "Numeric", "scope": "/invoiceGrossAmount", "title": "Invoice Amount" },
+                  { "type": "Numeric", "scope": "/advanceRate", "title": "Advance Rate (%)" }
+                ]
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "Numeric", "scope": "/discountFeeRate", "title": "Discount Rate (% p.a.)" },
+                  { "type": "Numeric", "scope": "/discountFeeAmount", "title": "Discount Fee" }
+                ]
+              },
+              { "type": "Numeric", "scope": "/netDisbursement", "title": "Net Disbursement to Supplier" }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Dates",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "DateTime", "scope": "/fundingDate", "title": "Funding Date" },
+                  { "type": "DateTime", "scope": "/maturityDate", "title": "Maturity Date" },
+                  { "type": "DateTime", "scope": "/offerExpiryDate", "title": "Offer Expires" }
+                ]
+              }
+            ]
+          },
+          { "type": "Numeric", "scope": "/facilityLimitRemaining", "title": "Remaining Facility Limit" },
+          { "type": "TextArea", "scope": "/termsAndConditions", "title": "Terms & Conditions" }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "title": "Accept Funding Offer",
+      "description": "Supplier reviews and accepts the funding offer. Acceptance is cryptographically signed, creating a binding agreement for the financier to disburse funds.",
+      "sender": "supplier",
+      "target": "financier",
+      "additionalRecipients": ["platform"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "fundingOfferReference": {
+              "type": "string",
+              "title": "Funding Offer Reference",
+              "maxLength": 30
+            },
+            "accepted": {
+              "type": "boolean",
+              "title": "Accept Funding Offer"
+            },
+            "confirmedBankSortCode": {
+              "type": "string",
+              "title": "Confirmed Bank Sort Code",
+              "pattern": "^[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+            },
+            "confirmedBankAccount": {
+              "type": "string",
+              "title": "Confirmed Bank Account Number",
+              "pattern": "^[0-9]{8}$"
+            },
+            "acceptanceDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Acceptance Date"
+            },
+            "authorisedSignatory": {
+              "type": "string",
+              "title": "Authorised Signatory Name",
+              "maxLength": 100
+            },
+            "declineReason": {
+              "type": "string",
+              "title": "Reason for Declining (if applicable)",
+              "maxLength": 500
+            }
+          },
+          "required": ["fundingOfferReference", "accepted", "acceptanceDate", "authorisedSignatory"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "financier",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/fundingOfferReference", "/accepted", "/acceptanceDate"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/fundingOfferReference", "/accepted", "/acceptanceDate", "/authorisedSignatory"]
+        }
+      ],
+      "condition": {
+        "if": [
+          { "var": "accepted" },
+          "financier",
+          "supplier"
+        ]
+      },
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Funding Offer Acceptance",
+        "elements": [
+          { "type": "TextLine", "scope": "/fundingOfferReference", "title": "Funding Offer Reference" },
+          { "type": "Checkbox", "scope": "/accepted", "title": "I accept this funding offer and agree to the terms" },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Payment Details",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "TextLine", "scope": "/confirmedBankSortCode", "title": "Sort Code" },
+                  { "type": "TextLine", "scope": "/confirmedBankAccount", "title": "Account Number" }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "TextLine", "scope": "/authorisedSignatory", "title": "Authorised Signatory" },
+              { "type": "DateTime", "scope": "/acceptanceDate", "title": "Acceptance Date" }
+            ]
+          },
+          { "type": "TextArea", "scope": "/declineReason", "title": "Reason for Declining (if applicable)" }
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "title": "Disburse Early Payment",
+      "description": "Financier disburses the net advance to the supplier's confirmed bank account. A payment confirmation record is created on the ledger.",
+      "sender": "financier",
+      "target": "supplier",
+      "additionalRecipients": ["platform", "buyer"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "disbursementReference": {
+              "type": "string",
+              "title": "Disbursement Reference",
+              "minLength": 5,
+              "maxLength": 30
+            },
+            "fundingOfferReference": {
+              "type": "string",
+              "title": "Funding Offer Reference",
+              "maxLength": 30
+            },
+            "invoiceReference": {
+              "type": "string",
+              "title": "Invoice Reference",
+              "maxLength": 30
+            },
+            "amountDisbursed": {
+              "type": "number",
+              "title": "Amount Disbursed",
+              "minimum": 0.01
+            },
+            "paymentDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Payment Date"
+            },
+            "paymentMethod": {
+              "type": "string",
+              "title": "Payment Method",
+              "enum": ["Faster Payments", "BACS", "CHAPS", "SEPA Credit Transfer"],
+              "default": "Faster Payments"
+            },
+            "paymentReference": {
+              "type": "string",
+              "title": "Bank Payment Reference",
+              "maxLength": 50
+            },
+            "maturityDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Maturity Date"
+            },
+            "amountDueFromBuyer": {
+              "type": "number",
+              "title": "Amount Due from Buyer at Maturity",
+              "minimum": 0.01
+            }
+          },
+          "required": ["disbursementReference", "fundingOfferReference", "invoiceReference", "amountDisbursed", "paymentDate", "paymentMethod", "paymentReference", "maturityDate", "amountDueFromBuyer"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "supplier",
+          "dataPointers": ["/disbursementReference", "/amountDisbursed", "/paymentDate", "/paymentMethod", "/paymentReference"]
+        },
+        {
+          "participantAddress": "buyer",
+          "dataPointers": ["/disbursementReference", "/invoiceReference", "/maturityDate", "/amountDueFromBuyer"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/disbursementReference", "/invoiceReference", "/amountDisbursed", "/paymentDate", "/maturityDate"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Early Payment Disbursement",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "TextLine", "scope": "/disbursementReference", "title": "Disbursement Reference" },
+              { "type": "TextLine", "scope": "/fundingOfferReference", "title": "Offer Reference" },
+              { "type": "TextLine", "scope": "/invoiceReference", "title": "Invoice Reference" }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Payment Details",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "Numeric", "scope": "/amountDisbursed", "title": "Amount Disbursed" },
+                  { "type": "DateTime", "scope": "/paymentDate", "title": "Payment Date" }
+                ]
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "Selection", "scope": "/paymentMethod", "title": "Payment Method" },
+                  { "type": "TextLine", "scope": "/paymentReference", "title": "Bank Payment Reference" }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Settlement Terms",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "DateTime", "scope": "/maturityDate", "title": "Maturity Date" },
+                  { "type": "Numeric", "scope": "/amountDueFromBuyer", "title": "Amount Due from Buyer" }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "title": "Confirm Receipt of Funds",
+      "description": "Supplier confirms receipt of the early payment disbursement into their bank account.",
+      "sender": "supplier",
+      "target": "financier",
+      "additionalRecipients": ["platform"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "disbursementReference": {
+              "type": "string",
+              "title": "Disbursement Reference",
+              "maxLength": 30
+            },
+            "fundsReceived": {
+              "type": "boolean",
+              "title": "Funds Received"
+            },
+            "receivedDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Date Funds Received"
+            },
+            "receivedAmount": {
+              "type": "number",
+              "title": "Amount Received",
+              "minimum": 0.01
+            },
+            "supplierNotes": {
+              "type": "string",
+              "title": "Notes",
+              "maxLength": 500
+            }
+          },
+          "required": ["disbursementReference", "fundsReceived", "receivedDate", "receivedAmount"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "financier",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/disbursementReference", "/fundsReceived", "/receivedDate"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/disbursementReference", "/fundsReceived", "/receivedDate", "/receivedAmount"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Payment Receipt Confirmation",
+        "elements": [
+          { "type": "TextLine", "scope": "/disbursementReference", "title": "Disbursement Reference" },
+          { "type": "Checkbox", "scope": "/fundsReceived", "title": "I confirm funds have been received" },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "DateTime", "scope": "/receivedDate", "title": "Date Received" },
+              { "type": "Numeric", "scope": "/receivedAmount", "title": "Amount Received" }
+            ]
+          },
+          { "type": "TextArea", "scope": "/supplierNotes", "title": "Notes" }
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "title": "Settle at Maturity",
+      "description": "At the maturity date, the buyer pays the full invoice amount to the financier. This settles the financing arrangement. If the invoice was not financed, the buyer pays the supplier directly on the original terms.",
+      "sender": "buyer",
+      "target": "financier",
+      "additionalRecipients": ["supplier", "platform"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "settlementReference": {
+              "type": "string",
+              "title": "Settlement Reference",
+              "minLength": 5,
+              "maxLength": 30
+            },
+            "invoiceReference": {
+              "type": "string",
+              "title": "Invoice Reference",
+              "maxLength": 30
+            },
+            "disbursementReference": {
+              "type": "string",
+              "title": "Disbursement Reference (if financed)",
+              "maxLength": 30
+            },
+            "amountPaid": {
+              "type": "number",
+              "title": "Amount Paid",
+              "minimum": 0.01
+            },
+            "paymentDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Payment Date"
+            },
+            "paymentMethod": {
+              "type": "string",
+              "title": "Payment Method",
+              "enum": ["Faster Payments", "BACS", "CHAPS", "SEPA Credit Transfer"],
+              "default": "BACS"
+            },
+            "paymentReference": {
+              "type": "string",
+              "title": "Bank Payment Reference",
+              "maxLength": 50
+            },
+            "paymentStatus": {
+              "type": "string",
+              "title": "Payment Status",
+              "enum": ["Paid in Full", "Partial Payment", "Late Payment"],
+              "default": "Paid in Full"
+            },
+            "lateDays": {
+              "type": "integer",
+              "title": "Days Late (if applicable)",
+              "minimum": 0,
+              "default": 0
+            },
+            "latePaymentInterest": {
+              "type": "number",
+              "title": "Late Payment Interest (if applicable)",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "required": ["settlementReference", "invoiceReference", "amountPaid", "paymentDate", "paymentMethod", "paymentReference", "paymentStatus"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "financier",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "supplier",
+          "dataPointers": ["/settlementReference", "/invoiceReference", "/amountPaid", "/paymentDate", "/paymentStatus"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/settlementReference", "/invoiceReference", "/amountPaid", "/paymentDate", "/paymentStatus", "/lateDays"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Maturity Settlement",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "TextLine", "scope": "/settlementReference", "title": "Settlement Reference" },
+              { "type": "TextLine", "scope": "/invoiceReference", "title": "Invoice Reference" },
+              { "type": "TextLine", "scope": "/disbursementReference", "title": "Disbursement Reference" }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Payment Details",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "Numeric", "scope": "/amountPaid", "title": "Amount Paid" },
+                  { "type": "DateTime", "scope": "/paymentDate", "title": "Payment Date" }
+                ]
+              },
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "Selection", "scope": "/paymentMethod", "title": "Payment Method" },
+                  { "type": "TextLine", "scope": "/paymentReference", "title": "Bank Payment Reference" }
+                ]
+              },
+              { "type": "Selection", "scope": "/paymentStatus", "title": "Payment Status" }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Late Payment (if applicable)",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "Numeric", "scope": "/lateDays", "title": "Days Late" },
+                  { "type": "Numeric", "scope": "/latePaymentInterest", "title": "Late Payment Interest" }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "title": "Confirm Settlement",
+      "description": "Financier confirms receipt of the buyer's payment and closes the financing record. The supplier's credit limit is released for future invoices.",
+      "sender": "financier",
+      "additionalRecipients": ["buyer", "supplier", "platform"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "settlementReference": {
+              "type": "string",
+              "title": "Settlement Reference",
+              "maxLength": 30
+            },
+            "invoiceReference": {
+              "type": "string",
+              "title": "Invoice Reference",
+              "maxLength": 30
+            },
+            "settlementStatus": {
+              "type": "string",
+              "title": "Settlement Status",
+              "enum": ["Settled in Full", "Partial Settlement", "Overdue - Escalated"]
+            },
+            "amountReceived": {
+              "type": "number",
+              "title": "Amount Received from Buyer",
+              "minimum": 0
+            },
+            "settlementDate": {
+              "type": "string",
+              "format": "date",
+              "title": "Settlement Date"
+            },
+            "creditLimitReleased": {
+              "type": "number",
+              "title": "Credit Limit Released",
+              "minimum": 0
+            },
+            "updatedFacilityLimit": {
+              "type": "number",
+              "title": "Updated Available Facility Limit",
+              "minimum": 0
+            },
+            "financierNotes": {
+              "type": "string",
+              "title": "Notes",
+              "maxLength": 1000
+            }
+          },
+          "required": ["settlementReference", "invoiceReference", "settlementStatus", "amountReceived", "settlementDate", "creditLimitReleased"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "buyer",
+          "dataPointers": ["/settlementReference", "/invoiceReference", "/settlementStatus", "/amountReceived", "/settlementDate"]
+        },
+        {
+          "participantAddress": "supplier",
+          "dataPointers": ["/settlementReference", "/invoiceReference", "/settlementStatus", "/settlementDate", "/creditLimitReleased", "/updatedFacilityLimit"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/settlementReference", "/invoiceReference", "/settlementStatus", "/settlementDate", "/creditLimitReleased"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Settlement Confirmation",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "TextLine", "scope": "/settlementReference", "title": "Settlement Reference" },
+              { "type": "TextLine", "scope": "/invoiceReference", "title": "Invoice Reference" }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "Selection", "scope": "/settlementStatus", "title": "Settlement Status" },
+              { "type": "Numeric", "scope": "/amountReceived", "title": "Amount Received" },
+              { "type": "DateTime", "scope": "/settlementDate", "title": "Settlement Date" }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "Group",
+            "title": "Facility Update",
+            "elements": [
+              {
+                "type": "Layout",
+                "layout": "HorizontalLayout",
+                "elements": [
+                  { "type": "Numeric", "scope": "/creditLimitReleased", "title": "Credit Limit Released" },
+                  { "type": "Numeric", "scope": "/updatedFacilityLimit", "title": "Available Facility Limit" }
+                ]
+              }
+            ]
+          },
+          { "type": "TextArea", "scope": "/financierNotes", "title": "Notes" }
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "title": "Raise Dispute",
+      "description": "If the buyer disputes an invoice (quality issue, short delivery, price mismatch), this action captures the dispute details and routes back to the supplier for resolution. A credit note may be issued to adjust the amount.",
+      "sender": "buyer",
+      "target": "supplier",
+      "additionalRecipients": ["financier", "platform"],
+      "dataSchemas": [
+        {
+          "type": "object",
+          "properties": {
+            "disputeReference": {
+              "type": "string",
+              "title": "Dispute Reference",
+              "minLength": 5,
+              "maxLength": 30
+            },
+            "invoiceReference": {
+              "type": "string",
+              "title": "Invoice Reference",
+              "maxLength": 30
+            },
+            "disputeType": {
+              "type": "string",
+              "title": "Dispute Type",
+              "enum": ["Quality Issue", "Quantity Mismatch", "Price Mismatch", "Damaged Goods", "Short Delivery", "Incorrect Specification", "Late Delivery", "Other"]
+            },
+            "disputeDescription": {
+              "type": "string",
+              "title": "Dispute Description",
+              "minLength": 20,
+              "maxLength": 2000
+            },
+            "disputedAmount": {
+              "type": "number",
+              "title": "Disputed Amount",
+              "minimum": 0.01
+            },
+            "requestedResolution": {
+              "type": "string",
+              "title": "Requested Resolution",
+              "enum": ["Full Credit Note", "Partial Credit Note", "Replacement Goods", "Rework/Repair", "Price Adjustment"]
+            },
+            "evidenceDescription": {
+              "type": "string",
+              "title": "Supporting Evidence Description",
+              "maxLength": 1000
+            },
+            "disputeDeadline": {
+              "type": "string",
+              "format": "date",
+              "title": "Resolution Deadline"
+            }
+          },
+          "required": ["disputeReference", "invoiceReference", "disputeType", "disputeDescription", "disputedAmount", "requestedResolution", "disputeDeadline"]
+        }
+      ],
+      "disclosures": [
+        {
+          "participantAddress": "supplier",
+          "dataPointers": ["/*"]
+        },
+        {
+          "participantAddress": "financier",
+          "dataPointers": ["/disputeReference", "/invoiceReference", "/disputeType", "/disputedAmount", "/requestedResolution"]
+        },
+        {
+          "participantAddress": "platform",
+          "dataPointers": ["/disputeReference", "/invoiceReference", "/disputeType", "/disputedAmount"]
+        },
+        {
+          "participantAddress": "auditor",
+          "dataPointers": ["/*"]
+        }
+      ],
+      "form": {
+        "type": "Layout",
+        "layout": "VerticalLayout",
+        "title": "Invoice Dispute",
+        "elements": [
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "TextLine", "scope": "/disputeReference", "title": "Dispute Reference" },
+              { "type": "TextLine", "scope": "/invoiceReference", "title": "Invoice Reference" }
+            ]
+          },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "Selection", "scope": "/disputeType", "title": "Dispute Type" },
+              { "type": "Numeric", "scope": "/disputedAmount", "title": "Disputed Amount" }
+            ]
+          },
+          { "type": "TextArea", "scope": "/disputeDescription", "title": "Dispute Description" },
+          {
+            "type": "Layout",
+            "layout": "HorizontalLayout",
+            "elements": [
+              { "type": "Selection", "scope": "/requestedResolution", "title": "Requested Resolution" },
+              { "type": "DateTime", "scope": "/disputeDeadline", "title": "Resolution Deadline" }
+            ]
+          },
+          { "type": "TextArea", "scope": "/evidenceDescription", "title": "Supporting Evidence" }
+        ]
+      }
+    }
+  ]
+}

@@ -1755,6 +1755,397 @@ public class ValidationEngineTests
 
     #endregion
 
+    #region Participant Transaction Tests
+
+    [Fact]
+    public void ValidateStructure_ParticipantTransaction_NullBlueprintId_ReturnsSuccess()
+    {
+        // Arrange - participant TX has no blueprint/action context
+        var tx = CreateValidTransaction(blueprintId: null, actionId: null);
+        tx.Metadata["Type"] = "Participant";
+
+        // Act
+        var result = _engine.ValidateStructure(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ValidateStructure_NonParticipantTransaction_EmptyBlueprintId_ReturnsFailed()
+    {
+        // Arrange - regular TX still requires BlueprintId
+        var tx = CreateValidTransaction(blueprintId: "", actionId: "");
+
+        // Act
+        var result = _engine.ValidateStructure(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_STRUCT_003");
+        result.Errors.Should().Contain(e => e.Code == "VAL_STRUCT_004");
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_ValidPayload_ReturnsSuccess()
+    {
+        // Arrange
+        var tx = CreateParticipantTransaction(CreateValidParticipantPayloadJson());
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_MissingRequiredField_ReturnsSchemaError()
+    {
+        // Arrange - payload missing participantName
+        var payloadJson = """
+        {
+            "participantId": "550e8400-e29b-41d4-a716-446655440000",
+            "organizationName": "Acme Corp",
+            "status": "active",
+            "version": 1,
+            "addresses": [
+                {
+                    "walletAddress": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
+                    "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "algorithm": "ED25519"
+                }
+            ]
+        }
+        """;
+        var tx = CreateParticipantTransaction(payloadJson);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_PARTICIPANT_001");
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_InvalidStatus_ReturnsSchemaError()
+    {
+        // Arrange - status must be one of: active, deprecated, revoked
+        var payloadJson = """
+        {
+            "participantId": "550e8400-e29b-41d4-a716-446655440000",
+            "organizationName": "Acme Corp",
+            "participantName": "Alice",
+            "status": "invalid",
+            "version": 1,
+            "addresses": [
+                {
+                    "walletAddress": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
+                    "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "algorithm": "ED25519"
+                }
+            ]
+        }
+        """;
+        var tx = CreateParticipantTransaction(payloadJson);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_PARTICIPANT_001");
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_EmptyAddresses_ReturnsSchemaError()
+    {
+        // Arrange - addresses must have minItems: 1
+        var payloadJson = """
+        {
+            "participantId": "550e8400-e29b-41d4-a716-446655440000",
+            "organizationName": "Acme Corp",
+            "participantName": "Alice",
+            "status": "active",
+            "version": 1,
+            "addresses": []
+        }
+        """;
+        var tx = CreateParticipantTransaction(payloadJson);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_PARTICIPANT_001");
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_InvalidAlgorithm_ReturnsSchemaError()
+    {
+        // Arrange - algorithm must be one of: ED25519, P-256, RSA-4096
+        var payloadJson = """
+        {
+            "participantId": "550e8400-e29b-41d4-a716-446655440000",
+            "organizationName": "Acme Corp",
+            "participantName": "Alice",
+            "status": "active",
+            "version": 1,
+            "addresses": [
+                {
+                    "walletAddress": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
+                    "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "algorithm": "SECP256K1"
+                }
+            ]
+        }
+        """;
+        var tx = CreateParticipantTransaction(payloadJson);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_PARTICIPANT_001");
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_VersionZero_ReturnsSchemaError()
+    {
+        // Arrange - version must be >= 1
+        var payloadJson = """
+        {
+            "participantId": "550e8400-e29b-41d4-a716-446655440000",
+            "organizationName": "Acme Corp",
+            "participantName": "Alice",
+            "status": "active",
+            "version": 0,
+            "addresses": [
+                {
+                    "walletAddress": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
+                    "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "algorithm": "ED25519"
+                }
+            ]
+        }
+        """;
+        var tx = CreateParticipantTransaction(payloadJson);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_PARTICIPANT_001");
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_AdditionalProperties_ReturnsSchemaError()
+    {
+        // Arrange - additionalProperties: false should reject extra fields
+        var payloadJson = """
+        {
+            "participantId": "550e8400-e29b-41d4-a716-446655440000",
+            "organizationName": "Acme Corp",
+            "participantName": "Alice",
+            "status": "active",
+            "version": 1,
+            "addresses": [
+                {
+                    "walletAddress": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
+                    "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "algorithm": "ED25519"
+                }
+            ],
+            "participantType": "human"
+        }
+        """;
+        var tx = CreateParticipantTransaction(payloadJson);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Code == "VAL_PARTICIPANT_001");
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_DoesNotFetchBlueprint()
+    {
+        // Arrange
+        var tx = CreateParticipantTransaction(CreateValidParticipantPayloadJson());
+
+        // Act
+        await _engine.ValidateSchemaAsync(tx);
+
+        // Assert - should never call blueprint cache for participant TXs
+        _blueprintCacheMock.Verify(
+            c => c.GetBlueprintAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_ParticipantTransaction_ReturnsSuccess()
+    {
+        // Arrange
+        var tx = CreateParticipantTransaction(CreateValidParticipantPayloadJson());
+
+        // Act
+        var result = await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateBlueprintConformanceAsync_ParticipantTransaction_DoesNotFetchBlueprint()
+    {
+        // Arrange
+        var tx = CreateParticipantTransaction(CreateValidParticipantPayloadJson());
+
+        // Act
+        await _engine.ValidateBlueprintConformanceAsync(tx);
+
+        // Assert
+        _blueprintCacheMock.Verify(
+            c => c.GetBlueprintAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_MultipleAddresses_ReturnsSuccess()
+    {
+        // Arrange - multiple addresses within limit (max 10)
+        var payloadJson = """
+        {
+            "participantId": "550e8400-e29b-41d4-a716-446655440000",
+            "organizationName": "Acme Corp",
+            "participantName": "Alice",
+            "status": "active",
+            "version": 1,
+            "addresses": [
+                {
+                    "walletAddress": "addr1",
+                    "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "algorithm": "ED25519",
+                    "primary": true
+                },
+                {
+                    "walletAddress": "addr2",
+                    "publicKey": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",
+                    "algorithm": "P-256"
+                }
+            ]
+        }
+        """;
+        var tx = CreateParticipantTransaction(payloadJson);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_WithOptionalMetadata_ReturnsSuccess()
+    {
+        // Arrange - metadata is optional
+        var payloadJson = """
+        {
+            "participantId": "550e8400-e29b-41d4-a716-446655440000",
+            "organizationName": "Acme Corp",
+            "participantName": "Alice",
+            "status": "active",
+            "version": 1,
+            "addresses": [
+                {
+                    "walletAddress": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
+                    "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "algorithm": "ED25519"
+                }
+            ],
+            "metadata": {
+                "description": "Primary signing participant",
+                "department": "Engineering"
+            }
+        }
+        """;
+        var tx = CreateParticipantTransaction(payloadJson);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_DeprecatedStatus_ReturnsSuccess()
+    {
+        // Arrange
+        var payloadJson = CreateValidParticipantPayloadJson(status: "deprecated");
+        var tx = CreateParticipantTransaction(payloadJson);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateSchemaAsync_ParticipantTransaction_RevokedStatus_ReturnsSuccess()
+    {
+        // Arrange
+        var payloadJson = CreateValidParticipantPayloadJson(status: "revoked");
+        var tx = CreateParticipantTransaction(payloadJson);
+
+        // Act
+        var result = await _engine.ValidateSchemaAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    private static Transaction CreateParticipantTransaction(string payloadJson)
+    {
+        var tx = CreateValidTransaction(
+            blueprintId: null,
+            actionId: null,
+            payloadJson: payloadJson);
+        tx.Metadata["Type"] = "Participant";
+        return tx;
+    }
+
+    private static string CreateValidParticipantPayloadJson(string status = "active")
+    {
+        return $$"""
+        {
+            "participantId": "550e8400-e29b-41d4-a716-446655440000",
+            "organizationName": "Acme Corp",
+            "participantName": "Alice",
+            "status": "{{status}}",
+            "version": 1,
+            "addresses": [
+                {
+                    "walletAddress": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
+                    "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "algorithm": "ED25519",
+                    "primary": true
+                }
+            ]
+        }
+        """;
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static Transaction CreateValidTransaction(

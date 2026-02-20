@@ -212,6 +212,64 @@ public interface IRegisterServiceClient
         CancellationToken cancellationToken = default);
 
     // =========================================================================
+    // Participant Query Operations
+    // =========================================================================
+
+    /// <summary>
+    /// Gets a paginated list of published participants on a register
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="skip">Number of items to skip</param>
+    /// <param name="top">Number of items to return</param>
+    /// <param name="statusFilter">Status filter (active, deprecated, revoked, all)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated participant list</returns>
+    Task<Sorcha.ServiceClients.Register.Models.ParticipantPage> GetPublishedParticipantsAsync(
+        string registerId,
+        int skip = 0,
+        int top = 20,
+        string? statusFilter = "active",
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a published participant by wallet address
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="walletAddress">Wallet address to look up</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Published participant record, or null if not found</returns>
+    Task<Sorcha.ServiceClients.Register.Models.PublishedParticipantRecord?> GetPublishedParticipantByAddressAsync(
+        string registerId,
+        string walletAddress,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a published participant by ID
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="participantId">Participant ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Published participant record, or null if not found</returns>
+    Task<Sorcha.ServiceClients.Register.Models.PublishedParticipantRecord?> GetPublishedParticipantByIdAsync(
+        string registerId,
+        string participantId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Resolves a participant's public key by wallet address for field-level encryption
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="walletAddress">Wallet address to resolve</param>
+    /// <param name="algorithm">Optional algorithm filter</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Public key resolution, or null if not found. Throws if revoked (410).</returns>
+    Task<Sorcha.ServiceClients.Register.Models.PublicKeyResolution?> ResolvePublicKeyAsync(
+        string registerId,
+        string walletAddress,
+        string? algorithm = null,
+        CancellationToken cancellationToken = default);
+
+    // =========================================================================
     // Register Management (All Services)
     // =========================================================================
 
