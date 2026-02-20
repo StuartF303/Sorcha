@@ -1144,6 +1144,58 @@ public class ActionExecutionServiceTests
 
     #endregion
 
+    #region PrevTxId Chain Linking Tests
+
+    [Fact]
+    public void ComputeBlueprintPublishTxId_ReturnsConsistentHash()
+    {
+        // Arrange
+        var registerId = "register-1";
+        var blueprintId = "blueprint-1";
+
+        // Act
+        var txId1 = ActionExecutionService.ComputeBlueprintPublishTxId(registerId, blueprintId);
+        var txId2 = ActionExecutionService.ComputeBlueprintPublishTxId(registerId, blueprintId);
+
+        // Assert
+        txId1.Should().Be(txId2, "same inputs should produce the same deterministic TX ID");
+        txId1.Should().HaveLength(64, "TX ID should be a 64-character hex SHA-256 hash");
+        txId1.Should().MatchRegex("^[0-9a-f]{64}$", "TX ID should be lowercase hex");
+    }
+
+    [Fact]
+    public void ComputeBlueprintPublishTxId_DifferentInputs_ProduceDifferentHashes()
+    {
+        // Act
+        var txId1 = ActionExecutionService.ComputeBlueprintPublishTxId("register-1", "blueprint-1");
+        var txId2 = ActionExecutionService.ComputeBlueprintPublishTxId("register-2", "blueprint-1");
+        var txId3 = ActionExecutionService.ComputeBlueprintPublishTxId("register-1", "blueprint-2");
+
+        // Assert
+        txId1.Should().NotBe(txId2, "different register IDs should produce different TX IDs");
+        txId1.Should().NotBe(txId3, "different blueprint IDs should produce different TX IDs");
+    }
+
+    [Fact]
+    public void ComputeBlueprintPublishTxId_MatchesRegisterServiceFormula()
+    {
+        // The Register Service uses the same formula: SHA-256("blueprint-publish-{registerId}-{blueprintId}")
+        // Verify our implementation matches by computing manually
+        var registerId = "test-register";
+        var blueprintId = "test-blueprint";
+        var source = System.Text.Encoding.UTF8.GetBytes($"blueprint-publish-{registerId}-{blueprintId}");
+        var hash = System.Security.Cryptography.SHA256.HashData(source);
+        var expected = Convert.ToHexStringLower(hash);
+
+        // Act
+        var actual = ActionExecutionService.ComputeBlueprintPublishTxId(registerId, blueprintId);
+
+        // Assert
+        actual.Should().Be(expected, "formula must match the Register Service implementation");
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private void SetupCommonMocks(string instanceId, Instance instance, BlueprintModel blueprint, ActionModel action)

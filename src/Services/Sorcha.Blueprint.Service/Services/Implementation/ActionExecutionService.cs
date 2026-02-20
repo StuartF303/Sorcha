@@ -182,6 +182,18 @@ public class ActionExecutionService : IActionExecutionService
             accumulatedState = accumulatedState with { PreviousTransactionId = instance.LastTransactionId };
         }
 
+        // 5c. For Action 0 (starting action with no prior transactions), PrevTxId must be
+        // the blueprint's publish TX ID on this register. The blueprint TX is the transaction
+        // that brought the workflow definition onto this register — Action 0 chains from it.
+        if (string.IsNullOrEmpty(accumulatedState.PreviousTransactionId) && actionDef.IsStartingAction)
+        {
+            var blueprintTxId = ComputeBlueprintPublishTxId(instance.RegisterId, instance.BlueprintId);
+            _logger.LogInformation(
+                "Action 0 for instance {InstanceId}: PrevTxId set to blueprint publish TX {BlueprintTxId}",
+                instanceId, blueprintTxId);
+            accumulatedState = accumulatedState with { PreviousTransactionId = blueprintTxId };
+        }
+
         // 6. Validate input data against schema
         var validationResult = await ValidateActionDataAsync(actionDef, request.PayloadData, cancellationToken);
         if (!validationResult.IsValid)
@@ -1041,6 +1053,18 @@ public class ActionExecutionService : IActionExecutionService
     {
         var keySource = $"instance:{instanceId}:action:{actionId}:wallet:{senderWallet}:prevTx:{lastTransactionId ?? "none"}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(keySource));
+        return Convert.ToHexStringLower(hash);
+    }
+
+    /// <summary>
+    /// Computes the deterministic TX ID for a blueprint publish transaction.
+    /// This is the same formula used by the Register Service when publishing blueprints:
+    /// SHA-256("blueprint-publish-{registerId}-{blueprintId}") as lowercase hex.
+    /// </summary>
+    public static string ComputeBlueprintPublishTxId(string registerId, string blueprintId)
+    {
+        var txIdSource = Encoding.UTF8.GetBytes($"blueprint-publish-{registerId}-{blueprintId}");
+        var hash = SHA256.HashData(txIdSource);
         return Convert.ToHexStringLower(hash);
     }
 }

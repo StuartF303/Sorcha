@@ -815,12 +815,25 @@ actionsGroup.MapPost("/", async (
             participantWalletMap,
             request.SenderWallet);
 
-        // 5. Build transaction
+        // 5. Compute PrevTxId server-side instead of trusting client.
+        // For Action 0 (no prior TX): PrevTxId = blueprint's publish TX on this register.
+        // For subsequent actions: use client-provided PrevTxId (from prior step).
+        var previousTxId = request.PreviousTransactionHash;
+        if (string.IsNullOrEmpty(previousTxId))
+        {
+            // Action 0: chain from the blueprint publish transaction
+            previousTxId = Sorcha.Blueprint.Service.Services.Implementation.ActionExecutionService
+                .ComputeBlueprintPublishTxId(request.RegisterAddress, request.BlueprintId);
+            logger.LogInformation(
+                "Action 0 for blueprint {BlueprintId}: PrevTxId set to blueprint publish TX {TxId}",
+                request.BlueprintId, previousTxId);
+        }
+
         var transaction = await txBuilder.BuildActionTransactionAsync(
             request.BlueprintId,
             request.ActionId,
             request.InstanceId,
-            request.PreviousTransactionHash,
+            previousTxId,
             encryptedPayloads,
             request.SenderWallet,
             request.RegisterAddress);
@@ -865,7 +878,7 @@ actionsGroup.MapPost("/", async (
             RegisterId = request.RegisterAddress,
             SenderWallet = request.SenderWallet,
             TimeStamp = DateTime.UtcNow,
-            PrevTxId = request.PreviousTransactionHash ?? string.Empty,
+            PrevTxId = previousTxId ?? string.Empty,
             MetaData = transaction.Metadata != null ?
                 System.Text.Json.JsonSerializer.Deserialize<Sorcha.Register.Models.TransactionMetaData>(transaction.Metadata) : null,
             Payloads = encryptedPayloads.Select(kvp => new Sorcha.Register.Models.PayloadModel

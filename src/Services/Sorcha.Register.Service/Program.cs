@@ -1175,6 +1175,16 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
     var txIdHash = hashProvider.ComputeHash(txIdSource, Sorcha.Cryptography.Enums.HashType.SHA256);
     var txId = Convert.ToHexString(txIdHash).ToLowerInvariant();
 
+    // Chain linking: Blueprint publish PrevTxId = latest Control TX on this register.
+    // All transactions except genesis must chain from a predecessor. Blueprint publish
+    // transactions are Control transactions that chain from the governance control chain
+    // (the genesis TX or the most recent governance/blueprint-publish Control TX).
+    string? previousControlTxId = null;
+    if (roster != null)
+    {
+        previousControlTxId = roster.LastControlTxId;
+    }
+
     var signResult = await signingService.SignAsync(
         registerId: registerId,
         txId: txId,
@@ -1197,6 +1207,7 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
         ActionId = "blueprint-publish",
         Payload = controlRecordElement,
         PayloadHash = payloadHashHex,
+        PreviousTransactionId = previousControlTxId,
         Signatures = new List<Sorcha.ServiceClients.Validator.SignatureInfo> { systemSignature },
         CreatedAt = DateTimeOffset.UtcNow,
         Metadata = new Dictionary<string, string>
