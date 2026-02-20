@@ -1270,12 +1270,17 @@ public class ValidationEngineTests
     [Fact]
     public async Task ValidateChainAsync_NoFork_ZeroExistingSuccessors_ReturnsSuccess()
     {
-        // Arrange
+        // Arrange — previous TX is an Action (non-Control), no existing successors
         var previousTxId = "prev-tx-no-fork";
         var tx = CreateValidTransaction(previousTransactionId: previousTxId);
 
         _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, previousTxId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel { RegisterId = tx.RegisterId, TxId = previousTxId });
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel
+            {
+                RegisterId = tx.RegisterId,
+                TxId = previousTxId,
+                MetaData = new Sorcha.Register.Models.TransactionMetaData { TransactionType = Sorcha.Register.Models.Enums.TransactionType.Action }
+            });
         _registerClientMock.Setup(r => r.GetTransactionsByPrevTxIdAsync(
                 tx.RegisterId, previousTxId, 1, 1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TransactionPage { Page = 1, PageSize = 1, Total = 0 });
@@ -1293,12 +1298,17 @@ public class ValidationEngineTests
     [Fact]
     public async Task ValidateChainAsync_ForkDetected_ExistingSuccessors_ReturnsChainForkError()
     {
-        // Arrange — another transaction already claims the same predecessor
+        // Arrange — previous TX is an Action (non-Control), another TX already claims the same predecessor
         var previousTxId = "prev-tx-forked";
         var tx = CreateValidTransaction(previousTransactionId: previousTxId);
 
         _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, previousTxId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel { RegisterId = tx.RegisterId, TxId = previousTxId });
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel
+            {
+                RegisterId = tx.RegisterId,
+                TxId = previousTxId,
+                MetaData = new Sorcha.Register.Models.TransactionMetaData { TransactionType = Sorcha.Register.Models.Enums.TransactionType.Action }
+            });
         _registerClientMock.Setup(r => r.GetTransactionsByPrevTxIdAsync(
                 tx.RegisterId, previousTxId, 1, 1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TransactionPage { Page = 1, PageSize = 1, Total = 1, Transactions = [new Sorcha.Register.Models.TransactionModel { TxId = "existing-fork-tx" }] });
@@ -1311,6 +1321,35 @@ public class ValidationEngineTests
         // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.Code == "VAL_CHAIN_FORK");
+    }
+
+    [Fact]
+    public async Task ValidateChainAsync_ForkDetection_SkippedWhenPreviousTxIsControl()
+    {
+        // Arrange — previous TX is a Control transaction (e.g., blueprint-publish).
+        // Multiple instances forking from the same Control TX is expected behaviour.
+        var previousTxId = "prev-tx-control";
+        var tx = CreateValidTransaction(previousTransactionId: previousTxId);
+
+        _registerClientMock.Setup(r => r.GetTransactionAsync(tx.RegisterId, previousTxId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Sorcha.Register.Models.TransactionModel
+            {
+                RegisterId = tx.RegisterId,
+                TxId = previousTxId,
+                MetaData = new Sorcha.Register.Models.TransactionMetaData { TransactionType = Sorcha.Register.Models.Enums.TransactionType.Control }
+            });
+        _registerClientMock.Setup(r => r.GetRegisterHeightAsync(tx.RegisterId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        // Act
+        var result = await _engine.ValidateChainAsync(tx);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Errors.Should().NotContain(e => e.Code == "VAL_CHAIN_FORK");
+        _registerClientMock.Verify(
+            r => r.GetTransactionsByPrevTxIdAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]

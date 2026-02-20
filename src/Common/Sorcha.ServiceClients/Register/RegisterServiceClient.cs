@@ -389,12 +389,13 @@ public class RegisterServiceClient : IRegisterServiceClient
     {
         try
         {
+            var skip = (page - 1) * pageSize;
             _logger.LogDebug(
-                "Getting transactions from register {RegisterId} (page {Page}, size {PageSize})",
-                registerId, page, pageSize);
+                "Getting transactions from register {RegisterId} ($skip={Skip}, $top={Top})",
+                registerId, skip, pageSize);
 
             var response = await _httpClient.GetAsync(
-                $"api/registers/{Uri.EscapeDataString(registerId)}/transactions?$skip={(page - 1) * pageSize}&$top={pageSize}&$count=true",
+                $"api/registers/{Uri.EscapeDataString(registerId)}/transactions?$skip={skip}&$top={pageSize}&$count=true",
                 cancellationToken);
 
             if (!response.IsSuccessStatusCode)
@@ -405,13 +406,8 @@ public class RegisterServiceClient : IRegisterServiceClient
                 return new TransactionPage { Page = page, PageSize = pageSize };
             }
 
-            var transactions = await response.Content.ReadFromJsonAsync<List<TransactionModel>>(JsonOptions, cancellationToken);
-            return new TransactionPage
-            {
-                Page = page,
-                PageSize = pageSize,
-                Transactions = transactions ?? []
-            };
+            var result = await response.Content.ReadFromJsonAsync<TransactionPage>(JsonOptions, cancellationToken);
+            return result ?? new TransactionPage { Page = page, PageSize = pageSize };
         }
         catch (HttpRequestException ex)
         {

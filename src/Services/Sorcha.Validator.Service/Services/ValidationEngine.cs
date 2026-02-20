@@ -596,15 +596,24 @@ public class ValidationEngine : IValidationEngine
                         ValidationErrorCategory.Chain, "PreviousTransactionId"));
                 }
 
-                // 3. Fork detection — check if other transactions already reference the same predecessor
-                var existingSuccessors = await _registerClient.GetTransactionsByPrevTxIdAsync(
-                    transaction.RegisterId, previousTxId, 1, 1, ct);
-
-                if (existingSuccessors.Total > 0)
+                // 3. Fork detection — check if other transactions already reference the same predecessor.
+                // Control transactions (genesis, blueprint-publish) are expected to have multiple
+                // children — each workflow instance forks from its blueprint publish TX by design.
+                if (previousTx != null)
                 {
-                    errors.Add(CreateError("VAL_CHAIN_FORK",
-                        $"Fork detected: {existingSuccessors.Total} existing transaction(s) already reference previous transaction '{previousTxId}' in register '{transaction.RegisterId}'",
-                        ValidationErrorCategory.Chain, "PreviousTransactionId"));
+                    var isControlTx = previousTx.MetaData?.TransactionType == Sorcha.Register.Models.Enums.TransactionType.Control;
+                    if (!isControlTx)
+                    {
+                        var existingSuccessors = await _registerClient.GetTransactionsByPrevTxIdAsync(
+                            transaction.RegisterId, previousTxId, 1, 1, ct);
+
+                        if (existingSuccessors.Total > 0)
+                        {
+                            errors.Add(CreateError("VAL_CHAIN_FORK",
+                                $"Fork detected: {existingSuccessors.Total} existing transaction(s) already reference previous transaction '{previousTxId}' in register '{transaction.RegisterId}'",
+                                ValidationErrorCategory.Chain, "PreviousTransactionId"));
+                        }
+                    }
                 }
             }
 

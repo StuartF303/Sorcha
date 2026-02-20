@@ -809,27 +809,34 @@ transactionsGroup.MapGet("/{txId}", async (
 transactionsGroup.MapGet("/", async (
     TransactionManager manager,
     string registerId,
-    int page = 1,
-    int pageSize = 20) =>
+    [Microsoft.AspNetCore.Mvc.FromQuery(Name = "$skip")] int? skip,
+    [Microsoft.AspNetCore.Mvc.FromQuery(Name = "$top")] int? top,
+    [Microsoft.AspNetCore.Mvc.FromQuery(Name = "$count")] bool? count) =>
 {
+    var odataSkip = skip ?? 0;
+    var odataTop = top ?? 20;
+
     var transactions = await manager.GetTransactionsAsync(registerId);
+    var totalCount = transactions.Count();
     var paged = transactions
         .OrderByDescending(t => t.TimeStamp)
-        .Skip((page - 1) * pageSize)
-        .Take(pageSize)
+        .Skip(odataSkip)
+        .Take(odataTop)
         .ToList();
 
+    // OData-style paged response
+    var page = odataTop > 0 ? (odataSkip / odataTop) + 1 : 1;
     return Results.Ok(new
     {
         Page = page,
-        PageSize = pageSize,
-        Total = transactions.Count(),
+        PageSize = odataTop,
+        Total = totalCount,
         Transactions = paged
     });
 })
 .WithName("GetTransactions")
 .WithSummary("Get all transactions")
-.WithDescription("Retrieves all transactions for a register with pagination.")
+.WithDescription("Retrieves all transactions for a register with OData pagination ($skip, $top, $count).")
 .RequireAuthorization("CanReadTransactions");
 
 // ===========================
@@ -930,20 +937,25 @@ queryGroup.MapGet("/stats", async (
 queryGroup.MapGet("/previous/{prevTxId}/transactions", async (
     QueryManager manager,
     string prevTxId,
-    string? registerId = null,
-    int page = 1,
-    int pageSize = 20) =>
+    [Microsoft.AspNetCore.Mvc.FromQuery] string? registerId,
+    [Microsoft.AspNetCore.Mvc.FromQuery(Name = "$skip")] int? skip,
+    [Microsoft.AspNetCore.Mvc.FromQuery(Name = "$top")] int? top,
+    [Microsoft.AspNetCore.Mvc.FromQuery(Name = "$count")] bool? count) =>
 {
     if (registerId is null)
     {
         return Results.BadRequest(new { error = "registerId is required" });
     }
 
+    var odataSkip = skip ?? 0;
+    var odataTop = top ?? 20;
+    var page = odataTop > 0 ? (odataSkip / odataTop) + 1 : 1;
+
     var result = await manager.GetTransactionsByPrevTxIdPaginatedAsync(
         registerId,
         prevTxId,
         page,
-        pageSize);
+        odataTop);
     return Results.Ok(result);
 })
 .WithName("GetTransactionsByPrevTxId")

@@ -182,15 +182,18 @@ public class ActionExecutionService : IActionExecutionService
             accumulatedState = accumulatedState with { PreviousTransactionId = instance.LastTransactionId };
         }
 
-        // 5c. For Action 0 (starting action with no prior transactions), PrevTxId must be
-        // the blueprint's publish TX ID on this register. The blueprint TX is the transaction
-        // that brought the workflow definition onto this register — Action 0 chains from it.
+        // 5c. For starting actions with no prior transactions, chain from the blueprint
+        // publish TX. Each instance forks from the blueprint publish TX by design — the
+        // validator allows multiple children of Control transactions.
         if (string.IsNullOrEmpty(accumulatedState.PreviousTransactionId) && actionDef.IsStartingAction)
         {
             var blueprintTxId = ComputeBlueprintPublishTxId(instance.RegisterId, instance.BlueprintId);
+            await WaitForTransactionConfirmationAsync(instance.RegisterId, blueprintTxId, cancellationToken);
+
             _logger.LogInformation(
                 "Action 0 for instance {InstanceId}: PrevTxId set to blueprint publish TX {BlueprintTxId}",
                 instanceId, blueprintTxId);
+
             accumulatedState = accumulatedState with { PreviousTransactionId = blueprintTxId };
         }
 

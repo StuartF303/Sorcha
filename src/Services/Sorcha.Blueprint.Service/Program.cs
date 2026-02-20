@@ -1398,7 +1398,8 @@ var instancesGroup = app.MapGroup("/api/instances")
 instancesGroup.MapPost("/", async (
     CreateInstanceRequest request,
     Sorcha.Blueprint.Service.Storage.IInstanceStore instanceStore,
-    IBlueprintStore blueprintStore) =>
+    IBlueprintStore blueprintStore,
+    Sorcha.ServiceClients.Register.IRegisterServiceClient registerClient) =>
 {
     try
     {
@@ -1407,6 +1408,43 @@ instancesGroup.MapPost("/", async (
         if (blueprint == null)
         {
             return Results.BadRequest(new { error = "Blueprint not found" });
+        }
+
+        // Ensure the blueprint publish transaction exists on the register.
+        // Action 0 chains from this TX, so it must be created before any actions execute.
+        // The Register Service endpoint is idempotent — safe to call on every instance creation.
+        try
+        {
+            var blueprintJson = System.Text.Json.JsonSerializer.Serialize(blueprint, new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                WriteIndented = false
+            });
+
+            var published = await registerClient.PublishBlueprintToRegisterAsync(
+                request.RegisterId,
+                request.BlueprintId,
+                blueprintJson,
+                request.TenantId ?? "system");
+
+            if (!published)
+            {
+                logger.LogWarning(
+                    "Failed to publish blueprint {BlueprintId} to register {RegisterId} during instance creation",
+                    request.BlueprintId, request.RegisterId);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Blueprint {BlueprintId} published to register {RegisterId} for instance creation",
+                    request.BlueprintId, request.RegisterId);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Non-fatal: Could not publish blueprint {BlueprintId} to register {RegisterId}",
+                request.BlueprintId, request.RegisterId);
         }
 
         // Find starting actions
