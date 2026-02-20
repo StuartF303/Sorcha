@@ -673,7 +673,9 @@ try {
     $templatePath = Join-Path $scriptDir "construction-permit-template.json"
     Write-Info "Loading template from: $templatePath"
 
-    $templateJson = Get-Content -Path $templatePath -Raw | ConvertFrom-Json
+    # Use -Depth 30 to preserve deeply nested properties like
+    # rejectionConfig.targetActionId (default depth is 2 which corrupts them).
+    $templateJson = Get-Content -Path $templatePath -Raw | ConvertFrom-Json -Depth 30
 
     # Extract the blueprint from the template wrapper
     $blueprint = $templateJson.template
@@ -693,7 +695,7 @@ try {
     # Generate unique ID so re-runs don't collide
     $blueprint.id = "construction-permit-$timestamp"
 
-    $blueprintJson = $blueprint | ConvertTo-Json -Depth 20
+    $blueprintJson = $blueprint | ConvertTo-Json -Depth 30
 
     Write-Info "Creating blueprint via POST /api/blueprints/..."
     $createResponse = Invoke-Api -Method POST `
