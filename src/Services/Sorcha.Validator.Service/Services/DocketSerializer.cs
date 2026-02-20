@@ -64,22 +64,51 @@ public static class DocketSerializer
             CreatedAt = docket.CreatedAt,
             MerkleRoot = docket.MerkleRoot,
             ProposerValidatorId = docket.ProposerValidatorId,
-            Transactions = docket.Transactions.Select(tx => new Sorcha.Register.Models.TransactionModel
+            Transactions = docket.Transactions.Select(tx =>
             {
-                // Map to Register.Models.TransactionModel fields
-                TxId = tx.TransactionId,
-                RegisterId = tx.RegisterId,
-                TimeStamp = tx.CreatedAt.UtcDateTime,
-                SenderWallet = GetSenderWallet(tx),
-                Signature = tx.Signatures.FirstOrDefault() != null
-                    ? Convert.ToBase64String(tx.Signatures.First().SignatureValue)
-                    : string.Empty,
-                MetaData = new Sorcha.Register.Models.TransactionMetaData
+                // Determine TransactionType from metadata
+                var transactionType = Sorcha.Register.Models.Enums.TransactionType.Action;
+                if (tx.Metadata.TryGetValue("Type", out var typeStr))
                 {
-                    RegisterId = tx.RegisterId,
-                    BlueprintId = tx.BlueprintId,
-                    ActionId = uint.TryParse(tx.ActionId, out var actionId) ? actionId : null
+                    transactionType = typeStr.ToLowerInvariant() switch
+                    {
+                        "participant" => Sorcha.Register.Models.Enums.TransactionType.Participant,
+                        "control" => Sorcha.Register.Models.Enums.TransactionType.Control,
+                        _ => Sorcha.Register.Models.Enums.TransactionType.Action
+                    };
                 }
+
+                // Build payload model from transaction data
+                var payloadData = tx.PayloadJson != null
+                    ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(tx.PayloadJson))
+                    : string.Empty;
+
+                return new Sorcha.Register.Models.TransactionModel
+                {
+                    TxId = tx.TransactionId,
+                    RegisterId = tx.RegisterId,
+                    TimeStamp = tx.CreatedAt.UtcDateTime,
+                    SenderWallet = GetSenderWallet(tx),
+                    Signature = tx.Signatures.FirstOrDefault() != null
+                        ? Convert.ToBase64String(tx.Signatures.First().SignatureValue)
+                        : string.Empty,
+                    PayloadCount = string.IsNullOrEmpty(payloadData) ? 0UL : 1UL,
+                    Payloads = string.IsNullOrEmpty(payloadData)
+                        ? Array.Empty<Sorcha.Register.Models.PayloadModel>()
+                        : [new Sorcha.Register.Models.PayloadModel
+                        {
+                            Data = payloadData,
+                            Hash = tx.PayloadHash,
+                            PayloadSize = (ulong)(tx.PayloadJson?.Length ?? 0)
+                        }],
+                    MetaData = new Sorcha.Register.Models.TransactionMetaData
+                    {
+                        RegisterId = tx.RegisterId,
+                        TransactionType = transactionType,
+                        BlueprintId = tx.BlueprintId,
+                        ActionId = uint.TryParse(tx.ActionId, out var actionId) ? actionId : null
+                    }
+                };
             }).ToList()
         };
     }

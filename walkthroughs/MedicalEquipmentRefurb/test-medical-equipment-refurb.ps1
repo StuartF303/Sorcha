@@ -26,9 +26,6 @@ param(
     [string]$AdminPassword = "Dev_Pass_2025!",
 
     [Parameter(Mandatory=$false)]
-    [string]$AdminName = "System Administrator",
-
-    [Parameter(Mandatory=$false)]
     [string]$OrgName = "Medical Equipment Refurb Demo",
 
     [Parameter(Mandatory=$false)]
@@ -256,51 +253,24 @@ $totalSteps++
 
 $adminToken = ""
 $organizationId = ""
-$adminUserId = ""
 
 try {
-    # Step 1: Authenticate with system admin (platform must already be bootstrapped)
+    # Login as system admin (default seeded user — belongs to system org)
     Write-Info "Authenticating as $AdminEmail..."
 
     $encodedPassword = [Uri]::EscapeDataString($AdminPassword)
     $loginBody = "grant_type=password&username=$AdminEmail&password=$encodedPassword&client_id=sorcha-cli"
 
-    try {
-        $loginResponse = Invoke-RestMethod `
-            -Uri "$TenantUrl/service-auth/token" `
-            -Method POST `
-            -ContentType "application/x-www-form-urlencoded" `
-            -Body $loginBody `
-            -UseBasicParsing
+    $loginResponse = Invoke-RestMethod `
+        -Uri "$TenantUrl/service-auth/token" `
+        -Method POST `
+        -ContentType "application/x-www-form-urlencoded" `
+        -Body $loginBody `
+        -UseBasicParsing
 
-        $adminToken = $loginResponse.access_token
-        Write-Success "Authenticated as $AdminEmail"
-    } catch {
-        # If login fails, try bootstrap (fresh platform)
-        Write-Info "Login failed -- attempting fresh bootstrap..."
+    $adminToken = $loginResponse.access_token
+    Write-Success "Authenticated as $AdminEmail"
 
-        $bootstrapBody = @{
-            organizationName = $OrgName
-            organizationSubdomain = $OrgSubdomain
-            organizationDescription = "Medical equipment refurbishment walkthrough — 3 orgs, 4 participants, participant publishing"
-            adminEmail = $AdminEmail
-            adminName = $AdminName
-            adminPassword = $AdminPassword
-            createServicePrincipal = $false
-        }
-
-        $bootstrapResponse = Invoke-Api -Method POST -Uri "$TenantUrl/tenants/bootstrap" -Body $bootstrapBody
-
-        $adminToken = $bootstrapResponse.adminAccessToken
-        $organizationId = $bootstrapResponse.organizationId
-        $adminUserId = $bootstrapResponse.adminUserId
-
-        Write-Success "Platform bootstrapped successfully"
-        Write-Info "Organization ID: $organizationId"
-        Write-Info "Admin User ID:   $adminUserId"
-    }
-
-    # Decode JWT to get claims
     $jwtPayload = Decode-Jwt -Token $adminToken
     Write-Info "JWT Claims:"
     Write-Host "    Issuer:  $($jwtPayload.iss)" -ForegroundColor White
@@ -309,43 +279,33 @@ try {
         Write-Host "    Roles:   $($jwtPayload.role -join ', ')" -ForegroundColor White
     }
 
-    $adminUserId = $jwtPayload.sub
+    $headers = @{ Authorization = "Bearer $adminToken" }
 
-    # Step 2: Ensure walkthrough organization exists
+    # Create walkthrough organization
+    Write-Info "Creating organization '$OrgName'..."
+
+    # Check if org already exists
+    try {
+        $orgsResponse = Invoke-Api -Method GET -Uri "$TenantUrl/organizations" -Headers $headers
+        $orgList = if ($orgsResponse.organizations) { $orgsResponse.organizations } elseif ($orgsResponse.items) { $orgsResponse.items } elseif ($orgsResponse -is [array]) { $orgsResponse } else { @($orgsResponse) }
+
+        foreach ($org in $orgList) {
+            if ($org.subdomain -eq $OrgSubdomain -or $org.name -eq $OrgName) {
+                $organizationId = $org.id
+                Write-Info "Organization already exists: $organizationId"
+                break
+            }
+        }
+    } catch {
+        Write-Warn "Could not list organizations: $($_.Exception.Message)"
+    }
+
     if (-not $organizationId) {
-        $headers = @{ Authorization = "Bearer $adminToken" }
-
-        # Check if org already exists by listing all orgs
-        try {
-            $orgsResponse = Invoke-Api -Method GET -Uri "$TenantUrl/organizations" -Headers $headers
-            $orgList = if ($orgsResponse.items) { $orgsResponse.items } elseif ($orgsResponse -is [array]) { $orgsResponse } else { @($orgsResponse) }
-
-            foreach ($org in $orgList) {
-                if ($org.subdomain -eq $OrgSubdomain -or $org.name -eq $OrgName) {
-                    $organizationId = $org.id
-                    Write-Info "Walkthrough organization already exists: $organizationId ($($org.name))"
-                    break
-                }
-            }
-        } catch {
-            Write-Warn "Could not list organizations: $($_.Exception.Message)"
-        }
-
-        # Create org if not found
-        if (-not $organizationId) {
-            Write-Info "Creating walkthrough organization '$OrgName'..."
-            try {
-                $newOrgResponse = Invoke-Api -Method POST -Uri "$TenantUrl/organizations" `
-                    -Body @{ name = $OrgName; subdomain = $OrgSubdomain; description = "Medical equipment refurbishment walkthrough" } `
-                    -Headers $headers
-                $organizationId = $newOrgResponse.id
-                Write-Success "Created organization: $organizationId"
-            } catch {
-                # Fall back to JWT org if creation fails
-                $organizationId = $jwtPayload.org_id
-                Write-Warn "Org creation failed, using JWT org: $organizationId"
-            }
-        }
+        $newOrgResponse = Invoke-Api -Method POST -Uri "$TenantUrl/organizations" `
+            -Body @{ name = $OrgName; subdomain = $OrgSubdomain; description = "Medical equipment refurbishment walkthrough" } `
+            -Headers $headers
+        $organizationId = $newOrgResponse.id
+        Write-Success "Created organization: $organizationId"
     }
 
     Write-Info "Organization ID: $organizationId"
@@ -367,6 +327,8 @@ Write-Step "Phase 2: Create Participant Users"
 $totalSteps++
 
 try {
+    $userIds = @{}  # role -> user ID
+
     $participants = @(
         @{ email = "biomed-engineer@city-general.local";   displayName = "Biomedical Engineer (City General Hospital)";   role = "biomedical-engineer" },
         @{ email = "dept-head@city-general.local";         displayName = "Department Head (City General Hospital)";       role = "department-head" },
@@ -390,12 +352,27 @@ try {
                 -Body $userBody `
                 -Headers $headers
 
+            $userIds[$p.role] = $userResponse.id
             Write-Success "$($p.role) user created (ID: $($userResponse.id))"
         } catch {
             $statusCode = $null
             try { $statusCode = $_.Exception.Response.StatusCode.value__ } catch {}
             if ($statusCode -eq 409 -or $statusCode -eq 400 -or $statusCode -eq 500) {
-                Write-Warn "$($p.role) already exists or duplicate -- continuing"
+                Write-Warn "$($p.role) already exists or duplicate -- fetching existing"
+                # Fetch the user list to find this user's ID
+                try {
+                    $usersResponse = Invoke-Api -Method GET `
+                        -Uri "$TenantUrl/organizations/$organizationId/users" `
+                        -Headers $headers
+                    $userList = if ($usersResponse.items) { $usersResponse.items } elseif ($usersResponse -is [array]) { $usersResponse } else { @($usersResponse) }
+                    $found = $userList | Where-Object { $_.email -eq $p.email } | Select-Object -First 1
+                    if ($found) {
+                        $userIds[$p.role] = $found.id
+                        Write-Info "  Found existing user ID: $($found.id)"
+                    }
+                } catch {
+                    Write-Warn "  Could not fetch existing user ID"
+                }
             } else {
                 Write-Warn "Failed to create $($p.role): $($_.Exception.Message)"
             }
@@ -473,49 +450,65 @@ try {
 }
 
 # ============================================================================
-# Phase 3b: Register Participant Profile & Link Wallets
+# Phase 3b: Register Participants & Link Wallets
 # ============================================================================
 
-Write-Step "Phase 3b: Register Participant Profile & Link All Wallets"
+Write-Step "Phase 3b: Register Participants & Link All Wallets"
 $totalSteps++
 
-$participantId = ""
+$participantIds = @{}  # role -> participant ID
 
 try {
-    Write-Info "Self-registering admin as participant..."
+    # Register each user as a participant (admin endpoint — no org-membership check)
+    foreach ($role in @('biomedical-engineer', 'department-head', 'lead-technician', 'compliance-officer')) {
+        $userId = $userIds[$role]
+        if (-not $userId) {
+            Write-Warn "$role has no user ID -- skipping participant registration"
+            continue
+        }
 
-    try {
-        $selfRegResponse = Invoke-Api -Method POST `
-            -Uri "$TenantUrl/me/organizations/$organizationId/self-register?displayName=$([Uri]::EscapeDataString($AdminName))" `
-            -Headers $headers
+        Write-Info "Registering $role as participant (user: $userId)..."
 
-        $participantId = $selfRegResponse.id
-        Write-Success "Participant registered: $participantId"
-    } catch {
-        $statusCode = $null
-        try { $statusCode = $_.Exception.Response.StatusCode.value__ } catch {}
-        if ($statusCode -eq 409 -or $statusCode -eq 400) {
-            Write-Warn "Participant already exists -- fetching existing profile"
-
-            $profiles = Invoke-Api -Method GET `
-                -Uri "$TenantUrl/me/participant-profiles" `
+        try {
+            $createParticipantBody = @{
+                userId = $userId
+            }
+            $participantResponse = Invoke-Api -Method POST `
+                -Uri "$TenantUrl/organizations/$organizationId/participants" `
+                -Body $createParticipantBody `
                 -Headers $headers
 
-            $orgProfile = $profiles | Where-Object { $_.organizationId -eq $organizationId } | Select-Object -First 1
-            if ($orgProfile) {
-                $participantId = $orgProfile.id
-                Write-Success "Found existing participant: $participantId"
+            $participantIds[$role] = $participantResponse.id
+            Write-Success "$role registered as participant: $($participantResponse.id)"
+        } catch {
+            $statusCode = $null
+            try { $statusCode = $_.Exception.Response.StatusCode.value__ } catch {}
+            if ($statusCode -eq 409) {
+                Write-Warn "$role already registered -- fetching existing"
+                $participantsResponse = Invoke-Api -Method GET `
+                    -Uri "$TenantUrl/organizations/$organizationId/participants" `
+                    -Headers $headers
+                $pList = if ($participantsResponse.items) { $participantsResponse.items } else { @($participantsResponse) }
+                $found = $pList | Where-Object { $_.userId -eq $userId } | Select-Object -First 1
+                if ($found) {
+                    $participantIds[$role] = $found.id
+                    Write-Info "  Found existing participant: $($found.id)"
+                }
             } else {
-                throw "No participant profile found for organization $organizationId"
+                Write-Warn "$role participant registration failed: $($_.Exception.Message) -- continuing"
             }
-        } else {
-            throw
         }
     }
 
-    # Link all 4 participant wallets via challenge-sign-verify
+    # Link each participant's wallet via challenge-sign-verify
     foreach ($role in @('biomedical-engineer', 'department-head', 'lead-technician', 'compliance-officer')) {
         $walletAddr = $wallets[$role]
+        $participantId = $participantIds[$role]
+        if (-not $participantId) {
+            Write-Warn "$role has no participant ID -- skipping wallet link"
+            continue
+        }
+
         Write-Info "Linking $role wallet ($walletAddr)..."
 
         try {
@@ -567,7 +560,7 @@ try {
             Write-Success "$role wallet linked (status: $($verifyResponse.status))"
         } catch {
             $errMsg = $_.Exception.Message
-            if ($errMsg -match "already linked") {
+            if ($errMsg -match "already linked" -or $errMsg -match "409") {
                 Write-Warn "$role wallet already linked -- continuing"
             } else {
                 Write-Warn "$role wallet link failed: $errMsg -- continuing"
@@ -575,7 +568,7 @@ try {
         }
     }
 
-    Write-Info "Admin participant has all 4 role wallets linked for action execution"
+    Write-Info "4 participants registered with wallets linked"
     $stepsPassed++
 } catch {
     Write-Fail "Participant registration or wallet linking failed"
@@ -606,7 +599,7 @@ try {
         isPublic = $true
         owners = @(
             @{
-                userId = if ($adminUserId) { $adminUserId } else { "admin" }
+                userId = $jwtPayload.sub
                 walletId = $designerWalletAddress
             }
         )
@@ -795,21 +788,30 @@ try {
     Write-Info "Published $publishedCount/4 participants to register"
 
     # Verify published participants via Register Service query
+    # Allow time for docket processing (validator batches every ~10s)
+    Write-Info "Waiting for docket processing (15s)..."
+    Start-Sleep -Seconds 15
+
     Write-Info "Verifying published participants on register..."
     try {
         $registerParticipants = Invoke-Api -Method GET `
-            -Uri "$RegisterUrl/registers/$registerId/participants" `
+            -Uri "$RegisterUrl/registers/$registerId/participants?status=all" `
             -Headers $headers
 
         $participantCount = 0
-        if ($registerParticipants.items) {
-            $participantCount = ($registerParticipants.items | Measure-Object).Count
+        if ($registerParticipants.total) {
+            $participantCount = $registerParticipants.total
+        } elseif ($registerParticipants.participants) {
+            $participantCount = ($registerParticipants.participants | Measure-Object).Count
         } elseif ($registerParticipants -is [array]) {
             $participantCount = ($registerParticipants | Measure-Object).Count
         }
 
         if ($participantCount -ge 4) {
             Write-Success "Register confirms $participantCount published participants"
+            foreach ($p in $registerParticipants.participants) {
+                Write-Host "    $($p.participantName) ($($p.organizationName)) - $($p.status)" -ForegroundColor White
+            }
         } else {
             Write-Warn "Register shows $participantCount participants (expected 4) -- transactions may still be processing"
         }

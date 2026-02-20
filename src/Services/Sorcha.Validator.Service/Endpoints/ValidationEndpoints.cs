@@ -71,6 +71,13 @@ public static class ValidationEndpoints
                 Metadata = request.Metadata ?? new Dictionary<string, string>()
             };
 
+            // Participant transactions have no blueprint/action context — use a sentinel
+            // value to bypass the TransactionValidator's required-field check for BlueprintId.
+            var isParticipantTx = request.Metadata != null &&
+                request.Metadata.TryGetValue("Type", out var txType) &&
+                string.Equals(txType, "Participant", StringComparison.OrdinalIgnoreCase);
+            var effectiveBlueprintId = isParticipantTx ? "participant" : request.BlueprintId;
+
             // Validate transaction structure
             var signatures = request.Signatures.Select(s =>
                 new TransactionSignature(s.PublicKey, s.SignatureValue, s.Algorithm)).ToList();
@@ -78,7 +85,7 @@ public static class ValidationEndpoints
             var structureValidation = validator.ValidateTransactionStructure(
                 request.TransactionId,
                 request.RegisterId,
-                request.BlueprintId,
+                effectiveBlueprintId,
                 request.Payload,
                 request.PayloadHash,
                 signatures,

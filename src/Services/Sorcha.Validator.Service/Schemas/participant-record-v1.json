@@ -23,7 +23,7 @@
     },
     "status": {
       "type": "string",
-      "enum": ["active", "deprecated", "revoked"],
+      "enum": ["Active", "Deprecated", "Revoked"],
       "description": "Lifecycle status"
     },
     "version": {
@@ -66,7 +66,7 @@
       "description": "Cryptographic addresses (1-10 entries)"
     },
     "metadata": {
-      "type": "object",
+      "type": ["object", "null"],
       "description": "Optional extensible metadata"
     }
   },
