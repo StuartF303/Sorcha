@@ -34,6 +34,7 @@
     <ProjectReference Include="..\..\Common\Sorcha.Wallet.Core\Sorcha.Wallet.Core.csproj" />
     <ProjectReference Include="..\..\Common\Sorcha.Cryptography\Sorcha.Cryptography.csproj" />
     <ProjectReference Include="..\..\Common\Sorcha.ServiceDefaults\Sorcha.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\Common\Sorcha.ServiceClients\Sorcha.ServiceClients.csproj" />
   </ItemGroup>
 
 </Project>

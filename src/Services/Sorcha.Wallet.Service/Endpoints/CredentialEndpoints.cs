@@ -198,6 +198,8 @@ public static class CredentialEndpoints
         });
     }
 
+    private static readonly HashSet<string> AllowedStatusValues = ["Active", "Suspended", "Revoked", "Consumed"];
+
     private static async Task<IResult> UpdateCredentialStatus(
         string walletAddress,
         string credentialId,
@@ -205,16 +207,27 @@ public static class CredentialEndpoints
         ICredentialStore store,
         CancellationToken cancellationToken = default)
     {
+        if (!AllowedStatusValues.Contains(request.Status))
+            return Results.BadRequest(new { error = $"Invalid status value: {request.Status}. Allowed: Active, Suspended, Revoked, Consumed" });
+
         var credential = await store.GetByIdAsync(credentialId, cancellationToken);
 
         if (credential == null || credential.WalletAddress != walletAddress)
             return Results.NotFound();
 
+        var previousStatus = credential.Status;
         var updated = await store.UpdateStatusAsync(credentialId, request.Status, cancellationToken);
 
-        return updated
-            ? Results.Ok(new { credentialId, status = request.Status })
-            : Results.Problem("Failed to update credential status");
+        if (!updated)
+            return Results.BadRequest(new { error = $"Invalid status transition from {previousStatus} to {request.Status}" });
+
+        return Results.Ok(new
+        {
+            credentialId,
+            previousStatus,
+            newStatus = request.Status,
+            updatedAt = DateTimeOffset.UtcNow
+        });
     }
 
     private static async Task<IResult> IssueCredential(

@@ -9,6 +9,7 @@ using Sorcha.ServiceClients.Register;
 using Sorcha.ServiceClients.Blueprint;
 using Sorcha.ServiceClients.Peer;
 using Sorcha.ServiceClients.Participant;
+using Sorcha.ServiceClients.Did;
 using Sorcha.ServiceClients.Validator;
 
 namespace Sorcha.ServiceClients.Extensions;
@@ -145,6 +146,40 @@ public static class ServiceCollectionExtensions
     {
         services.AddHttpClient<ParticipantServiceClient>();
         services.AddScoped<IParticipantServiceClient, ParticipantServiceClient>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers DID resolver infrastructure: IDidResolverRegistry and all built-in resolvers
+    /// (did:sorcha, did:web, did:key).
+    /// </summary>
+    public static IServiceCollection AddDidResolvers(this IServiceCollection services)
+    {
+        // Register individual resolvers
+        services.AddSingleton<SorchaDidResolver>();
+        services.AddSingleton<KeyDidResolver>();
+        services.AddHttpClient<WebDidResolver>();
+        services.AddSingleton<IDidResolver>(sp => sp.GetRequiredService<SorchaDidResolver>());
+        services.AddSingleton<IDidResolver>(sp => sp.GetRequiredService<KeyDidResolver>());
+
+        // Register the registry and wire up all resolvers
+        services.AddSingleton<IDidResolverRegistry>(sp =>
+        {
+            var registry = new DidResolverRegistry(
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<DidResolverRegistry>>());
+
+            foreach (var resolver in sp.GetServices<IDidResolver>())
+            {
+                registry.Register(resolver);
+            }
+
+            // WebDidResolver is transient (HttpClient) — create one instance via factory
+            var webResolver = sp.GetRequiredService<WebDidResolver>();
+            registry.Register(webResolver);
+
+            return registry;
+        });
+
         return services;
     }
 }

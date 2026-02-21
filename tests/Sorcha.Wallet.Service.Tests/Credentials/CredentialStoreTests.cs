@@ -4,6 +4,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Sorcha.Wallet.Core.Data;
 using Sorcha.Wallet.Core.Domain.Entities;
 using Sorcha.Wallet.Service.Credentials;
@@ -22,7 +23,7 @@ public class CredentialStoreTests : IDisposable
             .Options;
 
         _db = new TestCredentialDbContext(options);
-        _store = new CredentialStore(_db);
+        _store = new CredentialStore(_db, NullLogger<CredentialStore>.Instance);
     }
 
     public void Dispose()
@@ -92,7 +93,7 @@ public class CredentialStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task GetByWalletAsync_ReturnsActiveOnly()
+    public async Task GetByWalletAsync_ReturnsAllStatuses()
     {
         await _store.StoreAsync(CreateCredential("cred-1", status: "Active"));
         await _store.StoreAsync(CreateCredential("cred-2", status: "Revoked"));
@@ -100,8 +101,7 @@ public class CredentialStoreTests : IDisposable
 
         var results = await _store.GetByWalletAsync("wallet-1");
 
-        results.Should().HaveCount(2);
-        results.Should().OnlyContain(c => c.Status == "Active");
+        results.Should().HaveCount(3);
     }
 
     [Fact]

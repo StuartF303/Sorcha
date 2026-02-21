@@ -158,4 +158,30 @@ public class IssuedCredentialInfo
     /// The complete SD-JWT VC token.
     /// </summary>
     public string RawToken { get; set; } = string.Empty;
+
+    /// <summary>
+    /// URL of the Bitstring Status List where this credential's status is tracked.
+    /// Populated by the service layer after status list allocation.
+    /// </summary>
+    public string? StatusListUrl { get; set; }
+
+    /// <summary>
+    /// Index in the Bitstring Status List. Populated after allocation.
+    /// </summary>
+    public int? StatusListIndex { get; set; }
+
+    /// <summary>
+    /// Usage policy for this credential (Reusable, SingleUse, LimitedUse).
+    /// </summary>
+    public string UsagePolicy { get; set; } = "Reusable";
+
+    /// <summary>
+    /// Maximum presentations allowed (only for LimitedUse policy).
+    /// </summary>
+    public int? MaxPresentations { get; set; }
+
+    /// <summary>
+    /// JSON-serialized display configuration for wallet rendering.
+    /// </summary>
+    public string? DisplayConfigJson { get; set; }
 }

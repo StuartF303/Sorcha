@@ -41,6 +41,7 @@ public class ActionExecutionService : IActionExecutionService
     private readonly IInstanceStore _instanceStore;
     private readonly IExecutionEngine _executionEngine;
     private readonly ICredentialVerifier? _credentialVerifier;
+    private readonly IStatusListManager? _statusListManager;
     private readonly IActionStore _actionStore;
     private readonly TransactionConfirmationOptions _confirmationOptions;
     private readonly ILogger<ActionExecutionService> _logger;
@@ -60,7 +61,8 @@ public class ActionExecutionService : IActionExecutionService
         IExecutionEngine executionEngine,
         ILogger<ActionExecutionService> logger,
         ICredentialVerifier? credentialVerifier = null,
-        IOptions<TransactionConfirmationOptions>? confirmationOptions = null)
+        IOptions<TransactionConfirmationOptions>? confirmationOptions = null,
+        IStatusListManager? statusListManager = null)
     {
         _actionResolver = actionResolver ?? throw new ArgumentNullException(nameof(actionResolver));
         _stateReconstruction = stateReconstruction ?? throw new ArgumentNullException(nameof(stateReconstruction));
@@ -76,6 +78,7 @@ public class ActionExecutionService : IActionExecutionService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _credentialVerifier = credentialVerifier;
         _confirmationOptions = confirmationOptions?.Value ?? new TransactionConfirmationOptions();
+        _statusListManager = statusListManager;
     }
 
     /// <inheritdoc/>
@@ -856,6 +859,42 @@ public class ActionExecutionService : IActionExecutionService
                 disclosableClaims: config.Disclosable?.ToList(),
                 issuanceBlueprintId: instance.BlueprintId,
                 cancellationToken: cancellationToken);
+
+            // Allocate status list index for revocation tracking
+            if (result != null && _statusListManager != null)
+            {
+                try
+                {
+                    var allocation = await _statusListManager.AllocateIndexAsync(
+                        senderWallet, instance.RegisterId, result.CredentialId, cancellationToken);
+
+                    // Return a new result with status list info populated
+                    result = new CredentialIssuanceResult
+                    {
+                        CredentialId = result.CredentialId,
+                        Type = result.Type,
+                        IssuerDid = result.IssuerDid,
+                        SubjectDid = result.SubjectDid,
+                        Claims = result.Claims,
+                        IssuedAt = result.IssuedAt,
+                        ExpiresAt = result.ExpiresAt,
+                        RawToken = result.RawToken,
+                        Status = result.Status,
+                        StatusListUrl = allocation.StatusListUrl,
+                        StatusListIndex = allocation.Index
+                    };
+
+                    _logger.LogInformation(
+                        "Allocated status list index {Index} in list {ListId} for credential {CredentialId}",
+                        allocation.Index, allocation.ListId, result.CredentialId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Failed to allocate status list index for credential {CredentialId} — credential issued without revocation tracking",
+                        result.CredentialId);
+                }
+            }
 
             return result;
         }

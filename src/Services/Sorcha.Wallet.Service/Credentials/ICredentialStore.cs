@@ -43,4 +43,11 @@ public interface ICredentialStore
         string? type = null,
         IEnumerable<string>? acceptedIssuers = null,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Records a credential presentation, incrementing the count and consuming
+    /// the credential if its usage policy limit has been reached.
+    /// Returns true if the credential was consumed by this presentation.
+    /// </summary>
+    Task<bool> RecordPresentationAsync(string credentialId, CancellationToken ct = default);
 }

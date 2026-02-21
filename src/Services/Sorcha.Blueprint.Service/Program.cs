@@ -74,6 +74,7 @@ builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IDisclosureProcess
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IRoutingEngine, Sorcha.Blueprint.Engine.Implementation.RoutingEngine>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Credentials.ICredentialVerifier, Sorcha.Blueprint.Engine.Credentials.CredentialVerifier>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Credentials.ICredentialIssuer, Sorcha.Blueprint.Engine.Credentials.CredentialIssuer>();
+builder.Services.AddHttpClient<Sorcha.Blueprint.Engine.Credentials.IRevocationChecker, Sorcha.Blueprint.Engine.Credentials.BitstringStatusListChecker>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IActionProcessor, Sorcha.Blueprint.Engine.Implementation.ActionProcessor>();
 builder.Services.AddScoped<Sorcha.Blueprint.Engine.Interfaces.IExecutionEngine, Sorcha.Blueprint.Engine.Implementation.ExecutionEngine>();
 
@@ -172,6 +173,10 @@ builder.Services.AddSingleton<Sorcha.Blueprint.Service.Services.SchemaIndexRefre
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Sorcha.Blueprint.Service.Services.SchemaIndexRefreshService>());
 builder.Services.AddSingleton<Sorcha.Blueprint.Service.Services.Interfaces.ISectorFilterService,
     Sorcha.Blueprint.Service.Services.SectorFilterService>();
+
+// Add Status List Manager (039-verifiable-presentations)
+builder.Services.AddSingleton<Sorcha.Blueprint.Service.Services.IStatusListManager,
+    Sorcha.Blueprint.Service.Services.StatusListManager>();
 
 // Add JWT authentication and authorization (AUTH-002)
 // JWT authentication is now configured via shared ServiceDefaults with auto-key generation
@@ -459,6 +464,9 @@ app.MapSchemaLibraryEndpoints();
 
 // Map credential lifecycle endpoints (POST /api/v1/credentials/{credentialId}/revoke)
 app.MapCredentialEndpoints();
+
+// Map status list endpoints (GET public, POST/PUT internal)
+app.MapStatusListEndpoints();
 
 // ===========================
 // Template Endpoints
@@ -1743,7 +1751,7 @@ instancesGroup.MapGet("/{instanceId}/next-actions", async (
 // Health & Status Endpoints
 // ===========================
 
-app.MapGet("/api/health", async (IBlueprintStore blueprintStore, IPublishedBlueprintStore publishedStore) =>
+app.MapGet("/api/health", async (IBlueprintStore blueprintStore, IPublishedBlueprintStore publishedStore, Sorcha.Blueprint.Service.Services.IStatusListManager statusListManager) =>
 {
     try
     {
@@ -1758,6 +1766,19 @@ app.MapGet("/api/health", async (IBlueprintStore blueprintStore, IPublishedBluep
             publishedCount += versions.Count();
         }
 
+        // Probe status list availability
+        var statusListAvailable = false;
+        try
+        {
+            // Attempt to fetch a known list; null result is fine (no lists yet)
+            await statusListManager.GetListAsync("health-probe");
+            statusListAvailable = true;
+        }
+        catch
+        {
+            // Status list subsystem unavailable
+        }
+
         return Results.Ok(new
         {
             status = "healthy",
@@ -1768,7 +1789,8 @@ app.MapGet("/api/health", async (IBlueprintStore blueprintStore, IPublishedBluep
             metrics = new
             {
                 totalBlueprints = blueprintCount,
-                publishedVersions = publishedCount
+                publishedVersions = publishedCount,
+                statusListAvailable
             }
         });
     }
