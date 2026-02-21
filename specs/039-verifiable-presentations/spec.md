@@ -168,6 +168,7 @@ A credential issued by one blueprint workflow can be required by a different blu
 - What happens when two issuers assign the same credential type name but issue different credentials? Credential matching uses both type and issuer identity — the AcceptedIssuers constraint disambiguates.
 - What happens when a LimitedUse credential has 1 presentation remaining and two verifiers request it simultaneously? The first successful verification triggers consumption; the second receives a "credential consumed" error.
 - What happens when a holder's wallet is offline when a presentation request arrives? The request is stored server-side with a TTL; the holder sees it when they next open the wallet.
+- What happens when a holder deletes a credential from their wallet? Deletion is a local wallet operation only — the status list entry is unchanged, the issuer can still revoke, and the credential remains valid if exported elsewhere. Issuer notification on deletion is deferred to a future phase.
 
 ## Requirements *(mandatory)*
 
@@ -175,8 +176,8 @@ A credential issued by one blueprint workflow can be required by a different blu
 
 **Lifecycle Management:**
 - **FR-001**: System MUST support five credential states: Active, Suspended, Revoked, Expired, and Consumed.
-- **FR-002**: System MUST allow issuers to suspend an Active credential (reversible) and reinstate a Suspended credential.
-- **FR-003**: System MUST allow issuers to revoke an Active or Suspended credential (permanent, irreversible).
+- **FR-002**: System MUST allow the original issuing wallet or register governance roles (Owner/Admin) to suspend an Active credential (reversible) and reinstate a Suspended credential.
+- **FR-003**: System MUST allow the original issuing wallet or register governance roles (Owner/Admin) to revoke an Active or Suspended credential (permanent, irreversible).
 - **FR-004**: System MUST automatically transition credentials to Expired when their `expiresAt` date passes.
 - **FR-005**: System MUST support credential refresh/reissuance for expired credentials when the credential type allows it, consuming the old credential and issuing a new one.
 - **FR-006**: System MUST support three usage policies: Reusable (unlimited presentations), SingleUse (one presentation then consumed), and LimitedUse (N presentations then consumed).
@@ -186,7 +187,7 @@ A credential issued by one blueprint workflow can be required by a different blu
 - **FR-008**: System MUST allocate a unique index position in the status list for each issued credential.
 - **FR-009**: System MUST embed a `credentialStatus` claim in every issued VC pointing to the status list URL and the credential's index position.
 - **FR-010**: System MUST store the canonical status list as a Control transaction on the issuing register.
-- **FR-011**: System MUST provide a cached HTTP endpoint for verifiers to fetch status lists, with configurable cache TTL (default 5 minutes).
+- **FR-011**: System MUST provide a public (unauthenticated) cached HTTP endpoint for verifiers to fetch status lists, with configurable cache TTL (default 5 minutes). Privacy is ensured by the minimum list size (131,072 entries), not access control.
 - **FR-012**: Status list size MUST be at least 131,072 entries (W3C recommended minimum for privacy).
 
 **OID4VP Presentations:**
@@ -195,7 +196,7 @@ A credential issued by one blueprint workflow can be required by a different blu
 - **FR-015**: System MUST verify presentations by checking: signature validity (via DID resolution), status list (not revoked/suspended/consumed), required claim constraints, and nonce freshness.
 - **FR-016**: System MUST support `response_mode=direct_post` where the wallet POSTs the `vp_token` to the verifier's callback URL.
 - **FR-017**: System MUST generate QR codes for in-person presentation that encode a request URL and nonce (not the credential itself).
-- **FR-018**: System MUST support presentation requests with a configurable TTL after which they expire.
+- **FR-018**: System MUST support presentation requests with a configurable TTL (default 5 minutes) after which they expire.
 
 **DID Resolution:**
 - **FR-019**: System MUST resolve `did:sorcha` identifiers by querying wallet service (for wallet DIDs) or register service (for register DIDs).
@@ -203,6 +204,10 @@ A credential issued by one blueprint workflow can be required by a different blu
 - **FR-021**: System MUST resolve `did:key` identifiers by decoding the multicodec-encoded public key from the DID string.
 - **FR-022**: System MUST provide a pluggable DID resolver interface that supports registering additional methods.
 - **FR-023**: DID resolution for `did:web` MUST enforce HTTPS (no HTTP fallback) and timeout within 5 seconds.
+
+**Credential Import:**
+- **FR-031**: System MUST allow holders to import externally-issued SD-JWT VC credentials into their wallet via the existing store endpoint, provided the credential is a valid SD-JWT VC with a resolvable issuer DID.
+- **FR-032**: Imported credentials MUST be treated identically to Sorcha-issued credentials for display, presentation, and status checking purposes. Status list checks use the `credentialStatus` claim embedded in the imported VC.
 
 **Wallet UI:**
 - **FR-024**: System MUST display credentials as visual cards with type-specific styling (color, icon, layout) based on issuer-defined display configuration.
@@ -237,6 +242,16 @@ A credential issued by one blueprint workflow can be required by a different blu
 - **SC-008**: Cross-blueprint credential flows work across different registers, with the verifying engine correctly fetching the status list from the issuing register.
 - **SC-009**: The wallet credential card UI renders correctly for all five credential states with appropriate visual treatment and available actions.
 - **SC-010**: Presentation request inbox shows all pending requests and correctly matches them to stored credentials.
+
+## Clarifications
+
+### Session 2026-02-21
+
+- Q: Who is authorized to perform credential lifecycle operations (suspend/revoke/reinstate)? → A: The original issuing wallet plus register governance roles (Owner/Admin) can suspend, revoke, and reinstate credentials.
+- Q: Can holders import credentials issued outside of Sorcha into their wallet? → A: Yes, manual import of pre-formed SD-JWT VCs via the store endpoint. Full OID4VCI import deferred to a future phase.
+- Q: What is the default TTL for presentation requests? → A: 5 minutes, configurable per request.
+- Q: Is the status list HTTP endpoint public or authenticated? → A: Public (unauthenticated). Privacy ensured by minimum list size (131,072 entries), not access control. Aligns with W3C standard.
+- Q: What happens when a holder deletes a credential from their wallet? → A: Local wallet operation only — status list unchanged, issuer can still revoke. Issuer notification on deletion deferred to future phase.
 
 ## Assumptions
 
