@@ -135,6 +135,25 @@
             Clear the entire schema cache.
             </summary>
         </member>
+        <member name="T:Sorcha.Blueprint.Engine.Credentials.BitstringStatusListChecker">
+            <summary>
+            Checks credential revocation/suspension status by fetching and decoding
+            a W3C Bitstring Status List from the issuer's register endpoint.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Credentials.BitstringStatusListChecker.CheckRevocationStatusAsync(System.String,System.String,System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Credentials.BitstringStatusListChecker.CheckBitAsync(System.String,System.Int32,System.Threading.CancellationToken)">
+            <summary>
+            Checks a specific bit in a remote bitstring status list.
+            </summary>
+        </member>
+        <member name="M:Sorcha.Blueprint.Engine.Credentials.BitstringStatusListChecker.TryParseStatusReference(System.String,System.String@,System.Int32@)">
+            <summary>
+            Parses a status list reference in the format "statusListUrl#index".
+            </summary>
+        </member>
         <member name="T:Sorcha.Blueprint.Engine.Credentials.CredentialIssuer">
             <summary>
             Issues SD-JWT VC credentials from blueprint action data using the crypto service.
@@ -1206,6 +1225,32 @@
         <member name="P:Sorcha.Blueprint.Engine.Models.IssuedCredentialInfo.RawToken">
             <summary>
             The complete SD-JWT VC token.
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.IssuedCredentialInfo.StatusListUrl">
+            <summary>
+            URL of the Bitstring Status List where this credential's status is tracked.
+            Populated by the service layer after status list allocation.
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.IssuedCredentialInfo.StatusListIndex">
+            <summary>
+            Index in the Bitstring Status List. Populated after allocation.
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.IssuedCredentialInfo.UsagePolicy">
+            <summary>
+            Usage policy for this credential (Reusable, SingleUse, LimitedUse).
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.IssuedCredentialInfo.MaxPresentations">
+            <summary>
+            Maximum presentations allowed (only for LimitedUse policy).
+            </summary>
+        </member>
+        <member name="P:Sorcha.Blueprint.Engine.Models.IssuedCredentialInfo.DisplayConfigJson">
+            <summary>
+            JSON-serialized display configuration for wallet rendering.
             </summary>
         </member>
         <member name="T:Sorcha.Blueprint.Engine.Models.Calculation">

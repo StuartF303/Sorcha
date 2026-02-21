@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Text.Json;
 using System.Xml;
 using Sorcha.Blueprint.Engine.Models;
 using Sorcha.Blueprint.Models.Credentials;
@@ -77,7 +78,12 @@ public class CredentialIssuer : ICredentialIssuer
             Claims = claims,
             IssuedAt = issuedAt,
             ExpiresAt = expiresAt,
-            RawToken = token.RawToken
+            RawToken = token.RawToken,
+            UsagePolicy = config.UsagePolicy.ToString(),
+            MaxPresentations = config.MaxPresentations,
+            DisplayConfigJson = config.DisplayConfig != null
+                ? JsonSerializer.Serialize(config.DisplayConfig)
+                : null
         };
     }
 

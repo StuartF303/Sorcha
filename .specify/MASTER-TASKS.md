@@ -146,6 +146,17 @@ All transactions MUST go through the Validator Service mempool before being seal
   - Files changed: 31 (27 modified, 4 new); 1375 insertions, 179 deletions
   - Test results: Cryptography 97/97 pass, Blueprint Service Integration 43/43 pass, Register Storage 1/1 pass
 
+- ✅ 039-VERIFIABLE-PRESENTATIONS: Verifiable Credential Lifecycle & Presentations (82 tasks, 11 phases)
+  - W3C Bitstring Status List: GZip+Base64 compressed bitstrings, public unauthenticated GET for verifiers, allocate/set-bit internal endpoints
+  - Credential lifecycle: Active→Suspended→Revoked state machine with lazy expiry detection, usage policies (SingleUse/LimitedUse/Reusable)
+  - OID4VP presentation flow: create request (nonce, TTL, credential type), match credentials, submit VP token, poll verification result
+  - QR code generation: openid4vp:// deep links for physical presentation scenarios
+  - DID resolution: pluggable registry (did:sorcha, did:web, did:key) with ActivitySource tracing
+  - Cross-blueprint credential issuance: usage policy, display config, status list allocation from CredentialIssuanceConfig
+  - Wallet credential UI: styled cards, status filter, detail dialog, presentation inbox with badge count
+  - YARP routes, structured logging, health check for status list subsystem
+  - Test count: 23 engine (bitstring+issuance), 15 UI (card+API), 22 wallet credential tests
+
 **2026-02-12:**
 - ✅ 031-VERIFIABLE-CREDENTIALS: Verifiable Credentials & eIDAS-Aligned Attestation System (89 tasks, 8 phases)
   - SD-JWT VC format (eIDAS 2.0 / ARF): create, sign, verify, selective disclosure via SdJwtService

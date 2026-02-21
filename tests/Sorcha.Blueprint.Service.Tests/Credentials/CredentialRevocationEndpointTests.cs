@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Logging;
 using Sorcha.Blueprint.Service.Endpoints;
+using Sorcha.Blueprint.Service.Services;
 using Sorcha.ServiceClients.Wallet;
 
 namespace Sorcha.Blueprint.Service.Tests.Credentials;
@@ -12,6 +13,7 @@ namespace Sorcha.Blueprint.Service.Tests.Credentials;
 public class CredentialRevocationEndpointTests
 {
     private readonly Mock<IWalletServiceClient> _walletClientMock = new();
+    private readonly Mock<IStatusListManager> _statusListManagerMock = new();
     private readonly Mock<ILoggerFactory> _loggerFactoryMock = new();
 
     public CredentialRevocationEndpointTests()
@@ -179,6 +181,7 @@ public class CredentialRevocationEndpointTests
             credentialId,
             request,
             _walletClientMock.Object,
+            _statusListManagerMock.Object,
             _loggerFactoryMock.Object,
             CancellationToken.None
         ]);

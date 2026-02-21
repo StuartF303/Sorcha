@@ -60,4 +60,25 @@ public class CredentialIssuanceConfig
     [JsonPropertyName("disclosable")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IEnumerable<string>? Disclosable { get; set; }
+
+    /// <summary>
+    /// Defines how many times the credential may be presented. Default: Reusable (unlimited).
+    /// </summary>
+    [JsonPropertyName("usagePolicy")]
+    public UsagePolicy UsagePolicy { get; set; } = UsagePolicy.Reusable;
+
+    /// <summary>
+    /// Maximum number of presentations for LimitedUse credentials.
+    /// Must be > 0 when UsagePolicy is LimitedUse; null otherwise.
+    /// </summary>
+    [JsonPropertyName("maxPresentations")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? MaxPresentations { get; set; }
+
+    /// <summary>
+    /// Issuer-defined visual template for how the credential appears in wallets.
+    /// </summary>
+    [JsonPropertyName("displayConfig")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CredentialDisplayConfig? DisplayConfig { get; set; }
 }

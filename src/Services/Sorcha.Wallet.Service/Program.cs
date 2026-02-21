@@ -5,6 +5,8 @@ using Scalar.AspNetCore;
 using Sorcha.Wallet.Service.Extensions;
 using Sorcha.Wallet.Service.Endpoints;
 using Sorcha.Wallet.Service.GrpcServices;
+using Sorcha.Wallet.Service.Services;
+using Sorcha.ServiceClients.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +24,12 @@ builder.AddInputValidation();
 
 // Add Wallet Service infrastructure and domain services
 builder.Services.AddWalletService(builder.Configuration);
+
+// Add DID resolvers for credential verification
+builder.Services.AddDidResolvers();
+
+// Add presentation request service (OID4VP)
+builder.Services.AddSingleton<IPresentationRequestService, PresentationRequestService>();
 
 // Add gRPC services for inter-service communication (Validator, Peer, etc.)
 builder.Services.AddGrpc();
@@ -280,6 +288,7 @@ app.MapGrpcService<WalletGrpcService>();
 app.MapWalletEndpoints();
 app.MapDelegationEndpoints();
 app.MapCredentialEndpoints();
+app.MapPresentationEndpoints();
 
 app.Run();
 

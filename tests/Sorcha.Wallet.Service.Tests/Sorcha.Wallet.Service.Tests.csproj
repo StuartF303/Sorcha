@@ -14,12 +14,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Common\Sorcha.Wallet.Core\Sorcha.Wallet.Core.csproj" />
+    <ProjectReference Include="..\..\src\Common\Sorcha.ServiceClients\Sorcha.ServiceClients.csproj" />
     <ProjectReference Include="..\..\src\Services\Sorcha.Wallet.Service\Sorcha.Wallet.Service.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Explicit reference to resolve assembly version conflict MSB3277 -->
+    <!-- Explicit references to resolve assembly version conflict MSB3277 -->
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.2" />
+    <PackageReference Include="Google.Protobuf" Version="3.33.4" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
     <PackageReference Include="Azure.Identity" Version="1.17.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />

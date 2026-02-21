@@ -90,6 +90,19 @@ For detailed implementation status, see the individual section files:
 ## Recent Completions
 
 ### 2026-02-21
+- **039-Verifiable-Presentations** (82 tasks, 11 phases — verifiable credential lifecycle & presentations)
+  - W3C Bitstring Status List: GZip+Base64 compressed bitstrings, MSB-first bit ordering, public GET endpoint for verifiers
+  - Credential lifecycle state machine: Active/Suspended/Revoked/Expired/Consumed with valid transition enforcement
+  - OID4VP presentation flow: request creation, credential matching, selective claim disclosure, verification result polling
+  - QR code presentation: openid4vp:// deep link generation for physical credential presentation
+  - DID resolution registry: pluggable resolvers (did:sorcha, did:web, did:key) with ActivitySource tracing
+  - Cross-blueprint credential issuance: usage policy (SingleUse/LimitedUse/Reusable), display config, status list allocation
+  - Credential wallet UI: card list with issuer-styled cards, status filter, search, detail dialog, export
+  - Presentation inbox UI: tabbed interface with badge count, credential selection, claim disclosure checkboxes
+  - YARP routes for presentation endpoints → wallet-cluster
+  - Structured logging and ActivitySource tracing for credential and DID operations
+  - Test results: Engine 323+ pass, Wallet Service 251+ pass, Blueprint Service 300+ pass, UI Core 517+ pass
+
 - **038-Content-Type-Payload** (69 tasks, 9 phases — content-type aware payload encoding)
   - Added `ContentType` and `ContentEncoding` metadata fields to `PayloadModel` and `PayloadInfo`
   - Created `PayloadEncodingService`: centralized Base64url/identity/Brotli/Gzip encode/decode with configurable compression threshold (4KB default)

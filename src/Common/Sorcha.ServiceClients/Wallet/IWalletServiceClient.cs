@@ -301,6 +301,21 @@ public class CredentialIssuanceResult
     /// The complete SD-JWT VC token
     /// </summary>
     public required string RawToken { get; init; }
+
+    /// <summary>
+    /// Current credential status (Active, Suspended, Revoked, Expired, Consumed).
+    /// </summary>
+    public string Status { get; init; } = "Active";
+
+    /// <summary>
+    /// URL of the Bitstring Status List containing this credential's revocation/suspension status.
+    /// </summary>
+    public string? StatusListUrl { get; init; }
+
+    /// <summary>
+    /// Index position in the Bitstring Status List.
+    /// </summary>
+    public int? StatusListIndex { get; init; }
 }
 
 /// <summary>

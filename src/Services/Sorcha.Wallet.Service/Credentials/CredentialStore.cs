@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Sorcha Contributors
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Sorcha.Wallet.Core.Data;
 using Sorcha.Wallet.Core.Domain.Entities;
 
@@ -12,28 +13,47 @@ namespace Sorcha.Wallet.Service.Credentials;
 /// </summary>
 public class CredentialStore : ICredentialStore
 {
-    private readonly WalletDbContext _db;
+    private static readonly Dictionary<string, HashSet<string>> ValidTransitions = new()
+    {
+        ["Active"] = new() { "Suspended", "Revoked", "Consumed" },
+        ["Suspended"] = new() { "Active", "Revoked" },
+    };
 
-    public CredentialStore(WalletDbContext db)
+    private readonly WalletDbContext _db;
+    private readonly ILogger<CredentialStore> _logger;
+
+    public CredentialStore(WalletDbContext db, ILogger<CredentialStore> logger)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<CredentialEntity>> GetByWalletAsync(
         string walletAddress, CancellationToken ct = default)
     {
-        return await _db.Credentials
-            .Where(c => c.WalletAddress == walletAddress && c.Status == "Active")
+        var credentials = await _db.Credentials
+            .Where(c => c.WalletAddress == walletAddress)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(ct);
+
+        await ExpireStaleCredentialsAsync(credentials, ct);
+
+        return credentials;
     }
 
     /// <inheritdoc />
     public async Task<CredentialEntity?> GetByIdAsync(string credentialId, CancellationToken ct = default)
     {
-        return await _db.Credentials
+        var credential = await _db.Credentials
             .FirstOrDefaultAsync(c => c.Id == credentialId, ct);
+
+        if (credential != null)
+        {
+            await ExpireStaleCredentialsAsync([credential], ct);
+        }
+
+        return credential;
     }
 
     /// <inheritdoc />
@@ -47,10 +67,14 @@ public class CredentialStore : ICredentialStore
         if (existing != null)
         {
             _db.Entry(existing).CurrentValues.SetValues(credential);
+            _logger.LogInformation("Credential updated: {CredentialId} Type={Type} Wallet={Wallet}",
+                credential.Id, credential.Type, credential.WalletAddress);
         }
         else
         {
             _db.Credentials.Add(credential);
+            _logger.LogInformation("Credential stored: {CredentialId} Type={Type} Issuer={Issuer} Wallet={Wallet}",
+                credential.Id, credential.Type, credential.IssuerDid, credential.WalletAddress);
         }
 
         await _db.SaveChangesAsync(ct);
@@ -79,8 +103,19 @@ public class CredentialStore : ICredentialStore
         if (credential == null)
             return false;
 
+        if (!IsValidTransition(credential.Status, status))
+        {
+            _logger.LogWarning("Invalid status transition for {CredentialId}: {CurrentStatus} -> {TargetStatus}",
+                credentialId, credential.Status, status);
+            return false;
+        }
+
+        var previousStatus = credential.Status;
         credential.Status = status;
         await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Credential status changed: {CredentialId} {PreviousStatus} -> {NewStatus}",
+            credentialId, previousStatus, status);
         return true;
     }
 
@@ -112,5 +147,78 @@ public class CredentialStore : ICredentialStore
         return await query
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> RecordPresentationAsync(string credentialId, CancellationToken ct = default)
+    {
+        var credential = await _db.Credentials
+            .FirstOrDefaultAsync(c => c.Id == credentialId, ct);
+
+        if (credential == null || credential.Status != "Active")
+            return false;
+
+        credential.PresentationCount++;
+
+        bool consumed = credential.UsagePolicy switch
+        {
+            "SingleUse" => true,
+            "LimitedUse" => credential.MaxPresentations.HasValue
+                            && credential.PresentationCount >= credential.MaxPresentations.Value,
+            _ => false,
+        };
+
+        if (consumed)
+        {
+            credential.Status = "Consumed";
+            _logger.LogInformation("Credential consumed after presentation: {CredentialId} Policy={UsagePolicy} Count={Count}",
+                credentialId, credential.UsagePolicy, credential.PresentationCount);
+        }
+        else
+        {
+            _logger.LogInformation("Credential presented: {CredentialId} Count={Count}/{Max}",
+                credentialId, credential.PresentationCount,
+                credential.MaxPresentations?.ToString() ?? "unlimited");
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return consumed;
+    }
+
+    private static bool IsValidTransition(string currentStatus, string targetStatus)
+    {
+        if (ValidTransitions.TryGetValue(currentStatus, out var allowed))
+        {
+            return allowed.Contains(targetStatus);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Detects credentials that are Active but past their expiry date,
+    /// and lazily transitions them to Expired.
+    /// </summary>
+    private async Task ExpireStaleCredentialsAsync(
+        IReadOnlyList<CredentialEntity> credentials, CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+        bool changed = false;
+
+        foreach (var credential in credentials)
+        {
+            if (credential.Status == "Active"
+                && credential.ExpiresAt.HasValue
+                && credential.ExpiresAt.Value < now)
+            {
+                credential.Status = "Expired";
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            await _db.SaveChangesAsync(ct);
+        }
     }
 }

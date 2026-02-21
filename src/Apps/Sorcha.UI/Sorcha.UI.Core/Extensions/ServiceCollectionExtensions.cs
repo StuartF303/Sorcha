@@ -12,6 +12,7 @@ using Sorcha.UI.Core.Services.Http;
 using Sorcha.UI.Core.Services.Navigation;
 using Sorcha.UI.Core.Services.Participants;
 using Sorcha.UI.Core.Services.Forms;
+using Sorcha.UI.Core.Services.Credentials;
 using Sorcha.UI.Core.Services.Wallet;
 
 namespace Sorcha.UI.Core.Extensions;
@@ -212,6 +213,23 @@ public static class ServiceCollectionExtensions
             var logger = sp.GetRequiredService<ILogger<SchemaLibraryApiService>>();
             return new SchemaLibraryApiService(httpClient, logger);
         });
+
+        // Credential API Service with authenticated HttpClient
+        services.AddScoped<ICredentialApiService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            return new CredentialApiService(httpClient);
+        });
+
+        // QR Presentation Service (no HTTP needed — generates locally)
+        services.AddScoped<IQrPresentationService, QrPresentationService>();
 
         // Admin Services
         services.AddAdminServices(baseAddress);

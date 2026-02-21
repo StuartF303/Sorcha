@@ -72,4 +72,34 @@ public class CredentialEntity
     /// When the credential was stored in this wallet.
     /// </summary>
     public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>
+    /// Usage policy: Reusable, SingleUse, or LimitedUse.
+    /// </summary>
+    public string UsagePolicy { get; set; } = "Reusable";
+
+    /// <summary>
+    /// Maximum presentations allowed (only for LimitedUse policy).
+    /// </summary>
+    public int? MaxPresentations { get; set; }
+
+    /// <summary>
+    /// Number of times the credential has been successfully presented.
+    /// </summary>
+    public int PresentationCount { get; set; }
+
+    /// <summary>
+    /// URL of the issuer's Bitstring Status List endpoint.
+    /// </summary>
+    public string? StatusListUrl { get; set; }
+
+    /// <summary>
+    /// Index position in the issuer's status list bitstring.
+    /// </summary>
+    public int? StatusListIndex { get; set; }
+
+    /// <summary>
+    /// Serialized CredentialDisplayConfig JSON for wallet rendering.
+    /// </summary>
+    public string? DisplayConfigJson { get; set; }
 }
