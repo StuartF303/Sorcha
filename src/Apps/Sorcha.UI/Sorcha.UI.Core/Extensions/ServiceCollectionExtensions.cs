@@ -94,6 +94,20 @@ public static class ServiceCollectionExtensions
             return new ParticipantApiService(httpClient);
         });
 
+        // Participant Publishing Service with authenticated HttpClient
+        services.AddScoped<IParticipantPublishingService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+
+            var httpClient = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(baseAddress)
+            };
+
+            return new ParticipantPublishingService(httpClient);
+        });
+
         // Dashboard Service
         services.AddScoped<IDashboardService>(sp =>
         {

@@ -1,0 +1,214 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using MudBlazor.Utilities
+@using Sorcha.UI.Core.Models.Admin
+@using Sorcha.UI.Core.Services
+
+@inject IOrganizationAdminService OrganizationService
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="4" Class="mt-2">
+    @* Security Policies *@
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudText Typo="Typo.h6" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Security" Class="mr-2" />
+            Security Policies
+        </MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+            These settings are not yet enforced by the backend. Coming soon.
+        </MudText>
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="4">
+                <MudSwitch T="bool" @bind-Value="_config.SecurityPolicies.Enforce2Fa"
+                           Label="Enforce Two-Factor Authentication"
+                           Color="Color.Primary" Disabled="IsReadOnly" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudNumericField T="int" @bind-Value="_config.SecurityPolicies.MinPasswordLength"
+                                 Label="Minimum Password Length"
+                                 Min="6" Max="128"
+                                 Variant="Variant.Outlined"
+                                 Disabled="IsReadOnly" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudNumericField T="int" @bind-Value="_config.SecurityPolicies.SessionTimeoutMinutes"
+                                 Label="Session Timeout (minutes)"
+                                 Min="5" Max="1440"
+                                 Variant="Variant.Outlined"
+                                 Disabled="IsReadOnly" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* External Identity Providers *@
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.VpnKey" Class="mr-2" />
+                External Identity Providers
+            </MudText>
+            <MudTooltip Text="Coming soon — OIDC and SAML provider integration">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add" Disabled="true">
+                    Add Provider
+                </MudButton>
+            </MudTooltip>
+        </MudStack>
+
+        @if (_config.ExternalProviders.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true">
+                No external identity providers configured. OIDC and SAML integration is coming soon.
+            </MudAlert>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Protocol</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var provider in _config.ExternalProviders)
+                    {
+                        <tr>
+                            <td>@provider.Name</td>
+                            <td>@provider.Protocol</td>
+                            <td>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success">@provider.Status</MudChip>
+                            </td>
+                            <td>
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Disabled="true" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Disabled="true" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+    </MudPaper>
+
+    @* Branding *@
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudText Typo="Typo.h6" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Palette" Class="mr-2" />
+            Branding
+        </MudText>
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="6">
+                <MudTextField T="string" @bind-Value="_config.Branding.LogoUrl"
+                              Label="Logo URL" Variant="Variant.Outlined"
+                              HelperText="URL to your organization logo"
+                              Disabled="IsReadOnly" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField T="string" @bind-Value="_config.Branding.CompanyTagline"
+                              Label="Tagline" Variant="Variant.Outlined"
+                              HelperText="Short company tagline"
+                              Disabled="IsReadOnly" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudColorPicker @bind-Value="_primaryColor"
+                                Label="Primary Color" Variant="Variant.Outlined"
+                                ShowAlpha="false"
+                                Disabled="IsReadOnly" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudColorPicker @bind-Value="_secondaryColor"
+                                Label="Secondary Color" Variant="Variant.Outlined"
+                                ShowAlpha="false"
+                                Disabled="IsReadOnly" />
+            </MudItem>
+        </MudGrid>
+
+        @if (!IsReadOnly)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"
+                       OnClick="SaveBrandingAsync" Disabled="_saving">
+                @if (_saving)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                }
+                Save Branding
+            </MudButton>
+        }
+    </MudPaper>
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired]
+    public OrganizationDto Organization { get; set; } = default!;
+
+    [Parameter]
+    public bool IsReadOnly { get; set; }
+
+    private OrganizationConfigurationViewModel _config = new();
+    private MudColor _primaryColor = new("#594AE2");
+    private MudColor _secondaryColor = new("#424242");
+    private bool _saving;
+
+    protected override void OnParametersSet()
+    {
+        // Initialize from existing organization branding
+        if (Organization.Branding != null)
+        {
+            _config.Branding = new BrandingConfigViewModel
+            {
+                LogoUrl = Organization.Branding.LogoUrl,
+                PrimaryColor = Organization.Branding.PrimaryColor,
+                SecondaryColor = Organization.Branding.SecondaryColor,
+                CompanyTagline = Organization.Branding.CompanyTagline
+            };
+
+            if (!string.IsNullOrEmpty(Organization.Branding.PrimaryColor))
+            {
+                _primaryColor = new MudColor(Organization.Branding.PrimaryColor);
+            }
+            if (!string.IsNullOrEmpty(Organization.Branding.SecondaryColor))
+            {
+                _secondaryColor = new MudColor(Organization.Branding.SecondaryColor);
+            }
+        }
+    }
+
+    private async Task SaveBrandingAsync()
+    {
+        _saving = true;
+        try
+        {
+            var request = new UpdateOrganizationDto
+            {
+                Branding = new BrandingDto
+                {
+                    LogoUrl = _config.Branding.LogoUrl,
+                    PrimaryColor = _primaryColor.Value,
+                    SecondaryColor = _secondaryColor.Value,
+                    CompanyTagline = _config.Branding.CompanyTagline
+                }
+            };
+
+            var result = await OrganizationService.UpdateOrganizationAsync(Organization.Id, request);
+            if (result != null)
+            {
+                Snackbar.Add("Branding saved successfully", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Failed to save branding", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving branding: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

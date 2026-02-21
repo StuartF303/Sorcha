@@ -80,6 +80,12 @@ public record TransactionViewModel
     public uint? ActionId { get; init; }
 
     /// <summary>
+    /// Transaction type from metadata enum (if present).
+    /// Maps to TransactionType enum: 0=Control, 1=Action, 2=Docket, 3=Participant
+    /// </summary>
+    public int? MetadataTransactionType { get; init; }
+
+    /// <summary>
     /// Computed: Formatted timestamp (relative or absolute)
     /// </summary>
     public string TimeStampFormatted => GetFormattedTime(TimeStamp);
@@ -90,13 +96,20 @@ public record TransactionViewModel
     public bool IsRecent => (DateTime.UtcNow - TimeStamp).TotalSeconds < 5;
 
     /// <summary>
-    /// Computed: Transaction type derived from metadata or default
+    /// Computed: Transaction type derived from metadata enum or heuristic fallback
     /// </summary>
-    public string TransactionType => ActionId.HasValue
-        ? "Action"
-        : !string.IsNullOrEmpty(BlueprintId)
-            ? "Blueprint"
-            : "Transfer";
+    public string TransactionType => MetadataTransactionType switch
+    {
+        0 => "Control",
+        1 => "Action",
+        2 => "Docket",
+        3 => "Participant",
+        _ => ActionId.HasValue
+            ? "Action"
+            : !string.IsNullOrEmpty(BlueprintId)
+                ? "Blueprint"
+                : "Transfer"
+    };
 
     /// <summary>
     /// Computed: Truncated TxId for compact display (first 8 chars + ellipsis)

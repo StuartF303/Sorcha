@@ -1,0 +1,248 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
+@using Sorcha.UI.Core.Models.Admin
+@using Sorcha.UI.Core.Models.Participants
+@using Sorcha.UI.Core.Services
+@using Sorcha.UI.Core.Services.Participants
+
+@inject IOrganizationAdminService OrganizationService
+@inject IParticipantApiService ParticipantService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="4">
+    @if (IsSystemAdmin)
+    {
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="@(() => OnBack.InvokeAsync())"
+                           aria-label="Back to organizations" />
+            <MudText Typo="Typo.h5">
+                <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" />
+                @Organization.Name
+            </MudText>
+            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(Organization.Status)">
+                @Organization.Status
+            </MudChip>
+        </MudStack>
+    }
+    else
+    {
+        <MudText Typo="Typo.h5">
+            <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" />
+            @Organization.Name
+        </MudText>
+    }
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+        <MudTabPanel Text="Overview" Icon="@Icons.Material.Filled.Dashboard">
+            <MudGrid Spacing="3" Class="mt-2">
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudStack Spacing="1">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Total Users</MudText>
+                            <MudText Typo="Typo.h4">@_stats.UserCount</MudText>
+                            <MudText Typo="Typo.caption">@_stats.ActiveUserCount active</MudText>
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudStack Spacing="1">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Participants</MudText>
+                            <MudText Typo="Typo.h4">@_stats.ParticipantCount</MudText>
+                            <MudText Typo="Typo.caption">@_stats.ActiveParticipantCount active</MudText>
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudStack Spacing="1">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Published</MudText>
+                            <MudText Typo="Typo.h4">@_stats.PublishedParticipantCount</MudText>
+                            <MudText Typo="Typo.caption">on registers</MudText>
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudStack Spacing="1">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Status</MudText>
+                            <MudText Typo="Typo.h4" Color="@GetStatusColor(Organization.Status)">@Organization.Status</MudText>
+                            <MudText Typo="Typo.caption">since @Organization.CreatedAt.ToString("MMM yyyy")</MudText>
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+
+            @if (Organization.Branding != null)
+            {
+                <MudPaper Class="pa-4 mt-4" Elevation="1">
+                    <MudText Typo="Typo.h6" Class="mb-2">Branding</MudText>
+                    <MudGrid Spacing="2">
+                        @if (!string.IsNullOrEmpty(Organization.Branding.CompanyTagline))
+                        {
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Tagline</MudText>
+                                <MudText>@Organization.Branding.CompanyTagline</MudText>
+                            </MudItem>
+                        }
+                        @if (!string.IsNullOrEmpty(Organization.Branding.PrimaryColor))
+                        {
+                            <MudItem xs="6" md="3">
+                                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Primary Color</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <div style="width:20px;height:20px;border-radius:4px;background:@Organization.Branding.PrimaryColor"></div>
+                                    <MudText>@Organization.Branding.PrimaryColor</MudText>
+                                </MudStack>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudPaper>
+            }
+        </MudTabPanel>
+
+        <MudTabPanel Text="Users" Icon="@Icons.Material.Filled.People">
+            <UserList Organization="Organization"
+                      IsReadOnly="!IsSystemAdmin"
+                      CurrentUserId="CurrentUserId"
+                      OnBackToOrganizations="@(() => {})" />
+        </MudTabPanel>
+
+        <MudTabPanel Text="Participants" Icon="@Icons.Material.Filled.Badge">
+            <Sorcha.UI.Core.Components.Participants.ParticipantList @ref="_participantList"
+                             OrganizationId="Organization.Id"
+                             ShowCreateButton="IsSystemAdmin"
+                             OnViewClick="NavigateToParticipant"
+                             OnEditClick="ShowEditParticipantDialog"
+                             OnPublishClick="ShowPublishDialog" />
+        </MudTabPanel>
+
+        <MudTabPanel Text="Published" Icon="@Icons.Material.Filled.PublishedWithChanges">
+            <PublishedParticipantsList OrganizationId="Organization.Id" />
+        </MudTabPanel>
+
+        <MudTabPanel Text="Configuration" Icon="@Icons.Material.Filled.Settings">
+            <OrganizationConfiguration Organization="Organization"
+                                       IsReadOnly="!IsSystemAdmin" />
+        </MudTabPanel>
+    </MudTabs>
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired]
+    public OrganizationDto Organization { get; set; } = default!;
+
+    [Parameter]
+    public bool IsSystemAdmin { get; set; }
+
+    [Parameter]
+    public Guid? CurrentUserId { get; set; }
+
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private Sorcha.UI.Core.Components.Participants.ParticipantList? _participantList;
+    private OrganizationDashboardViewModel _stats = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadStatsAsync();
+    }
+
+    private async Task LoadStatsAsync()
+    {
+        try
+        {
+            var usersTask = OrganizationService.GetOrganizationUsersAsync(Organization.Id);
+            var participantsTask = ParticipantService.ListParticipantsAsync(Organization.Id, pageSize: 1);
+
+            await Task.WhenAll(usersTask, participantsTask);
+
+            var users = usersTask.Result;
+            var participants = participantsTask.Result;
+
+            _stats = new OrganizationDashboardViewModel
+            {
+                UserCount = users.TotalCount,
+                ActiveUserCount = users.Users.Count(u => u.Status == "Active"),
+                ParticipantCount = participants.TotalCount,
+                ActiveParticipantCount = participants.TotalCount, // Approximation from list query
+                PublishedParticipantCount = 0 // Loaded by PublishedParticipantsList tab
+            };
+        }
+        catch
+        {
+            _stats = new OrganizationDashboardViewModel();
+        }
+    }
+
+    private void NavigateToParticipant(ParticipantListItemViewModel participant)
+    {
+        Navigation.NavigateTo($"/participants/{participant.OrganizationId}/{participant.Id}");
+    }
+
+    private async Task ShowEditParticipantDialog(ParticipantListItemViewModel participant)
+    {
+        var detail = await ParticipantService.GetParticipantAsync(Organization.Id, participant.Id);
+        if (detail == null) return;
+
+        var parameters = new DialogParameters
+        {
+            { "OrganizationId", Organization.Id },
+            { "ParticipantId", participant.Id },
+            { "ExistingParticipant", detail }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<Sorcha.UI.Core.Components.Participants.ParticipantForm>(
+            "Edit Participant", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled && _participantList != null)
+        {
+            await _participantList.RefreshAsync();
+        }
+    }
+
+    private async Task ShowPublishDialog(ParticipantListItemViewModel participant)
+    {
+        var detail = await ParticipantService.GetParticipantAsync(Organization.Id, participant.Id);
+        if (detail == null)
+        {
+            Snackbar.Add("Could not load participant details", Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters<Sorcha.UI.Core.Components.Participants.PublishParticipantDialog>
+        {
+            { x => x.OrganizationId, Organization.Id },
+            { x => x.ParticipantId, participant.Id },
+            { x => x.Participant, detail },
+            { x => x.Organization, Organization }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<Sorcha.UI.Core.Components.Participants.PublishParticipantDialog>(
+            "Publish Participant to Register", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled)
+        {
+            Snackbar.Add("Participant published to register", Severity.Success);
+            await LoadStatsAsync();
+            StateHasChanged();
+        }
+    }
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "Active" => Color.Success,
+        "Suspended" => Color.Warning,
+        "Inactive" => Color.Default,
+        _ => Color.Default
+    };
+}

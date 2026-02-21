@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 5.7 - UPDATED
-**Last Updated:** 2026-02-20
-**Status:** Active - Published Participant Records on Register
+**Version:** 5.8 - UPDATED
+**Last Updated:** 2026-02-21
+**Status:** Active - Transaction Architecture Research Items Added
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -11,10 +11,10 @@
 
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
-**Total Tasks:** 271 (across all phases, including production readiness, blueprint validation, validator service, orchestration, and CLI)
-**Completed:** 149 (55%)
+**Total Tasks:** 294 (across all phases, including production readiness, blueprint validation, validator service, orchestration, CLI, and research)
+**Completed:** 149 (51%)
 **In Progress:** 0 (0%)
-**Not Started:** 122 (45%)
+**Not Started:** 145 (49%)
 
 ---
 
@@ -43,6 +43,9 @@ All transactions MUST go through the Validator Service mempool before being seal
 
 | Date | Summary |
 |------|---------|
+| 2026-02-21 | **Organization Admin UI Upgrades** — 4 phases: (1) Fixed transaction type display — `TransactionViewModel.TransactionType` now uses `MetadataTransactionType` enum (0=Control, 1=Action, 2=Docket, 3=Participant) instead of falling through to "Transfer" for Participant TXs. Updated chip colors in TransactionRow/TransactionDetail. (2) Restructured `/admin/organizations` from flat list→user-list into tabbed `OrganizationDashboard` with Overview, Users, Participants, Published, Configuration tabs. Dual auth: system admins see org list, org admins auto-load their org via `org_id` claim. (3) Added `OrganizationConfiguration` tab with security policy stubs, external IdP placeholder, and branding editor (saves via existing API). (4) Full participant publishing UI: `IParticipantPublishingService` (publish/update/revoke via Tenant Service API), 3-step `PublishParticipantDialog` wizard (select register → review addresses → confirm+sign), "Publish" button on ParticipantList and ParticipantDetail, `PublishedParticipantsList` tab querying Register Service. Tests: 16 new (11 TransactionViewModel, 5 PublishingService). |
+| 2026-02-21 | **Transaction Architecture Critical Review** — 10 research items (TRUST-1 to TRUST-10) added to [deferred-tasks.md](tasks/deferred-tasks.md). Critical analysis of transaction core: how transactions are built, signed, validated, sealed into dockets, and disclosed. Identified structural trust gaps: (1) Validator doesn't re-execute calculations — accepts whatever Blueprint Engine submits (TRUST-1). (2) Disclosure rules enforced at app layer, not cryptographically verified by Validator (TRUST-2). (3) No signed transaction receipts proving finality (TRUST-3). (4) Merkle inclusion proofs not generateable for lightweight offline verification (TRUST-4). (5) No first-class revocation/amendment transaction type (TRUST-5). (6) Consensus has no deterministic finality — simple >51% quorum (TRUST-6). (7) No cross-register cryptographic references (TRUST-7). (8) Transaction lifecycle audit trail discarded on persistence (TRUST-8). (9) Timestamps self-asserted, no authority (TRUST-9). (10) No key rotation/re-encryption for compromised keys (TRUST-10). Tier 1 priority: TRUST-1,2,3,4 (closes active trust gaps without architectural upheaval). |
+| 2026-02-21 | **Medical Equipment Refurb Walkthrough** — All 3 scenarios PASS (12/12 steps, 266s). Scenario A: routine refurb (4 actions, riskCategory=routine, cost=2000, VC issued). Scenario B: safety-critical (5 actions, riskCategory=safety-critical, cost=7000, regulatory review, VC issued). Scenario C: rejection (3 actions, BER at quote stage). First walkthrough exercising participant publishing (spec 001), multi-org (3 orgs, 4 participants), conditional routing, calculations, rejection paths, and Refurbishment Certificate VC issuance. |
 | 2026-02-20 | **001-Participant-Records** (50 tasks, 8 phases): Added `TransactionType.Participant = 3` for publishing participant identity records as transactions on a register. Phase 1: Shared models (ParticipantRecord, ParticipantRecordStatus, participant-record-v1.json schema). Phase 2: Validator accepts Participant TXs with lighter rules (schema validation, no governance check, no blueprint conformance). Phase 3: Tenant Service publishes participant records (deterministic TxId, canonical JSON, wallet signing, validator pipeline). Phase 4: Register Service indexes addresses in-memory (ConcurrentDictionary), query endpoints (list, by-address, by-id), service client methods. Phase 5-6: Update and revoke via new version publishing with PrevTxId chaining. Phase 7: Public key resolution with 410 Gone for revoked. Phase 8: MongoDB index on TransactionType, optional Redis cache write-through, wallet address uniqueness check (409 Conflict), documentation. Tests: 64 new tests (20 index, 12 service client, 32 publishing). |
 | 2026-02-19 | **New Submission Flow Bugfixes** — Five bugs fixed in the end-to-end New Submission workflow: (1) **Form not rendering** — `Action.Form` defaults to non-null empty Layout in `Action.cs`; `Action.Form ?? AutoGenerateForm()` always took left side. Fix: check `Elements is { Count: > 0 }` before using explicit form. (2) **Empty instance ID** — API returns `"id"` but `WorkflowInstanceViewModel.InstanceId` had no `[JsonPropertyName]`. Fix: added `[JsonPropertyName("id")]`. (3) **State deserialization crash** — `state` field is numeric enum (0=Active), mapped to string `Status` via `[JsonPropertyName("state")]` caused `JsonException`. Fix: removed mapping, let `Status` default to `"active"`. (4) **403 Forbidden on execute** — `ValidateWalletOwnershipAsync` hard-failed when Participant Service returned 404 (no profile). Fix: graceful degradation — log warning and allow through when participant system is unavailable/unconfigured. (5) **Response deserialization crash** — `NextActionInfo.ActionId` was `string` but server returns `int`; property names mismatched. Fix: aligned `NextActionInfo` to match `NextActionResponse` (int ActionId, ActionTitle, ParticipantId). E2E test added: `NewSubmissionFormTests.cs` (4 Playwright tests). |
 | 2026-02-19 | **Genesis TX Signature Fix** — Genesis docket now contains 1 transaction (was 0). Root cause: `RegisterCreationOrchestrator` included attestation signatures in `TransactionSubmission.Signatures`, but the Validator verifies all transaction-level signatures against `SHA256("{TxId}:{PayloadHash}")` — attestation sigs were signed against different data (SHA256 of canonical attestation JSON). Fix: only include system wallet signature at transaction level; attestation sigs remain embedded in the control record payload where they were already verified during `FinalizeAsync`. Also replaced hardcoded `"genesis"` with `GenesisConstants.BlueprintId`. Full register creation walkthrough passes: auth → wallet → initiate → sign attestations → finalize → genesis TX → validator accepts → docket with 1 TX → register height 1. |
@@ -519,8 +522,8 @@ All transactions MUST go through the Validator Service mempool before being seal
 | **Phase 4: Enhancements** | 25 | 0 | 0 | 25 | 0% | [View Tasks](tasks/phase4-enhancements.md) |
 | **Production Readiness** | 10 | 7 | 0 | 3 | **70%** | [View Tasks](tasks/production-readiness.md) |
 | **CLI Admin Tool** | 60 | 0 | 0 | 60 | 0% | [View Tasks](tasks/cli-admin-tool.md) |
-| **Deferred** | 33 | 0 | 0 | 33 | 0% | [View Tasks](tasks/deferred-tasks.md) |
-| **TOTAL** | **284** | **122** | **0** | **162** | **43%** | |
+| **Deferred** | 43 | 0 | 0 | 43 | 0% | [View Tasks](tasks/deferred-tasks.md) |
+| **TOTAL** | **294** | **122** | **0** | **172** | **41%** | |
 
 ### By Priority
 

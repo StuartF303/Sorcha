@@ -105,6 +105,40 @@ public class TransactionRowTests
     }
 
     [Fact]
+    public void TransactionViewModel_TransactionType_ReturnsParticipant_WhenMetadataTypeIs3()
+    {
+        // Arrange
+        var tx = new TransactionViewModel
+        {
+            TxId = "tx123456789012345678901234567890123456789012345678901234567890123",
+            RegisterId = "reg123",
+            SenderWallet = "addr123",
+            Signature = "sig123",
+            MetadataTransactionType = 3
+        };
+
+        // Assert
+        tx.TransactionType.Should().Be("Participant");
+    }
+
+    [Fact]
+    public void TransactionViewModel_TransactionType_ReturnsControl_WhenMetadataTypeIs0()
+    {
+        // Arrange
+        var tx = new TransactionViewModel
+        {
+            TxId = "tx123456789012345678901234567890123456789012345678901234567890123",
+            RegisterId = "reg123",
+            SenderWallet = "addr123",
+            Signature = "sig123",
+            MetadataTransactionType = 0
+        };
+
+        // Assert
+        tx.TransactionType.Should().Be("Control");
+    }
+
+    [Fact]
     public void TransactionViewModel_IsRecent_ReturnsTrueForRecentTransaction()
     {
         // Arrange - Create a transaction that just happened

@@ -107,11 +107,21 @@ else
 
             @if (ShowActions)
             {
-                <MudButton Color="Color.Primary" Variant="Variant.Outlined" Class="mt-3"
-                           OnClick="@(() => OnLinkWalletClick.InvokeAsync(_participant))">
-                    <MudIcon Icon="@Icons.Material.Filled.Link" Class="mr-2" />
-                    Link Wallet
-                </MudButton>
+                <MudStack Row="true" Spacing="2" Class="mt-3">
+                    <MudButton Color="Color.Primary" Variant="Variant.Outlined"
+                               OnClick="@(() => OnLinkWalletClick.InvokeAsync(_participant))">
+                        <MudIcon Icon="@Icons.Material.Filled.Link" Class="mr-2" />
+                        Link Wallet
+                    </MudButton>
+                    @if (_participant.LinkedWallets.Any(w => w.Status == "Active") && OnPublishClick.HasDelegate)
+                    {
+                        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                                   OnClick="@(() => OnPublishClick.InvokeAsync(_participant))">
+                            <MudIcon Icon="@Icons.Material.Filled.Publish" Class="mr-2" />
+                            Publish to Register
+                        </MudButton>
+                    }
+                </MudStack>
             }
         </MudCardContent>
     </MudCard>
@@ -126,6 +136,7 @@ else
     [Parameter] public bool ShowActions { get; set; } = true;
     [Parameter] public EventCallback<ParticipantDetailViewModel> OnEditClick { get; set; }
     [Parameter] public EventCallback<ParticipantDetailViewModel> OnLinkWalletClick { get; set; }
+    [Parameter] public EventCallback<ParticipantDetailViewModel> OnPublishClick { get; set; }
     [Parameter] public EventCallback OnParticipantChanged { get; set; }
 
     private ParticipantDetailViewModel? _participant;

@@ -3,11 +3,14 @@
 
 @page "/admin/organizations"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
-@attribute [Authorize(Roles = "Administrator")]
+@attribute [Authorize(Roles = "Administrator,OrganizationAdmin")]
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @using Sorcha.UI.Core.Components.Admin
+@using Sorcha.UI.Core.Services
+
+@inject IOrganizationAdminService OrganizationService
 
 <PageTitle>Organizations - Sorcha Platform</PageTitle>
 
@@ -23,14 +26,27 @@
 
     @if (_selectedOrganization != null)
     {
-        <UserList Organization="_selectedOrganization"
-                  IsReadOnly="!_isAdmin"
-                  CurrentUserId="_currentUserId"
-                  OnBackToOrganizations="OnBackToOrganizations" />
+        <OrganizationDashboard Organization="_selectedOrganization"
+                               IsSystemAdmin="_isSystemAdmin"
+                               CurrentUserId="_currentUserId"
+                               OnBack="OnBackToOrganizations" />
+    }
+    else if (_isSystemAdmin)
+    {
+        <OrganizationList OnOrganizationSelected="OnOrganizationSelected" />
     }
     else
     {
-        <OrganizationList OnOrganizationSelected="OnOrganizationSelected" />
+        @* Org admin without system admin — loading their org *@
+        @if (_loadingOrgAdmin)
+        {
+            <MudProgressCircular Indeterminate="true" />
+            <MudText Class="mt-2">Loading your organization...</MudText>
+        }
+        else if (_orgAdminError != null)
+        {
+            <MudAlert Severity="Severity.Error">@_orgAdminError</MudAlert>
+        }
     }
 </MudContainer>
 
@@ -45,17 +61,20 @@
     ];
 
     private OrganizationDto? _selectedOrganization;
-    private bool _isAdmin;
+    private bool _isSystemAdmin;
     private Guid? _currentUserId;
+    private bool _loadingOrgAdmin;
+    private string? _orgAdminError;
 
     protected override async Task OnInitializedAsync()
     {
         if (AuthenticationState != null)
         {
             var authState = await AuthenticationState;
-            _isAdmin = authState.User.Claims
+
+            _isSystemAdmin = authState.User.Claims
                 .Any(c => c.Type == ClaimTypes.Role &&
-                     (c.Value == "Administrator" || c.Value == "OrganizationAdmin"));
+                     (c.Value == "Administrator" || c.Value == "SystemAdmin"));
 
             var userIdClaim = authState.User.Claims
                 .FirstOrDefault(c => c.Type == "sub" || c.Type == ClaimTypes.NameIdentifier);
@@ -63,6 +82,43 @@
             {
                 _currentUserId = userId;
             }
+
+            // Org admin without system admin: auto-load their organization
+            if (!_isSystemAdmin)
+            {
+                await LoadOrgAdminOrganizationAsync(authState);
+            }
+        }
+    }
+
+    private async Task LoadOrgAdminOrganizationAsync(AuthenticationState authState)
+    {
+        _loadingOrgAdmin = true;
+        try
+        {
+            var orgIdClaim = authState.User.Claims
+                .FirstOrDefault(c => c.Type == "org_id" || c.Type == "organization_id");
+
+            if (orgIdClaim != null && Guid.TryParse(orgIdClaim.Value, out var orgId))
+            {
+                _selectedOrganization = await OrganizationService.GetOrganizationAsync(orgId);
+                if (_selectedOrganization == null)
+                {
+                    _orgAdminError = "Your organization could not be found.";
+                }
+            }
+            else
+            {
+                _orgAdminError = "No organization claim found in your token. Please contact your administrator.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _orgAdminError = $"Failed to load organization: {ex.Message}";
+        }
+        finally
+        {
+            _loadingOrgAdmin = false;
         }
     }
 

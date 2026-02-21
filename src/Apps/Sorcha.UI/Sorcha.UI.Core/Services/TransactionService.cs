@@ -173,7 +173,8 @@ public class TransactionService : ITransactionService
             Version = transaction.Version,
             BlueprintId = transaction.MetaData?.BlueprintId,
             InstanceId = transaction.MetaData?.InstanceId,
-            ActionId = transaction.MetaData?.ActionId
+            ActionId = transaction.MetaData?.ActionId,
+            MetadataTransactionType = transaction.MetaData != null ? (int?)transaction.MetaData.TransactionType : null
         };
     }
 

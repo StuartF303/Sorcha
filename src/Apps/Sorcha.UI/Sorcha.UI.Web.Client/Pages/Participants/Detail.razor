@@ -4,6 +4,7 @@
 @page "/participants/{OrganizationId:guid}/{ParticipantId:guid}"
 @using Sorcha.UI.Core.Components.Participants
 @using Sorcha.UI.Core.Models.Participants
+@using Sorcha.UI.Core.Services
 @using Sorcha.UI.Core.Services.Participants
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
@@ -23,6 +24,7 @@
                        ParticipantId="ParticipantId"
                        OnEditClick="ShowEditDialog"
                        OnLinkWalletClick="ShowWalletLinkDialog"
+                       OnPublishClick="ShowPublishDialog"
                        OnParticipantChanged="OnParticipantChanged" />
 </MudContainer>
 
@@ -31,7 +33,9 @@
     [Parameter] public Guid ParticipantId { get; set; }
 
     [Inject] private IParticipantApiService ParticipantService { get; set; } = default!;
+    [Inject] private IOrganizationAdminService OrganizationService { get; set; } = default!;
     [Inject] private IDialogService DialogService { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     private ParticipantDetail? _detail;
@@ -82,6 +86,34 @@
         if (!result!.Canceled && _detail != null)
         {
             await _detail.RefreshAsync();
+        }
+    }
+
+    private async Task ShowPublishDialog(ParticipantDetailViewModel participant)
+    {
+        var org = await OrganizationService.GetOrganizationAsync(OrganizationId);
+        if (org == null)
+        {
+            Snackbar.Add("Could not load organization details", Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters<PublishParticipantDialog>
+        {
+            { x => x.OrganizationId, OrganizationId },
+            { x => x.ParticipantId, ParticipantId },
+            { x => x.Participant, participant },
+            { x => x.Organization, org }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PublishParticipantDialog>(
+            "Publish Participant to Register", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled)
+        {
+            Snackbar.Add("Participant published to register", Severity.Success);
         }
     }
 

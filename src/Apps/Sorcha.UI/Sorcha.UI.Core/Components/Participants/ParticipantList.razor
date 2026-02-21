@@ -55,6 +55,12 @@
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
                                OnClick="@(() => OnEditClick.InvokeAsync(context))" title="Edit" />
             }
+            @if (context.HasLinkedWallet && OnPublishClick.HasDelegate)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Publish" Size="Size.Small"
+                               Color="Color.Primary"
+                               OnClick="@(() => OnPublishClick.InvokeAsync(context))" title="Publish to Register" />
+            }
         </MudTd>
     </RowTemplate>
     <NoRecordsContent>
@@ -77,6 +83,7 @@
     [Parameter] public EventCallback OnCreateClick { get; set; }
     [Parameter] public EventCallback<ParticipantListItemViewModel> OnViewClick { get; set; }
     [Parameter] public EventCallback<ParticipantListItemViewModel> OnEditClick { get; set; }
+    [Parameter] public EventCallback<ParticipantListItemViewModel> OnPublishClick { get; set; }
 
     private MudTable<ParticipantListItemViewModel>? _table;
     private List<ParticipantListItemViewModel> _participants = new();
