@@ -6,6 +6,7 @@ using Microsoft.Extensions.Http;
 using Polly;
 using Polly.Extensions.Http;
 using Scalar.AspNetCore;
+using System.Buffers.Text;
 using System.Collections.Concurrent;
 using Sorcha.Blueprint.Service.Endpoints;
 using Sorcha.Blueprint.Service.Extensions;
@@ -861,8 +862,8 @@ actionsGroup.MapPost("/", async (
 
         var isSignatureValid = await walletClient.VerifySignatureAsync(
             walletInfo.PublicKey,
-            Convert.ToBase64String(transactionBytes),
-            Convert.ToBase64String(signResult.Signature),
+            Base64Url.EncodeToString(transactionBytes),
+            Base64Url.EncodeToString(signResult.Signature),
             walletInfo.Algorithm);
 
         if (!isSignatureValid)
@@ -883,12 +884,12 @@ actionsGroup.MapPost("/", async (
                 System.Text.Json.JsonSerializer.Deserialize<Sorcha.Register.Models.TransactionMetaData>(transaction.Metadata) : null,
             Payloads = encryptedPayloads.Select(kvp => new Sorcha.Register.Models.PayloadModel
             {
-                Data = Convert.ToBase64String(kvp.Value),
-                WalletAccess = new[] { kvp.Key }
+                Data = Base64Url.EncodeToString(kvp.Value),
+                WalletAccess = new[] { kvp.Key },
+                ContentEncoding = "base64url"
             }).ToArray(),
             PayloadCount = (ulong)encryptedPayloads.Count,
-            // Convert raw signature bytes to base64
-            Signature = Convert.ToBase64String(signResult.Signature)
+            Signature = Base64Url.EncodeToString(signResult.Signature)
         };
 
         // Submit to Register Service
@@ -901,7 +902,7 @@ actionsGroup.MapPost("/", async (
             var fileAttachments = request.Files.Select(f => new Sorcha.Blueprint.Service.Services.Interfaces.FileAttachment(
                 f.FileName,
                 f.ContentType,
-                Convert.FromBase64String(f.ContentBase64)
+                Sorcha.TransactionHandler.Services.ContentEncodings.DecodeBase64Auto(f.ContentBase64)
             )).ToList();
 
             var fileTxs = await txBuilder.BuildFileTransactionsAsync(

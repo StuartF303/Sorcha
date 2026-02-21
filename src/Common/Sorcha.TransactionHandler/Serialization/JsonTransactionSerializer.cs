@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Text;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using Sorcha.TransactionHandler.Enums;
 using Sorcha.TransactionHandler.Interfaces;
 using Sorcha.TransactionHandler.Models;
 using Sorcha.TransactionHandler.Payload;
+using Sorcha.TransactionHandler.Services;
 using Sorcha.Cryptography.Interfaces;
 
 namespace Sorcha.TransactionHandler.Serialization;
@@ -47,18 +49,24 @@ public class JsonTransactionSerializer : ITransactionSerializer
             senderWallet = transaction.SenderWallet,
             recipients = transaction.Recipients,
             metadata = transaction.Metadata != null ? JsonSerializer.Deserialize<object>(transaction.Metadata) : null,
-            signature = transaction.Signature != null ? Convert.ToBase64String(transaction.Signature) : null,
-            payloads = payloads.Select(p => new
+            signature = transaction.Signature != null ? Base64Url.EncodeToString(transaction.Signature) : null,
+            payloads = payloads.Select(p =>
             {
-                id = p.Id,
-                type = p.Type.ToString(),
-                size = p.OriginalSize,
-                isEncrypted = true,
-                isCompressed = p.IsCompressed,
-                accessibleBy = p.GetInfo().AccessibleBy,
-                data = Convert.ToBase64String(p.Data),
-                iv = Convert.ToBase64String(p.IV),
-                hash = Convert.ToBase64String(p.Hash)
+                var info = p.GetInfo();
+                return new
+                {
+                    id = p.Id,
+                    type = p.Type.ToString(),
+                    size = p.OriginalSize,
+                    isEncrypted = true,
+                    isCompressed = p.IsCompressed,
+                    accessibleBy = info.AccessibleBy,
+                    data = SerializePayloadData(p.Data, info.ContentEncoding),
+                    iv = Base64Url.EncodeToString(p.IV),
+                    hash = Base64Url.EncodeToString(p.Hash),
+                    contentType = info.ContentType,
+                    contentEncoding = info.ContentEncoding
+                };
             }).ToArray()
         };
 
@@ -101,6 +109,18 @@ public class JsonTransactionSerializer : ITransactionSerializer
         // as it would require private key information
 
         return transaction;
+    }
+
+    /// <summary>
+    /// Serializes payload data based on ContentEncoding. Identity-encoded payloads
+    /// (unencrypted JSON) are emitted as native JSON objects; all others as Base64url strings.
+    /// </summary>
+    private static object SerializePayloadData(byte[] data, string? contentEncoding)
+    {
+        if (contentEncoding == ContentEncodings.Identity)
+            return JsonSerializer.Deserialize<JsonElement>(data);
+
+        return Base64Url.EncodeToString(data);
     }
 
     /// <inheritdoc/>

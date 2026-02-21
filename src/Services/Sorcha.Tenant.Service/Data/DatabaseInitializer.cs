@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Sorcha.Tenant.Service.Models;
@@ -324,7 +325,7 @@ public class DatabaseInitializer
     private static string GenerateClientSecret()
     {
         var bytes = RandomNumberGenerator.GetBytes(32);
-        return Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").TrimEnd('=');
+        return Base64Url.EncodeToString(bytes);
     }
 
     /// <summary>

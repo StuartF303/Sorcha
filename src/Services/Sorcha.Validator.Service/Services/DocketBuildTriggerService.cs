@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Options;
 using Sorcha.Validator.Service.Configuration;
@@ -258,7 +259,7 @@ public class DocketBuildTriggerService : BackgroundService
                 {
                     var firstSig = t.Signatures.FirstOrDefault();
                     var payloadData = t.Payload.ValueKind != System.Text.Json.JsonValueKind.Undefined
-                        ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(t.Payload.GetRawText()))
+                        ? Base64Url.EncodeToString(System.Text.Encoding.UTF8.GetBytes(t.Payload.GetRawText()))
                         : string.Empty;
 
                     // Extract transaction type from metadata
@@ -276,10 +277,10 @@ public class DocketBuildTriggerService : BackgroundService
                         PrevTxId = t.PreviousTransactionId ?? string.Empty,
                         TimeStamp = t.CreatedAt.UtcDateTime,
                         SenderWallet = firstSig != null
-                            ? Convert.ToBase64String(firstSig.PublicKey)
+                            ? Base64Url.EncodeToString(firstSig.PublicKey)
                             : "system",
                         Signature = firstSig != null
-                            ? Convert.ToBase64String(firstSig.SignatureValue)
+                            ? Base64Url.EncodeToString(firstSig.SignatureValue)
                             : string.Empty,
                         PayloadCount = 1,
                         Payloads = new[]
@@ -291,7 +292,8 @@ public class DocketBuildTriggerService : BackgroundService
                                 PayloadSize = (ulong)System.Text.Encoding.UTF8.GetByteCount(
                                     t.Payload.ValueKind != System.Text.Json.JsonValueKind.Undefined
                                         ? t.Payload.GetRawText()
-                                        : string.Empty)
+                                        : string.Empty),
+                                ContentEncoding = "base64url"
                             }
                         },
                         MetaData = new Sorcha.Register.Models.TransactionMetaData

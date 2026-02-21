@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -45,8 +46,8 @@ public class RightsEnforcementServiceTests
                 {
                     Role = m.role,
                     Subject = m.did,
-                    PublicKey = Convert.ToBase64String(m.publicKey),
-                    Signature = Convert.ToBase64String(new byte[64]),
+                    PublicKey = Base64Url.EncodeToString(m.publicKey),
+                    Signature = Base64Url.EncodeToString(new byte[64]),
                     Algorithm = SignatureAlgorithm.ED25519,
                     GrantedAt = DateTimeOffset.UtcNow
                 }).ToList()

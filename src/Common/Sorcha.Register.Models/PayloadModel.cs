@@ -46,4 +46,17 @@ public class PayloadModel
     /// Per-wallet encryption challenges
     /// </summary>
     public Challenge[]? Challenges { get; set; }
+
+    /// <summary>
+    /// MIME type describing the plaintext data format (e.g., "application/json", "application/pdf").
+    /// When absent (legacy payloads), inferred as "application/octet-stream".
+    /// </summary>
+    public string? ContentType { get; set; }
+
+    /// <summary>
+    /// Encoding scheme for the Data field. Supported values: "identity" (native JSON),
+    /// "base64url" (RFC 4648 §5), "base64" (legacy read-only), "br+base64url", "gzip+base64url".
+    /// When absent (legacy payloads), inferred as "base64".
+    /// </summary>
+    public string? ContentEncoding { get; set; }
 }

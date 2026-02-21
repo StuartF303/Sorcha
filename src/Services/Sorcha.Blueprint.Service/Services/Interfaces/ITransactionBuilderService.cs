@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Text.Json;
 using Sorcha.Blueprint.Service.Models;
 using Sorcha.Blueprint.Service.Models.Requests;
@@ -282,8 +283,8 @@ public class BuiltTransaction
             [
                 new SignatureInfo
                 {
-                    PublicKey = Convert.ToBase64String(signResult.PublicKey),
-                    SignatureValue = Convert.ToBase64String(signResult.Signature),
+                    PublicKey = Base64Url.EncodeToString(signResult.PublicKey),
+                    SignatureValue = Base64Url.EncodeToString(signResult.Signature),
                     Algorithm = signResult.Algorithm
                 }
             ],
@@ -320,7 +321,7 @@ public class BuiltTransaction
             TxId = TxId,
             RegisterId = RegisterId,
             SenderWallet = SenderWallet,
-            Signature = Signature != null ? Convert.ToBase64String(Signature) : string.Empty,
+            Signature = Signature != null ? Base64Url.EncodeToString(Signature) : string.Empty,
             MetaData = metaData,
             PayloadCount = 0,
             Payloads = Array.Empty<Sorcha.Register.Models.PayloadModel>(),

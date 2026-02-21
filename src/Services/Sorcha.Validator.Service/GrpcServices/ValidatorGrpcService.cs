@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
@@ -95,8 +96,8 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
                 VotedAt = Timestamp.FromDateTimeOffset(vote.VotedAt),
                 ValidatorSignature = new Grpc.V1.Signature
                 {
-                    PublicKey = Convert.ToBase64String(vote.ValidatorSignature.PublicKey),
-                    SignatureValue = Convert.ToBase64String(vote.ValidatorSignature.SignatureValue),
+                    PublicKey = Base64Url.EncodeToString(vote.ValidatorSignature.PublicKey),
+                    SignatureValue = Base64Url.EncodeToString(vote.ValidatorSignature.SignatureValue),
                     Algorithm = vote.ValidatorSignature.Algorithm
                 }
             };
@@ -409,8 +410,8 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
             ProposerValidatorId = request.ProposerValidatorId,
             ProposerSignature = new Models.Signature
             {
-                PublicKey = Convert.FromBase64String(request.ProposerSignature.PublicKey),
-                SignatureValue = Convert.FromBase64String(request.ProposerSignature.SignatureValue),
+                PublicKey = Base64Url.DecodeFromChars(request.ProposerSignature.PublicKey),
+                SignatureValue = Base64Url.DecodeFromChars(request.ProposerSignature.SignatureValue),
                 Algorithm = request.ProposerSignature.Algorithm,
                 SignedAt = DateTimeOffset.UtcNow // Using current time as fallback
             },
@@ -439,8 +440,8 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
             ProposerValidatorId = request.ProposerValidatorId,
             ProposerSignature = new Models.Signature
             {
-                PublicKey = Convert.FromBase64String(request.ProposerSignature.PublicKey),
-                SignatureValue = Convert.FromBase64String(request.ProposerSignature.SignatureValue),
+                PublicKey = Base64Url.DecodeFromChars(request.ProposerSignature.PublicKey),
+                SignatureValue = Base64Url.DecodeFromChars(request.ProposerSignature.SignatureValue),
                 Algorithm = request.ProposerSignature.Algorithm,
                 SignedAt = DateTimeOffset.UtcNow // Using current time as fallback
             },
@@ -459,8 +460,8 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
 
         var signatures = protoTx.Signatures.Select(s => new Models.Signature
         {
-            PublicKey = Convert.FromBase64String(s.PublicKey),
-            SignatureValue = Convert.FromBase64String(s.SignatureValue),
+            PublicKey = Base64Url.DecodeFromChars(s.PublicKey),
+            SignatureValue = Base64Url.DecodeFromChars(s.SignatureValue),
             Algorithm = s.Algorithm,
             SignedAt = DateTimeOffset.UtcNow // Proto doesn't have timestamp, using current time
         }).ToList();
@@ -510,8 +511,8 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
             VotedAt = protoVote.VotedAt.ToDateTimeOffset(),
             ValidatorSignature = new Models.Signature
             {
-                PublicKey = Convert.FromBase64String(protoVote.ValidatorSignature.PublicKey),
-                SignatureValue = Convert.FromBase64String(protoVote.ValidatorSignature.SignatureValue),
+                PublicKey = Base64Url.DecodeFromChars(protoVote.ValidatorSignature.PublicKey),
+                SignatureValue = Base64Url.DecodeFromChars(protoVote.ValidatorSignature.SignatureValue),
                 Algorithm = protoVote.ValidatorSignature.Algorithm,
                 SignedAt = protoVote.VotedAt.ToDateTimeOffset()
             },
@@ -536,8 +537,8 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
             VotedAt = Timestamp.FromDateTimeOffset(vote.VotedAt),
             ValidatorSignature = new Grpc.V1.Signature
             {
-                PublicKey = Convert.ToBase64String(vote.ValidatorSignature.PublicKey),
-                SignatureValue = Convert.ToBase64String(vote.ValidatorSignature.SignatureValue),
+                PublicKey = Base64Url.EncodeToString(vote.ValidatorSignature.PublicKey),
+                SignatureValue = Base64Url.EncodeToString(vote.ValidatorSignature.SignatureValue),
                 Algorithm = vote.ValidatorSignature.Algorithm
             },
             DocketHash = vote.DocketHash
@@ -565,8 +566,8 @@ public class ValidatorGrpcService : Sorcha.Validator.Grpc.V1.ValidatorService.Va
             ProposerValidatorId = request.ProposerValidatorId,
             ProposerSignature = new Models.Signature
             {
-                PublicKey = Convert.FromBase64String(request.ProposerSignature.PublicKey),
-                SignatureValue = Convert.FromBase64String(request.ProposerSignature.SignatureValue),
+                PublicKey = Base64Url.DecodeFromChars(request.ProposerSignature.PublicKey),
+                SignatureValue = Base64Url.DecodeFromChars(request.ProposerSignature.SignatureValue),
                 Algorithm = request.ProposerSignature.Algorithm,
                 SignedAt = DateTimeOffset.UtcNow
             },

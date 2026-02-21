@@ -247,4 +247,9 @@ public class PayloadOptions
     /// Gets or sets user-defined flags.
     /// </summary>
     public uint UserFlags { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the MIME type of the plaintext payload data (e.g., "application/json").
+    /// </summary>
+    public string? ContentType { get; set; }
 }

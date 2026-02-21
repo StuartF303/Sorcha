@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Sorcha.Validator.Service.Models;
@@ -60,8 +61,8 @@ public static class ValidationEndpoints
                 ExpiresAt = request.ExpiresAt,
                 Signatures = request.Signatures.Select(s => new Signature
                 {
-                    PublicKey = Convert.FromBase64String(s.PublicKey),
-                    SignatureValue = Convert.FromBase64String(s.SignatureValue),
+                    PublicKey = Base64Url.DecodeFromChars(s.PublicKey),
+                    SignatureValue = Base64Url.DecodeFromChars(s.SignatureValue),
                     Algorithm = s.Algorithm,
                     SignedAt = request.CreatedAt
                 }).ToList(),

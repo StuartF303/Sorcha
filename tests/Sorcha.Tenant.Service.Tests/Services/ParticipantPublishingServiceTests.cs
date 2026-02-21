@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -245,8 +246,8 @@ public class ParticipantPublishingServiceTests
 
         // Assert
         captured!.Signatures.Should().HaveCount(1);
-        captured.Signatures[0].PublicKey.Should().Be(Convert.ToBase64String(testPubKey));
-        captured.Signatures[0].SignatureValue.Should().Be(Convert.ToBase64String(testSig));
+        captured.Signatures[0].PublicKey.Should().Be(Base64Url.EncodeToString(testPubKey));
+        captured.Signatures[0].SignatureValue.Should().Be(Base64Url.EncodeToString(testSig));
         captured.Signatures[0].Algorithm.Should().Be("ED25519");
     }
 

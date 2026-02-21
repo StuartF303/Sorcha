@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using Microsoft.AspNetCore.OData;
 using Microsoft.OData.ModelBuilder;
 using MongoDB.Driver;
@@ -1102,7 +1103,7 @@ docketsGroup.MapPost("/", async (
                 try
                 {
                     var payloadJson = System.Text.Encoding.UTF8.GetString(
-                        Convert.FromBase64String(tx.Payloads[0].Data));
+                        Sorcha.TransactionHandler.Services.ContentEncodings.DecodeBase64Auto(tx.Payloads[0].Data));
                     var payloadElement = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(payloadJson);
                     participantIndex.IndexParticipant(registerId, tx.TxId, payloadElement, tx.TimeStamp);
                 }
@@ -1228,8 +1229,8 @@ app.MapPost("/api/registers/{registerId}/blueprints/publish", async (
 
     var systemSignature = new Sorcha.ServiceClients.Validator.SignatureInfo
     {
-        PublicKey = Convert.ToBase64String(signResult.PublicKey),
-        SignatureValue = Convert.ToBase64String(signResult.Signature),
+        PublicKey = Base64Url.EncodeToString(signResult.PublicKey),
+        SignatureValue = Base64Url.EncodeToString(signResult.Signature),
         Algorithm = signResult.Algorithm
     };
 

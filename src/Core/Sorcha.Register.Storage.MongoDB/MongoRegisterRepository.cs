@@ -4,10 +4,15 @@
 using System.Linq.Expressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using Sorcha.Register.Core.Storage;
 using Sorcha.Register.Models;
+using Sorcha.Register.Storage.MongoDB.Mappers;
+using Sorcha.Register.Storage.MongoDB.Serialization;
+using MongoModels = Sorcha.Register.Storage.MongoDB.Models;
+using RegisterEntity = Sorcha.Register.Models.Register;
 
 namespace Sorcha.Register.Storage.MongoDB;
 
@@ -19,13 +24,17 @@ namespace Sorcha.Register.Storage.MongoDB;
 /// </summary>
 public class MongoRegisterRepository : IRegisterRepository
 {
+    private static readonly object ClassMapLock = new();
+    private static bool _classMapRegistered;
+
     private readonly IMongoClient _client;
-    private readonly IMongoCollection<Models.Register> _registers;
+    private readonly IMongoCollection<RegisterEntity> _registers;
     private readonly MongoRegisterStorageConfiguration _config;
     private readonly ILogger<MongoRegisterRepository> _logger;
 
     // Legacy: used only when UseDatabasePerRegister = false
     private readonly IMongoCollection<TransactionModel>? _legacyTransactions;
+    private readonly IMongoCollection<MongoModels.MongoTransactionDocument>? _legacyMongoTransactions;
     private readonly IMongoCollection<Docket>? _legacyDockets;
 
     /// <summary>
@@ -37,6 +46,8 @@ public class MongoRegisterRepository : IRegisterRepository
     {
         ArgumentNullException.ThrowIfNull(options?.Value);
 
+        RegisterBsonClassMaps();
+
         _config = options.Value;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -44,12 +55,13 @@ public class MongoRegisterRepository : IRegisterRepository
 
         // Registry database holds register metadata
         var registryDatabase = _client.GetDatabase(_config.DatabaseName);
-        _registers = registryDatabase.GetCollection<Models.Register>(_config.RegisterCollectionName);
+        _registers = registryDatabase.GetCollection<RegisterEntity>(_config.RegisterCollectionName);
 
         // Legacy single-database mode
         if (!_config.UseDatabasePerRegister)
         {
             _legacyTransactions = registryDatabase.GetCollection<TransactionModel>(_config.TransactionCollectionName);
+            _legacyMongoTransactions = registryDatabase.GetCollection<MongoModels.MongoTransactionDocument>(_config.TransactionCollectionName);
             _legacyDockets = registryDatabase.GetCollection<Docket>(_config.DocketCollectionName);
         }
 
@@ -76,6 +88,8 @@ public class MongoRegisterRepository : IRegisterRepository
     {
         ArgumentNullException.ThrowIfNull(database);
 
+        RegisterBsonClassMaps();
+
         _config = new MongoRegisterStorageConfiguration
         {
             UseDatabasePerRegister = false, // Legacy mode for tests
@@ -85,10 +99,67 @@ public class MongoRegisterRepository : IRegisterRepository
         };
 
         _client = database.Client;
-        _registers = database.GetCollection<Models.Register>(registerCollection);
+        _registers = database.GetCollection<RegisterEntity>(registerCollection);
         _legacyTransactions = database.GetCollection<TransactionModel>(transactionCollection);
+        _legacyMongoTransactions = database.GetCollection<MongoModels.MongoTransactionDocument>(transactionCollection);
         _legacyDockets = database.GetCollection<Docket>(docketCollection);
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    /// <summary>
+    /// Registers BsonClassMaps for TransactionModel, PayloadModel, and Challenge
+    /// so that read operations can deserialize both BSON Binary (new) and BSON String (legacy) fields.
+    /// Thread-safe, idempotent.
+    /// </summary>
+    private static void RegisterBsonClassMaps()
+    {
+        if (_classMapRegistered) return;
+
+        lock (ClassMapLock)
+        {
+            if (_classMapRegistered) return;
+
+            if (!BsonClassMap.IsClassMapRegistered(typeof(TransactionModel)))
+            {
+                BsonClassMap.RegisterClassMap<TransactionModel>(cm =>
+                {
+                    cm.AutoMap();
+                    // Override convention: TransactionModel.Id is a JSON-LD field, NOT the MongoDB _id.
+                    // MongoTransactionDocument has its own MongoId mapped to _id.
+                    cm.SetIdMember(null);
+                    cm.GetMemberMap(x => x.Id)
+                        .SetElementName("Id");
+                    // Ignore _id and other MongoDB-internal fields when reading back
+                    cm.SetIgnoreExtraElements(true);
+                    cm.GetMemberMap(x => x.Signature)
+                        .SetSerializer(new BinaryAwareStringSerializer());
+                });
+            }
+
+            if (!BsonClassMap.IsClassMapRegistered(typeof(PayloadModel)))
+            {
+                BsonClassMap.RegisterClassMap<PayloadModel>(cm =>
+                {
+                    cm.AutoMap();
+                    cm.GetMemberMap(x => x.Data)
+                        .SetSerializer(new BinaryAwareStringSerializer());
+                    cm.GetMemberMap(x => x.Hash)
+                        .SetSerializer(new BinaryAwareStringSerializer());
+                });
+            }
+
+            if (!BsonClassMap.IsClassMapRegistered(typeof(Challenge)))
+            {
+                BsonClassMap.RegisterClassMap<Challenge>(cm =>
+                {
+                    cm.AutoMap();
+                    cm.GetMemberMap(x => x.Data)
+                        .SetSerializer(new BinaryAwareStringSerializer());
+                });
+            }
+
+            _classMapRegistered = true;
+        }
     }
 
     /// <summary>
@@ -108,7 +179,7 @@ public class MongoRegisterRepository : IRegisterRepository
     }
 
     /// <summary>
-    /// Gets the transactions collection for a specific register.
+    /// Gets the transactions collection for a specific register (TransactionModel view for reads/queries).
     /// </summary>
     private IMongoCollection<TransactionModel> GetTransactionsCollection(string registerId)
     {
@@ -119,6 +190,21 @@ public class MongoRegisterRepository : IRegisterRepository
 
         var db = GetRegisterDatabase(registerId);
         return db.GetCollection<TransactionModel>(_config.TransactionCollectionName);
+    }
+
+    /// <summary>
+    /// Gets the transactions collection for a specific register (MongoTransactionDocument view for inserts).
+    /// Points to the same underlying MongoDB collection but uses BSON Binary serialization.
+    /// </summary>
+    private IMongoCollection<MongoModels.MongoTransactionDocument> GetMongoTransactionsCollection(string registerId)
+    {
+        if (!_config.UseDatabasePerRegister)
+        {
+            return _legacyMongoTransactions ?? throw new InvalidOperationException("Legacy mongo transactions collection not initialized");
+        }
+
+        var db = GetRegisterDatabase(registerId);
+        return db.GetCollection<MongoModels.MongoTransactionDocument>(_config.TransactionCollectionName);
     }
 
     /// <summary>
@@ -143,11 +229,11 @@ public class MongoRegisterRepository : IRegisterRepository
         _logger.LogInformation("Creating MongoDB indexes for Register storage");
 
         // Register indexes (in registry database)
-        var registerIndexes = new List<CreateIndexModel<Models.Register>>
+        var registerIndexes = new List<CreateIndexModel<RegisterEntity>>
         {
-            new(Builders<Models.Register>.IndexKeys.Ascending(r => r.TenantId)),
-            new(Builders<Models.Register>.IndexKeys.Ascending(r => r.Status)),
-            new(Builders<Models.Register>.IndexKeys.Ascending(r => r.Name))
+            new(Builders<RegisterEntity>.IndexKeys.Ascending(r => r.TenantId)),
+            new(Builders<RegisterEntity>.IndexKeys.Ascending(r => r.Status)),
+            new(Builders<RegisterEntity>.IndexKeys.Ascending(r => r.Name))
         };
         await _registers.Indexes.CreateManyAsync(registerIndexes);
 
@@ -236,21 +322,21 @@ public class MongoRegisterRepository : IRegisterRepository
     /// <inheritdoc/>
     public async Task<bool> IsLocalRegisterAsync(string registerId, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<Models.Register>.Filter.Eq(r => r.Id, registerId);
+        var filter = Builders<RegisterEntity>.Filter.Eq(r => r.Id, registerId);
         var count = await _registers.CountDocumentsAsync(filter, new CountOptions { Limit = 1 }, cancellationToken);
         return count > 0;
     }
 
     /// <inheritdoc/>
-    public async Task<IEnumerable<Models.Register>> GetRegistersAsync(CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<RegisterEntity>> GetRegistersAsync(CancellationToken cancellationToken = default)
     {
-        return await _registers.Find(FilterDefinition<Models.Register>.Empty)
+        return await _registers.Find(FilterDefinition<RegisterEntity>.Empty)
             .ToListAsync(cancellationToken);
     }
 
     /// <inheritdoc/>
-    public async Task<IEnumerable<Models.Register>> QueryRegistersAsync(
-        Func<Models.Register, bool> predicate,
+    public async Task<IEnumerable<RegisterEntity>> QueryRegistersAsync(
+        Func<RegisterEntity, bool> predicate,
         CancellationToken cancellationToken = default)
     {
         // For simple predicates, we need to fetch and filter in memory
@@ -260,14 +346,14 @@ public class MongoRegisterRepository : IRegisterRepository
     }
 
     /// <inheritdoc/>
-    public async Task<Models.Register?> GetRegisterAsync(string registerId, CancellationToken cancellationToken = default)
+    public async Task<RegisterEntity?> GetRegisterAsync(string registerId, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<Models.Register>.Filter.Eq(r => r.Id, registerId);
+        var filter = Builders<RegisterEntity>.Filter.Eq(r => r.Id, registerId);
         return await _registers.Find(filter).FirstOrDefaultAsync(cancellationToken);
     }
 
     /// <inheritdoc/>
-    public async Task<Models.Register> InsertRegisterAsync(Models.Register newRegister, CancellationToken cancellationToken = default)
+    public async Task<RegisterEntity> InsertRegisterAsync(RegisterEntity newRegister, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(newRegister);
 
@@ -284,12 +370,12 @@ public class MongoRegisterRepository : IRegisterRepository
     }
 
     /// <inheritdoc/>
-    public async Task<Models.Register> UpdateRegisterAsync(Models.Register register, CancellationToken cancellationToken = default)
+    public async Task<RegisterEntity> UpdateRegisterAsync(RegisterEntity register, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(register);
 
         register.UpdatedAt = DateTime.UtcNow;
-        var filter = Builders<Models.Register>.Filter.Eq(r => r.Id, register.Id);
+        var filter = Builders<RegisterEntity>.Filter.Eq(r => r.Id, register.Id);
         await _registers.ReplaceOneAsync(filter, register, new ReplaceOptions { IsUpsert = false }, cancellationToken);
         _logger.LogDebug("Updated register {RegisterId}", register.Id);
         return register;
@@ -316,7 +402,7 @@ public class MongoRegisterRepository : IRegisterRepository
         }
 
         // Delete the register metadata
-        var registerFilter = Builders<Models.Register>.Filter.Eq(r => r.Id, registerId);
+        var registerFilter = Builders<RegisterEntity>.Filter.Eq(r => r.Id, registerId);
         await _registers.DeleteOneAsync(registerFilter, cancellationToken);
 
         _logger.LogInformation("Deleted register {RegisterId} with all associated data", registerId);
@@ -364,8 +450,8 @@ public class MongoRegisterRepository : IRegisterRepository
     /// <inheritdoc/>
     public async Task UpdateRegisterHeightAsync(string registerId, uint newHeight, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<Models.Register>.Filter.Eq(r => r.Id, registerId);
-        var update = Builders<Models.Register>.Update
+        var filter = Builders<RegisterEntity>.Filter.Eq(r => r.Id, registerId);
+        var update = Builders<RegisterEntity>.Update
             .Set(r => r.Height, newHeight)
             .Set(r => r.UpdatedAt, DateTime.UtcNow);
 
@@ -404,8 +490,11 @@ public class MongoRegisterRepository : IRegisterRepository
             transaction.Id = transaction.GenerateDidUri();
         }
 
-        var transactions = GetTransactionsCollection(transaction.RegisterId);
-        await transactions.InsertOneAsync(transaction, new InsertOneOptions(), cancellationToken);
+        // Convert to MongoTransactionDocument for BSON Binary storage (~33% savings for binary fields)
+        var mongoDocument = MongoDocumentMapper.ToMongoDocument(transaction);
+        var mongoCollection = GetMongoTransactionsCollection(transaction.RegisterId);
+        await mongoCollection.InsertOneAsync(mongoDocument, new InsertOneOptions(), cancellationToken);
+
         _logger.LogDebug("Inserted transaction {TxId} in register {RegisterId}", transaction.TxId, transaction.RegisterId);
         return transaction;
     }

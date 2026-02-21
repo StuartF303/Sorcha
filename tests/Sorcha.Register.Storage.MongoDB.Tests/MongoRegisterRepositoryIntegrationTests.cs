@@ -10,6 +10,7 @@ using Sorcha.Register.Models.Enums;
 using Sorcha.Register.Storage.MongoDB;
 using Testcontainers.MongoDb;
 using Xunit;
+using RegisterEntity = Sorcha.Register.Models.Register;
 
 namespace Sorcha.Register.Storage.MongoDB.Tests;
 
@@ -507,9 +508,9 @@ public class MongoRegisterRepositoryIntegrationTests : IAsyncLifetime
     // Helper Methods
     // ===========================
 
-    private static Models.Register CreateTestRegister(string id, string tenantId = "test-tenant")
+    private static RegisterEntity CreateTestRegister(string id, string tenantId = "test-tenant")
     {
-        return new Models.Register
+        return new RegisterEntity
         {
             Id = id,
             Name = $"Test Register {id}",
