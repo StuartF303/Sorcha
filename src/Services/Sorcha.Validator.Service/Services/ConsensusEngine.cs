@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Options;
@@ -231,9 +232,9 @@ public class ConsensusEngine : IConsensusEngine
 
             // Validate proposer signature
             var signatureValid = await _walletClient.VerifySignatureAsync(
-                Convert.ToBase64String(docket.ProposerSignature.PublicKey),
+                Base64Url.EncodeToString(docket.ProposerSignature.PublicKey),
                 docket.DocketHash,
-                Convert.ToBase64String(docket.ProposerSignature.SignatureValue),
+                Base64Url.EncodeToString(docket.ProposerSignature.SignatureValue),
                 docket.ProposerSignature.Algorithm,
                 cancellationToken);
 
@@ -288,8 +289,8 @@ public class ConsensusEngine : IConsensusEngine
 
                     var signatures = transaction.Signatures.Select(s =>
                         new Sorcha.Validator.Core.Validators.TransactionSignature(
-                            Convert.ToBase64String(s.PublicKey),
-                            Convert.ToBase64String(s.SignatureValue),
+                            Base64Url.EncodeToString(s.PublicKey),
+                            Base64Url.EncodeToString(s.SignatureValue),
                             s.Algorithm)).ToList();
 
                     var structuralResult = _transactionValidator.ValidateTransactionStructure(
@@ -354,8 +355,8 @@ public class ConsensusEngine : IConsensusEngine
                 MerkleRoot = docket.MerkleRoot,
                 ProposerSignature = new Sorcha.Validator.Grpc.V1.Signature
                 {
-                    PublicKey = Convert.ToBase64String(docket.ProposerSignature.PublicKey),
-                    SignatureValue = Convert.ToBase64String(docket.ProposerSignature.SignatureValue),
+                    PublicKey = Base64Url.EncodeToString(docket.ProposerSignature.PublicKey),
+                    SignatureValue = Base64Url.EncodeToString(docket.ProposerSignature.SignatureValue),
                     Algorithm = docket.ProposerSignature.Algorithm
                 }
             };
@@ -407,8 +408,8 @@ public class ConsensusEngine : IConsensusEngine
                 VotedAt = response.VotedAt.ToDateTimeOffset(),
                 ValidatorSignature = new Models.Signature
                 {
-                    PublicKey = Convert.FromBase64String(response.ValidatorSignature.PublicKey),
-                    SignatureValue = Convert.FromBase64String(response.ValidatorSignature.SignatureValue),
+                    PublicKey = Base64Url.DecodeFromChars(response.ValidatorSignature.PublicKey),
+                    SignatureValue = Base64Url.DecodeFromChars(response.ValidatorSignature.SignatureValue),
                     Algorithm = response.ValidatorSignature.Algorithm,
                     SignedAt = response.VotedAt.ToDateTimeOffset()
                 },
@@ -459,9 +460,9 @@ public class ConsensusEngine : IConsensusEngine
 
             // Verify vote signature
             var signatureValid = await _walletClient.VerifySignatureAsync(
-                Convert.ToBase64String(vote.ValidatorSignature.PublicKey),
+                Base64Url.EncodeToString(vote.ValidatorSignature.PublicKey),
                 vote.DocketHash,
-                Convert.ToBase64String(vote.ValidatorSignature.SignatureValue),
+                Base64Url.EncodeToString(vote.ValidatorSignature.SignatureValue),
                 vote.ValidatorSignature.Algorithm,
                 cancellationToken);
 
@@ -586,8 +587,8 @@ public class ConsensusEngine : IConsensusEngine
         {
             protoTx.Signatures.Add(new Sorcha.Validator.Grpc.V1.Signature
             {
-                PublicKey = Convert.ToBase64String(sig.PublicKey),
-                SignatureValue = Convert.ToBase64String(sig.SignatureValue),
+                PublicKey = Base64Url.EncodeToString(sig.PublicKey),
+                SignatureValue = Base64Url.EncodeToString(sig.SignatureValue),
                 Algorithm = sig.Algorithm
             });
         }

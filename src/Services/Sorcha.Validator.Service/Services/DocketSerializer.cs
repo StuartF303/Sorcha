@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Text.Json;
 using Sorcha.Validator.Service.Models;
 using Sorcha.ServiceClients.Register;
@@ -80,7 +81,7 @@ public static class DocketSerializer
 
                 // Build payload model from transaction data
                 var payloadData = tx.PayloadJson != null
-                    ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(tx.PayloadJson))
+                    ? Base64Url.EncodeToString(System.Text.Encoding.UTF8.GetBytes(tx.PayloadJson))
                     : string.Empty;
 
                 return new Sorcha.Register.Models.TransactionModel
@@ -90,7 +91,7 @@ public static class DocketSerializer
                     TimeStamp = tx.CreatedAt.UtcDateTime,
                     SenderWallet = GetSenderWallet(tx),
                     Signature = tx.Signatures.FirstOrDefault() != null
-                        ? Convert.ToBase64String(tx.Signatures.First().SignatureValue)
+                        ? Base64Url.EncodeToString(tx.Signatures.First().SignatureValue)
                         : string.Empty,
                     PayloadCount = string.IsNullOrEmpty(payloadData) ? 0UL : 1UL,
                     Payloads = string.IsNullOrEmpty(payloadData)
@@ -99,7 +100,8 @@ public static class DocketSerializer
                         {
                             Data = payloadData,
                             Hash = tx.PayloadHash,
-                            PayloadSize = (ulong)(tx.PayloadJson?.Length ?? 0)
+                            PayloadSize = (ulong)(tx.PayloadJson?.Length ?? 0),
+                            ContentEncoding = "base64url"
                         }],
                     MetaData = new Sorcha.Register.Models.TransactionMetaData
                     {
@@ -121,7 +123,7 @@ public static class DocketSerializer
         // Try to get sender from first signature's public key
         if (tx.Signatures.Count > 0)
         {
-            return Convert.ToBase64String(tx.Signatures[0].PublicKey);
+            return Base64Url.EncodeToString(tx.Signatures[0].PublicKey);
         }
         return string.Empty;
     }
@@ -172,16 +174,16 @@ public static class DocketSerializer
 
     private static SignatureDto ToSignatureDto(Signature sig) => new()
     {
-        PublicKey = Convert.ToBase64String(sig.PublicKey),
-        SignatureValue = Convert.ToBase64String(sig.SignatureValue),
+        PublicKey = Base64Url.EncodeToString(sig.PublicKey),
+        SignatureValue = Base64Url.EncodeToString(sig.SignatureValue),
         Algorithm = sig.Algorithm,
         SignedAt = sig.SignedAt
     };
 
     private static Signature FromSignatureDto(SignatureDto dto) => new()
     {
-        PublicKey = Convert.FromBase64String(dto.PublicKey),
-        SignatureValue = Convert.FromBase64String(dto.SignatureValue),
+        PublicKey = Base64Url.DecodeFromChars(dto.PublicKey),
+        SignatureValue = Base64Url.DecodeFromChars(dto.SignatureValue),
         Algorithm = dto.Algorithm,
         SignedAt = dto.SignedAt
     };

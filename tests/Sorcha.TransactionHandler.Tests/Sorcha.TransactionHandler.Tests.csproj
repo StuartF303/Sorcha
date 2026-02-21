@@ -19,6 +19,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="8.8.0" />
+    <PackageReference Include="Moq" Version="4.20.72" />
   </ItemGroup>
 
   <ItemGroup>
@@ -28,6 +30,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Common\Sorcha.TransactionHandler\Sorcha.TransactionHandler.csproj" />
     <ProjectReference Include="..\..\src\Common\Sorcha.Cryptography\Sorcha.Cryptography.csproj" />
+    <ProjectReference Include="..\..\src\Common\Sorcha.Register.Models\Sorcha.Register.Models.csproj" />
   </ItemGroup>
 
 </Project>

@@ -141,7 +141,8 @@ public class PayloadManager : IPayloadManager
                     IsCompressed = false,
                     OriginalSize = data.Length,
                     EncryptedKeys = encryptedKeys,
-                    EncryptionType = opts.EncryptionType
+                    EncryptionType = opts.EncryptionType,
+                    ContentType = opts.ContentType
                 };
                 _payloads.Add(payload);
             }
@@ -189,7 +190,8 @@ public class PayloadManager : IPayloadManager
                 IsCompressed = false,
                 OriginalSize = data.Length,
                 EncryptedKeys = recipientWallets.ToDictionary(w => w, w => new byte[32]),
-                EncryptionType = opts.EncryptionType
+                EncryptionType = opts.EncryptionType,
+                ContentType = opts.ContentType
             };
             _payloads.Add(payload);
         }
@@ -491,6 +493,16 @@ internal class Payload : IPayload
     public EncryptionType EncryptionType { get; set; } = EncryptionType.XCHACHA20_POLY1305;
 
     /// <summary>
+    /// MIME type describing the plaintext data (e.g., "application/json").
+    /// </summary>
+    public string? ContentType { get; set; }
+
+    /// <summary>
+    /// Encoding scheme for the serialized Data field (e.g., "base64url", "identity").
+    /// </summary>
+    public string? ContentEncoding { get; set; }
+
+    /// <summary>
     /// Determines if this is a legacy (unencrypted) payload by checking for zeroed IV.
     /// </summary>
     public bool IsLegacy() => IV.Length == 0 || IV.All(b => b == 0);
@@ -507,7 +519,9 @@ internal class Payload : IPayload
             IsEncrypted = !IsLegacy(),
             EncryptionType = EncryptionType,
             HashType = Sorcha.Cryptography.Enums.HashType.SHA256,
-            AccessibleBy = EncryptedKeys.Keys.ToArray()
+            AccessibleBy = EncryptedKeys.Keys.ToArray(),
+            ContentType = ContentType,
+            ContentEncoding = ContentEncoding
         };
     }
 }

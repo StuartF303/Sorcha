@@ -144,9 +144,9 @@ public class PayloadResolverService : IPayloadResolverService
                 }
 
                 // Decrypt the payload using the Wallet Service
-                // PayloadModel.Data is Base64 encoded string, convert to bytes
+                // PayloadModel.Data is Base64url encoded string, convert to bytes
                 var payloadBytes = !string.IsNullOrEmpty(payloadForWallet.Data)
-                    ? Convert.FromBase64String(payloadForWallet.Data)
+                    ? Sorcha.TransactionHandler.Services.ContentEncodings.DecodeBase64Auto(payloadForWallet.Data)
                     : Array.Empty<byte>();
 
                 var decryptedPayload = await _walletServiceClient.DecryptPayloadAsync(

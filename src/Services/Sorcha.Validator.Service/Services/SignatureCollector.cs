@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using Grpc.Net.Client;
@@ -250,8 +251,8 @@ public class SignatureCollector : ISignatureCollector
             {
                 request.ProposerSignature = new Sorcha.Validator.Grpc.V1.Signature
                 {
-                    PublicKey = Convert.ToBase64String(docket.ProposerSignature.PublicKey),
-                    SignatureValue = Convert.ToBase64String(docket.ProposerSignature.SignatureValue),
+                    PublicKey = Base64Url.EncodeToString(docket.ProposerSignature.PublicKey),
+                    SignatureValue = Base64Url.EncodeToString(docket.ProposerSignature.SignatureValue),
                     Algorithm = docket.ProposerSignature.Algorithm
                 };
             }
@@ -269,8 +270,8 @@ public class SignatureCollector : ISignatureCollector
                 Signature = approved && response.ValidatorSignature != null
                     ? new Signature
                     {
-                        PublicKey = Convert.FromBase64String(response.ValidatorSignature.PublicKey),
-                        SignatureValue = Convert.FromBase64String(response.ValidatorSignature.SignatureValue),
+                        PublicKey = Base64Url.DecodeFromChars(response.ValidatorSignature.PublicKey),
+                        SignatureValue = Base64Url.DecodeFromChars(response.ValidatorSignature.SignatureValue),
                         Algorithm = response.ValidatorSignature.Algorithm,
                         SignedAt = response.VotedAt?.ToDateTimeOffset() ?? DateTimeOffset.UtcNow,
                         SignedBy = response.ValidatorId

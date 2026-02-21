@@ -53,4 +53,14 @@ public sealed class PayloadInfo
     /// Gets the wallet addresses that can access this payload.
     /// </summary>
     public string[] AccessibleBy { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Gets the MIME type describing the plaintext data format.
+    /// </summary>
+    public string? ContentType { get; init; }
+
+    /// <summary>
+    /// Gets the encoding scheme for the payload data field.
+    /// </summary>
+    public string? ContentEncoding { get; init; }
 }

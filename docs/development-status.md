@@ -89,6 +89,17 @@ For detailed implementation status, see the individual section files:
 
 ## Recent Completions
 
+### 2026-02-21
+- **038-Content-Type-Payload** (69 tasks, 9 phases — content-type aware payload encoding)
+  - Added `ContentType` and `ContentEncoding` metadata fields to `PayloadModel` and `PayloadInfo`
+  - Created `PayloadEncodingService`: centralized Base64url/identity/Brotli/Gzip encode/decode with configurable compression threshold (4KB default)
+  - Migrated ~128 call sites from legacy Base64 (`Convert.ToBase64String`/`FromBase64String`) to `Base64Url` (RFC 4648 §5)
+  - MongoDB BSON Binary storage: `MongoTransactionDocument` stores Signature/Data/Hash as BSON Binary subtype 0x00 (~33% storage reduction). Dual-format reads via `BinaryAwareStringSerializer` (handles both BsonBinary and BsonString)
+  - `JsonTransactionSerializer` emits native JSON objects for identity-encoded payloads (ContentEncoding: "identity")
+  - Cryptographic conformance: Base64url encoding produces correct bytes, legacy Base64 auto-detected and normalized
+  - 23 MongoDocumentMapper tests, 12 JsonTransactionSerializer tests, 40 PayloadEncodingService tests, 6 CryptoEncodingConformance tests
+  - Test results: TransactionHandler 183 pass, Register Core 234 pass, Cryptography 122 pass, Validator 639 pass
+
 ### 2026-02-18
 - **037-New-Submission-Page** (31 tasks, 8 phases — user activity: new submission service directory)
   - Redesigned MyWorkflows.razor from workflow instance list into service directory grouped by register

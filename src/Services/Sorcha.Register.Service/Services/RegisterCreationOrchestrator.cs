@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -305,7 +306,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         // Use the same canonical JSON that was hashed in CreateGenesisTransaction
         // to ensure deterministic hash verification at the Validator.
         // Decode from base64 (stored in Payloads[0].Data) to get the exact bytes that were hashed.
-        var canonicalPayloadBytes = Convert.FromBase64String(genesisTransaction.Payloads[0].Data);
+        var canonicalPayloadBytes = Base64Url.DecodeFromChars(genesisTransaction.Payloads[0].Data);
         var canonicalPayloadJson = Encoding.UTF8.GetString(canonicalPayloadBytes);
         var payloadHash = genesisTransaction.Payloads[0].Hash;
 
@@ -325,8 +326,8 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
         // which attestation signatures were NOT signed against.
         var systemSignature = new SignatureInfo
         {
-            PublicKey = Convert.ToBase64String(signResult.PublicKey),
-            SignatureValue = Convert.ToBase64String(signResult.Signature),
+            PublicKey = Base64Url.EncodeToString(signResult.PublicKey),
+            SignatureValue = Base64Url.EncodeToString(signResult.Signature),
             Algorithm = signResult.Algorithm
         };
 
@@ -497,9 +498,9 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
                     "Verifying attestation: key={Key}, storedHashLen={HashLen}",
                     hashKey, storedHashBytes.Length);
 
-                // Convert base64 public key and signature to bytes
-                var publicKeyBytes = Convert.FromBase64String(signedAttestation.PublicKey);
-                var signatureBytes = Convert.FromBase64String(signedAttestation.Signature);
+                // Convert base64/base64url public key and signature to bytes
+                var publicKeyBytes = Sorcha.TransactionHandler.Services.ContentEncodings.DecodeBase64Auto(signedAttestation.PublicKey);
+                var signatureBytes = Sorcha.TransactionHandler.Services.ContentEncodings.DecodeBase64Auto(signedAttestation.Signature);
 
                 // Verify signature against stored hash using Sorcha.Cryptography
                 var verifyResult = await _cryptoModule.VerifyAsync(
@@ -575,9 +576,11 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             {
                 new PayloadModel
                 {
-                    Data = Convert.ToBase64String(controlRecordBytes),
+                    Data = Base64Url.EncodeToString(controlRecordBytes),
                     WalletAccess = controlRecord.Attestations.Select(a => a.Subject).ToArray(),
-                    Hash = payloadHashHex
+                    Hash = payloadHashHex,
+                    ContentType = "application/json",
+                    ContentEncoding = "base64url"
                 }
             },
             MetaData = new TransactionMetaData
@@ -610,7 +613,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
     private string GenerateNonce()
     {
         var bytes = RandomNumberGenerator.GetBytes(32);
-        return Convert.ToBase64String(bytes);
+        return Base64Url.EncodeToString(bytes);
     }
 
     /// <summary>

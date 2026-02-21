@@ -259,8 +259,8 @@ public class StateReconstructionService : IStateReconstructionService
                 return null;
             }
 
-            // Convert Base64 data to bytes
-            var encryptedBytes = Convert.FromBase64String(encryptedPayload.Data);
+            // Convert Base64/Base64url data to bytes
+            var encryptedBytes = Sorcha.TransactionHandler.Services.ContentEncodings.DecodeBase64Auto(encryptedPayload.Data);
 
             // Decrypt using delegated access
             var decryptedBytes = await _walletClient.DecryptWithDelegationAsync(

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Diagnostics;
 using System.Text.Json;
 using Sorcha.Register.Core.Services;
@@ -85,7 +86,7 @@ public class RightsEnforcementService : IRightsEnforcementService
                 return CreateFailureResult(transaction, sw.Elapsed, errors);
             }
 
-            var submitterPublicKey = Convert.ToBase64String(transaction.Signatures[0].PublicKey);
+            var submitterPublicKey = Base64Url.EncodeToString(transaction.Signatures[0].PublicKey);
 
             // Find the submitter in the roster by matching public key
             var submitterAttestation = roster.ControlRecord.Attestations

@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Text;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -113,7 +114,7 @@ public class Transaction : ITransaction
             SenderWallet = "ws1temp"; // Placeholder
 
             // Calculate transaction ID
-            TxId = Convert.ToBase64String(_hashProvider.ComputeHash(
+            TxId = Base64Url.EncodeToString(_hashProvider.ComputeHash(
                 Signature,
                 HashType.SHA256));
 
@@ -270,7 +271,7 @@ public class Transaction : ITransaction
             senderWallet = SenderWallet,
             recipients = Recipients,
             metadata = Metadata != null ? JsonSerializer.Deserialize<object>(Metadata) : null,
-            signature = Signature != null ? Convert.ToBase64String(Signature) : null,
+            signature = Signature != null ? Base64Url.EncodeToString(Signature) : null,
             payloadCount = PayloadManager.Count
         };
 
@@ -371,7 +372,7 @@ public class Transaction : ITransaction
         // Add signature
         if (Signature != null)
         {
-            jsonLd["signature"] = Convert.ToBase64String(Signature);
+            jsonLd["signature"] = Base64Url.EncodeToString(Signature);
         }
 
         // Add payload count

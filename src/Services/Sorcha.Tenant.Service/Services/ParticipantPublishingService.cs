@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -257,8 +258,8 @@ public class ParticipantPublishingService : IParticipantPublishingService
             [
                 new SignatureInfo
                 {
-                    PublicKey = Convert.ToBase64String(signResult.PublicKey),
-                    SignatureValue = Convert.ToBase64String(signResult.Signature),
+                    PublicKey = Base64Url.EncodeToString(signResult.PublicKey),
+                    SignatureValue = Base64Url.EncodeToString(signResult.Signature),
                     Algorithm = signResult.Algorithm
                 }
             ],

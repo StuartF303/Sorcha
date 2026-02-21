@@ -338,7 +338,10 @@ public class GovernanceRosterService : IGovernanceRosterService
             if (string.IsNullOrWhiteSpace(payloadData))
                 return null;
 
-            var payloadBytes = Convert.FromBase64String(payloadData);
+            // Smart decode: legacy Base64 (+, /, =) or Base64url
+            var payloadBytes = payloadData.Contains('+') || payloadData.Contains('/') || payloadData.Contains('=')
+                ? Convert.FromBase64String(payloadData)
+                : System.Buffers.Text.Base64Url.DecodeFromChars(payloadData);
             return JsonSerializer.Deserialize<ControlTransactionPayload>(payloadBytes, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true

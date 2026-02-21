@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -197,7 +198,10 @@ public class WalletVerificationService : IWalletVerificationService
             ParticipantId = participantId,
             OrganizationId = participant?.OrganizationId ?? Guid.Empty,
             WalletAddress = challenge.WalletAddress,
-            PublicKey = Convert.FromBase64String(walletInfo.PublicKey),
+            // Smart decode: legacy Base64 (+, /, =) or Base64url
+            PublicKey = walletInfo.PublicKey.Contains('+') || walletInfo.PublicKey.Contains('/') || walletInfo.PublicKey.Contains('=')
+                ? Convert.FromBase64String(walletInfo.PublicKey)
+                : Base64Url.DecodeFromChars(walletInfo.PublicKey),
             Algorithm = walletInfo.Algorithm,
             Status = WalletLinkStatus.Active
         };
@@ -334,7 +338,7 @@ public class WalletVerificationService : IWalletVerificationService
         var bytes = new byte[32];
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(bytes);
-        return Convert.ToBase64String(bytes);
+        return Base64Url.EncodeToString(bytes);
     }
 
     /// <summary>

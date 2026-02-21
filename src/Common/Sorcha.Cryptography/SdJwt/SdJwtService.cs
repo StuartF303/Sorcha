@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Sorcha Contributors
 
 using System;
+using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -280,7 +281,7 @@ public class SdJwtService : ISdJwtService
 
     private static string CreateDisclosure(string claimName, object claimValue)
     {
-        var salt = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+        var salt = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(16));
         var disclosure = JsonSerializer.Serialize(new object[] { salt, claimName, claimValue });
         return Base64UrlEncode(Encoding.UTF8.GetBytes(disclosure));
     }
@@ -358,25 +359,12 @@ public class SdJwtService : ISdJwtService
 
     private static string Base64UrlEncode(byte[] data)
     {
-        return Convert.ToBase64String(data)
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
+        return Base64Url.EncodeToString(data);
     }
 
     private static byte[] Base64UrlDecode(string base64Url)
     {
-        var base64 = base64Url
-            .Replace('-', '+')
-            .Replace('_', '/');
-
-        switch (base64.Length % 4)
-        {
-            case 2: base64 += "=="; break;
-            case 3: base64 += "="; break;
-        }
-
-        return Convert.FromBase64String(base64);
+        return Base64Url.DecodeFromChars(base64Url);
     }
 
     private static object ConvertJsonElement(JsonElement element)

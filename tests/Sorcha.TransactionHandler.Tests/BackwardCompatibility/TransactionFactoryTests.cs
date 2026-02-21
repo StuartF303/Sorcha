@@ -5,6 +5,7 @@ using Sorcha.TransactionHandler.Enums;
 using Sorcha.TransactionHandler.Versioning;
 using Sorcha.Cryptography.Core;
 using Sorcha.Cryptography.Enums;
+using TxSerialization = Sorcha.TransactionHandler.Serialization;
 
 namespace Sorcha.TransactionHandler.Tests.BackwardCompatibility;
 
@@ -54,7 +55,7 @@ public class TransactionFactoryTests
         var originalTransaction = builderResult.Build().Value!;
 
         // Serialize it
-        var serializer = new Serialization.BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
+        var serializer = new TxSerialization.BinaryTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var binaryData = serializer.SerializeToBinary(originalTransaction);
 
         // Act - Deserialize using factory
@@ -80,7 +81,7 @@ public class TransactionFactoryTests
         var originalTransaction = builderResult.Build().Value!;
 
         // Serialize to JSON
-        var serializer = new Serialization.JsonTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
+        var serializer = new TxSerialization.JsonTransactionSerializer(_cryptoModule, _hashProvider, _symmetricCrypto);
         var json = serializer.SerializeToJson(originalTransaction);
 
         // Act - Deserialize using factory

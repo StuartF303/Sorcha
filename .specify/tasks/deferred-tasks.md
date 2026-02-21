@@ -81,12 +81,43 @@
 
 ---
 
+## Transaction Architecture — Research & Investigation
+
+> **Source:** Critical review of transaction core (2026-02-21). These are structural improvements to the decentralised trust model — not process improvements. Each item represents a genuine capability gap or trust hardening opportunity identified by examining how transactions are created, signed, validated, sealed, and disclosed.
+
+| ID | Area | Priority | Impact | Status | Description |
+|----|------|----------|--------|--------|-------------|
+| TRUST-1 | Verifiable Calculations | P2 | High | 🔬 Research | Validator should re-execute JSON Logic calculations against accumulated data and reject mismatches. Currently calculations are executed by Blueprint Engine and results simply included in the payload — a compromised Blueprint Service or malicious participant could submit incorrect calculated values (e.g. `riskCategory: "routine"` for a Class III device) and the Validator would accept it. The calculation rules are on-chain (in the blueprint), the inputs are on-chain (in previous transactions), but verification is entirely off-chain. |
+| TRUST-2 | Validator-Enforced Disclosure | P2 | High | 🔬 Research | Validator doesn't verify that disclosure rules were correctly applied. It validates structure, signatures, and chain — but if the Blueprint Service sends full unfiltered data to a participant who should only see specific fields, the Validator has no opinion. Disclosure rules are in the blueprint (on-chain), but enforcement is off-chain. Options: (a) Validator checks each participant's encrypted payload contains only the fields specified in their disclosure rules, or (b) ZKP proofs that disclosed subsets are faithful extractions of committed data. |
+| TRUST-3 | Transaction Receipts | P2 | High | 🔬 Research | After a transaction is validated and sealed in a docket, the submitter receives no signed receipt proving finality. A receipt — signed by the validator, containing `{txId, docketNumber, merkleRoot, inclusionProof, validatorSignature}` — would be an independently verifiable artefact. This is the difference between "the system says it happened" and "here's cryptographic proof it happened." Currently requires trusting the system's own reporting. |
+| TRUST-4 | Merkle Inclusion Proofs | P2 | High | 🔬 Research | Merkle root exists in dockets but there's no mechanism to generate or verify a Merkle inclusion proof for a single transaction. A participant wanting to prove their transaction is sealed must fetch the entire docket and recompute the tree. Lightweight proofs (~log2(n) hashes) would enable offline verification — e.g. a hospital presenting a Refurbishment Certificate VC to an insurer without requiring the insurer to have register access. Needs `GenerateInclusionProof(txId, docket)` and `VerifyInclusionProof(proof, merkleRoot)`. |
+| TRUST-5 | Revocation & Amendment Model | P2 | High | 🔬 Research | No structural mechanism to revoke, supersede, or amend a previous transaction. If a VC contains an error (wrong serial number, wrong date), there's no on-chain way to express "transaction X is superseded by transaction Y" or "credential Z is revoked." Currently requires ad-hoc per-blueprint solutions. A first-class `RevocationTransaction` type — referencing the original TxId, signed by the original issuer, recorded on the same register — would be a structural primitive rather than an application-layer concern. Related to but distinct from the existing VC revocation endpoint (which is application-layer). |
+| TRUST-6 | Consensus Finality Guarantees | P3 | High | 🔬 Research | Current consensus is simple quorum voting (>51% = accepted) with no finality guarantee. A docket accepted by 2-of-3 validators could theoretically be challenged if the third comes online and disagrees. No concept of finality depth or BFT-style commit/pre-commit phases. For high-value transactions (medical device certification, financial instruments), "probably final" isn't good enough. Options: two-phase commit (pre-commit lock then finalise) or finality threshold (final after N subsequent dockets reference it). |
+| TRUST-7 | Cross-Register References | P3 | Medium | 🔬 Research | Each register is a self-contained chain with no mechanism for a transaction on Register A to cryptographically reference a transaction on Register B. In production, different organisations will have different registers. A cross-register reference (`foreignRegisterId + foreignTxId + foreignMerkleProof`) embedded in a local transaction would enable verifiable cross-chain attestation without direct register access. Essential for composability between organisations. |
+| TRUST-8 | Transaction Lifecycle Audit Trail | P3 | Medium | 🔬 Research | The register stores transactions and dockets but no structured event log showing lifecycle: submitted → pooled → validated → sealed → confirmed. Memory pool fields (`AddedToPoolAt`, `Priority`, `RetryCount`) are discarded on persistence. For regulatory compliance (healthcare, finance), auditors need provable temporal ordering of each stage. A `TransactionLifecycle` record — timestamps per stage, validator ID, consensus vote tally — preserved alongside the transaction would provide non-repudiable audit provenance. |
+| TRUST-9 | Timestamp Authority | P3 | Medium | 🔬 Research | Transaction timestamps are self-asserted by the submitter. Validator checks for clock skew (±5 min) and expiry, but ordering within a docket is undefined. Two transactions with identical timestamps have no deterministic order. Legal and regulatory contexts require provable temporal ordering. Options: Validator stamps transactions on receipt, or integration with RFC 3161 trusted timestamping service for independently verifiable temporal proof. |
+| TRUST-10 | Key Rotation & Re-encryption | P3 | Medium | 🔬 Research | Payloads are encrypted with per-message symmetric keys wrapped for each recipient's current public key. If a key is compromised and rotated, all previously encrypted payloads remain accessible with the old key. No mechanism to re-encrypt existing payloads for a new key or revoke access to historical data. Options: envelope encryption with a rotatable master key, or proxy re-encryption where a semi-trusted proxy re-encrypts ciphertexts for new keys without seeing plaintext. |
+
+### Priority Rationale
+
+**Ranked by trust impact vs implementation effort:**
+
+| Tier | IDs | Rationale |
+|------|-----|-----------|
+| **Tier 1 — Closes active trust gaps** | TRUST-1, TRUST-2, TRUST-3, TRUST-4 | These address cases where the system currently relies on application-layer honesty rather than cryptographic enforcement. Most actionable without architectural upheaval. |
+| **Tier 2 — Essential for production credentials** | TRUST-5, TRUST-6 | Revocation is a hard requirement for any VC system in production. Finality matters for high-value use cases. |
+| **Tier 3 — Platform maturity** | TRUST-7, TRUST-8, TRUST-9, TRUST-10 | Composability, auditability, temporal provability, and post-compromise recovery. Important for enterprise adoption but not blocking current workflows. |
+
+---
+
 ## Summary
 
-**Total Deferred Tasks:** 33
-**Total Deferred Effort:** 538 hours (~14 weeks)
+**Total Deferred Tasks:** 43
+**Total Deferred Effort:** 538+ hours (~14 weeks, excluding research items)
 
 These tasks represent features that enhance the platform but are not critical for the Minimum Viable Deliverable (MVD). They can be prioritized for post-MVD development based on user feedback and business requirements.
+
+The **Transaction Architecture Research** section (TRUST-1 through TRUST-10) represents structural improvements to the decentralised trust model identified through critical analysis. These are investigation items — effort estimates will be determined after research phase.
 
 ---
 
