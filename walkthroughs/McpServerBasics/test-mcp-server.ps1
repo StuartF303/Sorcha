@@ -1,133 +1,101 @@
-# Quick Test Script for MCP Server Setup
-# This script verifies that the MCP server can start and connect to services
+#!/usr/bin/env pwsh
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Sorcha Contributors
+#
+# McpServerBasics — Quick connectivity test.
+# Verifies Docker, MCP image, services, and authentication work.
+
+param(
+    [ValidateSet('gateway', 'direct', 'aspire')]
+    [string]$Profile = 'gateway'
+)
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "`n=== Sorcha MCP Server Quick Test ===" -ForegroundColor Cyan
-Write-Host ""
+# Import shared module
+$modulePath = Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) "modules/SorchaWalkthrough/SorchaWalkthrough.psm1"
+Import-Module $modulePath -Force
 
-# Test 1: Docker running
-Write-Host "Test 1: Docker Desktop..." -NoNewline
+Write-WtBanner "MCP Server — Quick Test"
+
+# Load secrets
+$secrets = Get-SorchaSecrets -WalkthroughName "mcp-server"
+
+$stepsPassed = 0
+$totalSteps = 0
+
+# Test 1: Docker
+Write-WtStep "Test 1: Docker"
+$totalSteps++
 try {
     $null = docker ps 2>&1
-    Write-Host " ✓ Running" -ForegroundColor Green
+    if ($LASTEXITCODE -eq 0) {
+        Write-WtSuccess "Docker is running"
+        $stepsPassed++
+    } else {
+        Write-WtFail "Docker not running"
+    }
 } catch {
-    Write-Host " ✗ Not running" -ForegroundColor Red
-    exit 1
+    Write-WtFail "Docker not available: $($_.Exception.Message)"
 }
 
-# Test 2: MCP Server image exists
-Write-Host "Test 2: MCP Server image..." -NoNewline
-$imageExists = docker images sorcha/mcp-server:latest --format "{{.Repository}}" | Select-String "sorcha/mcp-server"
-if ($imageExists) {
-    Write-Host " ✓ Built" -ForegroundColor Green
+# Test 2: MCP Server image
+Write-WtStep "Test 2: MCP Server Image"
+$totalSteps++
+$imageExists = docker images sorcha/mcp-server:latest --format "{{.Repository}}" 2>$null
+if ($imageExists -match "sorcha/mcp-server") {
+    Write-WtSuccess "MCP Server image exists"
+    $stepsPassed++
 } else {
-    Write-Host " ✗ Not built" -ForegroundColor Yellow
-    Write-Host "         Building image..." -ForegroundColor Gray
+    Write-WtWarn "MCP Server image not built — building..."
     docker-compose build mcp-server
-    Write-Host "         ✓ Image built" -ForegroundColor Green
+    Write-WtSuccess "Image built"
+    $stepsPassed++
 }
 
 # Test 3: Services running
-Write-Host "Test 3: Sorcha services..." -NoNewline
-$runningServices = docker-compose ps --services --filter "status=running"
-if ($runningServices -contains "tenant-service") {
-    Write-Host " ✓ Running" -ForegroundColor Green
+Write-WtStep "Test 3: Services Running"
+$totalSteps++
+$runningServices = docker-compose ps --services --filter "status=running" 2>$null
+if ($runningServices -match "tenant-service") {
+    Write-WtSuccess "Sorcha services are running"
+    $stepsPassed++
 } else {
-    Write-Host " ✗ Not running" -ForegroundColor Yellow
-    Write-Host "         Start with: docker-compose up -d" -ForegroundColor Gray
+    Write-WtFail "Services not running — start with: docker-compose up -d"
 }
 
-# Test 4: Tenant service accessible
-Write-Host "Test 4: Tenant service health..." -NoNewline
+# Test 4: Authentication
+Write-WtStep "Test 4: Authentication"
+$totalSteps++
 try {
-    $response = Invoke-WebRequest -Uri "http://localhost:5450/health" -UseBasicParsing -TimeoutSec 3
-    if ($response.StatusCode -eq 200) {
-        Write-Host " ✓ Healthy" -ForegroundColor Green
-    } else {
-        Write-Host " ⚠ Status: $($response.StatusCode)" -ForegroundColor Yellow
-    }
+    $env = Initialize-SorchaEnvironment -Profile $Profile -SkipHealthCheck
+    $admin = Connect-SorchaAdmin `
+        -TenantUrl $env.TenantUrl `
+        -OrgName "MCP Server Demo" `
+        -OrgSubdomain "mcp-server" `
+        -AdminEmail $secrets.adminEmail `
+        -AdminName $secrets.adminName `
+        -AdminPassword $secrets.adminPassword
+
+    $jwt = Decode-SorchaJwt -Token $admin.Token
+    Write-WtSuccess "Authenticated: $($jwt.sub)"
+    $stepsPassed++
 } catch {
-    Write-Host " ✗ Not accessible" -ForegroundColor Red
-    Write-Host "         Check with: docker-compose logs tenant-service" -ForegroundColor Gray
+    Write-WtFail "Authentication failed: $($_.Exception.Message)"
 }
 
-# Test 5: Can authenticate
-Write-Host "Test 5: Authentication..." -NoNewline
-try {
-    $loginBody = @{
-        email = "admin@sorcha.local"
-        password = "Dev_Pass_2025!"
-    } | ConvertTo-Json
+# Summary
+Write-Host ""
+Write-WtBanner "MCP Server Test — Results"
+$statusColor = if ($stepsPassed -eq $totalSteps) { "Green" } else { "Red" }
+Write-Host "  Steps: $stepsPassed/$totalSteps passed" -ForegroundColor $statusColor
+Write-Host ""
 
-    $response = Invoke-RestMethod -Uri "http://localhost:5450/api/auth/login" `
-        -Method POST `
-        -ContentType "application/json" `
-        -Body $loginBody `
-        -TimeoutSec 5
-
-    if ($response\.access_token) {
-        Write-Host " ✓ Token received" -ForegroundColor Green
-
-        # Test 6: Token is valid JWT
-        Write-Host "Test 6: JWT token format..." -NoNewline
-        $tokenParts = $response\.access_token.Split('.')
-        if ($tokenParts.Length -eq 3) {
-            Write-Host " ✓ Valid JWT" -ForegroundColor Green
-
-            # Parse roles
-            try {
-                $payload = $tokenParts[1]
-                while ($payload.Length % 4 -ne 0) { $payload += "=" }
-                $payloadJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($payload))
-                $claims = $payloadJson | ConvertFrom-Json
-
-                Write-Host "Test 7: User roles..." -NoNewline
-                if ($claims.roles) {
-                    Write-Host " ✓ $($claims.roles.Count) roles" -ForegroundColor Green
-                    Write-Host "         Roles: $($claims.roles -join ', ')" -ForegroundColor Gray
-                } else {
-                    Write-Host " ⚠ No roles found" -ForegroundColor Yellow
-                }
-            } catch {
-                Write-Host "Test 7: User roles... ⚠ Cannot parse" -ForegroundColor Yellow
-            }
-        } else {
-            Write-Host " ✗ Invalid format" -ForegroundColor Red
-        }
-
-        # Test 8: MCP Server can start (dry run)
-        Write-Host "Test 8: MCP Server startup..." -NoNewline
-        try {
-            # Quick test - run and immediately exit
-            $testProcess = Start-Process -FilePath "docker" `
-                -ArgumentList "run", "--rm", "--network", "sorcha_sorcha-network", `
-                "-e", "SORCHA_JWT_TOKEN=$($response\.access_token)", `
-                "sorcha/mcp-server:latest" `
-                -PassThru -NoNewWindow -RedirectStandardError "NUL"
-
-            Start-Sleep -Milliseconds 500
-            if (-not $testProcess.HasExited) {
-                Stop-Process -Id $testProcess.Id -Force -ErrorAction SilentlyContinue
-                Write-Host " ✓ Can start" -ForegroundColor Green
-            } else {
-                Write-Host " ⚠ Quick exit" -ForegroundColor Yellow
-            }
-        } catch {
-            Write-Host " ✗ Error: $_" -ForegroundColor Red
-        }
-
-    } else {
-        Write-Host " ✗ No token" -ForegroundColor Red
-    }
-} catch {
-    Write-Host " ✗ Failed" -ForegroundColor Red
-    Write-Host "         Error: $($_.Exception.Message)" -ForegroundColor Gray
+if ($stepsPassed -eq $totalSteps) {
+    Write-Host "  RESULT: PASS" -ForegroundColor Green
+    Write-WtInfo "Run full walkthrough: pwsh walkthroughs/McpServerBasics/get-token-and-run-mcp.ps1"
+    exit 0
+} else {
+    Write-Host "  RESULT: FAIL" -ForegroundColor Red
+    exit 1
 }
-
-Write-Host ""
-Write-Host "=== Test Summary ===" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "If all tests passed, run the full walkthrough:" -ForegroundColor White
-Write-Host "  .\walkthroughs\McpServerBasics\get-token-and-run-mcp.ps1" -ForegroundColor Yellow
-Write-Host ""

@@ -1,0 +1,12 @@
+{
+  "name": "RegisterCreationFlow",
+  "description": "Demonstrates the 2-phase register creation flow with real cryptographic signing.",
+  "category": "single-org",
+  "organization": {
+    "name": "Register Creation Demo",
+    "subdomain": "register-demo"
+  },
+  "secretsKey": "register-demo",
+  "requiresRegister": true,
+  "requiresParticipants": false
+}

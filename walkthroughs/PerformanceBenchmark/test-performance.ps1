@@ -2,171 +2,77 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Sorcha Contributors
 #
-# Performance Benchmark Test Suite
-# Measures Register Service performance across payloads, throughput, latency, and concurrency
+# PerformanceBenchmark — Run
+# Measures Register Service performance: payload sizes, throughput, latency, concurrency, docket building.
+# Reads org/wallet/URLs from state.json produced by setup.ps1.
 
 param(
-    [Parameter(Mandatory=$false)]
-    [ValidateSet('gateway', 'direct', 'aspire')]
-    [string]$Profile = 'gateway',
-
-    [Parameter(Mandatory=$false)]
-    [string]$AdminEmail = "admin@perf.local",
-
-    [Parameter(Mandatory=$false)]
-    [string]$AdminPassword = "PerfTest2026!",
-
-    [Parameter(Mandatory=$false)]
-    [switch]$QuickTest = $false,
-
-    [Parameter(Mandatory=$false)]
+    [switch]$QuickTest,
     [string]$MaxPayloadSize = "1MB",
-
-    [Parameter(Mandatory=$false)]
     [int]$Iterations = 100,
-
-    [Parameter(Mandatory=$false)]
     [int]$Concurrency = 25,
-
-    [Parameter(Mandatory=$false)]
-    [switch]$SkipResourceMonitoring = $false,
-
-    [Parameter(Mandatory=$false)]
-    [switch]$ShowJson = $false
+    [switch]$ShowJson
 )
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-# ============================================================================
-# Configuration
-# ============================================================================
+$modulePath = Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) "modules/SorchaWalkthrough/SorchaWalkthrough.psm1"
+Import-Module $modulePath -Force
 
-$Script:ResultsDir = Join-Path $PSScriptRoot "results"
-$Script:Timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-$Script:ResultFile = Join-Path $ResultsDir "benchmark-$Timestamp.json"
-$Script:SummaryFile = Join-Path $ResultsDir "summary-$Timestamp.md"
+Write-WtBanner "PerformanceBenchmark — Run"
 
-# Ensure results directory exists
-if (-not (Test-Path $ResultsDir)) {
-    New-Item -Path $ResultsDir -ItemType Directory | Out-Null
-}
+# Load state from setup.ps1
+$stateFile = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) "state.json"
+if (-not (Test-Path $stateFile)) { Write-WtFail "No state.json. Run setup.ps1 first."; exit 1 }
+$state = Get-Content -Path $stateFile -Raw | ConvertFrom-Json
+$headers = @{ Authorization = "Bearer $($state.adminToken)" }
 
-# URL Configuration
-$GatewayUrl = ""
-$TenantUrl = ""
-$RegisterUrl = ""
-$WalletUrl = ""
-$ValidatorUrl = ""
-
-switch ($Profile) {
-    'gateway' {
-        $GatewayUrl    = "http://localhost"
-        $TenantUrl     = "$GatewayUrl/api"
-        $RegisterUrl   = "$GatewayUrl/api"
-        $WalletUrl     = "$GatewayUrl/api"
-        $ValidatorUrl  = "$GatewayUrl/api/validator"  # Gateway routes /api/validator/* to validator service
-    }
-    'direct' {
-        $GatewayUrl    = "http://localhost"
-        $TenantUrl     = "http://localhost:5450/api"
-        $RegisterUrl   = "http://localhost:5380/api"
-        $WalletUrl     = "$GatewayUrl/api"
-        $ValidatorUrl  = "http://localhost:5800/api/v1"
-    }
-    'aspire' {
-        $GatewayUrl    = "https://localhost:7082"
-        $TenantUrl     = "https://localhost:7110/api"
-        $RegisterUrl   = "https://localhost:7290/api"
-        $WalletUrl     = "$GatewayUrl/api"
-        $ValidatorUrl  = "https://localhost:7800/api/v1"
-    }
-}
+# Results directory
+$ResultsDir = Join-Path $PSScriptRoot "results"
+$Timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+$ResultFile = Join-Path $ResultsDir "benchmark-$Timestamp.json"
+$SummaryFile = Join-Path $ResultsDir "summary-$Timestamp.md"
+if (-not (Test-Path $ResultsDir)) { New-Item -Path $ResultsDir -ItemType Directory | Out-Null }
 
 # Test configuration
-$Script:TestConfig = @{
-    PayloadSizes = if ($QuickTest) {
-        @("1KB", "10KB", "50KB")
-    } else {
-        @("1KB", "10KB", "50KB", "100KB", "500KB", $MaxPayloadSize)
-    }
+$TestConfig = @{
+    PayloadSizes = if ($QuickTest) { @("1KB", "10KB", "50KB") } else { @("1KB", "10KB", "50KB", "100KB", "500KB", $MaxPayloadSize) }
     ThroughputDuration = if ($QuickTest) { 30 } else { 60 }
     LatencyIterations = if ($QuickTest) { 50 } else { $Iterations }
-    ConcurrencyLevels = if ($QuickTest) {
-        @(1, 5, 10)
-    } else {
-        @(1, 5, 10, 25, $Concurrency)
-    }
-    DocketSizes = if ($QuickTest) {
-        @(10, 50)
-    } else {
-        @(10, 50, 100, 500)
-    }
+    ConcurrencyLevels = if ($QuickTest) { @(1, 5, 10) } else { @(1, 5, 10, 25, $Concurrency) }
+    DocketSizes = if ($QuickTest) { @(10, 50) } else { @(10, 50, 100, 500) }
 }
 
 # Results storage
 $Script:Results = @{
-    Timestamp = $Timestamp
-    Profile = $Profile
+    Timestamp   = $Timestamp
+    Profile     = $state.profile
     Environment = @{
-        OS = [System.Environment]::OSVersion.VersionString
+        OS         = [System.Environment]::OSVersion.VersionString
         PowerShell = $PSVersionTable.PSVersion.ToString()
-        Docker = ""
+        Docker     = ""
     }
     Tests = @{
-        PayloadSize = @()
-        Throughput = @()
-        Latency = @()
-        Concurrency = @()
+        PayloadSize    = @()
+        Throughput     = @()
+        Latency        = @()
+        Concurrency    = @()
         DocketBuilding = @()
     }
     Summary = @{
-        TotalTests = 0
+        TotalTests  = 0
         TotalErrors = 0
-        Duration = 0
+        Duration    = 0
     }
 }
 
 # ============================================================================
-# Helper Functions
+# Specialized Performance Helpers
 # ============================================================================
 
-function Write-Banner {
-    param([string]$Text)
-    Write-Host ""
-    Write-Host ("=" * 80) -ForegroundColor Cyan
-    Write-Host "  $Text" -ForegroundColor Cyan
-    Write-Host ("=" * 80) -ForegroundColor Cyan
-    Write-Host ""
-}
-
-function Write-Step {
-    param([string]$Text)
-    Write-Host ""
-    Write-Host "[STEP] $Text" -ForegroundColor Yellow
-}
-
-function Write-Success {
-    param([string]$Text)
-    Write-Host "  ✓ $Text" -ForegroundColor Green
-}
-
-function Write-Error {
-    param([string]$Text)
-    Write-Host "  ✗ $Text" -ForegroundColor Red
-}
-
-function Write-Info {
-    param([string]$Text)
-    Write-Host "  → $Text" -ForegroundColor White
-}
-
 function Write-Metric {
-    param(
-        [string]$Name,
-        [string]$Value,
-        [string]$Unit = ""
-    )
+    param([string]$Name, [string]$Value, [string]$Unit = "")
     $displayValue = if ($Unit) { "$Value $Unit" } else { $Value }
     Write-Host "    $Name : " -NoNewline -ForegroundColor Gray
     Write-Host $displayValue -ForegroundColor Cyan
@@ -174,12 +80,9 @@ function Write-Metric {
 
 function ConvertTo-Bytes {
     param([string]$Size)
-
     if ($Size -match '^(\d+(?:\.\d+)?)\s*(KB|MB|GB)?$') {
         $value = [double]$Matches[1]
-        $unit = $Matches[2]
-
-        switch ($unit) {
+        switch ($Matches[2]) {
             "KB" { return [int]($value * 1024) }
             "MB" { return [int]($value * 1024 * 1024) }
             "GB" { return [int]($value * 1024 * 1024 * 1024) }
@@ -191,238 +94,25 @@ function ConvertTo-Bytes {
 
 function Get-Statistics {
     param([double[]]$Values)
-
     if ($Values.Count -eq 0) {
-        return @{
-            Min = 0
-            Max = 0
-            Mean = 0
-            Median = 0
-            P95 = 0
-            P99 = 0
-            StdDev = 0
-        }
+        return @{ Min = 0; Max = 0; Mean = 0; Median = 0; P95 = 0; P99 = 0; StdDev = 0; Count = 0 }
     }
-
     $sorted = $Values | Sort-Object
     $count = $sorted.Count
-
     $mean = ($sorted | Measure-Object -Average).Average
-    $median = if ($count % 2 -eq 0) {
-        ($sorted[($count/2)-1] + $sorted[$count/2]) / 2
-    } else {
-        $sorted[[Math]::Floor($count/2)]
-    }
-
+    $median = if ($count % 2 -eq 0) { ($sorted[($count/2)-1] + $sorted[$count/2]) / 2 } else { $sorted[[Math]::Floor($count/2)] }
     $p95Index = [Math]::Ceiling($count * 0.95) - 1
     $p99Index = [Math]::Ceiling($count * 0.99) - 1
-
     $variance = ($sorted | ForEach-Object { [Math]::Pow($_ - $mean, 2) } | Measure-Object -Average).Average
-    $stdDev = [Math]::Sqrt($variance)
-
     return @{
-        Min = $sorted[0]
-        Max = $sorted[-1]
-        Mean = $mean
+        Min    = $sorted[0]
+        Max    = $sorted[-1]
+        Mean   = $mean
         Median = $median
-        P95 = $sorted[$p95Index]
-        P99 = $sorted[$p99Index]
-        StdDev = $stdDev
-        Count = $count
-    }
-}
-
-function Invoke-ApiRequest {
-    param(
-        [string]$Method,
-        [string]$Url,
-        [hashtable]$Headers = @{},
-        [object]$Body = $null,
-        [switch]$ReturnTiming
-    )
-
-    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-
-    try {
-        $params = @{
-            Method = $Method
-            Uri = $Url
-            Headers = $Headers
-            ContentType = "application/json"
-            UseBasicParsing = $true
-        }
-
-        if ($Body) {
-            $params.Body = ($Body | ConvertTo-Json -Depth 10 -Compress)
-        }
-
-        $response = Invoke-RestMethod @params
-        $stopwatch.Stop()
-
-        if ($ReturnTiming) {
-            return @{
-                Success = $true
-                Response = $response
-                Duration = $stopwatch.Elapsed.TotalMilliseconds
-            }
-        }
-
-        return $response
-    }
-    catch {
-        $stopwatch.Stop()
-
-        if ($ReturnTiming) {
-            return @{
-                Success = $false
-                Error = $_.Exception.Message
-                Duration = $stopwatch.Elapsed.TotalMilliseconds
-            }
-        }
-
-        throw
-    }
-}
-
-function Get-AuthToken {
-    Write-Step "Authenticating..."
-
-    $body = "grant_type=password&username=$AdminEmail&password=$AdminPassword&client_id=sorcha-cli"
-
-    try {
-        $response = Invoke-RestMethod -Method Post `
-            -Uri "$TenantUrl/service-auth/token" `
-            -Body $body `
-            -ContentType "application/x-www-form-urlencoded" `
-            -UseBasicParsing
-
-        Write-Success "Authenticated as $AdminEmail"
-        return $response.access_token
-    }
-    catch {
-        Write-Error "Authentication failed: $($_.Exception.Message)"
-        throw
-    }
-}
-
-function New-TestRegister {
-    param([string]$Token)
-
-    Write-Step "Creating test register..."
-
-    # Create wallet first
-    $walletBody = @{
-        name = "Performance Test Wallet"
-        algorithm = "ED25519"
-        wordCount = 12
-    } | ConvertTo-Json -Depth 10
-
-    $walletResponse = Invoke-RestMethod -Method Post `
-        -Uri "$WalletUrl/v1/wallets" `
-        -Headers @{ Authorization = "Bearer $Token" } `
-        -Body $walletBody `
-        -ContentType "application/json" `
-        -UseBasicParsing
-
-    $walletAddress = $walletResponse.wallet.address
-    Write-Info "Created wallet: $walletAddress"
-
-    # Initiate register
-    $initiateBody = @{
-        name = "Performance Test Register"
-        description = "Register for performance benchmarking"
-        tenantId = "00000000-0000-0000-0000-000000000000"
-        advertise = $false
-        owners = @(
-            @{
-                userId = "perf-admin"
-                walletId = $walletAddress
-            }
-        )
-    } | ConvertTo-Json -Depth 10
-
-    $initiateResponse = Invoke-RestMethod -Method Post `
-        -Uri "$RegisterUrl/registers/initiate" `
-        -Headers @{ Authorization = "Bearer $Token" } `
-        -Body $initiateBody `
-        -ContentType "application/json" `
-        -UseBasicParsing
-
-    $registerId = $initiateResponse.registerId
-    $nonce = $initiateResponse.nonce
-    $attestations = $initiateResponse.attestationsToSign
-
-    # Sign attestations
-    $signedAttestations = @()
-
-    foreach ($att in $attestations) {
-        $dataToSignHex = $att.dataToSign
-
-        # Convert hex to bytes then to base64
-        $hashBytes = [byte[]]::new($dataToSignHex.Length / 2)
-        for ($i = 0; $i -lt $hashBytes.Length; $i++) {
-            $hashBytes[$i] = [Convert]::ToByte($dataToSignHex.Substring($i * 2, 2), 16)
-        }
-        $dataToSignBase64 = [Convert]::ToBase64String($hashBytes)
-
-        $signBody = @{
-            transactionData = $dataToSignBase64
-            isPreHashed = $true
-        } | ConvertTo-Json -Depth 10
-
-        $signResponse = Invoke-RestMethod -Method Post `
-            -Uri "$WalletUrl/v1/wallets/$($att.walletId)/sign" `
-            -Headers @{ Authorization = "Bearer $Token" } `
-            -Body $signBody `
-            -ContentType "application/json" `
-            -UseBasicParsing
-
-        $signedAttestations += @{
-            attestationData = $att.attestationData
-            publicKey = $signResponse.publicKey
-            signature = $signResponse.signature
-            algorithm = "ED25519"
-        }
-    }
-
-    # Finalize register
-    $finalizeBody = @{
-        registerId = $registerId
-        nonce = $nonce
-        signedAttestations = $signedAttestations
-    } | ConvertTo-Json -Depth 10
-
-    Write-Info "Finalizing register: $registerId"
-    Write-Info "Finalize body: $finalizeBody"
-
-    try {
-        $finalizeResponse = Invoke-RestMethod -Method Post `
-            -Uri "$RegisterUrl/registers/finalize" `
-            -Headers @{ Authorization = "Bearer $Token" } `
-            -Body $finalizeBody `
-            -ContentType "application/json" `
-            -UseBasicParsing
-
-        Write-Success "Created register: $registerId"
-    }
-    catch {
-        Write-Error "Register finalization failed"
-        Write-Host "  Status: $($_.Exception.Response.StatusCode.value__)" -ForegroundColor Red
-        Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
-
-        try {
-            $errorStream = $_.Exception.Response.GetResponseStream()
-            $errorReader = New-Object System.IO.StreamReader($errorStream)
-            $errorBody = $errorReader.ReadToEnd()
-            Write-Host "  Response body: $errorBody" -ForegroundColor Red
-        } catch {}
-
-        throw
-    }
-
-    return @{
-        RegisterId = $registerId
-        WalletAddress = $walletAddress
+        P95    = $sorted[$p95Index]
+        P99    = $sorted[$p99Index]
+        StdDev = [Math]::Sqrt($variance)
+        Count  = $count
     }
 }
 
@@ -434,133 +124,81 @@ function New-TestTransaction {
         [string]$Token
     )
 
-    # Generate random payload
     $payload = @{
-        testData = -join ((1..$PayloadBytes) | ForEach-Object {
-            [char](Get-Random -Minimum 65 -Maximum 90)
-        })
-        timestamp = (Get-Date).ToString("o")
-        sequence = Get-Random -Minimum 1 -Maximum 1000000
+        testData         = -join ((1..$PayloadBytes) | ForEach-Object { [char](Get-Random -Minimum 65 -Maximum 90) })
+        timestamp        = (Get-Date).ToString("o")
+        sequence         = Get-Random -Minimum 1 -Maximum 1000000
         payloadSizeBytes = $PayloadBytes
     }
 
-    # CRITICAL: We need to compute hash from the EXACT JSON that will be sent
-    # First serialize to get the JSON string
     $payloadJson = $payload | ConvertTo-Json -Compress -Depth 10
-
-    # Parse it back to get consistent object (this is what will be sent as JsonElement)
     $payloadForRequest = $payloadJson | ConvertFrom-Json
-
-    # Re-serialize to get the FINAL JSON (this is what validator will see)
     $finalPayloadJson = $payloadForRequest | ConvertTo-Json -Compress -Depth 10
     $jsonBytes = [System.Text.Encoding]::UTF8.GetBytes($finalPayloadJson)
 
-    # Compute payload hash from FINAL JSON
     $sha256 = [System.Security.Cryptography.SHA256]::Create()
     $payloadHashBytes = $sha256.ComputeHash($jsonBytes)
     $payloadHash = [BitConverter]::ToString($payloadHashBytes).Replace('-', '').ToLowerInvariant()
 
-    # Generate transaction ID (SHA-256 of registerId + timestamp + random)
     $txIdSource = "$RegisterId-$(Get-Date -Format 'o')-$(Get-Random)"
     $txIdBytes = [System.Text.Encoding]::UTF8.GetBytes($txIdSource)
     $txIdHashBytes = $sha256.ComputeHash($txIdBytes)
     $transactionId = [BitConverter]::ToString($txIdHashBytes).Replace('-', '').ToLowerInvariant()
 
-    # Sign transaction ID with wallet
     $dataToSignBase64 = [Convert]::ToBase64String($txIdHashBytes)
-
-    $signBody = @{
-        transactionData = $dataToSignBase64
-        isPreHashed = $true
-    } | ConvertTo-Json -Depth 10
+    $signBody = @{ transactionData = $dataToSignBase64; isPreHashed = $true } | ConvertTo-Json -Depth 10
 
     try {
         $signResponse = Invoke-RestMethod -Method Post `
-            -Uri "$WalletUrl/v1/wallets/$WalletAddress/sign" `
-            -Headers @{ Authorization = "Bearer $Token" } `
-            -Body $signBody `
-            -ContentType "application/json" `
-            -UseBasicParsing
-    }
-    catch {
+            -Uri "$($state.walletUrl)/v1/wallets/$WalletAddress/sign" `
+            -Headers $headers -Body $signBody -ContentType "application/json" -UseBasicParsing
+    } catch {
         Write-Host "  ! Signing failed: $($_.Exception.Message)" -ForegroundColor Yellow
         return $null
     }
 
-    # Build validator service request
-    $transaction = @{
+    return @{
         transactionId = $transactionId
-        registerId = $RegisterId
-        blueprintId = "performance-test-v1"
-        actionId = "1"
-        payload = $payloadForRequest  # Use the same object we computed hash from
-        payloadHash = $payloadHash
-        signatures = @(
-            @{
-                publicKey = $signResponse.publicKey
-                signatureValue = $signResponse.signature
-                algorithm = if ($signResponse.algorithm) { $signResponse.algorithm } else { "ED25519" }
-            }
-        )
+        registerId    = $RegisterId
+        blueprintId   = "performance-test-v1"
+        actionId      = "1"
+        payload       = $payloadForRequest
+        payloadHash   = $payloadHash
+        signatures    = @(@{
+            publicKey      = $signResponse.publicKey
+            signatureValue = $signResponse.signature
+            algorithm      = if ($signResponse.algorithm) { $signResponse.algorithm } else { "ED25519" }
+        })
         createdAt = (Get-Date).ToUniversalTime().ToString("o")
         expiresAt = (Get-Date).AddMinutes(5).ToUniversalTime().ToString("o")
-        priority = 1  # Normal priority
-        metadata = @{
-            source = "performance-benchmark"
-            payloadSize = "$PayloadBytes"
-        }
+        priority  = 1
+        metadata  = @{ source = "performance-benchmark"; payloadSize = "$PayloadBytes" }
     }
-
-    return $transaction
 }
 
 function Submit-Transaction {
-    param(
-        [object]$Transaction,
-        [string]$Token
-    )
+    param([object]$Transaction, [string]$Token)
 
     $txBody = $Transaction | ConvertTo-Json -Depth 10
-    $result = @{ Success = $false; Duration = 0 }
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
     try {
         $response = Invoke-RestMethod -Method Post `
-            -Uri "$ValidatorUrl/transactions/validate" `
-            -Headers @{ Authorization = "Bearer $Token" } `
-            -Body $txBody `
-            -ContentType "application/json" `
-            -UseBasicParsing
-
+            -Uri "$($state.registerUrl)/validator/transactions/validate" `
+            -Headers $headers -Body $txBody -ContentType "application/json" -UseBasicParsing
         $stopwatch.Stop()
-        $result = @{
-            Success = ($response.isValid -eq $true -and $response.added -eq $true)
-            Duration = $stopwatch.Elapsed.TotalMilliseconds
-            Response = $response
-        }
-    }
-    catch {
+        return @{ Success = ($response.isValid -eq $true -and $response.added -eq $true); Duration = $stopwatch.Elapsed.TotalMilliseconds; Response = $response }
+    } catch {
         $stopwatch.Stop()
         $errorMsg = $_.Exception.Message
-
-        # Try to get response body for debugging
         try {
             $errorStream = $_.Exception.Response.GetResponseStream()
             $errorReader = New-Object System.IO.StreamReader($errorStream)
             $errorBody = $errorReader.ReadToEnd()
-            if ($errorBody) {
-                $errorMsg = "$errorMsg | Response: $errorBody"
-            }
+            if ($errorBody) { $errorMsg = "$errorMsg | Response: $errorBody" }
         } catch {}
-
-        $result = @{
-            Success = $false
-            Duration = $stopwatch.Elapsed.TotalMilliseconds
-            Error = $errorMsg
-        }
+        return @{ Success = $false; Duration = $stopwatch.Elapsed.TotalMilliseconds; Error = $errorMsg }
     }
-
-    return $result
 }
 
 # ============================================================================
@@ -568,70 +206,35 @@ function Submit-Transaction {
 # ============================================================================
 
 function Test-PayloadSizes {
-    param(
-        [string]$RegisterId,
-        [string]$WalletAddress,
-        [string]$Token
-    )
+    param([string]$RegisterId, [string]$WalletAddress)
 
-    Write-Banner "TEST 1: Payload Size Performance"
+    Write-WtStep "TEST 1: Payload Size Performance"
 
-    foreach ($sizeStr in $Script:TestConfig.PayloadSizes) {
-        Write-Step "Testing payload size: $sizeStr"
-
+    foreach ($sizeStr in $TestConfig.PayloadSizes) {
+        Write-WtInfo "Testing payload size: $sizeStr"
         $sizeBytes = ConvertTo-Bytes $sizeStr
-        $iterations = if ($sizeStr -match "KB") { 100 } elseif ($sizeStr -match "^(500|1)") { 25 } else { 50 }
-        if ($QuickTest) { $iterations = [Math]::Min($iterations, 20) }
+        $iters = if ($sizeStr -match "KB") { 100 } elseif ($sizeStr -match "^(500|1)") { 25 } else { 50 }
+        if ($QuickTest) { $iters = [Math]::Min($iters, 20) }
 
         $latencies = @()
         $errors = 0
 
-        Write-Info "Running $iterations transactions with $sizeStr payloads..."
-
-        for ($i = 1; $i -le $iterations; $i++) {
-            Write-Progress -Activity "Payload Test: $sizeStr" -Status "Transaction $i of $iterations" -PercentComplete (($i / $iterations) * 100)
-
-            $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $sizeBytes -Token $Token
-
-            if ($tx -eq $null) {
-                $errors++
-                continue
-            }
-
-            # Submit to Validator Service
-            $result = Submit-Transaction -Transaction $tx -Token $Token
-
-            if ($result.Success) {
-                $latencies += $result.Duration
-            } else {
-                $errors++
-            }
-
+        for ($i = 1; $i -le $iters; $i++) {
+            $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $sizeBytes -Token $state.adminToken
+            if ($null -eq $tx) { $errors++; continue }
+            $result = Submit-Transaction -Transaction $tx -Token $state.adminToken
+            if ($result.Success) { $latencies += $result.Duration } else { $errors++ }
             Start-Sleep -Milliseconds 50
         }
 
-        Write-Progress -Activity "Payload Test: $sizeStr" -Completed
-
         $stats = Get-Statistics $latencies
-
-        Write-Success "Completed $sizeStr test"
-        Write-Metric "Successful" "$($iterations - $errors) / $iterations" "txs"
-        Write-Metric "Error Rate" "$(($errors / $iterations * 100).ToString('F2'))" "%"
-        Write-Metric "Mean Latency" "$($stats.Mean.ToString('F2'))" "ms"
-        Write-Metric "Median Latency" "$($stats.Median.ToString('F2'))" "ms"
-        Write-Metric "P95 Latency" "$($stats.P95.ToString('F2'))" "ms"
-        Write-Metric "P99 Latency" "$($stats.P99.ToString('F2'))" "ms"
+        Write-WtSuccess "$sizeStr: $($iters - $errors)/$iters success, mean=$($stats.Mean.ToString('F2'))ms, P95=$($stats.P95.ToString('F2'))ms"
 
         $Script:Results.Tests.PayloadSize += @{
-            PayloadSize = $sizeStr
-            PayloadBytes = $sizeBytes
-            Iterations = $iterations
-            Successful = $iterations - $errors
-            Errors = $errors
-            Statistics = $stats
+            PayloadSize = $sizeStr; PayloadBytes = $sizeBytes; Iterations = $iters
+            Successful = $iters - $errors; Errors = $errors; Statistics = $stats
         }
-
-        $Script:Results.Summary.TotalTests += $iterations
+        $Script:Results.Summary.TotalTests += $iters
         $Script:Results.Summary.TotalErrors += $errors
     }
 }
@@ -641,77 +244,39 @@ function Test-PayloadSizes {
 # ============================================================================
 
 function Test-Throughput {
-    param(
-        [string]$RegisterId,
-        [string]$WalletAddress,
-        [string]$Token
-    )
+    param([string]$RegisterId, [string]$WalletAddress)
 
-    Write-Banner "TEST 2: Throughput Testing"
-
-    $duration = $Script:TestConfig.ThroughputDuration
+    Write-WtStep "TEST 2: Throughput Testing"
+    $duration = $TestConfig.ThroughputDuration
     $payloadSize = ConvertTo-Bytes "5KB"
-
-    Write-Step "Sustained throughput test ($duration seconds, 5KB payloads)"
+    Write-WtInfo "Sustained throughput ($duration seconds, 5KB payloads)"
 
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    $transactions = 0
-    $errors = 0
-    $latencies = @()
+    $transactions = 0; $errors = 0; $latencies = @()
 
     while ($stopwatch.Elapsed.TotalSeconds -lt $duration) {
-        $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $payloadSize -Token $Token
-
-        if ($tx -eq $null) {
-            $errors++
-            continue
-        }
-
-        $result = Submit-Transaction -Transaction $tx -Token $Token
+        $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $payloadSize -Token $state.adminToken
+        if ($null -eq $tx) { $errors++; continue }
+        $result = Submit-Transaction -Transaction $tx -Token $state.adminToken
         $transactions++
-
-        if ($result.Success) {
-            $latencies += $result.Duration
-        } else {
-            $errors++
-        }
-
-        if ($transactions % 10 -eq 0) {
-            $elapsed = $stopwatch.Elapsed.TotalSeconds
-            $tps = $transactions / $elapsed
-            Write-Progress -Activity "Throughput Test" `
-                -Status "$transactions txs in $([int]$elapsed)s ($($tps.ToString('F2')) TPS)" `
-                -PercentComplete (($elapsed / $duration) * 100)
-        }
-
+        if ($result.Success) { $latencies += $result.Duration } else { $errors++ }
         Start-Sleep -Milliseconds 10
     }
 
     $stopwatch.Stop()
-    Write-Progress -Activity "Throughput Test" -Completed
-
     $totalSeconds = $stopwatch.Elapsed.TotalSeconds
     $tps = $transactions / $totalSeconds
     $stats = Get-Statistics $latencies
 
-    Write-Success "Throughput test completed"
-    Write-Metric "Duration" "$($totalSeconds.ToString('F2'))" "seconds"
-    Write-Metric "Total Transactions" $transactions "txs"
-    Write-Metric "Successful" "$($transactions - $errors)" "txs"
+    Write-WtSuccess "Throughput: $($tps.ToString('F2')) TPS, $transactions txs in $($totalSeconds.ToString('F2'))s"
     Write-Metric "Errors" $errors "txs"
-    Write-Metric "Throughput (TPS)" "$($tps.ToString('F2'))" "txs/sec"
     Write-Metric "Mean Latency" "$($stats.Mean.ToString('F2'))" "ms"
     Write-Metric "P95 Latency" "$($stats.P95.ToString('F2'))" "ms"
 
     $Script:Results.Tests.Throughput += @{
-        Duration = $totalSeconds
-        Transactions = $transactions
-        Successful = $transactions - $errors
-        Errors = $errors
-        TPS = $tps
-        Statistics = $stats
+        Duration = $totalSeconds; Transactions = $transactions; Successful = $transactions - $errors
+        Errors = $errors; TPS = $tps; Statistics = $stats
     }
-
     $Script:Results.Summary.TotalTests += $transactions
     $Script:Results.Summary.TotalErrors += $errors
 }
@@ -721,77 +286,40 @@ function Test-Throughput {
 # ============================================================================
 
 function Test-Latency {
-    param(
-        [string]$RegisterId,
-        [string]$WalletAddress,
-        [string]$Token
-    )
+    param([string]$RegisterId, [string]$WalletAddress)
 
-    Write-Banner "TEST 3: Latency Benchmarks"
+    Write-WtStep "TEST 3: Latency Benchmarks"
 
     $scenarios = @(
-        @{ Name = "Single-threaded"; Concurrency = 1; Delay = 0 }
-        @{ Name = "Light load"; Concurrency = 1; Delay = 100 }
-        @{ Name = "Moderate load"; Concurrency = 1; Delay = 50 }
-        @{ Name = "Heavy load"; Concurrency = 1; Delay = 10 }
+        @{ Name = "Single-threaded"; Delay = 0 }
+        @{ Name = "Light load"; Delay = 100 }
+        @{ Name = "Moderate load"; Delay = 50 }
+        @{ Name = "Heavy load"; Delay = 10 }
     )
 
     $payloadSize = ConvertTo-Bytes "5KB"
-    $iterations = $Script:TestConfig.LatencyIterations
+    $iters = $TestConfig.LatencyIterations
 
     foreach ($scenario in $scenarios) {
-        Write-Step "Testing: $($scenario.Name) ($iterations iterations)"
+        Write-WtInfo "$($scenario.Name) ($iters iterations)"
+        $latencies = @(); $errors = 0
 
-        $latencies = @()
-        $errors = 0
-
-        for ($i = 1; $i -le $iterations; $i++) {
-            Write-Progress -Activity "Latency Test: $($scenario.Name)" `
-                -Status "Transaction $i of $iterations" `
-                -PercentComplete (($i / $iterations) * 100)
-
-            $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $payloadSize -Token $Token
-
-            if ($tx -eq $null) {
-                $errors++
-                continue
-            }
-
-            $result = Submit-Transaction -Transaction $tx -Token $Token
-
-            if ($result.Success) {
-                $latencies += $result.Duration
-            } else {
-                $errors++
-            }
-
-            if ($scenario.Delay -gt 0) {
-                Start-Sleep -Milliseconds $scenario.Delay
-            }
+        for ($i = 1; $i -le $iters; $i++) {
+            $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $payloadSize -Token $state.adminToken
+            if ($null -eq $tx) { $errors++; continue }
+            $result = Submit-Transaction -Transaction $tx -Token $state.adminToken
+            if ($result.Success) { $latencies += $result.Duration } else { $errors++ }
+            if ($scenario.Delay -gt 0) { Start-Sleep -Milliseconds $scenario.Delay }
         }
-
-        Write-Progress -Activity "Latency Test: $($scenario.Name)" -Completed
 
         $stats = Get-Statistics $latencies
-
-        Write-Success "$($scenario.Name) completed"
-        Write-Metric "Successful" "$($iterations - $errors) / $iterations" "txs"
-        Write-Metric "Min Latency" "$($stats.Min.ToString('F2'))" "ms"
-        Write-Metric "Mean Latency" "$($stats.Mean.ToString('F2'))" "ms"
-        Write-Metric "Median Latency" "$($stats.Median.ToString('F2'))" "ms"
-        Write-Metric "P95 Latency" "$($stats.P95.ToString('F2'))" "ms"
-        Write-Metric "P99 Latency" "$($stats.P99.ToString('F2'))" "ms"
-        Write-Metric "Max Latency" "$($stats.Max.ToString('F2'))" "ms"
+        Write-WtSuccess "$($scenario.Name): mean=$($stats.Mean.ToString('F2'))ms, P95=$($stats.P95.ToString('F2'))ms, P99=$($stats.P99.ToString('F2'))ms"
 
         $Script:Results.Tests.Latency += @{
-            Scenario = $scenario.Name
-            Iterations = $iterations
-            Successful = $iterations - $errors
-            Errors = $errors
-            Statistics = $stats
+            Scenario = $scenario.Name; Iterations = $iters; Successful = $iters - $errors
+            Errors = $errors; Statistics = $stats
         }
-
-        $Script:Results.Summary.TotalTests += $iterations
+        $Script:Results.Summary.TotalTests += $iters
         $Script:Results.Summary.TotalErrors += $errors
     }
 }
@@ -801,108 +329,63 @@ function Test-Latency {
 # ============================================================================
 
 function Test-Concurrency {
-    param(
-        [string]$RegisterId,
-        [string]$WalletAddress,
-        [string]$Token
-    )
+    param([string]$RegisterId, [string]$WalletAddress)
 
-    Write-Banner "TEST 4: Concurrency Testing"
+    Write-WtStep "TEST 4: Concurrency Testing"
 
     $payloadSize = ConvertTo-Bytes "5KB"
-    $txPerWorker = 50
-    if ($QuickTest) { $txPerWorker = 20 }
+    $txPerWorker = if ($QuickTest) { 20 } else { 50 }
 
-    foreach ($workers in $Script:TestConfig.ConcurrencyLevels) {
-        Write-Step "Testing: $workers concurrent workers ($txPerWorker txs each)"
+    foreach ($workers in $TestConfig.ConcurrencyLevels) {
+        Write-WtInfo "$workers concurrent workers ($txPerWorker txs each)"
 
         $totalTxs = $workers * $txPerWorker
         $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
         $jobs = 1..$workers | ForEach-Object {
             Start-Job -ScriptBlock {
-                param($RegisterId, $WalletAddress, $Token, $RegisterUrl, $Count, $PayloadSize)
-
-                $results = @{
-                    Latencies = @()
-                    Errors = 0
-                }
-
+                param($RegisterId, $WalletAddress, $Token, $RegisterUrl, $WalletUrl, $Count, $PayloadSize)
+                $results = @{ Latencies = @(); Errors = 0 }
+                $hdrs = @{ Authorization = "Bearer $Token" }
                 for ($i = 1; $i -le $Count; $i++) {
                     try {
                         $payload = @{
-                            testData = -join ((1..$PayloadSize) | ForEach-Object {
-                                [char](Get-Random -Minimum 65 -Maximum 90)
-                            })
+                            testData  = -join ((1..$PayloadSize) | ForEach-Object { [char](Get-Random -Minimum 65 -Maximum 90) })
                             timestamp = (Get-Date).ToString("o")
-                            sequence = Get-Random
+                            sequence  = Get-Random
                         }
-
-                        $tx = @{
-                            registerId = $RegisterId
-                            senderAddress = $WalletAddress
-                            actionType = "TEST_TRANSACTION"
-                            payload = $payload
-                        }
-
+                        $tx = @{ registerId = $RegisterId; senderAddress = $WalletAddress; actionType = "TEST_TRANSACTION"; payload = $payload }
                         $sw = [System.Diagnostics.Stopwatch]::StartNew()
-
-                        $response = Invoke-RestMethod -Method Post `
-                            -Uri "$RegisterUrl/registers/$RegisterId/transactions" `
-                            -Headers @{ Authorization = "Bearer $Token" } `
-                            -Body ($tx | ConvertTo-Json -Depth 10) `
-                            -ContentType "application/json"
-
+                        $null = Invoke-RestMethod -Method Post -Uri "$RegisterUrl/registers/$RegisterId/transactions" `
+                            -Headers $hdrs -Body ($tx | ConvertTo-Json -Depth 10) -ContentType "application/json"
                         $sw.Stop()
                         $results.Latencies += $sw.Elapsed.TotalMilliseconds
-                    }
-                    catch {
-                        $results.Errors++
-                    }
+                    } catch { $results.Errors++ }
                 }
-
                 return $results
-            } -ArgumentList $RegisterId, $WalletAddress, $Token, $RegisterUrl, $txPerWorker, $payloadSize
+            } -ArgumentList $RegisterId, $WalletAddress, $state.adminToken, $state.registerUrl, $state.walletUrl, $txPerWorker, $payloadSize
         }
 
-        Write-Info "Waiting for $workers workers to complete..."
         $jobResults = $jobs | Wait-Job | Receive-Job
         $jobs | Remove-Job
-
         $stopwatch.Stop()
 
-        $allLatencies = @()
-        $totalErrors = 0
-
-        foreach ($result in $jobResults) {
-            $allLatencies += $result.Latencies
-            $totalErrors += $result.Errors
-        }
+        $allLatencies = @(); $totalErrors = 0
+        foreach ($r in $jobResults) { $allLatencies += $r.Latencies; $totalErrors += $r.Errors }
 
         $stats = Get-Statistics $allLatencies
         $totalSeconds = $stopwatch.Elapsed.TotalSeconds
         $tps = $totalTxs / $totalSeconds
 
-        Write-Success "$workers workers completed"
-        Write-Metric "Total Transactions" $totalTxs "txs"
-        Write-Metric "Duration" "$($totalSeconds.ToString('F2'))" "seconds"
-        Write-Metric "Throughput" "$($tps.ToString('F2'))" "txs/sec"
-        Write-Metric "Successful" "$($totalTxs - $totalErrors)" "txs"
-        Write-Metric "Errors" $totalErrors "txs"
+        Write-WtSuccess "$workers workers: $($tps.ToString('F2')) TPS, $($totalTxs - $totalErrors)/$totalTxs success"
         Write-Metric "Mean Latency" "$($stats.Mean.ToString('F2'))" "ms"
         Write-Metric "P95 Latency" "$($stats.P95.ToString('F2'))" "ms"
 
         $Script:Results.Tests.Concurrency += @{
-            Workers = $workers
-            TransactionsPerWorker = $txPerWorker
-            TotalTransactions = $totalTxs
-            Duration = $totalSeconds
-            TPS = $tps
-            Successful = $totalTxs - $totalErrors
-            Errors = $totalErrors
-            Statistics = $stats
+            Workers = $workers; TransactionsPerWorker = $txPerWorker; TotalTransactions = $totalTxs
+            Duration = $totalSeconds; TPS = $tps; Successful = $totalTxs - $totalErrors
+            Errors = $totalErrors; Statistics = $stats
         }
-
         $Script:Results.Summary.TotalTests += $totalTxs
         $Script:Results.Summary.TotalErrors += $totalErrors
 
@@ -915,77 +398,38 @@ function Test-Concurrency {
 # ============================================================================
 
 function Test-DocketBuilding {
-    param(
-        [string]$RegisterId,
-        [string]$WalletAddress,
-        [string]$Token
-    )
+    param([string]$RegisterId, [string]$WalletAddress)
 
-    Write-Banner "TEST 5: Docket Building Performance"
-
+    Write-WtStep "TEST 5: Docket Building Performance"
     $payloadSize = ConvertTo-Bytes "2KB"
 
-    foreach ($docketSize in $Script:TestConfig.DocketSizes) {
-        Write-Step "Testing: Docket with $docketSize transactions"
-
-        # Submit transactions
-        Write-Info "Submitting $docketSize transactions..."
+    foreach ($docketSize in $TestConfig.DocketSizes) {
+        Write-WtInfo "Docket with $docketSize transactions"
         $txIds = @()
-
         $submitStart = Get-Date
 
         for ($i = 1; $i -le $docketSize; $i++) {
-            Write-Progress -Activity "Docket Test: $docketSize txs" `
-                -Status "Submitting transaction $i" `
-                -PercentComplete (($i / $docketSize) * 100)
-
-            $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $payloadSize -Token $Token
-
-            if ($tx -eq $null) {
-                continue
-            }
-
-            $result = Submit-Transaction -Transaction $tx -Token $Token
-
-            if ($result.Success) {
-                $txIds += $result.Response.transactionId
-            }
-
+            $tx = New-TestTransaction -RegisterId $RegisterId -WalletAddress $WalletAddress -PayloadBytes $payloadSize -Token $state.adminToken
+            if ($null -eq $tx) { continue }
+            $result = Submit-Transaction -Transaction $tx -Token $state.adminToken
+            if ($result.Success) { $txIds += $result.Response.transactionId }
             Start-Sleep -Milliseconds 20
         }
 
-        $submitEnd = Get-Date
-        $submitTime = ($submitEnd - $submitStart).TotalMilliseconds
-
-        Write-Progress -Activity "Docket Test: $docketSize txs" -Completed
-
-        # Note: Dockets are built automatically by Validator Service background service
-        # For now, just measure submission performance
-        Write-Info "Submitted $($txIds.Count) transactions to mempool"
+        $submitTime = ((Get-Date) - $submitStart).TotalMilliseconds
 
         if ($txIds.Count -gt 0) {
-            Write-Success "Transaction submission completed"
-            Write-Metric "Submitted" $txIds.Count "txs"
-            Write-Metric "Submit Time" "$($submitTime.ToString('F2'))" "ms"
-            Write-Metric "Submit TPS" "$(($txIds.Count / ($submitTime / 1000)).ToString('F2'))" "txs/sec"
-
-            # Note: Automatic docket building happens in background
-            Write-Info "Docket building occurs automatically via Validator Service"
+            $submitTps = $txIds.Count / ($submitTime / 1000)
+            Write-WtSuccess "Submitted $($txIds.Count) txs in $($submitTime.ToString('F0'))ms ($($submitTps.ToString('F2')) TPS)"
+            Write-WtInfo "Docket building occurs automatically via Validator Service"
 
             $Script:Results.Tests.DocketBuilding += @{
-                DocketSize = $docketSize
-                DocketId = $docketResponse.docketId
-                BuildTime = $buildTime
-                TPS = $docketSize / ($buildTime / 1000)
+                DocketSize = $docketSize; Submitted = $txIds.Count
+                SubmitTime = $submitTime; SubmitTPS = $submitTps
             }
-        }
-        catch {
-            Write-Error "Docket build failed: $($_.Exception.Message)"
-
-            $Script:Results.Tests.DocketBuilding += @{
-                DocketSize = $docketSize
-                Error = $_.Exception.Message
-            }
+        } else {
+            Write-WtWarn "No transactions submitted for docket size $docketSize"
+            $Script:Results.Tests.DocketBuilding += @{ DocketSize = $docketSize; Error = "No transactions submitted" }
         }
 
         Start-Sleep -Seconds 2
@@ -997,211 +441,175 @@ function Test-DocketBuilding {
 # ============================================================================
 
 function Export-Results {
-    Write-Banner "Generating Performance Report"
+    Write-WtStep "Generating Performance Report"
 
-    # Save JSON results
-    $Script:Results | ConvertTo-Json -Depth 10 | Set-Content -Path $Script:ResultFile
-    Write-Success "Saved detailed results: $Script:ResultFile"
+    $Script:Results | ConvertTo-Json -Depth 10 | Set-Content -Path $ResultFile
+    Write-WtSuccess "Saved JSON: $ResultFile"
 
-    # Generate markdown summary
     $summary = @"
 # Performance Benchmark Report
 
 **Date:** $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-**Profile:** $Profile
+**Profile:** $($state.profile)
 **Environment:** $($Script:Results.Environment.OS)
 
 ---
 
-## Executive Summary
+## Summary
 
 | Metric | Value |
 |--------|-------|
 | Total Tests | $($Script:Results.Summary.TotalTests) |
 | Total Errors | $($Script:Results.Summary.TotalErrors) |
-| Error Rate | $(($Script:Results.Summary.TotalErrors / $Script:Results.Summary.TotalTests * 100).ToString('F2'))% |
+| Error Rate | $(if ($Script:Results.Summary.TotalTests -gt 0) { ($Script:Results.Summary.TotalErrors / $Script:Results.Summary.TotalTests * 100).ToString('F2') } else { "0" })% |
 | Duration | $($Script:Results.Summary.Duration.ToString('F2')) seconds |
 
 ---
 
-## Test Results
+## Payload Size Performance
 
-### 1. Payload Size Performance
-
-| Payload Size | Iterations | Success Rate | Mean Latency | P95 Latency | P99 Latency |
-|--------------|------------|--------------|--------------|-------------|-------------|
+| Size | Iterations | Success Rate | Mean Latency | P95 | P99 |
+|------|------------|-------------|--------------|-----|-----|
 "@
 
     foreach ($test in $Script:Results.Tests.PayloadSize) {
-        $successRate = (($test.Successful / $test.Iterations) * 100).ToString('F2')
+        $successRate = if ($test.Iterations -gt 0) { (($test.Successful / $test.Iterations) * 100).ToString('F2') } else { "0" }
         $summary += "`n| $($test.PayloadSize) | $($test.Iterations) | $successRate% | $($test.Statistics.Mean.ToString('F2'))ms | $($test.Statistics.P95.ToString('F2'))ms | $($test.Statistics.P99.ToString('F2'))ms |"
+    }
+
+    if ($Script:Results.Tests.Throughput.Count -gt 0) {
+        $tp = $Script:Results.Tests.Throughput[0]
+        $summary += @"
+
+## Throughput
+
+| Metric | Value |
+|--------|-------|
+| Duration | $($tp.Duration.ToString('F2'))s |
+| Transactions | $($tp.Transactions) |
+| TPS | $($tp.TPS.ToString('F2')) |
+| Mean Latency | $($tp.Statistics.Mean.ToString('F2'))ms |
+| P95 Latency | $($tp.Statistics.P95.ToString('F2'))ms |
+"@
     }
 
     $summary += @"
 
-### 2. Throughput Testing
-
-| Metric | Value |
-|--------|-------|
-| Duration | $($Script:Results.Tests.Throughput[0].Duration.ToString('F2'))s |
-| Total Transactions | $($Script:Results.Tests.Throughput[0].Transactions) |
-| Successful | $($Script:Results.Tests.Throughput[0].Successful) |
-| Throughput (TPS) | $($Script:Results.Tests.Throughput[0].TPS.ToString('F2')) |
-| Mean Latency | $($Script:Results.Tests.Throughput[0].Statistics.Mean.ToString('F2'))ms |
-| P95 Latency | $($Script:Results.Tests.Throughput[0].Statistics.P95.ToString('F2'))ms |
-
-### 3. Latency Benchmarks
+## Latency Benchmarks
 
 | Scenario | Success Rate | Min | Mean | Median | P95 | P99 | Max |
-|----------|--------------|-----|------|--------|-----|-----|-----|
+|----------|-------------|-----|------|--------|-----|-----|-----|
 "@
 
     foreach ($test in $Script:Results.Tests.Latency) {
-        $successRate = (($test.Successful / $test.Iterations) * 100).ToString('F2')
+        $successRate = if ($test.Iterations -gt 0) { (($test.Successful / $test.Iterations) * 100).ToString('F2') } else { "0" }
         $summary += "`n| $($test.Scenario) | $successRate% | $($test.Statistics.Min.ToString('F2'))ms | $($test.Statistics.Mean.ToString('F2'))ms | $($test.Statistics.Median.ToString('F2'))ms | $($test.Statistics.P95.ToString('F2'))ms | $($test.Statistics.P99.ToString('F2'))ms | $($test.Statistics.Max.ToString('F2'))ms |"
     }
 
     $summary += @"
 
-### 4. Concurrency Testing
+## Concurrency
 
-| Workers | Total Txs | Duration | TPS | Success Rate | Mean Latency | P95 Latency |
-|---------|-----------|----------|-----|--------------|--------------|-------------|
+| Workers | Total Txs | Duration | TPS | Success Rate | Mean Latency | P95 |
+|---------|-----------|----------|-----|-------------|--------------|-----|
 "@
 
     foreach ($test in $Script:Results.Tests.Concurrency) {
-        $successRate = (($test.Successful / $test.TotalTransactions) * 100).ToString('F2')
+        $successRate = if ($test.TotalTransactions -gt 0) { (($test.Successful / $test.TotalTransactions) * 100).ToString('F2') } else { "0" }
         $summary += "`n| $($test.Workers) | $($test.TotalTransactions) | $($test.Duration.ToString('F2'))s | $($test.TPS.ToString('F2')) | $successRate% | $($test.Statistics.Mean.ToString('F2'))ms | $($test.Statistics.P95.ToString('F2'))ms |"
     }
 
     $summary += @"
 
-### 5. Docket Building Performance
+## Docket Building
 
-| Docket Size | Build Time | TPS | Status |
-|-------------|------------|-----|--------|
+| Size | Submitted | Submit Time | Submit TPS |
+|------|-----------|-------------|------------|
 "@
 
     foreach ($test in $Script:Results.Tests.DocketBuilding) {
         if ($test.Error) {
-            $summary += "`n| $($test.DocketSize) | - | - | ✗ Error: $($test.Error) |"
+            $summary += "`n| $($test.DocketSize) | - | - | Error: $($test.Error) |"
         } else {
-            $summary += "`n| $($test.DocketSize) | $($test.BuildTime.ToString('F2'))ms | $($test.TPS.ToString('F2')) | ✓ Success |"
+            $summary += "`n| $($test.DocketSize) | $($test.Submitted) | $($test.SubmitTime.ToString('F0'))ms | $($test.SubmitTPS.ToString('F2')) |"
         }
     }
 
     $summary += @"
 
 ---
-
-## Analysis & Recommendations
-
-### Performance Bottlenecks Identified
-
-1. **[AUTO-ANALYSIS PLACEHOLDER]** - Review detailed JSON for patterns
-2. Check P95/P99 latencies for spikes indicating bottlenecks
-3. Review error rates and concurrency degradation
-
-### Quick Win Optimizations
-
-- [ ] Add MongoDB indexes for transaction queries
-- [ ] Implement connection pooling tuning
-- [ ] Add request batching for high-volume scenarios
-- [ ] Review YARP routing overhead (compare 'gateway' vs 'direct' profiles)
-
-### Next Steps
-
-1. Run tests with 'direct' profile to isolate API Gateway overhead
-2. Monitor MongoDB performance during peak load
-3. Profile Register Service with dotnet-trace
-4. Implement recommended optimizations
-5. Re-run benchmark to measure improvements
-
----
-
-**Report Generated:** $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+**Generated:** $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 "@
 
-    $summary | Set-Content -Path $Script:SummaryFile
-    Write-Success "Saved summary report: $Script:SummaryFile"
-
-    Write-Host ""
-    Write-Info "View results at:"
-    Write-Info "  JSON: $Script:ResultFile"
-    Write-Info "  Summary: $Script:SummaryFile"
+    $summary | Set-Content -Path $SummaryFile
+    Write-WtSuccess "Saved summary: $SummaryFile"
 }
 
 # ============================================================================
 # Main Execution
 # ============================================================================
 
-Write-Banner "Sorcha Performance Benchmark Suite"
-
-Write-Info "Configuration:"
-Write-Info "  Profile: $Profile"
-Write-Info "  Quick Test: $QuickTest"
-Write-Info "  Max Payload: $MaxPayloadSize"
-Write-Info "  Iterations: $Iterations"
-Write-Info "  Concurrency: $Concurrency"
+Write-WtInfo "Configuration:"
+Write-WtInfo "  Profile: $($state.profile)"
+Write-WtInfo "  Quick Test: $QuickTest"
+Write-WtInfo "  Max Payload: $MaxPayloadSize"
+Write-WtInfo "  Iterations: $Iterations"
+Write-WtInfo "  Concurrency: $Concurrency"
 
 $totalStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
 try {
-    # Check Docker version
     try {
         $dockerVersion = docker --version
         $Script:Results.Environment.Docker = $dockerVersion
-        Write-Info "Docker: $dockerVersion"
+        Write-WtInfo "Docker: $dockerVersion"
     } catch {
-        Write-Error "Docker not found. Please ensure Docker is installed and running."
+        Write-WtFail "Docker not found"
         exit 1
     }
 
-    # Authenticate
-    $token = Get-AuthToken
-
-    # Create test register
-    $register = New-TestRegister -Token $token
-    $registerId = $register.RegisterId
-    $walletAddress = $register.WalletAddress
+    # Create test register using shared module
+    Write-WtStep "Creating test register"
+    $register = New-SorchaRegister `
+        -RegisterUrl $state.registerUrl -WalletUrl $state.walletUrl `
+        -Name "Performance Benchmark Register" -Description "Register for performance benchmarking" `
+        -TenantId $state.organizationId -OwnerUserId $state.adminUserId `
+        -OwnerWalletAddress $state.walletAddress -Headers $headers
+    Write-WtSuccess "Register created: $($register.RegisterId)"
 
     # Run tests
-    Test-PayloadSizes -RegisterId $registerId -WalletAddress $walletAddress -Token $token
-    Test-Throughput -RegisterId $registerId -WalletAddress $walletAddress -Token $token
-    Test-Latency -RegisterId $registerId -WalletAddress $walletAddress -Token $token
-    Test-Concurrency -RegisterId $registerId -WalletAddress $walletAddress -Token $token
-    Test-DocketBuilding -RegisterId $registerId -WalletAddress $walletAddress -Token $token
+    Test-PayloadSizes -RegisterId $register.RegisterId -WalletAddress $state.walletAddress
+    Test-Throughput -RegisterId $register.RegisterId -WalletAddress $state.walletAddress
+    Test-Latency -RegisterId $register.RegisterId -WalletAddress $state.walletAddress
+    Test-Concurrency -RegisterId $register.RegisterId -WalletAddress $state.walletAddress
+    Test-DocketBuilding -RegisterId $register.RegisterId -WalletAddress $state.walletAddress
 
     $totalStopwatch.Stop()
     $Script:Results.Summary.Duration = $totalStopwatch.Elapsed.TotalSeconds
 
-    # Generate reports
     Export-Results
 
-    Write-Banner "Performance Benchmark Complete!"
+    # Final summary
+    Write-Host ""
+    Write-WtBanner "PerformanceBenchmark — Results"
+    Write-Host "  Total Duration: $($Script:Results.Summary.Duration.ToString('F2'))s" -ForegroundColor White
+    Write-Host "  Total Tests: $($Script:Results.Summary.TotalTests)" -ForegroundColor White
+    Write-Host "  Total Errors: $($Script:Results.Summary.TotalErrors)" -ForegroundColor White
 
-    Write-Success "All tests completed successfully"
-    Write-Metric "Total Duration" "$($Script:Results.Summary.Duration.ToString('F2'))" "seconds"
-    Write-Metric "Total Tests" $Script:Results.Summary.TotalTests "txs"
-    Write-Metric "Total Errors" $Script:Results.Summary.TotalErrors "txs"
-    Write-Metric "Overall Success Rate" "$(((1 - ($Script:Results.Summary.TotalErrors / $Script:Results.Summary.TotalTests)) * 100).ToString('F2'))" "%"
+    if ($Script:Results.Summary.TotalTests -gt 0) {
+        $successRate = ((1 - ($Script:Results.Summary.TotalErrors / $Script:Results.Summary.TotalTests)) * 100).ToString('F2')
+        Write-Host "  Success Rate: $successRate%" -ForegroundColor White
+    }
 
     Write-Host ""
-    Write-Info "Next steps:"
-    Write-Info "  1. Review summary: $Script:SummaryFile"
-    Write-Info "  2. Analyze detailed results: $Script:ResultFile"
-    Write-Info "  3. Compare with baseline metrics in README.md"
-    Write-Info "  4. Identify optimization opportunities"
-
+    Write-Host "  RESULT: PASS" -ForegroundColor Green
     exit 0
-}
-catch {
-    Write-Error "Benchmark failed: $($_.Exception.Message)"
-    Write-Error $_.ScriptStackTrace
+} catch {
+    Write-WtFail "Benchmark failed: $($_.Exception.Message)"
+    Write-Host $_.ScriptStackTrace -ForegroundColor Red
 
     $totalStopwatch.Stop()
     $Script:Results.Summary.Duration = $totalStopwatch.Elapsed.TotalSeconds
-
     Export-Results
 
     exit 1

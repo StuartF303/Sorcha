@@ -1,50 +1,121 @@
-# Test Register Service MongoDB Integration
-# This script verifies the Register Service can connect to MongoDB and perform basic operations
+#!/usr/bin/env pwsh
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Sorcha Contributors
+#
+# RegisterMongoDB — MongoDB integration test.
+# Verifies MongoDB connectivity, Docker containers, and Register Service health.
+
+param(
+    [ValidateSet('gateway', 'direct', 'aspire')]
+    [string]$Profile = 'gateway'
+)
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Register Service MongoDB Integration Test" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
+$modulePath = Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) "modules/SorchaWalkthrough/SorchaWalkthrough.psm1"
+Import-Module $modulePath -Force
 
-# Step 1: Verify MongoDB is running
-Write-Host "Step 1: Checking MongoDB connection..." -ForegroundColor Yellow
+Write-WtBanner "RegisterMongoDB — Integration Test"
+
+$stepsPassed = 0
+$totalSteps = 0
+
+# ============================================================================
+# Test 1: MongoDB Container
+# ============================================================================
+Write-WtStep "Test 1: MongoDB Container"
+$totalSteps++
+
 try {
     $mongoTest = docker exec sorcha-mongodb mongosh --quiet --eval "db.adminCommand('ping')" 2>$null
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ MongoDB is running" -ForegroundColor Green
+        Write-WtSuccess "MongoDB is running and responding"
+        $stepsPassed++
     } else {
-        throw "MongoDB not responding"
+        Write-WtFail "MongoDB not responding"
     }
 } catch {
-    Write-Host "❌ MongoDB is not running. Please start it with: docker-compose up -d mongodb" -ForegroundColor Red
-    exit 1
+    Write-WtFail "MongoDB container not found. Run: docker-compose up -d"
 }
 
-# Step 2: Build the Register Service
+# ============================================================================
+# Test 2: Register Service Health
+# ============================================================================
+Write-WtStep "Test 2: Register Service Health"
+$totalSteps++
+
+$env = Initialize-SorchaEnvironment -Profile $Profile -SkipHealthCheck
+
+try {
+    $null = Invoke-RestMethod -Uri "$($env.RegisterUrl)/health" -Method GET -TimeoutSec 10 -UseBasicParsing
+    Write-WtSuccess "Register Service is healthy"
+    $stepsPassed++
+} catch {
+    Write-WtFail "Register Service health check failed"
+    Write-WtInfo "Check logs: docker-compose logs register-service"
+}
+
+# ============================================================================
+# Test 3: Docker Compose Services
+# ============================================================================
+Write-WtStep "Test 3: Docker Compose Services"
+$totalSteps++
+
+$runningServices = docker-compose ps --services --filter "status=running" 2>$null
+$requiredServices = @("register-service", "mongodb")
+$allRunning = $true
+
+foreach ($svc in $requiredServices) {
+    if ($runningServices -match $svc) {
+        Write-WtSuccess "$svc is running"
+    } else {
+        Write-WtFail "$svc is not running"
+        $allRunning = $false
+    }
+}
+
+if ($allRunning) { $stepsPassed++ }
+
+# ============================================================================
+# Test 4: Register API (authenticated)
+# ============================================================================
+Write-WtStep "Test 4: Register API Access"
+$totalSteps++
+
+try {
+    $secrets = Get-SorchaSecrets -WalkthroughName "register-mongodb"
+    $admin = Connect-SorchaAdmin `
+        -TenantUrl $env.TenantUrl `
+        -OrgName "Register MongoDB Test" `
+        -OrgSubdomain "register-mongodb" `
+        -AdminEmail $secrets.adminEmail `
+        -AdminName $secrets.adminName `
+        -AdminPassword $secrets.adminPassword
+
+    $registers = Invoke-SorchaApi -Method GET `
+        -Uri "$($env.RegisterUrl)/registers" `
+        -Headers $admin.Headers
+
+    $count = if ($registers -is [array]) { $registers.Count } else { 0 }
+    Write-WtSuccess "Register API accessible ($count registers)"
+    $stepsPassed++
+} catch {
+    Write-WtFail "Register API access failed: $($_.Exception.Message)"
+}
+
+# ============================================================================
+# Summary
+# ============================================================================
 Write-Host ""
-Write-Host "Step 2: Building Register Service..." -ForegroundColor Yellow
-dotnet build src/Services/Sorcha.Register.Service/Sorcha.Register.Service.csproj --verbosity quiet
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Build failed" -ForegroundColor Red
+Write-WtBanner "RegisterMongoDB — Results"
+$statusColor = if ($stepsPassed -eq $totalSteps) { "Green" } else { "Red" }
+Write-Host "  Steps: $stepsPassed/$totalSteps passed" -ForegroundColor $statusColor
+Write-Host ""
+
+if ($stepsPassed -eq $totalSteps) {
+    Write-Host "  RESULT: PASS" -ForegroundColor Green
+    exit 0
+} else {
+    Write-Host "  RESULT: FAIL" -ForegroundColor Red
     exit 1
 }
-Write-Host "✅ Build successful" -ForegroundColor Green
-
-# Step 3: Start the Register Service with MongoDB configuration
-Write-Host ""
-Write-Host "Step 3: Starting Register Service with MongoDB..." -ForegroundColor Yellow
-Write-Host "(Press Ctrl+C to stop after verifying startup logs)" -ForegroundColor Gray
-
-$env:ASPNETCORE_ENVIRONMENT = "MongoDB"
-$env:ASPNETCORE_URLS = "http://localhost:5174"
-
-Write-Host ""
-Write-Host "Starting service on http://localhost:5174..." -ForegroundColor Cyan
-Write-Host "Watch for the line: '✅ Register Service using MongoDB storage'" -ForegroundColor Cyan
-Write-Host ""
-
-# Start the service
-Set-Location "C:\Projects\Sorcha"
-dotnet run --project src/Services/Sorcha.Register.Service/Sorcha.Register.Service.csproj --no-build

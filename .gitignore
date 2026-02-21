@@ -196,6 +196,11 @@ jwt_public.*
 /playwright/.cache/
 /playwright/.auth/
 
+# Walkthrough secrets and state (never commit passwords)
+walkthroughs/.secrets/
+!walkthroughs/.secrets/.gitkeep
+walkthroughs/**/state.json
+
 # Performance benchmark test results
 walkthroughs/PerformanceBenchmark/results/*.json
 walkthroughs/PerformanceBenchmark/results/*.md

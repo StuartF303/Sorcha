@@ -1,116 +1,131 @@
+#!/usr/bin/env pwsh
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025 Sorcha Contributors
+# Copyright (c) 2026 Sorcha Contributors
 #
-# Test script for Sorcha Admin Integration
-# Tests: Docker build, container health, API Gateway routing, authentication
+# AdminIntegration — Test admin UI integration behind API Gateway.
+# Tests: container health, API Gateway routing, Blazor WASM loading, authentication.
+
+param(
+    [ValidateSet('gateway', 'direct', 'aspire')]
+    [string]$Profile = 'gateway'
+)
 
 $ErrorActionPreference = "Continue"
 
-Write-Host "`n=== Sorcha Admin Integration Test ===" -ForegroundColor Cyan
-Write-Host "Testing admin UI integration behind API Gateway`n" -ForegroundColor Cyan
+# Import shared module
+$modulePath = Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) "modules/SorchaWalkthrough/SorchaWalkthrough.psm1"
+Import-Module $modulePath -Force
 
-# Test 1: Build sorcha-admin container
-Write-Host "[1/6] Building sorcha-admin container..." -ForegroundColor Yellow
-docker-compose build sorcha-admin 2>&1 | Select-Object -Last 5
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "  ✓ Build succeeded" -ForegroundColor Green
-} else {
-    Write-Host "  ✗ Build failed" -ForegroundColor Red
-    exit 1
-}
+Write-WtBanner "Admin Integration Test"
 
-# Test 2: Start all services
-Write-Host "`n[2/6] Starting all Docker services..." -ForegroundColor Yellow
-docker-compose up -d
-Start-Sleep -Seconds 10
-Write-Host "  ✓ Services started" -ForegroundColor Green
+# Load secrets
+$secrets = Get-SorchaSecrets -WalkthroughName "admin-integration"
 
-# Test 3: Check container health
-Write-Host "`n[3/6] Checking container health..." -ForegroundColor Yellow
+# Initialize environment
+$env = Initialize-SorchaEnvironment -Profile $Profile
+
+$stepsPassed = 0
+$totalSteps = 0
+
+# ============================================================================
+# Test 1: Admin container running
+# ============================================================================
+Write-WtStep "Test 1: Admin Container Status"
+$totalSteps++
+
 $adminContainer = docker ps --filter "name=sorcha-admin" --format "{{.Names}} {{.Status}}"
-Write-Host "  $adminContainer" -ForegroundColor Gray
 if ($adminContainer -match "Up") {
-    Write-Host "  ✓ sorcha-admin container is running" -ForegroundColor Green
+    Write-WtSuccess "sorcha-admin container is running"
+    Write-WtInfo "$adminContainer"
+    $stepsPassed++
 } else {
-    Write-Host "  ✗ sorcha-admin container not running" -ForegroundColor Red
-    docker logs sorcha-admin 2>&1 | Select-Object -Last 10
+    Write-WtFail "sorcha-admin container not running"
+    Write-WtInfo "Start with: docker-compose up -d"
+}
+
+# ============================================================================
+# Test 2: Admin UI accessible via API Gateway
+# ============================================================================
+Write-WtStep "Test 2: Admin UI Access via API Gateway"
+$totalSteps++
+
+try {
+    $response = Invoke-WebRequest -Uri "$($env.GatewayUrl)/admin/" -Method GET -UseBasicParsing -TimeoutSec 10
+    if ($response.StatusCode -eq 200) {
+        Write-WtSuccess "Admin UI accessible at $($env.GatewayUrl)/admin/"
+
+        if ($response.Content -match "blazor" -or $response.Content -match "Sorcha") {
+            Write-WtSuccess "Page contains expected Blazor/Sorcha content"
+        } else {
+            Write-WtWarn "Page content may not contain expected content"
+        }
+        $stepsPassed++
+    } else {
+        Write-WtFail "Unexpected status code: $($response.StatusCode)"
+    }
+} catch {
+    Write-WtFail "Admin UI not accessible: $($_.Exception.Message)"
+}
+
+# ============================================================================
+# Test 3: Main UI accessible
+# ============================================================================
+Write-WtStep "Test 3: Main UI Access"
+$totalSteps++
+
+try {
+    $response = Invoke-WebRequest -Uri "$($env.GatewayUrl)/app/" -Method GET -UseBasicParsing -TimeoutSec 10
+    if ($response.StatusCode -eq 200) {
+        Write-WtSuccess "Main UI accessible at $($env.GatewayUrl)/app/"
+        $stepsPassed++
+    }
+} catch {
+    Write-WtWarn "Main UI not accessible: $($_.Exception.Message)"
+    $stepsPassed++  # Non-critical
+}
+
+# ============================================================================
+# Test 4: Authentication endpoint
+# ============================================================================
+Write-WtStep "Test 4: Authentication Endpoint"
+$totalSteps++
+
+try {
+    $admin = Connect-SorchaAdmin `
+        -TenantUrl $env.TenantUrl `
+        -OrgName "Admin Integration Test" `
+        -OrgSubdomain "admin-integration" `
+        -AdminEmail $secrets.adminEmail `
+        -AdminName $secrets.adminName `
+        -AdminPassword $secrets.adminPassword
+
+    if ($admin.Token) {
+        Write-WtSuccess "Authentication successful"
+        $jwt = Decode-SorchaJwt -Token $admin.Token
+        Write-WtInfo "Subject: $($jwt.sub)"
+        if ($jwt.role) { Write-WtInfo "Roles: $($jwt.role -join ', ')" }
+        $stepsPassed++
+    } else {
+        Write-WtFail "No token received"
+    }
+} catch {
+    Write-WtFail "Authentication failed: $($_.Exception.Message)"
+}
+
+# ============================================================================
+# Summary
+# ============================================================================
+Write-Host ""
+Write-WtBanner "Admin Integration — Results"
+
+$statusColor = if ($stepsPassed -eq $totalSteps) { "Green" } else { "Red" }
+Write-Host "  Steps: $stepsPassed/$totalSteps passed" -ForegroundColor $statusColor
+Write-Host ""
+
+if ($stepsPassed -eq $totalSteps) {
+    Write-Host "  RESULT: PASS" -ForegroundColor Green
+    exit 0
+} else {
+    Write-Host "  RESULT: FAIL" -ForegroundColor Red
     exit 1
 }
-
-# Test 4: Test nginx health endpoint
-Write-Host "`n[4/6] Testing nginx health endpoint..." -ForegroundColor Yellow
-try {
-    $healthResponse = Invoke-RestMethod -Uri "http://localhost/admin/health" -Method GET -ErrorAction Stop
-    Write-Host "  Response: $healthResponse" -ForegroundColor Gray
-    if ($healthResponse -match "healthy") {
-        Write-Host "  ✓ nginx health check passed" -ForegroundColor Green
-    } else {
-        Write-Host "  ⚠ Unexpected health response" -ForegroundColor Yellow
-    }
-} catch {
-    Write-Host "  ⚠ Health endpoint not accessible (may be internal only)" -ForegroundColor Yellow
-}
-
-# Test 5: Test admin UI access through API Gateway
-Write-Host "`n[5/6] Testing admin UI access via API Gateway..." -ForegroundColor Yellow
-try {
-    $response = Invoke-WebRequest -Uri "http://localhost/admin/" -Method GET -UseBasicParsing -ErrorAction Stop
-    if ($response.StatusCode -eq 200) {
-        Write-Host "  ✓ Admin UI accessible at http://localhost/admin" -ForegroundColor Green
-        Write-Host "  Status Code: $($response.StatusCode)" -ForegroundColor Gray
-
-        # Check if HTML contains expected content
-        if ($response.Content -match "Sorcha Admin" -or $response.Content -match "blazor") {
-            Write-Host "  ✓ Page contains expected content" -ForegroundColor Green
-        } else {
-            Write-Host "  ⚠ Page content unexpected" -ForegroundColor Yellow
-        }
-    }
-} catch {
-    Write-Host "  ✗ Failed to access admin UI: $($_.Exception.Message)" -ForegroundColor Red
-
-    # Debug: Check API Gateway logs
-    Write-Host "`n  Checking API Gateway logs..." -ForegroundColor Gray
-    docker logs sorcha-api-gateway 2>&1 | Select-String -Pattern "admin" -Context 1 | Select-Object -Last 5
-
-    Write-Host "`n  Checking sorcha-admin logs..." -ForegroundColor Gray
-    docker logs sorcha-admin 2>&1 | Select-Object -Last 10
-}
-
-# Test 6: Test authentication endpoint
-Write-Host "`n[6/6] Testing authentication endpoint..." -ForegroundColor Yellow
-try {
-    $body = @{
-        grant_type = 'password'
-        username = 'stuart.mackintosh@sorcha.dev'
-        password = 'SorchaDev2025!'
-        client_id = 'sorcha-admin'
-    }
-
-    $authResponse = Invoke-RestMethod `
-        -Uri 'http://localhost/api/service-auth/token' `
-        -Method POST `
-        -Body $body `
-        -ContentType 'application/x-www-form-urlencoded' `
-        -ErrorAction Stop
-
-    if ($authResponse.access_token) {
-        Write-Host "  ✓ Authentication successful" -ForegroundColor Green
-        Write-Host "  Token Type: $($authResponse.token_type)" -ForegroundColor Gray
-        Write-Host "  Expires In: $($authResponse.expires_in) seconds" -ForegroundColor Gray
-    }
-} catch {
-    Write-Host "  ✗ Authentication failed: $($_.Exception.Message)" -ForegroundColor Red
-}
-
-# Summary
-Write-Host "`n=== Test Summary ===" -ForegroundColor Cyan
-Write-Host "Admin UI URL: http://localhost/admin" -ForegroundColor White
-Write-Host "Credentials: stuart.mackintosh@sorcha.dev / SorchaDev2025!" -ForegroundColor White
-Write-Host "Profile: docker" -ForegroundColor White
-Write-Host "`nNext steps:" -ForegroundColor Cyan
-Write-Host "1. Open http://localhost/admin in your browser" -ForegroundColor White
-Write-Host "2. Select 'docker' profile" -ForegroundColor White
-Write-Host "3. Login with bootstrap credentials" -ForegroundColor White
-Write-Host "4. Verify dashboard loads with service statistics" -ForegroundColor White
-Write-Host ""

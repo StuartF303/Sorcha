@@ -1,0 +1,10 @@
+{
+  "name": "AdminIntegration",
+  "description": "Admin UI integration test — Docker build, health checks, API Gateway routing, Blazor WASM loading.",
+  "category": "foundation",
+  "organization": null,
+  "secretsKey": "admin-integration",
+  "requiresRegister": false,
+  "requiresParticipants": false,
+  "notes": "Reuses system bootstrap org. Tests infrastructure, not business logic."
+}

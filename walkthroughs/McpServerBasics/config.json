@@ -1,0 +1,10 @@
+{
+  "name": "McpServerBasics",
+  "description": "MCP Server connectivity test — Docker image build, service health, authentication, MCP server startup.",
+  "category": "foundation",
+  "organization": null,
+  "secretsKey": "mcp-server",
+  "requiresRegister": false,
+  "requiresParticipants": false,
+  "notes": "Reuses system bootstrap org. Tests MCP server infrastructure."
+}

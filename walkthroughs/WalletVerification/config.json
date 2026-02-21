@@ -1,0 +1,12 @@
+{
+  "name": "WalletVerification",
+  "description": "Wallet creation and signing verification — tests wallet crypto operations with register integration.",
+  "category": "single-org",
+  "organization": {
+    "name": "Wallet Verification Demo",
+    "subdomain": "wallet-verify"
+  },
+  "secretsKey": "wallet-verify",
+  "requiresRegister": true,
+  "requiresParticipants": false
+}

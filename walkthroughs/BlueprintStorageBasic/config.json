@@ -1,0 +1,12 @@
+{
+  "name": "BlueprintStorageBasic",
+  "description": "Basic blueprint CRUD operations — create, list, update, delete blueprints.",
+  "category": "foundation",
+  "organization": {
+    "name": "Blueprint Storage Demo",
+    "subdomain": "blueprint-storage"
+  },
+  "secretsKey": "blueprint-storage",
+  "requiresRegister": false,
+  "requiresParticipants": false
+}

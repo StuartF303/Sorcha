@@ -1,0 +1,13 @@
+{
+  "name": "PerformanceBenchmark",
+  "description": "Performance benchmarking — register creation throughput, transaction latency, concurrent operations.",
+  "category": "advanced",
+  "organization": {
+    "name": "Performance Testing",
+    "subdomain": "perf"
+  },
+  "secretsKey": "perf",
+  "requiresRegister": true,
+  "requiresParticipants": false,
+  "notes": "Results saved to results/ directory. Supporting scripts (monitor, capture specs) remain as-is."
+}

@@ -1,0 +1,13 @@
+{
+  "name": "DistributedRegister",
+  "description": "Cross-machine distributed register — peer discovery, subscription, replication between two Sorcha nodes.",
+  "category": "advanced",
+  "organization": {
+    "name": "Distributed Register Demo",
+    "subdomain": "dist-register"
+  },
+  "secretsKey": "dist-register",
+  "requiresRegister": true,
+  "requiresParticipants": false,
+  "notes": "Requires two machines with Sorcha Docker stack running. Remote operations use inline HTTP."
+}

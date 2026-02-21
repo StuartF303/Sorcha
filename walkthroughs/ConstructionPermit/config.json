@@ -1,0 +1,16 @@
+{
+  "name": "ConstructionPermit",
+  "description": "Multi-org construction permit approval — 4 orgs, 5 participants, 3 scenarios (low-risk, high-risk, rejection).",
+  "category": "multi-org",
+  "organizations": [
+    { "name": "Meridian Construction", "subdomain": "meridian-construction", "role": "contractor" },
+    { "name": "Apex Structural Engineers", "subdomain": "apex-structural", "role": "engineer" },
+    { "name": "Riverside Borough Council", "subdomain": "riverside-council", "role": "planning + building control" },
+    { "name": "Green Valley Environmental", "subdomain": "green-valley-env", "role": "environmental" }
+  ],
+  "secretsKey": "construction-permit",
+  "requiresRegister": true,
+  "requiresParticipants": true,
+  "template": "construction-permit-template.json",
+  "scenarios": ["data/scenario-a-low-risk.json", "data/scenario-b-high-risk.json", "data/scenario-c-rejection.json"]
+}

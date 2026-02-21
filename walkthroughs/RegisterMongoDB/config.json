@@ -1,0 +1,10 @@
+{
+  "name": "RegisterMongoDB",
+  "description": "Register Service MongoDB integration test — verifies MongoDB connectivity and Docker Compose setup.",
+  "category": "single-org",
+  "organization": null,
+  "secretsKey": "register-mongodb",
+  "requiresRegister": false,
+  "requiresParticipants": false,
+  "notes": "Infrastructure test. Uses system admin from secrets."
+}
