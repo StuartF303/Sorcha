@@ -108,7 +108,10 @@ public static class DocketSerializer
                         RegisterId = tx.RegisterId,
                         TransactionType = transactionType,
                         BlueprintId = tx.BlueprintId,
-                        ActionId = uint.TryParse(tx.ActionId, out var actionId) ? actionId : null
+                        ActionId = uint.TryParse(tx.ActionId, out var actionId) ? actionId : null,
+                        TrackingData = tx.Metadata.Count > 0
+                            ? new Dictionary<string, string>(tx.Metadata)
+                            : null
                     }
                 };
             }).ToList()

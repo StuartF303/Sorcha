@@ -181,6 +181,32 @@ public interface IRegisterServiceClient
         int pageSize = 100,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Submits a governance proposal (add/remove member, transfer ownership)
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="request">Governance proposal details</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Proposal response with transaction ID, or null on failure</returns>
+    Task<Models.GovernanceProposalResponse?> ProposeGovernanceOperationAsync(
+        string registerId,
+        Models.GovernanceProposalRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets paginated governance proposals from Control TX history
+    /// </summary>
+    /// <param name="registerId">Register ID</param>
+    /// <param name="page">Page number (1-based)</param>
+    /// <param name="pageSize">Number of proposals per page</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated list of governance proposals</returns>
+    Task<Models.GovernanceProposalPage> GetGovernanceProposalsAsync(
+        string registerId,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default);
+
     // =========================================================================
     // Blueprint Publishing (Blueprint Service → Register Service)
     // =========================================================================

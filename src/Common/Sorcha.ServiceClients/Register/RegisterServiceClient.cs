@@ -642,6 +642,116 @@ public class RegisterServiceClient : IRegisterServiceClient
         }
     }
 
+    public async Task<Sorcha.ServiceClients.Register.Models.GovernanceProposalResponse?> ProposeGovernanceOperationAsync(
+        string registerId,
+        Sorcha.ServiceClients.Register.Models.GovernanceProposalRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug(
+                "Submitting governance proposal ({OperationType}) to register {RegisterId}",
+                request.OperationType, registerId);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var response = await _httpClient.PostAsJsonAsync(
+                $"api/registers/{Uri.EscapeDataString(registerId)}/governance/propose",
+                request,
+                JsonOptions,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning(
+                    "Failed to submit governance proposal to register {RegisterId}: {StatusCode} - {Error}",
+                    registerId, response.StatusCode, error);
+                return null;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<Sorcha.ServiceClients.Register.Models.GovernanceProposalResponse>(
+                JsonOptions, cancellationToken);
+
+            _logger.LogInformation(
+                "Successfully submitted governance proposal ({OperationType}) to register {RegisterId}",
+                request.OperationType, registerId);
+            return result;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(
+                ex,
+                "HTTP error submitting governance proposal to register {RegisterId}",
+                registerId);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to submit governance proposal to register {RegisterId}",
+                registerId);
+            return null;
+        }
+    }
+
+    public async Task<Sorcha.ServiceClients.Register.Models.GovernanceProposalPage> GetGovernanceProposalsAsync(
+        string registerId,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug(
+                "Getting governance proposals from register {RegisterId} (page {Page})",
+                registerId, page);
+
+            await SetAuthHeaderAsync(cancellationToken);
+
+            var response = await _httpClient.GetAsync(
+                $"api/registers/{Uri.EscapeDataString(registerId)}/governance/proposals?page={page}&pageSize={pageSize}",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    _logger.LogDebug(
+                        "No governance proposals found for register {RegisterId}",
+                        registerId);
+                    return new Sorcha.ServiceClients.Register.Models.GovernanceProposalPage { Page = page, PageSize = pageSize };
+                }
+
+                _logger.LogWarning(
+                    "Failed to get governance proposals from register {RegisterId}: {StatusCode}",
+                    registerId, response.StatusCode);
+                return new Sorcha.ServiceClients.Register.Models.GovernanceProposalPage { Page = page, PageSize = pageSize };
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<Sorcha.ServiceClients.Register.Models.GovernanceProposalPage>(
+                JsonOptions, cancellationToken);
+            return result ?? new Sorcha.ServiceClients.Register.Models.GovernanceProposalPage { Page = page, PageSize = pageSize };
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(
+                ex,
+                "HTTP error getting governance proposals from register {RegisterId}",
+                registerId);
+            return new Sorcha.ServiceClients.Register.Models.GovernanceProposalPage { Page = page, PageSize = pageSize };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to get governance proposals from register {RegisterId}",
+                registerId);
+            throw;
+        }
+    }
+
     // =========================================================================
     // Blueprint Publishing
     // =========================================================================

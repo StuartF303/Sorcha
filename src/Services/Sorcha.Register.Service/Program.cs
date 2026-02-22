@@ -1356,6 +1356,252 @@ governanceGroup.MapGet("/history", async (
 .WithSummary("Get governance history")
 .WithDescription("Retrieves paginated Control transactions that make up the governance history for a register.");
 
+/// <summary>
+/// Submit a governance proposal (add/remove member, transfer ownership)
+/// </summary>
+governanceGroup.MapPost("/propose", async (
+    string registerId,
+    GovernanceProposalRequest request,
+    IRegisterRepository repository,
+    Sorcha.Register.Core.Services.IGovernanceRosterService rosterService,
+    IHashProvider hashProvider,
+    Sorcha.ServiceClients.Validator.IValidatorServiceClient validatorClient,
+    ISystemWalletSigningService signingService) =>
+{
+    // 1. Verify register exists
+    var register = await repository.GetRegisterAsync(registerId);
+    if (register == null)
+    {
+        return Results.NotFound(new { error = $"Register '{registerId}' not found" });
+    }
+
+    // 2. Reconstruct current roster
+    var roster = await rosterService.GetCurrentRosterAsync(registerId);
+    if (roster == null)
+    {
+        return Results.Problem(
+            title: "No governance roster",
+            detail: $"Register '{registerId}' has no governance roster. A genesis Control transaction is required first.",
+            statusCode: 422);
+    }
+
+    // 3. Build governance operation from request
+    var operation = new GovernanceOperation
+    {
+        OperationType = request.OperationType,
+        ProposerDid = request.ProposerDid,
+        TargetDid = request.TargetDid,
+        TargetRole = request.TargetRole ?? RegisterRole.Admin,
+        ApprovalSignatures = request.ApprovalSignatures ?? [],
+        ProposedAt = DateTimeOffset.UtcNow,
+        ExpiresAt = DateTimeOffset.UtcNow.AddDays(7),
+        Status = ProposalStatus.Pending,
+        Justification = request.Justification
+    };
+
+    // 4. Validate proposal against current roster
+    var validationResult = rosterService.ValidateProposal(roster, operation);
+    if (!validationResult.IsValid)
+    {
+        return Results.BadRequest(new
+        {
+            error = "Governance proposal validation failed",
+            errors = validationResult.Errors
+        });
+    }
+
+    // 5. Validate quorum (owner override for Add/Remove, quorum required for Transfer)
+    var quorumResult = await rosterService.ValidateQuorumAsync(
+        registerId, operation, operation.ApprovalSignatures);
+    if (!quorumResult.IsQuorumMet)
+    {
+        return Results.BadRequest(new
+        {
+            error = "Quorum not met",
+            votesRequired = quorumResult.VotesRequired,
+            votesReceived = quorumResult.VotesReceived,
+            votingPool = quorumResult.VotingPool,
+            isOwnerOverride = quorumResult.IsOwnerOverride
+        });
+    }
+
+    // 6. Apply operation to produce updated roster
+    RegisterAttestation? newAttestation = null;
+    if (operation.OperationType == GovernanceOperationType.Add)
+    {
+        newAttestation = new RegisterAttestation
+        {
+            Role = operation.TargetRole,
+            Subject = operation.TargetDid,
+            PublicKey = string.Empty,
+            Signature = string.Empty,
+            Algorithm = Sorcha.Register.Models.SignatureAlgorithm.ED25519,
+            GrantedAt = DateTimeOffset.UtcNow
+        };
+    }
+
+    operation.Status = ProposalStatus.Approved;
+    var updatedRoster = rosterService.ApplyOperation(
+        roster.ControlRecord, operation, newAttestation);
+
+    // 7. Build ControlTransactionPayload
+    var payload = new ControlTransactionPayload
+    {
+        Version = 1,
+        Roster = updatedRoster,
+        Operation = operation
+    };
+
+    // 8. Canonical JSON serialization for deterministic hashing
+    var canonicalJsonOptions = new System.Text.Json.JsonSerializerOptions
+    {
+        WriteIndented = false,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+    var payloadJson = System.Text.Json.JsonSerializer.Serialize(payload, canonicalJsonOptions);
+    var payloadElement = System.Text.Json.JsonDocument.Parse(payloadJson).RootElement;
+    var canonicalJson = System.Text.Json.JsonSerializer.Serialize(payloadElement, canonicalJsonOptions);
+    var payloadBytes = System.Text.Encoding.UTF8.GetBytes(canonicalJson);
+    var payloadHash = hashProvider.ComputeHash(payloadBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
+    var payloadHashHex = Convert.ToHexString(payloadHash).ToLowerInvariant();
+
+    // 9. Deterministic TxId for idempotency
+    var opType = operation.OperationType.ToString().ToLowerInvariant();
+    var txIdSource = System.Text.Encoding.UTF8.GetBytes(
+        $"governance-{opType}-{registerId}-{operation.ProposerDid}-{operation.TargetDid}-{operation.ProposedAt:O}");
+    var txIdHash = hashProvider.ComputeHash(txIdSource, Sorcha.Cryptography.Enums.HashType.SHA256);
+    var txId = Convert.ToHexString(txIdHash).ToLowerInvariant();
+
+    // 10. Chain linking from latest Control TX
+    string? previousControlTxId = roster.LastControlTxId;
+
+    // 11. Sign with system wallet
+    var signResult = await signingService.SignAsync(
+        registerId: registerId,
+        txId: txId,
+        payloadHash: payloadHashHex,
+        derivationPath: "sorcha:register-control",
+        transactionType: "Control");
+
+    var systemSignature = new Sorcha.ServiceClients.Validator.SignatureInfo
+    {
+        PublicKey = Base64Url.EncodeToString(signResult.PublicKey),
+        SignatureValue = Base64Url.EncodeToString(signResult.Signature),
+        Algorithm = signResult.Algorithm
+    };
+
+    // 12. Submit as Control TX via validator
+    var submission = new Sorcha.ServiceClients.Validator.TransactionSubmission
+    {
+        TransactionId = txId,
+        RegisterId = registerId,
+        BlueprintId = string.Empty,
+        ActionId = $"governance-{opType}",
+        Payload = payloadElement,
+        PayloadHash = payloadHashHex,
+        PreviousTransactionId = previousControlTxId,
+        Signatures = new List<Sorcha.ServiceClients.Validator.SignatureInfo> { systemSignature },
+        CreatedAt = DateTimeOffset.UtcNow,
+        Metadata = new Dictionary<string, string>
+        {
+            ["Type"] = "Control",
+            ["transactionType"] = "GovernanceOperation",
+            ["operationType"] = opType,
+            ["proposerDid"] = operation.ProposerDid,
+            ["targetDid"] = operation.TargetDid,
+            ["SystemWalletAddress"] = signResult.WalletAddress
+        }
+    };
+
+    var submissionResult = await validatorClient.SubmitTransactionAsync(submission);
+    if (!submissionResult.Success)
+    {
+        return Results.Problem(
+            title: "Validator submission failed",
+            detail: submissionResult.ErrorMessage ?? "The validator rejected the governance transaction.",
+            statusCode: 502);
+    }
+
+    return Results.Ok(new
+    {
+        txId,
+        registerId,
+        operationType = opType,
+        proposerDid = operation.ProposerDid,
+        targetDid = operation.TargetDid,
+        targetRole = operation.TargetRole.ToString(),
+        quorum = new
+        {
+            quorumResult.IsQuorumMet,
+            quorumResult.VotesRequired,
+            quorumResult.VotesReceived,
+            quorumResult.IsOwnerOverride
+        },
+        submitted = true
+    });
+})
+.WithName("ProposeGovernanceOperation")
+.WithSummary("Submit a governance proposal")
+.WithDescription("Submits a governance operation (Add, Remove, Transfer) as a Control transaction. Owner can Add/Remove without quorum. Transfer requires quorum.")
+.RequireAuthorization("CanSubmitTransactions");
+
+/// <summary>
+/// List governance proposals from Control TX history
+/// </summary>
+governanceGroup.MapGet("/proposals", async (
+    IRegisterRepository repository,
+    Sorcha.Register.Core.Services.IGovernanceRosterService rosterService,
+    string registerId,
+    int page = 1,
+    int pageSize = 20) =>
+{
+    var register = await repository.GetRegisterAsync(registerId);
+    if (register == null)
+    {
+        return Results.NotFound(new { error = "Register not found" });
+    }
+
+    // Get all Control transactions and extract those with governance operations
+    var transactions = await repository.GetTransactionsAsync(registerId);
+    var controlTxs = transactions
+        .Where(t => t.MetaData != null && t.MetaData.TransactionType == TransactionType.Control)
+        .OrderByDescending(t => t.DocketNumber ?? 0)
+        .ToList();
+
+    // Filter to Control TXs that have governance operation metadata
+    var governanceProposals = controlTxs
+        .Where(t => t.MetaData?.TrackingData != null
+            && t.MetaData.TrackingData.ContainsKey("transactionType")
+            && t.MetaData.TrackingData["transactionType"] == "GovernanceOperation")
+        .ToList();
+
+    var total = governanceProposals.Count;
+    var pagedTxs = governanceProposals
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(t => new
+        {
+            t.TxId,
+            t.DocketNumber,
+            t.TimeStamp,
+            OperationType = t.MetaData?.TrackingData?.GetValueOrDefault("operationType"),
+            ProposerDid = t.MetaData?.TrackingData?.GetValueOrDefault("proposerDid"),
+            TargetDid = t.MetaData?.TrackingData?.GetValueOrDefault("targetDid")
+        })
+        .ToList();
+
+    return Results.Ok(new
+    {
+        Page = page,
+        PageSize = pageSize,
+        Total = total,
+        Proposals = pagedTxs
+    });
+})
+.WithName("GetGovernanceProposals")
+.WithSummary("List governance proposals")
+.WithDescription("Returns paginated governance operations from Control transaction history.");
+
 // ===========================
 // Participant Query API
 // ===========================
@@ -1455,6 +1701,139 @@ participantsGroup.MapGet("/by-address/{walletAddress}/public-key", (
 .WithSummary("Resolve public key by wallet address")
 .WithDescription("Returns the public key for field-level encryption. Returns 410 Gone if participant is revoked.");
 
+// ===========================
+// Admin / Diagnostic Endpoints
+// ===========================
+
+var adminGroup = app.MapGroup("/api/admin/registers/{registerId}")
+    .WithTags("Admin");
+
+/// <summary>
+/// Detect orphan transactions (not referenced by any docket)
+/// </summary>
+adminGroup.MapGet("/orphan-transactions", async (
+    IRegisterRepository repository,
+    string registerId) =>
+{
+    var register = await repository.GetRegisterAsync(registerId);
+    if (register == null)
+        return Results.NotFound(new { error = "Register not found" });
+
+    // Get all dockets and collect their transaction IDs
+    var dockets = await repository.GetDocketsAsync(registerId);
+    var dockedTxIds = new HashSet<string>(
+        dockets.SelectMany(d => d.TransactionIds ?? []),
+        StringComparer.OrdinalIgnoreCase);
+
+    // Get all transactions
+    var allTxQueryable = await repository.GetTransactionsAsync(registerId);
+    var allTransactions = allTxQueryable.ToList();
+
+    // Orphans = transactions not referenced by any docket
+    var orphans = allTransactions
+        .Where(tx => !dockedTxIds.Contains(tx.TxId))
+        .Select(tx => new
+        {
+            tx.TxId,
+            tx.RegisterId,
+            tx.DocketNumber,
+            tx.SenderWallet,
+            tx.TimeStamp,
+            tx.PrevTxId,
+            HasSignature = !string.IsNullOrEmpty(tx.Signature),
+            MetadataType = tx.MetaData?.TransactionType.ToString(),
+            PayloadCount = tx.PayloadCount
+        })
+        .ToList();
+
+    return Results.Ok(new
+    {
+        RegisterId = registerId,
+        TotalTransactions = allTransactions.Count,
+        TotalDockets = dockets.Count(),
+        DockedTransactionCount = dockedTxIds.Count,
+        OrphanCount = orphans.Count,
+        Orphans = orphans
+    });
+})
+.WithName("DetectOrphanTransactions")
+.WithSummary("Detect orphan transactions")
+.WithDescription("Finds transactions not referenced by any sealed docket. These are remnants of legacy direct-write paths.")
+.RequireAuthorization("CanWriteDockets");
+
+/// <summary>
+/// Delete orphan transactions (not referenced by any docket)
+/// </summary>
+adminGroup.MapDelete("/orphan-transactions", async (
+    IRegisterRepository repository,
+    string registerId) =>
+{
+    var register = await repository.GetRegisterAsync(registerId);
+    if (register == null)
+        return Results.NotFound(new { error = "Register not found" });
+
+    // Get all dockets and collect their transaction IDs
+    var dockets = await repository.GetDocketsAsync(registerId);
+    var dockedTxIds = new HashSet<string>(
+        dockets.SelectMany(d => d.TransactionIds ?? []),
+        StringComparer.OrdinalIgnoreCase);
+
+    // Get all transactions
+    var allTxQueryable = await repository.GetTransactionsAsync(registerId);
+    var allTransactions = allTxQueryable.ToList();
+
+    // Find orphans
+    var orphanTxIds = allTransactions
+        .Where(tx => !dockedTxIds.Contains(tx.TxId))
+        .Select(tx => tx.TxId)
+        .ToList();
+
+    if (orphanTxIds.Count == 0)
+        return Results.Ok(new { RegisterId = registerId, DeletedCount = 0, Message = "No orphan transactions found" });
+
+    // Safety check: ensure no other transactions chain from orphans
+    var chainedFromOrphans = allTransactions
+        .Where(tx => tx.PrevTxId != null && orphanTxIds.Contains(tx.PrevTxId) && !orphanTxIds.Contains(tx.TxId))
+        .Select(tx => new { tx.TxId, tx.PrevTxId })
+        .ToList();
+
+    if (chainedFromOrphans.Count > 0)
+    {
+        return Results.Conflict(new
+        {
+            error = "Cannot delete orphans — some docketed transactions chain from orphan PrevTxIds",
+            ChainedTransactions = chainedFromOrphans,
+            OrphanTxIds = orphanTxIds
+        });
+    }
+
+    // Delete each orphan via DeleteTransactionAsync
+    var deletedCount = 0;
+    foreach (var txId in orphanTxIds)
+    {
+        try
+        {
+            await repository.DeleteTransactionAsync(registerId, txId);
+            deletedCount++;
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogWarning(ex, "Failed to delete orphan transaction {TxId}", txId);
+        }
+    }
+
+    return Results.Ok(new
+    {
+        RegisterId = registerId,
+        DeletedCount = deletedCount,
+        OrphanTxIds = orphanTxIds
+    });
+})
+.WithName("DeleteOrphanTransactions")
+.WithSummary("Delete orphan transactions")
+.WithDescription("Removes transactions not referenced by any sealed docket. Refuses if docketed transactions chain from orphans.")
+.RequireAuthorization("CanWriteDockets");
+
 app.Run();
 
 // ===========================
@@ -1476,6 +1855,14 @@ record PublishBlueprintToRegisterRequest(
     string BlueprintId,
     string BlueprintJson,
     string PublishedBy);
+
+record GovernanceProposalRequest(
+    GovernanceOperationType OperationType,
+    string ProposerDid,
+    string TargetDid,
+    RegisterRole? TargetRole = null,
+    string? Justification = null,
+    List<ApprovalSignature>? ApprovalSignatures = null);
 
 record WriteDocketRequest(
     string DocketId,
