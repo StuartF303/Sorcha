@@ -228,7 +228,7 @@ function Test-PayloadSizes {
         }
 
         $stats = Get-Statistics $latencies
-        Write-WtSuccess "$sizeStr: $($iters - $errors)/$iters success, mean=$($stats.Mean.ToString('F2'))ms, P95=$($stats.P95.ToString('F2'))ms"
+        Write-WtSuccess "${sizeStr}: $($iters - $errors)/$iters success, mean=$($stats.Mean.ToString('F2'))ms, P95=$($stats.P95.ToString('F2'))ms"
 
         $Script:Results.Tests.PayloadSize += @{
             PayloadSize = $sizeStr; PayloadBytes = $sizeBytes; Iterations = $iters

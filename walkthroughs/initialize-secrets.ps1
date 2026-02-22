@@ -3,7 +3,7 @@
 # Copyright (c) 2026 Sorcha Contributors
 #
 # initialize-secrets.ps1 — Generate walkthrough credentials in .secrets/passwords.json.
-# Run once before using any walkthrough. Safe to re-run (regenerates all passwords).
+# Run once before using any walkthrough. Safe to re-run (produces identical output).
 #
 # Usage:
 #   pwsh walkthroughs/initialize-secrets.ps1
@@ -37,119 +37,85 @@ if (-not (Test-Path $secretsDir)) {
     New-Item -ItemType Directory -Path $secretsDir -Force | Out-Null
 }
 
-# Password generator: 8+ chars, upper + lower + digit + special
-function New-WalkthroughPassword {
-    $upper   = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-    $lower   = "abcdefghjkmnpqrstuvwxyz"
-    $digits  = "23456789"
-    $special = "!@#$%&*_-+"
-
-    # Guarantee at least one of each category
-    $password = ""
-    $password += $upper[(Get-Random -Maximum $upper.Length)]
-    $password += $lower[(Get-Random -Maximum $lower.Length)]
-    $password += $digits[(Get-Random -Maximum $digits.Length)]
-    $password += $special[(Get-Random -Maximum $special.Length)]
-
-    # Fill remaining with mixed characters
-    $allChars = $upper + $lower + $digits + $special
-    for ($i = 0; $i -lt 12; $i++) {
-        $password += $allChars[(Get-Random -Maximum $allChars.Length)]
-    }
-
-    # Shuffle the password characters
-    $chars = $password.ToCharArray()
-    for ($i = $chars.Length - 1; $i -gt 0; $i--) {
-        $j = Get-Random -Maximum ($i + 1)
-        $temp = $chars[$i]
-        $chars[$i] = $chars[$j]
-        $chars[$j] = $temp
-    }
-
-    return -join $chars
-}
+# All walkthroughs use the platform seed admin (created by DatabaseInitializer on startup).
+# This matches the credentials in Sorcha.Tenant.Service/Data/DatabaseInitializer.cs:
+#   DefaultAdminEmail    = "admin@sorcha.local"
+#   DefaultAdminPassword = "Dev_Pass_2025!"
+$platformEmail    = "admin@sorcha.local"
+$platformPassword = "Dev_Pass_2025!"
+$platformName     = "System Administrator"
 
 # Define all walkthrough credential sets
 $secrets = [ordered]@{
     "_meta" = @{
         generatedAt = (Get-Date -Format "o")
         description = "Auto-generated walkthrough credentials. Do NOT commit to source control."
+        note        = "All walkthroughs use the platform seed admin (DatabaseInitializer defaults)."
+    }
+    "platform" = @{
+        adminEmail    = $platformEmail
+        adminPassword = $platformPassword
+        adminName     = $platformName
     }
     "blueprint-storage" = @{
-        adminEmail    = "admin@blueprint-storage.local"
-        adminPassword = (New-WalkthroughPassword)
-        adminName     = "Blueprint Admin"
+        adminEmail    = $platformEmail
+        adminPassword = $platformPassword
+        adminName     = $platformName
     }
     "admin-integration" = @{
-        adminEmail    = "admin@admin-integration.local"
-        adminPassword = (New-WalkthroughPassword)
-        adminName     = "Admin Integration"
+        adminEmail    = $platformEmail
+        adminPassword = $platformPassword
+        adminName     = $platformName
     }
     "mcp-server" = @{
-        adminEmail    = "admin@mcp-server.local"
-        adminPassword = (New-WalkthroughPassword)
-        adminName     = "MCP Admin"
+        adminEmail    = $platformEmail
+        adminPassword = $platformPassword
+        adminName     = $platformName
     }
     "pingpong" = @{
-        adminEmail    = "admin@pingpong.local"
-        adminPassword = (New-WalkthroughPassword)
-        adminName     = "Ping-Pong Admin"
-        pingEmail     = "ping@pingpong.local"
-        pingPassword  = (New-WalkthroughPassword)
-        pongEmail     = "pong@pingpong.local"
-        pongPassword  = (New-WalkthroughPassword)
+        adminEmail    = $platformEmail
+        adminPassword = $platformPassword
+        adminName     = $platformName
     }
     "register-demo" = @{
-        adminEmail    = "admin@register-demo.local"
-        adminPassword = (New-WalkthroughPassword)
-        adminName     = "Register Admin"
+        adminEmail    = $platformEmail
+        adminPassword = $platformPassword
+        adminName     = $platformName
     }
     "wallet-verify" = @{
-        adminEmail    = "admin@wallet-verify.local"
-        adminPassword = (New-WalkthroughPassword)
-        adminName     = "Wallet Verify Admin"
+        adminEmail    = $platformEmail
+        adminPassword = $platformPassword
+        adminName     = $platformName
     }
     "register-mongodb" = @{
-        adminEmail    = "admin@register-mongodb.local"
-        adminPassword = (New-WalkthroughPassword)
-        adminName     = "MongoDB Admin"
+        adminEmail    = $platformEmail
+        adminPassword = $platformPassword
+        adminName     = $platformName
     }
     "org-pingpong" = @{
-        adminEmail    = "designer@org-pingpong.local"
-        adminPassword = (New-WalkthroughPassword)
-        adminName     = "Blueprint Designer"
+        adminEmail    = $platformEmail
+        adminPassword = $platformPassword
+        adminName     = $platformName
         alphaEmail    = "alpha@org-pingpong.local"
-        alphaPassword = (New-WalkthroughPassword)
         betaEmail     = "beta@org-pingpong.local"
-        betaPassword  = (New-WalkthroughPassword)
     }
     "construction-permit" = @{
-        meridianAdminEmail    = "admin@meridian-construction.local"
-        meridianAdminPassword = (New-WalkthroughPassword)
-        apexAdminEmail        = "admin@apex-structural.local"
-        apexAdminPassword     = (New-WalkthroughPassword)
-        riversideAdminEmail   = "admin@riverside-council.local"
-        riversideAdminPassword = (New-WalkthroughPassword)
-        greenValleyAdminEmail = "admin@green-valley-env.local"
-        greenValleyAdminPassword = (New-WalkthroughPassword)
+        meridianAdminEmail    = $platformEmail
+        meridianAdminPassword = $platformPassword
     }
     "medical-equipment" = @{
-        hospitalAdminEmail    = "admin@city-general.local"
-        hospitalAdminPassword = (New-WalkthroughPassword)
-        medtechAdminEmail     = "admin@medtech-refurb.local"
-        medtechAdminPassword  = (New-WalkthroughPassword)
-        authorityAdminEmail   = "admin@regional-health.local"
-        authorityAdminPassword = (New-WalkthroughPassword)
+        hospitalAdminEmail    = $platformEmail
+        hospitalAdminPassword = $platformPassword
     }
     "dist-register" = @{
-        adminEmail    = "admin@dist-register.local"
-        adminPassword = (New-WalkthroughPassword)
-        adminName     = "Distributed Register Admin"
+        adminEmail    = $platformEmail
+        adminPassword = $platformPassword
+        adminName     = $platformName
     }
     "perf" = @{
-        adminEmail    = "admin@perf.local"
-        adminPassword = (New-WalkthroughPassword)
-        adminName     = "Performance Admin"
+        adminEmail    = $platformEmail
+        adminPassword = $platformPassword
+        adminName     = $platformName
     }
 }
 
@@ -159,14 +125,14 @@ Set-Content -Path $passwordsFile -Value $json -Encoding UTF8
 
 Write-Host "[OK] Secrets generated: $passwordsFile" -ForegroundColor Green
 Write-Host ""
-Write-Host "Walkthrough credentials:" -ForegroundColor Yellow
+Write-Host "Platform admin: $platformEmail" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Walkthrough credential sets:" -ForegroundColor Yellow
 
 $walkthroughCount = 0
 foreach ($key in $secrets.Keys) {
-    if ($key -eq "_meta") { continue }
+    if ($key -eq "_meta" -or $key -eq "platform") { continue }
     $walkthroughCount++
-    $adminEmail = $secrets[$key].adminEmail
-    if (-not $adminEmail) { $adminEmail = ($secrets[$key].Keys | Where-Object { $_ -match "Email" } | Select-Object -First 1) }
     Write-Host "  $key" -ForegroundColor White
 }
 

@@ -371,31 +371,21 @@ function Get-SorchaSecrets {
 function Connect-SorchaAdmin {
     <#
     .SYNOPSIS
-        Bootstrap an organization or login if it already exists.
+        Login as the platform seed admin.
     .DESCRIPTION
-        Attempts POST /tenants/bootstrap. If 409 (already exists), falls back to
-        POST /service-auth/token with username/password. Returns token + org info.
-    .PARAMETER TenantUrl
-        Tenant service base URL (e.g., http://localhost/api).
-    .PARAMETER OrgName
-        Organization display name.
-    .PARAMETER OrgSubdomain
-        Organization subdomain (URL-safe, unique).
-    .PARAMETER AdminEmail
-        Admin user email.
-    .PARAMETER AdminName
-        Admin user display name.
-    .PARAMETER AdminPassword
-        Admin user password.
+        Logs in via POST /service-auth/token using the seed admin credentials
+        (created by DatabaseInitializer on Tenant Service startup). The OrgName
+        and OrgSubdomain parameters are accepted for compatibility but are not
+        used — all walkthroughs share the seed admin's org (sorcha-local).
     .RETURNS
         Hashtable with Token, OrganizationId, AdminUserId, Headers.
     #>
     param(
         [Parameter(Mandatory)][string]$TenantUrl,
-        [Parameter(Mandatory)][string]$OrgName,
-        [Parameter(Mandatory)][string]$OrgSubdomain,
+        [string]$OrgName = "Sorcha Local",
+        [string]$OrgSubdomain = "sorcha-local",
         [Parameter(Mandatory)][string]$AdminEmail,
-        [Parameter(Mandatory)][string]$AdminName,
+        [string]$AdminName = "System Administrator",
         [Parameter(Mandatory)][string]$AdminPassword
     )
 
@@ -403,42 +393,16 @@ function Connect-SorchaAdmin {
     $organizationId = ""
     $adminUserId = ""
 
-    $bootstrapBody = @{
-        organizationName        = $OrgName
-        organizationSubdomain   = $OrgSubdomain
-        organizationDescription = "Walkthrough organization: $OrgName"
-        adminEmail              = $AdminEmail
-        adminName               = $AdminName
-        adminPassword           = $AdminPassword
-        createServicePrincipal  = $false
-    }
+    $encodedPassword = [Uri]::EscapeDataString($AdminPassword)
+    $loginBody = "grant_type=password&username=$AdminEmail&password=$encodedPassword&client_id=sorcha-cli"
 
-    try {
-        $response = Invoke-SorchaApi -Method POST -Uri "$TenantUrl/tenants/bootstrap" -Body $bootstrapBody
-        $token = $response.adminAccessToken
-        $organizationId = $response.organizationId
-        $adminUserId = $response.adminUserId
-        Write-WtSuccess "Organization '$OrgName' bootstrapped"
-    } catch {
-        $statusCode = $null
-        try { $statusCode = $_.Exception.Response.StatusCode.value__ } catch {}
+    $loginResponse = Invoke-SorchaApi -Method POST `
+        -Uri "$TenantUrl/service-auth/token" `
+        -Body $loginBody `
+        -ContentType "application/x-www-form-urlencoded"
 
-        if ($statusCode -eq 409) {
-            Write-WtWarn "Organization already exists (409) — logging in"
-
-            $encodedPassword = [Uri]::EscapeDataString($AdminPassword)
-            $loginBody = "grant_type=password&username=$AdminEmail&password=$encodedPassword&client_id=sorcha-cli"
-
-            $loginResponse = Invoke-SorchaApi -Method POST `
-                -Uri "$TenantUrl/service-auth/token" `
-                -Body $loginBody `
-                -ContentType "application/x-www-form-urlencoded"
-
-            $token = $loginResponse.access_token
-        } else {
-            throw
-        }
-    }
+    $token = $loginResponse.access_token
+    Write-WtSuccess "Logged in as $AdminEmail"
 
     # Extract org info from JWT if not available from bootstrap
     if (-not $organizationId -and $token) {
