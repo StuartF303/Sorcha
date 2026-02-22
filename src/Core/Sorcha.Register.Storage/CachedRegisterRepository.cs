@@ -271,6 +271,19 @@ public class CachedRegisterRepository : IRegisterRepository
         return result;
     }
 
+    public async Task DeleteTransactionAsync(
+        string registerId,
+        string txId,
+        CancellationToken cancellationToken = default)
+    {
+        await _innerRepository.DeleteTransactionAsync(registerId, txId, cancellationToken);
+
+        var cacheKey = $"{TransactionKeyPrefix}{registerId}:{txId}";
+        await _cacheStore.RemoveAsync(cacheKey, cancellationToken);
+
+        _logger?.LogDebug("Deleted transaction {TxId} from register {RegisterId} and cache", txId, registerId);
+    }
+
     public Task<IEnumerable<TransactionModel>> QueryTransactionsAsync(
         string registerId,
         Expression<Func<TransactionModel, bool>> predicate,

@@ -500,6 +500,19 @@ public class MongoRegisterRepository : IRegisterRepository
     }
 
     /// <inheritdoc/>
+    public async Task DeleteTransactionAsync(
+        string registerId,
+        string txId,
+        CancellationToken cancellationToken = default)
+    {
+        var collection = GetMongoTransactionsCollection(registerId);
+        var filter = Builders<MongoModels.MongoTransactionDocument>.Filter.Eq(t => t.TxId, txId);
+        var result = await collection.DeleteOneAsync(filter, cancellationToken);
+        _logger.LogDebug("Deleted transaction {TxId} from register {RegisterId} (matched: {Count})",
+            txId, registerId, result.DeletedCount);
+    }
+
+    /// <inheritdoc/>
     public async Task<IEnumerable<TransactionModel>> QueryTransactionsAsync(
         string registerId,
         Expression<Func<TransactionModel, bool>> predicate,

@@ -201,6 +201,18 @@ public class InMemoryRegisterRepository : IRegisterRepository
         return Task.FromResult(transaction);
     }
 
+    public Task DeleteTransactionAsync(
+        string registerId,
+        string txId,
+        CancellationToken cancellationToken = default)
+    {
+        if (_transactions.TryGetValue(registerId, out var registerTransactions))
+        {
+            registerTransactions.TryRemove(txId, out _);
+        }
+        return Task.CompletedTask;
+    }
+
     public async Task<IEnumerable<TransactionModel>> QueryTransactionsAsync(
         string registerId,
         Expression<Func<TransactionModel, bool>> predicate,

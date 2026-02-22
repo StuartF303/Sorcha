@@ -58,4 +58,12 @@ public interface IRegisterRepository : IReadOnlyRegisterRepository
     Task<TransactionModel> InsertTransactionAsync(
         TransactionModel transaction,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a transaction by ID from a register
+    /// </summary>
+    Task DeleteTransactionAsync(
+        string registerId,
+        string txId,
+        CancellationToken cancellationToken = default);
 }
