@@ -61,7 +61,7 @@ src/Common/Sorcha.Cryptography/
 │   └── WalletNetworks.cs          # Extended with ML_DSA_65, SLH_DSA_128, ML_KEM_768
 ├── Core/
 │   ├── CryptoModule.cs            # Extended switch expressions for PQC algorithms
-│   ├── PqcSignatureProvider.cs    # NEW — ML-DSA-65 and SLH-DSA signing/verification
+│   ├── PqcSignatureProvider.cs    # NEW — ML-DSA-65 and SLH-DSA-128s signing/verification
 │   ├── PqcEncapsulationProvider.cs # NEW — ML-KEM-768 encapsulate/decapsulate
 │   └── SymmetricCrypto.cs         # Unchanged (XChaCha20-Poly1305 remains quantum-safe)
 ├── Models/
@@ -118,10 +118,10 @@ No constitution violations to justify.
 
 ### Phase 1: Core PQC Algorithms in Sorcha.Cryptography (P1)
 
-**Goal**: ML-DSA-65, SLH-DSA-128, ML-KEM-768 working in the cryptography library with full test coverage.
+**Goal**: ML-DSA-65, SLH-DSA-128s, ML-KEM-768 working in the cryptography library with full test coverage.
 
 1. Add `BouncyCastle.Cryptography` 2.6.2 to `Sorcha.Cryptography.csproj`
-2. Extend `WalletNetworks` enum with `ML_DSA_65 = 0x10`, `SLH_DSA_128 = 0x11`, `ML_KEM_768 = 0x12`
+2. Extend `WalletNetworks` enum with `ML_DSA_65 = 0x10`, `SLH_DSA_128s = 0x11`, `ML_KEM_768 = 0x12`
 3. Create `PqcSignatureProvider` — ML-DSA-65 and SLH-DSA key generation, signing, verification via BouncyCastle
 4. Create `PqcEncapsulationProvider` — ML-KEM-768 encapsulate/decapsulate via BouncyCastle
 5. Extend `CryptoModule` — add cases to all 6 switch expressions for new network types

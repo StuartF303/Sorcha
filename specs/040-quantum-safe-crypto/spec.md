@@ -135,19 +135,21 @@ A security-conscious deployer needs SLH-DSA (SPHINCS+) as an alternative signatu
 
 | Algorithm | Type | NIST Standard | Security Level | Default |
 |-----------|------|---------------|----------------|---------|
-| ML-DSA-44 | Signature | FIPS 204 | Level 1 (128-bit) | Yes |
-| ML-DSA-65 | Signature | FIPS 204 | Level 3 (192-bit) | No |
-| ML-DSA-87 | Signature | FIPS 204 | Level 5 (256-bit) | No |
+| ML-DSA-44 | Signature | FIPS 204 | Level 1 (128-bit) | No (deferred) |
+| ML-DSA-65 | Signature | FIPS 204 | Level 3 (192-bit) | Yes |
+| ML-DSA-87 | Signature | FIPS 204 | Level 5 (256-bit) | No (deferred) |
 | SLH-DSA-128s | Signature | FIPS 205 | Level 1 (128-bit) | No |
 | SLH-DSA-192s | Signature | FIPS 205 | Level 3 (192-bit) | No |
-| ML-KEM-512 | Key Encapsulation | FIPS 203 | Level 1 (128-bit) | Yes |
-| ML-KEM-768 | Key Encapsulation | FIPS 203 | Level 3 (192-bit) | No |
-| ML-KEM-1024 | Key Encapsulation | FIPS 203 | Level 5 (256-bit) | No |
+| ML-KEM-512 | Key Encapsulation | FIPS 203 | Level 1 (128-bit) | No (deferred) |
+| ML-KEM-768 | Key Encapsulation | FIPS 203 | Level 3 (192-bit) | Yes |
+| ML-KEM-1024 | Key Encapsulation | FIPS 203 | Level 5 (256-bit) | No (deferred) |
+
+**Deferred Algorithms**: ML-DSA-44, ML-DSA-87, ML-KEM-512, and ML-KEM-1024 are recognized in crypto policy configuration but not implemented in this release. Implementation is deferred to a follow-up feature. Level 3 (192-bit) is the initial default, aligning with CNSA 2.0 minimum requirements.
 
 **Algorithm Selection Logic**:
 1. Check register crypto policy for required algorithm/security level
 2. Fall back to wallet default algorithm
-3. Fall back to system default (ML-DSA-44, ML-KEM-512)
+3. Fall back to system default (ML-DSA-65, ML-KEM-768)
 
 ### Edge Cases
 

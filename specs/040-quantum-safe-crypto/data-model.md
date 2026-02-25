@@ -15,7 +15,7 @@ Extends existing `Sorcha.Cryptography.Enums.WalletNetworks` byte enum.
 | 0x01 | NISTP256 | Existing — NIST P-256 curve signatures |
 | 0x02 | RSA4096 | Existing — RSA 4096-bit signatures |
 | 0x10 | ML_DSA_65 | New — ML-DSA-65 (FIPS 204) lattice-based signatures |
-| 0x11 | SLH_DSA_128 | New — SLH-DSA-128s (FIPS 205) hash-based signatures |
+| 0x11 | SLH_DSA_128s | New — SLH-DSA-128s (FIPS 205) hash-based signatures |
 | 0x12 | ML_KEM_768 | New — ML-KEM-768 (FIPS 203) key encapsulation |
 
 **Validation**: Network byte must be a defined enum value. Gap between 0x02 and 0x10 reserves space for future classical algorithms.
@@ -35,7 +35,7 @@ Per-register cryptographic policy embedded in control transaction payloads.
 | EffectiveFrom | DateTime | UTC timestamp when policy takes effect | Must be >= current time |
 | DeprecatedAlgorithms | string[] | Algorithms being phased out (warning on use) | Optional |
 
-**Algorithm Identifiers**: `"ED25519"`, `"NISTP256"`, `"RSA4096"`, `"ML-DSA-65"`, `"SLH-DSA-128"`, `"ML-KEM-768"`, `"XCHACHA20-POLY1305"`, `"AES-256-GCM"`, `"SHA-256"`, `"SHA-512"`, `"BLAKE2B-256"`
+**Algorithm Identifiers**: `"ED25519"`, `"NISTP256"`, `"RSA4096"`, `"ML-DSA-65"`, `"SLH-DSA-128s"`, `"ML-KEM-768"`, `"XCHACHA20-POLY1305"`, `"AES-256-GCM"`, `"SHA-256"`, `"SHA-512"`, `"BLAKE2B-256"`
 
 **Default Policy** (for new registers):
 - AcceptedSignatureAlgorithms: `["ED25519", "NISTP256", "RSA4096", "ML-DSA-65", "SLH-DSA-128"]`

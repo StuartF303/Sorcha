@@ -35,6 +35,7 @@
 
   <ItemGroup>
     <!-- Minimal dependencies -->
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
     <PackageReference Include="HeroSD-JWT" Version="1.1.7" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.2" />
     <PackageReference Include="Sodium.Core" Version="1.4.0" />

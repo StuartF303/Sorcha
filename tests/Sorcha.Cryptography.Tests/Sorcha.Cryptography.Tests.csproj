@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Common\Sorcha.Cryptography\Sorcha.Cryptography.csproj" />
+    <ProjectReference Include="..\..\src\Common\Sorcha.Register.Models\Sorcha.Register.Models.csproj" />
   </ItemGroup>
 
 </Project>

@@ -10,10 +10,13 @@ using Sorcha.Cryptography.Models;
 namespace Sorcha.Cryptography.Core;
 
 /// <summary>
-/// Concrete implementation of cryptographic operations for ED25519, NIST P-256, and RSA-4096.
+/// Concrete implementation of cryptographic operations for ED25519, NIST P-256, RSA-4096,
+/// ML-DSA-65 (FIPS 204), SLH-DSA-128s (FIPS 205), and ML-KEM-768 (FIPS 203).
 /// </summary>
 public class CryptoModule : ICryptoModule
 {
+    private readonly PqcSignatureProvider _pqcSignatureProvider = new();
+    private readonly PqcEncapsulationProvider _pqcEncapsulationProvider = new();
     /// <summary>
     /// Generates a new cryptographic key pair.
     /// </summary>
@@ -31,6 +34,9 @@ public class CryptoModule : ICryptoModule
                 WalletNetworks.ED25519 => await GenerateED25519KeySetAsync(seed, cancellationToken),
                 WalletNetworks.NISTP256 => await GenerateNISTP256KeySetAsync(seed, cancellationToken),
                 WalletNetworks.RSA4096 => await GenerateRSA4096KeySetAsync(cancellationToken),
+                WalletNetworks.ML_DSA_65 => await Task.Run(() => _pqcSignatureProvider.GenerateMlDsa65KeyPair(), cancellationToken),
+                WalletNetworks.SLH_DSA_128s => await Task.Run(() => _pqcSignatureProvider.GenerateSlhDsa128sKeyPair(), cancellationToken),
+                WalletNetworks.ML_KEM_768 => await Task.Run(() => _pqcEncapsulationProvider.GenerateMlKem768KeyPair(), cancellationToken),
                 _ => CryptoResult<KeySet>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
             };
         }
@@ -78,6 +84,9 @@ public class CryptoModule : ICryptoModule
                 WalletNetworks.ED25519 => await RecoverED25519KeySetAsync(rawKeyData, cancellationToken),
                 WalletNetworks.NISTP256 => await RecoverNISTP256KeySetAsync(rawKeyData, cancellationToken),
                 WalletNetworks.RSA4096 => await RecoverRSA4096KeySetAsync(rawKeyData, cancellationToken),
+                WalletNetworks.ML_DSA_65 => await Task.Run(() => RecoverPqcKeySet(WalletNetworks.ML_DSA_65, rawKeyData), cancellationToken),
+                WalletNetworks.SLH_DSA_128s => await Task.Run(() => RecoverPqcKeySet(WalletNetworks.SLH_DSA_128s, rawKeyData), cancellationToken),
+                WalletNetworks.ML_KEM_768 => await Task.Run(() => RecoverPqcKeySet(WalletNetworks.ML_KEM_768, rawKeyData), cancellationToken),
                 _ => CryptoResult<KeySet>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
             };
         }
@@ -236,6 +245,9 @@ public class CryptoModule : ICryptoModule
                 WalletNetworks.ED25519 => await SignED25519Async(hash, privateKey, cancellationToken),
                 WalletNetworks.NISTP256 => await SignNISTP256Async(hash, privateKey, cancellationToken),
                 WalletNetworks.RSA4096 => await SignRSA4096Async(hash, privateKey, cancellationToken),
+                WalletNetworks.ML_DSA_65 => await Task.Run(() => _pqcSignatureProvider.SignMlDsa65(hash, privateKey), cancellationToken),
+                WalletNetworks.SLH_DSA_128s => await Task.Run(() => _pqcSignatureProvider.SignSlhDsa128s(hash, privateKey), cancellationToken),
+                WalletNetworks.ML_KEM_768 => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, "ML-KEM-768 is a KEM, not a signature algorithm"),
                 _ => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
             };
         }
@@ -278,6 +290,9 @@ public class CryptoModule : ICryptoModule
                 WalletNetworks.ED25519 => await VerifyED25519Async(signature, hash, publicKey, cancellationToken),
                 WalletNetworks.NISTP256 => await VerifyNISTP256Async(signature, hash, publicKey, cancellationToken),
                 WalletNetworks.RSA4096 => await VerifyRSA4096Async(signature, hash, publicKey, cancellationToken),
+                WalletNetworks.ML_DSA_65 => await Task.Run(() => _pqcSignatureProvider.VerifyMlDsa65(hash, signature, publicKey), cancellationToken),
+                WalletNetworks.SLH_DSA_128s => await Task.Run(() => _pqcSignatureProvider.VerifySlhDsa128s(hash, signature, publicKey), cancellationToken),
+                WalletNetworks.ML_KEM_768 => CryptoStatus.InvalidParameter,
                 _ => CryptoStatus.InvalidParameter
             };
         }
@@ -316,6 +331,9 @@ public class CryptoModule : ICryptoModule
                 WalletNetworks.ED25519 => await EncryptED25519Async(data, publicKey, cancellationToken),
                 WalletNetworks.NISTP256 => await EncryptNISTP256Async(data, publicKey, cancellationToken),
                 WalletNetworks.RSA4096 => await EncryptRSA4096Async(data, publicKey, cancellationToken),
+                WalletNetworks.ML_KEM_768 => await Task.Run(() => EncapsulateAsEncrypt(publicKey), cancellationToken),
+                WalletNetworks.ML_DSA_65 => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, "ML-DSA-65 is a signature algorithm, not an encryption scheme"),
+                WalletNetworks.SLH_DSA_128s => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, "SLH-DSA-128s is a signature algorithm, not an encryption scheme"),
                 _ => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
             };
         }
@@ -354,6 +372,9 @@ public class CryptoModule : ICryptoModule
                 WalletNetworks.ED25519 => await DecryptED25519Async(ciphertext, privateKey, cancellationToken),
                 WalletNetworks.NISTP256 => await DecryptNISTP256Async(ciphertext, privateKey, cancellationToken),
                 WalletNetworks.RSA4096 => await DecryptRSA4096Async(ciphertext, privateKey, cancellationToken),
+                WalletNetworks.ML_KEM_768 => await Task.Run(() => _pqcEncapsulationProvider.Decapsulate(ciphertext, privateKey), cancellationToken),
+                WalletNetworks.ML_DSA_65 => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, "ML-DSA-65 is a signature algorithm, not an encryption scheme"),
+                WalletNetworks.SLH_DSA_128s => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, "SLH-DSA-128s is a signature algorithm, not an encryption scheme"),
                 _ => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
             };
         }
@@ -388,6 +409,9 @@ public class CryptoModule : ICryptoModule
                 WalletNetworks.ED25519 => await CalculateED25519PublicKeyAsync(privateKey, cancellationToken),
                 WalletNetworks.NISTP256 => await CalculateNISTP256PublicKeyAsync(privateKey, cancellationToken),
                 WalletNetworks.RSA4096 => await CalculateRSA4096PublicKeyAsync(privateKey, cancellationToken),
+                WalletNetworks.ML_DSA_65 => await Task.Run(() => _pqcSignatureProvider.CalculateMlDsa65PublicKey(privateKey), cancellationToken),
+                WalletNetworks.SLH_DSA_128s => await Task.Run(() => _pqcSignatureProvider.CalculateSlhDsa128sPublicKey(privateKey), cancellationToken),
+                WalletNetworks.ML_KEM_768 => await Task.Run(() => _pqcEncapsulationProvider.CalculateMlKem768PublicKey(privateKey), cancellationToken),
                 _ => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, $"Unsupported network type: {network}")
             };
         }
@@ -743,6 +767,49 @@ public class CryptoModule : ICryptoModule
 
             return CryptoResult<byte[]>.Success(publicKeyBytes);
         }, cancellationToken);
+    }
+
+    #endregion
+
+    #region PQC Helpers
+
+    private CryptoResult<KeySet> RecoverPqcKeySet(WalletNetworks network, byte[] keyData)
+    {
+        try
+        {
+            var publicKeyResult = network switch
+            {
+                WalletNetworks.ML_DSA_65 => _pqcSignatureProvider.CalculateMlDsa65PublicKey(keyData),
+                WalletNetworks.SLH_DSA_128s => _pqcSignatureProvider.CalculateSlhDsa128sPublicKey(keyData),
+                WalletNetworks.ML_KEM_768 => _pqcEncapsulationProvider.CalculateMlKem768PublicKey(keyData),
+                _ => CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, $"Not a PQC network: {network}")
+            };
+
+            if (!publicKeyResult.IsSuccess)
+                return CryptoResult<KeySet>.Failure(publicKeyResult.Status, publicKeyResult.ErrorMessage);
+
+            return CryptoResult<KeySet>.Success(new KeySet
+            {
+                PrivateKey = new CryptoKey(network, keyData),
+                PublicKey = new CryptoKey(network, publicKeyResult.Value!)
+            });
+        }
+        catch (Exception ex)
+        {
+            return CryptoResult<KeySet>.Failure(CryptoStatus.InvalidKey,
+                $"PQC key recovery failed: {ex.Message}");
+        }
+    }
+
+    private CryptoResult<byte[]> EncapsulateAsEncrypt(byte[] publicKey)
+    {
+        // ML-KEM Encrypt returns ciphertext (the shared secret must be retrieved separately)
+        var result = _pqcEncapsulationProvider.Encapsulate(publicKey);
+        if (!result.IsSuccess)
+            return CryptoResult<byte[]>.Failure(result.Status, result.ErrorMessage);
+
+        // Return ciphertext; caller gets shared secret via separate API or stores alongside
+        return CryptoResult<byte[]>.Success(result.Value!.Ciphertext);
     }
 
     #endregion
