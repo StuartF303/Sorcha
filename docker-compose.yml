@@ -137,12 +137,24 @@ services:
         condition: service_healthy
       mongodb:
         condition: service_healthy
+      wallet-service:
+        condition: service_healthy
+      tenant-service:
+        condition: service_healthy
+      register-service:
+        condition: service_healthy
+      validator-service:
+        condition: service_healthy
       aspire-dashboard:
         condition: service_started
     networks:
       - sorcha-network
-    # Note: Chiseled images don't include shell tools, so we disable container-level health checks
-    # Health monitoring is handled via the /health endpoint externally or via orchestrator probes
+    healthcheck:
+      test: ["CMD", "/bin/busybox", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   wallet-service:
     build:
@@ -179,9 +191,12 @@ services:
         condition: service_started
     networks:
       - sorcha-network
-    # Note: Chiseled images don't include shell tools for container-level health checks
-    # Health monitoring handled via /health endpoint externally or orchestrator probes
-    # Startup resilience provided by restart policy + postgres health check dependency
+    healthcheck:
+      test: ["CMD", "/bin/busybox", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   register-service:
     build:
@@ -228,10 +243,20 @@ services:
         condition: service_healthy
       mongodb:
         condition: service_healthy
+      wallet-service:
+        condition: service_healthy
+      tenant-service:
+        condition: service_healthy
       aspire-dashboard:
         condition: service_started
     networks:
       - sorcha-network
+    healthcheck:
+      test: ["CMD", "/bin/busybox", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   tenant-service:
     build:
@@ -265,14 +290,18 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      register-service:
-        condition: service_started
-      validator-service:
-        condition: service_started
+      wallet-service:
+        condition: service_healthy
       aspire-dashboard:
         condition: service_started
     networks:
       - sorcha-network
+    healthcheck:
+      test: ["CMD", "/bin/busybox", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   # Peer Service (standalone node for local development)
   peer-service:
@@ -314,6 +343,12 @@ services:
         condition: service_started
     networks:
       - sorcha-network
+    healthcheck:
+      test: ["CMD", "/bin/busybox", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   validator-service:
     build:
@@ -361,10 +396,20 @@ services:
         condition: service_healthy
       mongodb:
         condition: service_healthy
+      wallet-service:
+        condition: service_healthy
+      tenant-service:
+        condition: service_healthy
       aspire-dashboard:
         condition: service_started
     networks:
       - sorcha-network
+    healthcheck:
+      test: ["CMD", "/bin/busybox", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   sorcha-ui-web:
     build:
@@ -427,16 +472,30 @@ services:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
       - ./docker/certs:/https:ro
     depends_on:
-      - blueprint-service
-      - wallet-service
-      - register-service
-      - tenant-service
-      - peer-service
-      - validator-service
-      - sorcha-ui-web
-      - aspire-dashboard
+      blueprint-service:
+        condition: service_healthy
+      wallet-service:
+        condition: service_healthy
+      register-service:
+        condition: service_healthy
+      tenant-service:
+        condition: service_healthy
+      peer-service:
+        condition: service_healthy
+      validator-service:
+        condition: service_healthy
+      sorcha-ui-web:
+        condition: service_started
+      aspire-dashboard:
+        condition: service_started
     networks:
       - sorcha-network
+    healthcheck:
+      test: ["CMD", "/bin/busybox", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   # ===========================
   # Developer Tools
