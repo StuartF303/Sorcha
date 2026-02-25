@@ -105,13 +105,13 @@
 
 ### Tests for User Story 7
 
-- [ ] T033 [P] [US7] Unit tests for SLH-DSA-128s: key generation (64-byte private, 32-byte public), signing (7,856-byte signature), verification, and SLH-DSA-192s variant (16,224-byte signature) in tests/Sorcha.Cryptography.Tests/Unit/Pqc/SlhDsaSignatureTests.cs
+- [X] T033 [P] [US7] Unit tests for SLH-DSA-128s: key generation (64-byte private, 32-byte public), signing (7,856-byte signature), verification, and SLH-DSA-192s variant (16,224-byte signature) in tests/Sorcha.Cryptography.Tests/Unit/Pqc/SlhDsaSignatureTests.cs
 
 ### Implementation for User Story 7
 
-- [ ] T034 [US7] Add SLH-DSA-128s and SLH-DSA-192s key generation, signing, and verification to PqcSignatureProvider using BouncyCastle SlhDsaKeyPairGenerator/SlhDsaSigner in src/Common/Sorcha.Cryptography/Core/PqcSignatureProvider.cs
-- [ ] T035 [US7] Extend CryptoModule switch expressions with SLH_DSA_128s cases dispatching to PqcSignatureProvider SLH-DSA methods in src/Common/Sorcha.Cryptography/Core/CryptoModule.cs
-- [ ] T036 [US7] Integration test: register with crypto policy requiring hash-based signatures rejects ML-DSA-only and accepts SLH-DSA-signed transactions (depends on US2 policy enforcement) in tests/Sorcha.Validator.Service.Tests/SlhDsaPolicyIntegrationTests.cs
+- [X] T034 [US7] Add SLH-DSA-128s and SLH-DSA-192s key generation, signing, and verification to PqcSignatureProvider using BouncyCastle SlhDsaKeyPairGenerator/SlhDsaSigner in src/Common/Sorcha.Cryptography/Core/PqcSignatureProvider.cs
+- [X] T035 [US7] Extend CryptoModule switch expressions with SLH_DSA_128s cases dispatching to PqcSignatureProvider SLH-DSA methods in src/Common/Sorcha.Cryptography/Core/CryptoModule.cs
+- [X] T036 [US7] Integration test: register with crypto policy requiring hash-based signatures rejects ML-DSA-only and accepts SLH-DSA-signed transactions (depends on US2 policy enforcement) in tests/Sorcha.Validator.Service.Tests/SlhDsaPolicyIntegrationTests.cs
 
 **Checkpoint**: SLH-DSA available as fallback. Algorithm diversity achieved — if lattice-based ML-DSA is ever compromised, SLH-DSA provides an independent hash-based alternative.
 

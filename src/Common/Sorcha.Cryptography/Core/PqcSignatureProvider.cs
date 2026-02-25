@@ -184,6 +184,86 @@ public sealed class PqcSignatureProvider : IDisposable
     }
 
     /// <summary>
+    /// Generates an SLH-DSA-SHA2-192s key pair.
+    /// </summary>
+    public CryptoResult<KeySet> GenerateSlhDsa192sKeyPair()
+    {
+        try
+        {
+            var generator = new SlhDsaKeyPairGenerator();
+            generator.Init(new SlhDsaKeyGenerationParameters(new SecureRandom(), SlhDsaParameters.slh_dsa_sha2_192s));
+            var keyPair = generator.GenerateKeyPair();
+
+            var publicKey = ((SlhDsaPublicKeyParameters)keyPair.Public).GetEncoded();
+            var privateKey = ((SlhDsaPrivateKeyParameters)keyPair.Private).GetEncoded();
+
+            return CryptoResult<KeySet>.Success(new KeySet
+            {
+                PublicKey = new CryptoKey(WalletNetworks.SLH_DSA_192s, publicKey),
+                PrivateKey = new CryptoKey(WalletNetworks.SLH_DSA_192s, privateKey)
+            });
+        }
+        catch (Exception ex)
+        {
+            return CryptoResult<KeySet>.Failure(CryptoStatus.KeyGenerationFailed,
+                $"SLH-DSA-192s key generation failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Signs data using SLH-DSA-SHA2-192s (deterministic mode).
+    /// </summary>
+    public CryptoResult<byte[]> SignSlhDsa192s(byte[] data, byte[] privateKey)
+    {
+        if (data == null || data.Length == 0)
+            return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, "Data cannot be null or empty");
+        if (privateKey == null || privateKey.Length == 0)
+            return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "Private key cannot be null or empty");
+
+        try
+        {
+            var privKeyParams = SlhDsaPrivateKeyParameters.FromEncoding(SlhDsaParameters.slh_dsa_sha2_192s, privateKey);
+            var signer = new SlhDsaSigner(SlhDsaParameters.slh_dsa_sha2_192s, deterministic: true);
+            signer.Init(true, privKeyParams);
+            signer.BlockUpdate(data, 0, data.Length);
+            var signature = signer.GenerateSignature();
+
+            return CryptoResult<byte[]>.Success(signature);
+        }
+        catch (Exception ex)
+        {
+            return CryptoResult<byte[]>.Failure(CryptoStatus.SigningFailed,
+                $"SLH-DSA-192s signing failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Verifies an SLH-DSA-SHA2-192s signature.
+    /// </summary>
+    public CryptoStatus VerifySlhDsa192s(byte[] data, byte[] signature, byte[] publicKey)
+    {
+        if (data == null || data.Length == 0)
+            return CryptoStatus.InvalidParameter;
+        if (signature == null || signature.Length == 0)
+            return CryptoStatus.InvalidSignature;
+        if (publicKey == null || publicKey.Length == 0)
+            return CryptoStatus.InvalidKey;
+
+        try
+        {
+            var pubKeyParams = SlhDsaPublicKeyParameters.FromEncoding(SlhDsaParameters.slh_dsa_sha2_192s, publicKey);
+            var signer = new SlhDsaSigner(SlhDsaParameters.slh_dsa_sha2_192s, deterministic: true);
+            signer.Init(false, pubKeyParams);
+            signer.BlockUpdate(data, 0, data.Length);
+            return signer.VerifySignature(signature) ? CryptoStatus.Success : CryptoStatus.InvalidSignature;
+        }
+        catch
+        {
+            return CryptoStatus.InvalidSignature;
+        }
+    }
+
+    /// <summary>
     /// Calculates the ML-DSA-65 public key from a private key.
     /// </summary>
     public CryptoResult<byte[]> CalculateMlDsa65PublicKey(byte[] privateKey)
@@ -220,6 +300,26 @@ public sealed class PqcSignatureProvider : IDisposable
         {
             return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey,
                 $"Failed to calculate SLH-DSA-128s public key: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Calculates the SLH-DSA-192s public key from a private key.
+    /// </summary>
+    public CryptoResult<byte[]> CalculateSlhDsa192sPublicKey(byte[] privateKey)
+    {
+        if (privateKey == null || privateKey.Length == 0)
+            return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey, "Private key cannot be null or empty");
+
+        try
+        {
+            var privKeyParams = SlhDsaPrivateKeyParameters.FromEncoding(SlhDsaParameters.slh_dsa_sha2_192s, privateKey);
+            return CryptoResult<byte[]>.Success(privKeyParams.GetPublicKeyEncoded());
+        }
+        catch (Exception ex)
+        {
+            return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey,
+                $"Failed to calculate SLH-DSA-192s public key: {ex.Message}");
         }
     }
 

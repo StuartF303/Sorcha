@@ -45,5 +45,12 @@ public enum WalletNetworks : byte
     /// Security level 3 (192-bit). CNSA 2.0 compliant.
     /// Public key size: 1,184 bytes, Private key size: 2,400 bytes, Ciphertext size: 1,088 bytes.
     /// </summary>
-    ML_KEM_768 = 0x12
+    ML_KEM_768 = 0x12,
+
+    /// <summary>
+    /// SLH-DSA-192s (FIPS 205) hash-based digital signature (SPHINCS+).
+    /// Security level 3 (192-bit). Stateless, hash-based — higher security variant.
+    /// Public key size: 48 bytes, Private key size: 96 bytes, Signature size: 16,224 bytes.
+    /// </summary>
+    SLH_DSA_192s = 0x13
 }
