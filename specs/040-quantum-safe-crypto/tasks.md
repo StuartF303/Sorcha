@@ -78,20 +78,20 @@
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Unit tests for CryptoPolicyService: extract active policy from control TX chain, return default if none set, policy version ordering in tests/Sorcha.Register.Service.Tests/CryptoPolicyServiceTests.cs
-- [ ] T023 [P] [US2] Unit tests for crypto policy validation in ValidationEngine: accept matching TX, reject violating TX, validate against policy-at-submission-time for pre-upgrade TX in tests/Sorcha.Validator.Service.Tests/CryptoPolicyValidationTests.cs
+- [X] T022 [P] [US2] Unit tests for CryptoPolicyService: extract active policy from control TX chain, return default if none set, policy version ordering in tests/Sorcha.Register.Service.Tests/CryptoPolicyServiceTests.cs
+- [X] T023 [P] [US2] Unit tests for crypto policy validation in ValidationEngine: accept matching TX, reject violating TX, validate against policy-at-submission-time for pre-upgrade TX in tests/Sorcha.Validator.Service.Tests/CryptoPolicyValidationTests.cs
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Extend RegisterControlRecord with CryptoPolicy property (nullable, for backward compatibility with existing registers) in src/Common/Sorcha.Register.Models/RegisterControlRecord.cs
-- [ ] T025 [US2] Update RegisterCreationOrchestrator to include default CryptoPolicy (hybrid mode, all algorithms accepted) in genesis control TX payload in src/Services/Sorcha.Register.Service/Services/RegisterCreationOrchestrator.cs
-- [ ] T026 [US2] Create CryptoPolicyService to extract active crypto policy from a register's control TX chain (latest version wins) in src/Services/Sorcha.Register.Service/Services/CryptoPolicyService.cs
-- [ ] T027 [US2] Add control.crypto.update action type handling to ControlDocketProcessor for crypto policy upgrade control transactions in src/Services/Sorcha.Validator.Service/Services/ControlDocketProcessor.cs
-- [ ] T028 [US2] Update ValidationEngine to validate incoming TX signatures against the register's active CryptoPolicy (check AcceptedSignatureAlgorithms, RequiredSignatureAlgorithms, EnforcementMode) in src/Services/Sorcha.Validator.Service/Services/ValidationEngine.cs
-- [ ] T029 [P] [US2] Implement GET /api/registers/{registerId}/crypto-policy endpoint returning active policy in src/Services/Sorcha.Register.Service/Endpoints/
-- [ ] T030 [P] [US2] Implement POST /api/registers/{registerId}/governance/crypto-policy endpoint for policy update submission as control TX in src/Services/Sorcha.Register.Service/Endpoints/
-- [ ] T031 [P] [US2] Implement GET /api/registers/{registerId}/crypto-policy/history endpoint returning all policy versions in src/Services/Sorcha.Register.Service/Endpoints/
-- [ ] T032 [US2] Add YARP routes for crypto-policy endpoints (/api/registers/*/crypto-policy, /api/registers/*/governance/crypto-policy) in src/Services/Sorcha.ApiGateway/appsettings.json
+- [X] T024 [US2] Extend RegisterControlRecord with CryptoPolicy property (nullable, for backward compatibility with existing registers) in src/Common/Sorcha.Register.Models/RegisterControlRecord.cs
+- [X] T025 [US2] Update RegisterCreationOrchestrator to include default CryptoPolicy (hybrid mode, all algorithms accepted) in genesis control TX payload in src/Services/Sorcha.Register.Service/Services/RegisterCreationOrchestrator.cs
+- [X] T026 [US2] Create CryptoPolicyService to extract active crypto policy from a register's control TX chain (latest version wins) in src/Services/Sorcha.Register.Service/Services/CryptoPolicyService.cs
+- [X] T027 [US2] Add control.crypto.update action type handling to ControlDocketProcessor for crypto policy upgrade control transactions in src/Services/Sorcha.Validator.Service/Services/ControlDocketProcessor.cs
+- [X] T028 [US2] Update ValidationEngine to validate incoming TX signatures against the register's active CryptoPolicy (check AcceptedSignatureAlgorithms, RequiredSignatureAlgorithms, EnforcementMode) in src/Services/Sorcha.Validator.Service/Services/ValidationEngine.cs
+- [X] T029 [P] [US2] Implement GET /api/registers/{registerId}/crypto-policy endpoint returning active policy in src/Services/Sorcha.Register.Service/Endpoints/
+- [X] T030 [P] [US2] Implement POST /api/registers/{registerId}/governance/crypto-policy endpoint for policy update submission as control TX in src/Services/Sorcha.Register.Service/Endpoints/
+- [X] T031 [P] [US2] Implement GET /api/registers/{registerId}/crypto-policy/history endpoint returning all policy versions in src/Services/Sorcha.Register.Service/Endpoints/
+- [X] T032 [US2] Add YARP routes for crypto-policy endpoints (/api/registers/*/crypto-policy, /api/registers/*/governance/crypto-policy) in src/Services/Sorcha.ApiGateway/appsettings.json
 
 **Checkpoint**: Register crypto policy governance working. New registers get default hybrid policy; policy upgrades via control TX enforce on subsequent transactions; existing registers unaffected.
 

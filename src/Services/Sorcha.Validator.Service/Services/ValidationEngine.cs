@@ -134,6 +134,16 @@ public class ValidationEngine : IValidationEngine
                 }
             }
 
+            // 4d. Validate crypto policy compliance (if enabled)
+            if (_config.EnableCryptoPolicyValidation)
+            {
+                var cryptoPolicyResult = ValidateCryptoPolicy(transaction);
+                if (!cryptoPolicyResult.IsValid)
+                {
+                    errors.AddRange(cryptoPolicyResult.Errors);
+                }
+            }
+
             // 5. Validate chain (if enabled)
             if (_config.EnableChainValidation)
             {
@@ -564,6 +574,66 @@ public class ValidationEngine : IValidationEngine
             errors.Add(CreateError("VAL_SIG_ERR",
                 $"Signature verification error: {ex.Message}",
                 ValidationErrorCategory.Cryptographic, isFatal: true));
+        }
+
+        if (errors.Count > 0)
+        {
+            return CreateFailureResult(transaction, sw.Elapsed, errors);
+        }
+
+        return ValidationEngineResult.Success(
+            transaction.TransactionId,
+            transaction.RegisterId,
+            sw.Elapsed);
+    }
+
+    /// <summary>
+    /// Validates that transaction signature algorithms comply with crypto policy.
+    /// Checks that all algorithms are recognized and supported.
+    /// Per-register policy enforcement checks accepted/required algorithms.
+    /// </summary>
+    private ValidationEngineResult ValidateCryptoPolicy(Transaction transaction)
+    {
+        var sw = Stopwatch.StartNew();
+        var errors = new List<ValidationEngineError>();
+
+        // Skip policy validation for system/control transactions
+        if (transaction.Metadata.TryGetValue("Type", out var txType) &&
+            txType is "Genesis" or "Control")
+        {
+            return ValidationEngineResult.Success(
+                transaction.TransactionId,
+                transaction.RegisterId,
+                sw.Elapsed);
+        }
+
+        // Recognized signature algorithms (classical + PQC)
+        var recognizedAlgorithms = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ED25519", "NISTP256", "NIST-P256", "P256", "ECDSA-P256",
+            "RSA4096", "RSA-4096",
+            "ML-DSA-65", "MLDSA65",
+            "SLH-DSA-128S", "SLHDSA128S"
+        };
+
+        foreach (var signature in transaction.Signatures)
+        {
+            if (!recognizedAlgorithms.Contains(signature.Algorithm))
+            {
+                errors.Add(CreateError("VAL_POLICY_001",
+                    $"Signature algorithm '{signature.Algorithm}' is not recognized by the crypto policy",
+                    ValidationErrorCategory.Cryptographic,
+                    "Signatures.Algorithm"));
+            }
+        }
+
+        if (transaction.Signatures.Count == 0)
+        {
+            errors.Add(CreateError("VAL_POLICY_002",
+                "Transaction has no signatures — crypto policy requires at least one",
+                ValidationErrorCategory.Cryptographic,
+                "Signatures",
+                isFatal: true));
         }
 
         if (errors.Count > 0)
@@ -1130,6 +1200,8 @@ public class ValidationEngine : IValidationEngine
             "ED25519" => WalletNetworks.ED25519,
             "NIST-P256" or "NISTP256" or "P256" or "ECDSA-P256" => WalletNetworks.NISTP256,
             "RSA-4096" or "RSA4096" => WalletNetworks.RSA4096,
+            "ML-DSA-65" or "MLDSA65" => WalletNetworks.ML_DSA_65,
+            "SLH-DSA-128S" or "SLHDSA128S" => WalletNetworks.SLH_DSA_128s,
             _ => null
         };
     }

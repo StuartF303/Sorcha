@@ -65,6 +65,14 @@ public class RegisterControlRecord
     public List<RegisterAttestation> Attestations { get; set; } = new();
 
     /// <summary>
+    /// Cryptographic policy governing which algorithms are accepted on this register.
+    /// Null for backward compatibility with pre-PQC registers (defaults apply).
+    /// </summary>
+    [JsonPropertyName("cryptoPolicy")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CryptoPolicy? CryptoPolicy { get; set; }
+
+    /// <summary>
     /// Additional register metadata (tags, category, etc.)
     /// </summary>
     [JsonPropertyName("metadata")]
@@ -211,5 +219,15 @@ public enum SignatureAlgorithm
     /// <summary>
     /// RSA with 4096-bit keys
     /// </summary>
-    RSA4096
+    RSA4096,
+
+    /// <summary>
+    /// ML-DSA-65 (FIPS 204) — lattice-based post-quantum signature
+    /// </summary>
+    ML_DSA_65,
+
+    /// <summary>
+    /// SLH-DSA-128s (FIPS 205) — hash-based post-quantum signature
+    /// </summary>
+    SLH_DSA_128s
 }

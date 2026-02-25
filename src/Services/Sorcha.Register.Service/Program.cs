@@ -391,6 +391,9 @@ builder.Services.AddServiceClients(builder.Configuration);
 // Register system wallet signing service (opt-in — used for genesis + blueprint publish)
 builder.Services.AddSystemWalletSigning(builder.Configuration);
 
+// Register crypto policy service
+builder.Services.AddScoped<Sorcha.Register.Service.Services.CryptoPolicyService>();
+
 // Register governance roster service
 builder.Services.AddScoped<Sorcha.Register.Core.Services.IGovernanceRosterService,
     Sorcha.Register.Core.Services.GovernanceRosterService>();
@@ -1601,6 +1604,130 @@ governanceGroup.MapGet("/proposals", async (
 .WithName("GetGovernanceProposals")
 .WithSummary("List governance proposals")
 .WithDescription("Returns paginated governance operations from Control transaction history.");
+
+// ===========================
+// Crypto Policy API
+// ===========================
+
+var cryptoPolicyGroup = app.MapGroup("/api/registers/{registerId}/crypto-policy")
+    .WithTags("CryptoPolicy")
+    .RequireAuthorization("CanReadTransactions");
+
+/// <summary>
+/// Get the active crypto policy for a register
+/// </summary>
+cryptoPolicyGroup.MapGet("/", async (
+    Sorcha.Register.Service.Services.CryptoPolicyService cryptoPolicyService,
+    string registerId,
+    CancellationToken ct) =>
+{
+    var policy = await cryptoPolicyService.GetActivePolicyAsync(registerId, ct);
+    return Results.Ok(policy);
+})
+.WithName("GetActiveCryptoPolicy")
+.WithSummary("Get active crypto policy")
+.WithDescription("Returns the active cryptographic policy for this register. If no explicit policy has been set, returns the default permissive policy accepting all algorithms.");
+
+/// <summary>
+/// Get crypto policy version history for a register
+/// </summary>
+cryptoPolicyGroup.MapGet("/history", async (
+    Sorcha.Register.Service.Services.CryptoPolicyService cryptoPolicyService,
+    string registerId,
+    CancellationToken ct) =>
+{
+    var history = await cryptoPolicyService.GetPolicyHistoryAsync(registerId, ct);
+    return Results.Ok(new { Versions = history, Total = history.Count });
+})
+.WithName("GetCryptoPolicyHistory")
+.WithSummary("Get crypto policy version history")
+.WithDescription("Returns all crypto policy versions for this register, ordered by version number. Includes the genesis policy and all subsequent updates.");
+
+/// <summary>
+/// Submit a crypto policy update as a control transaction
+/// </summary>
+governanceGroup.MapPost("/crypto-policy", async (
+    Sorcha.Register.Service.Services.CryptoPolicyService cryptoPolicyService,
+    Sorcha.Register.Core.Managers.TransactionManager transactionManager,
+    Sorcha.ServiceClients.SystemWallet.ISystemWalletSigningService systemSigning,
+    string registerId,
+    Sorcha.Register.Models.CryptoPolicy policyUpdate,
+    CancellationToken ct) =>
+{
+    // Validate the policy
+    if (!policyUpdate.IsValid())
+    {
+        return Results.BadRequest(new { Error = "Invalid crypto policy: RequiredSignatureAlgorithms must be a subset of AcceptedSignatureAlgorithms, and all algorithm arrays must be non-empty." });
+    }
+
+    // Serialize policy as payload
+    var policyJson = System.Text.Json.JsonSerializer.Serialize(policyUpdate);
+    var policyBytes = System.Text.Encoding.UTF8.GetBytes(policyJson);
+    var payloadData = Convert.ToBase64String(policyBytes);
+    var payloadHash = Convert.ToHexString(
+        System.Security.Cryptography.SHA256.HashData(policyBytes)).ToLowerInvariant();
+
+    // Generate TX ID
+    var txIdSource = $"crypto-policy-update-{registerId}-v{policyUpdate.Version}";
+    var txIdBytes = System.Security.Cryptography.SHA256.HashData(
+        System.Text.Encoding.UTF8.GetBytes(txIdSource));
+    var txId = Convert.ToHexString(txIdBytes).ToLowerInvariant();
+
+    // Find chain head
+    var allTxs = await transactionManager.GetTransactionsAsync(registerId, ct);
+    var chainHead = allTxs.OrderByDescending(t => t.TimeStamp).FirstOrDefault();
+
+    // Build control transaction
+    var tx = new Sorcha.Register.Models.TransactionModel
+    {
+        TxId = txId,
+        RegisterId = registerId,
+        SenderWallet = "system",
+        PrevTxId = chainHead?.TxId ?? string.Empty,
+        PayloadCount = 1,
+        Payloads = new[]
+        {
+            new Sorcha.Register.Models.PayloadModel
+            {
+                Data = payloadData,
+                Hash = payloadHash,
+                WalletAccess = Array.Empty<string>(),
+                ContentType = "application/json",
+                ContentEncoding = "base64"
+            }
+        },
+        TimeStamp = DateTime.UtcNow,
+        Signature = string.Empty,
+        MetaData = new Sorcha.Register.Models.TransactionMetaData
+        {
+            RegisterId = registerId,
+            TransactionType = Sorcha.Register.Models.Enums.TransactionType.Control,
+            TrackingData = new Dictionary<string, string>
+            {
+                ["transactionType"] = "CryptoPolicyUpdate",
+                ["policyVersion"] = policyUpdate.Version.ToString()
+            }
+        }
+    };
+
+    // Sign with system wallet (follows same pattern as RegisterCreationOrchestrator)
+    var signResult = await systemSigning.SignAsync(
+        registerId: registerId,
+        txId: txId,
+        payloadHash: payloadHash,
+        derivationPath: "sorcha:register-control",
+        transactionType: "CryptoPolicyUpdate",
+        cancellationToken: ct);
+    tx.Signature = Convert.ToBase64String(signResult.Signature);
+
+    // Submit
+    await transactionManager.StoreTransactionAsync(tx, ct);
+
+    return Results.Ok(new { TxId = txId, PolicyVersion = policyUpdate.Version, Status = "submitted" });
+})
+.WithName("UpdateCryptoPolicy")
+.WithSummary("Update register crypto policy")
+.WithDescription("Submits a crypto policy update as a control transaction. The new policy takes effect immediately for subsequent transactions.");
 
 // ===========================
 // Participant Query API

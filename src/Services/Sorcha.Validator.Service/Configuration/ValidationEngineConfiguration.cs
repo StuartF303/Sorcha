@@ -90,4 +90,11 @@ public class ValidationEngineConfiguration
     /// starting action validation, action sequencing via routes).
     /// </summary>
     public bool EnableBlueprintConformance { get; set; } = true;
+
+    /// <summary>
+    /// Enable crypto policy validation against the register's active CryptoPolicy.
+    /// When enabled, transaction signature algorithms are checked against accepted
+    /// and required algorithms defined in the register's crypto policy.
+    /// </summary>
+    public bool EnableCryptoPolicyValidation { get; set; } = true;
 }
