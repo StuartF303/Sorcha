@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Sorcha.Cryptography.Enums;
 using Sorcha.Cryptography.Interfaces;
+using Sorcha.Cryptography.Models;
 using Sorcha.Wallet.Core.Domain;
 using Sorcha.Wallet.Core.Domain.Entities;
 using Sorcha.Wallet.Core.Domain.ValueObjects;
@@ -390,6 +391,48 @@ public static class WalletEndpoints
         try
         {
             var transactionData = Convert.FromBase64String(request.TransactionData);
+
+            // Hybrid mode: sign with both classical (URL address) and PQC (PqcWalletAddress) wallets
+            if (request.HybridMode)
+            {
+                if (string.IsNullOrWhiteSpace(request.PqcWalletAddress))
+                {
+                    return Results.BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid Request",
+                        Detail = "PqcWalletAddress is required when HybridMode is true",
+                        Status = StatusCodes.Status400BadRequest
+                    });
+                }
+
+                // Sign concurrently with both wallets
+                var classicalTask = walletManager.SignTransactionAsync(
+                    address, transactionData, request.DerivationPath, request.IsPreHashed, cancellationToken);
+                var pqcTask = walletManager.SignTransactionAsync(
+                    request.PqcWalletAddress, transactionData, request.DerivationPath, request.IsPreHashed, cancellationToken);
+                await Task.WhenAll(classicalTask, pqcTask);
+
+                var (classicalSig, classicalPublicKey) = classicalTask.Result;
+                var (pqcSig, pqcPublicKey) = pqcTask.Result;
+
+                var hybrid = new HybridSignature
+                {
+                    Classical = Convert.ToBase64String(classicalSig),
+                    ClassicalAlgorithm = "ED25519",
+                    Pqc = Convert.ToBase64String(pqcSig),
+                    PqcAlgorithm = "ML-DSA-65",
+                    WitnessPublicKey = Convert.ToBase64String(pqcPublicKey)
+                };
+
+                return Results.Ok(new SignTransactionResponse
+                {
+                    Signature = hybrid.ToJson(),
+                    SignedBy = address,
+                    SignedAt = DateTime.UtcNow,
+                    PublicKey = Convert.ToBase64String(classicalPublicKey)
+                });
+            }
+
             var (signature, publicKey) = await walletManager.SignTransactionAsync(
                 address,
                 transactionData,

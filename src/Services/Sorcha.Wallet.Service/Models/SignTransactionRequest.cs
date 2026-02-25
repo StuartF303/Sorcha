@@ -28,4 +28,15 @@ public class SignTransactionRequest
     /// When false (default), the wallet applies SHA-256 to the data before signing.
     /// </summary>
     public bool IsPreHashed { get; set; }
+
+    /// <summary>
+    /// When true, the endpoint signs with both the classical wallet (from URL) and
+    /// a PQC wallet (from <see cref="PqcWalletAddress"/>), returning a HybridSignature JSON.
+    /// </summary>
+    public bool HybridMode { get; set; }
+
+    /// <summary>
+    /// Address of the PQC wallet to co-sign with. Required when <see cref="HybridMode"/> is true.
+    /// </summary>
+    public string? PqcWalletAddress { get; set; }
 }

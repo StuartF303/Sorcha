@@ -223,9 +223,11 @@ public class KeyManagementService : IKeyManagementService
         return algorithm.ToUpperInvariant() switch
         {
             "ED25519" => WalletNetworks.ED25519,
-            "NISTP256" => WalletNetworks.NISTP256,
-            "RSA" => WalletNetworks.RSA4096,
-            "RSA4096" => WalletNetworks.RSA4096,
+            "NISTP256" or "NIST-P256" or "P-256" or "P256" => WalletNetworks.NISTP256,
+            "RSA" or "RSA4096" or "RSA-4096" => WalletNetworks.RSA4096,
+            "ML-DSA-65" or "MLDSA65" => WalletNetworks.ML_DSA_65,
+            "SLH-DSA-128S" or "SLHDSA128S" => WalletNetworks.SLH_DSA_128s,
+            "ML-KEM-768" or "MLKEM768" => WalletNetworks.ML_KEM_768,
             _ => throw new ArgumentException($"Unsupported algorithm: {algorithm}", nameof(algorithm))
         };
     }

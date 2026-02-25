@@ -771,6 +771,125 @@ public class CryptoModule : ICryptoModule
 
     #endregion
 
+    #region Hybrid Signing & Verification
+
+    /// <summary>
+    /// Concurrently signs data with both a classical and PQC key, producing a HybridSignature.
+    /// </summary>
+    public async Task<CryptoResult<HybridSignature>> HybridSignAsync(
+        byte[] hash,
+        byte classicalNetwork,
+        byte[] classicalPrivateKey,
+        byte pqcNetwork,
+        byte[] pqcPrivateKey,
+        byte[] pqcPublicKey,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (hash == null || hash.Length == 0)
+                return CryptoResult<HybridSignature>.Failure(CryptoStatus.InvalidParameter, "Hash cannot be null or empty");
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Sign concurrently
+            var classicalTask = SignAsync(hash, classicalNetwork, classicalPrivateKey, cancellationToken);
+            var pqcTask = SignAsync(hash, pqcNetwork, pqcPrivateKey, cancellationToken);
+            await Task.WhenAll(classicalTask, pqcTask);
+
+            var classicalResult = classicalTask.Result;
+            var pqcResult = pqcTask.Result;
+
+            if (!classicalResult.IsSuccess)
+                return CryptoResult<HybridSignature>.Failure(classicalResult.Status,
+                    $"Classical signing failed: {classicalResult.ErrorMessage}");
+
+            if (!pqcResult.IsSuccess)
+                return CryptoResult<HybridSignature>.Failure(pqcResult.Status,
+                    $"PQC signing failed: {pqcResult.ErrorMessage}");
+
+            var hybrid = new HybridSignature
+            {
+                Classical = Convert.ToBase64String(classicalResult.Value!),
+                ClassicalAlgorithm = NetworkToAlgorithmName((WalletNetworks)classicalNetwork),
+                Pqc = Convert.ToBase64String(pqcResult.Value!),
+                PqcAlgorithm = NetworkToAlgorithmName((WalletNetworks)pqcNetwork),
+                WitnessPublicKey = Convert.ToBase64String(pqcPublicKey)
+            };
+
+            return CryptoResult<HybridSignature>.Success(hybrid);
+        }
+        catch (OperationCanceledException)
+        {
+            return CryptoResult<HybridSignature>.Failure(CryptoStatus.Cancelled, "Operation was cancelled");
+        }
+        catch (Exception ex)
+        {
+            return CryptoResult<HybridSignature>.Failure(CryptoStatus.SigningFailed, $"Hybrid signing failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Verifies a HybridSignature. Accepts if at least one component (classical or PQC) is valid.
+    /// </summary>
+    public async Task<CryptoStatus> HybridVerifyAsync(
+        HybridSignature hybridSignature,
+        byte[] hash,
+        byte[]? classicalPublicKey,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (hybridSignature == null || !hybridSignature.IsValid())
+                return CryptoStatus.InvalidParameter;
+
+            if (hash == null || hash.Length == 0)
+                return CryptoStatus.InvalidParameter;
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            bool classicalValid = false;
+            bool pqcValid = false;
+
+            // Verify classical component if present
+            if (!string.IsNullOrEmpty(hybridSignature.Classical) && classicalPublicKey != null)
+            {
+                var classicalNetwork = AlgorithmNameToNetwork(hybridSignature.ClassicalAlgorithm!);
+                if (classicalNetwork.HasValue)
+                {
+                    var sig = Convert.FromBase64String(hybridSignature.Classical);
+                    var result = await VerifyAsync(sig, hash, (byte)classicalNetwork.Value, classicalPublicKey, cancellationToken);
+                    classicalValid = result == CryptoStatus.Success;
+                }
+            }
+
+            // Verify PQC component if present (public key from WitnessPublicKey)
+            if (!string.IsNullOrEmpty(hybridSignature.Pqc) && !string.IsNullOrEmpty(hybridSignature.WitnessPublicKey))
+            {
+                var pqcNetwork = AlgorithmNameToNetwork(hybridSignature.PqcAlgorithm!);
+                if (pqcNetwork.HasValue)
+                {
+                    var sig = Convert.FromBase64String(hybridSignature.Pqc);
+                    var pubKey = Convert.FromBase64String(hybridSignature.WitnessPublicKey);
+                    var result = await VerifyAsync(sig, hash, (byte)pqcNetwork.Value, pubKey, cancellationToken);
+                    pqcValid = result == CryptoStatus.Success;
+                }
+            }
+
+            return (classicalValid || pqcValid) ? CryptoStatus.Success : CryptoStatus.InvalidSignature;
+        }
+        catch (OperationCanceledException)
+        {
+            return CryptoStatus.Cancelled;
+        }
+        catch
+        {
+            return CryptoStatus.InvalidSignature;
+        }
+    }
+
+    #endregion
+
     #region PQC Helpers
 
     private CryptoResult<KeySet> RecoverPqcKeySet(WalletNetworks network, byte[] keyData)
@@ -811,6 +930,28 @@ public class CryptoModule : ICryptoModule
         // Return ciphertext; caller gets shared secret via separate API or stores alongside
         return CryptoResult<byte[]>.Success(result.Value!.Ciphertext);
     }
+
+    private static string NetworkToAlgorithmName(WalletNetworks network) => network switch
+    {
+        WalletNetworks.ED25519 => "ED25519",
+        WalletNetworks.NISTP256 => "NISTP256",
+        WalletNetworks.RSA4096 => "RSA4096",
+        WalletNetworks.ML_DSA_65 => "ML-DSA-65",
+        WalletNetworks.SLH_DSA_128s => "SLH-DSA-128s",
+        WalletNetworks.ML_KEM_768 => "ML-KEM-768",
+        _ => network.ToString()
+    };
+
+    private static WalletNetworks? AlgorithmNameToNetwork(string algorithmName) => algorithmName?.ToUpperInvariant() switch
+    {
+        "ED25519" => WalletNetworks.ED25519,
+        "NISTP256" or "NIST-P256" or "P-256" or "P256" => WalletNetworks.NISTP256,
+        "RSA4096" or "RSA-4096" => WalletNetworks.RSA4096,
+        "ML-DSA-65" or "MLDSA65" => WalletNetworks.ML_DSA_65,
+        "SLH-DSA-128S" or "SLHDSA128S" => WalletNetworks.SLH_DSA_128s,
+        "ML-KEM-768" or "MLKEM768" => WalletNetworks.ML_KEM_768,
+        _ => null
+    };
 
     #endregion
 }

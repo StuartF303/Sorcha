@@ -55,16 +55,16 @@
 
 ### Tests for User Story 1
 
-- [ ] T015 [P] [US1] Unit tests for hybrid signing: concurrent classical + PQC signature production, HybridSignature assembly, timing within 500ms in tests/Sorcha.Cryptography.Tests/Unit/Pqc/HybridSigningTests.cs
-- [ ] T016 [P] [US1] Unit tests for hybrid verification: classical-only accepted, PQC-only accepted, both-valid accepted, both-invalid rejected in tests/Sorcha.Cryptography.Tests/Unit/Pqc/HybridVerificationTests.cs
+- [X] T015 [P] [US1] Unit tests for hybrid signing: concurrent classical + PQC signature production, HybridSignature assembly, timing within 500ms in tests/Sorcha.Cryptography.Tests/Unit/Pqc/HybridSigningTests.cs
+- [X] T016 [P] [US1] Unit tests for hybrid verification: classical-only accepted, PQC-only accepted, both-valid accepted, both-invalid rejected in tests/Sorcha.Cryptography.Tests/Unit/Pqc/HybridVerificationTests.cs
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] Implement hybrid signing method in CryptoModule that concurrently signs with classical and PQC keys and assembles HybridSignature in src/Common/Sorcha.Cryptography/Core/CryptoModule.cs
-- [ ] T018 [US1] Implement hybrid verification method in CryptoModule that accepts transaction if either classical or PQC signature is valid in src/Common/Sorcha.Cryptography/Core/CryptoModule.cs
-- [ ] T019 [US1] Extend KeyManagementService.ParseAlgorithm to recognize PQC algorithm names (ML-DSA-65, SLH-DSA-128s, ML-KEM-768) in src/Common/Sorcha.Wallet.Core/Services/Implementation/KeyManagementService.cs
-- [ ] T020 [US1] Extend wallet sign endpoint with hybridMode boolean parameter that triggers dual signing in src/Services/Sorcha.Wallet.Service/Endpoints/WalletEndpoints.cs
-- [ ] T021 [US1] Integration test: create hybrid wallet via API, sign data with hybridMode=true, verify both signatures independently in tests/Sorcha.Wallet.Service.Tests/
+- [X] T017 [US1] Implement hybrid signing method in CryptoModule that concurrently signs with classical and PQC keys and assembles HybridSignature in src/Common/Sorcha.Cryptography/Core/CryptoModule.cs
+- [X] T018 [US1] Implement hybrid verification method in CryptoModule that accepts transaction if either classical or PQC signature is valid in src/Common/Sorcha.Cryptography/Core/CryptoModule.cs
+- [X] T019 [US1] Extend KeyManagementService.ParseAlgorithm to recognize PQC algorithm names (ML-DSA-65, SLH-DSA-128s, ML-KEM-768) in src/Common/Sorcha.Wallet.Core/Services/Implementation/KeyManagementService.cs
+- [X] T020 [US1] Extend wallet sign endpoint with hybridMode boolean parameter that triggers dual signing in src/Services/Sorcha.Wallet.Service/Endpoints/WalletEndpoints.cs
+- [X] T021 [US1] Integration test: create hybrid wallet via API, sign data with hybridMode=true, verify both signatures independently in tests/Sorcha.Wallet.Service.Tests/
 
 **Checkpoint**: Hybrid signing end-to-end working. A wallet can produce concurrent classical + PQC signatures, and either signature validates independently.
 
