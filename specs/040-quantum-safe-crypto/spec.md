@@ -106,6 +106,49 @@ An auditor or compliance officer needs to verify that a specific transaction exi
 
 ---
 
+### User Story 7 - Hash-Based Signature Fallback (Priority: P2)
+
+A security-conscious deployer needs SLH-DSA (SPHINCS+) as an alternative signature algorithm so that if lattice-based cryptography is compromised, they have a mathematically independent fallback. SLH-DSA uses hash-based cryptography — a completely different mathematical foundation than ML-DSA's lattice problems — providing defence-in-depth through algorithm diversity.
+
+**Why this priority**: Algorithm diversity is a core tenet of cryptographic resilience. If a breakthrough attack is discovered against lattice-based schemes (ML-DSA), SLH-DSA provides an independent fallback that relies only on the security of hash functions. This is why NIST standardized both approaches.
+
+**Independent Test**: Can be tested by generating SLH-DSA keys, signing data, and verifying the signature — completely independent of ML-DSA infrastructure.
+
+**Acceptance Scenarios**:
+
+1. **Given** SLH-DSA-128s selected, **When** a key pair is generated, **Then** a valid 64-byte private key and 32-byte public key are returned.
+2. **Given** SLH-DSA-128s selected, **When** data is signed, **Then** a valid 7,856-byte signature is returned.
+3. **Given** SLH-DSA-192s selected, **When** data is signed, **Then** a valid 16,224-byte signature is returned.
+4. **Given** a register crypto policy requiring hash-based signatures, **When** a transaction is signed, **Then** SLH-DSA is used instead of ML-DSA.
+5. **Given** an SLH-DSA signature, **When** verification is performed, **Then** verification completes successfully (note: ~0.5ms verify time, signing is slower at ~45ms).
+
+**Notes**:
+- SLH-DSA signatures are significantly larger (7.8-16KB vs 2.4-4.6KB for ML-DSA)
+- SLH-DSA signing is slower (~45ms vs <1ms for ML-DSA)
+- SLH-DSA verification is fast (~0.5ms)
+- Use case: High-security registers requiring algorithm diversity, or as fallback if lattice attacks emerge
+- Standard: NIST FIPS 205
+
+---
+
+## Algorithm Support Matrix
+
+| Algorithm | Type | NIST Standard | Security Level | Default |
+|-----------|------|---------------|----------------|---------|
+| ML-DSA-44 | Signature | FIPS 204 | Level 1 (128-bit) | Yes |
+| ML-DSA-65 | Signature | FIPS 204 | Level 3 (192-bit) | No |
+| ML-DSA-87 | Signature | FIPS 204 | Level 5 (256-bit) | No |
+| SLH-DSA-128s | Signature | FIPS 205 | Level 1 (128-bit) | No |
+| SLH-DSA-192s | Signature | FIPS 205 | Level 3 (192-bit) | No |
+| ML-KEM-512 | Key Encapsulation | FIPS 203 | Level 1 (128-bit) | Yes |
+| ML-KEM-768 | Key Encapsulation | FIPS 203 | Level 3 (192-bit) | No |
+| ML-KEM-1024 | Key Encapsulation | FIPS 203 | Level 5 (256-bit) | No |
+
+**Algorithm Selection Logic**:
+1. Check register crypto policy for required algorithm/security level
+2. Fall back to wallet default algorithm
+3. Fall back to system default (ML-DSA-44, ML-KEM-512)
+
 ### Edge Cases
 
 - What happens when a register's crypto policy is upgraded but pending transactions were signed with the old policy? Answer: Transactions are validated against the policy version active at their submission timestamp.
@@ -144,6 +187,44 @@ An auditor or compliance officer needs to verify that a specific transaction exi
 - **BLS Signing Share**: A partial signature produced by one validator node in a threshold scheme, usable for aggregation into a compact docket signature.
 - **ZK Inclusion Proof**: A zero-knowledge proof demonstrating that a transaction exists within a docket's Merkle tree without revealing the transaction content.
 - **Range Proof**: A Bulletproof demonstrating that a numeric value satisfies a constraint without revealing the value itself.
+
+## Compliance & Regulatory Notes
+
+### CNSA 2.0 (Commercial National Security Algorithm Suite)
+
+The NSA's CNSA 2.0 guidance specifies algorithm requirements for protecting classified information:
+
+| Use Case | CNSA 2.0 Requirement | Sorcha Support |
+|----------|---------------------|----------------|
+| Software/Firmware Signing | ML-DSA-65 or ML-DSA-87 | Configurable via register crypto policy |
+| Authentication | ML-DSA-65 or ML-DSA-87 | Configurable via register crypto policy |
+| Key Establishment | ML-KEM-768 or ML-KEM-1024 | Configurable via register crypto policy |
+| Symmetric Encryption | AES-256 | Default (AES-256-GCM available) |
+| Hashing | SHA-384+ | Available (SHA-384, SHA-512, BLAKE2b) |
+
+**Important**: ML-DSA-44 and ML-KEM-512 are **NOT** CNSA 2.0 compliant. For government or defence deployments, configure register crypto policies to require Level 3+ algorithms.
+
+**Register Crypto Policy Example (CNSA 2.0 compliant)**:
+```json
+{
+  "securityPolicy": {
+    "minimumSignatureLevel": 3,
+    "minimumEncryptionLevel": 3,
+    "allowedSignatureAlgorithms": ["ML-DSA-65", "ML-DSA-87", "SLH-DSA-192s"],
+    "allowedEncryptionAlgorithms": ["ML-KEM-768", "ML-KEM-1024"]
+  }
+}
+```
+
+### NIST Migration Timeline
+
+| Milestone | Date | Action |
+|-----------|------|--------|
+| Standards Published | August 2024 | FIPS 203, 204, 205 finalised |
+| Recommended Migration | 2025-2030 | Begin transitioning systems |
+| Mandatory for US Gov | 2035 | Classical algorithms deprecated |
+
+**Sorcha Position**: PQC-native from V1 — no migration burden for new deployments. Existing registers upgrade via control transactions.
 
 ## Assumptions
 
