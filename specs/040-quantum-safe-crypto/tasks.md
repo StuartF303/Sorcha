@@ -194,17 +194,17 @@
 
 ### Tests for User Story 6
 
-- [ ] T058 [P] [US6] Unit tests for ZK proofs: inclusion proof generation from Merkle tree, verification without original data, range proof generation and verification, proof size within expected bounds, verification completes in under 1 second (SC-008) in tests/Sorcha.Cryptography.Tests/Unit/Pqc/ZKProofTests.cs
+- [X] T058 [P] [US6] Unit tests for ZK proofs: inclusion proof generation from Merkle tree, verification without original data, range proof generation and verification, proof size within expected bounds, verification completes in under 1 second (SC-008) in tests/Sorcha.Cryptography.Tests/Unit/Pqc/ZKProofTests.cs
 
 ### Implementation for User Story 6
 
-- [ ] T059 [US6] Add Bulletproof library dependency to src/Common/Sorcha.Cryptography/Sorcha.Cryptography.csproj
-- [ ] T060 [P] [US6] Create ZKInclusionProofProvider for generating and verifying Merkle inclusion proofs with ZK privacy (proves inclusion without revealing transaction content) in src/Common/Sorcha.Cryptography/Core/ZKInclusionProofProvider.cs
-- [ ] T061 [P] [US6] Create RangeProofProvider for Bulletproof range proof generation and verification (proves numeric constraint without revealing value) in src/Common/Sorcha.Cryptography/Core/RangeProofProvider.cs
-- [ ] T062 [P] [US6] Create ZKInclusionProof model (DocketId, MerkleRoot, ProofData, VerificationKey) and RangeProof model (Commitment, ProofData, BitLength) in src/Common/Sorcha.Cryptography/Models/ZKModels.cs
-- [ ] T063 [P] [US6] Implement POST /api/registers/{registerId}/proofs/inclusion endpoint for ZK inclusion proof generation in src/Services/Sorcha.Register.Service/Endpoints/
-- [ ] T064 [P] [US6] Implement POST /api/registers/{registerId}/proofs/verify-inclusion endpoint for ZK inclusion proof verification in src/Services/Sorcha.Register.Service/Endpoints/
-- [ ] T065 [US6] Integration test: create register with transactions, generate ZK inclusion proof for specific TX, verify proof without access to original payload data in tests/Sorcha.Register.Service.Tests/
+- [X] T059 [US6] Add Bulletproof library dependency to src/Common/Sorcha.Cryptography/Sorcha.Cryptography.csproj (N/A: implemented using existing BouncyCastle secp256k1 EC primitives)
+- [X] T060 [P] [US6] Create ZKInclusionProofProvider for generating and verifying Merkle inclusion proofs with ZK privacy (proves inclusion without revealing transaction content) in src/Common/Sorcha.Cryptography/Core/ZKInclusionProofProvider.cs
+- [X] T061 [P] [US6] Create RangeProofProvider for Bulletproof range proof generation and verification (proves numeric constraint without revealing value) in src/Common/Sorcha.Cryptography/Core/RangeProofProvider.cs
+- [X] T062 [P] [US6] Create ZKInclusionProof model (DocketId, MerkleRoot, ProofData, VerificationKey) and RangeProof model (Commitment, ProofData, BitLength) in src/Common/Sorcha.Cryptography/Models/ZKModels.cs
+- [X] T063 [P] [US6] Implement POST /api/registers/{registerId}/proofs/inclusion endpoint for ZK inclusion proof generation in src/Services/Sorcha.Register.Service/Program.cs
+- [X] T064 [P] [US6] Implement POST /api/registers/{registerId}/proofs/verify-inclusion endpoint for ZK inclusion proof verification in src/Services/Sorcha.Register.Service/Program.cs
+- [X] T065 [US6] Integration test: create register with transactions, generate ZK inclusion proof for specific TX, verify proof without access to original payload data in tests/Sorcha.Register.Service.Tests/
 
 **Checkpoint**: ZK verification working. Auditors can prove transaction inclusion and numeric constraints without seeing payload data.
 
