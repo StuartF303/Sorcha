@@ -1,7 +1,7 @@
 # Sorcha Platform - Development Status Report
 
-**Date:** 2026-02-11
-**Version:** 3.3 (Updated after Register Governance)
+**Date:** 2026-02-25
+**Version:** 3.4 (Updated after Quantum-Safe Cryptography)
 **Overall Completion:** 98%
 
 ---
@@ -18,6 +18,7 @@ This document provides an accurate, evidence-based assessment of the Sorcha plat
 - **Validator Service 95% complete**: Memory pool, docket building, consensus, gRPC peer communication, governance rights enforcement (620 tests)
 - **Tenant Service 85% complete**: 67 integration tests (61 passing, 91% pass rate)
 - **AUTH-002 complete**: All services now have JWT Bearer authentication with authorization policies
+- **Quantum-Safe Cryptography 100% complete**: ML-DSA-65, ML-KEM-768, SLH-DSA-128s, BLS12-381 threshold signatures, ZK proofs (Pedersen commitments, range proofs), per-register crypto policy, ws2 Bech32m addresses (270+ new tests)
 - **UI Modernization 100% complete**: Comprehensive overhaul — admin panels, workflow management, cloud persistence, dashboard stats, wallet/transaction integration, template library, explorer enhancements, consistent ID truncation
 - **UI Register Management 100% complete**: Wallet selection wizard, search/filter, transaction query
 - **Verifiable Credentials 100% complete**: SD-JWT VC format, credential gating on actions, blueprint-as-issuer, cross-blueprint composability, selective disclosure, revocation (53 engine + 6 crypto + 4 endpoint tests)
@@ -59,6 +60,7 @@ For detailed implementation status, see the individual section files:
 | **Validator.Service** | 95% | Nearly Complete | Enclave support |
 | **Tenant.Service** | 85% | Nearly Complete | 6 failing tests |
 | **Authentication (AUTH-002)** | 100% | Complete | None |
+| **Sorcha.Cryptography (PQC)** | 100% | Complete | None |
 | **ApiGateway** | 95% | Complete | Rate limiting |
 | **Sorcha.UI (Unified)** | 100% | Complete | None |
 | **Sorcha.CLI** | 100% | Complete | None |
@@ -88,6 +90,25 @@ For detailed implementation status, see the individual section files:
 ---
 
 ## Recent Completions
+
+### 2026-02-25
+- **040-Quantum-Safe-Crypto** (74 tasks, 10 phases — post-quantum cryptography with CNSA 2.0 compliance)
+  - **Algorithm Support Matrix:**
+    | Algorithm | Type | Security Level | Key Size | Signature Size |
+    |-----------|------|---------------|----------|----------------|
+    | ML-DSA-65 | Lattice signature | NIST Level 3 | 1,952 bytes | 3,309 bytes |
+    | ML-KEM-768 | Lattice KEM | NIST Level 3 | 1,184 bytes | 1,088 bytes |
+    | SLH-DSA-128s | Hash-based sig | NIST Level 1 | 32 bytes | 7,856 bytes |
+    | BLS12-381 | Pairing signature | 128-bit | 48 bytes | 96 bytes |
+  - Hybrid signing: classical (ED25519/P-256) + PQC (ML-DSA-65) dual signatures for quantum resistance
+  - Per-register crypto policy: governance-controlled algorithm acceptance, required algorithms, and migration deadlines
+  - SLH-DSA-128s: stateless hash-based signatures as conservative fallback for lattice cryptanalysis concerns
+  - ws2-prefixed Bech32m addresses: quantum-safe wallet addresses with error-correcting encoding
+  - ML-KEM-768 payload encryption: quantum-safe KEM + AES-256-GCM hybrid for confidential payloads
+  - BLS12-381 threshold signatures: t-of-n distributed docket validation with Shamir secret sharing
+  - Zero-knowledge proofs: Pedersen commitments on secp256k1 with Schnorr proofs (inclusion), OR proofs (range)
+  - Register Service ZK proof API: generate/verify inclusion proofs, YARP gateway routes
+  - Test results: 270+ new tests across Cryptography, Wallet, Validator, Register test projects
 
 ### 2026-02-21
 - **039-Verifiable-Presentations** (82 tasks, 11 phases — verifiable credential lifecycle & presentations)

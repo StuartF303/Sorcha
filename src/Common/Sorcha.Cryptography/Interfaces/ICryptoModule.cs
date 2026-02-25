@@ -105,4 +105,38 @@ public interface ICryptoModule
         byte network,
         byte[] privateKey,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Concurrently signs data with both a classical and a PQC key, producing a <see cref="HybridSignature"/>.
+    /// </summary>
+    /// <param name="hash">The hash to sign.</param>
+    /// <param name="classicalNetwork">The classical algorithm (e.g., ED25519).</param>
+    /// <param name="classicalPrivateKey">The classical private key.</param>
+    /// <param name="pqcNetwork">The PQC algorithm (e.g., ML_DSA_65).</param>
+    /// <param name="pqcPrivateKey">The PQC private key.</param>
+    /// <param name="pqcPublicKey">The PQC public key (embedded as witness key).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<CryptoResult<HybridSignature>> HybridSignAsync(
+        byte[] hash,
+        byte classicalNetwork,
+        byte[] classicalPrivateKey,
+        byte pqcNetwork,
+        byte[] pqcPrivateKey,
+        byte[] pqcPublicKey,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Verifies a <see cref="HybridSignature"/> against a hash.
+    /// Accepts the signature if at least one component (classical or PQC) is valid.
+    /// The PQC public key is taken from the signature's <see cref="HybridSignature.WitnessPublicKey"/>.
+    /// </summary>
+    /// <param name="hybridSignature">The hybrid signature to verify.</param>
+    /// <param name="hash">The hash that was signed.</param>
+    /// <param name="classicalPublicKey">The classical public key (required when classical component is present).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<CryptoStatus> HybridVerifyAsync(
+        HybridSignature hybridSignature,
+        byte[] hash,
+        byte[]? classicalPublicKey,
+        CancellationToken cancellationToken = default);
 }

@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Sorcha.Cryptography.Enums;
 using Sorcha.Cryptography.Interfaces;
+using Sorcha.Cryptography.Models;
 using Sorcha.Wallet.Core.Domain;
 using Sorcha.Wallet.Core.Domain.Entities;
 using Sorcha.Wallet.Core.Domain.ValueObjects;
@@ -134,6 +135,18 @@ public static class WalletEndpoints
             .WithSummary("Get gap limit status")
             .WithDescription("Check BIP44 gap limit compliance for all accounts. Shows unused address counts and warnings.");
 
+        // POST /api/v1/wallets/{address}/encapsulate - PQC key encapsulation
+        walletGroup.MapPost("/{address}/encapsulate", EncapsulateKey)
+            .WithName("EncapsulateKey")
+            .WithSummary("Encapsulate a shared secret using PQC key")
+            .WithDescription("Performs ML-KEM-768 key encapsulation with the recipient's PQC public key, returning ciphertext and the encrypted payload.");
+
+        // POST /api/v1/wallets/{address}/decapsulate - PQC key decapsulation
+        walletGroup.MapPost("/{address}/decapsulate", DecapsulateKey)
+            .WithName("DecapsulateKey")
+            .WithSummary("Decapsulate a shared secret using PQC private key")
+            .WithDescription("Performs ML-KEM-768 key decapsulation to recover the shared secret and decrypt the payload.");
+
         // POST /api/v1/wallets/verify - Verify a signature (service-to-service)
         walletGroup.MapPost("/verify", VerifySignature)
             .WithName("VerifySignature")
@@ -149,6 +162,8 @@ public static class WalletEndpoints
     private static async Task<IResult> CreateWallet(
         [FromBody] CreateWalletRequest request,
         WalletManager walletManager,
+        ICryptoModule cryptoModule,
+        IWalletUtilities walletUtilities,
         HttpContext context,
         ILogger<Program> logger,
         CancellationToken cancellationToken = default)
@@ -160,7 +175,8 @@ public static class WalletEndpoints
                 return Results.Unauthorized();
             var tenant = GetCurrentTenant(context);
 
-            logger.LogInformation("Creating wallet for user {Owner} in tenant {Tenant}", owner, tenant);
+            logger.LogInformation("Creating wallet for user {Owner} in tenant {Tenant}, Hybrid={Hybrid}",
+                owner, tenant, request.EnableHybrid);
 
             var (wallet, mnemonic) = await walletManager.CreateWalletAsync(
                 request.Name,
@@ -176,6 +192,25 @@ public static class WalletEndpoints
                 Wallet = wallet.ToDto(),
                 MnemonicWords = mnemonic.Phrase.Split(' ')
             };
+
+            // Generate PQC key pair and ws2 address for hybrid wallets
+            if (request.EnableHybrid && !string.IsNullOrEmpty(request.PqcAlgorithm))
+            {
+                var pqcNetwork = ParsePqcAlgorithm(request.PqcAlgorithm);
+                var pqcKeyResult = await cryptoModule.GenerateKeySetAsync(pqcNetwork, cancellationToken: cancellationToken);
+                if (pqcKeyResult.IsSuccess)
+                {
+                    var pqcAddress = walletUtilities.PublicKeyToWallet(pqcKeyResult.Value.PublicKey.Key!, (byte)pqcNetwork);
+                    response.PqcWalletAddress = pqcAddress;
+                    response.PqcAlgorithm = request.PqcAlgorithm;
+                    logger.LogInformation("Hybrid wallet created with PQC address {PqcAddress}", pqcAddress);
+                }
+                else
+                {
+                    logger.LogWarning("PQC key generation failed: {Error}, proceeding with classical-only wallet",
+                        pqcKeyResult.ErrorMessage);
+                }
+            }
 
             return Results.Created($"/api/v1/wallets/{wallet.Address}", response);
         }
@@ -390,6 +425,48 @@ public static class WalletEndpoints
         try
         {
             var transactionData = Convert.FromBase64String(request.TransactionData);
+
+            // Hybrid mode: sign with both classical (URL address) and PQC (PqcWalletAddress) wallets
+            if (request.HybridMode)
+            {
+                if (string.IsNullOrWhiteSpace(request.PqcWalletAddress))
+                {
+                    return Results.BadRequest(new ProblemDetails
+                    {
+                        Title = "Invalid Request",
+                        Detail = "PqcWalletAddress is required when HybridMode is true",
+                        Status = StatusCodes.Status400BadRequest
+                    });
+                }
+
+                // Sign concurrently with both wallets
+                var classicalTask = walletManager.SignTransactionAsync(
+                    address, transactionData, request.DerivationPath, request.IsPreHashed, cancellationToken);
+                var pqcTask = walletManager.SignTransactionAsync(
+                    request.PqcWalletAddress, transactionData, request.DerivationPath, request.IsPreHashed, cancellationToken);
+                await Task.WhenAll(classicalTask, pqcTask);
+
+                var (classicalSig, classicalPublicKey) = classicalTask.Result;
+                var (pqcSig, pqcPublicKey) = pqcTask.Result;
+
+                var hybrid = new HybridSignature
+                {
+                    Classical = Convert.ToBase64String(classicalSig),
+                    ClassicalAlgorithm = "ED25519",
+                    Pqc = Convert.ToBase64String(pqcSig),
+                    PqcAlgorithm = "ML-DSA-65",
+                    WitnessPublicKey = Convert.ToBase64String(pqcPublicKey)
+                };
+
+                return Results.Ok(new SignTransactionResponse
+                {
+                    Signature = hybrid.ToJson(),
+                    SignedBy = address,
+                    SignedAt = DateTime.UtcNow,
+                    PublicKey = Convert.ToBase64String(classicalPublicKey)
+                });
+            }
+
             var (signature, publicKey) = await walletManager.SignTransactionAsync(
                 address,
                 transactionData,
@@ -1148,8 +1225,128 @@ public static class WalletEndpoints
         return context.User.FindFirstValue(ClaimTypes.NameIdentifier);
     }
 
+    private static async Task<IResult> EncapsulateKey(
+        string address,
+        [FromBody] EncapsulateRequest request,
+        ICryptoModule cryptoModule,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(request.RecipientPublicKey))
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Request",
+                    Detail = "recipientPublicKey is required",
+                    Status = StatusCodes.Status400BadRequest
+                });
+
+            var publicKeyBytes = Convert.FromBase64String(request.RecipientPublicKey);
+
+            var pqcProvider = new Sorcha.Cryptography.Core.PqcEncapsulationProvider();
+            var result = await pqcProvider.EncryptWithKemAsync(
+                Convert.FromBase64String(request.Plaintext ?? ""),
+                publicKeyBytes,
+                cancellationToken);
+
+            if (!result.IsSuccess)
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Encapsulation Failed",
+                    Detail = result.ErrorMessage,
+                    Status = StatusCodes.Status400BadRequest
+                });
+
+            return Results.Ok(new
+            {
+                ciphertext = Convert.ToBase64String(result.Value!)
+            });
+        }
+        catch (FormatException)
+        {
+            return Results.BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Request",
+                Detail = "recipientPublicKey and plaintext must be valid base64",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Encapsulation failed for wallet {Address}", address);
+            return Results.Problem(
+                title: "Encapsulation Failed",
+                detail: "An error occurred during key encapsulation",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    private static async Task<IResult> DecapsulateKey(
+        string address,
+        [FromBody] DecapsulateRequest request,
+        WalletManager walletManager,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(request.Ciphertext))
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Request",
+                    Detail = "ciphertext is required",
+                    Status = StatusCodes.Status400BadRequest
+                });
+
+            // Use the existing wallet decryption infrastructure (handles key access, storage)
+            var ciphertextBytes = Convert.FromBase64String(request.Ciphertext);
+            var plaintext = await walletManager.DecryptPayloadAsync(address, ciphertextBytes, cancellationToken);
+
+            return Results.Ok(new
+            {
+                plaintext = Convert.ToBase64String(plaintext)
+            });
+        }
+        catch (FormatException)
+        {
+            return Results.BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Request",
+                Detail = "ciphertext must be valid base64",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            return Results.NotFound(new ProblemDetails
+            {
+                Title = "Wallet Not Found",
+                Detail = $"No wallet found with address {address}",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Decapsulation failed for wallet {Address}", address);
+            return Results.Problem(
+                title: "Decapsulation Failed",
+                detail: "An error occurred during key decapsulation",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
     private static string GetCurrentTenant(HttpContext context)
     {
         return context.User.FindFirstValue("tenant") ?? "default";
     }
+
+    private static WalletNetworks ParsePqcAlgorithm(string algorithm) => algorithm.ToUpperInvariant() switch
+    {
+        "ML-DSA-65" or "MLDSA65" => WalletNetworks.ML_DSA_65,
+        "SLH-DSA-128S" or "SLHDSA128S" => WalletNetworks.SLH_DSA_128s,
+        "SLH-DSA-192S" or "SLHDSA192S" => WalletNetworks.SLH_DSA_192s,
+        "ML-KEM-768" or "MLKEM768" => WalletNetworks.ML_KEM_768,
+        _ => throw new ArgumentException($"Unsupported PQC algorithm: {algorithm}")
+    };
 }

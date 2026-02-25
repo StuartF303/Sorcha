@@ -52,6 +52,16 @@ public record DerivationPath
     }
 
     /// <summary>
+    /// Creates a BIP44 derivation path for PQC algorithms.
+    /// Uses coin type 1' (reserved for PQC in Sorcha).
+    /// </summary>
+    public static DerivationPath CreatePqcBip44(uint account = 0, uint change = 0, uint addressIndex = 0)
+    {
+        // PQC coin type = 1' (distinguishes from classical derivation paths)
+        return CreateBip44(coinType: 1, account: account, change: change, addressIndex: addressIndex);
+    }
+
+    /// <summary>
     /// Gets the path as a string
     /// </summary>
     public string Path => _keyPath.ToString();

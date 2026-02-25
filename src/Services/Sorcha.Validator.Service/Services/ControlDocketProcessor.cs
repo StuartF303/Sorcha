@@ -28,6 +28,7 @@ public class ControlDocketProcessor : IControlDocketProcessor
     private const string ConfigUpdateAction = "control.config.update";
     private const string BlueprintPublishAction = "control.blueprint.publish";
     private const string RegisterUpdateMetadataAction = "control.register.updatemetadata";
+    private const string CryptoPolicyUpdateAction = "control.crypto.update";
 
     /// <inheritdoc/>
     public event EventHandler<ControlActionAppliedEventArgs>? ControlActionApplied;
@@ -159,6 +160,10 @@ public class ControlDocketProcessor : IControlDocketProcessor
                     txErrors.AddRange(ValidateMetadataUpdate(controlTx));
                     break;
 
+                case ControlActionType.CryptoPolicyUpdate:
+                    txErrors.AddRange(ValidateCryptoPolicyUpdate(controlTx));
+                    break;
+
                 default:
                     txErrors.Add($"Unknown control action type: {controlTx.ActionType}");
                     break;
@@ -227,7 +232,7 @@ public class ControlDocketProcessor : IControlDocketProcessor
 
                 if (result.Success)
                 {
-                    if (result.ActionType == ControlActionType.ConfigUpdate)
+                    if (result.ActionType is ControlActionType.ConfigUpdate or ControlActionType.CryptoPolicyUpdate)
                     {
                         configUpdated = true;
                     }
@@ -331,6 +336,10 @@ public class ControlDocketProcessor : IControlDocketProcessor
                     changeDescription = await ApplyMetadataUpdateAsync(registerId, controlTransaction, ct);
                     break;
 
+                case ControlActionType.CryptoPolicyUpdate:
+                    changeDescription = ApplyCryptoPolicyUpdate(registerId, controlTransaction);
+                    break;
+
                 default:
                     return new ControlActionResult
                     {
@@ -390,6 +399,7 @@ public class ControlDocketProcessor : IControlDocketProcessor
             ConfigUpdateAction => ControlActionType.ConfigUpdate,
             BlueprintPublishAction => ControlActionType.BlueprintPublish,
             RegisterUpdateMetadataAction => ControlActionType.RegisterUpdateMetadata,
+            CryptoPolicyUpdateAction => ControlActionType.CryptoPolicyUpdate,
             _ when actionId.StartsWith(ControlActionPrefix, StringComparison.OrdinalIgnoreCase) => ControlActionType.Unknown,
             _ => ControlActionType.Unknown
         };
@@ -440,6 +450,10 @@ public class ControlDocketProcessor : IControlDocketProcessor
             ControlActionType.RegisterUpdateMetadata =>
                 JsonSerializer.Deserialize<RegisterMetadataUpdatePayload>(payloadJson, _jsonOptions)
                 ?? throw new InvalidOperationException("Failed to parse metadata update payload"),
+
+            ControlActionType.CryptoPolicyUpdate =>
+                JsonSerializer.Deserialize<CryptoPolicyUpdatePayload>(payloadJson, _jsonOptions)
+                ?? throw new InvalidOperationException("Failed to parse crypto policy update payload"),
 
             _ => throw new InvalidOperationException($"Unknown control action type: {actionType}")
         };
@@ -689,6 +703,43 @@ public class ControlDocketProcessor : IControlDocketProcessor
         return errors;
     }
 
+    private static List<string> ValidateCryptoPolicyUpdate(ControlTransaction controlTx)
+    {
+        var errors = new List<string>();
+        var payload = controlTx.Payload as CryptoPolicyUpdatePayload;
+
+        if (payload == null)
+        {
+            errors.Add("Invalid crypto policy update payload");
+            return errors;
+        }
+
+        if (payload.Version <= 0)
+            errors.Add("Policy version must be greater than 0");
+
+        if (payload.AcceptedSignatureAlgorithms == null || payload.AcceptedSignatureAlgorithms.Length == 0)
+            errors.Add("AcceptedSignatureAlgorithms must contain at least one algorithm");
+
+        // Validate RequiredSignatureAlgorithms is a subset of AcceptedSignatureAlgorithms
+        if (payload.RequiredSignatureAlgorithms.Length > 0 && payload.AcceptedSignatureAlgorithms != null)
+        {
+            var accepted = new HashSet<string>(payload.AcceptedSignatureAlgorithms, StringComparer.OrdinalIgnoreCase);
+            var missing = payload.RequiredSignatureAlgorithms.Where(r => !accepted.Contains(r)).ToArray();
+            if (missing.Length > 0)
+            {
+                errors.Add($"RequiredSignatureAlgorithms contains algorithms not in AcceptedSignatureAlgorithms: {string.Join(", ", missing)}");
+            }
+        }
+
+        var validModes = new[] { "Permissive", "Strict" };
+        if (!validModes.Contains(payload.EnforcementMode, StringComparer.OrdinalIgnoreCase))
+        {
+            errors.Add($"EnforcementMode must be one of: {string.Join(", ", validModes)}");
+        }
+
+        return errors;
+    }
+
     #endregion
 
     #region Action Application Methods
@@ -835,6 +886,23 @@ public class ControlDocketProcessor : IControlDocketProcessor
             registerId, payload.Field, payload.NewValue);
 
         return Task.FromResult($"Register {payload.Field} updated to: {payload.NewValue}");
+    }
+
+    private string ApplyCryptoPolicyUpdate(
+        string registerId,
+        ControlTransaction controlTx)
+    {
+        var payload = (CryptoPolicyUpdatePayload)controlTx.Payload;
+
+        _logger.LogInformation(
+            "Crypto policy updated for register {RegisterId}: version {Version}, mode {Mode}, accepted algorithms: {Algorithms}",
+            registerId, payload.Version, payload.EnforcementMode,
+            string.Join(", ", payload.AcceptedSignatureAlgorithms));
+
+        // Policy change is persisted in the transaction chain and read by CryptoPolicyService
+        // on the Register Service side. The Validator refreshes its genesis config cache above.
+
+        return $"Crypto policy updated to version {payload.Version} ({payload.EnforcementMode} mode, {payload.AcceptedSignatureAlgorithms.Length} accepted algorithms)";
     }
 
     #endregion

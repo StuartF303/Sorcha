@@ -391,6 +391,9 @@ builder.Services.AddServiceClients(builder.Configuration);
 // Register system wallet signing service (opt-in — used for genesis + blueprint publish)
 builder.Services.AddSystemWalletSigning(builder.Configuration);
 
+// Register crypto policy service
+builder.Services.AddScoped<Sorcha.Register.Service.Services.CryptoPolicyService>();
+
 // Register governance roster service
 builder.Services.AddScoped<Sorcha.Register.Core.Services.IGovernanceRosterService,
     Sorcha.Register.Core.Services.GovernanceRosterService>();
@@ -1603,6 +1606,130 @@ governanceGroup.MapGet("/proposals", async (
 .WithDescription("Returns paginated governance operations from Control transaction history.");
 
 // ===========================
+// Crypto Policy API
+// ===========================
+
+var cryptoPolicyGroup = app.MapGroup("/api/registers/{registerId}/crypto-policy")
+    .WithTags("CryptoPolicy")
+    .RequireAuthorization("CanReadTransactions");
+
+/// <summary>
+/// Get the active crypto policy for a register
+/// </summary>
+cryptoPolicyGroup.MapGet("/", async (
+    Sorcha.Register.Service.Services.CryptoPolicyService cryptoPolicyService,
+    string registerId,
+    CancellationToken ct) =>
+{
+    var policy = await cryptoPolicyService.GetActivePolicyAsync(registerId, ct);
+    return Results.Ok(policy);
+})
+.WithName("GetActiveCryptoPolicy")
+.WithSummary("Get active crypto policy")
+.WithDescription("Returns the active cryptographic policy for this register. If no explicit policy has been set, returns the default permissive policy accepting all algorithms.");
+
+/// <summary>
+/// Get crypto policy version history for a register
+/// </summary>
+cryptoPolicyGroup.MapGet("/history", async (
+    Sorcha.Register.Service.Services.CryptoPolicyService cryptoPolicyService,
+    string registerId,
+    CancellationToken ct) =>
+{
+    var history = await cryptoPolicyService.GetPolicyHistoryAsync(registerId, ct);
+    return Results.Ok(new { Versions = history, Total = history.Count });
+})
+.WithName("GetCryptoPolicyHistory")
+.WithSummary("Get crypto policy version history")
+.WithDescription("Returns all crypto policy versions for this register, ordered by version number. Includes the genesis policy and all subsequent updates.");
+
+/// <summary>
+/// Submit a crypto policy update as a control transaction
+/// </summary>
+governanceGroup.MapPost("/crypto-policy", async (
+    Sorcha.Register.Service.Services.CryptoPolicyService cryptoPolicyService,
+    Sorcha.Register.Core.Managers.TransactionManager transactionManager,
+    Sorcha.ServiceClients.SystemWallet.ISystemWalletSigningService systemSigning,
+    string registerId,
+    Sorcha.Register.Models.CryptoPolicy policyUpdate,
+    CancellationToken ct) =>
+{
+    // Validate the policy
+    if (!policyUpdate.IsValid())
+    {
+        return Results.BadRequest(new { Error = "Invalid crypto policy: RequiredSignatureAlgorithms must be a subset of AcceptedSignatureAlgorithms, and all algorithm arrays must be non-empty." });
+    }
+
+    // Serialize policy as payload
+    var policyJson = System.Text.Json.JsonSerializer.Serialize(policyUpdate);
+    var policyBytes = System.Text.Encoding.UTF8.GetBytes(policyJson);
+    var payloadData = Convert.ToBase64String(policyBytes);
+    var payloadHash = Convert.ToHexString(
+        System.Security.Cryptography.SHA256.HashData(policyBytes)).ToLowerInvariant();
+
+    // Generate TX ID
+    var txIdSource = $"crypto-policy-update-{registerId}-v{policyUpdate.Version}";
+    var txIdBytes = System.Security.Cryptography.SHA256.HashData(
+        System.Text.Encoding.UTF8.GetBytes(txIdSource));
+    var txId = Convert.ToHexString(txIdBytes).ToLowerInvariant();
+
+    // Find chain head
+    var allTxs = await transactionManager.GetTransactionsAsync(registerId, ct);
+    var chainHead = allTxs.OrderByDescending(t => t.TimeStamp).FirstOrDefault();
+
+    // Build control transaction
+    var tx = new Sorcha.Register.Models.TransactionModel
+    {
+        TxId = txId,
+        RegisterId = registerId,
+        SenderWallet = "system",
+        PrevTxId = chainHead?.TxId ?? string.Empty,
+        PayloadCount = 1,
+        Payloads = new[]
+        {
+            new Sorcha.Register.Models.PayloadModel
+            {
+                Data = payloadData,
+                Hash = payloadHash,
+                WalletAccess = Array.Empty<string>(),
+                ContentType = "application/json",
+                ContentEncoding = "base64"
+            }
+        },
+        TimeStamp = DateTime.UtcNow,
+        Signature = string.Empty,
+        MetaData = new Sorcha.Register.Models.TransactionMetaData
+        {
+            RegisterId = registerId,
+            TransactionType = Sorcha.Register.Models.Enums.TransactionType.Control,
+            TrackingData = new Dictionary<string, string>
+            {
+                ["transactionType"] = "CryptoPolicyUpdate",
+                ["policyVersion"] = policyUpdate.Version.ToString()
+            }
+        }
+    };
+
+    // Sign with system wallet (follows same pattern as RegisterCreationOrchestrator)
+    var signResult = await systemSigning.SignAsync(
+        registerId: registerId,
+        txId: txId,
+        payloadHash: payloadHash,
+        derivationPath: "sorcha:register-control",
+        transactionType: "CryptoPolicyUpdate",
+        cancellationToken: ct);
+    tx.Signature = Convert.ToBase64String(signResult.Signature);
+
+    // Submit
+    await transactionManager.StoreTransactionAsync(tx, ct);
+
+    return Results.Ok(new { TxId = txId, PolicyVersion = policyUpdate.Version, Status = "submitted" });
+})
+.WithName("UpdateCryptoPolicy")
+.WithSummary("Update register crypto policy")
+.WithDescription("Submits a crypto policy update as a control transaction. The new policy takes effect immediately for subsequent transactions.");
+
+// ===========================
 // Participant Query API
 // ===========================
 
@@ -1700,6 +1827,112 @@ participantsGroup.MapGet("/by-address/{walletAddress}/public-key", (
 .WithName("ResolvePublicKey")
 .WithSummary("Resolve public key by wallet address")
 .WithDescription("Returns the public key for field-level encryption. Returns 410 Gone if participant is revoked.");
+
+// ===========================
+// Zero-Knowledge Proof API
+// ===========================
+
+var proofsGroup = app.MapGroup("/api/registers/{registerId}/proofs")
+    .WithTags("ZK Proofs")
+    .RequireAuthorization("CanReadTransactions");
+
+/// <summary>
+/// Generate a ZK inclusion proof for a transaction in a docket
+/// </summary>
+proofsGroup.MapPost("/inclusion", async (
+    IRegisterRepository repository,
+    IHashProvider hashProvider,
+    string registerId,
+    InclusionProofRequest request) =>
+{
+    // Validate register exists
+    var register = await repository.GetRegisterAsync(registerId);
+    if (register == null)
+        return Results.NotFound(new { error = "Register not found" });
+
+    // Validate TxId format (64-char hex SHA-256)
+    if (string.IsNullOrWhiteSpace(request.TxId) || request.TxId.Length != 64)
+        return Results.BadRequest(new { error = "TxId must be a 64-character hex string (SHA-256)" });
+
+    // Validate docket exists
+    if (string.IsNullOrWhiteSpace(request.DocketId))
+        return Results.BadRequest(new { error = "DocketId is required" });
+
+    var dockets = await repository.GetDocketsAsync(registerId);
+    var docket = dockets.FirstOrDefault(d => d.Id.ToString() == request.DocketId);
+    if (docket == null)
+        return Results.NotFound(new { error = $"Docket {request.DocketId} not found" });
+
+    // Verify the transaction is in the docket
+    var txIds = docket.TransactionIds?.ToList() ?? [];
+    if (!txIds.Contains(request.TxId, StringComparer.OrdinalIgnoreCase))
+        return Results.BadRequest(new { error = "Transaction not found in specified docket" });
+
+    // Build Merkle tree and generate proof path
+    var merkleTree = new Sorcha.Cryptography.Utilities.MerkleTree(hashProvider);
+    var merkleRoot = merkleTree.ComputeMerkleRoot(txIds.AsReadOnly());
+    var proofPath = BuildMerkleProofPath(txIds, request.TxId, hashProvider);
+
+    // Generate ZK inclusion proof
+    var txHash = Convert.FromHexString(request.TxId);
+    var rootBytes = Convert.FromHexString(merkleRoot);
+    var proofPathBytes = proofPath.Select(p => Convert.FromHexString(p)).ToArray();
+
+    var zkProvider = new Sorcha.Cryptography.Core.ZKInclusionProofProvider();
+    var proof = zkProvider.GenerateInclusionProof(txHash, rootBytes, proofPathBytes, request.DocketId);
+
+    return Results.Ok(new
+    {
+        RegisterId = registerId,
+        DocketId = request.DocketId,
+        TxId = request.TxId,
+        MerkleRoot = merkleRoot,
+        Commitment = Convert.ToBase64String(proof.Commitment),
+        ProofData = Convert.ToBase64String(proof.ProofData),
+        MerkleProofPath = proofPathBytes.Select(Convert.ToBase64String).ToArray(),
+        VerificationKey = Convert.ToBase64String(proof.VerificationKey)
+    });
+})
+.WithName("GenerateInclusionProof")
+.WithSummary("Generate ZK inclusion proof")
+.WithDescription("Generates a zero-knowledge proof that a transaction is included in a docket's Merkle tree without revealing the transaction content.");
+
+/// <summary>
+/// Verify a ZK inclusion proof
+/// </summary>
+proofsGroup.MapPost("/verify-inclusion", (
+    VerifyInclusionProofRequest request) =>
+{
+    try
+    {
+        var proof = new Sorcha.Cryptography.Models.ZKInclusionProof
+        {
+            DocketId = request.DocketId,
+            MerkleRoot = Convert.FromBase64String(request.MerkleRoot),
+            Commitment = Convert.FromBase64String(request.Commitment),
+            ProofData = Convert.FromBase64String(request.ProofData),
+            MerkleProofPath = request.MerkleProofPath.Select(Convert.FromBase64String).ToArray(),
+            VerificationKey = Convert.FromBase64String(request.VerificationKey)
+        };
+
+        var zkProvider = new Sorcha.Cryptography.Core.ZKInclusionProofProvider();
+        var result = zkProvider.VerifyInclusionProof(proof);
+
+        return Results.Ok(new
+        {
+            IsValid = result.IsValid,
+            Message = result.Message,
+            DocketId = request.DocketId
+        });
+    }
+    catch (FormatException)
+    {
+        return Results.BadRequest(new { error = "Invalid base64 encoding in proof fields" });
+    }
+})
+.WithName("VerifyInclusionProof")
+.WithSummary("Verify ZK inclusion proof")
+.WithDescription("Verifies a zero-knowledge proof of transaction inclusion without access to the original transaction data.");
 
 // ===========================
 // Admin / Diagnostic Endpoints
@@ -1834,6 +2067,48 @@ adminGroup.MapDelete("/orphan-transactions", async (
 .WithDescription("Removes transactions not referenced by any sealed docket. Refuses if docketed transactions chain from orphans.")
 .RequireAuthorization("CanWriteDockets");
 
+// Local function: builds a Merkle proof path (sibling hashes) for a target transaction
+List<string> BuildMerkleProofPath(List<string> txIds, string targetTxId, IHashProvider hashProvider)
+{
+    if (txIds.Count <= 1)
+        return [];
+
+    var proofPath = new List<string>();
+    var currentLevel = txIds.Select(h => h.ToLowerInvariant()).ToList();
+    int targetIdx = currentLevel.FindIndex(h => string.Equals(h, targetTxId, StringComparison.OrdinalIgnoreCase));
+    if (targetIdx < 0)
+        return [];
+
+    while (currentLevel.Count > 1)
+    {
+        var nextLevel = new List<string>();
+        int nextTargetIdx = targetIdx / 2;
+
+        for (int i = 0; i < currentLevel.Count; i += 2)
+        {
+            string left = currentLevel[i];
+            string right = (i + 1 < currentLevel.Count) ? currentLevel[i + 1] : left;
+
+            // If target is in this pair, add sibling to proof path
+            if (i == targetIdx || i + 1 == targetIdx)
+            {
+                proofPath.Add(i == targetIdx ? right : left);
+            }
+
+            // Compute parent hash (matches MerkleTree.CombineAndHash)
+            string combined = left + right;
+            byte[] combinedBytes = System.Text.Encoding.UTF8.GetBytes(combined);
+            byte[] hash = hashProvider.ComputeHash(combinedBytes, Sorcha.Cryptography.Enums.HashType.SHA256);
+            nextLevel.Add(Convert.ToHexString(hash).ToLowerInvariant());
+        }
+
+        currentLevel = nextLevel;
+        targetIdx = nextTargetIdx;
+    }
+
+    return proofPath;
+}
+
 app.Run();
 
 // ===========================
@@ -1874,3 +2149,13 @@ record WriteDocketRequest(
     string ProposerValidatorId,
     string MerkleRoot,
     List<TransactionModel>? Transactions = null);
+
+// ZK Proof request models
+record InclusionProofRequest(string TxId, string DocketId);
+record VerifyInclusionProofRequest(
+    string DocketId,
+    string MerkleRoot,
+    string Commitment,
+    string ProofData,
+    string[] MerkleProofPath,
+    string VerificationKey);

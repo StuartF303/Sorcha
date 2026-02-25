@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using Sorcha.Cryptography.Enums;
 using Sorcha.Cryptography.Interfaces;
 using Sorcha.Cryptography.Models;
@@ -12,10 +13,19 @@ namespace Sorcha.Cryptography.Utilities;
 /// </summary>
 public class WalletUtilities : IWalletUtilities
 {
-    private const string WalletPrefix = "ws1"; // Sorcha wallet prefix
+    private const string WalletPrefix = "ws1"; // Sorcha classical wallet prefix
+    private const string PqcWalletPrefix = "ws2"; // Sorcha PQC wallet prefix (Bech32m)
+
+    private static bool IsPqcNetwork(byte network) =>
+        network is (byte)WalletNetworks.ML_DSA_65
+            or (byte)WalletNetworks.SLH_DSA_128s
+            or (byte)WalletNetworks.SLH_DSA_192s
+            or (byte)WalletNetworks.ML_KEM_768;
 
     /// <summary>
     /// Converts a public key to a wallet address.
+    /// For PQC networks, the large public key is SHA-256 hashed and encoded with Bech32m (ws2 prefix).
+    /// For classical networks, the raw public key is encoded with Bech32 (ws1 prefix).
     /// </summary>
     public string? PublicKeyToWallet(byte[] publicKey, byte network)
     {
@@ -24,13 +34,28 @@ public class WalletUtilities : IWalletUtilities
             if (publicKey == null || publicKey.Length == 0)
                 return null;
 
-            // Prepend network byte to public key
-            byte[] data = new byte[publicKey.Length + 1];
-            data[0] = network;
-            Array.Copy(publicKey, 0, data, 1, publicKey.Length);
+            if (IsPqcNetwork(network))
+            {
+                // PQC: SHA-256(network_byte + public_key) → Bech32m with ws2 prefix
+                byte[] toHash = new byte[publicKey.Length + 1];
+                toHash[0] = network;
+                Array.Copy(publicKey, 0, toHash, 1, publicKey.Length);
+                byte[] hash = SHA256.HashData(toHash);
 
-            // Encode with Bech32
-            return Bech32.Encode(WalletPrefix, data);
+                // Prepend network byte to hash for decoding
+                byte[] data = new byte[hash.Length + 1];
+                data[0] = network;
+                Array.Copy(hash, 0, data, 1, hash.Length);
+
+                return Bech32m.Encode(PqcWalletPrefix, data);
+            }
+
+            // Classical: raw public key with Bech32
+            byte[] classicalData = new byte[publicKey.Length + 1];
+            classicalData[0] = network;
+            Array.Copy(publicKey, 0, classicalData, 1, publicKey.Length);
+
+            return Bech32.Encode(WalletPrefix, classicalData);
         }
         catch
         {
@@ -39,7 +64,9 @@ public class WalletUtilities : IWalletUtilities
     }
 
     /// <summary>
-    /// Converts a wallet address to public key and network.
+    /// Converts a wallet address to public key (or hash) and network.
+    /// For ws2 (PQC) addresses, returns the SHA-256 hash of the public key — the full key
+    /// must be obtained from transaction witness data.
     /// </summary>
     public (byte Network, byte[] PublicKey)? WalletToPublicKey(string walletAddress)
     {
@@ -48,25 +75,34 @@ public class WalletUtilities : IWalletUtilities
             if (string.IsNullOrWhiteSpace(walletAddress))
                 return null;
 
-            // Decode Bech32
-            var decoded = Bech32.Decode(walletAddress);
-            if (decoded == null)
+            // Try ws2 (PQC/Bech32m) first
+            if (walletAddress.StartsWith(PqcWalletPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var decoded = Bech32m.Decode(walletAddress);
+                if (decoded == null)
+                    return null;
+
+                var (hrp, data) = decoded.Value;
+                if (hrp != PqcWalletPrefix || data.Length < 2)
+                    return null;
+
+                byte network = data[0];
+                byte[] publicKeyHash = data.Skip(1).ToArray();
+                return (network, publicKeyHash);
+            }
+
+            // Classical ws1/Bech32
+            var bech32Decoded = Bech32.Decode(walletAddress);
+            if (bech32Decoded == null)
                 return null;
 
-            var (hrp, data) = decoded.Value;
-
-            // Verify HRP
-            if (hrp != WalletPrefix)
+            var (bhrp, bdata) = bech32Decoded.Value;
+            if (bhrp != WalletPrefix || bdata.Length < 2)
                 return null;
 
-            // Extract network byte and public key
-            if (data.Length < 2)
-                return null;
-
-            byte network = data[0];
-            byte[] publicKey = data.Skip(1).ToArray();
-
-            return (network, publicKey);
+            byte bnetwork = bdata[0];
+            byte[] publicKey = bdata.Skip(1).ToArray();
+            return (bnetwork, publicKey);
         }
         catch
         {

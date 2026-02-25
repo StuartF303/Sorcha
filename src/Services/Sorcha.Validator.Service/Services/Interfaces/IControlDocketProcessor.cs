@@ -114,7 +114,10 @@ public enum ControlActionType
     BlueprintPublish,
 
     /// <summary>Update register metadata</summary>
-    RegisterUpdateMetadata
+    RegisterUpdateMetadata,
+
+    /// <summary>Update the register's cryptographic policy</summary>
+    CryptoPolicyUpdate
 }
 
 /// <summary>
@@ -232,6 +235,30 @@ public record RegisterMetadataUpdatePayload : ControlPayload
 
     /// <summary>New value</summary>
     public required string NewValue { get; init; }
+}
+
+/// <summary>
+/// Payload for crypto policy update
+/// </summary>
+public record CryptoPolicyUpdatePayload : ControlPayload
+{
+    /// <summary>New policy version number</summary>
+    public required int Version { get; init; }
+
+    /// <summary>Accepted signature algorithms</summary>
+    public required string[] AcceptedSignatureAlgorithms { get; init; }
+
+    /// <summary>Required signature algorithms (must be subset of accepted)</summary>
+    public string[] RequiredSignatureAlgorithms { get; init; } = [];
+
+    /// <summary>Enforcement mode: Permissive or Strict</summary>
+    public string EnforcementMode { get; init; } = "Permissive";
+
+    /// <summary>When the policy takes effect</summary>
+    public DateTimeOffset? EffectiveFrom { get; init; }
+
+    /// <summary>Who submitted the policy update</summary>
+    public string? UpdatedBy { get; init; }
 }
 
 /// <summary>

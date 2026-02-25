@@ -23,6 +23,7 @@
     <NoWarn>$(NoWarn);1591</NoWarn><!-- Suppress missing XML doc warnings initially -->
 
     <!-- Build -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 
@@ -35,8 +36,10 @@
 
   <ItemGroup>
     <!-- Minimal dependencies -->
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
     <PackageReference Include="HeroSD-JWT" Version="1.1.7" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.2" />
+    <PackageReference Include="Nethermind.MclBindings" Version="1.0.5" />
     <PackageReference Include="Sodium.Core" Version="1.4.0" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.102" PrivateAssets="All" />
   </ItemGroup>

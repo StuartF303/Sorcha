@@ -269,6 +269,7 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             TenantId = pending.ControlRecord.TenantId,
             CreatedAt = pending.ControlRecord.CreatedAt,
             Metadata = pending.ControlRecord.Metadata,
+            CryptoPolicy = CryptoPolicy.CreateDefault(),
             Attestations = request.SignedAttestations.Select(sa => new RegisterAttestation
             {
                 Role = sa.AttestationData.Role,
@@ -603,6 +604,8 @@ public class RegisterCreationOrchestrator : IRegisterCreationOrchestrator
             SignatureAlgorithm.ED25519 => (byte)Sorcha.Cryptography.Enums.WalletNetworks.ED25519,
             SignatureAlgorithm.NISTP256 => (byte)Sorcha.Cryptography.Enums.WalletNetworks.NISTP256,
             SignatureAlgorithm.RSA4096 => (byte)Sorcha.Cryptography.Enums.WalletNetworks.RSA4096,
+            SignatureAlgorithm.ML_DSA_65 => (byte)Sorcha.Cryptography.Enums.WalletNetworks.ML_DSA_65,
+            SignatureAlgorithm.SLH_DSA_128s => (byte)Sorcha.Cryptography.Enums.WalletNetworks.SLH_DSA_128s,
             _ => throw new ArgumentException($"Unsupported signature algorithm: {algorithm}")
         };
     }

@@ -536,15 +536,26 @@ WITHOUT revealing: Which specific participant they are
 
 **Recommendation for Sorcha:** **HIGH PRIORITY** - Replace ECDH/RSA encryption
 
-#### 3. **SPHINCS+** (Signatures - Stateless)
-- **Type:** Hash-based (Merkle trees)
+#### 3. **SPHINCS+ / SLH-DSA** (Signatures - Stateless Hash-Based)
+- **Type:** Hash-based (Merkle trees, FORS)
+- **Official Standard:** SLH-DSA (Stateless Hash-Based Digital Signature Algorithm, FIPS 205)
 - **Security:** 128-bit, 192-bit, 256-bit levels
-- **Signature Size:** 7.8 KB (small), 16 KB (fast)
-- **Public Key:** 32 bytes (small), 64 bytes (fast)
-- **Speed:** Slower (10-100 sign/sec), very fast verify
+- **Variants:** "s" (small signatures, slower) and "f" (fast signing, larger signatures)
+
+| Parameter Set | Security Level | Signature Size | Public Key | Private Key | Sign Speed |
+|---------------|---------------|----------------|------------|-------------|------------|
+| SLH-DSA-128s | Level 1 (128-bit) | 7,856 bytes | 32 bytes | 64 bytes | ~10 sign/sec |
+| SLH-DSA-128f | Level 1 (128-bit) | 17,088 bytes | 32 bytes | 64 bytes | ~100 sign/sec |
+| SLH-DSA-192s | Level 3 (192-bit) | 16,224 bytes | 48 bytes | 96 bytes | ~5 sign/sec |
+| SLH-DSA-192f | Level 3 (192-bit) | 35,664 bytes | 48 bytes | 96 bytes | ~50 sign/sec |
+| SLH-DSA-256s | Level 5 (256-bit) | 29,792 bytes | 64 bytes | 128 bytes | ~2 sign/sec |
+| SLH-DSA-256f | Level 5 (256-bit) | 49,856 bytes | 64 bytes | 128 bytes | ~20 sign/sec |
+
+- **Key Advantage:** Security based purely on hash function security — no lattice/number-theory assumptions. If lattice-based schemes (ML-DSA) are broken, SLH-DSA remains secure.
+- **CNSA 2.0:** SLH-DSA-192s or higher required for government/defence compliance.
 - **Status:** ✅ **NIST Standard** (FIPS 205)
 
-**Recommendation for Sorcha:** **MEDIUM PRIORITY** - Backup option for signatures
+**Recommendation for Sorcha:** **HIGH PRIORITY** - Primary fallback signature scheme alongside ML-DSA-65. Use SLH-DSA-128s as default (compact signatures, adequate security). Support SLH-DSA-192s for CNSA 2.0 compliance. Register crypto policy should allow selection between "s" (small) and "f" (fast) variants.
 
 #### 4. **FALCON** (Signatures - Compact)
 - **Type:** Lattice-based (NTRU)
@@ -714,6 +725,26 @@ public class QuantumSafePayloadResolver : IPayloadResolver
 | 🟢 **P3** | Deploy hybrid signatures to testnet | Q4 2025 | 4 weeks |
 | 🟢 **P3** | Migration tools for existing wallets | Q4 2025 | 6 weeks |
 | 🟢 **P4** | Full PQC deployment to mainnet | Q2 2026 | 8 weeks |
+
+### 4.7 Compliance Matrix
+
+Algorithm selection for Sorcha registers should consider the deployment context. The table below maps compliance frameworks to required algorithm configurations:
+
+| Framework | Signature | Key Encapsulation | Hash | Symmetric | Notes |
+|-----------|-----------|-------------------|------|-----------|-------|
+| **CNSA 2.0** (NSA) | ML-DSA-65/87 or SLH-DSA-192s+ | ML-KEM-768/1024 | SHA-384+ | AES-256 | Required for US government/defence |
+| **NIST SP 800-208** | SLH-DSA (any level) | N/A | SHA-256+ | N/A | Stateless hash-based signatures guidance |
+| **ETSI QSC** (EU) | ML-DSA-65+ or SLH-DSA-128s+ | ML-KEM-768+ | SHA-256+ | AES-256 | European quantum-safe recommendations |
+| **BSI TR-02102** (Germany) | ML-DSA-65+ | ML-KEM-768+ | SHA-256+ | AES-256 | German federal IT security |
+| **Commercial (General)** | ML-DSA-65 (default) | ML-KEM-768 | SHA-256 | XChaCha20-Poly1305 | Sorcha default — balanced security/performance |
+| **Maximum Security** | ML-DSA-87 + SLH-DSA-256s | ML-KEM-1024 | SHA-512 | AES-256-GCM | Dual-algorithm with highest security levels |
+| **Backward Compatible** | ED25519 + ML-DSA-65 (hybrid) | XChaCha20-Poly1305 | SHA-256 | XChaCha20-Poly1305 | Migration mode — classical + PQC concurrent |
+
+**Sorcha Register Crypto Policy Mapping:**
+- Each compliance framework maps to a register crypto policy template
+- Register owners select a template at creation or configure custom policies
+- Policies are upgradeable via control transactions as compliance requirements evolve
+- `EnforcementMode: Strict` for compliance-mandatory deployments; `Permissive` for migration periods
 
 ---
 
