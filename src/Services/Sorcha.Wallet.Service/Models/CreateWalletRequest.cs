@@ -32,6 +32,16 @@ public class CreateWalletRequest
     public string? Passphrase { get; set; }
 
     /// <summary>
+    /// Optional PQC algorithm for hybrid wallets (e.g., ML-DSA-65, SLH-DSA-128s)
+    /// </summary>
+    public string? PqcAlgorithm { get; set; }
+
+    /// <summary>
+    /// Enable hybrid mode: creates both classical and PQC key pairs for the wallet
+    /// </summary>
+    public bool EnableHybrid { get; set; }
+
+    /// <summary>
     /// Optional metadata tags
     /// </summary>
     public Dictionary<string, string>? Tags { get; set; }

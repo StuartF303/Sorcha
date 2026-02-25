@@ -125,16 +125,16 @@
 
 ### Tests for User Story 3
 
-- [ ] T037 [P] [US3] Unit tests for ws2 address: generation produces <100 char address with ws2 prefix, round-trip encode/decode, address-key binding (hash of public key matches address), classical ws1 addresses unaffected in tests/Sorcha.Cryptography.Tests/Unit/Pqc/PqcWalletAddressTests.cs
+- [X] T037 [P] [US3] Unit tests for ws2 address: generation produces <100 char address with ws2 prefix, round-trip encode/decode, address-key binding (hash of public key matches address), classical ws1 addresses unaffected in tests/Sorcha.Cryptography.Tests/Unit/Pqc/PqcWalletAddressTests.cs
 
 ### Implementation for User Story 3
 
-- [ ] T038 [US3] Extend WalletUtilities.PublicKeyToWallet to handle PQC keys: SHA-256(network_byte + public_key) → Bech32m encode with ws2 HRP in src/Common/Sorcha.Cryptography/Utilities/WalletUtilities.cs
-- [ ] T039 [US3] Extend WalletUtilities.WalletToPublicKey to recognize ws2 prefix and decode Bech32m (returns hash, not key — flag that full key must come from witness data) in src/Common/Sorcha.Cryptography/Utilities/WalletUtilities.cs
-- [ ] T040 [US3] Extend DerivationPath with PQC coin type (m/44'/1'/account'/change/index) and factory method for PQC paths in src/Common/Sorcha.Wallet.Core/Domain/ValueObjects/DerivationPath.cs
-- [ ] T041 [US3] Extend wallet creation endpoint with optional pqcAlgorithm and enableHybrid parameters; response includes both walletAddress (ws1) and pqcWalletAddress (ws2) in src/Services/Sorcha.Wallet.Service/Endpoints/WalletEndpoints.cs
-- [ ] T042 [US3] Implement witness public key inclusion in transaction signing — when signing with a PQC wallet, include full PQC public key as WitnessPublicKey field in HybridSignature in src/Common/Sorcha.Cryptography/Core/CryptoModule.cs
-- [ ] T043 [US3] Integration test: create PQC wallet, verify ws2 address format, sign transaction, extract witness key, hash witness key, confirm hash matches address in tests/Sorcha.Wallet.Service.Tests/
+- [X] T038 [US3] Extend WalletUtilities.PublicKeyToWallet to handle PQC keys: SHA-256(network_byte + public_key) → Bech32m encode with ws2 HRP in src/Common/Sorcha.Cryptography/Utilities/WalletUtilities.cs
+- [X] T039 [US3] Extend WalletUtilities.WalletToPublicKey to recognize ws2 prefix and decode Bech32m (returns hash, not key — flag that full key must come from witness data) in src/Common/Sorcha.Cryptography/Utilities/WalletUtilities.cs
+- [X] T040 [US3] Extend DerivationPath with PQC coin type (m/44'/1'/account'/change/index) and factory method for PQC paths in src/Common/Sorcha.Wallet.Core/Domain/ValueObjects/DerivationPath.cs
+- [X] T041 [US3] Extend wallet creation endpoint with optional pqcAlgorithm and enableHybrid parameters; response includes both walletAddress (ws1) and pqcWalletAddress (ws2) in src/Services/Sorcha.Wallet.Service/Endpoints/WalletEndpoints.cs
+- [X] T042 [US3] Implement witness public key inclusion in transaction signing — when signing with a PQC wallet, include full PQC public key as WitnessPublicKey field in HybridSignature in src/Common/Sorcha.Cryptography/Core/CryptoModule.cs
+- [X] T043 [US3] Integration test: create PQC wallet, verify ws2 address format, sign transaction, extract witness key, hash witness key, confirm hash matches address in tests/Sorcha.Wallet.Service.Tests/
 
 **Checkpoint**: PQC wallet addresses working. Compact ws2 addresses under 100 chars, full key in witness data, address-key binding verifiable.
 

@@ -16,6 +16,16 @@ public class CreateWalletResponse
     public required string[] MnemonicWords { get; set; }
 
     /// <summary>
+    /// PQC wallet address (ws2 prefix) — present only for hybrid or PQC-only wallets
+    /// </summary>
+    public string? PqcWalletAddress { get; set; }
+
+    /// <summary>
+    /// PQC algorithm used — present only for hybrid or PQC-only wallets
+    /// </summary>
+    public string? PqcAlgorithm { get; set; }
+
+    /// <summary>
     /// Warning message about mnemonic security
     /// </summary>
     public string Warning { get; set; } = "IMPORTANT: Save your mnemonic phrase securely. It cannot be recovered if lost!";

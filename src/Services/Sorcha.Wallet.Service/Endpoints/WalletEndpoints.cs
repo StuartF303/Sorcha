@@ -150,6 +150,8 @@ public static class WalletEndpoints
     private static async Task<IResult> CreateWallet(
         [FromBody] CreateWalletRequest request,
         WalletManager walletManager,
+        ICryptoModule cryptoModule,
+        IWalletUtilities walletUtilities,
         HttpContext context,
         ILogger<Program> logger,
         CancellationToken cancellationToken = default)
@@ -161,7 +163,8 @@ public static class WalletEndpoints
                 return Results.Unauthorized();
             var tenant = GetCurrentTenant(context);
 
-            logger.LogInformation("Creating wallet for user {Owner} in tenant {Tenant}", owner, tenant);
+            logger.LogInformation("Creating wallet for user {Owner} in tenant {Tenant}, Hybrid={Hybrid}",
+                owner, tenant, request.EnableHybrid);
 
             var (wallet, mnemonic) = await walletManager.CreateWalletAsync(
                 request.Name,
@@ -177,6 +180,25 @@ public static class WalletEndpoints
                 Wallet = wallet.ToDto(),
                 MnemonicWords = mnemonic.Phrase.Split(' ')
             };
+
+            // Generate PQC key pair and ws2 address for hybrid wallets
+            if (request.EnableHybrid && !string.IsNullOrEmpty(request.PqcAlgorithm))
+            {
+                var pqcNetwork = ParsePqcAlgorithm(request.PqcAlgorithm);
+                var pqcKeyResult = await cryptoModule.GenerateKeySetAsync(pqcNetwork, cancellationToken: cancellationToken);
+                if (pqcKeyResult.IsSuccess)
+                {
+                    var pqcAddress = walletUtilities.PublicKeyToWallet(pqcKeyResult.Value.PublicKey.Key!, (byte)pqcNetwork);
+                    response.PqcWalletAddress = pqcAddress;
+                    response.PqcAlgorithm = request.PqcAlgorithm;
+                    logger.LogInformation("Hybrid wallet created with PQC address {PqcAddress}", pqcAddress);
+                }
+                else
+                {
+                    logger.LogWarning("PQC key generation failed: {Error}, proceeding with classical-only wallet",
+                        pqcKeyResult.ErrorMessage);
+                }
+            }
 
             return Results.Created($"/api/v1/wallets/{wallet.Address}", response);
         }
@@ -1195,4 +1217,13 @@ public static class WalletEndpoints
     {
         return context.User.FindFirstValue("tenant") ?? "default";
     }
+
+    private static WalletNetworks ParsePqcAlgorithm(string algorithm) => algorithm.ToUpperInvariant() switch
+    {
+        "ML-DSA-65" or "MLDSA65" => WalletNetworks.ML_DSA_65,
+        "SLH-DSA-128S" or "SLHDSA128S" => WalletNetworks.SLH_DSA_128s,
+        "SLH-DSA-192S" or "SLHDSA192S" => WalletNetworks.SLH_DSA_192s,
+        "ML-KEM-768" or "MLKEM768" => WalletNetworks.ML_KEM_768,
+        _ => throw new ArgumentException($"Unsupported PQC algorithm: {algorithm}")
+    };
 }
