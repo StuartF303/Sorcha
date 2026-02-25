@@ -32,7 +32,8 @@ public static class ThresholdEndpoints
 
         group.MapGet("/{registerId}/status", GetThresholdStatus)
             .WithName("GetThresholdStatus")
-            .WithSummary("Get threshold signing status for a register");
+            .WithSummary("Get threshold signing status for a register")
+            .WithDescription("Returns the current BLS threshold configuration and status for the specified register, including group public key, threshold value, validator count, and validator IDs.");
 
         return group;
     }

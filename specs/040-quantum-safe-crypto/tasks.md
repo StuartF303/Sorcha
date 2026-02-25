@@ -214,15 +214,15 @@
 
 **Purpose**: Documentation, performance validation, infrastructure verification, end-to-end testing, and constitution compliance across all user stories.
 
-- [ ] T066 [P] Update .specify/MASTER-TASKS.md with PQC feature task status and completion tracking
-- [ ] T067 [P] Update docs/development-status.md with quantum-safe cryptography capabilities and algorithm support matrix
-- [ ] T068 Performance benchmark: measure hybrid signing throughput vs classical-only, verify within 50% overhead (SC-005) and per-operation under 500ms (SC-006)
-- [ ] T069 Verify MongoDB document sizes with PQC signatures (~13.4KB avg) stay well within 16MB limit per research.md R9
-- [ ] T070 Verify gRPC peer replication handles transactions with PQC signatures within 4MB message limit per research.md R9
-- [ ] T071 Run quickstart.md validation scenarios end-to-end (PQC wallet creation, hybrid signing, crypto policy, ws2 addresses)
-- [ ] T072 Verify all existing walkthroughs pass on registers with default hybrid crypto policy (SC-009 — zero regression)
-- [ ] T073 [P] Add XML documentation comments and Scalar OpenAPI annotations (WithName, WithSummary, WithDescription) to all new endpoints: crypto-policy (T029-T031), encapsulate/decapsulate (T046-T047), threshold (T054-T055), and ZK proofs (T063-T064) per Constitution Principle III
-- [ ] T074 [P] Create FluentValidation validators for new endpoint request models: CryptoPolicyUpdateRequest (RequiredSignatureAlgorithms subset of Accepted, at least one accepted), ThresholdSetupRequest (threshold <= totalValidators, both > 0), ThresholdSignRequest (valid base64 signature), InclusionProofRequest (valid 64-char hex TxId) per Constitution Principle II
+- [X] T066 [P] Update .specify/MASTER-TASKS.md with PQC feature task status and completion tracking
+- [X] T067 [P] Update docs/development-status.md with quantum-safe cryptography capabilities and algorithm support matrix
+- [X] T068 Performance benchmark: measure hybrid signing throughput vs classical-only, verify within 50% overhead (SC-005) and per-operation under 500ms (SC-006)
+- [X] T069 Verify MongoDB document sizes with PQC signatures (~13.4KB avg) stay well within 16MB limit per research.md R9
+- [X] T070 Verify gRPC peer replication handles transactions with PQC signatures within 4MB message limit per research.md R9
+- [X] T071 Run quickstart.md validation scenarios end-to-end (PQC wallet creation, hybrid signing, crypto policy, ws2 addresses)
+- [X] T072 Verify all existing walkthroughs pass on registers with default hybrid crypto policy (SC-009 — zero regression)
+- [X] T073 [P] Add XML documentation comments and Scalar OpenAPI annotations (WithName, WithSummary, WithDescription) to all new endpoints: crypto-policy (T029-T031), encapsulate/decapsulate (T046-T047), threshold (T054-T055), and ZK proofs (T063-T064) per Constitution Principle III
+- [X] T074 [P] Create FluentValidation validators for new endpoint request models: CryptoPolicyUpdateRequest (RequiredSignatureAlgorithms subset of Accepted, at least one accepted), ThresholdSetupRequest (threshold <= totalValidators, both > 0), ThresholdSignRequest (valid base64 signature), InclusionProofRequest (valid 64-char hex TxId) per Constitution Principle II
 
 ---
 
