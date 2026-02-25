@@ -169,18 +169,18 @@
 
 ### Tests for User Story 5
 
-- [ ] T049 [P] [US5] Unit tests for BLS threshold: t-of-n key share generation, partial signing, aggregation produces valid signature, t-1 shares fail verification, aggregate signature size is constant (~33 bytes) in tests/Sorcha.Cryptography.Tests/Unit/Pqc/BLSThresholdTests.cs
+- [X] T049 [P] [US5] Unit tests for BLS threshold: t-of-n key share generation, partial signing, aggregation produces valid signature, t-1 shares fail verification, aggregate signature size is constant (~33 bytes) in tests/Sorcha.Cryptography.Tests/Unit/Pqc/BLSThresholdTests.cs
 
 ### Implementation for User Story 5
 
-- [ ] T050 [US5] Add BLS12-381 library dependency (Herumi BLS C# bindings NuGet package) to src/Common/Sorcha.Cryptography/Sorcha.Cryptography.csproj
-- [ ] T051 [P] [US5] Create BLSThresholdProvider with key share generation (DKG), partial signing, and share aggregation into single signature in src/Common/Sorcha.Cryptography/Core/BLSThresholdProvider.cs
-- [ ] T052 [P] [US5] Create BLSAggregateSignature model (Signature, SignerBitfield, Threshold, TotalSigners) and BLSSigningShare model (ValidatorId, ShareIndex, PartialSignature, DocketHash) in src/Common/Sorcha.Cryptography/Models/BLSModels.cs
-- [ ] T053 [US5] Extend docket sealing in GenesisManager/ControlDocketProcessor to support BLS aggregate signatures as docket proposer signature in src/Services/Sorcha.Validator.Service/Services/
-- [ ] T054 [P] [US5] Implement POST /api/v1/validators/threshold/setup endpoint (initialize BLS threshold for register validator set, distribute encrypted key shares) in src/Services/Sorcha.Validator.Service/Endpoints/
-- [ ] T055 [P] [US5] Implement POST /api/v1/validators/threshold/sign endpoint (submit partial BLS signature for docket, track threshold progress) in src/Services/Sorcha.Validator.Service/Endpoints/
-- [ ] T056 [US5] Extend peer service gRPC for secure BLS key share distribution — add ShareDistribution RPC method to distribute encrypted key shares to validator nodes after threshold setup in src/Services/Sorcha.Peer.Service/GrpcServices/
-- [ ] T057 [US5] Add YARP routes for validator threshold endpoints (/api/v1/validators/threshold/*) in src/Services/Sorcha.ApiGateway/appsettings.json
+- [X] T050 [US5] Add BLS12-381 library dependency (Nethermind.MclBindings 1.0.5 NuGet package) to src/Common/Sorcha.Cryptography/Sorcha.Cryptography.csproj
+- [X] T051 [P] [US5] Create BLSThresholdProvider with key share generation (DKG), partial signing, and share aggregation into single signature in src/Common/Sorcha.Cryptography/Core/BLSThresholdProvider.cs
+- [X] T052 [P] [US5] Create BLSAggregateSignature model (Signature, SignerBitfield, Threshold, TotalSigners) and BLSSigningShare model (ValidatorId, ShareIndex, PartialSignature, DocketHash) in src/Common/Sorcha.Cryptography/Models/BLSModels.cs
+- [X] T053 [US5] Extend docket sealing in GenesisManager/ControlDocketProcessor to support BLS aggregate signatures as docket proposer signature in src/Services/Sorcha.Validator.Service/Services/
+- [X] T054 [P] [US5] Implement POST /api/v1/validators/threshold/setup endpoint (initialize BLS threshold for register validator set, distribute encrypted key shares) in src/Services/Sorcha.Validator.Service/Endpoints/
+- [X] T055 [P] [US5] Implement POST /api/v1/validators/threshold/sign endpoint (submit partial BLS signature for docket, track threshold progress) in src/Services/Sorcha.Validator.Service/Endpoints/
+- [X] T056 [US5] Extend peer service gRPC for secure BLS key share distribution — add ShareDistribution RPC method to distribute encrypted key shares to validator nodes after threshold setup in src/Services/Sorcha.Peer.Service/GrpcServices/
+- [X] T057 [US5] Add YARP routes for validator threshold endpoints (/api/v1/validators/threshold/*) — verified existing wildcard route already covers these
 
 **Checkpoint**: BLS threshold docket signing working. Docket sealed by t-of-n validators with a single constant-size aggregate signature. Key shares securely distributed via peer gRPC.
 

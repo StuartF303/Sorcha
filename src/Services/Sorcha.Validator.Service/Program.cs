@@ -220,6 +220,11 @@ app.MapGroup("/api/validators")
     .WithTags("Validators")
     .MapValidatorRegistrationEndpoints();
 
+// Map BLS threshold signing endpoints
+app.MapGroup("/api/v1/validators/threshold")
+    .WithTags("Threshold")
+    .MapThresholdEndpoints();
+
 // Map metrics endpoints (VAL-9.45)
 app.MapMetricsEndpoints();
 

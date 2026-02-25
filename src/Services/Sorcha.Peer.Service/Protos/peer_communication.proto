@@ -40,4 +40,28 @@ enum MessageType {
   TRANSACTION_RESPONSE = 3;
   PEER_STATUS_UPDATE = 4;
   HEARTBEAT = 5;
+  BLS_KEY_SHARE_DISTRIBUTION = 6;
+  BLS_PARTIAL_SIGNATURE = 7;
+}
+
+// BLS threshold key share distribution request
+message BLSKeyShareDistribution {
+  string register_id = 1;
+  string sender_validator_id = 2;
+  string recipient_validator_id = 3;
+  uint32 share_index = 4;
+  bytes encrypted_secret_share = 5;  // Encrypted with recipient's public key
+  bytes public_share = 6;            // G2 point (96 bytes)
+  bytes group_public_key = 7;        // G2 point (96 bytes)
+  uint32 threshold = 8;
+  uint32 total_signers = 9;
+}
+
+// BLS partial signature exchange during docket signing
+message BLSPartialSignatureExchange {
+  string register_id = 1;
+  string docket_hash = 2;
+  string validator_id = 3;
+  uint32 share_index = 4;
+  bytes partial_signature = 5;       // G1 point (48 bytes)
 }
