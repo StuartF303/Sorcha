@@ -135,6 +135,18 @@ public static class WalletEndpoints
             .WithSummary("Get gap limit status")
             .WithDescription("Check BIP44 gap limit compliance for all accounts. Shows unused address counts and warnings.");
 
+        // POST /api/v1/wallets/{address}/encapsulate - PQC key encapsulation
+        walletGroup.MapPost("/{address}/encapsulate", EncapsulateKey)
+            .WithName("EncapsulateKey")
+            .WithSummary("Encapsulate a shared secret using PQC key")
+            .WithDescription("Performs ML-KEM-768 key encapsulation with the recipient's PQC public key, returning ciphertext and the encrypted payload.");
+
+        // POST /api/v1/wallets/{address}/decapsulate - PQC key decapsulation
+        walletGroup.MapPost("/{address}/decapsulate", DecapsulateKey)
+            .WithName("DecapsulateKey")
+            .WithSummary("Decapsulate a shared secret using PQC private key")
+            .WithDescription("Performs ML-KEM-768 key decapsulation to recover the shared secret and decrypt the payload.");
+
         // POST /api/v1/wallets/verify - Verify a signature (service-to-service)
         walletGroup.MapPost("/verify", VerifySignature)
             .WithName("VerifySignature")
@@ -1211,6 +1223,117 @@ public static class WalletEndpoints
     private static string? GetCurrentUser(HttpContext context)
     {
         return context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    }
+
+    private static async Task<IResult> EncapsulateKey(
+        string address,
+        [FromBody] EncapsulateRequest request,
+        ICryptoModule cryptoModule,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(request.RecipientPublicKey))
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Request",
+                    Detail = "recipientPublicKey is required",
+                    Status = StatusCodes.Status400BadRequest
+                });
+
+            var publicKeyBytes = Convert.FromBase64String(request.RecipientPublicKey);
+
+            var pqcProvider = new Sorcha.Cryptography.Core.PqcEncapsulationProvider();
+            var result = await pqcProvider.EncryptWithKemAsync(
+                Convert.FromBase64String(request.Plaintext ?? ""),
+                publicKeyBytes,
+                cancellationToken);
+
+            if (!result.IsSuccess)
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Encapsulation Failed",
+                    Detail = result.ErrorMessage,
+                    Status = StatusCodes.Status400BadRequest
+                });
+
+            return Results.Ok(new
+            {
+                ciphertext = Convert.ToBase64String(result.Value!)
+            });
+        }
+        catch (FormatException)
+        {
+            return Results.BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Request",
+                Detail = "recipientPublicKey and plaintext must be valid base64",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Encapsulation failed for wallet {Address}", address);
+            return Results.Problem(
+                title: "Encapsulation Failed",
+                detail: "An error occurred during key encapsulation",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    private static async Task<IResult> DecapsulateKey(
+        string address,
+        [FromBody] DecapsulateRequest request,
+        WalletManager walletManager,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(request.Ciphertext))
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Request",
+                    Detail = "ciphertext is required",
+                    Status = StatusCodes.Status400BadRequest
+                });
+
+            // Use the existing wallet decryption infrastructure (handles key access, storage)
+            var ciphertextBytes = Convert.FromBase64String(request.Ciphertext);
+            var plaintext = await walletManager.DecryptPayloadAsync(address, ciphertextBytes, cancellationToken);
+
+            return Results.Ok(new
+            {
+                plaintext = Convert.ToBase64String(plaintext)
+            });
+        }
+        catch (FormatException)
+        {
+            return Results.BadRequest(new ProblemDetails
+            {
+                Title = "Invalid Request",
+                Detail = "ciphertext must be valid base64",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            return Results.NotFound(new ProblemDetails
+            {
+                Title = "Wallet Not Found",
+                Detail = $"No wallet found with address {address}",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Decapsulation failed for wallet {Address}", address);
+            return Results.Problem(
+                title: "Decapsulation Failed",
+                detail: "An error occurred during key decapsulation",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
     }
 
     private static string GetCurrentTenant(HttpContext context)

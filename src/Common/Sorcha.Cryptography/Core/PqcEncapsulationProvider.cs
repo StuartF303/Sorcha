@@ -3,6 +3,8 @@
 
 using System;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Kems;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -130,6 +132,78 @@ public sealed class PqcEncapsulationProvider : IDisposable
             return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidKey,
                 $"Failed to calculate ML-KEM-768 public key: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Encrypts data using ML-KEM-768 encapsulation + XChaCha20-Poly1305 symmetric encryption.
+    /// Returns the KEM ciphertext concatenated with the symmetric ciphertext.
+    /// </summary>
+    public async Task<CryptoResult<byte[]>> EncryptWithKemAsync(
+        byte[] plaintext,
+        byte[] recipientPublicKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (plaintext == null || plaintext.Length == 0)
+            return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, "Plaintext cannot be null or empty");
+
+        // Encapsulate to get shared secret
+        var encapResult = Encapsulate(recipientPublicKey);
+        if (!encapResult.IsSuccess)
+            return CryptoResult<byte[]>.Failure(encapResult.Status, encapResult.ErrorMessage);
+
+        using var encap = encapResult.Value!;
+
+        // Use shared secret as XChaCha20-Poly1305 key
+        var symmetricCrypto = new SymmetricCrypto();
+        var encryptResult = await symmetricCrypto.EncryptAsync(
+            plaintext, Enums.EncryptionType.XCHACHA20_POLY1305, encap.SharedSecret, cancellationToken);
+
+        if (!encryptResult.IsSuccess)
+            return CryptoResult<byte[]>.Failure(encryptResult.Status, encryptResult.ErrorMessage);
+
+        var sym = encryptResult.Value!;
+
+        // Pack: [KEM ciphertext (1088)] [nonce (24)] [symmetric ciphertext (variable)]
+        var packed = new byte[CiphertextSize + sym.IV.Length + sym.Data.Length];
+        Array.Copy(encap.Ciphertext, 0, packed, 0, CiphertextSize);
+        Array.Copy(sym.IV, 0, packed, CiphertextSize, sym.IV.Length);
+        Array.Copy(sym.Data, 0, packed, CiphertextSize + sym.IV.Length, sym.Data.Length);
+
+        return CryptoResult<byte[]>.Success(packed);
+    }
+
+    /// <summary>
+    /// Decrypts data using ML-KEM-768 decapsulation + XChaCha20-Poly1305 symmetric decryption.
+    /// </summary>
+    public async Task<CryptoResult<byte[]>> DecryptWithKemAsync(
+        byte[] packedCiphertext,
+        byte[] privateKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (packedCiphertext == null || packedCiphertext.Length <= CiphertextSize + 24)
+            return CryptoResult<byte[]>.Failure(CryptoStatus.InvalidParameter, "Packed ciphertext too short");
+
+        // Unpack: [KEM ciphertext (1088)] [nonce (24)] [symmetric ciphertext]
+        var kemCiphertext = packedCiphertext[..CiphertextSize];
+        var nonce = packedCiphertext[CiphertextSize..(CiphertextSize + 24)];
+        var symCiphertext = packedCiphertext[(CiphertextSize + 24)..];
+
+        // Decapsulate to recover shared secret
+        var decapResult = Decapsulate(kemCiphertext, privateKey);
+        if (!decapResult.IsSuccess)
+            return CryptoResult<byte[]>.Failure(decapResult.Status, decapResult.ErrorMessage);
+
+        // Decrypt with shared secret
+        var symmetricCrypto = new SymmetricCrypto();
+        var cipherObj = new Models.SymmetricCiphertext
+        {
+            Data = symCiphertext,
+            Key = decapResult.Value!,
+            IV = nonce,
+            Type = Enums.EncryptionType.XCHACHA20_POLY1305
+        };
+
+        return await symmetricCrypto.DecryptAsync(cipherObj, cancellationToken);
     }
 
     /// <summary>

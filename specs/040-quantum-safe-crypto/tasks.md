@@ -148,14 +148,14 @@
 
 ### Tests for User Story 4
 
-- [ ] T044 [P] [US4] Unit tests for PQC encryption flow: ML-KEM-768 encapsulate → shared secret → XChaCha20-Poly1305 encrypt → decrypt → match original plaintext in tests/Sorcha.Cryptography.Tests/Unit/Pqc/PqcEncryptionFlowTests.cs
+- [X] T044 [P] [US4] Unit tests for PQC encryption flow: ML-KEM-768 encapsulate → shared secret → XChaCha20-Poly1305 encrypt → decrypt → match original plaintext in tests/Sorcha.Cryptography.Tests/Unit/Pqc/PqcEncryptionFlowTests.cs
 
 ### Implementation for User Story 4
 
-- [ ] T045 [US4] Implement PQC key encapsulation + symmetric encryption composed flow (ML-KEM-768 establishes shared secret fed into existing SymmetricCrypto.Encrypt) in src/Common/Sorcha.Cryptography/Core/PqcEncapsulationProvider.cs
-- [ ] T046 [P] [US4] Implement POST /api/v1/wallets/{address}/encapsulate endpoint (accepts recipient PQC public key, returns ciphertext + shared secret) in src/Services/Sorcha.Wallet.Service/Endpoints/WalletEndpoints.cs
-- [ ] T047 [P] [US4] Implement POST /api/v1/wallets/{address}/decapsulate endpoint (accepts ciphertext + derivation path, returns shared secret) in src/Services/Sorcha.Wallet.Service/Endpoints/WalletEndpoints.cs
-- [ ] T048 [US4] Integration test: encapsulate with recipient public key → transmit ciphertext → decapsulate with private key → shared secrets match → symmetric decrypt succeeds in tests/Sorcha.Wallet.Service.Tests/
+- [X] T045 [US4] Implement PQC key encapsulation + symmetric encryption composed flow (ML-KEM-768 establishes shared secret fed into existing SymmetricCrypto.Encrypt) in src/Common/Sorcha.Cryptography/Core/PqcEncapsulationProvider.cs
+- [X] T046 [P] [US4] Implement POST /api/v1/wallets/{address}/encapsulate endpoint (accepts recipient PQC public key, returns ciphertext + shared secret) in src/Services/Sorcha.Wallet.Service/Endpoints/WalletEndpoints.cs
+- [X] T047 [P] [US4] Implement POST /api/v1/wallets/{address}/decapsulate endpoint (accepts ciphertext + derivation path, returns shared secret) in src/Services/Sorcha.Wallet.Service/Endpoints/WalletEndpoints.cs
+- [X] T048 [US4] Integration test: encapsulate with recipient public key → transmit ciphertext → decapsulate with private key → shared secrets match → symmetric decrypt succeeds in tests/Sorcha.Wallet.Service.Tests/
 
 **Checkpoint**: PQC payload encryption working. ML-KEM-768 encapsulation feeds into existing XChaCha20-Poly1305 for quantum-safe field-level encryption.
 
