@@ -173,7 +173,7 @@ The CLI tool currently covers Tenant, Wallet, Register, Transaction, Peer, and D
 ### Functional Requirements
 
 **Activity Log:**
-- **FR-001**: System MUST capture all user-initiated events (wallet operations, transaction submissions, blueprint actions) and backend-pushed events (confirmations, action assignments) in a persistent activity log
+- **FR-001**: System MUST capture all user-initiated events (wallet operations, transaction submissions, blueprint actions) and backend-pushed events (confirmations, action assignments) in a persistent activity log with 90-day server-side retention and automatic purge of older events
 - **FR-002**: System MUST display an unread event count badge on the activity log icon in the top application bar, updating in real-time
 - **FR-003**: System MUST show events grouped by date (Today, Yesterday, specific dates) with newest events first
 - **FR-004**: System MUST reset the unread count when the activity log overlay is opened
@@ -209,7 +209,7 @@ The CLI tool currently covers Tenant, Wallet, Register, Transaction, Peer, and D
 - **FR-022**: System MUST support Light, Dark, and System colour scheme preferences, with immediate application
 - **FR-023**: System MUST support UTC and Local time display preferences, affecting all timestamps throughout the application
 - **FR-024**: System MUST support English, French, German, and Spanish languages, with browser-detected default and manual override
-- **FR-025**: System MUST support two-factor authentication setup via TOTP with QR code and backup codes
+- **FR-025**: System MUST support two-factor authentication setup via TOTP with QR code and backup codes, including backend secret storage, verification endpoint, and login enforcement
 - **FR-026**: System MUST support push notification preferences for pending action alerts
 
 **CLI Coverage:**
@@ -223,17 +223,29 @@ The CLI tool currently covers Tenant, Wallet, Register, Transaction, Peer, and D
 ### Key Entities
 
 - **ActivityEvent**: Represents a user or system event with timestamp, severity, message, source user, and read/unread status
-- **UserPreferences**: Stores per-user settings including theme, language, time format, default wallet, notification preferences, and 2FA status
+- **UserPreferences**: Stores per-user settings server-side in the Tenant Service user profile, including theme, language, time format, default wallet, notification preferences, and 2FA status — consistent across all devices and browsers
 - **WalletDefault**: Links a user to their designated default wallet address
+
+## Clarifications
+
+### Session 2026-02-26
+
+- Q: Should activity log events be stored client-side, server-side, or hybrid? → A: Server-side with API — new events endpoint on Blueprint Service, all events persisted, queried via REST. Admin org-wide views and cross-device access require server persistence.
+- Q: Is 2FA backend implementation (Tenant Service) in scope or deferred? → A: Full scope — UI setup flow + Tenant Service backend including TOTP secret storage, verification endpoint, backup code generation, and login enforcement.
+- Q: How long should activity log events be retained server-side? → A: 90 days with automatic purge.
+- Q: Should default wallet preference be client-side or server-side? → A: Server-side — persist in Tenant Service user profile, consistent across devices and browsers.
+- Q: Should all user preferences be server-side or split between browser and server? → A: All server-side — theme, language, time format, wallet, notifications all in Tenant Service user profile for cross-device consistency.
 
 ## Assumptions
 
-- The existing SignalR hub infrastructure (actions, register, chat) will be extended with an events hub for the activity log, rather than creating a separate notification service
-- The default wallet preference will be stored client-side (browser local storage) initially, with server-side persistence as a future enhancement via the Tenant Service user profile
+- The existing SignalR hub infrastructure (actions, register, chat) will be extended with an events hub for real-time push of new activity events to connected clients
+- Activity log events are persisted server-side via a new events API endpoint on the Blueprint Service, enabling admin org-wide queries, cross-device access, and durable event history
+- The default wallet preference will be persisted server-side via the Tenant Service user profile, ensuring consistency across devices and browsers
 - QR code generation will happen client-side to avoid additional backend dependencies
+- All user preferences (theme, language, time format, default wallet, notification settings) are persisted server-side in the Tenant Service user profile for cross-device consistency
 - Localisation resource files will use standard resource file format with one file per language per component area
 - The CLI already supports the output format infrastructure (table, json, csv) — new commands will use the existing formatters
-- 2FA implementation will use standard TOTP (RFC 6238) compatible with Google Authenticator, Authy, and similar apps
+- 2FA implementation will use standard TOTP (RFC 6238) compatible with Google Authenticator, Authy, and similar apps. Backend changes to the Tenant Service are in scope: TOTP secret storage per user, verification endpoint, backup code generation, and enforced 2FA check during login
 - Push notifications will use the Web Push API with service worker registration
 
 ## Success Criteria
