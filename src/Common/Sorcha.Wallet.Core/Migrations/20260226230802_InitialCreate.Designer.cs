@@ -13,7 +13,7 @@ using Sorcha.Wallet.Core.Data;
 namespace Sorcha.Wallet.Core.Migrations
 {
     [DbContext(typeof(WalletDbContext))]
-    [Migration("20260212200602_InitialCreate")]
+    [Migration("20260226230802_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -42,6 +42,9 @@ namespace Sorcha.Wallet.Core.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<string>("DisplayConfigJson")
+                        .HasColumnType("text");
+
                     b.Property<DateTimeOffset?>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -61,6 +64,12 @@ namespace Sorcha.Wallet.Core.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<int?>("MaxPresentations")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PresentationCount")
+                        .HasColumnType("integer");
+
                     b.Property<string>("RawToken")
                         .IsRequired()
                         .HasColumnType("text");
@@ -72,6 +81,12 @@ namespace Sorcha.Wallet.Core.Migrations
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("Active");
 
+                    b.Property<int?>("StatusListIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StatusListUrl")
+                        .HasColumnType("text");
+
                     b.Property<string>("SubjectDid")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -81,6 +96,10 @@ namespace Sorcha.Wallet.Core.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UsagePolicy")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("WalletAddress")
                         .IsRequired()

@@ -14,8 +14,8 @@ using Sorcha.Tenant.Service.Data;
 namespace Sorcha.Tenant.Service.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    [Migration("20260214143403_AddSystemConfiguration")]
-    partial class AddSystemConfiguration
+    [Migration("20260226230555_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -385,6 +385,48 @@ namespace Sorcha.Tenant.Service.Migrations
                     b.ToTable("PublicIdentities", "public");
                 });
 
+            modelBuilder.Entity("Sorcha.Tenant.Service.Models.PushSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AuthKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("P256dhKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_PushSubscription_UserId");
+
+                    b.HasIndex("UserId", "Endpoint")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_PushSubscription_User_Endpoint");
+
+                    b.ToTable("PushSubscriptions", "public");
+                });
+
             modelBuilder.Entity("Sorcha.Tenant.Service.Models.ServicePrincipal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -446,6 +488,46 @@ namespace Sorcha.Tenant.Service.Migrations
                     b.ToTable("SystemConfigurations", "public");
                 });
 
+            modelBuilder.Entity("Sorcha.Tenant.Service.Models.TotpConfiguration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BackupCodes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EncryptedSecret")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_TotpConfiguration_UserId");
+
+                    b.ToTable("TotpConfigurations", "public");
+                });
+
             modelBuilder.Entity("Sorcha.Tenant.Service.Models.UserIdentity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -501,6 +583,52 @@ namespace Sorcha.Tenant.Service.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("UserIdentities", "public");
+                });
+
+            modelBuilder.Entity("Sorcha.Tenant.Service.Models.UserPreferences", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DefaultWalletAddress")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<bool>("NotificationsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Theme")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("TimeFormat")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_UserPreferences_UserId");
+
+                    b.ToTable("UserPreferences", "public");
                 });
 
             modelBuilder.Entity("Sorcha.Tenant.Service.Models.WalletLinkChallenge", b =>

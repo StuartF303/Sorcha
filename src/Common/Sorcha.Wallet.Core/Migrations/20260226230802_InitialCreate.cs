@@ -1,7 +1,4 @@
-// SPDX-License-Identifier: MIT
-// Copyright (c) 2026 Sorcha Contributors
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -35,7 +32,13 @@ namespace Sorcha.Wallet.Core.Migrations
                     IssuanceTxId = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
                     IssuanceBlueprintId = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
                     WalletAddress = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()")
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
+                    UsagePolicy = table.Column<string>(type: "text", nullable: false),
+                    MaxPresentations = table.Column<int>(type: "integer", nullable: true),
+                    PresentationCount = table.Column<int>(type: "integer", nullable: false),
+                    StatusListUrl = table.Column<string>(type: "text", nullable: true),
+                    StatusListIndex = table.Column<int>(type: "integer", nullable: true),
+                    DisplayConfigJson = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
