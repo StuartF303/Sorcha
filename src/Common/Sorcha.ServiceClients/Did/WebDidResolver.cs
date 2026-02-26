@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Sorcha.ServiceClients.Did;
@@ -23,11 +25,13 @@ public class WebDidResolver : IDidResolver
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<WebDidResolver> _logger;
+    private readonly bool _allowPrivateAddresses;
 
-    public WebDidResolver(HttpClient httpClient, ILogger<WebDidResolver> logger)
+    public WebDidResolver(HttpClient httpClient, ILogger<WebDidResolver> logger, IConfiguration? configuration = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _allowPrivateAddresses = configuration?.GetValue<bool>("DidResolver:AllowPrivateAddresses") ?? false;
     }
 
     /// <inheritdoc />
@@ -43,6 +47,15 @@ public class WebDidResolver : IDidResolver
         var url = BuildUrl(did);
         if (url is null)
             return null;
+
+        // SSRF protection: validate the resolved host IP is not private/reserved
+        if (!_allowPrivateAddresses && !await IsHostAllowedAsync(url.Host))
+        {
+            _logger.LogWarning(
+                "did:web resolution blocked by SSRF protection for {Did} (host: {Host})",
+                did, url.Host);
+            return null;
+        }
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(RequestTimeout);
@@ -93,6 +106,76 @@ public class WebDidResolver : IDidResolver
             _logger.LogWarning(ex, "did:web resolution returned invalid JSON for {Did}", did);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Resolves the hostname to IP addresses and verifies none are private or reserved.
+    /// </summary>
+    private async Task<bool> IsHostAllowedAsync(string host)
+    {
+        try
+        {
+            // Check if the host is already an IP address
+            if (IPAddress.TryParse(host, out var directIp))
+                return !IsPrivateOrReservedAddress(directIp);
+
+            var addresses = await Dns.GetHostAddressesAsync(host);
+            foreach (var address in addresses)
+            {
+                if (IsPrivateOrReservedAddress(address))
+                    return false;
+            }
+
+            return addresses.Length > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "DNS resolution failed for host {Host}", host);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether an IP address is private, loopback, link-local, or otherwise reserved.
+    /// </summary>
+    public static bool IsPrivateOrReservedAddress(IPAddress address)
+    {
+        if (IPAddress.IsLoopback(address))
+            return true;
+
+        var bytes = address.GetAddressBytes();
+
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            // IPv4 checks
+            return bytes[0] switch
+            {
+                0 => true,                                              // 0.0.0.0/8
+                10 => true,                                             // 10.0.0.0/8
+                127 => true,                                            // 127.0.0.0/8 (loopback)
+                169 when bytes[1] == 254 => true,                       // 169.254.0.0/16 (link-local)
+                172 when bytes[1] >= 16 && bytes[1] <= 31 => true,      // 172.16.0.0/12
+                192 when bytes[1] == 168 => true,                       // 192.168.0.0/16
+                _ => false
+            };
+        }
+
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+        {
+            // IPv6 link-local (fe80::/10)
+            if (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80)
+                return true;
+
+            // IPv6 site-local (fec0::/10) — deprecated but still reserved
+            if (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0xc0)
+                return true;
+
+            // IPv6 unique local (fc00::/7)
+            if ((bytes[0] & 0xfe) == 0xfc)
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
