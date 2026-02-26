@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.Protected;
 using Sorcha.UI.Core.Services.Credentials;
@@ -211,6 +212,6 @@ public class CredentialApiServiceTests
             BaseAddress = new Uri("https://test.example.com")
         };
 
-        return new CredentialApiService(httpClient);
+        return new CredentialApiService(httpClient, NullLogger<CredentialApiService>.Instance);
     }
 }
