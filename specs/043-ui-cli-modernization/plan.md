@@ -5,12 +5,12 @@
 
 ## Summary
 
-Modernize the Sorcha UI (Blazor WASM) with 7 major improvements (activity log, sidebar consolidation, status footer, wallet management, dashboard wizard, realtime validator, settings/i18n) and extend the CLI to achieve 100% backend API coverage. Backend changes required: events API on Blueprint Service, user preferences + 2FA on Tenant Service.
+Modernize the Sorcha UI (Blazor WASM) with 8 major improvements (activity log, sidebar consolidation, status footer, wallet management, dashboard wizard, realtime validator, settings/i18n) and extend the CLI to achieve 100% backend API coverage. Backend changes required: events API on Blueprint Service, user preferences + 2FA on Tenant Service.
 
 ## Technical Context
 
 **Language/Version**: C# 13 / .NET 10
-**Primary Dependencies**: MudBlazor 8.15.0, SignalR, System.CommandLine 2.0, Blazored.LocalStorage, Microsoft.Extensions.Localization
+**Primary Dependencies**: MudBlazor 8.15.0, SignalR, System.CommandLine 2.0, OtpNet, WebPush
 **Storage**: PostgreSQL (EF Core — Tenant Service), MongoDB (Register Service)
 **Testing**: xUnit + FluentAssertions + Moq, Playwright (E2E)
 **Target Platform**: Blazor WASM (browser) + CLI (cross-platform .NET)

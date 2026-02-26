@@ -224,7 +224,7 @@ The CLI tool currently covers Tenant, Wallet, Register, Transaction, Peer, and D
 
 - **ActivityEvent**: Represents a user or system event with timestamp, severity, message, source user, and read/unread status
 - **UserPreferences**: Stores per-user settings server-side in the Tenant Service user profile, including theme, language, time format, default wallet, notification preferences, and 2FA status — consistent across all devices and browsers
-- **WalletDefault**: Links a user to their designated default wallet address
+- **WalletDefault**: Default wallet address stored as a field on UserPreferences (not a separate entity)
 
 ## Clarifications
 
