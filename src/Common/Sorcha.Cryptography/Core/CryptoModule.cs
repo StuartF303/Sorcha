@@ -837,12 +837,13 @@ public class CryptoModule : ICryptoModule
     }
 
     /// <summary>
-    /// Verifies a HybridSignature. Accepts if at least one component (classical or PQC) is valid.
+    /// Verifies a HybridSignature using the specified verification mode.
     /// </summary>
     public async Task<CryptoStatus> HybridVerifyAsync(
         HybridSignature hybridSignature,
         byte[] hash,
         byte[]? classicalPublicKey,
+        HybridVerificationMode mode = HybridVerificationMode.Strict,
         CancellationToken cancellationToken = default)
     {
         try
@@ -883,7 +884,12 @@ public class CryptoModule : ICryptoModule
                 }
             }
 
-            return (classicalValid || pqcValid) ? CryptoStatus.Success : CryptoStatus.InvalidSignature;
+            return mode switch
+            {
+                HybridVerificationMode.Strict => (classicalValid && pqcValid) ? CryptoStatus.Success : CryptoStatus.InvalidSignature,
+                HybridVerificationMode.Permissive => (classicalValid || pqcValid) ? CryptoStatus.Success : CryptoStatus.InvalidSignature,
+                _ => CryptoStatus.InvalidSignature
+            };
         }
         catch (OperationCanceledException)
         {
