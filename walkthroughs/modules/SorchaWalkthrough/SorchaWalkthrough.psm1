@@ -259,18 +259,18 @@ function Initialize-SorchaEnvironment {
 
     switch ($Profile) {
         'gateway' {
-            $env.GatewayUrl   = "http://localhost"
-            $env.TenantUrl    = "http://localhost/api"
-            $env.BlueprintUrl = "http://localhost/api"
-            $env.RegisterUrl  = "http://localhost/api"
-            $env.WalletUrl    = "http://localhost/api"
+            $env.GatewayUrl   = "http://127.0.0.1"
+            $env.TenantUrl    = "http://127.0.0.1/api"
+            $env.BlueprintUrl = "http://127.0.0.1/api"
+            $env.RegisterUrl  = "http://127.0.0.1/api"
+            $env.WalletUrl    = "http://127.0.0.1/api"
         }
         'direct' {
-            $env.GatewayUrl   = "http://localhost"
-            $env.TenantUrl    = "http://localhost:5450/api"
-            $env.BlueprintUrl = "http://localhost:5000/api"
-            $env.RegisterUrl  = "http://localhost:5380/api"
-            $env.WalletUrl    = "http://localhost/api"  # wallet has no direct port
+            $env.GatewayUrl   = "http://127.0.0.1"
+            $env.TenantUrl    = "http://127.0.0.1:5450/api"
+            $env.BlueprintUrl = "http://127.0.0.1:5000/api"
+            $env.RegisterUrl  = "http://127.0.0.1:5380/api"
+            $env.WalletUrl    = "http://127.0.0.1/api"  # wallet has no direct port
         }
         'aspire' {
             $env.GatewayUrl   = "https://localhost:7082"
