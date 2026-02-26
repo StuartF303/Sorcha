@@ -41,13 +41,13 @@ public static class AuthenticationExtensions
                 policy.RequireAssertion(context =>
                 {
                     var canPublish = context.User.Claims.Any(c => c.Type == "can_publish_blueprint" && c.Value == "true");
-                    var isAdmin = context.User.IsInRole("RequireAdministrator");
+                    var isAdmin = context.User.IsInRole("Administrator");
                     return canPublish || isAdmin;
                 }));
 
             // Administrator role - for schema import and other admin operations
             options.AddPolicy("RequireAdministrator", policy =>
-                policy.RequireRole("RequireAdministrator"));
+                policy.RequireRole("Administrator"));
 
             // Service-to-service operations
             options.AddPolicy("RequireService", policy =>

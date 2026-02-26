@@ -240,7 +240,7 @@ services:
       # Service-to-service auth for Wallet Service calls
       ServiceAuth__ClientId: register-service
       ServiceAuth__ClientSecret: register-service-secret
-      ServiceAuth__Scopes: "validators:notify"
+      ServiceAuth__Scopes: "wallets:sign validator:write"
       ServiceClients__TenantService__Address: http://tenant-service:8080
     volumes:
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys

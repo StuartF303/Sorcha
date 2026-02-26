@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Sorcha.ServiceClients.Auth;
 
 namespace Sorcha.ServiceClients.Validator;
 
@@ -15,14 +16,17 @@ namespace Sorcha.ServiceClients.Validator;
 public class ValidatorServiceClient : IValidatorServiceClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IServiceAuthClient _serviceAuth;
     private readonly ILogger<ValidatorServiceClient> _logger;
     private readonly string _serviceAddress;
 
     public ValidatorServiceClient(
         IConfiguration configuration,
+        IServiceAuthClient serviceAuth,
         ILogger<ValidatorServiceClient> logger,
         HttpClient httpClient)
     {
+        _serviceAuth = serviceAuth ?? throw new ArgumentNullException(nameof(serviceAuth));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
@@ -58,6 +62,8 @@ public class ValidatorServiceClient : IValidatorServiceClient
             _logger.LogInformation(
                 "Submitting action transaction {TransactionId} for register {RegisterId} to Validator Service",
                 request.TransactionId, request.RegisterId);
+
+            await SetAuthHeaderAsync(cancellationToken);
 
             var response = await _httpClient.PostAsJsonAsync(
                 "/api/v1/transactions/validate",
@@ -150,4 +156,17 @@ public class ValidatorServiceClient : IValidatorServiceClient
         }
     }
 
+    private async Task SetAuthHeaderAsync(CancellationToken cancellationToken)
+    {
+        var token = await _serviceAuth.GetTokenAsync(cancellationToken);
+        if (token is not null)
+        {
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+        else
+        {
+            _logger.LogWarning("No auth token available for Validator Service call");
+        }
+    }
 }

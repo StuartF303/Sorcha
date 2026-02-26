@@ -5,6 +5,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Sorcha.ServiceClients.Auth;
 using Sorcha.ServiceClients.Validator;
 
 namespace Sorcha.ServiceClients.Tests.Validator;
@@ -15,11 +16,15 @@ namespace Sorcha.ServiceClients.Tests.Validator;
 public class ValidatorServiceClientTests
 {
     private readonly Mock<ILogger<ValidatorServiceClient>> _mockLogger;
+    private readonly Mock<IServiceAuthClient> _mockServiceAuth;
     private readonly IConfiguration _configuration;
 
     public ValidatorServiceClientTests()
     {
         _mockLogger = new Mock<ILogger<ValidatorServiceClient>>();
+        _mockServiceAuth = new Mock<IServiceAuthClient>();
+        _mockServiceAuth.Setup(s => s.GetTokenAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync("test-token");
         _configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -30,7 +35,7 @@ public class ValidatorServiceClientTests
 
     private ValidatorServiceClient CreateClient(HttpClient httpClient)
     {
-        return new ValidatorServiceClient(_configuration, _mockLogger.Object, httpClient);
+        return new ValidatorServiceClient(_configuration, _mockServiceAuth.Object, _mockLogger.Object, httpClient);
     }
 
     private static TransactionSubmission CreateTestRequest()
