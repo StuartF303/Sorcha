@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Sorcha.Wallet.Core.Domain.Entities;
+using Sorcha.Wallet.Core.Exceptions;
 using Sorcha.Wallet.Core.Repositories.Interfaces;
 using Sorcha.Wallet.Core.Services.Interfaces;
 
@@ -49,7 +50,7 @@ public class DelegationService : IDelegationService
             // Check if wallet exists
             var wallet = await _repository.GetByAddressAsync(walletAddress, cancellationToken: cancellationToken);
             if (wallet == null)
-                throw new InvalidOperationException($"Wallet not found: {walletAddress}");
+                throw new WalletNotFoundException($"Wallet not found: {walletAddress}");
 
             // Check if access already exists
             var existingAccess = await _repository.GetAccessAsync(walletAddress, false, cancellationToken);
@@ -59,7 +60,7 @@ public class DelegationService : IDelegationService
             {
                 _logger.LogWarning("Access already exists for subject {Subject} on wallet {WalletAddress}",
                     subject, walletAddress);
-                throw new InvalidOperationException($"Active access already exists for subject: {subject}");
+                throw new WalletAccessAlreadyExistsException($"Active access already exists for subject: {subject}");
             }
 
             var access = new WalletAccess
@@ -81,7 +82,7 @@ public class DelegationService : IDelegationService
 
             return access;
         }
-        catch (Exception ex) when (ex is not InvalidOperationException)
+        catch (Exception ex) when (ex is not WalletNotFoundException and not WalletAccessAlreadyExistsException)
         {
             _logger.LogError(ex, "Failed to grant access to subject {Subject} on wallet {WalletAddress}",
                 subject, walletAddress);
@@ -112,7 +113,7 @@ public class DelegationService : IDelegationService
             {
                 _logger.LogWarning("No active access found for subject {Subject} on wallet {WalletAddress}",
                     subject, walletAddress);
-                throw new InvalidOperationException($"No active access found for subject: {subject}");
+                throw new WalletNotFoundException($"No active access found for subject: {subject}");
             }
 
             access.RevokedAt = DateTime.UtcNow;
@@ -124,7 +125,7 @@ public class DelegationService : IDelegationService
             _logger.LogInformation("Revoked access for subject {Subject} on wallet {WalletAddress}",
                 subject, walletAddress);
         }
-        catch (Exception ex) when (ex is not InvalidOperationException)
+        catch (Exception ex) when (ex is not WalletNotFoundException)
         {
             _logger.LogError(ex, "Failed to revoke access for subject {Subject} on wallet {WalletAddress}",
                 subject, walletAddress);
@@ -208,7 +209,7 @@ public class DelegationService : IDelegationService
             var access = await _repository.GetAccessByIdAsync(accessId, cancellationToken);
             if (access == null)
             {
-                throw new InvalidOperationException($"Access grant not found: {accessId}");
+                throw new WalletNotFoundException($"Access grant not found: {accessId}");
             }
 
             if (!access.IsActive)
@@ -234,7 +235,7 @@ public class DelegationService : IDelegationService
 
             return access;
         }
-        catch (Exception ex) when (ex is not InvalidOperationException)
+        catch (Exception ex) when (ex is not InvalidOperationException and not WalletNotFoundException)
         {
             _logger.LogError(ex, "Failed to update access {AccessId}", accessId);
             throw;

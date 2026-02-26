@@ -59,8 +59,8 @@ Rejection is a valid workflow action that creates a transaction:
 ### Session 2025-12-04
 
 - Q: Should legacy transaction versions (V1-V4) be supported? → A: No - reset versioning to V1 (PQC-only). No existing data requires backward compatibility.
-- Q: What signing algorithm should be used? → A: ML-DSA-44 (default), configurable to ML-DSA-65/87 via blueprint policy.
-- Q: What encryption should payloads use? → A: ML-KEM-512 + AES-256-GCM hybrid encryption (default), configurable to ML-KEM-768/1024.
+- Q: What signing algorithm should be used? → A: ML-DSA-65 (default, CNSA 2.0 compliant), configurable to ML-DSA-87 via blueprint policy. ML-DSA-44 deferred (not CNSA 2.0 compliant).
+- Q: What encryption should payloads use? → A: ML-KEM-768 + AES-256-GCM hybrid encryption (default, CNSA 2.0 compliant), configurable to ML-KEM-1024. ML-KEM-512 deferred (not CNSA 2.0 compliant).
 - Q: What are the maximum transaction limits? → A: Permissive (1,000 recipients, 1GB total, 100MB per payload) with Blueprint Designer warnings when sizes approach unmanageable thresholds.
 - Q: What happens to symmetric keys after payload encryption? → A: Configurable - default to immediate zeroization, but allow retention via PayloadOptions.RetainSymmetricKey flag for re-encryption scenarios.
 - Q: How should observability be exposed? → A: Both OpenTelemetry integration (metrics/traces) AND extensible .NET events for custom consumer telemetry.
@@ -99,7 +99,7 @@ As a transaction sender, I need to encrypt payloads using ML-KEM hybrid encrypti
 2. **Given** an encrypted payload, **When** recipient A decrypts with their ML-KEM private key, **Then** the original data is returned.
 3. **Given** an encrypted payload, **When** non-recipient tries to decrypt, **Then** decryption fails.
 4. **Given** compression is enabled, **When** data is compressible, **Then** it is compressed before encryption.
-5. **Given** ML-KEM-512 (default), **When** encrypting for one recipient, **Then** 768-byte ciphertext overhead is added per recipient.
+5. **Given** ML-KEM-768 (default, CNSA 2.0), **When** encrypting for one recipient, **Then** 1,088-byte ciphertext overhead is added per recipient.
 
 ---
 
@@ -170,9 +170,9 @@ As a payload owner, I need to grant access to additional recipients using ML-KEM
 
 - **FR-001**: Library MUST provide fluent builder API for transaction creation
 - **FR-002**: Library MUST sign transactions using double SHA-256 + ML-DSA (NIST FIPS 204)
-- **FR-003**: Library MUST default to ML-DSA-44 for signing, configurable to ML-DSA-65/87
+- **FR-003**: Library MUST default to ML-DSA-65 for signing (CNSA 2.0 compliant), configurable to ML-DSA-87. ML-DSA-44 deferred (not CNSA 2.0 compliant).
 - **FR-004**: Library MUST encrypt payloads using ML-KEM + AES-256-GCM hybrid encryption
-- **FR-005**: Library MUST default to ML-KEM-512 for key encapsulation, configurable to ML-KEM-768/1024
+- **FR-005**: Library MUST default to ML-KEM-768 for key encapsulation (CNSA 2.0 compliant), configurable to ML-KEM-1024. ML-KEM-512 deferred (not CNSA 2.0 compliant).
 - **FR-006**: Library MUST support compression with file type detection
 - **FR-007**: Library MUST serialize to binary (VarInt length-prefixed), JSON, and transport formats
 - **FR-008**: Library MUST handle signatures up to 4,627 bytes (ML-DSA-87)

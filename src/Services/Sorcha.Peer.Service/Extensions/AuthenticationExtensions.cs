@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using Sorcha.ServiceClients.Auth;
+
 namespace Sorcha.Peer.Service.Extensions;
 
 /// <summary>
@@ -25,19 +27,19 @@ public static class AuthenticationExtensions
             options.AddPolicy("CanManagePeers", policy =>
                 policy.RequireAssertion(context =>
                 {
-                    var hasOrgId = context.User.Claims.Any(c => c.Type == "org_id" && !string.IsNullOrEmpty(c.Value));
-                    var isService = context.User.Claims.Any(c => c.Type == "token_type" && c.Value == "service");
+                    var hasOrgId = context.User.Claims.Any(c => c.Type == TokenClaimConstants.OrgId && !string.IsNullOrEmpty(c.Value));
+                    var isService = context.User.Claims.Any(c => c.Type == TokenClaimConstants.TokenType && c.Value == TokenClaimConstants.TokenTypeService);
                     return hasOrgId || isService;
                 }));
 
             // Organization member operations
             options.AddPolicy("RequireOrganizationMember", policy =>
                 policy.RequireAssertion(context =>
-                    context.User.Claims.Any(c => c.Type == "org_id" && !string.IsNullOrEmpty(c.Value))));
+                    context.User.Claims.Any(c => c.Type == TokenClaimConstants.OrgId && !string.IsNullOrEmpty(c.Value))));
 
             // Service-to-service operations
             options.AddPolicy("RequireService", policy =>
-                policy.RequireClaim("token_type", "service"));
+                policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService));
         });
 
         return services;

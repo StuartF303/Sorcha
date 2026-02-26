@@ -3,6 +3,7 @@
 
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Sorcha.UI.Core.Models.Credentials;
 
 namespace Sorcha.UI.Core.Services.Credentials;
@@ -13,15 +14,17 @@ namespace Sorcha.UI.Core.Services.Credentials;
 public class CredentialApiService : ICredentialApiService
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<CredentialApiService> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
 
-    public CredentialApiService(HttpClient httpClient)
+    public CredentialApiService(HttpClient httpClient, ILogger<CredentialApiService> logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<List<CredentialCardViewModel>> GetCredentialsAsync(
@@ -40,8 +43,9 @@ public class CredentialApiService : ICredentialApiService
 
             return credentials?.Select(MapToCardViewModel).ToList() ?? [];
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch credentials for wallet {WalletAddress}", walletAddress);
             return [];
         }
     }
@@ -62,8 +66,9 @@ public class CredentialApiService : ICredentialApiService
 
             return entity == null ? null : MapToDetailViewModel(entity);
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch credential {CredentialId} for wallet {WalletAddress}", credentialId, walletAddress);
             return null;
         }
     }
@@ -79,8 +84,9 @@ public class CredentialApiService : ICredentialApiService
 
             return response.IsSuccessStatusCode;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "Failed to update status for credential {CredentialId}", credentialId);
             return false;
         }
     }
@@ -95,8 +101,9 @@ public class CredentialApiService : ICredentialApiService
 
             return response.IsSuccessStatusCode;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "Failed to delete credential {CredentialId}", credentialId);
             return false;
         }
     }
@@ -117,8 +124,9 @@ public class CredentialApiService : ICredentialApiService
 
             return requests?.Select(MapToPresentationViewModel).ToList() ?? [];
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch presentation requests for wallet {WalletAddress}", walletAddress);
             return [];
         }
     }
@@ -139,8 +147,9 @@ public class CredentialApiService : ICredentialApiService
 
             return request == null ? null : MapToPresentationViewModel(request);
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch presentation request {RequestId}", requestId);
             return null;
         }
     }
@@ -192,8 +201,9 @@ public class CredentialApiService : ICredentialApiService
 
             return response.IsSuccessStatusCode;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "Failed to deny presentation request {RequestId}", requestId);
             return false;
         }
     }

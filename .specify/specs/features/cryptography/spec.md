@@ -13,7 +13,7 @@
 - Q: How should key backup/recovery work without BIP39 HD derivation? → A: Encrypted Seed Export (primary) with Seed Phrase Encoding as optional human-readable alternative
 - Q: What are acceptable performance targets for PQC operations? → A: Balanced - Signing < 100ms, verification < 50ms
 - Q: Should the spec require specific platform versions for PQC support? → A: Strict Requirement - Require Windows 11 Nov 2025+ or Linux OpenSSL 3.5+; fail with clear error if unavailable
-- Q: Should the spec mandate minimum security levels? → A: Level 1 Default, Configurable - Default to Level 1; blueprints can require Level 3/5 for high-security workflows
+- Q: Should the spec mandate minimum security levels? → A: Level 3 Default (CNSA 2.0), Configurable - Default to Level 3 (ML-DSA-65/ML-KEM-768); blueprints can require Level 5 for high-security workflows. Level 1 (ML-DSA-44/ML-KEM-512) deferred as not CNSA 2.0 compliant.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -86,8 +86,8 @@ As a developer, I need to encrypt data using ML-KEM key encapsulation combined w
 1. **Given** plaintext data and recipient's ML-KEM public key, **When** I call `HybridEncryptAsync`, **Then** ML-KEM encapsulation + AES-256-GCM ciphertext is returned.
 2. **Given** hybrid ciphertext and ML-KEM private key, **When** I call `HybridDecryptAsync`, **Then** original plaintext is returned.
 3. **Given** tampered ciphertext, **When** I decrypt, **Then** authentication fails.
-4. **Given** ML-KEM-512 selected (default), **When** I encapsulate, **Then** 768-byte ciphertext is produced.
-5. **Given** ML-KEM-768 selected, **When** I encapsulate, **Then** 1,088-byte ciphertext is produced.
+4. **Given** ML-KEM-768 selected (default, CNSA 2.0), **When** I encapsulate, **Then** 1,088-byte ciphertext is produced.
+5. **Given** ML-KEM-512 selected, **When** I encapsulate, **Then** 768-byte ciphertext is produced. *(Deferred: not CNSA 2.0 compliant)*
 6. **Given** ML-KEM-1024 selected, **When** I encapsulate, **Then** 1,568-byte ciphertext is produced.
 
 ---
@@ -143,8 +143,8 @@ As a developer, I need to compute cryptographic hashes so that I can create tran
 
 - **FR-001**: Library MUST generate key pairs for ML-DSA-44, ML-DSA-65, and ML-DSA-87 (NIST FIPS 204)
 - **FR-002**: Library MUST generate key pairs for ML-KEM-512, ML-KEM-768, and ML-KEM-1024 (NIST FIPS 203)
-- **FR-003**: Library MUST default to ML-DSA-44 (signing) and ML-KEM-512 (encryption) for NIST Level 1
-- **FR-004**: Library MUST allow blueprint-configurable security levels (Level 1/3/5)
+- **FR-003**: Library MUST default to ML-DSA-65 (signing) and ML-KEM-768 (encryption) for NIST Level 3 (CNSA 2.0 compliant). ML-DSA-44 and ML-KEM-512 (Level 1) are deferred as not CNSA 2.0 compliant.
+- **FR-004**: Library MUST allow blueprint-configurable security levels (Level 3/5)
 - **FR-005**: Library MUST generate 32-byte random master seeds for key derivation
 - **FR-006**: Library MUST derive keys using HKDF from master seed with index
 - **FR-007**: Library MUST export seeds encrypted with Argon2id + AES-256-GCM

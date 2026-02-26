@@ -23,8 +23,14 @@ public static class AdminEndpoints
         // Start validator for a register
         group.MapPost("/validators/start", async (
             [FromBody] StartValidatorRequest request,
+            HttpContext context,
+            ILogger<Program> logger,
             IValidatorOrchestrator orchestrator) =>
         {
+            var userId = context.User.FindFirst("sub")?.Value ?? "unknown";
+            logger.LogInformation("Admin action {Action} on register {RegisterId} by {UserId}",
+                "StartValidator", request.RegisterId, userId);
+
             if (string.IsNullOrEmpty(request.RegisterId))
             {
                 return Results.BadRequest(new { Error = "RegisterId is required" });
@@ -57,8 +63,14 @@ public static class AdminEndpoints
         // Stop validator for a register
         group.MapPost("/validators/stop", async (
             [FromBody] StopValidatorRequest request,
+            HttpContext context,
+            ILogger<Program> logger,
             IValidatorOrchestrator orchestrator) =>
         {
+            var userId = context.User.FindFirst("sub")?.Value ?? "unknown";
+            logger.LogInformation("Admin action {Action} on register {RegisterId} by {UserId}",
+                "StopValidator", request.RegisterId, userId);
+
             if (string.IsNullOrEmpty(request.RegisterId))
             {
                 return Results.BadRequest(new { Error = "RegisterId is required" });
@@ -117,8 +129,14 @@ public static class AdminEndpoints
         // Manual pipeline execution (for testing/debugging)
         group.MapPost("/validators/{registerId}/process", async (
             string registerId,
+            HttpContext context,
+            ILogger<Program> logger,
             IValidatorOrchestrator orchestrator) =>
         {
+            var userId = context.User.FindFirst("sub")?.Value ?? "unknown";
+            logger.LogInformation("Admin action {Action} on register {RegisterId} by {UserId}",
+                "ProcessPipeline", registerId, userId);
+
             var result = await orchestrator.ProcessValidationPipelineAsync(registerId);
 
             if (result == null)

@@ -126,11 +126,10 @@ Encapsulate a symmetric key using ML-KEM-768.
 }
 ```
 
-**Response 200**:
+**Response 200** (only ciphertext is returned; the shared secret is stored server-side per the KEM security model and never exposed over the wire):
 ```json
 {
   "ciphertext": "<base64-encapsulated-key>",
-  "sharedSecret": "<base64-32-byte-shared-secret>",
   "algorithm": "ML-KEM-768"
 }
 ```

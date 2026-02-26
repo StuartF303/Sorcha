@@ -244,11 +244,11 @@
             {
                 var executeRequest = new ActionExecuteRequest
                 {
-                    BlueprintId = action.BlueprintName,
+                    BlueprintId = action.BlueprintId,
                     ActionId = submission.ActionId,
                     InstanceId = submission.InstanceId,
                     SenderWallet = walletAddress,
-                    RegisterAddress = string.Empty,
+                    RegisterAddress = action.RegisterId,
                     PayloadData = submission.Data
                 };
 

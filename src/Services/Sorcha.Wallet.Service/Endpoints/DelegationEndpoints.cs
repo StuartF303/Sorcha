@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Sorcha.Wallet.Service.Mappers;
 using Sorcha.Wallet.Service.Models;
 using Sorcha.Wallet.Core.Domain;
+using Sorcha.Wallet.Core.Exceptions;
 using Sorcha.Wallet.Core.Services.Implementation;
 using System.Security.Claims;
 
@@ -105,11 +106,11 @@ public static class DelegationEndpoints
                 Status = StatusCodes.Status400BadRequest
             });
         }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        catch (WalletNotFoundException)
         {
             return Results.NotFound();
         }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("already exists"))
+        catch (WalletAccessAlreadyExistsException ex)
         {
             return Results.Conflict(new ProblemDetails
             {
@@ -181,7 +182,7 @@ public static class DelegationEndpoints
 
             return Results.NoContent();
         }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        catch (WalletNotFoundException)
         {
             return Results.NotFound();
         }

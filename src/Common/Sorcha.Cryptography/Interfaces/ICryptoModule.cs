@@ -126,17 +126,19 @@ public interface ICryptoModule
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Verifies a <see cref="HybridSignature"/> against a hash.
-    /// Accepts the signature if at least one component (classical or PQC) is valid.
-    /// The PQC public key is taken from the signature's <see cref="HybridSignature.WitnessPublicKey"/>.
+    /// Verifies a <see cref="HybridSignature"/> using the specified verification mode.
+    /// In Strict mode, both classical and PQC components must verify.
+    /// In Permissive mode, either component verifying is sufficient (migration support).
     /// </summary>
     /// <param name="hybridSignature">The hybrid signature to verify.</param>
     /// <param name="hash">The hash that was signed.</param>
     /// <param name="classicalPublicKey">The classical public key (required when classical component is present).</param>
+    /// <param name="mode">Verification mode: Strict (default) requires both, Permissive requires either.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task<CryptoStatus> HybridVerifyAsync(
         HybridSignature hybridSignature,
         byte[] hash,
         byte[]? classicalPublicKey,
+        HybridVerificationMode mode = HybridVerificationMode.Strict,
         CancellationToken cancellationToken = default);
 }

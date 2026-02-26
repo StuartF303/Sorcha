@@ -126,12 +126,12 @@ public class PeerAuthInterceptor : Interceptor
         }
         catch (SecurityTokenExpiredException)
         {
-            _logger.LogDebug("gRPC call with expired token — treating as anonymous");
+            _logger.LogWarning("gRPC call with expired token — treating as anonymous");
             context.UserState[IsAuthenticatedKey] = false;
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "gRPC token validation failed — treating as anonymous");
+            _logger.LogWarning(ex, "gRPC token validation failed — treating as anonymous");
             context.UserState[IsAuthenticatedKey] = false;
         }
     }

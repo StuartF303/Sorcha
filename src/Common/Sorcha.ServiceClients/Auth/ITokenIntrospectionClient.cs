@@ -28,35 +28,35 @@ public class TokenIntrospectionResult
     /// <summary>
     /// Whether the token is currently active.
     /// </summary>
-    public bool Active { get; set; }
+    public bool Active { get; init; }
 
     /// <summary>
     /// The subject (user or service ID) of the token.
     /// </summary>
-    public string? Sub { get; set; }
+    public string? Sub { get; init; }
 
     /// <summary>
     /// The token type (user or service).
     /// </summary>
-    public string? TokenType { get; set; }
+    public string? TokenType { get; init; }
 
     /// <summary>
     /// Scopes associated with the token.
     /// </summary>
-    public string? Scope { get; set; }
+    public string? Scope { get; init; }
 
     /// <summary>
     /// The client (service) that requested the token.
     /// </summary>
-    public string? ClientId { get; set; }
+    public string? ClientId { get; init; }
 
     /// <summary>
     /// Token expiration time (Unix timestamp).
     /// </summary>
-    public long? Exp { get; set; }
+    public long? Exp { get; init; }
 
     /// <summary>
     /// Token issued-at time (Unix timestamp).
     /// </summary>
-    public long? Iat { get; set; }
+    public long? Iat { get; init; }
 }
