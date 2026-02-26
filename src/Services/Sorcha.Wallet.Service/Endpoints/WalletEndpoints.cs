@@ -439,6 +439,21 @@ public static class WalletEndpoints
                     });
                 }
 
+                // Look up actual wallet algorithms
+                var classicalWallet = await walletManager.GetWalletAsync(address, cancellationToken);
+                var pqcWallet = await walletManager.GetWalletAsync(request.PqcWalletAddress, cancellationToken);
+                if (classicalWallet == null || pqcWallet == null)
+                {
+                    return Results.NotFound(new ProblemDetails
+                    {
+                        Title = "Wallet Not Found",
+                        Detail = classicalWallet == null
+                            ? $"Classical wallet not found: {address}"
+                            : $"PQC wallet not found: {request.PqcWalletAddress}",
+                        Status = StatusCodes.Status404NotFound
+                    });
+                }
+
                 // Sign concurrently with both wallets
                 var classicalTask = walletManager.SignTransactionAsync(
                     address, transactionData, request.DerivationPath, request.IsPreHashed, cancellationToken);
@@ -452,9 +467,9 @@ public static class WalletEndpoints
                 var hybrid = new HybridSignature
                 {
                     Classical = Convert.ToBase64String(classicalSig),
-                    ClassicalAlgorithm = "ED25519",
+                    ClassicalAlgorithm = classicalWallet.Algorithm,
                     Pqc = Convert.ToBase64String(pqcSig),
-                    PqcAlgorithm = "ML-DSA-65",
+                    PqcAlgorithm = pqcWallet.Algorithm,
                     WitnessPublicKey = Convert.ToBase64String(pqcPublicKey)
                 };
 
