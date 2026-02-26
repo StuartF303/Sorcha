@@ -186,9 +186,9 @@
                                 Save these backup codes in a safe place. Each code can only be used once.
                             </MudAlert>
                             <MudPaper Class="pa-3" Outlined="true" Style="max-width: 300px;">
-                                @foreach (var code in _totpBackupCodes)
+                                @foreach (var totpCode in _totpBackupCodes)
                                 {
-                                    <MudText Typo="Typo.body2" Style="font-family: monospace;">@code</MudText>
+                                    <MudText Typo="Typo.body2" Style="font-family: monospace;">@totpCode</MudText>
                                 }
                             </MudPaper>
                         }

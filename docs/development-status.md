@@ -1,7 +1,7 @@
 # Sorcha Platform - Development Status Report
 
-**Date:** 2026-02-25
-**Version:** 3.4 (Updated after Quantum-Safe Cryptography)
+**Date:** 2026-02-26
+**Version:** 3.5 (Updated after UI & CLI Modernization)
 **Overall Completion:** 98%
 
 ---
@@ -90,6 +90,19 @@ For detailed implementation status, see the individual section files:
 ---
 
 ## Recent Completions
+
+### 2026-02-26
+- **043-UI-CLI-Modernization** (66 tasks, 11 phases — UI polish and CLI expansion)
+  - **Activity Log**: EventEntity + EventService + SignalR EventHub, ActivityLogPanel with bell icon notification badge, 49 endpoint/service tests
+  - **Sidebar**: Consolidated ADMINISTRATION section, mini drawer with OpenMiniOnHover
+  - **StatusFooter**: 30s health polling, connectivity indicator, pending action count, 9 bunit tests
+  - **Wallet Management**: List/grid view toggle, default wallet star, QR address dialog, PQC algorithm support in CreateWallet, WalletPreferenceService migrated to server-side with localStorage fallback (14 tests)
+  - **Dashboard Wizard**: Conditional wizard/KPI display on Home.razor, auto-set default wallet on creation
+  - **Validator Dashboard**: ValidatorPanel with 3s polling, throughput sparkline visualization, register health table (16 tests)
+  - **Settings**: 6-tab Settings.razor (Appearance, Language, Security, Notifications, Connections, About), TOTP 2FA backend (TotpConfiguration encrypted entity, ITotpService, setup/verify/disable/status endpoints with rate limiting, loginToken 2FA flow), ThemeService dark mode with OS detection, LocalizationService JSON i18n (fr/de/es), TimeFormatService, push notification service worker + subscription endpoints
+  - **CLI Commands**: BlueprintCommands, ParticipantCommands, CredentialCommands, ValidatorCommands, AdminCommands — all using Refit HTTP clients + Spectre.Console rich output
+  - **UserPreferences API**: 5 CRUD endpoints with DTOs and UI client integration (17 endpoint tests)
+  - Test results: TOTP endpoint tests + CLI command tests committed
 
 ### 2026-02-25
 - **040-Quantum-Safe-Crypto** (74 tasks, 10 phases — post-quantum cryptography with CNSA 2.0 compliance)

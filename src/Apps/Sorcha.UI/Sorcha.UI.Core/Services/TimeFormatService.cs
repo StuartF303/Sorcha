@@ -66,7 +66,7 @@ public class TimeFormatService : ITimeFormatService
     private readonly IJSRuntime _jsRuntime;
     private readonly ILogger<TimeFormatService> _logger;
 
-    private TimeFormatPreference _currentFormat = TimeFormatPreference.Local;
+    private TimeFormatPreference _currentFormat = TimeFormatPreference.UTC;
     private TimeZoneInfo _userTimeZone = TimeZoneInfo.Utc;
 
     public TimeFormatPreference CurrentFormat => _currentFormat;
