@@ -381,7 +381,6 @@ services:
       ServiceAuth__ClientId: validator-service
       ServiceAuth__ClientSecret: validator-service-secret
       ServiceAuth__Scopes: "registers:write registers:read"
-      ServiceClients__TenantService__Address: http://tenant-service:8080
       # Validator configuration
       Validator__ValidatorId: docker-validator-1
       # SystemWalletAddress left empty - wallet created automatically on startup
