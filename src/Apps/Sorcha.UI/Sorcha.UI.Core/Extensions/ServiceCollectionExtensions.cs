@@ -225,7 +225,8 @@ public static class ServiceCollectionExtensions
                 BaseAddress = new Uri(baseAddress)
             };
 
-            return new CredentialApiService(httpClient);
+            var logger = sp.GetRequiredService<ILogger<CredentialApiService>>();
+            return new CredentialApiService(httpClient, logger);
         });
 
         // QR Presentation Service (no HTTP needed — generates locally)
