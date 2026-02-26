@@ -1,7 +1,12 @@
+@* SPDX-License-Identifier: MIT *@
+@* Copyright (c) 2026 Sorcha Contributors *@
+
 @page "/wallets/create"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @attribute [Authorize]
+@using Sorcha.UI.Core.Services
 @inject IWalletApiService WalletService
+@inject IUserPreferencesService UserPreferencesService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -9,7 +14,7 @@
 <PageTitle>Create Wallet - Sorcha Platform</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
-    @if (_isFirstLogin)
+    @if (_isFirstLogin || _isWizard)
     {
         <MudAlert Severity="Severity.Info" Class="mb-4" Icon="@Icons.Material.Filled.WavingHand">
             <MudText Typo="Typo.h6">Welcome to Sorcha!</MudText>
@@ -43,6 +48,8 @@
                                 <MudSelectItem Value="@("ED25519")">ED25519 (Recommended)</MudSelectItem>
                                 <MudSelectItem Value="@("NISTP256")">NIST P-256</MudSelectItem>
                                 <MudSelectItem Value="@("RSA4096")">RSA 4096</MudSelectItem>
+                                <MudSelectItem Value="@("ML-DSA-65")" Disabled="true">ML-DSA-65 (Coming Soon)</MudSelectItem>
+                                <MudSelectItem Value="@("ML-KEM-768")" Disabled="true">ML-KEM-768 (Coming Soon)</MudSelectItem>
                             </MudSelect>
                         </MudItem>
 
@@ -64,12 +71,13 @@
                             <MudAlert Severity="Severity.Info" Class="mb-2">
                                 <MudText Typo="Typo.body2">
                                     <strong>ED25519</strong> is recommended for most use cases. It offers the best balance of security and performance.
+                                    Post-quantum algorithms (ML-DSA-65, ML-KEM-768) will be available in a future release.
                                 </MudText>
                             </MudAlert>
                         </MudItem>
 
                         <MudItem xs="12" Class="d-flex justify-space-between">
-                            @if (!_isFirstLogin)
+                            @if (!_isFirstLogin && !_isWizard)
                             {
                                 <MudButton Href="wallets" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack">
                                     Cancel
@@ -175,7 +183,11 @@
     [SupplyParameterFromQuery(Name = "first-login")]
     public string? FirstLogin { get; set; }
 
+    [SupplyParameterFromQuery(Name = "wizard")]
+    public string? Wizard { get; set; }
+
     private bool _isFirstLogin;
+    private bool _isWizard;
 
     private enum WizardStep { Form, MnemonicDisplay }
     private WizardStep currentStep = WizardStep.Form;
@@ -202,6 +214,7 @@
     protected override void OnInitialized()
     {
         _isFirstLogin = string.Equals(FirstLogin, "true", StringComparison.OrdinalIgnoreCase);
+        _isWizard = string.Equals(Wizard, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task CreateWalletAsync()
@@ -238,7 +251,7 @@
         Snackbar.Add("Recovery phrase copied to clipboard", Severity.Info);
     }
 
-    private void NavigateToWallet()
+    private async Task NavigateToWallet()
     {
         // Clear mnemonic from memory before navigating
         var walletAddress = response?.Wallet?.Address;
@@ -248,7 +261,12 @@
         }
         response = null;
 
-        if (_isFirstLogin)
+        if (_isWizard && walletAddress != null)
+        {
+            await UserPreferencesService.SetDefaultWalletAsync(walletAddress);
+            Navigation.NavigateTo("/");
+        }
+        else if (_isFirstLogin)
         {
             Navigation.NavigateTo("dashboard");
         }
