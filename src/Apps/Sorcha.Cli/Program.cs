@@ -170,6 +170,13 @@ internal class Program
         // Sprint 4: Peer Service commands
         rootCommand.Subcommands.Add(new PeerCommand(clientFactory, authService, configService));
 
+        // Sprint 5: Blueprint, Participant, Credential, Validator, Admin commands
+        rootCommand.Subcommands.Add(new BlueprintCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new ParticipantCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new CredentialCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new ValidatorCommand(clientFactory, authService, configService));
+        rootCommand.Subcommands.Add(new AdminCommand(clientFactory, authService, configService));
+
         // Configuration management commands
         rootCommand.Subcommands.Add(new ConfigCommand());
 
