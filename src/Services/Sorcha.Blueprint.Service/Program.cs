@@ -1724,7 +1724,10 @@ instancesGroup.MapGet("/{instanceId}/next-actions", async (
                     description = action.Description,
                     participantId = participant?.Principal,
                     branchId = instance.ActiveBranches
-                        .FirstOrDefault(b => b.CurrentActionId == actionId)?.Id
+                        .FirstOrDefault(b => b.CurrentActionId == actionId)?.Id,
+                    blueprintId = instance.BlueprintId,
+                    registerId = instance.RegisterId,
+                    blueprintName = blueprint.Title
                 });
             }
         }

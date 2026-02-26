@@ -30,6 +30,8 @@ public record PendingActionViewModel
 {
     public string ActionId { get; init; } = string.Empty;
     public string InstanceId { get; init; } = string.Empty;
+    public string BlueprintId { get; init; } = string.Empty;
+    public string RegisterId { get; init; } = string.Empty;
     public string BlueprintName { get; init; } = string.Empty;
     public string ActionName { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
