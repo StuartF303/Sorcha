@@ -1,8 +1,8 @@
 # Sorcha Platform - Master Task List
 
-**Version:** 5.8 - UPDATED
-**Last Updated:** 2026-02-21
-**Status:** Active - Transaction Architecture Research Items Added
+**Version:** 5.9 - UPDATED
+**Last Updated:** 2026-02-26
+**Status:** Active - UI & CLI Modernization Complete
 **Related:** [MASTER-PLAN.md](MASTER-PLAN.md) | [TASK-AUDIT-REPORT.md](TASK-AUDIT-REPORT.md)
 
 ---
@@ -11,10 +11,10 @@
 
 This document consolidates all tasks across the Sorcha platform into a single, prioritized list organized by implementation phase. Tasks are tracked by priority, status, and estimated effort.
 
-**Total Tasks:** 294 (across all phases, including production readiness, blueprint validation, validator service, orchestration, CLI, and research)
-**Completed:** 149 (51%)
+**Total Tasks:** 360 (across all phases, including production readiness, blueprint validation, validator service, orchestration, CLI, UI modernization, and research)
+**Completed:** 215 (60%)
 **In Progress:** 0 (0%)
-**Not Started:** 145 (49%)
+**Not Started:** 145 (40%)
 
 ---
 
@@ -43,6 +43,7 @@ All transactions MUST go through the Validator Service mempool before being seal
 
 | Date | Summary |
 |------|---------|
+| 2026-02-26 | **043-UI-CLI-Modernization** (66 tasks, 11 phases): UI polish and CLI expansion. Phase 1-3: Setup + UserPreferences backend (OtpNet, i18n) + Activity Log (EventEntity, EventService, EventHub SignalR, ActivityLogPanel with bell icon, 49 endpoint/service tests). Phase 4 (US2): Sidebar — consolidated ADMINISTRATION section, mini drawer with OpenMiniOnHover. Phase 5 (US3): StatusFooter with 30s health polling, MainLayout integration, 9 bunit tests. Phase 6 (US4): Wallet management — WalletList view toggle, default wallet star, QR dialog, PQC algorithm support in CreateWallet, WalletPreferenceService migration to server-side (14 tests). Phase 7 (US5): Dashboard wizard — conditional wizard/KPI on Home.razor, auto-set default wallet. Phase 8 (US6): Validator dashboard — ValidatorPanel with 3s polling, throughput visualization, register table (16 tests). Phase 9 (US7): Settings — TOTP 2FA backend (TotpConfiguration entity, TotpService, setup/verify/disable/status endpoints, rate limiting, loginToken flow), ThemeService (dark mode, OS detection), LocalizationService (JSON i18n, fr/de/es translations), TimeFormatService, TotpClientService, Settings.razor with 6 tabs, push notification service worker + subscription endpoints (TOTP endpoint tests, CLI command tests). Phase 10 (US8): CLI commands — BlueprintCommands, ParticipantCommands, CredentialCommands, ValidatorCommands, AdminCommands (all with Refit + Spectre.Console), CLI command tests. Phase 11: Polish — build fix, test verification, documentation. |
 | 2026-02-26 | **041-Auth-Integration** (38 tasks, 8 phases): Authentication & authorization integration across all services. Phase 1-2: Setup + Foundational — TokenClaimConstants, configurable ServiceAuthClient scopes, Validator Service JWT auth + authorization policies. Phase 3 (US1): Service-to-service auth — verified client credentials flow, service token acquisition logging. Phase 4 (US2): User authentication — endpoint audit across all services, RequireAuthorization/AllowAnonymous coverage, anonymous endpoint verification. Phase 5 (US3): Delegation token flow — IDelegationTokenClient/DelegationTokenClient for on-behalf-of user flows, RequireDelegatedAuthority policy on Blueprint/Wallet/Register. Phase 6 (US4): Authorization policies — renamed Administrator→RequireAdministrator in Blueprint, PeerAuthInterceptor gRPC interceptor for JWT validation on peer connections, authenticated peer reputation bonus (+15 quality score). Phase 7 (US5): Token introspection & revocation — ITokenRevocationStore in JwtAuthenticationExtensions OnTokenValidated event, ITokenIntrospectionClient for /api/auth/token/introspect. Phase 8: Polish — AUTHENTICATION-SETUP.md docs update, security audit logging, mTLS config scaffolding, existing test suite fix (TestAdminAuthHandler for WebApplicationFactory tests). Tests: 39 new auth integration tests, 15 validator auth policy tests, 6 delegation client tests, 6 revocation tests. |
 | 2026-02-25 | **040-Quantum-Safe-Crypto** (74 tasks, 10 phases): Post-quantum cryptography with CNSA 2.0 compliance. Phase 1-2: Setup + Foundational — PqcSignatureProvider (ML-DSA-65 via BouncyCastle), PqcEncapsulationProvider (ML-KEM-768), HybridSignature model, Bech32m address encoding, CryptoPolicy model, key material zeroization. Phase 3 (US1): Hybrid signing — classical+PQC dual signatures with CryptoModule extension. Phase 4 (US2): Per-register crypto policy governance — CryptoPolicyService, policy enforcement in Validator, Control TX updates. Phase 5 (US7): SLH-DSA-128s hash-based signatures — stateless fallback for lattice concerns. Phase 6 (US3): ws2-prefixed Bech32m wallet addresses for PQC keys. Phase 7 (US4): ML-KEM-768 payload encryption — quantum-safe KEM + AES-256-GCM hybrid, encapsulate/decapsulate endpoints. Phase 8 (US5): BLS12-381 threshold signatures — distributed docket validation with Shamir secret sharing (t-of-n). Phase 9 (US6): Zero-knowledge register verification — Pedersen commitments on secp256k1 with Schnorr proofs for inclusion, OR proofs for range [0, 2^n). Phase 10: Polish — performance benchmarks, document sizes, YARP routes for all PQC endpoints. Tests: 270+ new tests across 8 test projects. Algorithm support: ML-DSA-65, ML-KEM-768, SLH-DSA-128s, BLS12-381, secp256k1 ZK proofs. |
 | 2026-02-22 | **P0-6 Governance Operations** — Wired governance operations through the validator pipeline. Added `POST /api/registers/{id}/governance/propose` endpoint (Add/Remove/Transfer) following the blueprint publish Control TX pattern: roster reconstruction → proposal validation → quorum check → apply operation → canonical JSON → deterministic TxId → system wallet signing → validator submission. Added `GET .../governance/proposals` endpoint (paginated governance history filtered from Control TXs via TrackingData). Service client: `ProposeGovernanceOperationAsync`, `GetGovernanceProposalsAsync` + `GovernanceClientModels.cs` DTOs. DocketSerializer updated to pass submission metadata through to `TransactionMetaData.TrackingData`. YARP routing covered by existing `registers-direct-route` catch-all. Tests: 7 new service client tests, all existing governance/serializer/service client tests pass (10+12+43). |

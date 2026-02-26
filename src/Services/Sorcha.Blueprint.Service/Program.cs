@@ -8,6 +8,7 @@ using Polly.Extensions.Http;
 using Scalar.AspNetCore;
 using System.Buffers.Text;
 using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
 using Sorcha.Blueprint.Service.Endpoints;
 using Sorcha.Blueprint.Service.Extensions;
 using Sorcha.Blueprint.Service.Hubs;
@@ -103,6 +104,19 @@ builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IStateRe
     Sorcha.Blueprint.Service.Services.Implementation.StateReconstructionService>();
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IActionExecutionService,
     Sorcha.Blueprint.Service.Services.Implementation.ActionExecutionService>();
+
+// Add Activity Events PostgreSQL context (043)
+builder.Services.AddDbContext<Sorcha.Blueprint.Service.Data.BlueprintEventsDbContext>(options =>
+{
+    var eventsConnStr = builder.Configuration.GetConnectionString("EventsDb");
+    if (!string.IsNullOrEmpty(eventsConnStr))
+        options.UseNpgsql(eventsConnStr, npgsql => npgsql.EnableRetryOnFailure(3));
+    else
+        options.UseSqlite("DataSource=BlueprintEvents.db");
+});
+builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IEventService,
+    Sorcha.Blueprint.Service.Services.Implementation.EventService>();
+builder.Services.AddHostedService<Sorcha.Blueprint.Service.Services.Implementation.EventCleanupService>();
 
 // Add SignalR (Sprint 5)
 // TODO: Add Redis backplane when Microsoft.AspNetCore.SignalR.StackExchangeRedis package is added
@@ -248,6 +262,10 @@ app.UseMiddleware<Sorcha.Blueprint.Service.Middleware.DelegationTokenMiddleware>
 // Map SignalR hubs (Sprint 5, Sprint 8)
 app.MapHub<Sorcha.Blueprint.Service.Hubs.ActionsHub>("/actionshub").RequireAuthorization();
 app.MapHub<Sorcha.Blueprint.Service.Hubs.ChatHub>("/hubs/chat").RequireAuthorization();
+app.MapHub<Sorcha.Blueprint.Service.Hubs.EventsHub>("/hubs/events").RequireAuthorization();
+
+// Map Activity Events endpoints (043)
+app.MapEventEndpoints();
 
 // ===========================
 // Blueprint CRUD Endpoints

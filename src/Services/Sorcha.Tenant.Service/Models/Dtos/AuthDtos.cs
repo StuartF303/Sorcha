@@ -247,6 +247,56 @@ public record CurrentUserResponse
 }
 
 /// <summary>
+/// Login response when two-factor authentication is required.
+/// Returned instead of a TokenResponse when the user has TOTP enabled.
+/// </summary>
+public record TwoFactorLoginResponse
+{
+    /// <summary>
+    /// Always true when this response is returned.
+    /// </summary>
+    [JsonPropertyName("requires_two_factor")]
+    public bool RequiresTwoFactor { get; init; } = true;
+
+    /// <summary>
+    /// Short-lived login token (5 min) for the 2FA verification step.
+    /// Pass this to POST /api/auth/verify-2fa along with the TOTP code.
+    /// </summary>
+    [JsonPropertyName("login_token")]
+    public required string LoginToken { get; init; }
+
+    /// <summary>
+    /// Human-readable message.
+    /// </summary>
+    [JsonPropertyName("message")]
+    public string Message { get; init; } = "Two-factor authentication required. Submit your TOTP code.";
+}
+
+/// <summary>
+/// Request to verify a TOTP code during the two-factor authentication login step.
+/// </summary>
+public record Verify2FaRequest
+{
+    /// <summary>
+    /// Short-lived login token from the initial login response.
+    /// </summary>
+    [JsonPropertyName("login_token")]
+    public required string LoginToken { get; init; }
+
+    /// <summary>
+    /// Six-digit TOTP code from authenticator app, or eight-character backup code.
+    /// </summary>
+    [JsonPropertyName("code")]
+    public required string Code { get; init; }
+
+    /// <summary>
+    /// Set to true if providing a backup code instead of a TOTP code.
+    /// </summary>
+    [JsonPropertyName("is_backup_code")]
+    public bool IsBackupCode { get; init; }
+}
+
+/// <summary>
 /// Generic success response.
 /// </summary>
 public record SuccessResponse

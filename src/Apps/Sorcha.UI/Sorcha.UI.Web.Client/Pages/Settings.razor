@@ -3,10 +3,12 @@
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
 @using MudBlazor
+@using Sorcha.UI.Core.Models
 @using Sorcha.UI.Core.Models.Configuration
 @using Sorcha.UI.Core.Services
 @using Sorcha.UI.Core.Services.Configuration
 @using Sorcha.UI.Core.Components.Configuration
+@inject IUserPreferencesService PreferencesService
 @inject IConfigurationService ConfigService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
@@ -20,13 +22,207 @@
         Settings
     </MudText>
     <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
-        Configure application settings and connection profiles
+        Configure your experience, security, and connection profiles
     </MudText>
 
     <MudPaper Class="pa-4" Elevation="2">
         <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
-            <!-- Configuration Tab -->
-            <MudTabPanel Text="Configuration" Icon="@Icons.Material.Filled.Dns">
+
+            <!-- Appearance Tab -->
+            <MudTabPanel Text="Appearance" Icon="@Icons.Material.Filled.Palette">
+                <MudText Typo="Typo.h6" Class="mb-3">Theme</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    Choose how Sorcha looks to you. Select a theme or let the app match your system settings.
+                </MudText>
+
+                <MudRadioGroup T="string" Value="@_preferences.Theme" ValueChanged="OnThemeChanged">
+                    <MudRadio T="string" Value="@("Light")" Color="Color.Primary">
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.LightMode" Class="mr-2" />
+                            Light
+                        </div>
+                    </MudRadio>
+                    <MudRadio T="string" Value="@("Dark")" Color="Color.Primary">
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.DarkMode" Class="mr-2" />
+                            Dark
+                        </div>
+                    </MudRadio>
+                    <MudRadio T="string" Value="@("System")" Color="Color.Primary">
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.SettingsBrightness" Class="mr-2" />
+                            System Default
+                        </div>
+                    </MudRadio>
+                </MudRadioGroup>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.h6" Class="mb-3">Time Format</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    How timestamps are displayed throughout the application.
+                </MudText>
+
+                <MudRadioGroup T="string" Value="@_preferences.TimeFormat" ValueChanged="OnTimeFormatChanged">
+                    <MudRadio T="string" Value="@("UTC")" Color="Color.Primary">
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.Public" Class="mr-2" />
+                            UTC — Consistent across all locations
+                        </div>
+                    </MudRadio>
+                    <MudRadio T="string" Value="@("Local")" Color="Color.Primary">
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Class="mr-2" />
+                            Local — Adjusted to your timezone
+                        </div>
+                    </MudRadio>
+                </MudRadioGroup>
+            </MudTabPanel>
+
+            <!-- Language Tab -->
+            <MudTabPanel Text="Language" Icon="@Icons.Material.Filled.Language">
+                <MudText Typo="Typo.h6" Class="mb-3">Display Language</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    Select the language used throughout the application interface.
+                </MudText>
+
+                <MudList T="string" Dense="true" Class="mb-4" Style="max-width: 400px;">
+                    @foreach (var lang in _supportedLanguages)
+                    {
+                        <MudListItem T="string"
+                                     Icon="@(lang.Code == _preferences.Language ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)"
+                                     IconColor="@(lang.Code == _preferences.Language ? Color.Primary : Color.Default)"
+                                     OnClick="@(() => OnLanguageChanged(lang.Code))">
+                            <div class="d-flex align-center justify-space-between" style="width: 100%;">
+                                <MudText>@lang.Name</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@lang.NativeName</MudText>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudTabPanel>
+
+            <!-- Security Tab -->
+            <MudTabPanel Text="Security" Icon="@Icons.Material.Filled.Security">
+                <MudText Typo="Typo.h6" Class="mb-3">Two-Factor Authentication</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    Add an extra layer of security to your account by requiring a verification code on each login.
+                </MudText>
+
+                @if (_preferences.TwoFactorEnabled)
+                {
+                    <MudAlert Severity="Severity.Success" Class="mb-4">
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Class="mr-2" />
+                            Two-factor authentication is enabled.
+                        </div>
+                    </MudAlert>
+
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Error"
+                               StartIcon="@Icons.Material.Filled.RemoveCircle"
+                               OnClick="DisableTwoFactor">
+                        Disable 2FA
+                    </MudButton>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mb-4">
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-2" />
+                            Two-factor authentication is not enabled. Your account is less secure.
+                        </div>
+                    </MudAlert>
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Security"
+                               OnClick="SetupTwoFactor">
+                        Enable 2FA
+                    </MudButton>
+                }
+
+                @if (_showTotpSetup)
+                {
+                    <MudDivider Class="my-4" />
+                    <MudPaper Class="pa-4" Outlined="true">
+                        <MudText Typo="Typo.subtitle1" Class="mb-3">Setup Authenticator App</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-3">
+                            Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+                        </MudText>
+
+                        @if (!string.IsNullOrEmpty(_totpQrUri))
+                        {
+                            <div class="d-flex justify-center mb-4">
+                                <div id="totp-qr-code" style="width: 200px; height: 200px; background: #f5f5f5; display: flex; align-items: center; justify-content: center;">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">QR Code</MudText>
+                                </div>
+                            </div>
+
+                            <MudText Typo="Typo.caption" Class="mb-3" Align="Align.Center">
+                                Or enter this key manually: <code>@_totpSecret</code>
+                            </MudText>
+                        }
+
+                        <MudTextField @bind-Value="_totpVerificationCode"
+                                      Label="Verification Code"
+                                      Placeholder="Enter 6-digit code"
+                                      Variant="Variant.Outlined"
+                                      MaxLength="6"
+                                      Style="max-width: 300px;"
+                                      Class="mb-3" />
+
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   Disabled="@(string.IsNullOrEmpty(_totpVerificationCode) || _totpVerificationCode.Length != 6)"
+                                   OnClick="VerifyTotpSetup">
+                            Verify and Enable
+                        </MudButton>
+
+                        @if (_totpBackupCodes.Any())
+                        {
+                            <MudDivider Class="my-4" />
+                            <MudAlert Severity="Severity.Warning" Class="mb-3">
+                                Save these backup codes in a safe place. Each code can only be used once.
+                            </MudAlert>
+                            <MudPaper Class="pa-3" Outlined="true" Style="max-width: 300px;">
+                                @foreach (var totpCode in _totpBackupCodes)
+                                {
+                                    <MudText Typo="Typo.body2" Style="font-family: monospace;">@totpCode</MudText>
+                                }
+                            </MudPaper>
+                        }
+                    </MudPaper>
+                }
+            </MudTabPanel>
+
+            <!-- Notifications Tab -->
+            <MudTabPanel Text="Notifications" Icon="@Icons.Material.Filled.Notifications">
+                <MudText Typo="Typo.h6" Class="mb-3">Push Notifications</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    Receive browser notifications when you have pending actions or important events.
+                </MudText>
+
+                <MudSwitch T="bool" Value="@_preferences.NotificationsEnabled"
+                           ValueChanged="OnNotificationsChanged"
+                           Color="Color.Primary"
+                           Label="@(_preferences.NotificationsEnabled ? "Push notifications are enabled" : "Push notifications are disabled")" />
+
+                @if (_preferences.NotificationsEnabled)
+                {
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Notification Types</MudText>
+                    <MudCheckBox T="bool" Value="true" Disabled="true" Color="Color.Primary"
+                                 Label="Pending actions requiring your attention" />
+                    <MudCheckBox T="bool" Value="true" Disabled="true" Color="Color.Primary"
+                                 Label="Blueprint workflow state changes" />
+                    <MudCheckBox T="bool" Value="true" Disabled="true" Color="Color.Primary"
+                                 Label="Validator alerts and warnings" />
+                }
+            </MudTabPanel>
+
+            <!-- Connections Tab (was Configuration) -->
+            <MudTabPanel Text="Connections" Icon="@Icons.Material.Filled.Dns">
                 <MudText Typo="Typo.h6" Class="mb-3">Connection Profiles</MudText>
                 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
                     Manage connection profiles for different Sorcha environments (local, docker, production).
@@ -231,14 +427,113 @@
 </MudContainer>
 
 @code {
+    private UserPreferencesDto _preferences = new();
     private List<Profile> _profiles = new();
     private Profile? _activeProfile;
     private bool _loading = true;
     private string _buildNumber = $"{DateTime.Now:yyyyMMdd}.{DateTime.Now:HHmm}";
 
+    // TOTP setup state
+    private bool _showTotpSetup;
+    private string _totpSecret = string.Empty;
+    private string _totpQrUri = string.Empty;
+    private string _totpVerificationCode = string.Empty;
+    private List<string> _totpBackupCodes = new();
+
+    // Supported languages
+    private readonly List<(string Code, string Name, string NativeName)> _supportedLanguages =
+    [
+        ("en", "English", "English"),
+        ("fr", "French", "Français"),
+        ("de", "German", "Deutsch"),
+        ("es", "Spanish", "Español")
+    ];
+
     protected override async Task OnInitializedAsync()
     {
-        await LoadProfilesAsync();
+        await Task.WhenAll(LoadPreferencesAsync(), LoadProfilesAsync());
+    }
+
+    private async Task LoadPreferencesAsync()
+    {
+        try
+        {
+            _preferences = await PreferencesService.GetUserPreferencesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading preferences: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OnThemeChanged(string theme)
+    {
+        _preferences.Theme = theme;
+        await SavePreferencesAsync(new UpdateUserPreferencesRequest { Theme = theme });
+        Snackbar.Add($"Theme set to {theme}", Severity.Success);
+    }
+
+    private async Task OnTimeFormatChanged(string format)
+    {
+        _preferences.TimeFormat = format;
+        await SavePreferencesAsync(new UpdateUserPreferencesRequest { TimeFormat = format });
+        Snackbar.Add($"Time format set to {format}", Severity.Success);
+    }
+
+    private async Task OnLanguageChanged(string languageCode)
+    {
+        _preferences.Language = languageCode;
+        await SavePreferencesAsync(new UpdateUserPreferencesRequest { Language = languageCode });
+        var langName = _supportedLanguages.FirstOrDefault(l => l.Code == languageCode).Name ?? languageCode;
+        Snackbar.Add($"Language set to {langName}", Severity.Success);
+    }
+
+    private async Task OnNotificationsChanged(bool enabled)
+    {
+        _preferences.NotificationsEnabled = enabled;
+        await SavePreferencesAsync(new UpdateUserPreferencesRequest { NotificationsEnabled = enabled });
+        Snackbar.Add(enabled ? "Notifications enabled" : "Notifications disabled", Severity.Success);
+    }
+
+    private async Task SavePreferencesAsync(UpdateUserPreferencesRequest request)
+    {
+        try
+        {
+            _preferences = await PreferencesService.UpdateUserPreferencesAsync(request);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving preferences: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void SetupTwoFactor()
+    {
+        _showTotpSetup = true;
+        // TODO: Call TotpClientService.SetupTotpAsync() when available
+        _totpSecret = "PLACEHOLDER";
+        _totpQrUri = "otpauth://totp/Sorcha:user@example.com?secret=PLACEHOLDER&issuer=Sorcha";
+    }
+
+    private async Task VerifyTotpSetup()
+    {
+        // TODO: Call TotpClientService.VerifySetupAsync() when available
+        Snackbar.Add("2FA verification will be available once the TOTP service is connected", Severity.Info);
+    }
+
+    private async Task DisableTwoFactor()
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Disable Two-Factor Authentication",
+            "Are you sure? This will make your account less secure.",
+            yesText: "Disable",
+            cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            // TODO: Call TotpClientService.DisableTotpAsync() when available
+            Snackbar.Add("2FA disable will be available once the TOTP service is connected", Severity.Info);
+        }
     }
 
     private async Task LoadProfilesAsync()
@@ -265,14 +560,11 @@
         try
         {
             await ConfigService.SetActiveProfileAsync(profileName);
-
-            // Update ApiConfiguration with the new profile
             var profile = await ConfigService.GetProfileAsync(profileName);
             if (profile != null)
             {
                 ApiConfiguration.ConfigureFromProfile(profile);
             }
-
             await LoadProfilesAsync();
             Snackbar.Add($"Activated profile: {profileName}", Severity.Success);
         }

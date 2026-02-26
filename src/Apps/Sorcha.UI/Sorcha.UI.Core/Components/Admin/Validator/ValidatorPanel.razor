@@ -4,20 +4,55 @@
 @using Sorcha.UI.Core.Services
 @using Sorcha.UI.Core.Models.Admin
 @inject IValidatorAdminService ValidatorService
+@implements IDisposable
 
-@if (!_status.IsLoaded && !_isLoading)
+@if (!_status.IsLoaded && !_isLoading && !_hasEverLoaded)
 {
     <ServiceUnavailable ServiceName="Validator Service" OnRetry="LoadStatusAsync" />
 }
 else
 {
     <MudStack Spacing="4">
-        @* Summary Cards *@
+        @* Overall Health Summary Card *@
+        <MudCard Elevation="2">
+            <MudCardContent Class="d-flex align-center justify-space-between pa-4">
+                <div class="d-flex align-center gap-3">
+                    <MudIcon Icon="@GetHealthIcon()" Color="@GetHealthColor()" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.h6">Validator Health</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            @GetHealthDescription()
+                        </MudText>
+                    </div>
+                </div>
+                <div class="d-flex align-center gap-3">
+                    @* Polling state indicator *@
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(_isPollingActive ? Color.Success : Color.Default)"
+                             Icon="@(_isPollingActive ? Icons.Material.Filled.SyncAlt : Icons.Material.Filled.SyncDisabled)">
+                        @(_isPollingActive ? "Polling Active" : "Polling Paused")
+                    </MudChip>
+                    <MudToggleIconButton Toggled="@_isPollingActive"
+                                         ToggledChanged="TogglePolling"
+                                         Icon="@Icons.Material.Filled.PlayArrow"
+                                         ToggledIcon="@Icons.Material.Filled.Pause"
+                                         Size="Size.Small"
+                                         Title="@(_isPollingActive ? "Pause polling" : "Resume polling")" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                   Size="Size.Small"
+                                   OnClick="LoadStatusAsync"
+                                   Disabled="_isLoading"
+                                   Title="Refresh now" />
+                </div>
+            </MudCardContent>
+        </MudCard>
+
+        @* Summary Stats Cards *@
         <MudGrid>
             <MudItem xs="12" sm="6" md="3">
                 <MudCard>
                     <MudCardContent Class="d-flex flex-column align-center pa-4">
-                        @if (_isLoading)
+                        @if (_isLoading && !_hasEverLoaded)
                         {
                             <MudSkeleton Width="60px" Height="32px" />
                         }
@@ -32,22 +67,22 @@ else
             <MudItem xs="12" sm="6" md="3">
                 <MudCard>
                     <MudCardContent Class="d-flex flex-column align-center pa-4">
-                        @if (_isLoading)
+                        @if (_isLoading && !_hasEverLoaded)
                         {
                             <MudSkeleton Width="60px" Height="32px" />
                         }
                         else
                         {
-                            <MudText Typo="Typo.h4">@FormatAge(_status.OldestPendingAge)</MudText>
+                            <MudText Typo="Typo.h4">@_status.QueueDepth</MudText>
                         }
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">Oldest Pending</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Queue Depth</MudText>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
             <MudItem xs="12" sm="6" md="3">
                 <MudCard>
                     <MudCardContent Class="d-flex flex-column align-center pa-4">
-                        @if (_isLoading)
+                        @if (_isLoading && !_hasEverLoaded)
                         {
                             <MudSkeleton Width="60px" Height="32px" />
                         }
@@ -62,37 +97,78 @@ else
             <MudItem xs="12" sm="6" md="3">
                 <MudCard>
                     <MudCardContent Class="d-flex flex-column align-center pa-4">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Last Updated</MudText>
-                        <MudText Typo="Typo.body2">@_status.LastUpdated.ToLocalTime().ToString("HH:mm:ss")</MudText>
-                        <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="LoadStatusAsync"
-                                   StartIcon="@Icons.Material.Filled.Refresh" Disabled="_isLoading">
-                            Refresh
-                        </MudButton>
+                        @if (_isLoading && !_hasEverLoaded)
+                        {
+                            <MudSkeleton Width="60px" Height="32px" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2">@FormatLastProcessed()</MudText>
+                        }
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Last Processed</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                            Updated @_status.LastUpdated.ToLocalTime().ToString("HH:mm:ss")
+                        </MudText>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
         </MudGrid>
 
-        @* Per-Register Breakdown *@
+        @* Throughput visualization *@
+        <MudCard>
+            <MudCardContent>
+                <div class="d-flex align-center justify-space-between mb-2">
+                    <MudText Typo="Typo.subtitle1">Throughput</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @_status.DocketsPerMinute.ToString("F1") dockets/min
+                    </MudText>
+                </div>
+                <MudProgressLinear Color="@GetThroughputColor()" Value="@GetThroughputPercentage()" Class="mb-2" />
+                @if (IsIdle())
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" NoIcon="false" Class="mt-2">
+                        <MudText Typo="Typo.body2">
+                            Idle — @FormatTimeSinceLastActivity() since last activity
+                        </MudText>
+                    </MudAlert>
+                }
+            </MudCardContent>
+        </MudCard>
+
+        @* Per-Register Breakdown Table *@
         @if (_status.RegisterMempoolStats.Count > 0)
         {
-            <MudText Typo="Typo.h6" Class="mt-4">Per-Register Mempool</MudText>
-            <MudTable Items="_status.RegisterMempoolStats" Dense="true" Hover="true" Striped="true">
+            <MudText Typo="Typo.h6" Class="mt-2">Monitored Registers</MudText>
+            <MudTable Items="_status.RegisterMempoolStats" Dense="true" Hover="true" Striped="true"
+                      Elevation="2" Loading="_isLoading && !_hasEverLoaded">
                 <HeaderContent>
-                    <MudTh>Register ID</MudTh>
-                    <MudTh>Name</MudTh>
+                    <MudTh>Register Name</MudTh>
+                    <MudTh>Chain Height</MudTh>
+                    <MudTh>Last Validated Block</MudTh>
+                    <MudTh>Processing Status</MudTh>
                     <MudTh>Pending</MudTh>
-                    <MudTh>Oldest Entry</MudTh>
+                    <MudTh>Last Activity</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd><TruncatedId Value="@context.RegisterId" /></MudTd>
-                    <MudTd>@context.RegisterName</MudTd>
-                    <MudTd>
+                    <MudTd DataLabel="Register Name">
+                        <MudText Typo="Typo.body2">@(string.IsNullOrEmpty(context.RegisterName) ? "—" : context.RegisterName)</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            <TruncatedId Value="@context.RegisterId" />
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Chain Height">@context.ChainHeight</MudTd>
+                    <MudTd DataLabel="Last Validated Block">@context.LastValidatedBlock</MudTd>
+                    <MudTd DataLabel="Processing Status">
+                        <MudChip T="string" Size="Size.Small" Color="@GetProcessingStatusColor(context.ProcessingStatus)">
+                            @context.ProcessingStatus
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Pending">
                         <MudChip T="string" Size="Size.Small" Color="@GetPendingColor(context.PendingCount)">
                             @context.PendingCount
                         </MudChip>
                     </MudTd>
-                    <MudTd>@FormatAge(context.OldestEntryAge)</MudTd>
+                    <MudTd DataLabel="Last Activity">@FormatActivity(context.LastActivity)</MudTd>
                 </RowTemplate>
             </MudTable>
         }
@@ -108,19 +184,42 @@ else
 @code {
     private ValidatorStatusViewModel _status = new();
     private bool _isLoading = true;
+    private bool _hasEverLoaded;
+    private bool _isPollingActive = true;
     private System.Threading.Timer? _refreshTimer;
+    private bool _disposed;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadStatusAsync();
+        StartPolling();
+    }
+
+    private void StartPolling()
+    {
+        _refreshTimer?.Dispose();
         _refreshTimer = new System.Threading.Timer(async _ =>
         {
+            if (_disposed || !_isPollingActive) return;
             await InvokeAsync(async () =>
             {
                 await LoadStatusAsync();
                 StateHasChanged();
             });
-        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    private void TogglePolling(bool toggled)
+    {
+        _isPollingActive = toggled;
+        if (_isPollingActive)
+        {
+            StartPolling();
+        }
+        else
+        {
+            _refreshTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        }
     }
 
     private async Task LoadStatusAsync()
@@ -132,18 +231,46 @@ else
         if (_status.IsLoaded || _status.TotalPendingTransactions >= 0)
         {
             _status = _status with { IsLoaded = true };
+            _hasEverLoaded = true;
         }
 
         _isLoading = false;
         StateHasChanged();
     }
 
+    private string FormatLastProcessed()
+    {
+        if (_status.LastProcessedAt is null) return "Never";
+        var ago = DateTimeOffset.UtcNow - _status.LastProcessedAt.Value;
+        return FormatAge(ago) + " ago";
+    }
+
+    private bool IsIdle()
+    {
+        if (_status.LastProcessedAt is null) return _hasEverLoaded;
+        var ago = DateTimeOffset.UtcNow - _status.LastProcessedAt.Value;
+        return ago.TotalSeconds > 30 && _status.TotalPendingTransactions == 0;
+    }
+
+    private string FormatTimeSinceLastActivity()
+    {
+        if (_status.LastProcessedAt is null) return "unknown time";
+        var ago = DateTimeOffset.UtcNow - _status.LastProcessedAt.Value;
+        return FormatAge(ago);
+    }
+
     private static string FormatAge(TimeSpan? age)
     {
-        if (age is null) return "—";
+        if (age is null) return "\u2014";
         if (age.Value.TotalHours >= 1) return $"{age.Value.TotalHours:F0}h";
         if (age.Value.TotalMinutes >= 1) return $"{age.Value.TotalMinutes:F0}m";
         return $"{age.Value.TotalSeconds:F0}s";
+    }
+
+    private static string FormatActivity(DateTimeOffset? activity)
+    {
+        if (activity is null) return "\u2014";
+        return activity.Value.ToLocalTime().ToString("HH:mm:ss");
     }
 
     private static Color GetPendingColor(int count) => count switch
@@ -154,8 +281,55 @@ else
         _ => Color.Error
     };
 
+    private static Color GetProcessingStatusColor(string status) => status switch
+    {
+        "Processing" => Color.Info,
+        "Error" => Color.Error,
+        "Idle" => Color.Default,
+        _ => Color.Default
+    };
+
+    private string GetHealthIcon() => _status.HealthStatus switch
+    {
+        "Healthy" => Icons.Material.Filled.CheckCircle,
+        "Degraded" => Icons.Material.Filled.Warning,
+        "Unhealthy" => Icons.Material.Filled.Error,
+        _ => Icons.Material.Filled.HelpOutline
+    };
+
+    private Color GetHealthColor() => _status.HealthStatus switch
+    {
+        "Healthy" => Color.Success,
+        "Degraded" => Color.Warning,
+        "Unhealthy" => Color.Error,
+        _ => Color.Default
+    };
+
+    private string GetHealthDescription() => _status.HealthStatus switch
+    {
+        "Healthy" => "All registers validated, no backlog detected.",
+        "Degraded" => "Validation is running but some registers have a backlog.",
+        "Unhealthy" => "Validator is experiencing errors or significant delays.",
+        _ => "Unable to determine validator health status."
+    };
+
+    private Color GetThroughputColor()
+    {
+        if (_status.DocketsPerMinute <= 0) return Color.Default;
+        if (_status.DocketsPerMinute < 10) return Color.Info;
+        if (_status.DocketsPerMinute < 50) return Color.Success;
+        return Color.Warning;
+    }
+
+    private double GetThroughputPercentage()
+    {
+        // Cap at 100 dockets/min for the progress bar
+        return Math.Min(_status.DocketsPerMinute / 100.0 * 100, 100);
+    }
+
     public void Dispose()
     {
+        _disposed = true;
         _refreshTimer?.Dispose();
     }
 }

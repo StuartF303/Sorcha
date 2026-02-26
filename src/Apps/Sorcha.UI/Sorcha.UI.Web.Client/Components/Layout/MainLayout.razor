@@ -3,12 +3,15 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using MudBlazor
 @using Sorcha.UI.Core.Services.Authentication
+@using Sorcha.UI.Core.Services
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ITokenRefreshService TokenRefreshService
+@inject IActivityLogService ActivityLogService
+@inject IThemeService ThemeService
 @inject IJSRuntime JSRuntime
 
-<MudThemeProvider Theme="_theme" />
+<MudThemeProvider Theme="_theme" IsDarkMode="@_isDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -21,6 +24,12 @@
         <MudSpacer />
         <AuthorizeView>
             <Authorized>
+                <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" OnClick="@ToggleActivityLog" Title="Activity Log">
+                    @if (_unreadCount > 0)
+                    {
+                        <MudBadge Content="@_unreadCount" Color="Color.Error" Overlap="true" />
+                    }
+                </MudIconButton>
                 <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
                     <MudMenuItem>
                         <div class="d-flex flex-column py-2 px-3">
@@ -45,9 +54,12 @@
         </AuthorizeView>
     </MudAppBar>
 
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Never" Elevation="2">
+    <MudDrawer @bind-Open="_drawerOpen" Variant="@DrawerVariant.Mini" OpenMiniOnHover="true" ClipMode="DrawerClipMode.Always" Elevation="2">
         <MudDrawerHeader>
-            <MudText Typo="Typo.h6">Navigation</MudText>
+            @if (_drawerOpen)
+            {
+                <MudText Typo="Typo.h6">Navigation</MudText>
+            }
         </MudDrawerHeader>
         <AuthorizeView>
             <Authorized>
@@ -55,8 +67,11 @@
                     <MudNavLink Href="dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
                         Dashboard
                     </MudNavLink>
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">MY ACTIVITY</MudText>
+                    @if (_drawerOpen)
+                    {
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">MY ACTIVITY</MudText>
+                    }
                     <MudNavLink Href="my-workflows" Icon="@Icons.Material.Filled.PostAdd">
                         New Submission
                     </MudNavLink>
@@ -72,8 +87,11 @@
                     <MudNavLink Href="my-transactions" Icon="@Icons.Material.Filled.Receipt">
                         My Transactions
                     </MudNavLink>
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">DESIGNER</MudText>
+                    @if (_drawerOpen)
+                    {
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">DESIGNER</MudText>
+                    }
                     <MudNavLink Href="blueprints" Icon="@Icons.Material.Filled.Description">
                         My Blueprints
                     </MudNavLink>
@@ -89,13 +107,16 @@
                     <MudNavLink Href="schemas" Icon="@Icons.Material.Filled.Schema">
                         Data Schemas
                     </MudNavLink>
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">MANAGEMENT</MudText>
+                    @if (_drawerOpen)
+                    {
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">ADMINISTRATION</MudText>
+                    }
                     <MudNavGroup Title="Wallets" Icon="@Icons.Material.Filled.AccountBalanceWallet" Expanded="false">
                         <MudNavLink Href="wallets" Icon="@Icons.Material.Filled.List">
                             All Wallets
                         </MudNavLink>
-                        <MudNavLink Href="wallets/create" Icon="@Icons.Material.Filled.Add">
+                        <MudNavLink Href="wallets/create" Icon="@Icons.Material.Filled.AddCircleOutline">
                             Create Wallet
                         </MudNavLink>
                         <MudNavLink Href="wallets/recover" Icon="@Icons.Material.Filled.Restore">
@@ -108,32 +129,37 @@
                     <MudNavLink Href="participants" Icon="@Icons.Material.Filled.People">
                         Participants
                     </MudNavLink>
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">ADMIN</MudText>
-                    <MudNavGroup Title="Administration" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
-                        <MudNavLink Href="admin/health" Icon="@Icons.Material.Filled.HealthAndSafety">
-                            System Health
-                        </MudNavLink>
-                        <MudNavLink Href="admin/peers" Icon="@Icons.Material.Filled.Hub">
-                            Peer Network
-                        </MudNavLink>
-                        <MudNavLink Href="admin/organizations" Icon="@Icons.Material.Filled.Business">
-                            Organizations
-                        </MudNavLink>
-                        <MudNavLink Href="admin/validator" Icon="@Icons.Material.Filled.VerifiedUser">
-                            Validator
-                        </MudNavLink>
-                        <MudNavLink Href="admin/principals" Icon="@Icons.Material.Filled.VpnKey">
-                            Service Principals
-                        </MudNavLink>
-                        <MudNavLink Href="admin/sectors" Icon="@Icons.Material.Filled.FilterList">
-                            Schema Sectors
-                        </MudNavLink>
-                        <MudNavLink Href="admin/schema-providers" Icon="@Icons.Material.Filled.CloudSync">
-                            Schema Providers
-                        </MudNavLink>
-                    </MudNavGroup>
-                    <MudDivider Class="my-2" />
+                    <AuthorizeView Roles="Administrator,SystemAdmin">
+                        <Authorized Context="adminContext">
+                            <MudNavGroup Title="System" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
+                                <MudNavLink Href="admin/health" Icon="@Icons.Material.Filled.HealthAndSafety">
+                                    System Health
+                                </MudNavLink>
+                                <MudNavLink Href="admin/peers" Icon="@Icons.Material.Filled.Hub">
+                                    Peer Network
+                                </MudNavLink>
+                                <MudNavLink Href="admin/organizations" Icon="@Icons.Material.Filled.Business">
+                                    Organisations
+                                </MudNavLink>
+                                <MudNavLink Href="admin/validator" Icon="@Icons.Material.Filled.VerifiedUser">
+                                    Validator
+                                </MudNavLink>
+                                <MudNavLink Href="admin/principals" Icon="@Icons.Material.Filled.VpnKey">
+                                    Service Principals
+                                </MudNavLink>
+                                <MudNavLink Href="admin/sectors" Icon="@Icons.Material.Filled.FilterList">
+                                    Schema Sectors
+                                </MudNavLink>
+                                <MudNavLink Href="admin/schema-providers" Icon="@Icons.Material.Filled.CloudSync">
+                                    Schema Providers
+                                </MudNavLink>
+                            </MudNavGroup>
+                        </Authorized>
+                    </AuthorizeView>
+                    @if (_drawerOpen)
+                    {
+                        <MudDivider Class="my-2" />
+                    }
                     <MudNavLink Href="settings" Icon="@Icons.Material.Filled.Settings">
                         Settings
                     </MudNavLink>
@@ -153,16 +179,22 @@
     </MudDrawer>
 
     <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4" Style="padding-bottom: 40px;">
             @Body
         </MudContainer>
     </MudMainContent>
+    <StatusFooter />
 </MudLayout>
+<ActivityLogPanel @bind-IsOpen="_activityLogOpen" OnEventsRead="RefreshUnreadCount" />
+
 </CascadingAuthenticationState>
 
 @code {
     private bool _drawerOpen = true;
     private bool _tokenRefreshStarted;
+    private bool _activityLogOpen;
+    private int _unreadCount;
+    private bool _isDarkMode;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -170,12 +202,25 @@
         {
             _tokenRefreshStarted = true;
             await TokenRefreshService.StartAsync(JSRuntime);
+            await RefreshUnreadCount();
+
+            ThemeService.OnThemeChanged += OnThemeChanged;
+            await ThemeService.InitializeAsync();
+            _isDarkMode = ThemeService.IsDarkMode;
+            StateHasChanged();
         }
     }
 
     public async ValueTask DisposeAsync()
     {
+        ThemeService.OnThemeChanged -= OnThemeChanged;
         await TokenRefreshService.StopAsync();
+    }
+
+    private void OnThemeChanged()
+    {
+        _isDarkMode = ThemeService.IsDarkMode;
+        InvokeAsync(StateHasChanged);
     }
 
     private readonly MudTheme _theme = new()
@@ -208,5 +253,20 @@
     {
         // Navigate to logout page using relative path
         Navigation.NavigateTo("auth/logout", forceLoad: false);
+    }
+
+    private void ToggleActivityLog()
+    {
+        _activityLogOpen = !_activityLogOpen;
+    }
+
+    private async Task RefreshUnreadCount()
+    {
+        try
+        {
+            _unreadCount = await ActivityLogService.GetUnreadCountAsync();
+            StateHasChanged();
+        }
+        catch { /* Silently ignore — non-critical UI element */ }
     }
 }
