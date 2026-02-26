@@ -40,7 +40,7 @@
                             <div class="flex-grow-1">
                                 <MudText Typo="Typo.body2" Style="@(evt.IsRead ? "" : "font-weight: 600;")">@evt.Title</MudText>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">@evt.Message</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@evt.CreatedAt.LocalDateTime.ToString("HH:mm")</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@evt.CreatedAt.ToLocalTime().ToString("HH:mm")</MudText>
                             </div>
                         </div>
                     </MudListItem>

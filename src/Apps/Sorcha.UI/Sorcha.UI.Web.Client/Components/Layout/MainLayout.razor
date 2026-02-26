@@ -53,9 +53,12 @@
         </AuthorizeView>
     </MudAppBar>
 
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Never" Elevation="2">
+    <MudDrawer @bind-Open="_drawerOpen" Variant="@DrawerVariant.Mini" OpenMiniOnHover="true" ClipMode="DrawerClipMode.Always" Elevation="2">
         <MudDrawerHeader>
-            <MudText Typo="Typo.h6">Navigation</MudText>
+            @if (_drawerOpen)
+            {
+                <MudText Typo="Typo.h6">Navigation</MudText>
+            }
         </MudDrawerHeader>
         <AuthorizeView>
             <Authorized>
@@ -63,8 +66,11 @@
                     <MudNavLink Href="dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
                         Dashboard
                     </MudNavLink>
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">MY ACTIVITY</MudText>
+                    @if (_drawerOpen)
+                    {
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">MY ACTIVITY</MudText>
+                    }
                     <MudNavLink Href="my-workflows" Icon="@Icons.Material.Filled.PostAdd">
                         New Submission
                     </MudNavLink>
@@ -80,8 +86,11 @@
                     <MudNavLink Href="my-transactions" Icon="@Icons.Material.Filled.Receipt">
                         My Transactions
                     </MudNavLink>
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">DESIGNER</MudText>
+                    @if (_drawerOpen)
+                    {
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">DESIGNER</MudText>
+                    }
                     <MudNavLink Href="blueprints" Icon="@Icons.Material.Filled.Description">
                         My Blueprints
                     </MudNavLink>
@@ -97,8 +106,11 @@
                     <MudNavLink Href="schemas" Icon="@Icons.Material.Filled.Schema">
                         Data Schemas
                     </MudNavLink>
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">ADMINISTRATION</MudText>
+                    @if (_drawerOpen)
+                    {
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">ADMINISTRATION</MudText>
+                    }
                     <MudNavGroup Title="Wallets" Icon="@Icons.Material.Filled.AccountBalanceWallet" Expanded="false">
                         <MudNavLink Href="wallets" Icon="@Icons.Material.Filled.List">
                             All Wallets
@@ -143,7 +155,10 @@
                             </MudNavGroup>
                         </Authorized>
                     </AuthorizeView>
-                    <MudDivider Class="my-2" />
+                    @if (_drawerOpen)
+                    {
+                        <MudDivider Class="my-2" />
+                    }
                     <MudNavLink Href="settings" Icon="@Icons.Material.Filled.Settings">
                         Settings
                     </MudNavLink>
