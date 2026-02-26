@@ -178,10 +178,11 @@
     </MudDrawer>
 
     <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4" Style="padding-bottom: 40px;">
             @Body
         </MudContainer>
     </MudMainContent>
+    <StatusFooter />
 </MudLayout>
 <ActivityLogPanel @bind-IsOpen="_activityLogOpen" OnEventsRead="RefreshUnreadCount" />
 
