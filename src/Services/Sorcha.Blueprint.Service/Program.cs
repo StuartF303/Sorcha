@@ -112,7 +112,7 @@ builder.Services.AddDbContext<Sorcha.Blueprint.Service.Data.BlueprintEventsDbCon
     if (!string.IsNullOrEmpty(eventsConnStr))
         options.UseNpgsql(eventsConnStr, npgsql => npgsql.EnableRetryOnFailure(3));
     else
-        options.UseInMemoryDatabase("BlueprintEventsDb");
+        options.UseSqlite("DataSource=BlueprintEvents.db");
 });
 builder.Services.AddScoped<Sorcha.Blueprint.Service.Services.Interfaces.IEventService,
     Sorcha.Blueprint.Service.Services.Implementation.EventService>();

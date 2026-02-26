@@ -14,7 +14,7 @@ public class ActivityEventDto
     public string? EntityId { get; set; }
     public string? EntityType { get; set; }
     public bool IsRead { get; set; }
-    public DateTimeOffset CreatedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
     public string? UserDisplayName { get; set; }
 }
 

@@ -25,7 +25,7 @@ public class EventService : IEventService
 
     public async Task<(IReadOnlyList<ActivityEvent> Items, int TotalCount)> GetEventsAsync(
         Guid userId, int page, int pageSize, bool unreadOnly = false,
-        EventSeverity? severity = null, DateTimeOffset? since = null,
+        EventSeverity? severity = null, DateTime? since = null,
         CancellationToken ct = default)
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -76,7 +76,7 @@ public class EventService : IEventService
 
     public async Task<ActivityEvent> CreateEventAsync(ActivityEvent activityEvent, CancellationToken ct = default)
     {
-        activityEvent.CreatedAt = DateTimeOffset.UtcNow;
+        activityEvent.CreatedAt = DateTime.UtcNow;
         activityEvent.ExpiresAt = activityEvent.CreatedAt.AddDays(RetentionDays);
 
         _db.ActivityEvents.Add(activityEvent);
@@ -91,7 +91,7 @@ public class EventService : IEventService
 
     public async Task<(IReadOnlyList<ActivityEvent> Items, int TotalCount)> GetAdminEventsAsync(
         Guid organizationId, int page, int pageSize, Guid? userId = null,
-        EventSeverity? severity = null, DateTimeOffset? since = null,
+        EventSeverity? severity = null, DateTime? since = null,
         CancellationToken ct = default)
     {
         pageSize = Math.Clamp(pageSize, 1, 100);

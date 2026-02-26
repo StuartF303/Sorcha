@@ -52,7 +52,7 @@ public class EventCleanupService : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<BlueprintEventsDbContext>();
 
         var deleted = await db.ActivityEvents
-            .Where(e => e.ExpiresAt < DateTimeOffset.UtcNow)
+            .Where(e => e.ExpiresAt < DateTime.UtcNow)
             .ExecuteDeleteAsync(ct);
 
         if (deleted > 0)

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sorcha.Blueprint.Service.Data;
@@ -11,6 +12,7 @@ namespace Sorcha.Blueprint.Service.Tests.Services;
 
 public class EventServiceTests : IDisposable
 {
+    private readonly SqliteConnection _connection;
     private readonly BlueprintEventsDbContext _db;
     private readonly EventService _sut;
     private readonly Guid _userId = Guid.NewGuid();
@@ -18,15 +20,22 @@ public class EventServiceTests : IDisposable
 
     public EventServiceTests()
     {
+        _connection = new SqliteConnection("DataSource=:memory:");
+        _connection.Open();
         var options = new DbContextOptionsBuilder<BlueprintEventsDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseSqlite(_connection)
             .Options;
         _db = new BlueprintEventsDbContext(options);
+        _db.Database.EnsureCreated();
         var logger = Mock.Of<ILogger<EventService>>();
         _sut = new EventService(_db, logger);
     }
 
-    public void Dispose() => _db.Dispose();
+    public void Dispose()
+    {
+        _db.Dispose();
+        _connection.Dispose();
+    }
 
     [Fact]
     public async Task CreateEventAsync_SetsCreatedAtAndExpiresAt()
@@ -35,8 +44,8 @@ public class EventServiceTests : IDisposable
 
         var created = await _sut.CreateEventAsync(evt);
 
-        created.CreatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
-        created.ExpiresAt.Should().BeCloseTo(DateTimeOffset.UtcNow.AddDays(90), TimeSpan.FromSeconds(5));
+        created.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        created.ExpiresAt.Should().BeCloseTo(DateTime.UtcNow.AddDays(90), TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -126,6 +135,7 @@ public class EventServiceTests : IDisposable
         var marked = await _sut.MarkReadAsync(_userId, idsToMark);
 
         marked.Should().Be(2);
+        _db.ChangeTracker.Clear();
         var refreshed = await _db.ActivityEvents.Where(e => idsToMark.Contains(e.Id)).ToListAsync();
         refreshed.Should().AllSatisfy(e => e.IsRead.Should().BeTrue());
     }
@@ -138,6 +148,7 @@ public class EventServiceTests : IDisposable
         var marked = await _sut.MarkReadAsync(_userId);
 
         marked.Should().Be(3);
+        _db.ChangeTracker.Clear();
         var allRead = await _db.ActivityEvents.AllAsync(e => e.IsRead);
         allRead.Should().BeTrue();
     }
@@ -151,6 +162,7 @@ public class EventServiceTests : IDisposable
         var deleted = await _sut.DeleteEventAsync(evt.Id, _userId);
 
         deleted.Should().BeTrue();
+        _db.ChangeTracker.Clear();
         (await _db.ActivityEvents.FindAsync(evt.Id)).Should().BeNull();
     }
 
@@ -220,7 +232,7 @@ public class EventServiceTests : IDisposable
         for (var i = 0; i < count; i++)
         {
             var evt = MakeEvent();
-            evt.CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-i);
+            evt.CreatedAt = DateTime.UtcNow.AddMinutes(-i);
             evt.ExpiresAt = evt.CreatedAt.AddDays(90);
             _db.ActivityEvents.Add(evt);
         }

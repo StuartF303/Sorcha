@@ -35,22 +35,17 @@ public class BlueprintEventsDbContext : DbContext
             entity.Property(e => e.EntityId).HasMaxLength(200);
             entity.Property(e => e.EntityType).HasMaxLength(50);
 
-            // Indexes — only for relational providers
-            var isInMemory = Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
-            if (!isInMemory)
-            {
-                entity.HasIndex(e => new { e.UserId, e.CreatedAt })
-                    .HasDatabaseName("IX_ActivityEvent_UserId_CreatedAt")
-                    .IsDescending(false, true);
-                entity.HasIndex(e => new { e.OrganizationId, e.CreatedAt })
-                    .HasDatabaseName("IX_ActivityEvent_OrgId_CreatedAt")
-                    .IsDescending(false, true);
-                entity.HasIndex(e => e.ExpiresAt)
-                    .HasDatabaseName("IX_ActivityEvent_ExpiresAt");
-                entity.HasIndex(e => new { e.UserId, e.IsRead })
-                    .HasDatabaseName("IX_ActivityEvent_UserId_IsRead")
-                    .HasFilter("\"IsRead\" = false");
-            }
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt })
+                .HasDatabaseName("IX_ActivityEvent_UserId_CreatedAt")
+                .IsDescending(false, true);
+            entity.HasIndex(e => new { e.OrganizationId, e.CreatedAt })
+                .HasDatabaseName("IX_ActivityEvent_OrgId_CreatedAt")
+                .IsDescending(false, true);
+            entity.HasIndex(e => e.ExpiresAt)
+                .HasDatabaseName("IX_ActivityEvent_ExpiresAt");
+            entity.HasIndex(e => new { e.UserId, e.IsRead })
+                .HasDatabaseName("IX_ActivityEvent_UserId_IsRead")
+                .HasFilter("\"IsRead\" = false");
         });
     }
 }

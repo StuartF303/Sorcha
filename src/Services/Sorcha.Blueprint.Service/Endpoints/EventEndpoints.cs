@@ -51,7 +51,7 @@ public static class EventEndpoints
         int pageSize = 50,
         bool unreadOnly = false,
         string? severity = null,
-        DateTimeOffset? since = null,
+        DateTime? since = null,
         CancellationToken ct = default)
     {
         var userId = GetUserId(context);
@@ -131,7 +131,7 @@ public static class EventEndpoints
         int pageSize = 50,
         Guid? userId = null,
         string? severity = null,
-        DateTimeOffset? since = null,
+        DateTime? since = null,
         CancellationToken ct = default)
     {
         if (!IsAdmin(context))

@@ -20,8 +20,8 @@ public class ActivityEvent
     public string? EntityId { get; set; }
     public string? EntityType { get; set; }
     public bool IsRead { get; set; }
-    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
-    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime ExpiresAt { get; set; }
 }
 
 /// <summary>

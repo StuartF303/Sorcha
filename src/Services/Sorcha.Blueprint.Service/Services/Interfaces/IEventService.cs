@@ -12,7 +12,7 @@ public interface IEventService
 {
     Task<(IReadOnlyList<ActivityEvent> Items, int TotalCount)> GetEventsAsync(
         Guid userId, int page, int pageSize, bool unreadOnly = false,
-        EventSeverity? severity = null, DateTimeOffset? since = null,
+        EventSeverity? severity = null, DateTime? since = null,
         CancellationToken ct = default);
 
     Task<int> GetUnreadCountAsync(Guid userId, CancellationToken ct = default);
@@ -23,7 +23,7 @@ public interface IEventService
 
     Task<(IReadOnlyList<ActivityEvent> Items, int TotalCount)> GetAdminEventsAsync(
         Guid organizationId, int page, int pageSize, Guid? userId = null,
-        EventSeverity? severity = null, DateTimeOffset? since = null,
+        EventSeverity? severity = null, DateTime? since = null,
         CancellationToken ct = default);
 
     Task<bool> DeleteEventAsync(Guid eventId, Guid userId, CancellationToken ct = default);

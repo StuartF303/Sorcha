@@ -113,13 +113,13 @@
 
     private static Dictionary<string, List<ActivityEventDto>> GroupByDate(List<ActivityEventDto> events)
     {
-        var today = DateTimeOffset.Now.Date;
+        var today = DateTime.Now.Date;
         var yesterday = today.AddDays(-1);
 
         return events
             .GroupBy(e =>
             {
-                var date = e.CreatedAt.LocalDateTime.Date;
+                var date = e.CreatedAt.ToLocalTime().Date;
                 if (date == today) return "Today";
                 if (date == yesterday) return "Yesterday";
                 return date.ToString("dd MMM yyyy");
