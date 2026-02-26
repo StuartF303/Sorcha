@@ -30,6 +30,11 @@ public static class AuthenticationExtensions
                     return hasOrgId || isService;
                 }));
 
+            // Organization member operations
+            options.AddPolicy("RequireOrganizationMember", policy =>
+                policy.RequireAssertion(context =>
+                    context.User.Claims.Any(c => c.Type == "org_id" && !string.IsNullOrEmpty(c.Value))));
+
             // Service-to-service operations
             options.AddPolicy("RequireService", policy =>
                 policy.RequireClaim("token_type", "service"));

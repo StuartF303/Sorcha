@@ -105,7 +105,7 @@ public class ConnectionQualityTrackerTests
 
         // Assert
         quality.Should().NotBeNull();
-        quality!.QualityScore.Should().BeGreaterThan(90); // Excellent quality
+        quality!.QualityScore.Should().BeGreaterThan(80); // Excellent quality (anonymous peer max = 85)
         quality.QualityRating.Should().Be("Excellent");
     }
 

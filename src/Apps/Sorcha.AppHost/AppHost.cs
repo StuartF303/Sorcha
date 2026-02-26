@@ -39,7 +39,10 @@ var blueprintService = builder.AddProject<Projects.Sorcha_Blueprint_Service>("bl
     .WithReference(redis)
     .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey)
     .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
-    .WithEnvironment("JwtSettings__Audience", "https://sorcha.local");
+    .WithEnvironment("JwtSettings__Audience", "https://sorcha.local")
+    .WithEnvironment("ServiceAuth__ClientId", "service-blueprint")
+    .WithEnvironment("ServiceAuth__ClientSecret", "blueprint-service-secret")
+    .WithEnvironment("ServiceAuth__Scopes", "wallets:sign registers:write blueprints:manage");
 
 // Add Wallet Service with database and Redis reference (internal only)
 var walletService = builder.AddProject<Projects.Sorcha_Wallet_Service>("wallet-service")
@@ -47,11 +50,20 @@ var walletService = builder.AddProject<Projects.Sorcha_Wallet_Service>("wallet-s
     .WithReference(redis)
     .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey)
     .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
-    .WithEnvironment("JwtSettings__Audience", "https://sorcha.local");
+    .WithEnvironment("JwtSettings__Audience", "https://sorcha.local")
+    .WithEnvironment("ServiceAuth__ClientId", "service-wallet")
+    .WithEnvironment("ServiceAuth__ClientSecret", "wallet-service-secret")
+    .WithEnvironment("ServiceAuth__Scopes", "registers:write");
 
 // Add Peer Service with Redis reference (internal only)
 var peerService = builder.AddProject<Projects.Sorcha_Peer_Service>("peer-service")
-    .WithReference(redis);
+    .WithReference(redis)
+    .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey)
+    .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
+    .WithEnvironment("JwtSettings__Audience", "https://sorcha.local")
+    .WithEnvironment("ServiceAuth__ClientId", "service-peer")
+    .WithEnvironment("ServiceAuth__ClientSecret", "peer-service-secret")
+    .WithEnvironment("ServiceAuth__Scopes", "registers:write registers:read");
 
 // Add Register Service with MongoDB, Redis, and Peer Service reference
 var registerService = builder.AddProject<Projects.Sorcha_Register_Service>("register-service")
@@ -61,6 +73,9 @@ var registerService = builder.AddProject<Projects.Sorcha_Register_Service>("regi
     .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey)
     .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
     .WithEnvironment("JwtSettings__Audience", "https://sorcha.local")
+    .WithEnvironment("ServiceAuth__ClientId", "service-register")
+    .WithEnvironment("ServiceAuth__ClientSecret", "register-service-secret")
+    .WithEnvironment("ServiceAuth__Scopes", "validators:notify")
     .WithExternalHttpEndpoints(); // Exposed for walkthrough testing
 
 // Add Validator Service with dependencies
@@ -73,6 +88,9 @@ var validatorService = builder.AddProject<Projects.Sorcha_Validator_Service>("va
     .WithEnvironment("JwtSettings__SigningKey", jwtSigningKey)
     .WithEnvironment("JwtSettings__Issuer", "https://localhost:7110")
     .WithEnvironment("JwtSettings__Audience", "https://sorcha.local")
+    .WithEnvironment("ServiceAuth__ClientId", "service-validator")
+    .WithEnvironment("ServiceAuth__ClientSecret", "validator-service-secret")
+    .WithEnvironment("ServiceAuth__Scopes", "registers:write registers:read")
     .WithExternalHttpEndpoints(); // Exposed for walkthrough testing
 
 // Add API Gateway as the API entry point for backend services

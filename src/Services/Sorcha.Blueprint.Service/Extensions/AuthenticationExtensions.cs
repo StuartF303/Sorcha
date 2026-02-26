@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using Sorcha.ServiceClients.Auth;
+
 namespace Sorcha.Blueprint.Service.Extensions;
 
 /// <summary>
@@ -39,13 +41,13 @@ public static class AuthenticationExtensions
                 policy.RequireAssertion(context =>
                 {
                     var canPublish = context.User.Claims.Any(c => c.Type == "can_publish_blueprint" && c.Value == "true");
-                    var isAdmin = context.User.IsInRole("Administrator");
+                    var isAdmin = context.User.IsInRole("RequireAdministrator");
                     return canPublish || isAdmin;
                 }));
 
             // Administrator role - for schema import and other admin operations
-            options.AddPolicy("Administrator", policy =>
-                policy.RequireRole("Administrator"));
+            options.AddPolicy("RequireAdministrator", policy =>
+                policy.RequireRole("RequireAdministrator"));
 
             // Service-to-service operations
             options.AddPolicy("RequireService", policy =>
@@ -55,6 +57,19 @@ public static class AuthenticationExtensions
             options.AddPolicy("RequireOrganizationMember", policy =>
                 policy.RequireAssertion(context =>
                     context.User.Claims.Any(c => c.Type == "org_id" && !string.IsNullOrEmpty(c.Value))));
+
+            // Delegated authority — service acting on behalf of a user
+            options.AddPolicy("RequireDelegatedAuthority", policy =>
+                policy.RequireAssertion(context =>
+                {
+                    var isService = context.User.Claims.Any(c =>
+                        c.Type == TokenClaimConstants.TokenType &&
+                        c.Value == TokenClaimConstants.TokenTypeService);
+                    var hasDelegatedUser = context.User.Claims.Any(c =>
+                        c.Type == TokenClaimConstants.DelegatedUserId &&
+                        !string.IsNullOrEmpty(c.Value));
+                    return isService && hasDelegatedUser;
+                }));
         });
 
         return services;

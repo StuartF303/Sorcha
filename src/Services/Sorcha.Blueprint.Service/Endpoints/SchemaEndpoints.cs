@@ -59,7 +59,7 @@ public static class SchemaEndpoints
             .WithName("ImportExternalSchema")
             .WithSummary("Import external schema")
             .WithDescription("Import a schema from an external source into the local schema store")
-            .RequireAuthorization("Administrator");
+            .RequireAuthorization("RequireAdministrator");
 
         // POST /api/v1/schemas - Create custom schema
         schemaGroup.MapPost("/", CreateSchema)
@@ -101,7 +101,7 @@ public static class SchemaEndpoints
             .WithName("PublishSchema")
             .WithSummary("Publish a schema globally")
             .WithDescription("Make a custom schema available to all organizations")
-            .RequireAuthorization("Administrator");
+            .RequireAuthorization("RequireAdministrator");
     }
 
     /// <summary>

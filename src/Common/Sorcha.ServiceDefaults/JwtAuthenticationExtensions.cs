@@ -14,6 +14,19 @@ using Microsoft.IdentityModel.Tokens;
 namespace Microsoft.Extensions.Hosting;
 
 /// <summary>
+/// Abstraction for checking whether a token has been revoked.
+/// Register an implementation (e.g., Redis-backed) in DI to enable revocation checking.
+/// When no implementation is registered, revocation checking is skipped.
+/// </summary>
+public interface ITokenRevocationStore
+{
+    /// <summary>
+    /// Returns true if the token identified by <paramref name="jti"/> has been revoked.
+    /// </summary>
+    Task<bool> IsRevokedAsync(string jti, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// Configuration for JWT authentication across all Sorcha services.
 /// </summary>
 public class JwtSettings
@@ -223,14 +236,15 @@ public static class JwtAuthenticationExtensions
                             .CreateLogger("JwtAuthentication");
 
                         logger.LogWarning(
-                            context.Exception,
-                            "JWT authentication failed: {Message}",
-                            context.Exception.Message);
+                            "JWT authentication failed on {RequestPath}: {FailureReason} at {Timestamp}",
+                            context.HttpContext.Request.Path,
+                            context.Exception.Message,
+                            DateTimeOffset.UtcNow);
 
                         return Task.CompletedTask;
                     },
 
-                    OnTokenValidated = context =>
+                    OnTokenValidated = async context =>
                     {
                         var logger = context.HttpContext.RequestServices
                             .GetRequiredService<ILoggerFactory>()
@@ -239,11 +253,38 @@ public static class JwtAuthenticationExtensions
                         var userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                         var orgId = context.Principal?.FindFirst("org_id")?.Value;
 
+                        // Check token revocation if a revocation store is registered (FR-006)
+                        var revocationStore = context.HttpContext.RequestServices
+                            .GetService<ITokenRevocationStore>();
+                        if (revocationStore is not null)
+                        {
+                            var jti = context.Principal?.FindFirst("jti")?.Value;
+                            if (!string.IsNullOrEmpty(jti))
+                            {
+                                try
+                                {
+                                    if (await revocationStore.IsRevokedAsync(jti, context.HttpContext.RequestAborted))
+                                    {
+                                        logger.LogWarning(
+                                            "Token revoked on {RequestPath} for user {UserId} (jti: {Jti}) at {Timestamp}",
+                                            context.HttpContext.Request.Path, userId, jti, DateTimeOffset.UtcNow);
+                                        context.Fail("Token has been revoked");
+                                        return;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    // Revocation check failure is non-fatal — allow the request
+                                    logger.LogWarning(ex,
+                                        "Revocation check failed for jti {Jti}, allowing request",
+                                        jti);
+                                }
+                            }
+                        }
+
                         logger.LogDebug(
                             "Token validated for user {UserId}, org {OrgId}",
                             userId, orgId);
-
-                        return Task.CompletedTask;
                     }
                 };
             });

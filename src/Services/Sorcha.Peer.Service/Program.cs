@@ -79,6 +79,7 @@ builder.Services.AddGrpc(options =>
     options.EnableDetailedErrors = builder.Environment.IsDevelopment();
     options.MaxReceiveMessageSize = 16 * 1024 * 1024; // 16 MB
     options.MaxSendMessageSize = 16 * 1024 * 1024;    // 16 MB
+    options.Interceptors.Add<Sorcha.Peer.Service.GrpcServices.PeerAuthInterceptor>();
 });
 builder.Services.AddGrpcReflection();
 
@@ -91,6 +92,9 @@ builder.Services.AddOpenApi();
 // Configure peer service
 builder.Services.Configure<PeerServiceConfiguration>(
     builder.Configuration.GetSection("PeerService"));
+
+// Register gRPC auth interceptor (FR-014: authenticated peers get higher trust)
+builder.Services.AddSingleton<Sorcha.Peer.Service.GrpcServices.PeerAuthInterceptor>();
 
 // Register core services
 builder.Services.AddSingleton<StunClient>();

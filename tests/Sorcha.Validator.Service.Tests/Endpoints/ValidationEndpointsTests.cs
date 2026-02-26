@@ -4,6 +4,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -50,6 +51,10 @@ public class ValidationEndpointsTests : IClassFixture<WebApplicationFactory<Prog
             {
                 // Remove all hosted services to prevent background service startup
                 services.RemoveAll<Microsoft.Extensions.Hosting.IHostedService>();
+
+                // Replace JWT authentication with test auth handler
+                services.AddAuthentication("Test")
+                    .AddScheme<AuthenticationSchemeOptions, TestAdminAuthHandler>("Test", _ => { });
 
                 // Remove all validator service dependencies that need mocking
                 RemoveService<ITransactionValidator>(services);

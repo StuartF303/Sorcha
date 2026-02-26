@@ -22,12 +22,14 @@ public class ServiceAuthClient : IServiceAuthClient, IDisposable
     private readonly ILogger<ServiceAuthClient> _logger;
     private readonly string _clientId;
     private readonly string _clientSecret;
+    private readonly string _scopes;
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private string? _cachedToken;
     private DateTimeOffset _tokenExpiry = DateTimeOffset.MinValue;
 
     private static readonly TimeSpan RefreshBuffer = TimeSpan.FromMinutes(5);
+    private const string DefaultScopes = "wallets:sign";
 
     public ServiceAuthClient(
         HttpClient httpClient,
@@ -41,6 +43,7 @@ public class ServiceAuthClient : IServiceAuthClient, IDisposable
             ?? throw new InvalidOperationException("ServiceAuth:ClientId not configured");
         _clientSecret = configuration["ServiceAuth:ClientSecret"]
             ?? throw new InvalidOperationException("ServiceAuth:ClientSecret not configured");
+        _scopes = configuration["ServiceAuth:Scopes"] ?? DefaultScopes;
 
         // Set base address for Tenant Service (JWT issuer)
         if (_httpClient.BaseAddress is null)
@@ -59,6 +62,9 @@ public class ServiceAuthClient : IServiceAuthClient, IDisposable
         // Fast path: return cached token if still valid
         if (_cachedToken is not null && DateTimeOffset.UtcNow < _tokenExpiry - RefreshBuffer)
         {
+            _logger.LogDebug(
+                "Service token cache hit for {ClientId}, expires at {Expiry}",
+                _clientId, _tokenExpiry);
             return _cachedToken;
         }
 
@@ -68,6 +74,9 @@ public class ServiceAuthClient : IServiceAuthClient, IDisposable
             // Double-check after acquiring lock
             if (_cachedToken is not null && DateTimeOffset.UtcNow < _tokenExpiry - RefreshBuffer)
             {
+                _logger.LogDebug(
+                    "Service token cache hit for {ClientId} after lock acquisition",
+                    _clientId);
                 return _cachedToken;
             }
 
@@ -83,23 +92,35 @@ public class ServiceAuthClient : IServiceAuthClient, IDisposable
     {
         try
         {
-            _logger.LogDebug("Refreshing service auth token for client {ClientId}", _clientId);
+            _logger.LogInformation(
+                "Service token refresh triggered for {ClientId} with scopes [{Scopes}]",
+                _clientId, _scopes);
 
             var formData = new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["grant_type"] = "client_credentials",
                 ["client_id"] = _clientId,
                 ["client_secret"] = _clientSecret,
-                ["scope"] = "wallets:sign"
+                ["scope"] = _scopes
             });
 
             var response = await _httpClient.PostAsync("/api/service-auth/token", formData, cancellationToken);
-            response.EnsureSuccessStatusCode();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Service token acquisition failed for {ClientId}: HTTP {StatusCode}",
+                    _clientId, (int)response.StatusCode);
+                _cachedToken = null;
+                return null;
+            }
 
             var tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken);
             if (tokenResponse?.AccessToken is null)
             {
-                _logger.LogError("Token response from Tenant Service was null or missing access_token");
+                _logger.LogWarning(
+                    "Service token response for {ClientId} was null or missing access_token",
+                    _clientId);
                 _cachedToken = null;
                 return null;
             }
@@ -107,15 +128,25 @@ public class ServiceAuthClient : IServiceAuthClient, IDisposable
             _cachedToken = tokenResponse.AccessToken;
             _tokenExpiry = DateTimeOffset.UtcNow.AddSeconds(tokenResponse.ExpiresIn);
 
-            _logger.LogDebug(
-                "Service auth token refreshed for client {ClientId}, expires at {Expiry}",
-                _clientId, _tokenExpiry);
+            _logger.LogInformation(
+                "Service token acquired for {ClientId}, expires at {Expiry} (in {ExpiresInSeconds}s)",
+                _clientId, _tokenExpiry, tokenResponse.ExpiresIn);
 
             return _cachedToken;
         }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex,
+                "Service token acquisition failed for {ClientId}: network error communicating with Tenant Service",
+                _clientId);
+            _cachedToken = null;
+            return null;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to refresh service auth token for client {ClientId}", _clientId);
+            _logger.LogError(ex,
+                "Service token acquisition failed for {ClientId}: unexpected error",
+                _clientId);
             _cachedToken = null;
             return null;
         }
