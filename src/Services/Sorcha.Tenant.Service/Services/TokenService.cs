@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Sorcha.ServiceClients.Auth;
 using Sorcha.Tenant.Service.Extensions;
 using Sorcha.Tenant.Service.Models;
 using Sorcha.Tenant.Service.Models.Dtos;
@@ -79,9 +80,9 @@ public class TokenService : ITokenService
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(JwtRegisteredClaimNames.Jti, accessTokenJti),
             new("name", user.DisplayName),
-            new("org_id", organization.Id.ToString()),
+            new(TokenClaimConstants.OrgId, organization.Id.ToString()),
             new("org_name", organization.Name),
-            new("token_type", "user")
+            new(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeUser)
         };
 
         // Add role claims
@@ -128,7 +129,7 @@ public class TokenService : ITokenService
         {
             new(JwtRegisteredClaimNames.Sub, identity.Id.ToString()),
             new(JwtRegisteredClaimNames.Jti, accessTokenJti),
-            new("token_type", "user"),
+            new(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeUser),
             new("auth_method", "passkey")
         };
 
@@ -176,24 +177,24 @@ public class TokenService : ITokenService
             new(JwtRegisteredClaimNames.Sub, servicePrincipal.Id.ToString()),
             new(JwtRegisteredClaimNames.Jti, accessTokenJti),
             new("client_id", servicePrincipal.ClientId),
-            new("service_name", servicePrincipal.ServiceName),
-            new("token_type", "service")
+            new(TokenClaimConstants.ServiceName, servicePrincipal.ServiceName),
+            new(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService)
         };
 
         // Add allowed scopes
         foreach (var scope in servicePrincipal.Scopes)
         {
-            claims.Add(new Claim("scope", scope));
+            claims.Add(new Claim(TokenClaimConstants.Scope, scope));
         }
 
         // Add delegation claims if present
         if (delegatedUserId.HasValue)
         {
-            claims.Add(new Claim("delegated_user_id", delegatedUserId.Value.ToString()));
+            claims.Add(new Claim(TokenClaimConstants.DelegatedUserId, delegatedUserId.Value.ToString()));
         }
         if (delegatedOrgId.HasValue)
         {
-            claims.Add(new Claim("delegated_org_id", delegatedOrgId.Value.ToString()));
+            claims.Add(new Claim(TokenClaimConstants.DelegatedOrgId, delegatedOrgId.Value.ToString()));
         }
 
         var accessTokenExpiry = DateTimeOffset.UtcNow.AddHours(_config.ServiceTokenLifetimeHours);
@@ -249,7 +250,7 @@ public class TokenService : ITokenService
 
             // Extract claims for new token
             var userId = principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-            var orgId = principal.FindFirst("org_id")?.Value;
+            var orgId = principal.FindFirst(TokenClaimConstants.OrgId)?.Value;
 
             if (string.IsNullOrEmpty(userId))
             {
@@ -369,14 +370,14 @@ public class TokenService : ITokenService
                 Active = true,
                 Sub = principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value,
                 ClientId = principal.FindFirst("client_id")?.Value,
-                Scope = string.Join(" ", principal.FindAll("scope").Select(c => c.Value)),
+                Scope = string.Join(" ", principal.FindAll(TokenClaimConstants.Scope).Select(c => c.Value)),
                 Exp = jwt.ValidTo.ToUnixTimeSeconds(),
                 Iat = jwt.IssuedAt.ToUnixTimeSeconds(),
                 Iss = jwt.Issuer,
                 Aud = jwt.Audiences.FirstOrDefault(),
                 TokenType = "Bearer",
                 Jti = jti,
-                OrgId = principal.FindFirst("org_id")?.Value,
+                OrgId = principal.FindFirst(TokenClaimConstants.OrgId)?.Value,
                 Roles = roles.Length > 0 ? roles : null
             };
         }
@@ -447,7 +448,7 @@ public class TokenService : ITokenService
 
         if (!string.IsNullOrEmpty(orgId))
         {
-            claims.Add(new Claim("org_id", orgId));
+            claims.Add(new Claim(TokenClaimConstants.OrgId, orgId));
         }
 
         return GenerateToken(claims, expiry);

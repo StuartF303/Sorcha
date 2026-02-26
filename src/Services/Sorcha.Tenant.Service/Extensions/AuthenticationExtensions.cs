@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using Sorcha.ServiceClients.Auth;
+
 namespace Sorcha.Tenant.Service.Extensions;
 
 /// <summary>
@@ -165,22 +167,22 @@ public static class AuthenticationExtensions
 
             // Policy for authenticated organization members
             options.AddPolicy("RequireOrganizationMember", policy =>
-                policy.RequireClaim("org_id"));
+                policy.RequireClaim(TokenClaimConstants.OrgId));
 
             // Policy for service-to-service authentication
             options.AddPolicy("RequireService", policy =>
-                policy.RequireClaim("token_type", "service"));
+                policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService));
 
             // Policy for delegated authority (service acting on behalf of user)
             options.AddPolicy("RequireDelegatedAuthority", policy =>
             {
-                policy.RequireClaim("token_type", "service");
-                policy.RequireClaim("delegated_user_id");
+                policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService);
+                policy.RequireClaim(TokenClaimConstants.DelegatedUserId);
             });
 
             // Policy for public users (PassKey authenticated)
             options.AddPolicy("RequirePublicUser", policy =>
-                policy.RequireClaim("token_type", "user"));
+                policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeUser));
 
             // Policy for any authenticated user (org or public)
             options.AddPolicy("RequireAuthenticated", policy =>
