@@ -90,8 +90,8 @@
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Create `StatusFooter.razor` in `src/Apps/Sorcha.UI/Sorcha.UI.Web.Client/Components/Layout/StatusFooter.razor` — thin bar at bottom of page showing: version string (from assembly), health indicator (green dot + "Connected" or red dot + "Offline"), pending action count as `MudLink` to `/pending-actions`. Injects HttpClient for health check polling (every 30s) and actions count
-- [ ] T025 [US3] Modify `MainLayout.razor` to add `<StatusFooter />` below `MudMainContent` — position fixed at bottom, full width, styled with thin height (~32px), subtle background. Adjust MudMainContent padding-bottom to prevent content overlap
+- [X] T024 [US3] Create `StatusFooter.razor` in `src/Apps/Sorcha.UI/Sorcha.UI.Web.Client/Components/Layout/StatusFooter.razor` — thin bar at bottom of page showing: version string (from assembly), health indicator (green dot + "Connected" or red dot + "Offline"), pending action count as `MudLink` to `/pending-actions`. Injects HttpClient for health check polling (every 30s) and actions count
+- [X] T025 [US3] Modify `MainLayout.razor` to add `<StatusFooter />` below `MudMainContent` — position fixed at bottom, full width, styled with thin height (~32px), subtle background. Adjust MudMainContent padding-bottom to prevent content overlap
 - [ ] T026 [P] [US3] Write unit test for StatusFooter health check logic in `tests/Sorcha.UI.Core.Tests/Services/StatusFooterTests.cs` — test connected state, offline state, pending action count display, link navigation
 
 **Checkpoint**: Footer visible on all pages with live health indicator and pending count
