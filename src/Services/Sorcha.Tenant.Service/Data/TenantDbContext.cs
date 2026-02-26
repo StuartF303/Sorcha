@@ -33,6 +33,7 @@ public class TenantDbContext : DbContext
 
     // Per-tenant schema entities (isolated per organization)
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
+    public DbSet<UserPreferences> UserPreferences => Set<UserPreferences>();
     public DbSet<OrganizationPermissionConfiguration> OrganizationPermissionConfigurations => Set<OrganizationPermissionConfiguration>();
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
     public DbSet<ParticipantIdentity> ParticipantIdentities => Set<ParticipantIdentity>();
@@ -71,6 +72,9 @@ public class TenantDbContext : DbContext
 
         // Configure UserIdentity entity (per-org schema)
         ConfigureUserIdentity(modelBuilder);
+
+        // Configure UserPreferences entity (per-org schema)
+        ConfigureUserPreferences(modelBuilder);
 
         // Configure OrganizationPermissionConfiguration entity (per-org schema)
         ConfigureOrganizationPermissionConfiguration(modelBuilder);
@@ -549,6 +553,37 @@ public class TenantDbContext : DbContext
             // Index for address + status queries
             entity.HasIndex(e => new { e.WalletAddress, e.Status })
                 .HasDatabaseName("IX_Challenge_Address_Status");
+        });
+    }
+
+    private void ConfigureUserPreferences(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<UserPreferences>(entity =>
+        {
+            entity.ToTable("UserPreferences");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Theme)
+                .HasConversion<string>()
+                .IsRequired()
+                .HasMaxLength(20);
+
+            entity.Property(e => e.Language)
+                .IsRequired()
+                .HasMaxLength(5);
+
+            entity.Property(e => e.TimeFormat)
+                .HasConversion<string>()
+                .IsRequired()
+                .HasMaxLength(10);
+
+            entity.Property(e => e.DefaultWalletAddress)
+                .HasMaxLength(200);
+
+            // Unique index: one preferences record per user
+            entity.HasIndex(e => e.UserId)
+                .IsUnique()
+                .HasDatabaseName("UQ_UserPreferences_UserId");
         });
     }
 

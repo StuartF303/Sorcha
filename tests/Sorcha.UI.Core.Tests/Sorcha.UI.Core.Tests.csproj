@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Apps\Sorcha.UI\Sorcha.UI.Core\Sorcha.UI.Core.csproj" />
+    <ProjectReference Include="..\..\src\Apps\Sorcha.UI\Sorcha.UI.Web.Client\Sorcha.UI.Web.Client.csproj" />
   </ItemGroup>
 
 </Project>

@@ -260,6 +260,7 @@ app.MapOrganizationEndpoints();
 app.MapParticipantEndpoints();
 app.MapAuthEndpoints();
 app.MapServiceAuthEndpoints();
+app.MapUserPreferenceEndpoints();
 
 // Health check is provided by MapDefaultEndpoints() which maps /health and /alive
 // The standard Aspire health endpoint returns plain text "Healthy" or "Unhealthy"

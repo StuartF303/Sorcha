@@ -31,12 +31,12 @@
 
 **⚠️ CRITICAL**: No user story work on US4, US5, or US7 can begin until this phase is complete. US1, US2, US3, US6, US8 have no dependency on this phase and CAN start in parallel.
 
-- [ ] T004 Create `UserPreferences` entity model in `src/Services/Sorcha.Tenant.Service/Models/UserPreferences.cs` with fields: Id, UserId (FK), Theme, Language, TimeFormat, DefaultWalletAddress, NotificationsEnabled, TwoFactorEnabled, UpdatedAt — and add `ThemePreference` + `TimeFormatPreference` enums
-- [ ] T005 Add `UserPreferences` DbSet to `src/Services/Sorcha.Tenant.Service/Data/TenantDbContext.cs`, configure entity (unique index on UserId, FK to UserIdentity with cascade delete), and create EF Core migration
-- [ ] T006 Create `UserPreferenceEndpoints.cs` in `src/Services/Sorcha.Tenant.Service/Endpoints/UserPreferenceEndpoints.cs` implementing: GET `/api/preferences` (lazy-create), PUT `/api/preferences` (partial update), GET `/api/preferences/default-wallet`, PUT `/api/preferences/default-wallet`, DELETE `/api/preferences/default-wallet` — per contract in `contracts/user-preferences-api.md`. Register endpoint group in `src/Services/Sorcha.Tenant.Service/Program.cs`
-- [ ] T007 [P] Create `UserPreferencesDto` and `UpdateUserPreferencesRequest` DTOs in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Models/UserPreferencesDto.cs`
-- [ ] T008 Create `IUserPreferencesService` / `UserPreferencesService` in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Services/UserPreferencesService.cs` — HTTP client calling Tenant Service preferences API (GET, PUT, default-wallet endpoints). Register in DI via `src/Apps/Sorcha.UI/Sorcha.UI.Core/Extensions/ServiceCollectionExtensions.cs`
-- [ ] T009 Write unit tests for UserPreference endpoints in `tests/Sorcha.Tenant.Service.Tests/Endpoints/UserPreferenceTests.cs` — test lazy-create, partial update, validation rejection, default-wallet CRUD
+- [X] T004 Create `UserPreferences` entity model in `src/Services/Sorcha.Tenant.Service/Models/UserPreferences.cs` with fields: Id, UserId (FK), Theme, Language, TimeFormat, DefaultWalletAddress, NotificationsEnabled, TwoFactorEnabled, UpdatedAt — and add `ThemePreference` + `TimeFormatPreference` enums
+- [X] T005 Add `UserPreferences` DbSet to `src/Services/Sorcha.Tenant.Service/Data/TenantDbContext.cs`, configure entity (unique index on UserId, FK to UserIdentity with cascade delete), and create EF Core migration
+- [X] T006 Create `UserPreferenceEndpoints.cs` in `src/Services/Sorcha.Tenant.Service/Endpoints/UserPreferenceEndpoints.cs` implementing: GET `/api/preferences` (lazy-create), PUT `/api/preferences` (partial update), GET `/api/preferences/default-wallet`, PUT `/api/preferences/default-wallet`, DELETE `/api/preferences/default-wallet` — per contract in `contracts/user-preferences-api.md`. Register endpoint group in `src/Services/Sorcha.Tenant.Service/Program.cs`
+- [X] T007 [P] Create `UserPreferencesDto` and `UpdateUserPreferencesRequest` DTOs in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Models/UserPreferencesDto.cs`
+- [X] T008 Create `IUserPreferencesService` / `UserPreferencesService` in `src/Apps/Sorcha.UI/Sorcha.UI.Core/Services/UserPreferencesService.cs` — HTTP client calling Tenant Service preferences API (GET, PUT, default-wallet endpoints). Register in DI via `src/Apps/Sorcha.UI/Sorcha.UI.Core/Extensions/ServiceCollectionExtensions.cs`
+- [X] T009 Write unit tests for UserPreference endpoints in `tests/Sorcha.Tenant.Service.Tests/Endpoints/UserPreferenceTests.cs` — test lazy-create, partial update, validation rejection, default-wallet CRUD
 
 **Checkpoint**: UserPreferences infrastructure ready — US4, US5, US7 can now proceed
 
@@ -60,7 +60,7 @@
 - [X] T017 [US1] Create `ActivityLogPanel.razor` in `src/Apps/Sorcha.UI/Sorcha.UI.Web.Client/Components/Layout/ActivityLogPanel.razor` — right-side MudDrawer overlay (Anchor.End), shows events newest-first grouped by date (Today, Yesterday, specific dates), severity icon per event, "Mark All Read" button, virtual scroll for large lists. Injects `IActivityLogService`
 - [X] T018 [US1] Modify `MainLayout.razor` in `src/Apps/Sorcha.UI/Sorcha.UI.Web.Client/Components/Layout/MainLayout.razor` — add bell icon (`MudIconButton`) with `MudBadge` unread count in MudAppBar, wire click to open ActivityLogPanel overlay, connect to ActivityLogService for real-time badge updates. Remove or deprecate MudSnackbar usage for events that now go to activity log
 - [X] T019 [P] [US1] Write unit tests in `tests/Sorcha.Blueprint.Service.Tests/Services/EventServiceTests.cs` — test GetEventsAsync pagination, GetUnreadCountAsync, MarkReadAsync (specific + all), CreateEventAsync, admin org-wide filter, 90-day expiry setting
-- [ ] T020 [P] [US1] Write endpoint tests in `tests/Sorcha.Blueprint.Service.Tests/Endpoints/EventEndpointTests.cs` — test each endpoint: GET events returns paginated list, unread count, mark-read, admin-only access, service-to-service create, delete own event only
+- [X] T020 [P] [US1] Write endpoint tests in `tests/Sorcha.Blueprint.Service.Tests/Endpoints/EventEndpointTests.cs` — test each endpoint: GET events returns paginated list, unread count, mark-read, admin-only access, service-to-service create, delete own event only
 
 **Checkpoint**: Activity log fully functional — events created, persisted, pushed via SignalR, displayed in overlay with unread badge
 
@@ -92,7 +92,7 @@
 
 - [X] T024 [US3] Create `StatusFooter.razor` in `src/Apps/Sorcha.UI/Sorcha.UI.Web.Client/Components/Layout/StatusFooter.razor` — thin bar at bottom of page showing: version string (from assembly), health indicator (green dot + "Connected" or red dot + "Offline"), pending action count as `MudLink` to `/pending-actions`. Injects HttpClient for health check polling (every 30s) and actions count
 - [X] T025 [US3] Modify `MainLayout.razor` to add `<StatusFooter />` below `MudMainContent` — position fixed at bottom, full width, styled with thin height (~32px), subtle background. Adjust MudMainContent padding-bottom to prevent content overlap
-- [ ] T026 [P] [US3] Write unit test for StatusFooter health check logic in `tests/Sorcha.UI.Core.Tests/Services/StatusFooterTests.cs` — test connected state, offline state, pending action count display, link navigation
+- [X] T026 [P] [US3] Write unit test for StatusFooter health check logic in `tests/Sorcha.UI.Core.Tests/Services/StatusFooterTests.cs` — test connected state, offline state, pending action count display, link navigation
 
 **Checkpoint**: Footer visible on all pages with live health indicator and pending count
 
