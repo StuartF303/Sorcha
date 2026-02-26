@@ -244,6 +244,16 @@ public static class ServiceCollectionExtensions
         // Chat Hub Connection (SignalR for AI-assisted blueprint design)
         services.AddChatHubServices(baseAddress);
 
+        // Activity Log Service (043)
+        services.AddScoped<IActivityLogService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+            var httpClient = new HttpClient(handler) { BaseAddress = new Uri(baseAddress) };
+            var logger = sp.GetRequiredService<ILogger<ActivityLogService>>();
+            return new ActivityLogService(httpClient, logger);
+        });
+
         // Actions Hub Connection (SignalR for real-time action notifications)
         services.AddActionsHubServices(baseAddress);
 

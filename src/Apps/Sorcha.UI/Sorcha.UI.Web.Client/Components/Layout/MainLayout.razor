@@ -3,9 +3,11 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using MudBlazor
 @using Sorcha.UI.Core.Services.Authentication
+@using Sorcha.UI.Core.Services
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ITokenRefreshService TokenRefreshService
+@inject IActivityLogService ActivityLogService
 @inject IJSRuntime JSRuntime
 
 <MudThemeProvider Theme="_theme" />
@@ -21,6 +23,12 @@
         <MudSpacer />
         <AuthorizeView>
             <Authorized>
+                <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" OnClick="@ToggleActivityLog" Title="Activity Log">
+                    @if (_unreadCount > 0)
+                    {
+                        <MudBadge Content="@_unreadCount" Color="Color.Error" Overlap="true" />
+                    }
+                </MudIconButton>
                 <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
                     <MudMenuItem>
                         <div class="d-flex flex-column py-2 px-3">
@@ -158,11 +166,15 @@
         </MudContainer>
     </MudMainContent>
 </MudLayout>
+<ActivityLogPanel @bind-IsOpen="_activityLogOpen" OnEventsRead="RefreshUnreadCount" />
+
 </CascadingAuthenticationState>
 
 @code {
     private bool _drawerOpen = true;
     private bool _tokenRefreshStarted;
+    private bool _activityLogOpen;
+    private int _unreadCount;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -170,6 +182,7 @@
         {
             _tokenRefreshStarted = true;
             await TokenRefreshService.StartAsync(JSRuntime);
+            await RefreshUnreadCount();
         }
     }
 
@@ -208,5 +221,20 @@
     {
         // Navigate to logout page using relative path
         Navigation.NavigateTo("auth/logout", forceLoad: false);
+    }
+
+    private void ToggleActivityLog()
+    {
+        _activityLogOpen = !_activityLogOpen;
+    }
+
+    private async Task RefreshUnreadCount()
+    {
+        try
+        {
+            _unreadCount = await ActivityLogService.GetUnreadCountAsync();
+            StateHasChanged();
+        }
+        catch { /* Silently ignore — non-critical UI element */ }
     }
 }
