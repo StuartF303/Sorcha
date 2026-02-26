@@ -98,12 +98,12 @@
                         Data Schemas
                     </MudNavLink>
                     <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">MANAGEMENT</MudText>
+                    <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">ADMINISTRATION</MudText>
                     <MudNavGroup Title="Wallets" Icon="@Icons.Material.Filled.AccountBalanceWallet" Expanded="false">
                         <MudNavLink Href="wallets" Icon="@Icons.Material.Filled.List">
                             All Wallets
                         </MudNavLink>
-                        <MudNavLink Href="wallets/create" Icon="@Icons.Material.Filled.Add">
+                        <MudNavLink Href="wallets/create" Icon="@Icons.Material.Filled.AddCircleOutline">
                             Create Wallet
                         </MudNavLink>
                         <MudNavLink Href="wallets/recover" Icon="@Icons.Material.Filled.Restore">
@@ -116,31 +116,33 @@
                     <MudNavLink Href="participants" Icon="@Icons.Material.Filled.People">
                         Participants
                     </MudNavLink>
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">ADMIN</MudText>
-                    <MudNavGroup Title="Administration" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
-                        <MudNavLink Href="admin/health" Icon="@Icons.Material.Filled.HealthAndSafety">
-                            System Health
-                        </MudNavLink>
-                        <MudNavLink Href="admin/peers" Icon="@Icons.Material.Filled.Hub">
-                            Peer Network
-                        </MudNavLink>
-                        <MudNavLink Href="admin/organizations" Icon="@Icons.Material.Filled.Business">
-                            Organizations
-                        </MudNavLink>
-                        <MudNavLink Href="admin/validator" Icon="@Icons.Material.Filled.VerifiedUser">
-                            Validator
-                        </MudNavLink>
-                        <MudNavLink Href="admin/principals" Icon="@Icons.Material.Filled.VpnKey">
-                            Service Principals
-                        </MudNavLink>
-                        <MudNavLink Href="admin/sectors" Icon="@Icons.Material.Filled.FilterList">
-                            Schema Sectors
-                        </MudNavLink>
-                        <MudNavLink Href="admin/schema-providers" Icon="@Icons.Material.Filled.CloudSync">
-                            Schema Providers
-                        </MudNavLink>
-                    </MudNavGroup>
+                    <AuthorizeView Roles="Administrator,SystemAdmin">
+                        <Authorized Context="adminContext">
+                            <MudNavGroup Title="System" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
+                                <MudNavLink Href="admin/health" Icon="@Icons.Material.Filled.HealthAndSafety">
+                                    System Health
+                                </MudNavLink>
+                                <MudNavLink Href="admin/peers" Icon="@Icons.Material.Filled.Hub">
+                                    Peer Network
+                                </MudNavLink>
+                                <MudNavLink Href="admin/organizations" Icon="@Icons.Material.Filled.Business">
+                                    Organisations
+                                </MudNavLink>
+                                <MudNavLink Href="admin/validator" Icon="@Icons.Material.Filled.VerifiedUser">
+                                    Validator
+                                </MudNavLink>
+                                <MudNavLink Href="admin/principals" Icon="@Icons.Material.Filled.VpnKey">
+                                    Service Principals
+                                </MudNavLink>
+                                <MudNavLink Href="admin/sectors" Icon="@Icons.Material.Filled.FilterList">
+                                    Schema Sectors
+                                </MudNavLink>
+                                <MudNavLink Href="admin/schema-providers" Icon="@Icons.Material.Filled.CloudSync">
+                                    Schema Providers
+                                </MudNavLink>
+                            </MudNavGroup>
+                        </Authorized>
+                    </AuthorizeView>
                     <MudDivider Class="my-2" />
                     <MudNavLink Href="settings" Icon="@Icons.Material.Filled.Settings">
                         Settings
