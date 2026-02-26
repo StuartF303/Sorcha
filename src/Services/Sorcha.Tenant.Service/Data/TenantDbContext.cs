@@ -34,6 +34,7 @@ public class TenantDbContext : DbContext
     // Per-tenant schema entities (isolated per organization)
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<UserPreferences> UserPreferences => Set<UserPreferences>();
+    public DbSet<TotpConfiguration> TotpConfigurations => Set<TotpConfiguration>();
     public DbSet<OrganizationPermissionConfiguration> OrganizationPermissionConfigurations => Set<OrganizationPermissionConfiguration>();
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
     public DbSet<ParticipantIdentity> ParticipantIdentities => Set<ParticipantIdentity>();
@@ -42,6 +43,9 @@ public class TenantDbContext : DbContext
     // Public schema entities for participant wallet linking (platform-wide uniqueness)
     public DbSet<LinkedWalletAddress> LinkedWalletAddresses => Set<LinkedWalletAddress>();
     public DbSet<WalletLinkChallenge> WalletLinkChallenges => Set<WalletLinkChallenge>();
+
+    // Public schema entities for push notifications
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
     // Public schema entities for platform-level configuration
     public DbSet<SystemConfiguration> SystemConfigurations => Set<SystemConfiguration>();
@@ -76,6 +80,9 @@ public class TenantDbContext : DbContext
         // Configure UserPreferences entity (per-org schema)
         ConfigureUserPreferences(modelBuilder);
 
+        // Configure TotpConfiguration entity (per-org schema)
+        ConfigureTotpConfiguration(modelBuilder);
+
         // Configure OrganizationPermissionConfiguration entity (per-org schema)
         ConfigureOrganizationPermissionConfiguration(modelBuilder);
 
@@ -93,6 +100,9 @@ public class TenantDbContext : DbContext
 
         // Configure WalletLinkChallenge entity (public schema)
         ConfigureWalletLinkChallenge(modelBuilder);
+
+        // Configure PushSubscription entity (public schema)
+        ConfigurePushSubscription(modelBuilder);
 
         // Configure SystemConfiguration entity (public schema)
         ConfigureSystemConfiguration(modelBuilder);
@@ -584,6 +594,62 @@ public class TenantDbContext : DbContext
             entity.HasIndex(e => e.UserId)
                 .IsUnique()
                 .HasDatabaseName("UQ_UserPreferences_UserId");
+        });
+    }
+
+    private void ConfigureTotpConfiguration(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TotpConfiguration>(entity =>
+        {
+            entity.ToTable("TotpConfigurations");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.EncryptedSecret)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(e => e.BackupCodes)
+                .IsRequired()
+                .HasMaxLength(2000);
+
+            // Unique index: one TOTP config per user
+            entity.HasIndex(e => e.UserId)
+                .IsUnique()
+                .HasDatabaseName("UQ_TotpConfiguration_UserId");
+        });
+    }
+
+    private void ConfigurePushSubscription(ModelBuilder modelBuilder)
+    {
+        var isInMemory = Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+        modelBuilder.Entity<PushSubscription>(entity =>
+        {
+            if (isInMemory)
+                entity.ToTable("PushSubscriptions");
+            else
+                entity.ToTable("PushSubscriptions", "public");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Endpoint)
+                .IsRequired()
+                .HasMaxLength(2000);
+
+            entity.Property(e => e.P256dhKey)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(e => e.AuthKey)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("IX_PushSubscription_UserId");
+
+            entity.HasIndex(e => new { e.UserId, e.Endpoint })
+                .IsUnique()
+                .HasDatabaseName("UQ_PushSubscription_User_Endpoint");
         });
     }
 

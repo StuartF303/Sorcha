@@ -41,6 +41,24 @@ public class Profile
     public string? WalletServiceUrl { get; set; }
 
     /// <summary>
+    /// Base URL for the Blueprint Service API.
+    /// If not specified, derived from ServiceUrl.
+    /// </summary>
+    public string? BlueprintServiceUrl { get; set; }
+
+    /// <summary>
+    /// Base URL for the Validator Service API.
+    /// If not specified, derived from ServiceUrl.
+    /// </summary>
+    public string? ValidatorServiceUrl { get; set; }
+
+    /// <summary>
+    /// Base URL for the API Gateway.
+    /// If not specified, derived from ServiceUrl.
+    /// </summary>
+    public string? GatewayUrl { get; set; }
+
+    /// <summary>
     /// OAuth2 token endpoint for authentication.
     /// If not specified, derived from ServiceUrl as {ServiceUrl}/api/service-auth/token.
     /// </summary>
@@ -85,6 +103,21 @@ public class Profile
     /// Gets the effective Wallet Service URL, deriving from ServiceUrl if not explicitly set.
     /// </summary>
     public string GetWalletServiceUrl() => WalletServiceUrl ?? ServiceUrl ?? string.Empty;
+
+    /// <summary>
+    /// Gets the effective Blueprint Service URL, deriving from ServiceUrl if not explicitly set.
+    /// </summary>
+    public string GetBlueprintServiceUrl() => BlueprintServiceUrl ?? ServiceUrl ?? string.Empty;
+
+    /// <summary>
+    /// Gets the effective Validator Service URL, deriving from ServiceUrl if not explicitly set.
+    /// </summary>
+    public string GetValidatorServiceUrl() => ValidatorServiceUrl ?? ServiceUrl ?? string.Empty;
+
+    /// <summary>
+    /// Gets the effective API Gateway URL, deriving from ServiceUrl if not explicitly set.
+    /// </summary>
+    public string GetGatewayUrl() => GatewayUrl ?? ServiceUrl ?? string.Empty;
 
     /// <summary>
     /// Gets the effective Auth Token URL, deriving from ServiceUrl if not explicitly set.

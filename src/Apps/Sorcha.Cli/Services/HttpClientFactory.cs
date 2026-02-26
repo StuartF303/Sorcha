@@ -80,6 +80,84 @@ public class HttpClientFactory
     }
 
     /// <summary>
+    /// Creates a Blueprint Service client for the specified profile.
+    /// </summary>
+    public async Task<IBlueprintServiceClient> CreateBlueprintServiceClientAsync(string profileName)
+    {
+        var profile = await _configService.GetProfileAsync(profileName);
+        if (profile == null)
+        {
+            throw new InvalidOperationException($"Profile '{profileName}' does not exist.");
+        }
+
+        var httpClient = CreateHttpClient(profile, profile.GetBlueprintServiceUrl());
+        return RestService.For<IBlueprintServiceClient>(httpClient);
+    }
+
+    /// <summary>
+    /// Creates a Participant Service client for the specified profile.
+    /// Uses the Tenant Service URL since participant endpoints are on the Tenant Service.
+    /// </summary>
+    public async Task<IParticipantServiceClient> CreateParticipantServiceClientAsync(string profileName)
+    {
+        var profile = await _configService.GetProfileAsync(profileName);
+        if (profile == null)
+        {
+            throw new InvalidOperationException($"Profile '{profileName}' does not exist.");
+        }
+
+        var httpClient = CreateHttpClient(profile, profile.GetTenantServiceUrl());
+        return RestService.For<IParticipantServiceClient>(httpClient);
+    }
+
+    /// <summary>
+    /// Creates a Credential Service client for the specified profile.
+    /// Uses the Gateway URL since credential endpoints route through the API Gateway.
+    /// </summary>
+    public async Task<ICredentialServiceClient> CreateCredentialServiceClientAsync(string profileName)
+    {
+        var profile = await _configService.GetProfileAsync(profileName);
+        if (profile == null)
+        {
+            throw new InvalidOperationException($"Profile '{profileName}' does not exist.");
+        }
+
+        var httpClient = CreateHttpClient(profile, profile.GetGatewayUrl());
+        return RestService.For<ICredentialServiceClient>(httpClient);
+    }
+
+    /// <summary>
+    /// Creates a Validator Service client for the specified profile.
+    /// </summary>
+    public async Task<IValidatorServiceClient> CreateValidatorServiceClientAsync(string profileName)
+    {
+        var profile = await _configService.GetProfileAsync(profileName);
+        if (profile == null)
+        {
+            throw new InvalidOperationException($"Profile '{profileName}' does not exist.");
+        }
+
+        var httpClient = CreateHttpClient(profile, profile.GetValidatorServiceUrl());
+        return RestService.For<IValidatorServiceClient>(httpClient);
+    }
+
+    /// <summary>
+    /// Creates an Admin Service client for the specified profile.
+    /// Uses the Gateway URL since admin endpoints route through the API Gateway.
+    /// </summary>
+    public async Task<IAdminServiceClient> CreateAdminServiceClientAsync(string profileName)
+    {
+        var profile = await _configService.GetProfileAsync(profileName);
+        if (profile == null)
+        {
+            throw new InvalidOperationException($"Profile '{profileName}' does not exist.");
+        }
+
+        var httpClient = CreateHttpClient(profile, profile.GetGatewayUrl());
+        return RestService.For<IAdminServiceClient>(httpClient);
+    }
+
+    /// <summary>
     /// Creates an HTTP client with resilience policies.
     /// </summary>
     private HttpClient CreateHttpClient(Profile profile, string baseUrl)

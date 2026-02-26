@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.JSInterop;
 using Sorcha.UI.Core.Models.Admin;
 using Sorcha.UI.Core.Services;
 using Sorcha.UI.Core.Services.Authentication;
@@ -272,6 +273,44 @@ public static class ServiceCollectionExtensions
 
         // Actions Hub Connection (SignalR for real-time action notifications)
         services.AddActionsHubServices(baseAddress);
+
+        // Theme Service (043 - T042)
+        services.AddScoped<IThemeService>(sp =>
+        {
+            var userPreferences = sp.GetRequiredService<IUserPreferencesService>();
+            var jsRuntime = sp.GetRequiredService<IJSRuntime>();
+            var logger = sp.GetRequiredService<ILogger<ThemeService>>();
+            return new ThemeService(userPreferences, jsRuntime, logger);
+        });
+
+        // Localization Service (043 - T043)
+        services.AddScoped<ILocalizationService>(sp =>
+        {
+            var httpClient = sp.GetRequiredService<HttpClient>();
+            var userPreferences = sp.GetRequiredService<IUserPreferencesService>();
+            var jsRuntime = sp.GetRequiredService<IJSRuntime>();
+            var logger = sp.GetRequiredService<ILogger<LocalizationService>>();
+            return new LocalizationService(httpClient, userPreferences, jsRuntime, logger);
+        });
+
+        // TOTP Client Service (043 - T044)
+        services.AddScoped<ITotpClientService>(sp =>
+        {
+            var handler = sp.GetRequiredService<AuthenticatedHttpMessageHandler>();
+            handler.InnerHandler = new HttpClientHandler();
+            var httpClient = new HttpClient(handler) { BaseAddress = new Uri(baseAddress) };
+            var logger = sp.GetRequiredService<ILogger<TotpClientService>>();
+            return new TotpClientService(httpClient, logger);
+        });
+
+        // Time Format Service (043 - T045)
+        services.AddScoped<ITimeFormatService>(sp =>
+        {
+            var userPreferences = sp.GetRequiredService<IUserPreferencesService>();
+            var jsRuntime = sp.GetRequiredService<IJSRuntime>();
+            var logger = sp.GetRequiredService<ILogger<TimeFormatService>>();
+            return new TimeFormatService(userPreferences, jsRuntime, logger);
+        });
 
         return services;
     }

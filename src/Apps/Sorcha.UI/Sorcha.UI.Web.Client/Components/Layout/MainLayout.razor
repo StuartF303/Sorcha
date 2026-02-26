@@ -8,9 +8,10 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ITokenRefreshService TokenRefreshService
 @inject IActivityLogService ActivityLogService
+@inject IThemeService ThemeService
 @inject IJSRuntime JSRuntime
 
-<MudThemeProvider Theme="_theme" />
+<MudThemeProvider Theme="_theme" IsDarkMode="@_isDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -193,6 +194,7 @@
     private bool _tokenRefreshStarted;
     private bool _activityLogOpen;
     private int _unreadCount;
+    private bool _isDarkMode;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -201,12 +203,24 @@
             _tokenRefreshStarted = true;
             await TokenRefreshService.StartAsync(JSRuntime);
             await RefreshUnreadCount();
+
+            ThemeService.OnThemeChanged += OnThemeChanged;
+            await ThemeService.InitializeAsync();
+            _isDarkMode = ThemeService.IsDarkMode;
+            StateHasChanged();
         }
     }
 
     public async ValueTask DisposeAsync()
     {
+        ThemeService.OnThemeChanged -= OnThemeChanged;
         await TokenRefreshService.StopAsync();
+    }
+
+    private void OnThemeChanged()
+    {
+        _isDarkMode = ThemeService.IsDarkMode;
+        InvokeAsync(StateHasChanged);
     }
 
     private readonly MudTheme _theme = new()

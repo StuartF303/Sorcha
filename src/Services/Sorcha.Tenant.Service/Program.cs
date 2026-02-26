@@ -205,6 +205,15 @@ builder.Services.AddRateLimiter(options =>
                     QueueLimit = builder.Configuration.GetValue<int>("RateLimiting:QueueLimit")
                 }));
     }
+
+    // TOTP validation rate limiting: 5 attempts per minute per IP
+    options.AddFixedWindowLimiter(TotpEndpoints.TotpRateLimitPolicy, config =>
+    {
+        config.PermitLimit = 5;
+        config.Window = TimeSpan.FromMinutes(1);
+        config.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        config.QueueLimit = 0;
+    });
 });
 
 // Add health checks (PostgreSQL and Redis when configured)
@@ -261,6 +270,8 @@ app.MapParticipantEndpoints();
 app.MapAuthEndpoints();
 app.MapServiceAuthEndpoints();
 app.MapUserPreferenceEndpoints();
+app.MapTotpEndpoints();
+app.MapPushSubscriptionEndpoints();
 
 // Health check is provided by MapDefaultEndpoints() which maps /health and /alive
 // The standard Aspire health endpoint returns plain text "Healthy" or "Unhealthy"

@@ -107,6 +107,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IParticipantPublishingService, ParticipantPublishingService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IServiceAuthService, ServiceAuthService>();
+        services.AddScoped<ITotpService, TotpService>();
 
         return services;
     }

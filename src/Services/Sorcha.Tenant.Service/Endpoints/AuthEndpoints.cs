@@ -24,11 +24,26 @@ public static class AuthEndpoints
             .WithTags("Authentication");
 
         // Login with email/password (public endpoint)
+        // Returns TokenResponse on success, or TwoFactorLoginResponse if TOTP 2FA is enabled
         group.MapPost("/login", Login)
             .WithName("Login")
             .WithSummary("Login with email and password")
-            .WithDescription("Authenticates a user with email and password and returns access and refresh tokens.")
+            .WithDescription("Authenticates a user with email and password. Returns access/refresh tokens on success, "
+                + "or a loginToken with requiresTwoFactor=true if the user has TOTP 2FA enabled.")
             .AllowAnonymous()
+            .Produces<TokenResponse>()
+            .Produces<TwoFactorLoginResponse>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized);
+
+        // Verify 2FA code after login (public endpoint — uses loginToken)
+        group.MapPost("/verify-2fa", Verify2Fa)
+            .WithName("Verify2Fa")
+            .WithSummary("Verify TOTP 2FA code to complete login")
+            .WithDescription("Accepts a loginToken (from login response) and a TOTP code or backup code. "
+                + "Returns access/refresh tokens on successful verification.")
+            .AllowAnonymous()
+            .RequireRateLimiting(TotpEndpoints.TotpRateLimitPolicy)
             .Produces<TokenResponse>()
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized);
@@ -107,11 +122,12 @@ public static class AuthEndpoints
         return app;
     }
 
-    private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem, ProblemHttpResult>> Login(
+    private static async Task<IResult> Login(
         LoginRequest request,
         IIdentityRepository identityRepository,
         IOrganizationRepository organizationRepository,
         ITokenService tokenService,
+        ITotpService totpService,
         ITokenRevocationService tokenRevocationService,
         ILogger<Program> logger,
         CancellationToken cancellationToken)
@@ -183,7 +199,23 @@ public static class AuthEndpoints
             // Reset failed attempts on successful login
             await tokenRevocationService.ResetFailedAuthAttemptsAsync(request.Email, cancellationToken);
 
-            // Update last login timestamp
+            // Check if user has TOTP 2FA enabled
+            var totpStatus = await totpService.GetStatusAsync(user.Id, cancellationToken);
+            if (totpStatus.IsEnabled)
+            {
+                // 2FA required: issue a short-lived login token instead of JWT
+                var loginToken = await totpService.GenerateLoginTokenAsync(user.Id, cancellationToken);
+
+                logger.LogInformation("Login requires 2FA for user {Email} (UserId: {UserId})",
+                    user.Email, user.Id);
+
+                return TypedResults.Ok(new TwoFactorLoginResponse
+                {
+                    LoginToken = loginToken
+                });
+            }
+
+            // No 2FA — standard login: update timestamp and issue JWT
             user.LastLoginAt = DateTimeOffset.UtcNow;
             await identityRepository.UpdateUserAsync(user, cancellationToken);
 
@@ -200,6 +232,83 @@ public static class AuthEndpoints
             logger.LogError(ex, "Login failed with exception - {Email}", request.Email);
             return TypedResults.Unauthorized();
         }
+    }
+
+    private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem>> Verify2Fa(
+        Verify2FaRequest request,
+        ITotpService totpService,
+        IIdentityRepository identityRepository,
+        IOrganizationRepository organizationRepository,
+        ITokenService tokenService,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken)
+    {
+        // Validate input
+        if (string.IsNullOrWhiteSpace(request.LoginToken))
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["login_token"] = ["Login token is required"]
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Code))
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["code"] = ["TOTP code or backup code is required"]
+            });
+        }
+
+        // Validate login token
+        var userId = await totpService.ValidateLoginTokenAsync(request.LoginToken, cancellationToken);
+        if (userId is null)
+        {
+            logger.LogWarning("2FA verification failed: invalid or expired login token");
+            return TypedResults.Unauthorized();
+        }
+
+        // Validate the code (TOTP or backup)
+        bool isValid;
+        if (request.IsBackupCode)
+        {
+            isValid = await totpService.ValidateBackupCodeAsync(userId.Value, request.Code, cancellationToken);
+        }
+        else
+        {
+            isValid = await totpService.ValidateCodeAsync(userId.Value, request.Code, cancellationToken);
+        }
+
+        if (!isValid)
+        {
+            logger.LogWarning("2FA verification failed: invalid code for user {UserId}", userId.Value);
+            return TypedResults.Unauthorized();
+        }
+
+        // Code valid — look up user and org, then issue JWT
+        var user = await identityRepository.GetUserByIdAsync(userId.Value, cancellationToken);
+        if (user is null || user.Status != IdentityStatus.Active)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var organization = await organizationRepository.GetByIdAsync(user.OrganizationId, cancellationToken);
+        if (organization is null)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        // Update last login timestamp
+        user.LastLoginAt = DateTimeOffset.UtcNow;
+        await identityRepository.UpdateUserAsync(user, cancellationToken);
+
+        // Generate tokens
+        var tokenResponse = await tokenService.GenerateUserTokenAsync(user, organization, cancellationToken);
+
+        logger.LogInformation("User completed 2FA login - UserId: {UserId}, OrgId: {OrgId}",
+            user.Id, organization.Id);
+
+        return TypedResults.Ok(tokenResponse);
     }
 
     private static async Task<Results<Ok<TokenResponse>, UnauthorizedHttpResult, ValidationProblem>> RefreshToken(
