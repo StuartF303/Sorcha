@@ -247,7 +247,7 @@ app.UseMiddleware<Sorcha.Blueprint.Service.Middleware.DelegationTokenMiddleware>
 
 // Map SignalR hubs (Sprint 5, Sprint 8)
 app.MapHub<Sorcha.Blueprint.Service.Hubs.ActionsHub>("/actionshub").RequireAuthorization();
-app.MapHub<Sorcha.Blueprint.Service.Hubs.ChatHub>("/hubs/chat");
+app.MapHub<Sorcha.Blueprint.Service.Hubs.ChatHub>("/hubs/chat").RequireAuthorization();
 
 // ===========================
 // Blueprint CRUD Endpoints

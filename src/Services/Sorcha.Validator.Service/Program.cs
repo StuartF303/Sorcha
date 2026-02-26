@@ -20,6 +20,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults (OpenTelemetry, health checks, service discovery)
 builder.AddServiceDefaults();
 
+// Add JWT authentication (shared from ServiceDefaults)
+builder.AddJwtAuthentication();
+
+// Add authorization policies for Validator Service
+builder.Services.AddAuthorizationPolicies();
+
 // Add structured logging with Serilog (OPS-001)
 builder.AddSerilogLogging();
 
@@ -191,6 +197,10 @@ app.UseInputValidation();
 // Enable rate limiting (SEC-002)
 app.UseRateLimiting();
 
+// Enable authentication and authorization
+app.UseAuthentication();
+app.UseAuthorization();
+
 // Map gRPC services
 app.MapGrpcService<Sorcha.Validator.Service.GrpcServices.ValidatorGrpcService>();
 
@@ -207,25 +217,28 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// Map API endpoints
+// Map API endpoints (protected — requires authentication)
 app.MapGroup("/api/v1/transactions")
     .WithTags("Validation")
+    .RequireAuthorization("CanValidateChains")
     .MapValidationEndpoints();
 
-// Map admin endpoints
+// Map admin endpoints (protected — requires authentication)
 app.MapAdminEndpoints();
 
-// Map validator registration endpoints (Sprint 9F)
+// Map validator registration endpoints (protected — requires service token or admin)
 app.MapGroup("/api/validators")
     .WithTags("Validators")
+    .RequireAuthorization("RequireAuthenticated")
     .MapValidatorRegistrationEndpoints();
 
-// Map BLS threshold signing endpoints
+// Map BLS threshold signing endpoints (protected — requires service token)
 app.MapGroup("/api/v1/validators/threshold")
     .WithTags("Threshold")
+    .RequireAuthorization("RequireService")
     .MapThresholdEndpoints();
 
-// Map metrics endpoints (VAL-9.45)
+// Map metrics endpoints (protected — requires authentication)
 app.MapMetricsEndpoints();
 
 app.Run();

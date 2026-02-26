@@ -375,6 +375,224 @@ After authentication is configured:
 
 ---
 
+## Service Auth Configuration
+
+All services authenticate to the Tenant Service using OAuth2 client credentials. The table below lists the complete configuration for each service.
+
+| Service | ClientId | ClientSecret | Scopes |
+|---------|----------|--------------|--------|
+| Blueprint | `service-blueprint` | `blueprint-service-secret` | `wallets:sign registers:write` |
+| Wallet | `service-wallet` | `wallet-service-secret` | `validators:notify` |
+| Register | `service-register` | `register-service-secret` | `validators:notify` |
+| Validator | `service-validator` | `validator-service-secret` | `registers:write registers:read` |
+| Peer | `service-peer` | `peer-service-secret` | `registers:read` |
+
+These values are configured in each service's `appsettings.json` or via environment variables in `docker-compose.yml`:
+
+```json
+{
+  "ServiceAuth": {
+    "ClientId": "service-blueprint",
+    "ClientSecret": "blueprint-service-secret",
+    "Scopes": "wallets:sign registers:write",
+    "TokenEndpoint": "http://tenant-service/api/service-auth/token"
+  }
+}
+```
+
+> **Production Note:** Replace all default secrets with strong, randomly generated values stored in Azure Key Vault or an equivalent secrets manager. Never use the default secrets shown above in production.
+
+---
+
+## Delegation Token Flow
+
+When a service needs to act **on behalf of a user** (e.g., Blueprint Service calling Wallet Service to sign a transaction for a specific user), the platform uses a **delegation token flow**. This preserves both the service identity and the originating user identity in a single JWT.
+
+### Flow Diagram
+
+```
+┌──────────┐         ┌───────────────────┐         ┌─────────────────┐
+│  Client   │         │  Blueprint Service │         │  Tenant Service  │
+│  (User)   │         │                   │         │  (Auth Authority)│
+└─────┬─────┘         └────────┬──────────┘         └────────┬─────────┘
+      │                        │                              │
+      │  1. Request + User     │                              │
+      │     Access Token       │                              │
+      │───────────────────────▶│                              │
+      │                        │                              │
+      │                        │  2. Acquire service token    │
+      │                        │     via ServiceAuthClient    │
+      │                        │─────────────────────────────▶│
+      │                        │                              │
+      │                        │  3. Service token returned   │
+      │                        │◀─────────────────────────────│
+      │                        │                              │
+      │                        │  4. POST /api/service-auth/  │
+      │                        │     token/delegated          │
+      │                        │     { serviceToken,          │
+      │                        │       userAccessToken }      │
+      │                        │─────────────────────────────▶│
+      │                        │                              │
+      │                        │  5. Validate both tokens,    │
+      │                        │     issue delegation JWT     │
+      │                        │◀─────────────────────────────│
+      │                        │                              │
+      │                        │                              │
+      ┌────────────────────────┴──────────────────────────────┘
+      │
+      │  Delegation JWT claims include:
+      │    token_type = "service"
+      │    client_id  = "service-blueprint"
+      │    delegated_user_id = "<original-user-id>"
+      │    delegated_user_email = "<original-user-email>"
+      │    org_id = "<user's-org-id>"
+      │    scope  = "<service's scopes>"
+      └──────────────────────────────────────────────────────
+
+      ┌──────────────────────┐         ┌──────────────────┐
+      │  Blueprint Service   │         │  Target Service   │
+      │                      │         │ (Wallet/Register) │
+      └──────────┬───────────┘         └────────┬──────────┘
+                 │                               │
+                 │  6. Call with delegation       │
+                 │     token in Authorization     │
+                 │     header                     │
+                 │──────────────────────────────▶│
+                 │                               │
+                 │  7. Target validates token:    │
+                 │     - token_type=service ✓     │
+                 │     - delegated_user_id ✓      │
+                 │     - RequireDelegatedAuthority│
+                 │       policy satisfied         │
+                 │                               │
+                 │  8. Response                   │
+                 │◀──────────────────────────────│
+```
+
+### Step-by-Step
+
+1. **User sends request** to Blueprint Service with their user access token in the `Authorization` header.
+2. **Blueprint acquires a service token** by calling `ServiceAuthClient` with its own client credentials (`service-blueprint` / `blueprint-service-secret`).
+3. **Tenant Service returns** a service token to Blueprint.
+4. **Blueprint POSTs both tokens** (the service token and the user's access token) to `POST /api/service-auth/token/delegated` on the Tenant Service.
+5. **Tenant Service validates both tokens**, confirms they are not expired or revoked, and issues a **delegation JWT** that carries both the service identity (`token_type=service`, `client_id`) and the user identity (`delegated_user_id`, `delegated_user_email`, `org_id`).
+6. **Blueprint calls the target service** (Wallet or Register) using the delegation token in the `Authorization` header.
+7. **Target service validates** the delegation token against the `RequireDelegatedAuthority` policy, which requires both `token_type=service` AND a `delegated_user_id` claim to be present.
+8. **Target service processes the request**, knowing both which service is calling and on whose behalf.
+
+### Example: Delegation Token Request
+
+```http
+POST https://tenant.sorcha.io/api/service-auth/token/delegated
+Content-Type: application/json
+Authorization: Bearer <service-token>
+
+{
+  "userAccessToken": "<user-access-token>"
+}
+```
+
+**Response:**
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "tokenType": "Bearer",
+  "expiresIn": 3600
+}
+```
+
+### Delegation Token Claims
+
+```json
+{
+  "sub": "service-principal-id",
+  "client_id": "service-blueprint",
+  "token_type": "service",
+  "delegated_user_id": "user-guid-here",
+  "delegated_user_email": "user@organization.com",
+  "org_id": "organization-id-guid",
+  "scope": "wallets:sign registers:write",
+  "iss": "https://tenant.sorcha.io",
+  "aud": "https://api.sorcha.io",
+  "exp": 1735891200,
+  "iat": 1735887600
+}
+```
+
+---
+
+## Token Revocation
+
+The platform supports token revocation through the `ITokenRevocationStore` interface, allowing services to invalidate tokens before their natural expiry (e.g., user logout, compromised credentials, permission changes).
+
+### Redis-Backed Revocation
+
+Services register Redis-backed revocation checking during startup:
+
+```csharp
+// In Program.cs or service registration
+builder.Services.AddTokenRevocation(options =>
+{
+    options.UseRedis(builder.Configuration.GetConnectionString("Redis"));
+});
+```
+
+This registers an implementation of `ITokenRevocationStore` backed by Redis, where revoked token IDs (`jti` claims) are stored with a TTL matching the token's remaining lifetime. The JWT Bearer authentication middleware checks the revocation store on every request, rejecting tokens whose `jti` appears in the store.
+
+### Revoking a Token
+
+```csharp
+// Inject ITokenRevocationStore
+await tokenRevocationStore.RevokeAsync(tokenId, expiration);
+```
+
+### Key Points
+
+- Revocation entries automatically expire from Redis when the original token would have expired, keeping storage bounded.
+- The revocation check adds minimal latency (~1ms) since it is a single Redis `EXISTS` call.
+- For high-availability deployments, the Redis instance used for revocation should be replicated.
+
+---
+
+## Authorization Policies (Consolidated)
+
+The following table consolidates all authorization policies used across the platform. Each policy defines the claims or conditions required for access.
+
+| Policy | Required Claims / Conditions | Description |
+|--------|------------------------------|-------------|
+| `RequireAuthenticated` | Any valid JWT | Any authenticated user, regardless of role or token type |
+| `RequireService` | `token_type=service` | Service-to-service operations only; rejects user tokens |
+| `RequireOrganizationMember` | `org_id` claim present | User must belong to an organization |
+| `RequireAdministrator` | `role=Administrator` | User must have the Administrator role |
+| `CanManageWallets` | `org_id` OR `token_type=service` | Create, list, and configure wallets (org members or services) |
+| `CanManageBlueprints` | `org_id` OR `token_type=service` | Create, update, and delete blueprints (org members or services) |
+| `RequireDelegatedAuthority` | `token_type=service` AND `delegated_user_id` present | Service acting on behalf of a user; both identities must be present |
+| `CanWriteRegisters` | `registers:write` in `scope` claim | Write access to register ledgers (submit transactions, publish) |
+
+### Policy Usage by Service
+
+| Service | Policies Used |
+|---------|---------------|
+| Blueprint | `CanManageBlueprints`, `CanExecuteBlueprints`, `CanPublishBlueprints`, `RequireService` |
+| Wallet | `CanManageWallets`, `CanUseWallet`, `RequireService`, `RequireDelegatedAuthority` |
+| Register | `CanManageRegisters`, `CanSubmitTransactions`, `CanReadTransactions`, `RequireService`, `CanWriteRegisters` |
+| Validator | `RequireService`, `CanWriteRegisters` |
+| Peer | `RequireAuthenticated`, `CanManagePeers`, `RequireService` |
+
+### Applying Policies to Endpoints
+
+```csharp
+// Minimal API example
+app.MapPost("/api/registers/{id}/transactions", SubmitTransaction)
+    .RequireAuthorization("CanSubmitTransactions");
+
+// Delegation-protected endpoint
+app.MapPost("/api/wallets/{id}/sign", SignWithWallet)
+    .RequireAuthorization("RequireDelegatedAuthority");
+```
+
+---
+
 **Status**: ✅ AUTH-002 Complete (All services integrated)
-**Last Updated**: 2026-02-08
-**Version**: 1.1
+**Last Updated**: 2026-02-25
+**Version**: 1.2

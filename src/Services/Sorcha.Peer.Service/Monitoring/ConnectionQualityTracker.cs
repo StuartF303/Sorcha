@@ -37,6 +37,19 @@ public class ConnectionQualityTracker
     }
 
     /// <summary>
+    /// Marks a peer as authenticated (FR-015). Authenticated peers receive a higher base
+    /// reputation score than anonymous peers.
+    /// </summary>
+    public void SetAuthenticated(string peerId, bool isAuthenticated)
+    {
+        if (string.IsNullOrEmpty(peerId))
+            return;
+
+        var metrics = _metrics.GetOrAdd(peerId, _ => new PeerMetrics(peerId));
+        metrics.IsAuthenticated = isAuthenticated;
+    }
+
+    /// <summary>
     /// Records a failed connection attempt to a peer
     /// </summary>
     public void RecordFailure(string peerId)
@@ -124,6 +137,11 @@ internal class PeerMetrics
     private long _failedRequests;
     private DateTimeOffset _lastUpdated;
 
+    /// <summary>
+    /// Whether this peer presented a valid JWT (FR-015).
+    /// </summary>
+    public bool IsAuthenticated { get; set; }
+
     public PeerMetrics(string peerId)
     {
         _peerId = peerId;
@@ -170,9 +188,11 @@ internal class PeerMetrics
                 : 0;
 
             // Calculate quality score (0-100)
-            // Based on success rate (70%) and latency (30%)
+            // Based on success rate (60%), latency (25%), and auth status (15%)
+            // FR-015: Authenticated peers receive a 15-point bonus
             var latencyScore = CalculateLatencyScore(avgLatency);
-            var qualityScore = (successRate * 70) + (latencyScore * 30);
+            var authBonus = IsAuthenticated ? 1.0 : 0.0;
+            var qualityScore = (successRate * 60) + (latencyScore * 25) + (authBonus * 15);
 
             return new ConnectionQuality
             {
@@ -185,6 +205,7 @@ internal class PeerMetrics
                 SuccessfulRequests = _successfulRequests,
                 FailedRequests = _failedRequests,
                 QualityScore = qualityScore,
+                IsAuthenticated = IsAuthenticated,
                 LastUpdated = _lastUpdated
             };
         }
@@ -221,6 +242,7 @@ public class ConnectionQuality
     public long SuccessfulRequests { get; set; }
     public long FailedRequests { get; set; }
     public double QualityScore { get; set; }
+    public bool IsAuthenticated { get; set; }
     public DateTimeOffset LastUpdated { get; set; }
 
     /// <summary>

@@ -31,7 +31,7 @@ public static class SchemaLibraryEndpoints
 
         var providerGroup = app.MapGroup("/api/v1/schemas/providers")
             .WithTags("Provider Health")
-            .RequireAuthorization("Administrator");
+            .RequireAuthorization("RequireAdministrator");
 
         var derivedGroup = app.MapGroup("/api/v1/schemas/derived")
             .WithTags("Derived Schemas")
@@ -76,7 +76,7 @@ public static class SchemaLibraryEndpoints
             .WithName("UpdateSectorPreferences")
             .WithSummary("Update organisation's sector visibility preferences")
             .WithDescription("Sets which sectors are visible to designers. Requires Administrator role.")
-            .RequireAuthorization("Administrator");
+            .RequireAuthorization("RequireAdministrator");
 
         // === Provider Health endpoints ===
 

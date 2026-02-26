@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sorcha Contributors
 
+using Sorcha.ServiceClients.Auth;
+
 namespace Sorcha.Wallet.Service.Extensions;
 
 /// <summary>
@@ -42,6 +44,19 @@ public static class AuthenticationExtensions
             options.AddPolicy("RequireOrganizationMember", policy =>
                 policy.RequireAssertion(context =>
                     context.User.Claims.Any(c => c.Type == "org_id" && !string.IsNullOrEmpty(c.Value))));
+
+            // Delegated authority — service acting on behalf of a user
+            options.AddPolicy("RequireDelegatedAuthority", policy =>
+                policy.RequireAssertion(context =>
+                {
+                    var isService = context.User.Claims.Any(c =>
+                        c.Type == TokenClaimConstants.TokenType &&
+                        c.Value == TokenClaimConstants.TokenTypeService);
+                    var hasDelegatedUser = context.User.Claims.Any(c =>
+                        c.Type == TokenClaimConstants.DelegatedUserId &&
+                        !string.IsNullOrEmpty(c.Value));
+                    return isService && hasDelegatedUser;
+                }));
         });
 
         return services;

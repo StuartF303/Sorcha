@@ -3,10 +3,16 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Sorcha.ServiceClients.Auth;
 using Sorcha.Validator.Service.Endpoints;
 using Sorcha.Validator.Service.Services;
 using Sorcha.Validator.Service.Models;
@@ -24,7 +30,9 @@ namespace Sorcha.Validator.Service.Tests.Endpoints;
 
 /// <summary>
 /// Integration tests for AdminEndpoints
-/// Tests cover validator orchestration, status monitoring, and pipeline execution
+/// Tests cover validator orchestration, status monitoring, and pipeline execution.
+/// Uses a test authentication handler to bypass JWT validation — auth policy
+/// correctness is tested in AuthenticationTests.cs.
 /// </summary>
 public class AdminEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -41,6 +49,10 @@ public class AdminEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
             {
                 // Remove all hosted services to prevent background service startup
                 services.RemoveAll<Microsoft.Extensions.Hosting.IHostedService>();
+
+                // Replace JWT authentication with test auth handler
+                services.AddAuthentication("Test")
+                    .AddScheme<AuthenticationSchemeOptions, TestAdminAuthHandler>("Test", _ => { });
 
                 // Remove all services that need mocking
                 RemoveService<IValidatorOrchestrator>(services);
@@ -537,4 +549,31 @@ public class AdminEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     #endregion
+}
+
+/// <summary>
+/// Test authentication handler that automatically authenticates as an Administrator.
+/// Used by AdminEndpointsTests to bypass JWT validation for endpoint business logic tests.
+/// </summary>
+internal sealed class TestAdminAuthHandler(
+    IOptionsMonitor<AuthenticationSchemeOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder)
+    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, "test-admin"),
+            new Claim(ClaimTypes.Name, "test-admin"),
+            new Claim(ClaimTypes.Role, "Administrator"),
+            new Claim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeUser),
+            new Claim(TokenClaimConstants.OrgId, "test-org")
+        };
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, "Test");
+        return Task.FromResult(AuthenticateResult.Success(ticket));
+    }
 }

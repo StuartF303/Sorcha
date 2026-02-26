@@ -21,7 +21,8 @@ public static class DelegationEndpoints
     public static IEndpointRouteBuilder MapDelegationEndpoints(this IEndpointRouteBuilder app)
     {
         var delegationGroup = app.MapGroup("/api/v1/wallets/{walletAddress}/access")
-            .WithTags("Delegation");
+            .WithTags("Delegation")
+            .RequireAuthorization("CanManageWallets");
 
         // POST /api/v1/wallets/{walletAddress}/access - Grant access
         delegationGroup.MapPost("/", GrantAccess)

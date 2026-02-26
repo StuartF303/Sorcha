@@ -71,6 +71,12 @@ public class PeerNode : IEquatable<PeerNode>
     public int AverageLatencyMs { get; set; } = 0;
 
     /// <summary>
+    /// Whether this peer presented a valid JWT during its last gRPC connection (FR-015).
+    /// Authenticated peers receive a higher base reputation score.
+    /// </summary>
+    public bool IsAuthenticated { get; set; } = false;
+
+    /// <summary>
     /// Whether this peer is banned from communication
     /// </summary>
     public bool IsBanned { get; set; } = false;

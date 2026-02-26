@@ -54,6 +54,14 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<ServiceAuthClient>();
         services.AddSingleton<IServiceAuthClient, ServiceAuthClient>();
 
+        // Register delegation token client (scoped - no caching, short-lived tokens)
+        services.AddHttpClient<DelegationTokenClient>();
+        services.AddScoped<IDelegationTokenClient, DelegationTokenClient>();
+
+        // Register token introspection client (scoped - for on-demand token verification)
+        services.AddHttpClient<TokenIntrospectionClient>();
+        services.AddScoped<ITokenIntrospectionClient, TokenIntrospectionClient>();
+
         // Register all service clients with HttpClient factories
         services.AddHttpClient<WalletServiceClient>();
         services.AddScoped<IWalletServiceClient, WalletServiceClient>();

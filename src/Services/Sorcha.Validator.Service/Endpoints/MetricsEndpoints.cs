@@ -20,7 +20,8 @@ public static class MetricsEndpoints
     public static IEndpointRouteBuilder MapMetricsEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/metrics")
-            .WithTags("Metrics");
+            .WithTags("Metrics")
+            .RequireAuthorization("RequireAuthenticated");
 
         // Aggregated metrics endpoint
         group.MapGet("/", GetAggregatedMetrics)

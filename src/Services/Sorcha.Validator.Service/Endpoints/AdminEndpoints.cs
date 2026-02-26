@@ -17,7 +17,8 @@ public static class AdminEndpoints
     public static IEndpointRouteBuilder MapAdminEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/admin")
-            .WithTags("Admin");
+            .WithTags("Admin")
+            .RequireAuthorization("RequireAdministrator");
 
         // Start validator for a register
         group.MapPost("/validators/start", async (
