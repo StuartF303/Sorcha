@@ -606,6 +606,86 @@ body {
     color: var(--primary-dark);
 }
 
+/* ==================== QUANTUM-SAFE ==================== */
+
+.quantum-section {
+    padding: 100px 24px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: white;
+    text-align: center;
+}
+
+.quantum-section .section-badge {
+    background: rgba(102, 126, 234, 0.2);
+    color: #a3bffa;
+}
+
+.quantum-section .section-title {
+    color: white;
+}
+
+.quantum-section .section-subtitle {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.quantum-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin-bottom: 40px;
+}
+
+.quantum-card {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 32px 24px;
+    border-radius: var(--radius-lg);
+    text-align: left;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.quantum-card:hover {
+    transform: translateY(-4px);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2);
+}
+
+.quantum-icon {
+    width: 56px;
+    height: 56px;
+    background: rgba(102, 126, 234, 0.2);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.quantum-icon svg {
+    stroke: #a3bffa;
+}
+
+.quantum-card h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: white;
+}
+
+.quantum-card p {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+
+.quantum-compliance {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
 /* ==================== USE CASES ==================== */
 
 .use-cases-section {
@@ -1024,6 +1104,10 @@ body {
         grid-template-columns: repeat(2, 1fr);
     }
 
+    .quantum-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
     .tech-grid {
         grid-template-columns: repeat(4, 1fr);
     }
@@ -1071,6 +1155,10 @@ body {
     .steps-grid {
         grid-template-columns: 1fr;
         gap: 24px;
+    }
+
+    .quantum-grid {
+        grid-template-columns: 1fr;
     }
 
     .tech-grid {

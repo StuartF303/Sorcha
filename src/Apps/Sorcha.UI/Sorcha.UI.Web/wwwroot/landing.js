@@ -79,7 +79,7 @@
 
         // Animate cards and sections
         const selectors = [
-            '.dad-card', '.standard-card', '.use-case-card',
+            '.dad-card', '.standard-card', '.quantum-card', '.use-case-card',
             '.feature-card', '.security-layer', '.step-card', '.tech-item'
         ];
 

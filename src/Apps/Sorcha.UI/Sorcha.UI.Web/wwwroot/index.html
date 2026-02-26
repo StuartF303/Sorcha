@@ -4,11 +4,84 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sorcha - Trust Infrastructure for Multi-Party Collaboration</title>
-    <meta name="description" content="Sorcha is enterprise-grade trust infrastructure that lets organizations collaborate securely on shared workflows — with cryptographic proof, selective disclosure, and decentralized governance.">
-    <meta name="keywords" content="distributed ledger, multi-party workflows, selective disclosure, verifiable credentials, eIDAS, DAD security, enterprise blockchain, .NET">
+    <meta name="description" content="Sorcha is quantum-safe trust infrastructure that lets organizations collaborate securely on shared workflows — with quantum-safe cryptography, CNSA 2.0 compliance, selective disclosure, and decentralized governance.">
+    <meta name="keywords" content="distributed ledger, multi-party workflows, selective disclosure, verifiable credentials, eIDAS, DAD security, enterprise blockchain, .NET, quantum-safe, post-quantum cryptography, CNSA 2.0, ML-DSA, ML-KEM, zero-knowledge proofs, threshold signatures">
     <meta property="og:title" content="Sorcha - Trust Infrastructure for Multi-Party Collaboration">
-    <meta property="og:description" content="Orchestrate secure workflows across organizational boundaries. Every action signed, every disclosure controlled, every record immutable.">
+    <meta property="og:description" content="Quantum-safe trust infrastructure for secure multi-party workflows. Every action signed with hybrid classical + post-quantum cryptography, every disclosure controlled, every record immutable.">
     <meta property="og:type" content="website">
+    <meta name="robots" content="index, follow, max-snippet:-1">
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Sorcha",
+        "description": "Quantum-safe distributed ledger platform for secure, multi-participant data flow orchestration. Implements CNSA 2.0 compliant post-quantum cryptography including ML-DSA-65 hybrid signatures, ML-KEM-768 encryption, BLS12-381 threshold signatures, and zero-knowledge proofs with Pedersen commitments.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Cross-platform",
+        "softwareRequirements": ".NET 10, Docker",
+        "license": "https://opensource.org/licenses/MIT",
+        "programmingLanguage": "C#",
+        "runtimePlatform": ".NET 10",
+        "featureList": [
+            "Quantum-safe cryptography (CNSA 2.0 compliant)",
+            "Hybrid classical + post-quantum digital signatures (ED25519 + ML-DSA-65)",
+            "Post-quantum key encapsulation (ML-KEM-768 + AES-256-GCM)",
+            "BLS12-381 threshold signatures for distributed validation",
+            "Zero-knowledge proofs with Pedersen commitments and Schnorr proofs",
+            "Selective disclosure with JSON Schema-driven field-level access control",
+            "SD-JWT Verifiable Credentials (eIDAS 2.0 aligned)",
+            "Immutable SHA-256 chain-linked distributed ledger",
+            "HD cryptographic wallets (BIP32/39/44) with post-quantum ws2 addresses",
+            "Decentralized governance with quorum-based voting",
+            "Visual blueprint designer for multi-party workflows",
+            "Real-time collaboration via SignalR WebSockets",
+            "Per-register crypto policy for flexible quantum migration",
+            "7 microservices with .NET Aspire orchestration",
+            "gRPC peer-to-peer network replication"
+        ],
+        "keywords": "quantum-safe, post-quantum cryptography, CNSA 2.0, distributed ledger, multi-party workflows, selective disclosure, verifiable credentials, eIDAS, ML-DSA, ML-KEM, zero-knowledge proofs, threshold signatures, BLS12-381, .NET 10"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": "What is a quantum-safe distributed ledger?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Sorcha is a quantum-safe distributed ledger platform that uses CNSA 2.0 compliant post-quantum cryptography (ML-DSA-65, ML-KEM-768, SLH-DSA-128s) alongside classical algorithms to protect data against both current and future quantum computer attacks. It implements hybrid signing where every transaction carries both a classical and post-quantum signature."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "Which post-quantum cryptography algorithms does Sorcha support?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Sorcha supports ML-DSA-65 (FIPS 204) for lattice-based digital signatures, ML-KEM-768 (FIPS 203) for post-quantum key encapsulation, SLH-DSA-128s (FIPS 205) for hash-based signatures, and BLS12-381 for threshold signatures. These are combined with classical algorithms (ED25519, P-256, RSA-4096) in a hybrid mode for defense-in-depth."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "How does Sorcha handle selective disclosure in multi-party workflows?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Sorcha uses JSON Schema-driven field-level access control with JSON Pointers (RFC 6901) to ensure each workflow participant sees only the data they are authorized to access. SD-JWT Verifiable Credentials enable selective claim presentation, and zero-knowledge proofs with Pedersen commitments allow auditors to verify transaction properties without seeing underlying data."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "Is Sorcha CNSA 2.0 compliant?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes. Sorcha implements the NSA's Commercial National Security Algorithm Suite 2.0 (CNSA 2.0) with FIPS 203 (ML-KEM-768), FIPS 204 (ML-DSA-65), and FIPS 205 (SLH-DSA-128s). Per-register crypto policy allows organizations to set their own quantum migration timeline while maintaining interoperability."
+                }
+            }
+        ]
+    }
+    </script>
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,6 +99,7 @@
             <div class="nav-links">
                 <a href="#security" class="nav-link">Security</a>
                 <a href="#standards" class="nav-link">Standards</a>
+                <a href="#quantum-safe" class="nav-link">Quantum-Safe</a>
                 <a href="#use-cases" class="nav-link">Use Cases</a>
                 <a href="#features" class="nav-link">Features</a>
                 <a href="/app/help" class="nav-link">Help</a>
@@ -41,7 +115,7 @@
     <!-- Hero Section -->
     <section class="hero">
         <div class="hero-content">
-            <div class="hero-badge">Enterprise-Grade Trust Infrastructure</div>
+            <div class="hero-badge">Quantum-Safe Trust Infrastructure</div>
             <h1 class="hero-title">
                 Collaborate Across Boundaries.
                 <span class="hero-highlight">Control Every Disclosure.</span>
@@ -60,7 +134,7 @@
             </div>
             <div class="hero-stats" id="stats">
                 <div class="stat-item">
-                    <span class="stat-value" id="stat-algorithms">3</span>
+                    <span class="stat-value" id="stat-algorithms">7+</span>
                     <span class="stat-label">Crypto Algorithms</span>
                 </div>
                 <div class="stat-item">
@@ -68,11 +142,11 @@
                     <span class="stat-label">Microservices</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-value" id="stat-tests">2400+</span>
+                    <span class="stat-value" id="stat-tests">2700+</span>
                     <span class="stat-label">Tests Passing</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-value" id="stat-standards">6</span>
+                    <span class="stat-value" id="stat-standards">8</span>
                     <span class="stat-label">Standards</span>
                 </div>
             </div>
@@ -153,8 +227,9 @@
                     <p>All actions are cryptographically signed by participant wallets, hash-linked into an immutable chain, and sealed into dockets. You cannot alter history without detection.</p>
                     <ul class="dad-features">
                         <li>SHA-256 chain-linked transactions with docket sealing</li>
-                        <li>Multi-algorithm wallet signatures (ED25519, P-256, RSA-4096)</li>
+                        <li>Hybrid classical + post-quantum signatures (ED25519 + ML-DSA-65, P-256, RSA-4096)</li>
                         <li>Validator consensus before docket finalization</li>
+                        <li>Zero-knowledge proofs for privacy-preserving auditability</li>
                     </ul>
                 </div>
                 <div class="dad-card dad-destruction">
@@ -226,6 +301,65 @@
                     <h3>JSON Pointer & JSON Schema</h3>
                     <p>Fine-grained data addressing and validation using standardized JSON tools. Every payload is validated against its schema before it enters the ledger.</p>
                 </div>
+                <div class="standard-card">
+                    <div class="standard-header">
+                        <span class="standard-badge">NIST / CNSA 2.0</span>
+                    </div>
+                    <h3>FIPS 203, 204 & 205</h3>
+                    <p>NSA's Commercial National Security Algorithm Suite 2.0. ML-DSA-65 lattice signatures, ML-KEM-768 key encapsulation, and SLH-DSA-128s hash-based signatures — deployed today, not waiting for "Y2Q".</p>
+                </div>
+                <div class="standard-card">
+                    <div class="standard-header">
+                        <span class="standard-badge">Zero-Knowledge Proofs</span>
+                    </div>
+                    <h3>Pedersen Commitments</h3>
+                    <p>Prove transaction inclusion or value ranges without revealing underlying data. Schnorr proofs on secp256k1 enable privacy-preserving compliance audits.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quantum-Safe Section -->
+    <section id="quantum-safe" class="quantum-section">
+        <div class="container">
+            <div class="section-badge">Post-Quantum Cryptography</div>
+            <h2 class="section-title">Quantum-Safe by Design</h2>
+            <p class="section-subtitle">
+                Not bolted on later — quantum resistance is woven into every layer. CNSA 2.0 compliant
+                algorithms protect your data against both today's threats and tomorrow's quantum computers.
+            </p>
+            <div class="quantum-grid">
+                <div class="quantum-card">
+                    <div class="quantum-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 22s-8-4-8-10V5l8-3" opacity="0.4"/></svg>
+                    </div>
+                    <h3>Hybrid Signing</h3>
+                    <p>Classical + PQC dual signatures. Your transactions are protected today by proven algorithms and tomorrow by quantum-resistant ones — simultaneously.</p>
+                </div>
+                <div class="quantum-card">
+                    <div class="quantum-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <h3>Post-Quantum Encryption</h3>
+                    <p>ML-KEM-768 key encapsulation with AES-256-GCM. Confidential payloads stay confidential even against future quantum computers.</p>
+                </div>
+                <div class="quantum-card">
+                    <div class="quantum-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <h3>Threshold Signatures</h3>
+                    <p>BLS12-381 t-of-n distributed validation. No single validator holds the complete signing key — consensus requires a threshold of participants.</p>
+                </div>
+                <div class="quantum-card">
+                    <div class="quantum-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    </div>
+                    <h3>Zero-Knowledge Proofs</h3>
+                    <p>Pedersen commitments with Schnorr proofs. Auditors verify transaction inclusion and value ranges without seeing the underlying data.</p>
+                </div>
+            </div>
+            <div class="quantum-compliance">
+                CNSA 2.0 Compliant &middot; FIPS 203/204/205 &middot; NIST Level 3 &middot; Per-Register Crypto Policy
             </div>
         </div>
     </section>
@@ -333,7 +467,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
                     <h3>HD Cryptographic Wallets</h3>
-                    <p>Hierarchical deterministic wallets with ED25519, NIST P-256, and RSA-4096 support. One seed phrase, unlimited addresses, full BIP32/39/44 compliance.</p>
+                    <p>Hierarchical deterministic wallets with classical and post-quantum algorithm support. Quantum-safe ws2 Bech32m addresses alongside standard ws1 addresses. Full BIP32/39/44 compliance.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">
@@ -363,6 +497,13 @@
                     <h3>Real-Time Collaboration</h3>
                     <p>SignalR-powered live notifications for action submissions, workflow progress, and transaction confirmations. Know instantly when it's your turn to act.</p>
                 </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                    </div>
+                    <h3>Quantum-Safe Cryptography</h3>
+                    <p>Hybrid classical + post-quantum signing, ML-KEM-768 encryption, BLS threshold signatures, and zero-knowledge proofs. Per-register crypto policy lets each organization set their own quantum migration timeline.</p>
+                </div>
             </div>
         </div>
     </section>
@@ -381,14 +522,14 @@
                     <div class="layer-number">1</div>
                     <div class="layer-content">
                         <h3>Wallet Signatures</h3>
-                        <p>Every transaction is signed by the sender's private key. Multi-algorithm support (ED25519, P-256, RSA-4096) means organizations choose the algorithm that matches their security requirements.</p>
+                        <p>Every transaction is signed by the sender's private key. Multi-algorithm support (ED25519, P-256, RSA-4096) means organizations choose the algorithm that matches their security requirements. Now with hybrid classical + post-quantum (ML-DSA-65) dual signatures for quantum resistance.</p>
                     </div>
                 </div>
                 <div class="security-layer">
                     <div class="layer-number">2</div>
                     <div class="layer-content">
                         <h3>Payload Encryption</h3>
-                        <p>AES-256-GCM encrypts all payload data at rest. Each payload gets a unique key and initialization vector. Even database administrators cannot read transaction content.</p>
+                        <p>AES-256-GCM and ML-KEM-768 hybrid encryption protect payloads against both classical and quantum attack. Each payload gets a unique key and initialization vector. Even database administrators cannot read transaction content.</p>
                     </div>
                 </div>
                 <div class="security-layer">
@@ -410,6 +551,13 @@
                     <div class="layer-content">
                         <h3>Network Replication</h3>
                         <p>Peer-to-peer replication across the network ensures data survives node failures. The gossip protocol distributes updates efficiently with O(log N) message complexity.</p>
+                    </div>
+                </div>
+                <div class="security-layer">
+                    <div class="layer-number">6</div>
+                    <div class="layer-content">
+                        <h3>Zero-Knowledge Verification</h3>
+                        <p>Pedersen commitment proofs let auditors verify transaction inclusion and value ranges without accessing the underlying data. Compliance without disclosure.</p>
                     </div>
                 </div>
             </div>
@@ -488,6 +636,10 @@
                     <div class="tech-label">Blazor</div>
                     <div class="tech-desc">WASM UI</div>
                 </div>
+                <div class="tech-item">
+                    <div class="tech-label">BouncyCastle</div>
+                    <div class="tech-desc">PQC Algorithms</div>
+                </div>
             </div>
         </div>
     </section>
@@ -537,11 +689,12 @@
                     <a href="#standards">SD-JWT VC</a>
                     <a href="#standards">W3C DID</a>
                     <a href="#standards">BIP32/39/44</a>
+                    <a href="#quantum-safe">CNSA 2.0</a>
                 </div>
             </div>
             <div class="footer-bottom">
                 <div class="footer-copyright">
-                    MIT License &middot; Copyright &copy; 2025 Sorcha Contributors &middot; Built with .NET 10 and .NET Aspire
+                    MIT License &middot; Copyright &copy; 2026 Sorcha Contributors &middot; Built with .NET 10 and .NET Aspire
                 </div>
             </div>
         </div>
