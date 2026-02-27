@@ -27,7 +27,7 @@ public class CreateWalletRequest
     /// <summary>
     /// Number of words in mnemonic (12, 15, 18, 21, or 24)
     /// </summary>
-    [Range(12, 24)]
+    [Bip39WordCount]
     public int WordCount { get; set; } = 12;
 
     /// <summary>

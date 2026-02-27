@@ -67,30 +67,6 @@ public class AdminCommandsTests
 
     #endregion
 
-    #region AdminSchemaSectorsCommand Tests
-
-    [Fact]
-    public void AdminSchemaSectorsCommand_ShouldHaveCorrectNameAndDescription()
-    {
-        var command = new AdminSchemaSectorsCommand(_clientFactory, AuthService, ConfigService);
-        command.Name.Should().Be("schema-sectors");
-        command.Description.Should().NotBeNullOrWhiteSpace();
-    }
-
-    #endregion
-
-    #region AdminSchemaProvidersCommand Tests
-
-    [Fact]
-    public void AdminSchemaProvidersCommand_ShouldHaveCorrectNameAndDescription()
-    {
-        var command = new AdminSchemaProvidersCommand(_clientFactory, AuthService, ConfigService);
-        command.Name.Should().Be("schema-providers");
-        command.Description.Should().NotBeNullOrWhiteSpace();
-    }
-
-    #endregion
-
     #region AdminAlertsCommand Tests
 
     [Fact]

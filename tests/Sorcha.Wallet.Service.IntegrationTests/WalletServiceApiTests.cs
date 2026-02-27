@@ -1,3 +1,4 @@
+using Sorcha.ServiceClients.Wallet.Models;
 using Sorcha.Wallet.Service.IntegrationTests.Fixtures;
 using Sorcha.Wallet.Service.Models;
 

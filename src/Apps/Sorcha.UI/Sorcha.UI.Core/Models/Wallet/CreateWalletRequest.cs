@@ -6,7 +6,9 @@ using System.ComponentModel.DataAnnotations;
 namespace Sorcha.UI.Core.Models.Wallet;
 
 /// <summary>
-/// Request model for creating a new wallet
+/// Request model for creating a new wallet (UI subset).
+/// Canonical version: <see cref="Sorcha.ServiceClients.Wallet.Models.CreateWalletRequest"/>
+/// — this type omits PQC/hybrid fields not exposed in the UI.
 /// </summary>
 public class CreateWalletRequest
 {
@@ -24,9 +26,10 @@ public class CreateWalletRequest
     public required string Algorithm { get; set; }
 
     /// <summary>
-    /// Number of words in mnemonic (12, 15, 18, 21, or 24)
+    /// Number of words in mnemonic (12, 15, 18, 21, or 24).
+    /// Must be a valid BIP-39 length; values like 13 or 16 are rejected.
     /// </summary>
-    [Range(12, 24)]
+    [RegularExpression("^(12|15|18|21|24)$", ErrorMessage = "Word count must be 12, 15, 18, 21, or 24.")]
     public int WordCount { get; set; } = 12;
 
     /// <summary>

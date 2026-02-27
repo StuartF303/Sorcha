@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Scalar.AspNetCore;
 
+// Placed in Microsoft.Extensions.Hosting so callers get these extension methods automatically
+// without needing an additional using directive — a standard pattern for service-defaults libraries.
 namespace Microsoft.Extensions.Hosting;
 
 /// <summary>
@@ -54,6 +56,7 @@ public static class OpenApiExtensions
 
     /// <summary>
     /// Maps the OpenAPI endpoint and Scalar interactive API documentation UI (development only).
+    /// Both the raw OpenAPI JSON and the Scalar UI are restricted to the development environment.
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <param name="title">The title displayed in the Scalar UI.</param>
@@ -61,10 +64,9 @@ public static class OpenApiExtensions
     /// <returns>The web application for chaining.</returns>
     public static WebApplication MapSorchaOpenApiUi(this WebApplication app, string title, ScalarTheme theme = ScalarTheme.Purple)
     {
-        app.MapOpenApi();
-
         if (app.Environment.IsDevelopment())
         {
+            app.MapOpenApi();
             app.MapScalarApiReference(options =>
             {
                 options

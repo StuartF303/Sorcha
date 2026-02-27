@@ -11,6 +11,7 @@ using Sorcha.Wallet.Core.Domain;
 using Sorcha.Wallet.Core.Domain.Entities;
 using Sorcha.Wallet.Core.Domain.ValueObjects;
 using Sorcha.Wallet.Core.Services.Implementation;
+using Sorcha.ServiceClients.Wallet.Models;
 using Sorcha.Wallet.Service.Mappers;
 using Sorcha.Wallet.Service.Models;
 

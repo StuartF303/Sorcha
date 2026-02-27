@@ -13,7 +13,10 @@ namespace Sorcha.ServiceDefaults.Tests;
 /// <summary>
 /// Tests for <see cref="OpenApiExtensions"/> which configure OpenAPI document generation
 /// with standard Sorcha metadata across all services.
+/// These are integration tests that start a live HTTP server — use the "Integration"
+/// trait to filter them from fast unit test runs.
 /// </summary>
+[Trait("Category", "Integration")]
 public class OpenApiExtensionsTests : IAsyncLifetime
 {
     private WebApplication? _app;

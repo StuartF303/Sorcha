@@ -4,6 +4,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Sorcha.ServiceClients.Auth;
 
+// Placed in Microsoft.Extensions.Hosting so callers get these extension methods automatically
+// without needing an additional using directive — a standard pattern for service-defaults libraries.
 namespace Microsoft.Extensions.Hosting;
 
 /// <summary>
@@ -23,7 +25,7 @@ public static class AuthorizationPolicyExtensions
     ///   <item><term>RequireOrganizationMember</term><description>Token must carry a non-empty org_id claim.</description></item>
     ///   <item><term>RequireDelegatedAuthority</term><description>Service token acting on behalf of a user.</description></item>
     ///   <item><term>RequireAdministrator</term><description>Administrator role required.</description></item>
-    ///   <item><term>CanWriteDockets</term><description>Service token required (Validator docket writes).</description></item>
+    ///   <item><term>CanWriteDockets</term><description>Service token required for docket writes. Currently mirrors RequireService; exists as a separate semantic policy for future scope-based tightening.</description></item>
     /// </list>
     /// </summary>
     /// <typeparam name="TBuilder">The host application builder type.</typeparam>
@@ -76,7 +78,10 @@ public static class AuthorizationPolicyExtensions
             options.AddPolicy("RequireAdministrator", policy =>
                 policy.RequireRole("Administrator"));
 
-            // 6. CanWriteDockets — service token required (Validator docket writes)
+            // 6. CanWriteDockets — service token required (Validator/Register docket writes).
+            //    Currently mirrors RequireService; kept as a separate semantic policy so
+            //    Register and Validator services can tighten it later (e.g. require a
+            //    "dockets:write" scope) without affecting the general RequireService gate.
             options.AddPolicy("CanWriteDockets", policy =>
                 policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService));
         });
