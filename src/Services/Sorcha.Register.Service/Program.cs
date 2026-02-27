@@ -57,7 +57,9 @@ builder.Services.AddControllers()
         .SetMaxTop(100)
         .AddRouteComponents("odata", modelBuilder.GetEdmModel()));
 
-// Add OpenAPI services
+// Add OpenAPI services with standard Sorcha metadata
+builder.AddSorchaOpenApi("Sorcha Register Service API", "Distributed ledger for storing immutable transaction records with cryptographic chain integrity, OData queries, SignalR real-time notifications, and wallet-based payload encryption.");
+/* Inline OpenAPI description removed - now using AddSorchaOpenApi() above
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, context, cancellationToken) =>
@@ -329,6 +331,7 @@ builder.Services.AddOpenApi(options =>
         return Task.CompletedTask;
     });
 });
+End of removed inline OpenAPI description */
 
 // Register storage and event infrastructure
 // Smart configuration: Use MongoDB if configured, otherwise InMemory
@@ -449,20 +452,8 @@ app.UseHttpsEnforcement();
 // Enable input validation (SEC-003)
 app.UseInputValidation();
 
-// Configure OpenAPI
-app.MapOpenApi();
-
-// Configure Scalar API documentation UI
-if (app.Environment.IsDevelopment())
-{
-    app.MapScalarApiReference(options =>
-    {
-        options
-            .WithTitle("Register Service")
-            .WithTheme(ScalarTheme.Purple)
-            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-    });
-}
+// Configure OpenAPI and Scalar API documentation UI (development only)
+app.MapSorchaOpenApiUi("Register Service");
 
 // Map SignalR hub
 app.MapHub<RegisterHub>("/hubs/register");

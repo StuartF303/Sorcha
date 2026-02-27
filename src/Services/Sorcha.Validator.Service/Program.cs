@@ -3,7 +3,6 @@
 
 using FluentValidation;
 using Grpc.Net.Client;
-using Scalar.AspNetCore;
 using Sorcha.Validator.Service.Configuration;
 using Sorcha.Validator.Service.Endpoints;
 using Sorcha.Validator.Service.Extensions;
@@ -24,7 +23,7 @@ builder.AddServiceDefaults();
 builder.AddJwtAuthentication();
 
 // Add authorization policies for Validator Service
-builder.Services.AddAuthorizationPolicies();
+builder.Services.AddValidatorAuthorization();
 
 // Add structured logging with Serilog (OPS-001)
 builder.AddSerilogLogging();
@@ -38,8 +37,8 @@ builder.AddInputValidation();
 // Add Redis for distributed coordination and memory pool persistence
 builder.AddRedisClient("redis");
 
-// Add OpenAPI services
-builder.Services.AddOpenApi();
+// Add OpenAPI services with standard Sorcha metadata
+builder.AddSorchaOpenApi("Sorcha Validator Service API", "Transaction validation, consensus, chain integrity verification, and docket building for the Sorcha distributed ledger platform.");
 
 // Configure strongly-typed configuration sections
 builder.Services.Configure<Sorcha.Validator.Service.Configuration.ValidatorConfiguration>(
@@ -204,18 +203,8 @@ app.UseAuthorization();
 // Map gRPC services
 app.MapGrpcService<Sorcha.Validator.Service.GrpcServices.ValidatorGrpcService>();
 
-// Configure OpenAPI and Scalar
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.MapScalarApiReference(options =>
-    {
-        options
-            .WithTitle("Sorcha Validator Service API")
-            .WithTheme(ScalarTheme.Mars)
-            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-    });
-}
+// Configure OpenAPI and Scalar API documentation UI (development only)
+app.MapSorchaOpenApiUi("Sorcha Validator Service API", Scalar.AspNetCore.ScalarTheme.Mars);
 
 // Map API endpoints (protected — requires authentication)
 app.MapGroup("/api/v1/transactions")

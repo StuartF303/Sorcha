@@ -18,20 +18,8 @@ public interface IAdminServiceClient
     Task<HealthCheckResponse> GetHealthAsync([Header("Authorization")] string authorization);
 
     /// <summary>
-    /// Lists schema sectors.
-    /// </summary>
-    [Get("/api/schemas/sectors")]
-    Task<List<SchemaSector>> ListSchemaSectorsAsync([Header("Authorization")] string authorization);
-
-    /// <summary>
-    /// Lists schema providers.
-    /// </summary>
-    [Get("/api/schemas/providers")]
-    Task<List<SchemaProvider>> ListSchemaProvidersAsync([Header("Authorization")] string authorization);
-
-    /// <summary>
     /// Lists system alerts.
     /// </summary>
-    [Get("/api/admin/alerts")]
+    [Get("/api/alerts")]
     Task<List<SystemAlert>> ListAlertsAsync([Query] string? severity, [Header("Authorization")] string authorization);
 }

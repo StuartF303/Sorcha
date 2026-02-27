@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sorcha Contributors
 using Microsoft.Extensions.Logging;
 using Sorcha.Cryptography.Enums;
 using Sorcha.Cryptography.Interfaces;
