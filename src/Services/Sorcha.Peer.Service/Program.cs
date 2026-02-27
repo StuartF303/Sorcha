@@ -86,8 +86,8 @@ builder.Services.AddGrpcReflection();
 // Configure AppContext to allow HTTP/2 without TLS
 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
-// Add OpenAPI for REST endpoints
-builder.Services.AddOpenApi();
+// Add OpenAPI services with standard Sorcha metadata
+builder.AddSorchaOpenApi("Sorcha Peer Service API", "P2P networking, peer discovery, gossip protocol, register replication, and connection quality monitoring for the Sorcha distributed ledger platform.");
 
 // Configure peer service
 builder.Services.Configure<PeerServiceConfiguration>(
@@ -169,20 +169,8 @@ app.UseAuthorization();
 // Enable rate limiting (SEC-002)
 app.UseRateLimiting();
 
-// Configure OpenAPI (available in all environments for API consumers)
-app.MapOpenApi();
-
-// Configure Scalar API documentation UI (development only)
-if (app.Environment.IsDevelopment())
-{
-    app.MapScalarApiReference(options =>
-    {
-        options
-            .WithTitle("Peer Service")
-            .WithTheme(ScalarTheme.Purple)
-            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-    });
-}
+// Configure OpenAPI and Scalar API documentation UI (development only)
+app.MapSorchaOpenApiUi("Peer Service");
 
 // Map gRPC services
 app.MapGrpcService<PeerDiscoveryServiceImpl>();

@@ -155,38 +155,19 @@ public static class AuthenticationExtensions
     /// </summary>
     public static IServiceCollection AddTenantAuthorization(this IServiceCollection services)
     {
+        // Register shared authorization policies (RequireAuthenticated, RequireService,
+        // RequireOrganizationMember, RequireDelegatedAuthority, RequireAdministrator, CanWriteDockets)
+        services.AddSorchaAuthorizationPolicies();
+
         services.AddAuthorization(options =>
         {
-            // Policy for organization administrators
-            options.AddPolicy("RequireAdministrator", policy =>
-                policy.RequireRole("Administrator"));
-
             // Policy for auditors (read-only)
             options.AddPolicy("RequireAuditor", policy =>
                 policy.RequireRole("Administrator", "Auditor"));
 
-            // Policy for authenticated organization members
-            options.AddPolicy("RequireOrganizationMember", policy =>
-                policy.RequireClaim(TokenClaimConstants.OrgId));
-
-            // Policy for service-to-service authentication
-            options.AddPolicy("RequireService", policy =>
-                policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService));
-
-            // Policy for delegated authority (service acting on behalf of user)
-            options.AddPolicy("RequireDelegatedAuthority", policy =>
-            {
-                policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService);
-                policy.RequireClaim(TokenClaimConstants.DelegatedUserId);
-            });
-
             // Policy for public users (PassKey authenticated)
             options.AddPolicy("RequirePublicUser", policy =>
                 policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeUser));
-
-            // Policy for any authenticated user (org or public)
-            options.AddPolicy("RequireAuthenticated", policy =>
-                policy.RequireAuthenticatedUser());
 
             // Policy for blockchain creation
             options.AddPolicy("CanCreateBlockchain", policy =>

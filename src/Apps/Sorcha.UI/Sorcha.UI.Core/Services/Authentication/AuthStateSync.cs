@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sorcha Contributors
 using System.Net.Http.Json;
 using Sorcha.UI.Core.Models.Authentication;
 using Sorcha.UI.Core.Services.Configuration;

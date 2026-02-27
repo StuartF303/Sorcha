@@ -17,12 +17,12 @@ public static class AuthenticationExtensions
     /// </summary>
     public static IServiceCollection AddPeerServiceAuthorization(this IServiceCollection services)
     {
+        // Register shared authorization policies (RequireAuthenticated, RequireService,
+        // RequireOrganizationMember, RequireDelegatedAuthority, RequireAdministrator, CanWriteDockets)
+        services.AddSorchaAuthorizationPolicies();
+
         services.AddAuthorization(options =>
         {
-            // Require authentication for all protected operations
-            options.AddPolicy("RequireAuthenticated", policy =>
-                policy.RequireAuthenticatedUser());
-
             // Peer management (ban, unban, reset) - requires org member or service token
             options.AddPolicy("CanManagePeers", policy =>
                 policy.RequireAssertion(context =>
@@ -31,15 +31,6 @@ public static class AuthenticationExtensions
                     var isService = context.User.Claims.Any(c => c.Type == TokenClaimConstants.TokenType && c.Value == TokenClaimConstants.TokenTypeService);
                     return hasOrgId || isService;
                 }));
-
-            // Organization member operations
-            options.AddPolicy("RequireOrganizationMember", policy =>
-                policy.RequireAssertion(context =>
-                    context.User.Claims.Any(c => c.Type == TokenClaimConstants.OrgId && !string.IsNullOrEmpty(c.Value))));
-
-            // Service-to-service operations
-            options.AddPolicy("RequireService", policy =>
-                policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService));
         });
 
         return services;

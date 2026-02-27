@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sorcha Contributors
 namespace Sorcha.Cli.Commands;
 
 /// <summary>

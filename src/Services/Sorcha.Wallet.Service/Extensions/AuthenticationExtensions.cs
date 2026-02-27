@@ -17,12 +17,12 @@ public static class AuthenticationExtensions
     /// </summary>
     public static IServiceCollection AddWalletAuthorization(this IServiceCollection services)
     {
+        // Register shared authorization policies (RequireAuthenticated, RequireService,
+        // RequireOrganizationMember, RequireDelegatedAuthority, RequireAdministrator, CanWriteDockets)
+        services.AddSorchaAuthorizationPolicies();
+
         services.AddAuthorization(options =>
         {
-            // Require authentication for all wallet operations
-            options.AddPolicy("RequireAuthenticated", policy =>
-                policy.RequireAuthenticatedUser());
-
             // Wallet management (create, read wallet list)
             options.AddPolicy("CanManageWallets", policy =>
                 policy.RequireAssertion(context =>
@@ -35,28 +35,6 @@ public static class AuthenticationExtensions
             // Wallet operations (sign, encrypt, decrypt) - requires wallet ownership
             options.AddPolicy("CanUseWallet", policy =>
                 policy.RequireAuthenticatedUser());
-
-            // Service-to-service operations
-            options.AddPolicy("RequireService", policy =>
-                policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService));
-
-            // Organization member operations
-            options.AddPolicy("RequireOrganizationMember", policy =>
-                policy.RequireAssertion(context =>
-                    context.User.Claims.Any(c => c.Type == TokenClaimConstants.OrgId && !string.IsNullOrEmpty(c.Value))));
-
-            // Delegated authority — service acting on behalf of a user
-            options.AddPolicy("RequireDelegatedAuthority", policy =>
-                policy.RequireAssertion(context =>
-                {
-                    var isService = context.User.Claims.Any(c =>
-                        c.Type == TokenClaimConstants.TokenType &&
-                        c.Value == TokenClaimConstants.TokenTypeService);
-                    var hasDelegatedUser = context.User.Claims.Any(c =>
-                        c.Type == TokenClaimConstants.DelegatedUserId &&
-                        !string.IsNullOrEmpty(c.Value));
-                    return isService && hasDelegatedUser;
-                }));
         });
 
         return services;

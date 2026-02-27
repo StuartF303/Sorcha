@@ -15,27 +15,14 @@ public static class AuthenticationExtensions
     /// Adds authorization policies for Validator Service.
     /// Note: Call builder.AddJwtAuthentication() from ServiceDefaults first.
     /// </summary>
-    public static IServiceCollection AddAuthorizationPolicies(this IServiceCollection services)
+    public static IServiceCollection AddValidatorAuthorization(this IServiceCollection services)
     {
+        // Register shared authorization policies (RequireAuthenticated, RequireService,
+        // RequireOrganizationMember, RequireDelegatedAuthority, RequireAdministrator, CanWriteDockets)
+        services.AddSorchaAuthorizationPolicies();
+
         services.AddAuthorization(options =>
         {
-            // Require authentication for all validator operations
-            options.AddPolicy("RequireAuthenticated", policy =>
-                policy.RequireAuthenticatedUser());
-
-            // Service-to-service operations
-            options.AddPolicy("RequireService", policy =>
-                policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService));
-
-            // Organization member operations
-            options.AddPolicy("RequireOrganizationMember", policy =>
-                policy.RequireAssertion(context =>
-                    context.User.Claims.Any(c => c.Type == TokenClaimConstants.OrgId && !string.IsNullOrEmpty(c.Value))));
-
-            // Administrator role
-            options.AddPolicy("RequireAdministrator", policy =>
-                policy.RequireRole("Administrator"));
-
             // Chain validation - requires service token or admin
             options.AddPolicy("CanValidateChains", policy =>
                 policy.RequireAssertion(context =>
@@ -45,10 +32,6 @@ public static class AuthenticationExtensions
                     var isAdmin = context.User.IsInRole("Administrator");
                     return isService || isAdmin;
                 }));
-
-            // Docket write operations - requires service token
-            options.AddPolicy("CanWriteDockets", policy =>
-                policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService));
         });
 
         return services;

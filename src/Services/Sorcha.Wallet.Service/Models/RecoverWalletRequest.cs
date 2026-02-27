@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sorcha Contributors
 using System.ComponentModel.DataAnnotations;
 
 namespace Sorcha.Wallet.Service.Models;

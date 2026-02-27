@@ -47,16 +47,8 @@ builder.AddJwtAuthentication();
 // Add OpenAPI documentation
 builder.Services.AddOpenApi();
 
-// Add CORS for frontend
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
+// Add CORS for frontend - production restriction handled at infrastructure level
+builder.AddSorchaCors();
 
 var app = builder.Build();
 

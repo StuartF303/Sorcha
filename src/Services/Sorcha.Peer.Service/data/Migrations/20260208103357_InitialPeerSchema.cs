@@ -1,4 +1,6 @@
-﻿using System;
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sorcha Contributors
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable

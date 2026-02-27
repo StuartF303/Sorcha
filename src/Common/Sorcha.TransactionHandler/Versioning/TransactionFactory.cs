@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sorcha Contributors
 using System;
 using Sorcha.TransactionHandler.Core;
 using Sorcha.TransactionHandler.Enums;

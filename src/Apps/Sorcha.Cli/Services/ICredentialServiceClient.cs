@@ -15,42 +15,42 @@ public interface ICredentialServiceClient
     /// <summary>
     /// Lists all credentials for the current user.
     /// </summary>
-    [Get("/api/credentials")]
+    [Get("/api/v1/credentials")]
     Task<List<CredentialSummary>> ListCredentialsAsync([Header("Authorization")] string authorization);
 
     /// <summary>
     /// Gets a credential by ID.
     /// </summary>
-    [Get("/api/credentials/{id}")]
+    [Get("/api/v1/credentials/{id}")]
     Task<CredentialDetail> GetCredentialAsync(string id, [Header("Authorization")] string authorization);
 
     /// <summary>
     /// Issues a new verifiable credential.
     /// </summary>
-    [Post("/api/credentials")]
+    [Post("/api/v1/credentials")]
     Task<CredentialDetail> IssueCredentialAsync([Body] IssueCredentialRequest request, [Header("Authorization")] string authorization);
 
     /// <summary>
     /// Presents a credential to a verifier.
     /// </summary>
-    [Post("/api/credentials/{id}/present")]
+    [Post("/api/v1/credentials/{id}/present")]
     Task<PresentCredentialResponse> PresentCredentialAsync(string id, [Body] PresentCredentialRequest request, [Header("Authorization")] string authorization);
 
     /// <summary>
     /// Verifies a credential.
     /// </summary>
-    [Post("/api/credentials/{id}/verify")]
+    [Post("/api/v1/credentials/{id}/verify")]
     Task<VerifyCredentialResponse> VerifyCredentialAsync(string id, [Header("Authorization")] string authorization);
 
     /// <summary>
     /// Revokes a credential.
     /// </summary>
-    [Post("/api/credentials/{id}/revoke")]
+    [Post("/api/v1/credentials/{id}/revoke")]
     Task RevokeCredentialAsync(string id, [Header("Authorization")] string authorization);
 
     /// <summary>
     /// Gets the status of a credential.
     /// </summary>
-    [Get("/api/credentials/{id}/status")]
+    [Get("/api/v1/credentials/{id}/status")]
     Task<CredentialStatusResponse> GetCredentialStatusAsync(string id, [Header("Authorization")] string authorization);
 }

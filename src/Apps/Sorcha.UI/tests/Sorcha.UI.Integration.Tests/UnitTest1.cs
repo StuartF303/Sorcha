@@ -1,4 +1,6 @@
-﻿namespace Sorcha.UI.Integration.Tests;
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sorcha Contributors
+namespace Sorcha.UI.Integration.Tests;
 
 public class UnitTest1
 {

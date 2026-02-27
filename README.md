@@ -4,6 +4,28 @@ A distributed ledger platform for secure, multi-participant data flow orchestrat
 
 Sorcha implements the **DAD** (Disclosure, Alteration, Destruction) security model - creating cryptographically secured registers where disclosure is managed through defined schemas, alteration is recorded on immutable ledgers, and destruction risk is eliminated through peer network replication.
 
+## Platform Capabilities
+
+Sorcha is a **distributed ledger platform** for building secure, multi-participant workflows — where multiple parties need to exchange, validate, and record structured data with cryptographic guarantees.
+
+| Capability | Description |
+|------------|-------------|
+| **Blueprint Workflows** | Define multi-step, multi-party data flows as declarative JSON blueprints with conditional routing, JSON Schema validation, and JSON Logic evaluation |
+| **Distributed Ledger** | Immutable, append-only transaction registers with chain validation, Merkle-tree dockets, and DID URI addressing (`did:sorcha:register:{id}/tx:{txId}`) |
+| **Cryptographic Wallets** | HD wallet management (BIP32/39/44) with multi-algorithm support — ED25519, NISTP-256, RSA-4096 — for signing, verification, and payload encryption |
+| **Portable Execution Engine** | Stateless blueprint engine runs identically on server (.NET) and client (Blazor WASM) for validation, calculation, routing, and selective disclosure |
+| **Multi-Tenant Identity** | JWT-based authentication with service-to-service OAuth2 client credentials, delegation tokens, participant identity registry, and wallet address linking |
+| **Peer Network** | gRPC-based P2P topology for register replication across nodes with hub/peer architecture and heartbeat monitoring |
+| **Consensus & Validation** | Validator service with memory pool, docket building, genesis creation, and transaction integrity verification |
+| **Real-Time Notifications** | SignalR hubs with Redis backplane for live action notifications, register events, and workflow state changes |
+| **API Gateway** | YARP reverse proxy with aggregated OpenAPI documentation, health check aggregation, and centralized CORS/security policies |
+| **AI Integration** | MCP Server for AI assistant interaction (Claude Desktop, etc.) + AI-assisted blueprint design chat via Claude API |
+
+**Security Model — DAD (Disclosure, Alteration, Destruction):**
+- **Disclosure**: Field-level encryption and selective data disclosure via JSON Pointers (RFC 6901) ensure participants see only what they're authorized to access
+- **Alteration**: Every data change is recorded as a cryptographically signed transaction on an immutable ledger
+- **Destruction**: Peer network replication eliminates single-point-of-failure data loss risk
+
 ## Development Status
 
 **Current Stage:** Active Development - MVD Phase (98% Complete) | [View Detailed Status Report](docs/development-status.md)
@@ -23,44 +45,29 @@ Sorcha implements the **DAD** (Disclosure, Alteration, Destruction) security mod
 
 > **⚠️ Production Readiness: 30%** - Core functionality and authentication complete. Database persistence and security hardening are pending. See [MASTER-PLAN.md](.specify/MASTER-PLAN.md) for details.
 
-**Recent Updates (2026-02-03):**
+**Recent Updates (2026-02-27):**
+- ✅ **Codebase Consolidation** — Eliminated ~1,000+ lines of duplicated code across 69 projects
+  - Shared authorization policies in `ServiceDefaults` (6 policies consolidated from 6 services)
+  - Shared OpenAPI/Scalar and CORS configuration helpers
+  - Fixed Wallet Service middleware ordering bug, verified Tenant Service pipeline
+  - Fixed 11 orphaned CLI endpoints (admin alerts path, credential API versioning)
+  - Extracted shared MCP Server `ErrorResponse` model (from 18 duplicate classes)
+  - Consolidated `CreateWalletRequest` DTO with PQC fields
+  - SPDX license headers added to 547 source files (100% coverage)
+- ✅ **EF Core Migration Consolidation** — Squashed migrations to single InitialCreate per DbContext
+- ✅ **Service-to-Service Auth Fixes** — ValidatorServiceClient auth, register scopes, blueprint role check
+- ✅ **UI/CLI Modernization** — Spectre.Console tables, MudBlazor 8 upgrade, activity log panel
+
+**Previous Updates (2026-02-03):**
 - ✅ **Validator Service Transaction Storage** - Full end-to-end genesis docket creation with transaction documents stored in MongoDB
-  - System wallet auto-initialization on validator startup using `CreateOrRetrieveSystemWalletAsync`
-  - Redis-backed memory pool (`MemPoolManager`) for transaction persistence across restarts
-  - Redis-backed register monitoring (`RegisterMonitoringRegistry`) for docket build tracking
-  - Transaction documents written to register database when dockets are created (fixed missing storage)
-  - Fixed register height tracking and docket-transaction linkage
 - ✅ **AI-Assisted Blueprint Design Chat** - Interactive blueprint design with Claude AI integration
-  - Real-time chat interface for blueprint creation assistance
-  - SignalR-based `ChatHub` with JWT authentication
-  - Anthropic AI provider configuration with streaming responses
-  - YARP routes configured for SignalR negotiation
 - ✅ **UI Authentication Improvements** - Token management and login UX enhancements
-  - Automatic token refresh handling with refresh token support
-  - Improved login flow with error handling and validation
-  - Secure token storage using browser local storage
 
-**Previous Updates (2026-01-28):**
-- ✅ **UI Register Management 100% complete** - Register list, details, creation wizard with wallet selection, transaction query
-- ✅ **CLI Register Commands complete** - `sorcha register create/list/dockets/query` with two-phase creation
-- ✅ **Enhanced CreateRegisterWizard** - 4-step flow with wallet selection for signing transactions
-- ✅ **TransactionQueryForm** - Cross-register wallet address search with results display
-
-**Previous Updates (2026-01-21):**
-- ✅ **UI Consolidation 100% complete** - All Admin features migrated to Main UI
-- ✅ **Sorcha.Admin removed** - Single unified UI application (Sorcha.UI)
-- ✅ **Consumer pages added** - MyActions, MyWorkflows, MyTransactions, MyWallet, Templates
-- ✅ **Client-side SignalR integration** - Real-time action notifications in Main UI
-
-**Previous Updates (2026-01-01):**
-- ✅ **Tenant Service Bootstrap API** - `/api/bootstrap/initialize` endpoint for system initialization
-- ✅ **Bootstrap scripts** - PowerShell and Bash automation for dev/MVD deployment
-- ✅ **System Schema Store** - Complete with standard schemas (invoice, purchase-order, employee-expense)
-
-**Previous Updates (2025-12-12):**
-- ✅ **Service Authentication Integration (AUTH-002)** - JWT Bearer auth across all services
-- ✅ **Wallet Service EF Core** - PostgreSQL persistence with migrations
-- ✅ **Peer Service Phase 1-3** - Central node connection, system register replication, heartbeat monitoring
+**Previous Updates:**
+- *2026-01-28* — UI Register Management, CLI Register Commands, transaction query
+- *2026-01-21* — UI Consolidation (Sorcha.Admin → Sorcha.UI), consumer pages, SignalR integration
+- *2026-01-01* — Tenant Bootstrap API, system schema store
+- *2025-12-12* — Service Authentication (JWT), Wallet EF Core, Peer Service P2P
 
 **Key Milestones:**
 - ✅ Blueprint modeling and fluent API
@@ -211,23 +218,28 @@ Sorcha/
 │   │   ├── Sorcha.AppHost/         # .NET Aspire orchestration host
 │   │   ├── Sorcha.Cli/             # Administrative CLI tool
 │   │   ├── Sorcha.Demo/            # Blueprint workflow demo CLI
-│   │   └── UI/
-│   │       └── Sorcha.Admin/       # Blazor WASM admin UI
+│   │   ├── Sorcha.McpServer/       # MCP Server for AI assistants
+│   │   └── Sorcha.UI/              # Unified Blazor WASM application
+│   │       ├── Sorcha.UI.Core/     # Shared UI components
+│   │       ├── Sorcha.UI.Web/      # Web host
+│   │       └── Sorcha.UI.Web.Client/ # Web client (Blazor WASM)
 │   ├── Common/                      # Cross-cutting concerns
-│   │   ├── Sorcha.Blueprint.Models/ # Domain models
-│   │   ├── Sorcha.Cryptography/    # Cryptographic operations
-│   │   └── Sorcha.ServiceDefaults/ # Shared service configurations
+│   │   ├── Sorcha.Blueprint.Models/ # Domain models with JSON-LD
+│   │   ├── Sorcha.Cryptography/    # Multi-algorithm crypto (ED25519, P-256, RSA)
+│   │   ├── Sorcha.ServiceClients/  # Consolidated HTTP/gRPC clients & shared DTOs
+│   │   └── Sorcha.ServiceDefaults/ # Shared service configuration, auth policies, OpenAPI
 │   ├── Core/                        # Business logic
 │   │   ├── Sorcha.Blueprint.Engine/ # Blueprint execution engine
 │   │   ├── Sorcha.Blueprint.Fluent/ # Fluent API builders
 │   │   └── Sorcha.Blueprint.Schemas/ # Schema management
-│   └── Services/                    # Service layer
-│       ├── Sorcha.ApiGateway/      # YARP API Gateway
-│       ├── Sorcha.Blueprint.Service/ # Blueprint REST API
-│       ├── Sorcha.Register.Service/ # Distributed ledger service
-│       ├── Sorcha.Wallet.Service/  # Wallet management service
-│       ├── Sorcha.Tenant.Service/  # Multi-tenancy service
-│       └── Sorcha.Peer.Service/    # P2P networking service
+│   └── Services/                    # 7 microservices
+│       ├── Sorcha.ApiGateway/      # YARP reverse proxy
+│       ├── Sorcha.Blueprint.Service/ # Workflow management + SignalR
+│       ├── Sorcha.Peer.Service/    # P2P networking (gRPC)
+│       ├── Sorcha.Register.Service/ # Distributed ledger + OData
+│       ├── Sorcha.Tenant.Service/  # Multi-tenant auth + JWT issuer
+│       ├── Sorcha.Validator.Service/ # Consensus + chain integrity
+│       └── Sorcha.Wallet.Service/  # Crypto wallet management
 ├── tests/                           # Test projects
 ├── docs/                            # Documentation
 └── .github/                         # GitHub workflows
@@ -264,7 +276,7 @@ Sorcha/
    - Register Service: http://localhost:5290
    - Validator Service: http://localhost:5100
    - API Gateway: http://localhost:5110
-   - Admin UI: http://localhost:5111
+   - Sorcha UI: http://localhost/app
    - Aspire Dashboard: http://localhost:18888
 
 3. **Run walkthrough tests**
@@ -339,7 +351,7 @@ This will:
 **Access Points:**
 - **Aspire Dashboard**: `http://localhost:18888`
 - **API Gateway**: `https://localhost:7082`
-- **Admin UI**: `https://localhost:7083`
+- **Sorcha UI**: `https://localhost:7083`
 - **Tenant Service (Auth)**: `https://localhost:7110`
 - **Blueprint Service**: `https://localhost:7000`
 - **Wallet Service**: `https://localhost:7001`
@@ -394,9 +406,9 @@ dotnet run --project src/Services/Sorcha.ApiGateway
 # HTTPS: https://localhost:7082
 ```
 
-**Admin UI (Blazor WebAssembly):**
+**Sorcha UI (Blazor WebAssembly):**
 ```bash
-dotnet run --project src/Apps/Sorcha.Admin
+dotnet run --project src/Apps/Sorcha.UI/Sorcha.UI.Web
 # HTTP: http://localhost:8081
 # HTTPS: https://localhost:7083
 ```
@@ -664,7 +676,6 @@ See [CLI-SPRINT-4-SUMMARY.md](docs/CLI-SPRINT-4-SUMMARY.md) for full planning de
 The CLI is built with:
 - **System.CommandLine** - Modern CLI framework
 - **Spectre.Console** - Rich terminal UI and formatting
-- **ReadLine** - Command history and interactive features (REPL)
 - **Refit** - HTTP client for service communication
 - **Polly** - Resilience policies for API calls
 
@@ -930,9 +941,10 @@ See [docs/testing.md](docs/testing.md) for comprehensive testing guidelines incl
 ### Solution Structure
 
 - **Sorcha.AppHost**: The .NET Aspire orchestration project that manages all services
-- **Sorcha.ServiceDefaults**: Shared configurations including OpenTelemetry, health checks, and service discovery
-- **Sorcha.Blueprint.Api**: The core API for blueprint management via minimal APIs
-- **Sorcha.Admin**: Blazor WebAssembly application for administration and blueprint design
+- **Sorcha.ServiceDefaults**: Shared configurations including auth policies, OpenAPI/Scalar, CORS, OpenTelemetry, health checks, and service discovery
+- **Sorcha.ServiceClients**: Consolidated HTTP/gRPC clients and shared DTOs for inter-service communication
+- **Sorcha.UI**: Unified Blazor WebAssembly application for administration and blueprint design
+- **Sorcha.McpServer**: MCP Server for AI assistant integration (Claude Desktop, etc.)
 - **Sorcha.Cryptography**: Standalone cryptography library for key management and digital signatures
 
 ### Architecture
@@ -972,6 +984,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [x] UI Authentication with token refresh (100%)
 - [x] CLI Register Commands (100%)
 - [x] AI-Assisted Blueprint Design Chat with Claude integration (100%)
+- [x] Codebase Consolidation — shared auth policies, pipeline helpers, CLI fixes, MCP model extraction (100%)
 - [ ] Validator Service decentralized consensus (leader election)
 - [ ] MongoDB persistence for Register Service
 - [ ] Azure Key Vault integration for Wallet Service

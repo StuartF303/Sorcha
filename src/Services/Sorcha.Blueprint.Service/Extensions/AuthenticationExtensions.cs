@@ -17,12 +17,12 @@ public static class AuthenticationExtensions
     /// </summary>
     public static IServiceCollection AddBlueprintAuthorization(this IServiceCollection services)
     {
+        // Register shared authorization policies (RequireAuthenticated, RequireService,
+        // RequireOrganizationMember, RequireDelegatedAuthority, RequireAdministrator, CanWriteDockets)
+        services.AddSorchaAuthorizationPolicies();
+
         services.AddAuthorization(options =>
         {
-            // Require authentication for all blueprint operations
-            options.AddPolicy("RequireAuthenticated", policy =>
-                policy.RequireAuthenticatedUser());
-
             // Blueprint management (create, update, delete) - requires org member or service token
             options.AddPolicy("CanManageBlueprints", policy =>
                 policy.RequireAssertion(context =>
@@ -43,32 +43,6 @@ public static class AuthenticationExtensions
                     var canPublish = context.User.Claims.Any(c => c.Type == "can_publish_blueprint" && c.Value == "true");
                     var isAdmin = context.User.IsInRole("Administrator");
                     return canPublish || isAdmin;
-                }));
-
-            // Administrator role - for schema import and other admin operations
-            options.AddPolicy("RequireAdministrator", policy =>
-                policy.RequireRole("Administrator"));
-
-            // Service-to-service operations
-            options.AddPolicy("RequireService", policy =>
-                policy.RequireClaim(TokenClaimConstants.TokenType, TokenClaimConstants.TokenTypeService));
-
-            // Organization member operations
-            options.AddPolicy("RequireOrganizationMember", policy =>
-                policy.RequireAssertion(context =>
-                    context.User.Claims.Any(c => c.Type == TokenClaimConstants.OrgId && !string.IsNullOrEmpty(c.Value))));
-
-            // Delegated authority — service acting on behalf of a user
-            options.AddPolicy("RequireDelegatedAuthority", policy =>
-                policy.RequireAssertion(context =>
-                {
-                    var isService = context.User.Claims.Any(c =>
-                        c.Type == TokenClaimConstants.TokenType &&
-                        c.Value == TokenClaimConstants.TokenTypeService);
-                    var hasDelegatedUser = context.User.Claims.Any(c =>
-                        c.Type == TokenClaimConstants.DelegatedUserId &&
-                        !string.IsNullOrEmpty(c.Value));
-                    return isService && hasDelegatedUser;
                 }));
         });
 
